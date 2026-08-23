@@ -1,0 +1,4502 @@
+{
+  "schema": "office-kit/pptx-source-derived-companion-evidence/v1",
+  "productBaseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "definitionsSha256": "72a715ca57963c165f75bddde6cd2c9362f712b3984f6798e26d0a6e5a88fdbb",
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "installKind": "repository",
+    "tarballSha256": null
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "render": true,
+    "targetRenderer": "keynote"
+  },
+  "repetitionsPerCase": 3,
+  "cases": [
+    {
+      "id": "blue-clone-text",
+      "sourceId": "blue-gray-acid-template",
+      "covers": [
+        "text"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+          "canonicalOpcSha256": "5ad74ba9232237b1e15fd2f6f8dd2b32c0367ded80f3448c054cf41d17c197c8",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-text",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafKind": "text",
+              "before": "单击此处添加副标题内容",
+              "after": "OfficeKit 续写验收",
+              "receiptKind": "text"
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/6",
+              "observed": "OfficeKit 续写验收"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide1120.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "单击此处添加副标题内容",
+              "newToken": "OfficeKit 续写验收",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 14,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 15,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 16,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 17,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 18,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 19,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              },
+              {
+                "page": 20,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 14,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 15,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 16,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 17,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 18,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 19,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              },
+              {
+                "page": 20,
+                "sha256": "d593991ffd9a93ac06f07ae76afe6faf3d41e831216c3ffe7e602c32e2a30ada"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+          "canonicalOpcSha256": "5ad74ba9232237b1e15fd2f6f8dd2b32c0367ded80f3448c054cf41d17c197c8",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-text",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafKind": "text",
+              "before": "单击此处添加副标题内容",
+              "after": "OfficeKit 续写验收",
+              "receiptKind": "text"
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/6",
+              "observed": "OfficeKit 续写验收"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide1120.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "单击此处添加副标题内容",
+              "newToken": "OfficeKit 续写验收",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 14,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 15,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 16,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 17,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 18,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 19,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              },
+              {
+                "page": 20,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 14,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 15,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 16,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 17,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 18,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 19,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              },
+              {
+                "page": 20,
+                "sha256": "d593991ffd9a93ac06f07ae76afe6faf3d41e831216c3ffe7e602c32e2a30ada"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+          "canonicalOpcSha256": "5ad74ba9232237b1e15fd2f6f8dd2b32c0367ded80f3448c054cf41d17c197c8",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-text",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafKind": "text",
+              "before": "单击此处添加副标题内容",
+              "after": "OfficeKit 续写验收",
+              "receiptKind": "text"
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/6",
+              "observed": "OfficeKit 续写验收"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "cb303b9f8b28682673c04fd5516f949770a8b0b096f505e889d6aa251563ef0a",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide1120.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "单击此处添加副标题内容",
+              "newToken": "OfficeKit 续写验收",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 14,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 15,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 16,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 17,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 18,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 19,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              },
+              {
+                "page": 20,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 14,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 15,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 16,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 17,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 18,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 19,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              },
+              {
+                "page": 20,
+                "sha256": "d593991ffd9a93ac06f07ae76afe6faf3d41e831216c3ffe7e602c32e2a30ada"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "blue-clone-geometry",
+      "sourceId": "blue-gray-acid-template",
+      "covers": [
+        "geometry"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+          "canonicalOpcSha256": "c858cdda39473650a41a1cd9e5ad1374e0dea589b59bd7b7c76385bd0f81983c",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-geometry",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafKind": "leftEmu",
+              "before": 1176655,
+              "after": 1271905,
+              "receiptKind": "leftEmu"
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/6",
+              "observed": 1271905
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide1120.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "1176655",
+              "newToken": "1271905",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              },
+              {
+                "page": 2,
+                "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+              },
+              {
+                "page": 3,
+                "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+              },
+              {
+                "page": 4,
+                "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+              },
+              {
+                "page": 5,
+                "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+              },
+              {
+                "page": 6,
+                "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+              },
+              {
+                "page": 7,
+                "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+              },
+              {
+                "page": 8,
+                "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+              },
+              {
+                "page": 9,
+                "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+              },
+              {
+                "page": 10,
+                "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+              },
+              {
+                "page": 11,
+                "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+              },
+              {
+                "page": 12,
+                "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+              },
+              {
+                "page": 13,
+                "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+              },
+              {
+                "page": 14,
+                "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+              },
+              {
+                "page": 15,
+                "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+              },
+              {
+                "page": 16,
+                "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+              },
+              {
+                "page": 17,
+                "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+              },
+              {
+                "page": 18,
+                "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+              },
+              {
+                "page": 19,
+                "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+              },
+              {
+                "page": 20,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              },
+              {
+                "page": 2,
+                "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+              },
+              {
+                "page": 3,
+                "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+              },
+              {
+                "page": 4,
+                "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+              },
+              {
+                "page": 5,
+                "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+              },
+              {
+                "page": 6,
+                "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+              },
+              {
+                "page": 7,
+                "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+              },
+              {
+                "page": 8,
+                "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+              },
+              {
+                "page": 9,
+                "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+              },
+              {
+                "page": 10,
+                "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+              },
+              {
+                "page": 11,
+                "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+              },
+              {
+                "page": 12,
+                "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+              },
+              {
+                "page": 13,
+                "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+              },
+              {
+                "page": 14,
+                "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+              },
+              {
+                "page": 15,
+                "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+              },
+              {
+                "page": 16,
+                "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+              },
+              {
+                "page": 17,
+                "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+              },
+              {
+                "page": 18,
+                "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+              },
+              {
+                "page": 19,
+                "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+              },
+              {
+                "page": 20,
+                "sha256": "21c3a19dac5a10a431e056634772052cdfc06f5302019ad728be3c8b36fca969"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "keynote",
+            "primaryRenderer": {
+              "renderer": "libreoffice",
+              "targetPageChanged": false,
+              "nonTargetPagesPixelIdentical": true
+            }
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+          "canonicalOpcSha256": "c858cdda39473650a41a1cd9e5ad1374e0dea589b59bd7b7c76385bd0f81983c",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-geometry",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafKind": "leftEmu",
+              "before": 1176655,
+              "after": 1271905,
+              "receiptKind": "leftEmu"
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/6",
+              "observed": 1271905
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide1120.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "1176655",
+              "newToken": "1271905",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              },
+              {
+                "page": 2,
+                "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+              },
+              {
+                "page": 3,
+                "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+              },
+              {
+                "page": 4,
+                "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+              },
+              {
+                "page": 5,
+                "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+              },
+              {
+                "page": 6,
+                "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+              },
+              {
+                "page": 7,
+                "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+              },
+              {
+                "page": 8,
+                "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+              },
+              {
+                "page": 9,
+                "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+              },
+              {
+                "page": 10,
+                "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+              },
+              {
+                "page": 11,
+                "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+              },
+              {
+                "page": 12,
+                "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+              },
+              {
+                "page": 13,
+                "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+              },
+              {
+                "page": 14,
+                "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+              },
+              {
+                "page": 15,
+                "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+              },
+              {
+                "page": 16,
+                "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+              },
+              {
+                "page": 17,
+                "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+              },
+              {
+                "page": 18,
+                "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+              },
+              {
+                "page": 19,
+                "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+              },
+              {
+                "page": 20,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              },
+              {
+                "page": 2,
+                "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+              },
+              {
+                "page": 3,
+                "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+              },
+              {
+                "page": 4,
+                "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+              },
+              {
+                "page": 5,
+                "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+              },
+              {
+                "page": 6,
+                "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+              },
+              {
+                "page": 7,
+                "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+              },
+              {
+                "page": 8,
+                "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+              },
+              {
+                "page": 9,
+                "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+              },
+              {
+                "page": 10,
+                "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+              },
+              {
+                "page": 11,
+                "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+              },
+              {
+                "page": 12,
+                "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+              },
+              {
+                "page": 13,
+                "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+              },
+              {
+                "page": 14,
+                "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+              },
+              {
+                "page": 15,
+                "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+              },
+              {
+                "page": 16,
+                "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+              },
+              {
+                "page": 17,
+                "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+              },
+              {
+                "page": 18,
+                "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+              },
+              {
+                "page": 19,
+                "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+              },
+              {
+                "page": 20,
+                "sha256": "21c3a19dac5a10a431e056634772052cdfc06f5302019ad728be3c8b36fca969"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "keynote",
+            "primaryRenderer": {
+              "renderer": "libreoffice",
+              "targetPageChanged": false,
+              "nonTargetPagesPixelIdentical": true
+            }
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+          "canonicalOpcSha256": "c858cdda39473650a41a1cd9e5ad1374e0dea589b59bd7b7c76385bd0f81983c",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-geometry",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/20/element/6",
+              "leafKind": "leftEmu",
+              "before": 1176655,
+              "after": 1271905,
+              "receiptKind": "leftEmu"
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/6",
+              "observed": 1271905
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "67901a77f78ce5397e7c2df33d8a6866436d78cba23fa1229b31f6042da4d94c",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide1120.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "1176655",
+              "newToken": "1271905",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              },
+              {
+                "page": 2,
+                "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+              },
+              {
+                "page": 3,
+                "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+              },
+              {
+                "page": 4,
+                "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+              },
+              {
+                "page": 5,
+                "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+              },
+              {
+                "page": 6,
+                "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+              },
+              {
+                "page": 7,
+                "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+              },
+              {
+                "page": 8,
+                "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+              },
+              {
+                "page": 9,
+                "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+              },
+              {
+                "page": 10,
+                "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+              },
+              {
+                "page": 11,
+                "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+              },
+              {
+                "page": 12,
+                "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+              },
+              {
+                "page": 13,
+                "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+              },
+              {
+                "page": 14,
+                "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+              },
+              {
+                "page": 15,
+                "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+              },
+              {
+                "page": 16,
+                "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+              },
+              {
+                "page": 17,
+                "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+              },
+              {
+                "page": 18,
+                "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+              },
+              {
+                "page": 19,
+                "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+              },
+              {
+                "page": 20,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "57fc919a9e633d5ff777f21c2449f4ddc102bc59abefbff1a8c43b202e2377ae"
+              },
+              {
+                "page": 2,
+                "sha256": "729be22aff5335adc087fe022499b25abe90c1d66618060d0d90078f17b2a346"
+              },
+              {
+                "page": 3,
+                "sha256": "fda8244366e3ba1579140eec90153d1a3c6f9de4f44a004672962489b46c1708"
+              },
+              {
+                "page": 4,
+                "sha256": "fada9474ef5a5009271d54b33421ce72b4919474d1ff7eb887ad5fe3626e5a48"
+              },
+              {
+                "page": 5,
+                "sha256": "f938529ef86cbcb489c1773fd19ea508249dd93aa006210de5bc853976063347"
+              },
+              {
+                "page": 6,
+                "sha256": "0b980e3d31153e7f60d954ab07d3299e3e9a8e82a450311304acacdb074e55cd"
+              },
+              {
+                "page": 7,
+                "sha256": "7b9dd0535b0c3c507dcf0e2b2b4badf6253d9185b938e39622f622ae730b5607"
+              },
+              {
+                "page": 8,
+                "sha256": "e89e93278c3c162239f49bc1e69570264e53d5bb031aac81a06c2598347806c1"
+              },
+              {
+                "page": 9,
+                "sha256": "33d928b19938847a41fe32633b1a5cdb9ef8b7ecce6f6447b4ad3fccdc6480b7"
+              },
+              {
+                "page": 10,
+                "sha256": "cc2144bbb55cfc5d13df1b942dcac2c41b2bcc851ec417731ddd7420f7ee6b31"
+              },
+              {
+                "page": 11,
+                "sha256": "3ce4792a7c6ec0c29a7c1cd585a5296716ed7bd3d4eebbe63108bf82e660c079"
+              },
+              {
+                "page": 12,
+                "sha256": "55241e6c9ed7a54db2f0fa64b3d162b845b4eae58765edde40c7e1f3c4d1b176"
+              },
+              {
+                "page": 13,
+                "sha256": "b683bfd04ceb133aa030d961631d00dfbc027482671ed042125729c8cb9f386a"
+              },
+              {
+                "page": 14,
+                "sha256": "5a4e6f3b20aa8a7e42d81087954f5471280bdd8b75d1b60e0d57e995507fc504"
+              },
+              {
+                "page": 15,
+                "sha256": "3df541cd0ee451163374741ce315d3b746e218c5980e9f6871b37d27786c0bc5"
+              },
+              {
+                "page": 16,
+                "sha256": "1692ef93b1d2091f81f6f6ce63fc7de0f9c8a978d7c174880b41a7a42069d096"
+              },
+              {
+                "page": 17,
+                "sha256": "d4b8c59453ee7dea2d57aff8e5467e360b6dfbead6f8bf44d0e3003f629fbdc9"
+              },
+              {
+                "page": 18,
+                "sha256": "dbf5ce590245192de635586964debf052a869664b4bf7501dd70728a551eb892"
+              },
+              {
+                "page": 19,
+                "sha256": "a7118c3e35c84794470de4d3366ba92fd2a1a16952718fc9b24cf5c020c96647"
+              },
+              {
+                "page": 20,
+                "sha256": "21c3a19dac5a10a431e056634772052cdfc06f5302019ad728be3c8b36fca969"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "keynote",
+            "primaryRenderer": {
+              "renderer": "libreoffice",
+              "targetPageChanged": false,
+              "nonTargetPagesPixelIdentical": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "controlled-clone-image",
+      "sourceId": "quarterly-board-controlled",
+      "covers": [
+        "image"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+          "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+          "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+          "canonicalOpcSha256": "32d327cf1085d7d4e5e56b434a632e2f8c2b99c1f66d3619b2a5d1c6a4acc8de",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "controlled-clone-image",
+            "sourceId": "quarterly-board-controlled",
+            "sourceSha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "image.replace",
+            "operation": {
+              "publicApi": "image.replace",
+              "targetId": "presentation/slide/9/element/4",
+              "name": "product-image-target",
+              "beforeDataSha256": "c25b36a77c7efe35840ad51fec1beb839cb19c8df7806c9e8c21a32a7bf8cda8",
+              "afterDataSha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "fit": "stretch",
+              "crop": {
+                "left": 0.08,
+                "top": 0.06,
+                "right": 0.04,
+                "bottom": 0.02
+              }
+            },
+            "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+            "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/9/element/4",
+              "observedDataSha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "fit": "stretch",
+              "crop": {
+                "left": 0.08,
+                "top": 0.06,
+                "right": 0.04,
+                "bottom": 0.02
+              }
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+            "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+            "partSet": {
+              "passed": true,
+              "added": [
+                "ppt/media/office-kit-431ced6916a2a21a156e3870.png"
+              ],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/_rels/slide819.xml.rels",
+              "ppt/slides/slide819.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "picture": {
+                "passed": true,
+                "beforeSha256": "aaabecc06dc6d1390c7b97560d92c50639bbd387cf65feb5540195544fa57369",
+                "afterSha256": "7f893c206c1dc13fb5640f5df23a35464b534585fc35a3de26ebf3770b75d40f",
+                "sourceRelationshipId": "R64bfff8e70d64357",
+                "outputRelationshipId": "rIdOfficeKitImage431ced6916a2a21a_1",
+                "sourceRectangleAdded": true
+              },
+              "relationships": {
+                "passed": true,
+                "addedTarget": "../media/office-kit-431ced6916a2a21a156e3870.png",
+                "relationshipId": "rIdOfficeKitImage431ced6916a2a21a_1",
+                "relationshipType": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
+                "sourceRelationshipsRetained": true
+              }
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "cf03de45c8bbc1a30d15d862529ff55b935605fdd252da631a23793c3c15d486"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+          "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+          "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+          "canonicalOpcSha256": "32d327cf1085d7d4e5e56b434a632e2f8c2b99c1f66d3619b2a5d1c6a4acc8de",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "controlled-clone-image",
+            "sourceId": "quarterly-board-controlled",
+            "sourceSha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "image.replace",
+            "operation": {
+              "publicApi": "image.replace",
+              "targetId": "presentation/slide/9/element/4",
+              "name": "product-image-target",
+              "beforeDataSha256": "c25b36a77c7efe35840ad51fec1beb839cb19c8df7806c9e8c21a32a7bf8cda8",
+              "afterDataSha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "fit": "stretch",
+              "crop": {
+                "left": 0.08,
+                "top": 0.06,
+                "right": 0.04,
+                "bottom": 0.02
+              }
+            },
+            "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+            "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/9/element/4",
+              "observedDataSha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "fit": "stretch",
+              "crop": {
+                "left": 0.08,
+                "top": 0.06,
+                "right": 0.04,
+                "bottom": 0.02
+              }
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+            "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+            "partSet": {
+              "passed": true,
+              "added": [
+                "ppt/media/office-kit-431ced6916a2a21a156e3870.png"
+              ],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/_rels/slide819.xml.rels",
+              "ppt/slides/slide819.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "picture": {
+                "passed": true,
+                "beforeSha256": "aaabecc06dc6d1390c7b97560d92c50639bbd387cf65feb5540195544fa57369",
+                "afterSha256": "7f893c206c1dc13fb5640f5df23a35464b534585fc35a3de26ebf3770b75d40f",
+                "sourceRelationshipId": "R64bfff8e70d64357",
+                "outputRelationshipId": "rIdOfficeKitImage431ced6916a2a21a_1",
+                "sourceRectangleAdded": true
+              },
+              "relationships": {
+                "passed": true,
+                "addedTarget": "../media/office-kit-431ced6916a2a21a156e3870.png",
+                "relationshipId": "rIdOfficeKitImage431ced6916a2a21a_1",
+                "relationshipType": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
+                "sourceRelationshipsRetained": true
+              }
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "cf03de45c8bbc1a30d15d862529ff55b935605fdd252da631a23793c3c15d486"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+          "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+          "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+          "canonicalOpcSha256": "32d327cf1085d7d4e5e56b434a632e2f8c2b99c1f66d3619b2a5d1c6a4acc8de",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "controlled-clone-image",
+            "sourceId": "quarterly-board-controlled",
+            "sourceSha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "image.replace",
+            "operation": {
+              "publicApi": "image.replace",
+              "targetId": "presentation/slide/9/element/4",
+              "name": "product-image-target",
+              "beforeDataSha256": "c25b36a77c7efe35840ad51fec1beb839cb19c8df7806c9e8c21a32a7bf8cda8",
+              "afterDataSha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "fit": "stretch",
+              "crop": {
+                "left": 0.08,
+                "top": 0.06,
+                "right": 0.04,
+                "bottom": 0.02
+              }
+            },
+            "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+            "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/9/element/4",
+              "observedDataSha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+              "fit": "stretch",
+              "crop": {
+                "left": 0.08,
+                "top": 0.06,
+                "right": 0.04,
+                "bottom": 0.02
+              }
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "4fb986e2ffebf9684e442aa105aabbc5454331bb732be35f9e35e648fa29a8e7",
+            "outputSha256": "a2435cc863f4cad3207ed407a08b9374c708ee750057ecb20b265710c0cf601c",
+            "partSet": {
+              "passed": true,
+              "added": [
+                "ppt/media/office-kit-431ced6916a2a21a156e3870.png"
+              ],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/_rels/slide819.xml.rels",
+              "ppt/slides/slide819.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "picture": {
+                "passed": true,
+                "beforeSha256": "aaabecc06dc6d1390c7b97560d92c50639bbd387cf65feb5540195544fa57369",
+                "afterSha256": "7f893c206c1dc13fb5640f5df23a35464b534585fc35a3de26ebf3770b75d40f",
+                "sourceRelationshipId": "R64bfff8e70d64357",
+                "outputRelationshipId": "rIdOfficeKitImage431ced6916a2a21a_1",
+                "sourceRectangleAdded": true
+              },
+              "relationships": {
+                "passed": true,
+                "addedTarget": "../media/office-kit-431ced6916a2a21a156e3870.png",
+                "relationshipId": "rIdOfficeKitImage431ced6916a2a21a_1",
+                "relationshipType": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
+                "sourceRelationshipsRetained": true
+              }
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "cf03de45c8bbc1a30d15d862529ff55b935605fdd252da631a23793c3c15d486"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "controlled-clone-table",
+      "sourceId": "quarterly-board-controlled",
+      "covers": [
+        "table"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+          "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+          "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+          "canonicalOpcSha256": "d4bd7af8f9bc56449f52c693b258491e36472a0e72162df83b466c0f17a609e3",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "controlled-clone-table",
+            "sourceId": "quarterly-board-controlled",
+            "sourceSha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "table.getCell().value",
+            "operation": {
+              "publicApi": "table.getCell().value",
+              "targetId": "presentation/slide/9/element/3",
+              "name": "board-metrics-table",
+              "row": 1,
+              "column": 2,
+              "before": "130",
+              "after": "138"
+            },
+            "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+            "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/9/element/3",
+              "observed": "138"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+            "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide519.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "130",
+              "newToken": "138",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "e379c9e8f46288c84a613becb2a799e78d5266be321374d86f0558917ae9b83b"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+          "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+          "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+          "canonicalOpcSha256": "d4bd7af8f9bc56449f52c693b258491e36472a0e72162df83b466c0f17a609e3",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "controlled-clone-table",
+            "sourceId": "quarterly-board-controlled",
+            "sourceSha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "table.getCell().value",
+            "operation": {
+              "publicApi": "table.getCell().value",
+              "targetId": "presentation/slide/9/element/3",
+              "name": "board-metrics-table",
+              "row": 1,
+              "column": 2,
+              "before": "130",
+              "after": "138"
+            },
+            "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+            "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/9/element/3",
+              "observed": "138"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+            "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide519.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "130",
+              "newToken": "138",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "e379c9e8f46288c84a613becb2a799e78d5266be321374d86f0558917ae9b83b"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+          "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+          "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+          "canonicalOpcSha256": "d4bd7af8f9bc56449f52c693b258491e36472a0e72162df83b466c0f17a609e3",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "controlled-clone-table",
+            "sourceId": "quarterly-board-controlled",
+            "sourceSha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "table.getCell().value",
+            "operation": {
+              "publicApi": "table.getCell().value",
+              "targetId": "presentation/slide/9/element/3",
+              "name": "board-metrics-table",
+              "row": 1,
+              "column": 2,
+              "before": "130",
+              "after": "138"
+            },
+            "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+            "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/9/element/3",
+              "observed": "138"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "1327da1f51c61c4dc69640a4d351a495aadc112536a0d309057888e911fb0a2d",
+            "outputSha256": "44be2c3ef27ba4a8a36729ec2b9c7d28c14a1866c3c85a85e481706245dc51f6",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide519.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "130",
+              "newToken": "138",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "675653af365e3fe1f8930f9181694819e6f0013552b9fce41c9730a00b74b4b5"
+              },
+              {
+                "page": 2,
+                "sha256": "296d1c6dd3723dbed9f8348c7bcc318ec6465bf992be5828f87569984e92f2f2"
+              },
+              {
+                "page": 3,
+                "sha256": "bee2bf8765e5439aa35f49222c621dace74366bf998eb1cf149f8106267a932d"
+              },
+              {
+                "page": 4,
+                "sha256": "0f41545cc9ea9e4ce7f17b7c34a0e997cd689677d3649e5455f37b4cb5f88922"
+              },
+              {
+                "page": 5,
+                "sha256": "048706d4e19d3ece3e53e3ee9cba659e38ff952cbfa989000e3fe14f604e81b0"
+              },
+              {
+                "page": 6,
+                "sha256": "8e9f282ed27e8d4f9c214cd473b2c639cd0b6acf0fe7a650ac6b3af5240281ff"
+              },
+              {
+                "page": 7,
+                "sha256": "c2d8f31112c51a4fc6f70a08bc630066f37a833512da18cd1982d26ee4d496e1"
+              },
+              {
+                "page": 8,
+                "sha256": "872aa3e4c8f6c339e54f0108b91acab5630b18d521b8d398a00b028f6f50b330"
+              },
+              {
+                "page": 9,
+                "sha256": "e379c9e8f46288c84a613becb2a799e78d5266be321374d86f0558917ae9b83b"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "suanzhi-clone-chart-data",
+      "sourceId": "suanzhi-future-2026",
+      "covers": [
+        "chart"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+          "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+          "canonicalOpcSha256": "49adcf3acaac0282deb12ab4d563ad7c653af9534863263844bea93b87e8c9cd",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "suanzhi-clone-chart-data",
+            "sourceId": "suanzhi-future-2026",
+            "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 21,
+            "targetPage": 22,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/22/element/26",
+              "leafKind": "chartDataValue",
+              "before": 23,
+              "after": 24,
+              "receiptKind": "chartDataValue"
+            },
+            "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+            "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/22/element/26",
+              "observed": 24
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+            "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/charts/chart415.xml",
+              "ppt/embeddings/Microsoft_Excel____13.xlsx"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "chart": {
+                "passed": true,
+                "oldToken": ">23<",
+                "newToken": ">24<",
+                "occurrences": 1
+              },
+              "nestedWorkbook": {
+                "passed": true,
+                "oldToken": ">23<",
+                "newToken": ">24<",
+                "occurrences": 1
+              }
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 22,
+            "targetPage": 22,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "33b3130e8fa42376ad5ec2942a78efa8092911c6a39b33864a40f16be86315fe"
+              },
+              {
+                "page": 2,
+                "sha256": "3b1ddf265add285f24991a4178d9f83821b8c3901c0cea1c65f89915c7ef1170"
+              },
+              {
+                "page": 3,
+                "sha256": "e6933b5d6b72b023a5325d7ad98fe79000bf553f2b7812fad0ba7d5032ebdb0e"
+              },
+              {
+                "page": 4,
+                "sha256": "c6e6da5979f79c85f8d018dcfb54195418b7c0c6a48c8f3676955973960f302f"
+              },
+              {
+                "page": 5,
+                "sha256": "5843027e6730d656431b8c8841aef2ddd21953e39904a0358d6828d4c7137fe9"
+              },
+              {
+                "page": 6,
+                "sha256": "d7f7d0e7b37b99a6576f07bb456b7cf6ceebddd9eec1e0e342a4b11f644789f5"
+              },
+              {
+                "page": 7,
+                "sha256": "152bc66e89c35e16cc8a34caebdd9a6a9df0e656bbc4b85a7eb397c21506ba66"
+              },
+              {
+                "page": 8,
+                "sha256": "306ef6d4ead2c660805b338e41d227f31de887e386746b7a6a7ff64e5ecbed66"
+              },
+              {
+                "page": 9,
+                "sha256": "4ec56493adacd1d355ca41fc28386b51cc4dba0b11a73f0e8964913751243406"
+              },
+              {
+                "page": 10,
+                "sha256": "ad53de8e59595fe24cd798648883001fb1286795373ea4c052de3677e69c4a1d"
+              },
+              {
+                "page": 11,
+                "sha256": "c79972c7404ebc3b9275e7e958d8402b9adc4acd399b4c7339bda13efc78a2ad"
+              },
+              {
+                "page": 12,
+                "sha256": "9786ab2d10702735a665f980f389ad07adece0da7523ca481002b36bc2692e6b"
+              },
+              {
+                "page": 13,
+                "sha256": "8a938591310b90b42891f9b67bea3f102021c352e4c1994c6b1719c89c539ace"
+              },
+              {
+                "page": 14,
+                "sha256": "e5f4b1186820716abbed128e3b610a13110f53a1a625773aa506833d1748d914"
+              },
+              {
+                "page": 15,
+                "sha256": "a5ccb1a20dcaa5ba9365abca1345614352fd49401a3367f1d187f8f3b2bde47f"
+              },
+              {
+                "page": 16,
+                "sha256": "330a99720b16b8b828982706bafc396cea6c6d42a52a9b5aaf0bdb9778f314ef"
+              },
+              {
+                "page": 17,
+                "sha256": "875096531743c3ae17b8951f60894b294e19c66ee2b8a0452a81535128052e06"
+              },
+              {
+                "page": 18,
+                "sha256": "967dae1b4e881f83523fc420e3bc90b24fdf298a628123a561368d3fdc994b5b"
+              },
+              {
+                "page": 19,
+                "sha256": "64f114e4501e3fc3ff8ba519d1280f512e4977de7455d783030b3ba1a2a1f568"
+              },
+              {
+                "page": 20,
+                "sha256": "8a732778ffd20463c4fdafa6ba214f32bd76faa85b138942cb05da4de3cf600e"
+              },
+              {
+                "page": 21,
+                "sha256": "890c4e1b6380da6d67fc58f1b1de7cb2afe8ba3ea8716c2779e0f31d7b423949"
+              },
+              {
+                "page": 22,
+                "sha256": "433e4957090ffd486f6aabee1c50a30b55f68b762a2a5e9352c2ae6dcb1f54b1"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "33b3130e8fa42376ad5ec2942a78efa8092911c6a39b33864a40f16be86315fe"
+              },
+              {
+                "page": 2,
+                "sha256": "3b1ddf265add285f24991a4178d9f83821b8c3901c0cea1c65f89915c7ef1170"
+              },
+              {
+                "page": 3,
+                "sha256": "e6933b5d6b72b023a5325d7ad98fe79000bf553f2b7812fad0ba7d5032ebdb0e"
+              },
+              {
+                "page": 4,
+                "sha256": "c6e6da5979f79c85f8d018dcfb54195418b7c0c6a48c8f3676955973960f302f"
+              },
+              {
+                "page": 5,
+                "sha256": "5843027e6730d656431b8c8841aef2ddd21953e39904a0358d6828d4c7137fe9"
+              },
+              {
+                "page": 6,
+                "sha256": "d7f7d0e7b37b99a6576f07bb456b7cf6ceebddd9eec1e0e342a4b11f644789f5"
+              },
+              {
+                "page": 7,
+                "sha256": "152bc66e89c35e16cc8a34caebdd9a6a9df0e656bbc4b85a7eb397c21506ba66"
+              },
+              {
+                "page": 8,
+                "sha256": "306ef6d4ead2c660805b338e41d227f31de887e386746b7a6a7ff64e5ecbed66"
+              },
+              {
+                "page": 9,
+                "sha256": "4ec56493adacd1d355ca41fc28386b51cc4dba0b11a73f0e8964913751243406"
+              },
+              {
+                "page": 10,
+                "sha256": "ad53de8e59595fe24cd798648883001fb1286795373ea4c052de3677e69c4a1d"
+              },
+              {
+                "page": 11,
+                "sha256": "c79972c7404ebc3b9275e7e958d8402b9adc4acd399b4c7339bda13efc78a2ad"
+              },
+              {
+                "page": 12,
+                "sha256": "9786ab2d10702735a665f980f389ad07adece0da7523ca481002b36bc2692e6b"
+              },
+              {
+                "page": 13,
+                "sha256": "8a938591310b90b42891f9b67bea3f102021c352e4c1994c6b1719c89c539ace"
+              },
+              {
+                "page": 14,
+                "sha256": "e5f4b1186820716abbed128e3b610a13110f53a1a625773aa506833d1748d914"
+              },
+              {
+                "page": 15,
+                "sha256": "a5ccb1a20dcaa5ba9365abca1345614352fd49401a3367f1d187f8f3b2bde47f"
+              },
+              {
+                "page": 16,
+                "sha256": "330a99720b16b8b828982706bafc396cea6c6d42a52a9b5aaf0bdb9778f314ef"
+              },
+              {
+                "page": 17,
+                "sha256": "875096531743c3ae17b8951f60894b294e19c66ee2b8a0452a81535128052e06"
+              },
+              {
+                "page": 18,
+                "sha256": "967dae1b4e881f83523fc420e3bc90b24fdf298a628123a561368d3fdc994b5b"
+              },
+              {
+                "page": 19,
+                "sha256": "64f114e4501e3fc3ff8ba519d1280f512e4977de7455d783030b3ba1a2a1f568"
+              },
+              {
+                "page": 20,
+                "sha256": "8a732778ffd20463c4fdafa6ba214f32bd76faa85b138942cb05da4de3cf600e"
+              },
+              {
+                "page": 21,
+                "sha256": "890c4e1b6380da6d67fc58f1b1de7cb2afe8ba3ea8716c2779e0f31d7b423949"
+              },
+              {
+                "page": 22,
+                "sha256": "9b0d63e37106e424c0b36847af7b47f951888e13ee443ca6c1f8dc5b626d599a"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+          "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+          "canonicalOpcSha256": "49adcf3acaac0282deb12ab4d563ad7c653af9534863263844bea93b87e8c9cd",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "suanzhi-clone-chart-data",
+            "sourceId": "suanzhi-future-2026",
+            "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 21,
+            "targetPage": 22,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/22/element/26",
+              "leafKind": "chartDataValue",
+              "before": 23,
+              "after": 24,
+              "receiptKind": "chartDataValue"
+            },
+            "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+            "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/22/element/26",
+              "observed": 24
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+            "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/charts/chart415.xml",
+              "ppt/embeddings/Microsoft_Excel____13.xlsx"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "chart": {
+                "passed": true,
+                "oldToken": ">23<",
+                "newToken": ">24<",
+                "occurrences": 1
+              },
+              "nestedWorkbook": {
+                "passed": true,
+                "oldToken": ">23<",
+                "newToken": ">24<",
+                "occurrences": 1
+              }
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 22,
+            "targetPage": 22,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "33b3130e8fa42376ad5ec2942a78efa8092911c6a39b33864a40f16be86315fe"
+              },
+              {
+                "page": 2,
+                "sha256": "3b1ddf265add285f24991a4178d9f83821b8c3901c0cea1c65f89915c7ef1170"
+              },
+              {
+                "page": 3,
+                "sha256": "e6933b5d6b72b023a5325d7ad98fe79000bf553f2b7812fad0ba7d5032ebdb0e"
+              },
+              {
+                "page": 4,
+                "sha256": "c6e6da5979f79c85f8d018dcfb54195418b7c0c6a48c8f3676955973960f302f"
+              },
+              {
+                "page": 5,
+                "sha256": "5843027e6730d656431b8c8841aef2ddd21953e39904a0358d6828d4c7137fe9"
+              },
+              {
+                "page": 6,
+                "sha256": "d7f7d0e7b37b99a6576f07bb456b7cf6ceebddd9eec1e0e342a4b11f644789f5"
+              },
+              {
+                "page": 7,
+                "sha256": "152bc66e89c35e16cc8a34caebdd9a6a9df0e656bbc4b85a7eb397c21506ba66"
+              },
+              {
+                "page": 8,
+                "sha256": "306ef6d4ead2c660805b338e41d227f31de887e386746b7a6a7ff64e5ecbed66"
+              },
+              {
+                "page": 9,
+                "sha256": "4ec56493adacd1d355ca41fc28386b51cc4dba0b11a73f0e8964913751243406"
+              },
+              {
+                "page": 10,
+                "sha256": "ad53de8e59595fe24cd798648883001fb1286795373ea4c052de3677e69c4a1d"
+              },
+              {
+                "page": 11,
+                "sha256": "c79972c7404ebc3b9275e7e958d8402b9adc4acd399b4c7339bda13efc78a2ad"
+              },
+              {
+                "page": 12,
+                "sha256": "9786ab2d10702735a665f980f389ad07adece0da7523ca481002b36bc2692e6b"
+              },
+              {
+                "page": 13,
+                "sha256": "8a938591310b90b42891f9b67bea3f102021c352e4c1994c6b1719c89c539ace"
+              },
+              {
+                "page": 14,
+                "sha256": "e5f4b1186820716abbed128e3b610a13110f53a1a625773aa506833d1748d914"
+              },
+              {
+                "page": 15,
+                "sha256": "a5ccb1a20dcaa5ba9365abca1345614352fd49401a3367f1d187f8f3b2bde47f"
+              },
+              {
+                "page": 16,
+                "sha256": "330a99720b16b8b828982706bafc396cea6c6d42a52a9b5aaf0bdb9778f314ef"
+              },
+              {
+                "page": 17,
+                "sha256": "875096531743c3ae17b8951f60894b294e19c66ee2b8a0452a81535128052e06"
+              },
+              {
+                "page": 18,
+                "sha256": "967dae1b4e881f83523fc420e3bc90b24fdf298a628123a561368d3fdc994b5b"
+              },
+              {
+                "page": 19,
+                "sha256": "64f114e4501e3fc3ff8ba519d1280f512e4977de7455d783030b3ba1a2a1f568"
+              },
+              {
+                "page": 20,
+                "sha256": "8a732778ffd20463c4fdafa6ba214f32bd76faa85b138942cb05da4de3cf600e"
+              },
+              {
+                "page": 21,
+                "sha256": "890c4e1b6380da6d67fc58f1b1de7cb2afe8ba3ea8716c2779e0f31d7b423949"
+              },
+              {
+                "page": 22,
+                "sha256": "433e4957090ffd486f6aabee1c50a30b55f68b762a2a5e9352c2ae6dcb1f54b1"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "33b3130e8fa42376ad5ec2942a78efa8092911c6a39b33864a40f16be86315fe"
+              },
+              {
+                "page": 2,
+                "sha256": "3b1ddf265add285f24991a4178d9f83821b8c3901c0cea1c65f89915c7ef1170"
+              },
+              {
+                "page": 3,
+                "sha256": "e6933b5d6b72b023a5325d7ad98fe79000bf553f2b7812fad0ba7d5032ebdb0e"
+              },
+              {
+                "page": 4,
+                "sha256": "c6e6da5979f79c85f8d018dcfb54195418b7c0c6a48c8f3676955973960f302f"
+              },
+              {
+                "page": 5,
+                "sha256": "5843027e6730d656431b8c8841aef2ddd21953e39904a0358d6828d4c7137fe9"
+              },
+              {
+                "page": 6,
+                "sha256": "d7f7d0e7b37b99a6576f07bb456b7cf6ceebddd9eec1e0e342a4b11f644789f5"
+              },
+              {
+                "page": 7,
+                "sha256": "152bc66e89c35e16cc8a34caebdd9a6a9df0e656bbc4b85a7eb397c21506ba66"
+              },
+              {
+                "page": 8,
+                "sha256": "306ef6d4ead2c660805b338e41d227f31de887e386746b7a6a7ff64e5ecbed66"
+              },
+              {
+                "page": 9,
+                "sha256": "4ec56493adacd1d355ca41fc28386b51cc4dba0b11a73f0e8964913751243406"
+              },
+              {
+                "page": 10,
+                "sha256": "ad53de8e59595fe24cd798648883001fb1286795373ea4c052de3677e69c4a1d"
+              },
+              {
+                "page": 11,
+                "sha256": "c79972c7404ebc3b9275e7e958d8402b9adc4acd399b4c7339bda13efc78a2ad"
+              },
+              {
+                "page": 12,
+                "sha256": "9786ab2d10702735a665f980f389ad07adece0da7523ca481002b36bc2692e6b"
+              },
+              {
+                "page": 13,
+                "sha256": "8a938591310b90b42891f9b67bea3f102021c352e4c1994c6b1719c89c539ace"
+              },
+              {
+                "page": 14,
+                "sha256": "e5f4b1186820716abbed128e3b610a13110f53a1a625773aa506833d1748d914"
+              },
+              {
+                "page": 15,
+                "sha256": "a5ccb1a20dcaa5ba9365abca1345614352fd49401a3367f1d187f8f3b2bde47f"
+              },
+              {
+                "page": 16,
+                "sha256": "330a99720b16b8b828982706bafc396cea6c6d42a52a9b5aaf0bdb9778f314ef"
+              },
+              {
+                "page": 17,
+                "sha256": "875096531743c3ae17b8951f60894b294e19c66ee2b8a0452a81535128052e06"
+              },
+              {
+                "page": 18,
+                "sha256": "967dae1b4e881f83523fc420e3bc90b24fdf298a628123a561368d3fdc994b5b"
+              },
+              {
+                "page": 19,
+                "sha256": "64f114e4501e3fc3ff8ba519d1280f512e4977de7455d783030b3ba1a2a1f568"
+              },
+              {
+                "page": 20,
+                "sha256": "8a732778ffd20463c4fdafa6ba214f32bd76faa85b138942cb05da4de3cf600e"
+              },
+              {
+                "page": 21,
+                "sha256": "890c4e1b6380da6d67fc58f1b1de7cb2afe8ba3ea8716c2779e0f31d7b423949"
+              },
+              {
+                "page": 22,
+                "sha256": "9b0d63e37106e424c0b36847af7b47f951888e13ee443ca6c1f8dc5b626d599a"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+          "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+          "canonicalOpcSha256": "49adcf3acaac0282deb12ab4d563ad7c653af9534863263844bea93b87e8c9cd",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "suanzhi-clone-chart-data",
+            "sourceId": "suanzhi-future-2026",
+            "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 21,
+            "targetPage": 22,
+            "publicApi": "presentation.editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.editNativeLeaf",
+              "targetId": "presentation/slide/22/element/26",
+              "leafKind": "chartDataValue",
+              "before": 23,
+              "after": 24,
+              "receiptKind": "chartDataValue"
+            },
+            "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+            "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/22/element/26",
+              "observed": 24
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "9c7211e78fb407e0370ff9a8b5ce0261c88f79f77c14242cff1caabf113c6b77",
+            "outputSha256": "4691eb168abfeb72b768e6d78995c264fc2b1c9b71e93762e21f603aee1220a1",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/charts/chart415.xml",
+              "ppt/embeddings/Microsoft_Excel____13.xlsx"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "chart": {
+                "passed": true,
+                "oldToken": ">23<",
+                "newToken": ">24<",
+                "occurrences": 1
+              },
+              "nestedWorkbook": {
+                "passed": true,
+                "oldToken": ">23<",
+                "newToken": ">24<",
+                "occurrences": 1
+              }
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 22,
+            "targetPage": 22,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "33b3130e8fa42376ad5ec2942a78efa8092911c6a39b33864a40f16be86315fe"
+              },
+              {
+                "page": 2,
+                "sha256": "3b1ddf265add285f24991a4178d9f83821b8c3901c0cea1c65f89915c7ef1170"
+              },
+              {
+                "page": 3,
+                "sha256": "e6933b5d6b72b023a5325d7ad98fe79000bf553f2b7812fad0ba7d5032ebdb0e"
+              },
+              {
+                "page": 4,
+                "sha256": "c6e6da5979f79c85f8d018dcfb54195418b7c0c6a48c8f3676955973960f302f"
+              },
+              {
+                "page": 5,
+                "sha256": "5843027e6730d656431b8c8841aef2ddd21953e39904a0358d6828d4c7137fe9"
+              },
+              {
+                "page": 6,
+                "sha256": "d7f7d0e7b37b99a6576f07bb456b7cf6ceebddd9eec1e0e342a4b11f644789f5"
+              },
+              {
+                "page": 7,
+                "sha256": "152bc66e89c35e16cc8a34caebdd9a6a9df0e656bbc4b85a7eb397c21506ba66"
+              },
+              {
+                "page": 8,
+                "sha256": "306ef6d4ead2c660805b338e41d227f31de887e386746b7a6a7ff64e5ecbed66"
+              },
+              {
+                "page": 9,
+                "sha256": "4ec56493adacd1d355ca41fc28386b51cc4dba0b11a73f0e8964913751243406"
+              },
+              {
+                "page": 10,
+                "sha256": "ad53de8e59595fe24cd798648883001fb1286795373ea4c052de3677e69c4a1d"
+              },
+              {
+                "page": 11,
+                "sha256": "c79972c7404ebc3b9275e7e958d8402b9adc4acd399b4c7339bda13efc78a2ad"
+              },
+              {
+                "page": 12,
+                "sha256": "9786ab2d10702735a665f980f389ad07adece0da7523ca481002b36bc2692e6b"
+              },
+              {
+                "page": 13,
+                "sha256": "8a938591310b90b42891f9b67bea3f102021c352e4c1994c6b1719c89c539ace"
+              },
+              {
+                "page": 14,
+                "sha256": "e5f4b1186820716abbed128e3b610a13110f53a1a625773aa506833d1748d914"
+              },
+              {
+                "page": 15,
+                "sha256": "a5ccb1a20dcaa5ba9365abca1345614352fd49401a3367f1d187f8f3b2bde47f"
+              },
+              {
+                "page": 16,
+                "sha256": "330a99720b16b8b828982706bafc396cea6c6d42a52a9b5aaf0bdb9778f314ef"
+              },
+              {
+                "page": 17,
+                "sha256": "875096531743c3ae17b8951f60894b294e19c66ee2b8a0452a81535128052e06"
+              },
+              {
+                "page": 18,
+                "sha256": "967dae1b4e881f83523fc420e3bc90b24fdf298a628123a561368d3fdc994b5b"
+              },
+              {
+                "page": 19,
+                "sha256": "64f114e4501e3fc3ff8ba519d1280f512e4977de7455d783030b3ba1a2a1f568"
+              },
+              {
+                "page": 20,
+                "sha256": "8a732778ffd20463c4fdafa6ba214f32bd76faa85b138942cb05da4de3cf600e"
+              },
+              {
+                "page": 21,
+                "sha256": "890c4e1b6380da6d67fc58f1b1de7cb2afe8ba3ea8716c2779e0f31d7b423949"
+              },
+              {
+                "page": 22,
+                "sha256": "433e4957090ffd486f6aabee1c50a30b55f68b762a2a5e9352c2ae6dcb1f54b1"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "33b3130e8fa42376ad5ec2942a78efa8092911c6a39b33864a40f16be86315fe"
+              },
+              {
+                "page": 2,
+                "sha256": "3b1ddf265add285f24991a4178d9f83821b8c3901c0cea1c65f89915c7ef1170"
+              },
+              {
+                "page": 3,
+                "sha256": "e6933b5d6b72b023a5325d7ad98fe79000bf553f2b7812fad0ba7d5032ebdb0e"
+              },
+              {
+                "page": 4,
+                "sha256": "c6e6da5979f79c85f8d018dcfb54195418b7c0c6a48c8f3676955973960f302f"
+              },
+              {
+                "page": 5,
+                "sha256": "5843027e6730d656431b8c8841aef2ddd21953e39904a0358d6828d4c7137fe9"
+              },
+              {
+                "page": 6,
+                "sha256": "d7f7d0e7b37b99a6576f07bb456b7cf6ceebddd9eec1e0e342a4b11f644789f5"
+              },
+              {
+                "page": 7,
+                "sha256": "152bc66e89c35e16cc8a34caebdd9a6a9df0e656bbc4b85a7eb397c21506ba66"
+              },
+              {
+                "page": 8,
+                "sha256": "306ef6d4ead2c660805b338e41d227f31de887e386746b7a6a7ff64e5ecbed66"
+              },
+              {
+                "page": 9,
+                "sha256": "4ec56493adacd1d355ca41fc28386b51cc4dba0b11a73f0e8964913751243406"
+              },
+              {
+                "page": 10,
+                "sha256": "ad53de8e59595fe24cd798648883001fb1286795373ea4c052de3677e69c4a1d"
+              },
+              {
+                "page": 11,
+                "sha256": "c79972c7404ebc3b9275e7e958d8402b9adc4acd399b4c7339bda13efc78a2ad"
+              },
+              {
+                "page": 12,
+                "sha256": "9786ab2d10702735a665f980f389ad07adece0da7523ca481002b36bc2692e6b"
+              },
+              {
+                "page": 13,
+                "sha256": "8a938591310b90b42891f9b67bea3f102021c352e4c1994c6b1719c89c539ace"
+              },
+              {
+                "page": 14,
+                "sha256": "e5f4b1186820716abbed128e3b610a13110f53a1a625773aa506833d1748d914"
+              },
+              {
+                "page": 15,
+                "sha256": "a5ccb1a20dcaa5ba9365abca1345614352fd49401a3367f1d187f8f3b2bde47f"
+              },
+              {
+                "page": 16,
+                "sha256": "330a99720b16b8b828982706bafc396cea6c6d42a52a9b5aaf0bdb9778f314ef"
+              },
+              {
+                "page": 17,
+                "sha256": "875096531743c3ae17b8951f60894b294e19c66ee2b8a0452a81535128052e06"
+              },
+              {
+                "page": 18,
+                "sha256": "967dae1b4e881f83523fc420e3bc90b24fdf298a628123a561368d3fdc994b5b"
+              },
+              {
+                "page": 19,
+                "sha256": "64f114e4501e3fc3ff8ba519d1280f512e4977de7455d783030b3ba1a2a1f568"
+              },
+              {
+                "page": 20,
+                "sha256": "8a732778ffd20463c4fdafa6ba214f32bd76faa85b138942cb05da4de3cf600e"
+              },
+              {
+                "page": 21,
+                "sha256": "890c4e1b6380da6d67fc58f1b1de7cb2afe8ba3ea8716c2779e0f31d7b423949"
+              },
+              {
+                "page": 22,
+                "sha256": "9b0d63e37106e424c0b36847af7b47f951888e13ee443ca6c1f8dc5b626d599a"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "blue-component-text",
+      "sourceId": "blue-gray-acid-template",
+      "covers": [
+        "component"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+          "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+          "canonicalOpcSha256": "2b12f2a170bb05d4eac5fc83bd2d23252135dba5d8974d78efd539a8179eff52",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-component-text",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.reuseSourceComponent+editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.reuseSourceComponent+editNativeLeaf",
+              "targetId": "presentation/slide/20/element/5",
+              "leafKind": "text",
+              "before": "感谢观看",
+              "after": "感谢观看 · continued",
+              "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+              "occurrenceIndex": 0
+            },
+            "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+            "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/5",
+              "observed": "感谢观看 · continued"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+            "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide19.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "感谢观看",
+              "newToken": "感谢观看 · continued",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "8f73be3035e4578726b291a7e1acdfefbd823e190c47e877190bbab0d07a83fd"
+              },
+              {
+                "page": 14,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 15,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 16,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 17,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 18,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 19,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 20,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "8f73be3035e4578726b291a7e1acdfefbd823e190c47e877190bbab0d07a83fd"
+              },
+              {
+                "page": 14,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 15,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 16,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 17,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 18,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 19,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 20,
+                "sha256": "635395945cbffbbec00883d05b3e734b17e033e6315ba0d81bc51912a235c253"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+          "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+          "canonicalOpcSha256": "2b12f2a170bb05d4eac5fc83bd2d23252135dba5d8974d78efd539a8179eff52",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-component-text",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.reuseSourceComponent+editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.reuseSourceComponent+editNativeLeaf",
+              "targetId": "presentation/slide/20/element/5",
+              "leafKind": "text",
+              "before": "感谢观看",
+              "after": "感谢观看 · continued",
+              "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+              "occurrenceIndex": 0
+            },
+            "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+            "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/5",
+              "observed": "感谢观看 · continued"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+            "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide19.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "感谢观看",
+              "newToken": "感谢观看 · continued",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "8f73be3035e4578726b291a7e1acdfefbd823e190c47e877190bbab0d07a83fd"
+              },
+              {
+                "page": 14,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 15,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 16,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 17,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 18,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 19,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 20,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "8f73be3035e4578726b291a7e1acdfefbd823e190c47e877190bbab0d07a83fd"
+              },
+              {
+                "page": 14,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 15,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 16,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 17,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 18,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 19,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 20,
+                "sha256": "635395945cbffbbec00883d05b3e734b17e033e6315ba0d81bc51912a235c253"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+          "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+          "canonicalOpcSha256": "2b12f2a170bb05d4eac5fc83bd2d23252135dba5d8974d78efd539a8179eff52",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-component-text",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "presentation.reuseSourceComponent+editNativeLeaf",
+            "operation": {
+              "publicApi": "presentation.reuseSourceComponent+editNativeLeaf",
+              "targetId": "presentation/slide/20/element/5",
+              "leafKind": "text",
+              "before": "感谢观看",
+              "after": "感谢观看 · continued",
+              "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+              "occurrenceIndex": 0
+            },
+            "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+            "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+            "secondImport": {
+              "passed": true,
+              "targetId": "presentation/slide/20/element/5",
+              "observed": "感谢观看 · continued"
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "e0ca5b7936e9c057a8052405c88b5cde4407c05270deb220134dedd3f4aa0fa6",
+            "outputSha256": "6ebfc3dc64648bac4f6e26e8a48410aefd3bdb7b10f85cf10d3b3649d0509a94",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/slide19.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "oldToken": "感谢观看",
+              "newToken": "感谢观看 · continued",
+              "occurrences": 1
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 20,
+            "targetPage": 20,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "8f73be3035e4578726b291a7e1acdfefbd823e190c47e877190bbab0d07a83fd"
+              },
+              {
+                "page": 14,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 15,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 16,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 17,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 18,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 19,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 20,
+                "sha256": "e47a41c1b62c7ce09d01e9fe7c702f866a2757f73bde22416767fc9e69867007"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "be21e01d8ac270599947219cfe186b43432cc0d77e5d15ddf9cfc703288f6a7c"
+              },
+              {
+                "page": 2,
+                "sha256": "ee62fa89475e1ab1b045061475ea9d88743c4e6a470f2e048a964a750cca56c0"
+              },
+              {
+                "page": 3,
+                "sha256": "b95a1145f9bf591df9970e90cc9d867345b8d9cc9ebb6a723f0860075d442a69"
+              },
+              {
+                "page": 4,
+                "sha256": "78930a6fde25418b58a18f06f21b9b14efa47e747ba20b87dc3473d95468cd33"
+              },
+              {
+                "page": 5,
+                "sha256": "1a3946d090834cdf074892aa04e672669bf6d59e9a88b7f5711cd19fd5ddd742"
+              },
+              {
+                "page": 6,
+                "sha256": "e6ca553b2dde90db2e55665b639070a7c3fc5382439a0a302655b855b0d1894b"
+              },
+              {
+                "page": 7,
+                "sha256": "845e0d843fffebde105ca8efaa18b54645f5976050c99223c5cf2228ca0cb898"
+              },
+              {
+                "page": 8,
+                "sha256": "1302ef8b118f18069bc90cc8e1c5046c5dbf019012099b50faa199cde00efdd3"
+              },
+              {
+                "page": 9,
+                "sha256": "e3f27292b43c8d3a19fc9577886a1b757df9e040a259a5e8069ffbca5a8974ad"
+              },
+              {
+                "page": 10,
+                "sha256": "292ce76e4122088d800e5660b37c513c76b41274a3bf959688359c6bae27d8f6"
+              },
+              {
+                "page": 11,
+                "sha256": "5d2edfe18eb0a3575c0d6ecef22e2cc81ca99d1db799b71f67358199d3856b5b"
+              },
+              {
+                "page": 12,
+                "sha256": "1a7727f6aae0dd004167d6658804f51bc7de66225261fd1f65991ff05b52700e"
+              },
+              {
+                "page": 13,
+                "sha256": "8f73be3035e4578726b291a7e1acdfefbd823e190c47e877190bbab0d07a83fd"
+              },
+              {
+                "page": 14,
+                "sha256": "00cfe9190dda4394a805fe225748209763167dbc9a2cda657fa1514ce3e5ceb2"
+              },
+              {
+                "page": 15,
+                "sha256": "162f915230e60ab716121b6c4d58be09273f2f4fd98c8bc94bea0d046e850779"
+              },
+              {
+                "page": 16,
+                "sha256": "b8d2b551a767b2125516b5564e8f59ba240cdc2a8dc5656c3266ad7a4dd08d5e"
+              },
+              {
+                "page": 17,
+                "sha256": "47512a66b0a574e771ac221ba2142526801bc0ad39641c97df0e21a705575e77"
+              },
+              {
+                "page": 18,
+                "sha256": "7a3350a881215a49a357678d45cfca2ea18c0dc5c77dcb3406cd0f4f67045b4e"
+              },
+              {
+                "page": 19,
+                "sha256": "27eb62fd685749468a67143691ed0841393769926877c301b33404c8e8e6aaa6"
+              },
+              {
+                "page": 20,
+                "sha256": "635395945cbffbbec00883d05b3e734b17e033e6315ba0d81bc51912a235c253"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mckinsey-clone-delete-image",
+      "sourceId": "mckinsey-customer-loyalty",
+      "covers": [
+        "delete"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+          "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+          "canonicalOpcSha256": "44af4efa9ff625369599b06645bd9827cf7eaf4ba48822dea1f609c21fcce711",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "mckinsey-clone-delete-image",
+            "sourceId": "mckinsey-customer-loyalty",
+            "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "image.delete",
+            "operation": {
+              "publicApi": "image.delete",
+              "targetId": "presentation/slide/9/element/1",
+              "name": "SVG Image 1",
+              "beforeCount": 1,
+              "afterCount": 0
+            },
+            "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+            "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+            "secondImport": {
+              "passed": true,
+              "observedCount": 0
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+            "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "relationshipId": "rId2",
+              "removedTarget": "/ppt/media/image1.svg",
+              "pictureSha256": "ed0f2a31d6031a4d557bb90fb051a6cb1eb0bbaadbd18f6f16cca689a73f6c32"
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              },
+              {
+                "page": 2,
+                "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+              },
+              {
+                "page": 3,
+                "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+              },
+              {
+                "page": 4,
+                "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+              },
+              {
+                "page": 5,
+                "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+              },
+              {
+                "page": 6,
+                "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+              },
+              {
+                "page": 7,
+                "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+              },
+              {
+                "page": 8,
+                "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+              },
+              {
+                "page": 9,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              },
+              {
+                "page": 2,
+                "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+              },
+              {
+                "page": 3,
+                "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+              },
+              {
+                "page": 4,
+                "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+              },
+              {
+                "page": 5,
+                "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+              },
+              {
+                "page": 6,
+                "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+              },
+              {
+                "page": 7,
+                "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+              },
+              {
+                "page": 8,
+                "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+              },
+              {
+                "page": 9,
+                "sha256": "7b040d40dcad56d640b25d649bfd001d2812683a7536cd770fd0f227585301db"
+              }
+            ],
+            "outputCacheHit": false,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+          "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+          "canonicalOpcSha256": "44af4efa9ff625369599b06645bd9827cf7eaf4ba48822dea1f609c21fcce711",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "mckinsey-clone-delete-image",
+            "sourceId": "mckinsey-customer-loyalty",
+            "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "image.delete",
+            "operation": {
+              "publicApi": "image.delete",
+              "targetId": "presentation/slide/9/element/1",
+              "name": "SVG Image 1",
+              "beforeCount": 1,
+              "afterCount": 0
+            },
+            "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+            "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+            "secondImport": {
+              "passed": true,
+              "observedCount": 0
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+            "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "relationshipId": "rId2",
+              "removedTarget": "/ppt/media/image1.svg",
+              "pictureSha256": "ed0f2a31d6031a4d557bb90fb051a6cb1eb0bbaadbd18f6f16cca689a73f6c32"
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              },
+              {
+                "page": 2,
+                "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+              },
+              {
+                "page": 3,
+                "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+              },
+              {
+                "page": 4,
+                "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+              },
+              {
+                "page": 5,
+                "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+              },
+              {
+                "page": 6,
+                "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+              },
+              {
+                "page": 7,
+                "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+              },
+              {
+                "page": 8,
+                "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+              },
+              {
+                "page": 9,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              },
+              {
+                "page": 2,
+                "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+              },
+              {
+                "page": 3,
+                "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+              },
+              {
+                "page": 4,
+                "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+              },
+              {
+                "page": 5,
+                "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+              },
+              {
+                "page": 6,
+                "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+              },
+              {
+                "page": 7,
+                "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+              },
+              {
+                "page": 8,
+                "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+              },
+              {
+                "page": 9,
+                "sha256": "7b040d40dcad56d640b25d649bfd001d2812683a7536cd770fd0f227585301db"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+          "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+          "canonicalOpcSha256": "44af4efa9ff625369599b06645bd9827cf7eaf4ba48822dea1f609c21fcce711",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "mckinsey-clone-delete-image",
+            "sourceId": "mckinsey-customer-loyalty",
+            "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 8,
+            "targetPage": 9,
+            "publicApi": "image.delete",
+            "operation": {
+              "publicApi": "image.delete",
+              "targetId": "presentation/slide/9/element/1",
+              "name": "SVG Image 1",
+              "beforeCount": 1,
+              "afterCount": 0
+            },
+            "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+            "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+            "secondImport": {
+              "passed": true,
+              "observedCount": 0
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "e8c8ee053926f13e191f42643050da6419d004a965beca71b7989e7ff82558a8",
+            "outputSha256": "35bf959b9f025b295241b98533c971274d90ce010883c93b8f76ee14eb5430ff",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/slides/_rels/slide119.xml.rels",
+              "ppt/slides/slide119.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "relationshipId": "rId2",
+              "removedTarget": "/ppt/media/image1.svg",
+              "pictureSha256": "ed0f2a31d6031a4d557bb90fb051a6cb1eb0bbaadbd18f6f16cca689a73f6c32"
+            }
+          },
+          "pixelOracle": {
+            "pageCount": 9,
+            "targetPage": 9,
+            "targetPageChanged": true,
+            "nonTargetPagesPixelIdentical": true,
+            "nonTargetMismatches": [],
+            "sourcePageHashes": [
+              {
+                "page": 1,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              },
+              {
+                "page": 2,
+                "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+              },
+              {
+                "page": 3,
+                "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+              },
+              {
+                "page": 4,
+                "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+              },
+              {
+                "page": 5,
+                "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+              },
+              {
+                "page": 6,
+                "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+              },
+              {
+                "page": 7,
+                "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+              },
+              {
+                "page": 8,
+                "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+              },
+              {
+                "page": 9,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              }
+            ],
+            "outputPageHashes": [
+              {
+                "page": 1,
+                "sha256": "3e9955e6b9be7690ef366aac9e92fac06e757a8424db76d431d2bfcfb73af852"
+              },
+              {
+                "page": 2,
+                "sha256": "064155360149748f4356ed00c0e06f3e425b6b3b5db38a8e9e94b1cf64027d64"
+              },
+              {
+                "page": 3,
+                "sha256": "9621e6f694c239614be806d2ca74d920e40deb2582f903932b33955d82dd896f"
+              },
+              {
+                "page": 4,
+                "sha256": "5b3d8b8fd173a864bd8703275ec207970a201f07813eb84677e935ba77cc1492"
+              },
+              {
+                "page": 5,
+                "sha256": "da5160a1b6742f4cdc8504b6774f4e9580aae472fe2886da5febb186047b5bfe"
+              },
+              {
+                "page": 6,
+                "sha256": "ffc49e069c861b405c09be534003489b56d53245d758a26452a3bdfbaff308bd"
+              },
+              {
+                "page": 7,
+                "sha256": "e531eb9cff3f75636aa07403cff54b3e91ca43d2b07fa9c9c1829a034d32cfbd"
+              },
+              {
+                "page": 8,
+                "sha256": "14cf5ef1e86ead6935580fecf845324c096c824b4dcc1db58aa56a9c5edde3db"
+              },
+              {
+                "page": 9,
+                "sha256": "7b040d40dcad56d640b25d649bfd001d2812683a7536cd770fd0f227585301db"
+              }
+            ],
+            "outputCacheHit": true,
+            "passed": true,
+            "renderer": "libreoffice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "blue-clone-reorder",
+      "sourceId": "blue-gray-acid-template",
+      "covers": [
+        "reorder"
+      ],
+      "requiredRuns": 3,
+      "completedRuns": 3,
+      "passedRuns": 3,
+      "deterministic": true,
+      "runs": [
+        {
+          "repetition": 1,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+          "canonicalOpcSha256": "1c1104c0aa002cf33729f31b50bab7c236efb2a73616c73491162134edadb8cf",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-reorder",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "slide.moveTo",
+            "operation": {
+              "publicApi": "slide.moveTo",
+              "beforeIndex": 19,
+              "afterIndex": 1,
+              "destinationIndex": 1
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+            "secondImport": {
+              "passed": true,
+              "slideCount": 20,
+              "destinationIndex": 1
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/presentation.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "beforeCount": 20,
+              "destinationIndex": 1
+            }
+          },
+          "pixelOracle": {
+            "passed": true,
+            "renderer": "libreoffice",
+            "pageContentPixelIdentical": true,
+            "destinationIndex": 1,
+            "pageCount": 20
+          }
+        },
+        {
+          "repetition": 2,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+          "canonicalOpcSha256": "1c1104c0aa002cf33729f31b50bab7c236efb2a73616c73491162134edadb8cf",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-reorder",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "slide.moveTo",
+            "operation": {
+              "publicApi": "slide.moveTo",
+              "beforeIndex": 19,
+              "afterIndex": 1,
+              "destinationIndex": 1
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+            "secondImport": {
+              "passed": true,
+              "slideCount": 20,
+              "destinationIndex": 1
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/presentation.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "beforeCount": 20,
+              "destinationIndex": 1
+            }
+          },
+          "pixelOracle": {
+            "passed": true,
+            "renderer": "libreoffice",
+            "pageContentPixelIdentical": true,
+            "destinationIndex": 1,
+            "pageCount": 20
+          }
+        },
+        {
+          "repetition": 3,
+          "status": "passed",
+          "sourceSha256After": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+          "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+          "canonicalOpcSha256": "1c1104c0aa002cf33729f31b50bab7c236efb2a73616c73491162134edadb8cf",
+          "worker": {
+            "schema": "office-kit/pptx-source-derived-companion-worker/v1",
+            "caseId": "blue-clone-reorder",
+            "sourceId": "blue-gray-acid-template",
+            "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+            "sourceUnchanged": true,
+            "sourceSlideCount": 19,
+            "targetPage": 20,
+            "publicApi": "slide.moveTo",
+            "operation": {
+              "publicApi": "slide.moveTo",
+              "beforeIndex": 19,
+              "afterIndex": 1,
+              "destinationIndex": 1
+            },
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+            "secondImport": {
+              "passed": true,
+              "slideCount": 20,
+              "destinationIndex": 1
+            }
+          },
+          "packageOracle": {
+            "passed": true,
+            "baselineSha256": "f7a0f1532870f066065d8e25d6504ee19b6c16eada02ac8b1e6aa9235120e4a0",
+            "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
+            "partSet": {
+              "passed": true,
+              "added": [],
+              "removed": []
+            },
+            "changedParts": [
+              "ppt/presentation.xml"
+            ],
+            "nonTargetPartsByteIdentical": true,
+            "targetMask": {
+              "passed": true,
+              "beforeCount": 20,
+              "destinationIndex": 1
+            }
+          },
+          "pixelOracle": {
+            "passed": true,
+            "renderer": "libreoffice",
+            "pageContentPixelIdentical": true,
+            "destinationIndex": 1,
+            "pageCount": 20
+          }
+        }
+      ]
+    }
+  ],
+  "existingEvidence": [
+    {
+      "covers": [
+        "add"
+      ],
+      "path": "evals/pptx-lossless/source-continuation.v2.json",
+      "sha256": "b331b86cc10e2ae8c61c09ff0cf4bbeeee308cbed308e0e7b9696c89dc4cddc0",
+      "schema": "office-kit/pptx-source-continuation-evidence/v2",
+      "passed": true
+    }
+  ],
+  "notApplicable": [
+    {
+      "capability": "imported-element-z-order",
+      "reason": "V1 reorders slides only; no capability-issued public API reorders imported shape-tree elements."
+    },
+    {
+      "capability": "source-bound-table-chart-component-add",
+      "reason": "V1 authored overlays add only textbox, rect, roundRect, ellipse, and embedded rectangular images; other source-bound topology remains fail closed."
+    }
+  ],
+  "acceptance": {
+    "scope": "full-suite",
+    "status": "passed"
+  },
+  "coverage": {
+    "required": [
+      "text",
+      "geometry",
+      "image",
+      "table",
+      "chart",
+      "component",
+      "add",
+      "delete",
+      "reorder"
+    ],
+    "passed": [
+      "add",
+      "chart",
+      "component",
+      "delete",
+      "geometry",
+      "image",
+      "reorder",
+      "table",
+      "text"
+    ],
+    "missing": [],
+    "status": "passed"
+  }
+}
