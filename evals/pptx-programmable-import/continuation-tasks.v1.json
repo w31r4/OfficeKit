@@ -34,6 +34,7 @@
     {
       "id": "suanzhi-acceptance-appendix",
       "sourceId": "suanzhi-future-2026",
+      "acceptanceRenderer": "keynote",
       "output": "outputs/suanzhi-acceptance-appendix.pptx",
       "goal": "从算秩未来原始演示文稿的封面复制一页源生验收附录，首轮将主标题改为“可编程导入验收”，提交并关闭会话；恢复任务后将英文副标题改为“Public API · source protected · auditable”，再次审阅提交；第三次恢复后验证源页仍在、附录页两项修改仍在，再发布。不得重建原稿。",
       "sourceSlide": 1,
@@ -63,6 +64,7 @@
     {
       "id": "blue-gray-acceptance-summary",
       "sourceId": "blue-gray-acid-template",
+      "acceptanceRenderer": "keynote",
       "output": "outputs/blue-gray-acceptance-summary.pptx",
       "goal": "从蓝灰酸性模板封面复制一页源生验收总结，首轮把副标题改成“可编程导入验收”，提交并关闭会话；恢复任务后把汇报人改成“汇报人：Agent Acceptance”，再次审阅提交；第三次恢复后验证原始 19 页保持、总结页两项修改仍在，再发布。不得创建空白页或重建模板。",
       "sourceSlide": 1,
@@ -92,6 +94,7 @@
     {
       "id": "mckinsey-acceptance-close",
       "sourceId": "mckinsey-customer-loyalty",
+      "acceptanceRenderer": "libreoffice",
       "output": "outputs/mckinsey-acceptance-close.pptx",
       "goal": "从麦肯锡 SVG 演示文稿封面复制一页源生验收结论，首轮用公开 SVG 文本叶把标题改为“OfficeKit Acceptance”，提交并关闭会话；恢复任务后把副标题改为“Programmable import verified”，再次审阅提交；第三次恢复后验证原始 8 页保持、结论页两个 SVG 文本修改仍在，再发布。不得把 SVG 转图片、不得创建空白页或重建整份文件。",
       "sourceSlide": 1,
