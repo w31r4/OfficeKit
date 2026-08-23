@@ -302,6 +302,28 @@ assert.match(modelPresentation.inspect({ kind: "deck,slide,textbox,shape", maxCh
 assert.match(modelPresentation.inspect({ kind: "textbox", target: "compose\/headline", maxChars: 4000 }).ndjson, /Canonical Office model/);
 assert.equal(modelPresentation.verify().ok, true);
 assert.equal(modelPresentation.validateLayout().ok, true);
+const backgroundLayoutDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const backgroundLayoutSlide = backgroundLayoutDeck.slides.add({ name: "Background overlap" });
+const backgroundShape = backgroundLayoutSlide.shapes.add({
+  name: "full-slide-background",
+  position: { left: 0, top: 0, width: 640, height: 360 },
+  fill: "#E2E8F0",
+});
+const foregroundA = backgroundLayoutSlide.shapes.add({
+  name: "foreground-a",
+  position: { left: 80, top: 80, width: 160, height: 80 },
+  fill: "#FFFFFF",
+  text: "A",
+});
+const foregroundB = backgroundLayoutSlide.shapes.add({
+  name: "foreground-b",
+  position: { left: 180, top: 100, width: 160, height: 80 },
+  fill: "#FFFFFF",
+  text: "B",
+});
+const backgroundLayoutIssues = backgroundLayoutSlide.validateLayout().issues.filter((issue) => issue.type === "overlap");
+assert.equal(backgroundLayoutIssues.some((issue) => issue.ids.includes(backgroundShape.id)), false);
+assert.equal(backgroundLayoutIssues.some((issue) => issue.ids.includes(foregroundA.id) && issue.ids.includes(foregroundB.id)), true);
 const unsupportedThemePresentation = Presentation.create({ theme: { colors: { accent1: "#FF0000" } } });
 unsupportedThemePresentation.slides.add().shapes.add({ text: "Theme model only" });
 await assert.rejects(
