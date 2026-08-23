@@ -48,6 +48,7 @@ const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-co
 const PRESENTATION_SLIDE_VISIBILITY_CAPABILITY = Symbol.for("office-kit.slide-visibility-capability");
 const PRESENTATION_SLIDE_DELETION_CAPABILITY = Symbol.for("office-kit.slide-deletion-capability");
 const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-capability");
+const PRESENTATION_SLIDE_CONTINUATION_CAPABILITY = Symbol.for("office-kit.slide-continuation-capability");
 const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
 const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
@@ -702,6 +703,15 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
   });
   Object.defineProperty(clone, PRESENTATION_SLIDE_VISIBILITY_CAPABILITY, {
     value: Object.freeze({ ...slide.visibilityCapability }),
+  });
+  Object.defineProperty(clone, PRESENTATION_SLIDE_CONTINUATION_CAPABILITY, {
+    value: Object.freeze({
+      sourceBound: true,
+      ready: false,
+      profile: "pending-clone",
+      requiresExportReopen: true,
+      sourceRevisionSha256: slide.cloneCapability.sourceRevisionSha256,
+    }),
   });
   clone.layoutId = slide.layoutId;
   cloneImportedPresentationLegacyComments(clone, slide);
@@ -4726,6 +4736,18 @@ export async function presentationFromEnvelope(envelope) {
         blockedReason: cloneCapability?.blockedReason || "",
         clonedPartCount: Number(cloneCapability?.clonedPartCount || 0),
         sharedPartCount: Number(cloneCapability?.sharedPartCount || 0),
+        ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+      }),
+    });
+    Object.defineProperty(slide, PRESENTATION_SLIDE_CONTINUATION_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        ready: true,
+        profile: "bounded-overlay",
+        requiresExportReopen: false,
+        oneSlideMutationPerExport: true,
+        shapeGeometries: Object.freeze(["textbox", "rect", "roundRect", "ellipse"]),
+        embeddedImage: true,
         ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
       }),
     });
