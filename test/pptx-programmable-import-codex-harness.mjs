@@ -7,6 +7,7 @@ import {
   buildCodexPrompt,
   evaluateDurableTask,
   inspectAgentRuntimeState,
+  resolveAcceptanceRenderer,
   scanAgentPolicy,
 } from "../scripts/pptx-programmable-import-codex-harness.mjs";
 import { sha256 } from "../scripts/pptx-programmable-import-oracle.mjs";
@@ -40,6 +41,14 @@ assert.match(prompt, /application\/octet-stream/u);
 assert.match(prompt, /ctx[.]publish\(ctx[.]task[.]commit, \{ artifactId: "continued-deck"/u);
 assert.match(prompt, /Presentation[.]create/u);
 assert.match(prompt, /inputs\/source[.]pptx/u);
+
+assert.equal(resolveAcceptanceRenderer(undefined, true, "linux"), "libreoffice");
+assert.equal(resolveAcceptanceRenderer("libreoffice", true, "darwin"), "libreoffice");
+assert.equal(resolveAcceptanceRenderer("keynote", true, "darwin"), "keynote");
+assert.equal(resolveAcceptanceRenderer(undefined, false, "linux"), null);
+assert.throws(() => resolveAcceptanceRenderer("keynote", false, "darwin"), /cannot be used with --no-render/u);
+assert.throws(() => resolveAcceptanceRenderer("keynote", true, "linux"), /requires macOS/u);
+assert.throws(() => resolveAcceptanceRenderer("powerpoint", true, "win32"), /expected libreoffice or keynote/u);
 
 const safePolicy = scanAgentPolicy({
   traceText: `${JSON.stringify({ type: "item.completed", item: { type: "command_execution", command: "node node_modules/office-kit/bin/officekit.mjs repl --new acceptance" } })}\n`,
