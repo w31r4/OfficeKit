@@ -22,9 +22,9 @@
 
 ## 3. Source-derived continuation
 
-- [ ] 3.1 Audit the independent 30-intent matrix against issued typed/native
+- [x] 3.1 Audit the independent 30-intent matrix against issued typed/native
   capabilities and close only generalized runtime gaps.
-- [ ] 3.2 Complete high-value source-derived text, geometry, image, table,
+- [x] 3.2 Complete high-value source-derived text, geometry, image, table,
   chart, component, add, delete, and reorder workflows without rebuilding the
   source slide.
 - [x] 3.3 Prove task commit/resume/re-inspect continuation from the latest
@@ -32,9 +32,9 @@
 
 ## 4. Independent acceptance
 
-- [ ] 4.1 Integrate the evaluator branch without importing evaluator logic into
+- [x] 4.1 Integrate the evaluator branch without importing evaluator logic into
   the runtime.
-- [ ] 4.2 Run at least 30 declared intents three times from clean sources with
+- [x] 4.2 Run at least 30 declared intents three times from clean sources with
   deterministic output and mutation footprints.
 - [ ] 4.3 Run three continuation tasks in three fresh Codex contexts each and
   require inspect, typed/issued edits, reimport, structural review, visual
