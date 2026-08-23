@@ -1,0 +1,494 @@
+{
+  "schema": "office-kit/pptx-codex-continuation-evidence/v1",
+  "baseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "definitions": {
+    "continuationSha256": "c36ae2232f1f8fc739023dfd3721e0990d555fde422b56875900357d05f63137",
+    "intentSha256": "0f6780ecc51c7afe9f58a797e0d6cb3cc711a781408612bca08e278228403b56"
+  },
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "baselineCandidate": true,
+    "tarballFile": "office-kit-0.6.0.tgz",
+    "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120",
+    "packedBytes": 36468639,
+    "unpackedBytes": 54076098,
+    "totalFiles": 748,
+    "cleanInstallPerTrial": true,
+    "lifecycleScripts": "ignored"
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "npm": "11.19.0",
+    "codex": "codex-cli 0.144.5",
+    "render": true
+  },
+  "protocol": {
+    "freshCodexContextPerTrial": true,
+    "replSessionsPerTrial": 3,
+    "publicPackageOnly": true,
+    "createOnlyOutputs": true
+  },
+  "trials": [
+    {
+      "taskId": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "repetition": 1,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "1c4c45b7f4ec7841f9aae1de49ddb866f0578f5048b8c35873bbeba68fda4cdb",
+          "stderrSha256": "97d5c5ef0dee8e5e57f36d52ccaf72ebf0d4bbf2953a6ccc234139b34b20f8e7",
+          "finalSha256": "3022d4538b263914903b020c9d1b70bb86aa212e29a80ad0bee056de95f7707a",
+          "agentFinal": "任务已停止，未生成或发布输出。\n\n首个 REPL 任务 `t_95a5d02e3405` 的 phase-1 单元发生 JavaScript `SyntaxError: Invalid or unexpected token`。按“不重试当前阶段、保留真实失败、严格三进程”的约束，我没有启动后续会话或绕过失败。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 18,
+          "authoredFileCount": 2,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "afterSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/suanzhi-acceptance-appendix/1/evaluator"
+    },
+    {
+      "taskId": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "repetition": 2,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "4de02aaad9e6e8594c7b2be864ef6a9ff5deb806462bb39192b7bfbdcd5bfb79",
+          "stderrSha256": "a88ed47428c5e764fb184f5b531835c0679540d7f3aba7d77a7453890bd468c6",
+          "finalSha256": "045e749f9e7f58d9cf5fa7f74f2b30bde8c6ab466b9928dfe9e7972f6a7a09f5",
+          "agentFinal": "任务已停止，未生成输出文件。\n\n首个 `repl --new` 进程收到的 JSON 被 `jq` 格式化成多行，导致 JSONL 解析失败；Phase 1 未执行。任务 ID 为 `t_fa022dd4e99a`。\n\n鉴于要求明确规定首进程必须执行 Phase 1、不得用第四个进程补偿，也不得重新启动另一个 `repl --new`，继续操作会违反验收契约，因此保留真实失败并停止。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 6,
+          "authoredFileCount": 3,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "afterSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/suanzhi-acceptance-appendix/2/evaluator"
+    },
+    {
+      "taskId": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "repetition": 3,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "d089f2595feac5fd53386e114f92457665495cf561f9b83a5784be0d3cb89d46",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "finalSha256": "dfa4bd5fc5c4f80488a9e080246ed1f7da1b917754a32698029641a00f4edd68",
+          "agentFinal": "Unable to complete without violating the machine contract.\n\nThe first `repl --new` process received pretty-printed, multi-line JSON instead of one finite JSONL line, so it created task `t_7c9d54c78f44` but did not execute phase 1. Retrying would constitute the explicitly disallowed bootstrap-plus-fourth-process workflow.\n\nNo output was published, and `inputs/source.pptx` was not modified.",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 6,
+          "authoredFileCount": 3,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "afterSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/suanzhi-acceptance-appendix/3/evaluator"
+    },
+    {
+      "taskId": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "repetition": 1,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "ae3680278058ba3854844d0a526494bf654e5221a82f74ac8ef5dcf2cfe3b90a",
+          "stderrSha256": "50c9d2f5e069343c1347302c317a6c3c4408f230d005e8686ac0d4532d0435f0",
+          "finalSha256": "4b6c29c3956695a75f0d0c11d24cc64e136f9995af7c50ec16297f1c4369cc6e",
+          "agentFinal": "任务已停止，未生成或发布输出。\n\n首个有限 JSONL 生成脚本存在嵌套模板字符串语法错误，导致 `repl --new` 创建任务后未执行 phase 1 单元便收到 EOF。按约束，这属于不可恢复的空 bootstrap；重新启动会构成禁止的第四个 REPL 流程，因此没有继续或静默重试。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 12,
+          "authoredFileCount": 3,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "afterSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/blue-gray-acceptance-summary/1/evaluator"
+    },
+    {
+      "taskId": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "repetition": 2,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "6cfe2378e8944b16c676c697a84c822001af3ce1438eb64f2732791de222293d",
+          "stderrSha256": "7b7d1bd5ebf25ac745757e8b6540505ab5e42e6bb935ae948c00c33285bfdf43",
+          "finalSha256": "14a3ee747ecce77cf352a3dbbd9767a71ea25bbea6e1e0753e3255c0c6eaafb2",
+          "agentFinal": "任务已停止，未发布输出。\n\n第一阶段已完成复制、导出/重导入、叶级修改和审阅，但 `ctx.commit` 因缺少必填 `summary` 被拒绝：\n\n`invalid-text: Commit summary must be a non-empty bounded text value.`\n\n任务状态确认 `head: null`，因此没有可供第二阶段恢复的 `c0001`。继续执行会违反“恰好三个 REPL 进程”和“第二阶段必须恢复已审阅提交”的约束。`outputs/blue-gray-acceptance-summary.pptx` 未创建。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 4,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "afterSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/blue-gray-acceptance-summary/2/evaluator"
+    },
+    {
+      "taskId": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "repetition": 3,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "5f1f9d4882cb9c9f8ac4ec700d17a3908a4f8705a1b4bba5616ab110c3a6bf29",
+          "stderrSha256": "464c01ead6210bb69c8c883c06b54f4ebfbed5c166ada7f029b47654565cda52",
+          "finalSha256": "49af809d53da8469c9f68457b3fee8169aaa3b1efb92918c66fd9e4616ecf48c",
+          "agentFinal": "任务未完成，已按要求停止，未重试或切换引擎。\n\n第一阶段编辑与审阅完成后，`ctx.commit` 因缺少必需的非空 `summary` 字段失败：\n\n> Commit summary must be a non-empty bounded text value.\n\n只读检查确认任务 `t_c1c363547150` 的 HEAD 仍为空、状态仍为 `new`。为避免违反“恰好三个 REPL 进程”和“不得重复阶段”的约束，我没有继续启动恢复进程。\n\n因此未发布，也未创建目标文件 `outputs/blue-gray-acceptance-summary.pptx`。",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 1,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "afterSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/blue-gray-acceptance-summary/3/evaluator"
+    },
+    {
+      "taskId": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "repetition": 1,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "5568d3dce4565872dced41caba73f406dfb95844595d871c6f7d1d1da3544ffa",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "finalSha256": "1963bfcde581d85113ea74dcc0fc645b8588abec649192a63a8d26319306bdd9",
+          "agentFinal": "OfficeKit phase 1 stopped on a real contract mismatch:\n\n- Task ID: `t_7439b47cbea0`\n- Expected exactly one SVG node `svg-text-1` with value `Kimsoong`\n- Actual matching nodes: `0`\n- No commit, review, or publication occurred\n- Requested output was not created\n\nI did not retry through another engine or continue after the failed bounded-leaf validation.",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 8,
+          "authoredFileCount": 3,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "afterSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/mckinsey-acceptance-close/1/evaluator"
+    },
+    {
+      "taskId": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "repetition": 2,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "d8e677edb64ffc3ccf4dd90bda7f87cfca55325a8fe88ab0a450fd524501f42d",
+          "stderrSha256": "6bb299e239d28646bd0d50a3c23d71c510dd0fa55052beeda7581097c485af56",
+          "finalSha256": "e61149c6d1cec09ea1352bab11fe4a74d271aa345ff65872d3bf26664aab602d",
+          "agentFinal": "Unable to complete without violating the machine contract.\n\nThe first required REPL process failed before phase-1 commit because the SVG node records expose their content as `text`, while the cell matched `value`. No output was published or written to `outputs/`.\n\nTask ID retained: `t_ac1631aa69a5`\n\nStarting replacement sessions would exceed or collapse the mandated exactly-three-process workflow, so I stopped rather than bypassing the acceptance protocol.",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 6,
+          "authoredFileCount": 1,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "afterSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/mckinsey-acceptance-close/2/evaluator"
+    },
+    {
+      "taskId": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "repetition": 3,
+      "freshCodexContext": true,
+      "packedCleanInstall": {
+        "passed": true,
+        "package": "office-kit",
+        "version": "0.6.0",
+        "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120"
+      },
+      "status": "failed",
+      "failures": [
+        "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+      ],
+      "checks": {
+        "codex": {
+          "passed": true,
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "interruptedSignal": null,
+          "policyTermination": null,
+          "captureExceeded": false,
+          "timeoutMs": 1800000,
+          "traceSha256": "7f808505dc8a708e6a5e3ce412ca0a65b7b49c62951e5740994cce0d31cb2021",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "finalSha256": "94955a0b607f7f7685690245f778fb8dafac373d139013bf258cede32b029be5",
+          "agentFinal": "Workflow stopped after phase 1 failed closed.\n\n- Task ID: `t_f15f3155b229`\n- Failure: no SVG record matched `svg-text-1` with before-value `Kimsoong`\n- No commit or publication occurred.\n- The source file was not modified.\n- The requested output was not created.\n\nI did not retry through another process because that would violate the required exactly-three-session sequence and duplicate phase 1.",
+          "agentFinalTruncated": false
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 6,
+          "authoredFileCount": 1,
+          "findings": []
+        },
+        "source": {
+          "passed": true,
+          "expectedSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "afterSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "immutableMode": 292
+        },
+        "output": {
+          "passed": false,
+          "reason": "ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+        }
+      },
+      "evidenceDirectory": "trials/mckinsey-acceptance-close/3/evaluator"
+    }
+  ],
+  "acceptance": {
+    "requiredTasks": 3,
+    "trialsPerTask": 3,
+    "requiredTrials": 9,
+    "completedTrials": 9,
+    "passedTrials": 0,
+    "status": "failed"
+  }
+}

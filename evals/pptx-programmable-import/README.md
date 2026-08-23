@@ -44,3 +44,36 @@ OfficeKit and Presentations Skills, and retains the full trace, stderr, task
 store, candidate revisions, renderer cache, and evaluator report outside the
 repository. A non-zero exit still writes `evidence.json`; it never converts a
 trial failure into a skip or edits the product under test.
+
+## Frozen baseline result
+
+The committed baseline evaluates product commit
+`d5df8df94727dccd4412e6be874d1c5407b57f64` through packed
+`office-kit@0.6.0` tarball SHA-256
+`2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120`.
+It is intentionally a failed acceptance baseline:
+
+- The deterministic matrix completed all 90 runs. 60 runs passed source,
+  package, relationship, masked XML/SVG, second-import, and pixel checks; 10 of
+  30 intents were byte-deterministic across all three runs.
+- 算秩未来 passed 18/30 runs and 6/10 deterministic intents. Four text edits
+  changed the package but produced no target-page pixel change.
+- 蓝灰酸性模板 passed 12/30 runs and 4/10 deterministic intents. Six text or
+  position edits changed the package but produced no target-page pixel change.
+- 麦肯锡 SVG passed all 30 per-run package/pixel checks, but 0/10 intents were
+  byte-deterministic because each repetition issued a different copy-on-write
+  relationship ID. Those IDs and output hashes remain unnormalized in the
+  evidence.
+- All nine fresh-context Codex trials used isolated packed installs, preserved
+  the read-only source hash, and passed the forbidden-path scan. None published
+  an output: four stopped on JSONL/JavaScript authoring errors, two omitted the
+  required commit summary, and three matched the SVG node through the wrong
+  record field. Their complete bounded final explanations remain in evidence.
+
+The immutable components are `baseline/matrix.v1.json` and
+`baseline/codex.v1.json`; `baseline.v1.json` records their hashes and derives
+the summary. The matrix component also records an evaluator-only replay over
+the retained 90 outputs: no edit was rerun, no outcome changed, and package,
+relationship, masked-leaf, second-import, and pixel details remain present even
+when the final pixel check failed. No absent Codex output is credited with
+package, pixel, second-import, or task/resume success.

@@ -1,0 +1,494 @@
+{
+  "schema": "office-kit/pptx-programmable-import-baseline/v1",
+  "productBaseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "acceptanceHarnessHead": "eaaac2daa2e81fd35dde18a31825983346d4883c",
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "tarballSha256": "2bec8a4caf4c15f840be4005424111a4a6207b49c24fe23c25908838b4095120",
+    "packedCleanInstall": true,
+    "codexCleanInstallPerTrial": true
+  },
+  "evidenceFiles": {
+    "matrix": {
+      "path": "baseline/matrix.v1.json",
+      "sha256": "8de9530306225dc8439e8eeb8bb64dbef3be5aa7407402ac6fc09ac158f63108"
+    },
+    "codex": {
+      "path": "baseline/codex.v1.json",
+      "sha256": "18cb0bbfb922436ca17b92118adba1c84230f7488af59485a131459f03ce9fb3"
+    }
+  },
+  "definitions": {
+    "matrixSha256": "0f6780ecc51c7afe9f58a797e0d6cb3cc711a781408612bca08e278228403b56",
+    "continuationSha256": "c36ae2232f1f8fc739023dfd3721e0990d555fde422b56875900357d05f63137",
+    "intentSha256": "0f6780ecc51c7afe9f58a797e0d6cb3cc711a781408612bca08e278228403b56"
+  },
+  "matrix": {
+    "requiredIntents": 30,
+    "requiredRuns": 90,
+    "passedRuns": 60,
+    "deterministicIntents": 10,
+    "status": "failed",
+    "nonDeterministic": [
+      {
+        "sourceId": "suanzhi-future-2026",
+        "intentId": "cover-title-proof",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 1 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "suanzhi-future-2026",
+        "intentId": "cover-partner-long-term",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 1 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "suanzhi-future-2026",
+        "intentId": "vision-slide-heading",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 4 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 4 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 4 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "suanzhi-future-2026",
+        "intentId": "storage-capability-label",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 6 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 6 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 6 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "blue-gray-acid-template",
+        "intentId": "cover-quarter-title",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 1 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "blue-gray-acid-template",
+        "intentId": "contents-quarter-label",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 2 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 2 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 2 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "blue-gray-acid-template",
+        "intentId": "contents-key-work",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 2 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 2 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 2 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "blue-gray-acid-template",
+        "intentId": "section-heading",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 3 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 3 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 3 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "blue-gray-acid-template",
+        "intentId": "content-heading",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 4 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 4 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 4 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "blue-gray-acid-template",
+        "intentId": "subtitle-shift-right",
+        "passedRuns": 0,
+        "failedRuns": [
+          {
+            "repetition": 1,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 2,
+            "reason": "Target rendered page 1 did not change"
+          },
+          {
+            "repetition": 3,
+            "reason": "Target rendered page 1 did not change"
+          }
+        ],
+        "outputSha256s": []
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "cover-programme-spelling",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "1078e589b1596cf2ffb777e178e5fc5f0260b224f26e9344e3a0bdfe7c823940",
+          "a984d2922ae33e3a951adc71c7b51a2393ee5b2082a09142a94c1fb4c07c681e",
+          "8bed29d15d9a40c204553853ce4091c0ee1eabfdfface63ee13f53b0cd435d08"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "cover-strategy-title",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "57ae43ee82d6524896f9f04d0fea825d75280683599f384197ba58877d37e19e",
+          "584df1de210e79de02c2017280decffe445ffb7ca2259928732f448e7b33b0ff",
+          "30b0e815eabbf87633071cdf0c62ddfc180845e230eed627cd9bd171afcc13cf"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "challenges-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "4aae41f2d4be6514fa30f31e84b6f27d9550f18001387c3337476c20b8993887",
+          "213fb3ad52e6080ebbdc2d7bbe51afadd4828d21db5ac3aa96168889be7d1f9f",
+          "5d43491b1c1bf973b02db8dbf39d17bb126d9ec77fb02fe5e67292796cb11c7d"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "repeat-purchase-metric",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "9839ae799aa8da8692534e562c8173726eec7c4fb0b2d9d4ba01d023167721f2",
+          "6bede6670ae010eae709ca85782bba7976d7f9f8bbed82ee20a36b2e33a37a1a",
+          "d38633df487fa8c6a2a716ae5244566e00ecdb2396bc378468172e0253bfc1e1"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "customer-base-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "c69acd892bfc167c66889fb777a9eb3dbc22b2d2307d8cd9667a814c92e9e3a5",
+          "73795aabd6fba4bd24742a32015fa3aad48b920c09a3c4cc3af5e671e8cf21c6",
+          "9010b73761372588cbd963641bfa3a67d76c50db47d398412dccc71b373c38a6"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "priority-matrix-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "e320fe6c773ffa284ae50269948b7d6eb3ae00698eac5c07a57b46fe0ce489ef",
+          "60751d4e3b61bdffd11e62b72c678b0cba8f30a3a99180539ac3c64994cedc49",
+          "d0fe14bfa8be95f5a7fb18f6f8f5f0746e8ad2356f2b123ddfc5b4919907bf93"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "attrition-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "41851629776b3022ba4c752b5f50f888543a491f7ca88eb1974ed1f33fb81e56",
+          "004fae276f80bcc1cedd891d663e498ed15352055d3e1b0e200c126f99567e3b",
+          "d293edd0dd938a72b61aca1c07d29ba163a5e76d46aa98298ff1fef55be9f311"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "loyalty-pillars-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "5cc242d682924cfb6913e9f973cebdd45ec72e80f6605ffae249508ec09a99ed",
+          "389e7c06161718eca0de18f7b3e26d602edba9e7055c5bea16ae1d58889c2ed1",
+          "ea24134c8992ad5fec2c039b107856683d5ef79fbcd7f9ff2af034eacbfeb2b4"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "initiatives-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "8f2af162787cdb2d1f74911838f30461a661c025df9d20bf605bfdfcf97fc942",
+          "808b18a243567b966d0e9bb62b55198c6fb0bb2a93e0896ae45a45933a416c6f",
+          "008d707caecccf6341a94a438712d2c42f900347091d947c13bc3a852b3be02b"
+        ]
+      },
+      {
+        "sourceId": "mckinsey-customer-loyalty",
+        "intentId": "roadmap-heading",
+        "passedRuns": 3,
+        "failedRuns": [],
+        "outputSha256s": [
+          "274a71a65ad41a065589ef8ab3ed7e054cb53a6271802f17d31fdb5bc2aebf54",
+          "d62314950d66493fabec4b23f64296bb2b07940120fde3df49025f5ae27cd814",
+          "89f50aeaf6b8ecb4360ac39806ff788b075ed3f77325d85dd9ebe659ca9f47a0"
+        ]
+      }
+    ]
+  },
+  "codex": {
+    "requiredTasks": 3,
+    "requiredTrials": 9,
+    "completedTrials": 9,
+    "passedTrials": 0,
+    "status": "failed",
+    "failedTrials": [
+      {
+        "taskId": "suanzhi-acceptance-appendix",
+        "sourceId": "suanzhi-future-2026",
+        "repetition": 1,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "任务已停止，未生成或发布输出。\n\n首个 REPL 任务 `t_95a5d02e3405` 的 phase-1 单元发生 JavaScript `SyntaxError: Invalid or unexpected token`。按“不重试当前阶段、保留真实失败、严格三进程”的约束，我没有启动后续会话或绕过失败。",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "suanzhi-acceptance-appendix",
+        "sourceId": "suanzhi-future-2026",
+        "repetition": 2,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "任务已停止，未生成输出文件。\n\n首个 `repl --new` 进程收到的 JSON 被 `jq` 格式化成多行，导致 JSONL 解析失败；Phase 1 未执行。任务 ID 为 `t_fa022dd4e99a`。\n\n鉴于要求明确规定首进程必须执行 Phase 1、不得用第四个进程补偿，也不得重新启动另一个 `repl --new`，继续操作会违反验收契约，因此保留真实失败并停止。",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "suanzhi-acceptance-appendix",
+        "sourceId": "suanzhi-future-2026",
+        "repetition": 3,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/suanzhi-acceptance-appendix.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "Unable to complete without violating the machine contract.\n\nThe first `repl --new` process received pretty-printed, multi-line JSON instead of one finite JSONL line, so it created task `t_7c9d54c78f44` but did not execute phase 1. Retrying would constitute the explicitly disallowed bootstrap-plus-fourth-process workflow.\n\nNo output was published, and `inputs/source.pptx` was not modified.",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "blue-gray-acceptance-summary",
+        "sourceId": "blue-gray-acid-template",
+        "repetition": 1,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "任务已停止，未生成或发布输出。\n\n首个有限 JSONL 生成脚本存在嵌套模板字符串语法错误，导致 `repl --new` 创建任务后未执行 phase 1 单元便收到 EOF。按约束，这属于不可恢复的空 bootstrap；重新启动会构成禁止的第四个 REPL 流程，因此没有继续或静默重试。",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "blue-gray-acceptance-summary",
+        "sourceId": "blue-gray-acid-template",
+        "repetition": 2,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "任务已停止，未发布输出。\n\n第一阶段已完成复制、导出/重导入、叶级修改和审阅，但 `ctx.commit` 因缺少必填 `summary` 被拒绝：\n\n`invalid-text: Commit summary must be a non-empty bounded text value.`\n\n任务状态确认 `head: null`，因此没有可供第二阶段恢复的 `c0001`。继续执行会违反“恰好三个 REPL 进程”和“第二阶段必须恢复已审阅提交”的约束。`outputs/blue-gray-acceptance-summary.pptx` 未创建。",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "blue-gray-acceptance-summary",
+        "sourceId": "blue-gray-acid-template",
+        "repetition": 3,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/blue-gray-acceptance-summary.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "任务未完成，已按要求停止，未重试或切换引擎。\n\n第一阶段编辑与审阅完成后，`ctx.commit` 因缺少必需的非空 `summary` 字段失败：\n\n> Commit summary must be a non-empty bounded text value.\n\n只读检查确认任务 `t_c1c363547150` 的 HEAD 仍为空、状态仍为 `new`。为避免违反“恰好三个 REPL 进程”和“不得重复阶段”的约束，我没有继续启动恢复进程。\n\n因此未发布，也未创建目标文件 `outputs/blue-gray-acceptance-summary.pptx`。",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "mckinsey-acceptance-close",
+        "sourceId": "mckinsey-customer-loyalty",
+        "repetition": 1,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "OfficeKit phase 1 stopped on a real contract mismatch:\n\n- Task ID: `t_7439b47cbea0`\n- Expected exactly one SVG node `svg-text-1` with value `Kimsoong`\n- Actual matching nodes: `0`\n- No commit, review, or publication occurred\n- Requested output was not created\n\nI did not retry through another engine or continue after the failed bounded-leaf validation.",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "mckinsey-acceptance-close",
+        "sourceId": "mckinsey-customer-loyalty",
+        "repetition": 2,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "Unable to complete without violating the machine contract.\n\nThe first required REPL process failed before phase-1 commit because the SVG node records expose their content as `text`, while the cell matched `value`. No output was published or written to `outputs/`.\n\nTask ID retained: `t_ac1631aa69a5`\n\nStarting replacement sessions would exceed or collapse the mandated exactly-three-process workflow, so I stopped rather than bypassing the acceptance protocol.",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      },
+      {
+        "taskId": "mckinsey-acceptance-close",
+        "sourceId": "mckinsey-customer-loyalty",
+        "repetition": 3,
+        "failures": [
+          "Output contract: ENOENT: no such file or directory, stat '$WORKSPACE/outputs/mckinsey-acceptance-close.pptx'"
+        ],
+        "codexStatus": 0,
+        "agentFinal": "Workflow stopped after phase 1 failed closed.\n\n- Task ID: `t_f15f3155b229`\n- Failure: no SVG record matched `svg-text-1` with before-value `Kimsoong`\n- No commit or publication occurred.\n- The source file was not modified.\n- The requested output was not created.\n\nI did not retry through another process because that would violate the required exactly-three-session sequence and duplicate phase 1.",
+        "agentFinalTruncated": false,
+        "policyPassed": true,
+        "outputPassed": false
+      }
+    ]
+  },
+  "environment": {
+    "matrix": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v26.7.0",
+      "render": true
+    },
+    "codex": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v26.7.0",
+      "npm": "11.19.0",
+      "codex": "codex-cli 0.144.5",
+      "render": true
+    }
+  },
+  "acceptance": {
+    "status": "failed",
+    "failuresPreserved": true,
+    "oracleWeakened": false,
+    "productModifiedByAcceptance": false
+  }
+}
