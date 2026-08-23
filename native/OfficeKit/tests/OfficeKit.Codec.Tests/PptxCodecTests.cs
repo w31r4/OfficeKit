@@ -7654,6 +7654,12 @@ public sealed class PptxCodecTests
         var duplicated = Export(imported.Artifact);
         Assert.True(duplicated.Ok, Diagnostics(duplicated));
         Assert.Contains(duplicated.Diagnostics, item => item.Code == "source_openxml_validation_warnings_preserved");
+        var repeated = Import(sourceBytes);
+        Assert.True(repeated.Ok, Diagnostics(repeated));
+        AddPendingClone(repeated.Artifact.Presentation, 0, "presentation/clone/chart-with-source-warning");
+        var repeatedOutput = Export(repeated.Artifact);
+        Assert.True(repeatedOutput.Ok, Diagnostics(repeatedOutput));
+        Assert.Equal(duplicated.File.ToByteArray(), repeatedOutput.File.ToByteArray());
 
         using var outputStream = new MemoryStream(duplicated.File.ToByteArray(), writable: false);
         using var outputPackage = PresentationDocument.Open(outputStream, false);
