@@ -41,11 +41,12 @@
   review, and source-safe delivery.
 - [ ] 4.4 Repeat the accepted workflows from the packed clean-install artifact.
 
-## 5. Final host and release evidence
+## 5. Final release evidence
 
-- [ ] 5.1 Complete Windows desktop PowerPoint open, inspect, save-copy,
-  reopen, and no-repair acceptance for all final benchmark artifacts.
-- [ ] 5.2 Update Help, API docs, Presentations Skill, coverage, release notes,
+- [ ] 5.1 Update Help, API docs, Presentations Skill, coverage, release notes,
   and package gates with measured capabilities and remaining boundaries.
-- [ ] 5.3 Pass fast/slow JavaScript, OfficeKit C#, proto, reproducible WASM,
+- [ ] 5.2 Pass fast/slow JavaScript, OfficeKit C#, proto, reproducible WASM,
   package, release, and hosted CI gates.
+
+Windows desktop PowerPoint acceptance remains a separately scheduled host lane
+and is not a completion gate for this portable runtime change.

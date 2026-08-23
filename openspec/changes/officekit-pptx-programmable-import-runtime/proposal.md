@@ -40,5 +40,5 @@ operation it proves, and everything else remains opaque and byte-preserved.
   conversion path.
 - No promise that all OOXML vocabulary becomes semantic or editable.
 - No mutation permission inferred from visual similarity or a design profile.
-- No Windows PowerPoint implementation work in the portable runtime commits;
-  Windows remains a final host-acceptance lane.
+- No Windows PowerPoint work or acceptance gate in this portable runtime
+  change; desktop host acceptance remains a separately scheduled lane.
