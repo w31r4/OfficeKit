@@ -95,15 +95,23 @@ const candidateCodex = structuredClone(codex);
 for (const trial of candidateCodex.trials) {
   trial.status = "passed";
   trial.failures = [];
+  const outputSha256 = `${Math.floor(candidateCodex.trials.indexOf(trial) / 3) + 7}`.repeat(64);
   trial.checks = {
     codex: { passed: true },
-    policy: { passed: true },
+    policy: { passed: true, findings: [] },
     source: { passed: true },
-    output: { passed: true },
-    durableTask: { passed: true },
-    packageOracle: { partSet: { passed: true }, relationships: { passed: true }, targetMask: { passed: true } },
-    secondImport: { passed: true },
-    pixelOracle: { passed: true, nonTargetPagesPixelIdentical: true },
+    output: { passed: true, createOnly: true, outputCount: 1 },
+    durableTask: {
+      passed: true,
+      sessions: 3,
+      commits: [{ commitId: "c0001" }, { commitId: "c0002" }],
+      head: { commitId: "c0002", revisionSha256: outputSha256 },
+      pending: [],
+      publication: { commitId: "c0002", sha256: outputSha256 },
+    },
+    packageOracle: { outputSha256, partSet: { passed: true }, relationships: { passed: true }, targetMask: { passed: true } },
+    secondImport: { passed: true, inputSha256: outputSha256 },
+    pixelOracle: { passed: true, appendedTargetChangedFromSource: true, nonTargetPagesPixelIdentical: true, nonTargetMismatches: [] },
   };
 }
 candidateCodex.acceptance = { requiredTasks: 3, trialsPerTask: 3, requiredTrials: 9, completedTrials: 9, passedTrials: 9, status: "passed" };
@@ -122,8 +130,9 @@ const companion = {
     missing: [],
     status: "passed",
   },
-  cases: [{
-    id: "synthetic-companion",
+  cases: [["text", "add"], ["geometry"], ["image"], ["table"], ["chart"], ["component"], ["delete"], ["reorder"]].map((covers, caseIndex) => ({
+    id: `synthetic-companion-${caseIndex + 1}`,
+    covers,
     requiredRuns: 3,
     completedRuns: 3,
     passedRuns: 3,
@@ -131,12 +140,12 @@ const companion = {
     runs: Array.from({ length: 3 }, (_, index) => ({
       repetition: index + 1,
       status: "passed",
-      outputSha256: "5".repeat(64),
+      outputSha256: String(caseIndex + 1).repeat(64),
       worker: { sourceUnchanged: true, secondImport: { passed: true } },
       packageOracle: { passed: true, partSet: { passed: true }, nonTargetPartsByteIdentical: true, targetMask: { passed: true } },
       pixelOracle: { passed: true, targetPageChanged: true, nonTargetPagesPixelIdentical: true, nonTargetMismatches: [] },
     })),
-  }],
+  })),
 };
 const candidateMatrixBytes = Buffer.from(`${JSON.stringify(candidateMatrix)}\n`);
 const candidateCodexBytes = Buffer.from(`${JSON.stringify(candidateCodex)}\n`);
@@ -154,7 +163,7 @@ assert.equal(candidate.schema, "office-kit/pptx-programmable-import-candidate/v1
 assert.equal(candidate.acceptance.status, "passed");
 assert.equal(candidate.matrix.passedRuns, 90);
 assert.equal(candidate.codex.passedTrials, 9);
-assert.equal(candidate.sourceDerived.passedRuns, 3);
+assert.equal(candidate.sourceDerived.passedRuns, 24);
 assert.equal(candidate.evidenceFiles.companion.sha256, sha256(companionBytes));
 assert.throws(
   () => buildCandidateEvidence({
