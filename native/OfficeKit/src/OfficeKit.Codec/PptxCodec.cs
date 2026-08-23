@@ -942,10 +942,14 @@ internal static class PptxCodec
                     var authoredXml = authoredElements
                         .Select(authored => BuildElement(authored, nativeIdsByElementId, slideContext, slidePart).OuterXml)
                         .ToArray();
-                    if (slideContext.AddedRelationshipIds.Count != relationshipCount || slideContext.AddedPartPaths.Count != partCount)
+                    var authoredImageCount = authoredElements.Count(element => element.ContentCase == PresentationElement.ContentOneofCase.Image);
+                    var addedRelationshipCount = slideContext.AddedRelationshipIds.Count - relationshipCount;
+                    var addedPartCount = slideContext.AddedPartPaths.Count - partCount;
+                    if (addedRelationshipCount < 0 || addedPartCount < 0 ||
+                        addedRelationshipCount > authoredImageCount || addedPartCount > addedRelationshipCount)
                         throw new CodecException(
                             "unsupported_presentation_authored_overlay",
-                            $"Presentation slide {slideIndex + 1} authored overlay attempted to change package relationships.",
+                            $"Presentation slide {slideIndex + 1} authored overlay changed relationships outside its embedded-image allowance.",
                             PartPath(slidePart));
                     authoredOverlayXmlByPartPath.Add(PartPath(slidePart), authoredXml);
                     changedParts.Add(PartPath(slidePart));
@@ -1804,10 +1808,12 @@ internal static class PptxCodec
 
     private static void ValidateAuthoredOverlayElement(PresentationElement element, int slideIndex, OpenXmlPart owner)
     {
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Image)
+            return;
         if (element.ContentCase != PresentationElement.ContentOneofCase.Shape)
             throw new CodecException(
                 "unsupported_presentation_authored_overlay",
-                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} must be a canonical textbox or basic shape.",
+                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} must be a canonical textbox, basic shape, or embedded rectangular image.",
                 PartPath(owner));
         var shape = element.Shape;
         if (shape.Geometry is not ("textbox" or "rect" or "roundRect" or "ellipse") ||
@@ -2918,7 +2924,13 @@ internal static class PptxCodec
                 var outputIndex = elements.Length + authoredIndex;
                 var outputElement = after[outputIndex];
                 var authoredOutputNativeIds = PptxElementDeletionCodec.NativeIds(outputElement).ToArray();
-                if (outputElement is not P.Shape || authoredOutputNativeIds.Length != 1 || authoredOutputNativeIds[0] != authoredNativeIds[request.Id])
+                var nativeTypeMatches = request.ContentCase switch
+                {
+                    PresentationElement.ContentOneofCase.Shape => outputElement is P.Shape,
+                    PresentationElement.ContentOneofCase.Image => outputElement is P.Picture,
+                    _ => false,
+                };
+                if (!nativeTypeMatches || authoredOutputNativeIds.Length != 1 || authoredOutputNativeIds[0] != authoredNativeIds[request.Id])
                     throw new CodecException(
                         "presentation_postwrite_authored_overlay_mismatch",
                         $"PPTX slide {slideIndex + 1} authored overlay {authoredIndex + 1} changed native type or identity during export.",
