@@ -35,6 +35,8 @@ assert.match(prompt, /ctx[.]commit/u);
 assert.match(prompt, /ctx[.]publish/u);
 assert.match(prompt, /ctx[.]task[.]artifacts[\s\S]*headRevision[\s\S]*path[.]resolve\(ctx[.]taskRoot[\s\S]*FileBlob[.]load/su);
 assert.match(prompt, /never call `ctx[.]input\("continued-deck"\)`/u);
+assert.match(prompt, /baseline: restoredPath/u);
+assert.match(prompt, /application\/octet-stream/u);
 assert.match(prompt, /ctx[.]publish\(ctx[.]task[.]commit, \{ artifactId: "continued-deck"/u);
 assert.match(prompt, /Presentation[.]create/u);
 assert.match(prompt, /inputs\/source[.]pptx/u);
