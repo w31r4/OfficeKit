@@ -6283,6 +6283,115 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingExportAppendsCanonicalShapeOverlayWithoutChangingExistingContent()
+    {
+        var sourceBytes = AddNativeObjectGraph(Invoke(ExportRequest()).File.ToByteArray());
+        var firstImport = Import(sourceBytes);
+        Assert.True(firstImport.Ok, Diagnostics(firstImport));
+        Assert.Single(firstImport.Artifact.Presentation.Slides).Elements.Add(AuthoredOverlayElement());
+        var first = Export(firstImport.Artifact);
+        Assert.True(first.Ok, Diagnostics(first));
+
+        var secondImport = Import(sourceBytes);
+        Assert.True(secondImport.Ok, Diagnostics(secondImport));
+        Assert.Single(secondImport.Artifact.Presentation.Slides).Elements.Add(AuthoredOverlayElement());
+        var second = Export(secondImport.Artifact);
+        Assert.True(second.Ok, Diagnostics(second));
+        Assert.Equal(first.File, second.File);
+
+        var outputBytes = first.File.ToByteArray();
+        Assert.Equal(ZipPartPaths(sourceBytes), ZipPartPaths(outputBytes));
+        foreach (var path in ZipPartPaths(sourceBytes).Where(path => !path.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(outputBytes, path));
+
+        using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
+        using (var outputStream = new MemoryStream(outputBytes, writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var outputPackage = PresentationDocument.Open(outputStream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(outputPackage));
+            var sourceElements = sourcePackage.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!.ShapeTree!.ChildElements
+                .Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties).ToArray();
+            var outputElements = outputPackage.PresentationPart!.SlideParts.Single().Slide!.CommonSlideData!.ShapeTree!.ChildElements
+                .Where(child => child is not P.NonVisualGroupShapeProperties and not P.GroupShapeProperties).ToArray();
+            Assert.Equal(sourceElements.Length + 1, outputElements.Length);
+            for (var index = 0; index < sourceElements.Length; index++) Assert.Equal(sourceElements[index].OuterXml, outputElements[index].OuterXml);
+            var overlay = Assert.IsType<P.Shape>(outputElements[^1]);
+            var sourceNativeIds = sourceElements.SelectMany(element => element.Descendants<P.NonVisualDrawingProperties>())
+                .Select(properties => properties.Id!.Value).ToArray();
+            Assert.Equal(sourceNativeIds.Max() + 1, overlay.NonVisualShapeProperties!.NonVisualDrawingProperties!.Id!.Value);
+            Assert.Equal("Agent-authored evidence", string.Concat(overlay.Descendants<A.Text>().Select(text => text.Text)));
+        }
+
+        var roundTrip = Import(outputBytes);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var roundTripOverlay = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements, element => element.Name == "OfficeKit overlay");
+        Assert.Equal(PresentationElement.ContentOneofCase.Shape, roundTripOverlay.ContentCase);
+        Assert.Equal("Agent-authored evidence", roundTripOverlay.Shape.Text);
+        Assert.NotNull(roundTripOverlay.Source);
+    }
+
+    [Fact]
+    public void SourcePreservingExportRejectsUnsafeOrInterleavedAuthoredOverlay()
+    {
+        static CodecResponse ExportWithOverlay(Action<PresentationElement> mutate)
+        {
+            var sourceBytes = Invoke(ExportRequest()).File.ToByteArray();
+            var imported = Import(sourceBytes);
+            var overlay = AuthoredOverlayElement();
+            mutate(overlay);
+            Assert.Single(imported.Artifact.Presentation.Slides).Elements.Add(overlay);
+            return Export(imported.Artifact);
+        }
+
+        var unsupportedType = ExportWithOverlay(element =>
+        {
+            var table = new PresentationTable
+            {
+                LeftEmu = 6_000_000,
+                TopEmu = 4_800_000,
+                WidthEmu = 4_000_000,
+                HeightEmu = 700_000,
+            };
+            table.ColumnWidthsEmu.Add(4_000_000);
+            table.Rows.Add(new PresentationTableRow
+            {
+                HeightEmu = 700_000,
+                Cells = { new PresentationTableCell { Text = "unsupported here" } },
+            });
+            element.Table = table;
+        });
+        Assert.False(unsupportedType.Ok);
+        Assert.Equal("unsupported_presentation_authored_overlay", Assert.Single(unsupportedType.Diagnostics).Code);
+
+        var unsupportedGeometry = ExportWithOverlay(element => element.Shape.Geometry = "line");
+        Assert.False(unsupportedGeometry.Ok);
+        Assert.Equal("unsupported_presentation_authored_overlay", Assert.Single(unsupportedGeometry.Diagnostics).Code);
+
+        var hyperlink = ExportWithOverlay(element =>
+        {
+            var paragraph = new PresentationTextParagraph();
+            paragraph.Runs.Add(new PresentationTextRun { Text = "linked", RunHyperlink = new PresentationRunHyperlink { Uri = "https://example.com" } });
+            element.Shape.TextBody = new PresentationTextBody();
+            element.Shape.TextBody.Paragraphs.Add(paragraph);
+            element.Shape.Text = "linked";
+        });
+        Assert.False(hyperlink.Ok);
+        Assert.Equal("unsupported_presentation_authored_overlay", Assert.Single(hyperlink.Diagnostics).Code);
+
+        var sourceRequest = ExportRequest();
+        sourceRequest.Artifact.Presentation.Slides[0].Elements.Add(AuthoredOverlayElement("source-second", "Source second"));
+        var source = Invoke(sourceRequest);
+        Assert.True(source.Ok, Diagnostics(source));
+        var importedSource = Import(source.File.ToByteArray());
+        Assert.True(importedSource.Ok, Diagnostics(importedSource));
+        Assert.Single(importedSource.Artifact.Presentation.Slides).Elements.Insert(1, AuthoredOverlayElement());
+        var interleaved = Export(importedSource.Artifact);
+        Assert.False(interleaved.Ok);
+        Assert.Equal("presentation_element_topology_changed", Assert.Single(interleaved.Diagnostics).Code);
+    }
+
+    [Fact]
     public void SourcePreservingExportDeletesOneCapabilityProvenTopLevelShape()
     {
         var authored = Invoke(ExportRequest());
@@ -9783,6 +9892,26 @@ public sealed class PptxCodecTests
 
     private static string Diagnostics(CodecResponse response) =>
         string.Join("\n", response.Diagnostics.Select(item => $"{item.Code}: {item.Message}"));
+
+    private static PresentationElement AuthoredOverlayElement(
+        string id = "presentation/slide/1/authored-overlay",
+        string name = "OfficeKit overlay") => new()
+    {
+        Id = id,
+        Name = name,
+        Shape = new PresentationShape
+        {
+            Geometry = "textbox",
+            LeftEmu = 6_000_000,
+            TopEmu = 4_800_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 700_000,
+            Text = "Agent-authored evidence",
+            FillRgb = "F8FAFC",
+            LineRgb = "2563EB",
+            LineWidthEmu = 12_700,
+        },
+    };
 
     private static CodecRequest ExportRequest()
     {
