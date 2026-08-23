@@ -588,7 +588,64 @@ export async function renderPresentationPages(inputPath, cacheRoot, contentSha25
   return { ...manifest, cacheHit: false };
 }
 
-export function compareRenderedPages(sourceRender, outputRender, targetPage) {
+export async function renderKeynotePresentationPages(inputPath, cacheRoot, contentSha256, tools = {}) {
+  if (process.platform !== "darwin") throw new Error("Keynote rendering is available only on macOS");
+  const cacheDir = path.join(cacheRoot, contentSha256);
+  const manifestPath = path.join(cacheDir, "pages.json");
+  try {
+    const existing = JSON.parse(await readFile(manifestPath, "utf8"));
+    if (existing.contentSha256 === contentSha256 && existing.renderer?.keynote && existing.pages?.length) {
+      return { ...existing, cacheHit: true };
+    }
+  } catch {}
+  await mkdir(cacheDir, { recursive: false });
+  const workDir = path.join(cacheDir, "work");
+  await mkdir(workDir);
+  const localInput = path.join(workDir, "presentation.pptx");
+  const pdfPath = path.join(workDir, "presentation.pdf");
+  await writeFile(localInput, await readFile(inputPath), { flag: "wx" });
+  const osascript = tools.osascript || "osascript";
+  const pdftoppm = tools.pdftoppm || process.env.OFFICEKIT_PDFTOPPM || "pdftoppm";
+  runRequired(osascript, [
+    "-e", "on run argv",
+    "-e", "set inFile to POSIX file (item 1 of argv)",
+    "-e", "set outFile to POSIX file (item 2 of argv)",
+    "-e", "tell application \"Keynote\"",
+    "-e", "set theDoc to missing value",
+    "-e", "try",
+    "-e", "set theDoc to open inFile",
+    "-e", "export theDoc to outFile as PDF",
+    "-e", "close theDoc saving no",
+    "-e", "on error errorMessage number errorNumber",
+    "-e", "if theDoc is not missing value then close theDoc saving no",
+    "-e", "error errorMessage number errorNumber",
+    "-e", "end try",
+    "-e", "end tell",
+    "-e", "end run",
+    localInput,
+    pdfPath,
+  ], "Keynote render");
+  await stat(pdfPath);
+  runRequired(pdftoppm, ["-png", "-r", "96", pdfPath, path.join(workDir, "page")], "Poppler raster");
+  const pageFiles = (await readdir(workDir)).filter((name) => /^page-\d+[.]png$/u.test(name)).sort((left, right) => pageNumber(left) - pageNumber(right));
+  if (!pageFiles.length) throw new Error("Poppler produced no Keynote-rendered PPTX pages");
+  const pages = [];
+  for (const file of pageFiles) pages.push({ page: pageNumber(file), sha256: sha256(await readFile(path.join(workDir, file))) });
+  const manifest = {
+    schema: "office-kit/pptx-programmable-import-render/v1",
+    contentSha256,
+    renderer: {
+      keynote: versionLine(osascript, ["-e", "tell application \"Keynote\" to get version"]),
+      pdftoppm: versionLine(pdftoppm, ["-v"]),
+      dpi: 96,
+    },
+    pages,
+  };
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx" });
+  return { ...manifest, cacheHit: false };
+}
+
+export function inspectRenderedPages(sourceRender, outputRender, targetPage) {
   if (sourceRender.pages.length !== outputRender.pages.length) {
     throw new Error(`Rendered page count changed: ${sourceRender.pages.length} -> ${outputRender.pages.length}`);
   }
@@ -602,17 +659,24 @@ export function compareRenderedPages(sourceRender, outputRender, targetPage) {
   const before = sourceRender.pages.find(({ page }) => page === targetPage);
   const after = outputRender.pages.find(({ page }) => page === targetPage);
   if (!before || !after) throw new Error(`Target rendered page ${targetPage} is missing`);
-  if (before.sha256 === after.sha256) throw new Error(`Target rendered page ${targetPage} did not change`);
   return {
-    passed: true,
     pageCount: sourceRender.pages.length,
     targetPage,
-    targetPageChanged: true,
+    targetPageChanged: before.sha256 !== after.sha256,
     nonTargetPagesPixelIdentical: true,
     nonTargetMismatches: [],
     sourcePageHashes: sourceRender.pages,
     outputPageHashes: outputRender.pages,
     outputCacheHit: outputRender.cacheHit,
+  };
+}
+
+export function compareRenderedPages(sourceRender, outputRender, targetPage) {
+  const inspection = inspectRenderedPages(sourceRender, outputRender, targetPage);
+  if (!inspection.targetPageChanged) throw new Error(`Target rendered page ${targetPage} did not change`);
+  return {
+    ...inspection,
+    passed: true,
   };
 }
 

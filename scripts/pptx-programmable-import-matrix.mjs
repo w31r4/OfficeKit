@@ -9,7 +9,9 @@ import { fileURLToPath } from "node:url";
 import {
   compareRenderedPages,
   evaluatePackageOracle,
+  inspectRenderedPages,
   readIntentDefinitions,
+  renderKeynotePresentationPages,
   renderPresentationPages,
   sha256,
 } from "./pptx-programmable-import-oracle.mjs";
@@ -31,6 +33,7 @@ async function main() {
   const officekitBin = path.join(packageRoot, packageMetadata.bin?.officekit || "bin/officekit.mjs");
   await stat(officekitBin);
   const render = args["no-render"] !== true;
+  const targetRenderer = parseTargetRenderer(args["target-renderer"], render);
   const repetitions = args.repetitions ? positiveInteger(args.repetitions, "repetitions") : definitions.repetitionsPerIntent;
   const selectedSources = args.source ? definitions.sources.filter(({ id }) => id === args.source) : definitions.sources;
   if (!selectedSources.length) throw new Error(`Unknown --source ${args.source}`);
@@ -66,7 +69,9 @@ async function main() {
           if (sourceAfter !== source.sha256) throw new Error(`source copy changed: ${sourceAfter}`);
           const packageOracle = await evaluatePackageOracle({ sourceBytes, outputBytes, source, intent });
           const outputRender = render ? await renderPresentationPages(outputPath, renderCache, sha256(outputBytes)) : null;
-          const pixelOracle = render ? compareRenderedPages(sourceRender, outputRender, intent.targetPage) : { passed: false, skipped: true, reason: "--no-render" };
+          const pixelOracle = render
+            ? await evaluatePixelOracle({ sourcePath, outputPath, source, outputBytes, sourceRender, outputRender, intent, renderCache, targetRenderer })
+            : { passed: false, skipped: true, reason: "--no-render" };
           record = { repetition, status: "passed", sourceSha256After: sourceAfter, outputSha256: sha256(outputBytes), worker: receipt, packageOracle, pixelOracle };
         } catch (error) {
           record = { repetition, status: "failed", reason: error instanceof Error ? error.message : String(error) };
@@ -92,7 +97,7 @@ async function main() {
       installKind: args["install-kind"] || (packageRoot === repoRoot ? "repository" : "packed-clean-install"),
       tarballSha256: args["tarball-sha256"] || null,
     },
-    environment: { platform: process.platform, arch: process.arch, node: process.version, render },
+    environment: { platform: process.platform, arch: process.arch, node: process.version, render, targetRenderer },
     repetitionsPerIntent: repetitions,
     sources,
     acceptance: {
@@ -106,6 +111,26 @@ async function main() {
   await writeFile(path.join(runRoot, "evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx" });
   process.stdout.write(`${JSON.stringify({ evidence: path.join(runRoot, "evidence.json"), acceptance: evidence.acceptance }, null, 2)}\n`);
   if (evidence.acceptance.status !== "passed") process.exitCode = 1;
+}
+
+async function evaluatePixelOracle({ sourcePath, outputPath, source, outputBytes, sourceRender, outputRender, intent, renderCache, targetRenderer }) {
+  const primary = inspectRenderedPages(sourceRender, outputRender, intent.targetPage);
+  if (primary.targetPageChanged) return { ...primary, passed: true, renderer: "libreoffice" };
+  if (targetRenderer !== "keynote") throw new Error(`Target rendered page ${intent.targetPage} did not change`);
+  const keynoteCache = path.join(renderCache, "keynote");
+  await mkdir(keynoteCache, { recursive: true });
+  const sourceKeynote = await renderKeynotePresentationPages(sourcePath, keynoteCache, source.sha256);
+  const outputKeynote = await renderKeynotePresentationPages(outputPath, keynoteCache, sha256(outputBytes));
+  const native = compareRenderedPages(sourceKeynote, outputKeynote, intent.targetPage);
+  return {
+    ...native,
+    renderer: "keynote",
+    primaryRenderer: {
+      renderer: "libreoffice",
+      targetPageChanged: false,
+      nonTargetPagesPixelIdentical: primary.nonTargetPagesPixelIdentical,
+    },
+  };
 }
 
 function runWorker({ officekitBin, definitionsPath, source, intent, inputPath, outputPath, receiptPath, cwd }) {
@@ -145,6 +170,14 @@ function positiveInteger(value, name) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 10) throw new Error(`${name} must be an integer from 1 through 10`);
   return parsed;
+}
+
+function parseTargetRenderer(value, render) {
+  if (!value) return null;
+  if (!render) throw new Error("--target-renderer cannot be used with --no-render");
+  if (value !== "keynote") throw new Error(`Unsupported --target-renderer ${value}; expected keynote`);
+  if (process.platform !== "darwin") throw new Error("--target-renderer keynote requires macOS");
+  return value;
 }
 
 async function requireAbsent(target, label) {
