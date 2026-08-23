@@ -1,0 +1,314 @@
+{
+  "schema": "office-kit/pptx-svg-leaf-evidence/v1",
+  "editSourceId": "mckinsey-customer-loyalty",
+  "repeats": 3,
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "slideCount": 21,
+      "imageCount": 18,
+      "svgImageCount": 0,
+      "supportedSvgImageCount": 0,
+      "svgLeafCount": 0,
+      "leafKinds": {},
+      "revisionBoundLeafCount": 0
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "fileName": "template.pptx",
+      "sourceSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "slideCount": 19,
+      "imageCount": 21,
+      "svgImageCount": 0,
+      "supportedSvgImageCount": 0,
+      "svgLeafCount": 0,
+      "leafKinds": {},
+      "revisionBoundLeafCount": 0
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "slideCount": 8,
+      "imageCount": 8,
+      "svgImageCount": 8,
+      "supportedSvgImageCount": 8,
+      "svgLeafCount": 487,
+      "leafKinds": {
+        "svgFillRgb": 373,
+        "svgOpacity": 35,
+        "svgStrokeRgb": 58,
+        "svgTransformScalar": 21
+      },
+      "revisionBoundLeafCount": 487
+    }
+  ],
+  "runs": [
+    {
+      "repeat": 1,
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSvgSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+      "editedSvgSha256": "32450ce15b2d80c63e9490ae8920c517f984a9041c38e05dd15cf3184ab7b299",
+      "outputArchiveSha256": "55091b5facd4e9aedbafa74837d56c7bd1cd49638fedf5b7656ffc1192e7acbe",
+      "canonicalOutputSha256": "bdc12b3dbd537d4e7fd608d1f7b93c32a05c95c839fcbd10e52ff2cc57b6f15c",
+      "editedSlide": 3,
+      "editedImageId": "presentation/slide/3/element/1",
+      "edits": [
+        {
+          "leafKind": "svgFillRgb",
+          "leafId": "sl_4d668c21e47ecf6e99b564c9e31a126a",
+          "expectedHash": "07ee686b3ce29f11070f5edcd6f0da03659e67becfba76650c1c6b5ac079847a",
+          "oldValue": "#FFFFFF",
+          "value": "#0F766E",
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 1716,
+            "length": 7,
+            "beforeSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+            "afterSha256": "1489a6bb0a216a72222bb7a6b68640364b5806794d4d28de2cabca4247cc0811"
+          }
+        },
+        {
+          "leafKind": "svgStrokeRgb",
+          "leafId": "sl_fe57a50bdaf1b051f0420e8fd077b0c2",
+          "expectedHash": "c552ef3349d69b1f5f3b2c55112438ff8858f829626ffd5356d925eaa45a7c14",
+          "oldValue": "#ECF0F1",
+          "value": "#DC2626",
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2075,
+            "length": 7,
+            "beforeSha256": "1489a6bb0a216a72222bb7a6b68640364b5806794d4d28de2cabca4247cc0811",
+            "afterSha256": "38aff81e6a166a5500e5c65852d7d24c7dc07b715c0510c52beebbf821bcd3dc"
+          }
+        },
+        {
+          "leafKind": "svgOpacity",
+          "leafId": "sl_cb88e0b670524cad591be09f1da6e675",
+          "expectedHash": "22fa3ce4995af8d96fcd771f0e1f5d74d8a98f36c3eec8e95bdf7524926b0141",
+          "oldValue": 0.95,
+          "value": 0.65,
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2488,
+            "length": 4,
+            "beforeSha256": "38aff81e6a166a5500e5c65852d7d24c7dc07b715c0510c52beebbf821bcd3dc",
+            "afterSha256": "52461983ec183f80a5fb1c34668ed425a447cf151840ae06998c4258cc001416"
+          }
+        },
+        {
+          "leafKind": "svgTransformScalar",
+          "component": "angle",
+          "leafId": "sl_3848fcc2b26d412d0dfe32abe7017354",
+          "expectedHash": "24368442272dc5f3202b781776989fd947e98b86418d7ee95908d03091f54f57",
+          "oldValue": -90,
+          "value": -85,
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2465,
+            "length": 3,
+            "beforeSha256": "52461983ec183f80a5fb1c34668ed425a447cf151840ae06998c4258cc001416",
+            "afterSha256": "32450ce15b2d80c63e9490ae8920c517f984a9041c38e05dd15cf3184ab7b299"
+          }
+        }
+      ],
+      "changedExistingParts": [
+        "ppt/slides/_rels/slide3.xml.rels",
+        "ppt/slides/slide3.xml"
+      ],
+      "deletedParts": [],
+      "addedParts": [
+        "ppt/media/image9.svg"
+      ],
+      "replacementSvgPart": "ppt/media/image9.svg",
+      "replacementSvgBytesMatch": true,
+      "reimported": true,
+      "classifiedOperations": [
+        "accessibility",
+        "delete",
+        "semantic-model",
+        "svg-style",
+        "svg-text",
+        "svg-transform"
+      ]
+    },
+    {
+      "repeat": 2,
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSvgSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+      "editedSvgSha256": "32450ce15b2d80c63e9490ae8920c517f984a9041c38e05dd15cf3184ab7b299",
+      "outputArchiveSha256": "55091b5facd4e9aedbafa74837d56c7bd1cd49638fedf5b7656ffc1192e7acbe",
+      "canonicalOutputSha256": "bdc12b3dbd537d4e7fd608d1f7b93c32a05c95c839fcbd10e52ff2cc57b6f15c",
+      "editedSlide": 3,
+      "editedImageId": "presentation/slide/3/element/1",
+      "edits": [
+        {
+          "leafKind": "svgFillRgb",
+          "leafId": "sl_4d668c21e47ecf6e99b564c9e31a126a",
+          "expectedHash": "07ee686b3ce29f11070f5edcd6f0da03659e67becfba76650c1c6b5ac079847a",
+          "oldValue": "#FFFFFF",
+          "value": "#0F766E",
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 1716,
+            "length": 7,
+            "beforeSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+            "afterSha256": "1489a6bb0a216a72222bb7a6b68640364b5806794d4d28de2cabca4247cc0811"
+          }
+        },
+        {
+          "leafKind": "svgStrokeRgb",
+          "leafId": "sl_fe57a50bdaf1b051f0420e8fd077b0c2",
+          "expectedHash": "c552ef3349d69b1f5f3b2c55112438ff8858f829626ffd5356d925eaa45a7c14",
+          "oldValue": "#ECF0F1",
+          "value": "#DC2626",
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2075,
+            "length": 7,
+            "beforeSha256": "1489a6bb0a216a72222bb7a6b68640364b5806794d4d28de2cabca4247cc0811",
+            "afterSha256": "38aff81e6a166a5500e5c65852d7d24c7dc07b715c0510c52beebbf821bcd3dc"
+          }
+        },
+        {
+          "leafKind": "svgOpacity",
+          "leafId": "sl_cb88e0b670524cad591be09f1da6e675",
+          "expectedHash": "22fa3ce4995af8d96fcd771f0e1f5d74d8a98f36c3eec8e95bdf7524926b0141",
+          "oldValue": 0.95,
+          "value": 0.65,
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2488,
+            "length": 4,
+            "beforeSha256": "38aff81e6a166a5500e5c65852d7d24c7dc07b715c0510c52beebbf821bcd3dc",
+            "afterSha256": "52461983ec183f80a5fb1c34668ed425a447cf151840ae06998c4258cc001416"
+          }
+        },
+        {
+          "leafKind": "svgTransformScalar",
+          "component": "angle",
+          "leafId": "sl_3848fcc2b26d412d0dfe32abe7017354",
+          "expectedHash": "24368442272dc5f3202b781776989fd947e98b86418d7ee95908d03091f54f57",
+          "oldValue": -90,
+          "value": -85,
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2465,
+            "length": 3,
+            "beforeSha256": "52461983ec183f80a5fb1c34668ed425a447cf151840ae06998c4258cc001416",
+            "afterSha256": "32450ce15b2d80c63e9490ae8920c517f984a9041c38e05dd15cf3184ab7b299"
+          }
+        }
+      ],
+      "changedExistingParts": [
+        "ppt/slides/_rels/slide3.xml.rels",
+        "ppt/slides/slide3.xml"
+      ],
+      "deletedParts": [],
+      "addedParts": [
+        "ppt/media/image9.svg"
+      ],
+      "replacementSvgPart": "ppt/media/image9.svg",
+      "replacementSvgBytesMatch": true,
+      "reimported": true,
+      "classifiedOperations": [
+        "accessibility",
+        "delete",
+        "semantic-model",
+        "svg-style",
+        "svg-text",
+        "svg-transform"
+      ]
+    },
+    {
+      "repeat": 3,
+      "sourceSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "sourceSvgSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+      "editedSvgSha256": "32450ce15b2d80c63e9490ae8920c517f984a9041c38e05dd15cf3184ab7b299",
+      "outputArchiveSha256": "55091b5facd4e9aedbafa74837d56c7bd1cd49638fedf5b7656ffc1192e7acbe",
+      "canonicalOutputSha256": "bdc12b3dbd537d4e7fd608d1f7b93c32a05c95c839fcbd10e52ff2cc57b6f15c",
+      "editedSlide": 3,
+      "editedImageId": "presentation/slide/3/element/1",
+      "edits": [
+        {
+          "leafKind": "svgFillRgb",
+          "leafId": "sl_4d668c21e47ecf6e99b564c9e31a126a",
+          "expectedHash": "07ee686b3ce29f11070f5edcd6f0da03659e67becfba76650c1c6b5ac079847a",
+          "oldValue": "#FFFFFF",
+          "value": "#0F766E",
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 1716,
+            "length": 7,
+            "beforeSha256": "4c8ca5ad52f261b7f1b1466232a29e793c6cdee98631d5b231f75582308241ed",
+            "afterSha256": "1489a6bb0a216a72222bb7a6b68640364b5806794d4d28de2cabca4247cc0811"
+          }
+        },
+        {
+          "leafKind": "svgStrokeRgb",
+          "leafId": "sl_fe57a50bdaf1b051f0420e8fd077b0c2",
+          "expectedHash": "c552ef3349d69b1f5f3b2c55112438ff8858f829626ffd5356d925eaa45a7c14",
+          "oldValue": "#ECF0F1",
+          "value": "#DC2626",
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2075,
+            "length": 7,
+            "beforeSha256": "1489a6bb0a216a72222bb7a6b68640364b5806794d4d28de2cabca4247cc0811",
+            "afterSha256": "38aff81e6a166a5500e5c65852d7d24c7dc07b715c0510c52beebbf821bcd3dc"
+          }
+        },
+        {
+          "leafKind": "svgOpacity",
+          "leafId": "sl_cb88e0b670524cad591be09f1da6e675",
+          "expectedHash": "22fa3ce4995af8d96fcd771f0e1f5d74d8a98f36c3eec8e95bdf7524926b0141",
+          "oldValue": 0.95,
+          "value": 0.65,
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2488,
+            "length": 4,
+            "beforeSha256": "38aff81e6a166a5500e5c65852d7d24c7dc07b715c0510c52beebbf821bcd3dc",
+            "afterSha256": "52461983ec183f80a5fb1c34668ed425a447cf151840ae06998c4258cc001416"
+          }
+        },
+        {
+          "leafKind": "svgTransformScalar",
+          "component": "angle",
+          "leafId": "sl_3848fcc2b26d412d0dfe32abe7017354",
+          "expectedHash": "24368442272dc5f3202b781776989fd947e98b86418d7ee95908d03091f54f57",
+          "oldValue": -90,
+          "value": -85,
+          "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+          "mutation": {
+            "offset": 2465,
+            "length": 3,
+            "beforeSha256": "52461983ec183f80a5fb1c34668ed425a447cf151840ae06998c4258cc001416",
+            "afterSha256": "32450ce15b2d80c63e9490ae8920c517f984a9041c38e05dd15cf3184ab7b299"
+          }
+        }
+      ],
+      "changedExistingParts": [
+        "ppt/slides/_rels/slide3.xml.rels",
+        "ppt/slides/slide3.xml"
+      ],
+      "deletedParts": [],
+      "addedParts": [
+        "ppt/media/image9.svg"
+      ],
+      "replacementSvgPart": "ppt/media/image9.svg",
+      "replacementSvgBytesMatch": true,
+      "reimported": true,
+      "classifiedOperations": [
+        "accessibility",
+        "delete",
+        "semantic-model",
+        "svg-style",
+        "svg-text",
+        "svg-transform"
+      ]
+    }
+  ]
+}
