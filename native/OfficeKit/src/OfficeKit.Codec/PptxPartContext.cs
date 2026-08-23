@@ -13,7 +13,7 @@ internal sealed class PptxPartContext
     private const string ImageRelationshipType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
     private readonly HashSet<string> _addedRelationshipIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> _addedPartPaths = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Func<PartTypeInfo, ImagePart> _addImagePart;
+    private readonly Func<PartTypeInfo, string, ImagePart> _addImagePart;
 
     internal PptxPartContext(
         OpenXmlPart owner,
@@ -24,14 +24,14 @@ internal sealed class PptxPartContext
             owner,
             owner switch
             {
-                SlidePart slide => type => slide.AddImagePart(type),
-                SlideMasterPart master => type => master.AddImagePart(type),
-                SlideLayoutPart layout => type => layout.AddImagePart(type),
+                SlidePart slide => (type, relationshipId) => slide.AddImagePart(type, relationshipId),
+                SlideMasterPart master => (type, relationshipId) => master.AddImagePart(type, relationshipId),
+                SlideLayoutPart layout => (type, relationshipId) => layout.AddImagePart(type, relationshipId),
                 // NotesSlide rich text deliberately has no relationship-writing
                 // surface. The context exists so the shared text codec can
                 // preserve its fixed paragraph/run topology; a picture bullet
                 // still fails closed before it can add an ImagePart.
-                NotesSlidePart => _ => throw new CodecException(
+                NotesSlidePart => (_, _) => throw new CodecException(
                     "unsupported_presentation_notes",
                     "Speaker notes cannot add picture-bullet relationships."),
                 _ => throw new ArgumentException($"Unsupported PresentationML relationship owner {owner.GetType().Name}.", nameof(owner)),
@@ -45,7 +45,7 @@ internal sealed class PptxPartContext
 
     private PptxPartContext(
         OpenXmlPart owner,
-        Func<PartTypeInfo, ImagePart> addImagePart,
+        Func<PartTypeInfo, string, ImagePart> addImagePart,
         IReadOnlyDictionary<string, string> slideIdByPartPath,
         IReadOnlyDictionary<string, SlidePart>? slidePartById,
         PptxAssetCatalog? assets,
@@ -182,14 +182,16 @@ internal sealed class PptxPartContext
         }
         if (Assets.ExistingPart(assetId) is { } shared)
         {
-            Owner.AddPart(shared);
-            return Track(Owner.GetIdOfPart(shared));
+            var sharedRelationshipId = NextRelationshipId(asset);
+            Owner.AddPart(shared, sharedRelationshipId);
+            return Track(sharedRelationshipId);
         }
-        var part = _addImagePart(PptxAssetCatalog.ImagePartTypeFor(asset.ContentType));
+        var relationshipId = NextRelationshipId(asset);
+        var part = _addImagePart(PptxAssetCatalog.ImagePartTypeFor(asset.ContentType), relationshipId);
         using (var source = new MemoryStream(asset.Data.ToByteArray(), writable: false)) part.FeedData(source);
         Assets.RegisterPart(assetId, part);
         _addedPartPaths.Add(part.Uri.OriginalString.TrimStart('/'));
-        return Track(Owner.GetIdOfPart(part));
+        return Track(relationshipId);
     }
 
     private string AddExternalPicture(string value)
@@ -214,6 +216,26 @@ internal sealed class PptxPartContext
     {
         _addedRelationshipIds.Add(relationshipId);
         return relationshipId;
+    }
+
+    private string NextRelationshipId(Asset asset)
+    {
+        var used = Owner.Parts.Select(pair => pair.RelationshipId)
+            .Concat(Owner.ExternalRelationships.Select(relationship => relationship.Id))
+            .Concat(Owner.HyperlinkRelationships.Select(relationship => relationship.Id))
+            .Concat(Owner.DataPartReferenceRelationships.Select(relationship => relationship.Id))
+            .Concat(_addedRelationshipIds)
+            .ToHashSet(StringComparer.Ordinal);
+        var digest = asset.Sha256.Length >= 16 ? asset.Sha256[..16].ToLowerInvariant() : asset.Sha256.ToLowerInvariant();
+        var stem = $"rIdOfficeKitImage{digest}_";
+        for (var index = 1; index <= 1_000_000; index++)
+        {
+            var candidate = stem + index;
+            if (!used.Contains(candidate)) return candidate;
+        }
+        throw new CodecException(
+            "presentation_relationship_budget_exceeded",
+            "PPTX image relationship ID allocation exceeded its bounded search.");
     }
 
     private static string ValidatePictureUri(string value)
