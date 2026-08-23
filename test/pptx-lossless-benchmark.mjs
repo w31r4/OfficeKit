@@ -165,12 +165,24 @@ for (const reuse of sourceReuse.sources) {
   assert.equal(declared.sha256, reuse.sourceSha256);
   assert.match(reuse.sourceSlidePart, /^ppt\/slides\/slide[1-9][0-9]*\.xml$/u);
   assert.equal(reuse.status, reuse.expected);
+  assert.deepEqual(reuse.cloneCoverage, {
+    totalSlides: reuse.sourceSlideCount,
+    supportedSlides: reuse.sourceSlideCount,
+    blockedSlides: [],
+  });
   if (reuse.status === "passed") {
     assert.equal(reuse.sourceSlideUnchanged, true);
     assert.equal(reuse.outputSlideCount, reuse.sourceSlideCount + 1);
     assert.deepEqual(reuse.nonTopologyChangedParts, []);
     assert.deepEqual(reuse.topologyChangedParts, ["[Content_Types].xml", "ppt/_rels/presentation.xml.rels", "ppt/presentation.xml"]);
     assert.equal(reuse.addedParts.some((part) => /^ppt\/slides\/slide\d+\.xml$/u.test(part)), true);
+    assert.equal(reuse.allSlidesClone.status, "passed");
+    assert.equal(reuse.allSlidesClone.deterministic, true);
+    assert.equal(reuse.allSlidesClone.outputSlideCount, reuse.sourceSlideCount * 2);
+    assert.equal(reuse.allSlidesClone.sourceSlideCount, reuse.sourceSlideCount);
+    assert.deepEqual(reuse.allSlidesClone.nonTopologyChangedParts, []);
+    assert.deepEqual(reuse.allSlidesClone.topologyChangedParts, ["[Content_Types].xml", "ppt/_rels/presentation.xml.rels", "ppt/presentation.xml"]);
+    assert.match(reuse.allSlidesClone.outputSha256, /^[a-f0-9]{64}$/u);
   } else {
     assert.match(reuse.blockedReason, /shared|referenced|unsupported/i);
   }
