@@ -6336,6 +6336,117 @@ await assert.rejects(
   "raw collection mutation must not masquerade as a capability-proven element deletion",
 );
 
+// A source-bound slide may append a bounded, relationship-free overlay after
+// its retained source elements. This is the public continuation primitive for
+// an imported page or for a source-derived page after its first export/reopen
+// boundary; the pending clone itself deliberately remains immutable.
+const authoredOverlaySource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const authoredOverlaySourceSlide = authoredOverlaySource.slides.add({ name: "Authored overlay source" });
+authoredOverlaySourceSlide.shapes.add({
+  name: "authored-overlay-canary",
+  geometry: "roundRect",
+  position: { left: 40, top: 40, width: 220, height: 80 },
+  fill: "#DBEAFE",
+  line: { fill: "#2563EB", width: 2 },
+  text: "Retained source node",
+});
+const authoredOverlaySourceFile = await PresentationFile.exportPptx(authoredOverlaySource);
+
+async function appendAuthoredOverlay() {
+  const imported = await PresentationFile.importPptx(authoredOverlaySourceFile);
+  const slide = imported.slides.getItem(0);
+  slide.shapes.add({
+    name: "authored-overlay-text",
+    geometry: "textbox",
+    position: { left: 300, top: 52, width: 280, height: 68 },
+    fill: "transparent",
+    line: { fill: "transparent", width: 0 },
+    text: "Continued after import",
+    textStyle: { fontFamily: "Arial", fontSize: 24, bold: true, color: "#0F172A" },
+  });
+  slide.shapes.add({
+    name: "authored-overlay-accent",
+    geometry: "ellipse",
+    position: { left: 300, top: 156, width: 84, height: 84 },
+    fill: "#F97316",
+    line: { fill: "#C2410C", width: 1 },
+  });
+  return PresentationFile.exportPptx(imported);
+}
+
+const authoredOverlayOutput = await appendAuthoredOverlay();
+const authoredOverlayRepeat = await appendAuthoredOverlay();
+assert.deepEqual(
+  new Uint8Array(await authoredOverlayRepeat.arrayBuffer()),
+  new Uint8Array(await authoredOverlayOutput.arrayBuffer()),
+  "source-bound authored overlay output must be deterministic from the same source revision",
+);
+const authoredOverlayRoundTrip = await PresentationFile.importPptx(authoredOverlayOutput);
+const authoredOverlayRoundTripSlide = authoredOverlayRoundTrip.slides.getItem(0);
+assert.equal(itemByName(authoredOverlayRoundTripSlide.shapes.items, "authored-overlay-text").text.value, "Continued after import");
+assert.equal(itemByName(authoredOverlayRoundTripSlide.shapes.items, "authored-overlay-accent").geometry, "ellipse");
+
+const [authoredOverlaySourceZip, authoredOverlayOutputZip] = await Promise.all([
+  JSZip.loadAsync(new Uint8Array(await authoredOverlaySourceFile.arrayBuffer())),
+  JSZip.loadAsync(new Uint8Array(await authoredOverlayOutput.arrayBuffer())),
+]);
+assert.deepEqual(Object.keys(authoredOverlayOutputZip.files).sort(), Object.keys(authoredOverlaySourceZip.files).sort());
+for (const name of Object.keys(authoredOverlaySourceZip.files).filter((name) => name !== "ppt/slides/slide1.xml" && !authoredOverlaySourceZip.files[name].dir)) {
+  assert.deepEqual(
+    await authoredOverlayOutputZip.file(name).async("uint8array"),
+    await authoredOverlaySourceZip.file(name).async("uint8array"),
+    `${name} changed while appending a relationship-free authored overlay`,
+  );
+}
+const authoredOverlaySourceXml = await authoredOverlaySourceZip.file("ppt/slides/slide1.xml").async("text");
+const authoredOverlayOutputXml = await authoredOverlayOutputZip.file("ppt/slides/slide1.xml").async("text");
+const sourceCanaryOuterXml = [...authoredOverlaySourceXml.matchAll(/<p:sp\b[\s\S]*?<\/p:sp>/g)]
+  .map((match) => match[0])
+  .find((xml) => xml.includes('name="authored-overlay-canary"'));
+const outputCanaryOuterXml = [...authoredOverlayOutputXml.matchAll(/<p:sp\b[\s\S]*?<\/p:sp>/g)]
+  .map((match) => match[0])
+  .find((xml) => xml.includes('name="authored-overlay-canary"'));
+assert.ok(sourceCanaryOuterXml);
+assert.equal(outputCanaryOuterXml, sourceCanaryOuterXml, "every retained source shape must keep its original XML");
+
+const pendingAuthoredOverlay = await PresentationFile.importPptx(authoredOverlaySourceFile);
+pendingAuthoredOverlay.slides.getItem(0).duplicate().shapes.add({
+  name: "too-early-overlay",
+  geometry: "textbox",
+  position: { left: 20, top: 20, width: 200, height: 60 },
+  text: "Export and reopen the clone first",
+});
+await assert.rejects(
+  () => PresentationFile.exportPptx(pendingAuthoredOverlay),
+  (error) => error?.code === "unsupported_presentation_slide_clone",
+  "a pending source-bound clone must remain immutable until export and reopen",
+);
+
+const relationshipBearingOverlay = await PresentationFile.importPptx(authoredOverlaySourceFile);
+relationshipBearingOverlay.slides.getItem(0).shapes.add({
+  name: "relationship-bearing-overlay",
+  geometry: "textbox",
+  position: { left: 20, top: 20, width: 200, height: 60 },
+  text: [{ runs: [{ text: "External link", link: { uri: "https://example.com" } }] }],
+});
+await assert.rejects(
+  () => PresentationFile.exportPptx(relationshipBearingOverlay),
+  (error) => error?.code === "unsupported_presentation_authored_overlay",
+  "source-bound authored overlays must not introduce relationships",
+);
+
+const unsupportedImageOverlay = await PresentationFile.importPptx(authoredOverlaySourceFile);
+unsupportedImageOverlay.slides.getItem(0).images.add({
+  name: "unsupported-image-overlay",
+  dataUrl: PNG,
+  position: { left: 20, top: 20, width: 80, height: 80 },
+});
+await assert.rejects(
+  () => PresentationFile.exportPptx(unsupportedImageOverlay),
+  (error) => error?.code === "unsupported_presentation_authored_overlay",
+  "the first bounded overlay profile must fail closed for authored images",
+);
+
 const imageDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const imageDeleteSlide = imageDeleteSource.slides.add({ name: "Image deletion" });
 imageDeleteSlide.images.add({ name: "keep-image", alt: "Keep", dataUrl: PNG, position: { left: 40, top: 40, width: 120, height: 120 } });
