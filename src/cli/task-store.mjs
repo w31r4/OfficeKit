@@ -744,7 +744,7 @@ function validateTaskEditPlan(value, outputSha256) {
   if (!isSha(value.sourceRevisionSha256) || !isSha(value.outputSha256) || value.outputSha256 !== outputSha256) {
     throw taskError("invalid-edit-plan", "Artifact Edit Plan revisions do not match the committed candidate.");
   }
-  if (!Array.isArray(value.changedParts) || value.changedParts.length === 0 || value.changedParts.some((partPath) => !safeOperationPartPath(partPath))) {
+  if (!Array.isArray(value.changedParts) || value.changedParts.length === 0 || value.changedParts.some((partPath) => !safeChangedOperationPartPath(partPath))) {
     throw taskError("invalid-edit-plan", "Artifact Edit Plan changed parts are invalid.");
   }
   if (new Set(value.changedParts).size !== value.changedParts.length) {
@@ -754,8 +754,8 @@ function validateTaskEditPlan(value, outputSha256) {
   const requiredChangedParts = new Set();
   const operationIds = new Set();
   const nativeLeafKinds = new Set([
-    "text", "fillRgb", "lineRgb", "leftEmu", "topEmu", "widthEmu", "heightEmu",
-    "chartTitleText", "chartDataValue", "diagramText",
+    "text", "tableCellText", "fillRgb", "lineRgb", "leftEmu", "topEmu", "widthEmu", "heightEmu",
+    "imageAsset", "chartTitleText", "chartDataValue", "diagramText", "deleteElement",
   ]);
   for (const operation of value.operations) {
     if (!operation || typeof operation !== "object" || Array.isArray(operation)) {
@@ -779,7 +779,8 @@ function validateTaskEditPlan(value, outputSha256) {
     }
     const footprint = operation.footprint;
     if (!footprint || !exactObjectKeys(footprint, TASK_FOOTPRINT_KEYS) ||
-        !isSha(footprint.sourceElementSha256) || !isSha(footprint.outputElementSha256) ||
+        !isSha(footprint.sourceElementSha256) ||
+        !(isSha(footprint.outputElementSha256) || (leafKind === "deleteElement" && footprint.outputElementSha256 === "")) ||
         !isSha(footprint.oldValueSha256) || !isSha(footprint.newValueSha256) ||
         !safeOperationShapeTreePath(footprint.shapeTreePath, operation.shapeTreeIndex) ||
         ((footprint.leafKind == null || footprint.leafKind === "" ? "text" : footprint.leafKind) !== leafKind) ||
@@ -816,6 +817,18 @@ function safeOperationPartPath(value) {
     !value.includes("..");
 }
 
+function safeChangedOperationPartPath(value) {
+  return safeOperationPartPath(value) || safeSlideRelationshipPartPath(value) || safeOfficeKitMediaPartPath(value);
+}
+
+function safeSlideRelationshipPartPath(value) {
+  return typeof value === "string" && /^ppt\/slides\/_rels\/slide[1-9][0-9]*[.]xml[.]rels$/iu.test(value) && !value.includes("..");
+}
+
+function safeOfficeKitMediaPartPath(value) {
+  return typeof value === "string" && /^ppt\/media\/office-kit-[0-9a-f]{24}[.](?:png|jpe?g|gif|svg)$/iu.test(value) && !value.includes("..");
+}
+
 function safeSlideOperationPartPath(value) {
   return typeof value === "string" && /^ppt\/slides\/slide[1-9][0-9]*[.]xml$/iu.test(value) && !value.includes("..");
 }
@@ -836,6 +849,21 @@ const TASK_OPERATION_CHART_DATA_KEYS = [
   "chartSeriesIndex", "chartPointIndex", "chartFormula",
 ];
 const TASK_OPERATION_DIAGRAM_KEYS = ["diagramModelId", "diagramRunIndex"];
+const TASK_OPERATION_IMAGE_KEYS = ["imageReplacement"];
+const TASK_OPERATION_DELETION_KEYS = ["elementDeletion"];
+const TASK_IMAGE_REPLACEMENT_KEYS = new Set([
+  "assetId", "sha256", "contentType", "byteLength", "relationshipPartPath", "mediaPartPath", "crop",
+]);
+const TASK_IMAGE_CROP_KEYS = new Set([
+  "leftThousandthPercent", "topThousandthPercent", "rightThousandthPercent", "bottomThousandthPercent",
+]);
+const TASK_ELEMENT_DELETION_KEYS = new Set(["expectedNativeId"]);
+const TASK_IMAGE_EXTENSIONS_BY_CONTENT_TYPE = new Map([
+  ["image/png", new Set(["png"])],
+  ["image/jpeg", new Set(["jpg", "jpeg"])],
+  ["image/gif", new Set(["gif"])],
+  ["image/svg+xml", new Set(["svg"])],
+]);
 const TASK_FOOTPRINT_KEYS = new Set([
   "mutationPartPath", "sourceElementSha256", "outputElementSha256", "oldValueSha256", "newValueSha256",
   "sourceStartOffset", "sourceEndOffset", "outputEndOffset", "shapeTreePath", "leafKind", "nestedFootprints",
@@ -851,6 +879,8 @@ function taskOperationKeys(operation, leafKind) {
   }
   if (leafKind === "chartDataValue") for (const key of TASK_OPERATION_CHART_DATA_KEYS) allowed.add(key);
   if (leafKind === "diagramText") for (const key of TASK_OPERATION_DIAGRAM_KEYS) allowed.add(key);
+  if (leafKind === "imageAsset") for (const key of TASK_OPERATION_IMAGE_KEYS) allowed.add(key);
+  if (leafKind === "deleteElement") for (const key of TASK_OPERATION_DELETION_KEYS) allowed.add(key);
   return exactObjectKeys(operation, allowed);
 }
 
@@ -859,6 +889,20 @@ function exactObjectKeys(value, allowed) {
 }
 
 function validateDependentTaskOperation(operation, footprint, leafKind, changedParts, requiredChangedParts) {
+  if (leafKind === "imageAsset") {
+    validateTaskImageOperation(operation, footprint, changedParts, requiredChangedParts);
+    return;
+  }
+  if (leafKind === "deleteElement") {
+    const deletion = operation.elementDeletion;
+    if (footprint.mutationPartPath !== operation.slidePartPath || footprint.nestedFootprints.length !== 0 ||
+        !deletion || !exactObjectKeys(deletion, TASK_ELEMENT_DELETION_KEYS) ||
+        !Number.isSafeInteger(deletion.expectedNativeId) || deletion.expectedNativeId <= 0 || deletion.expectedNativeId > 4_294_967_295 ||
+        operation.shapeTreePath?.length !== 1 || operation.expectedValue !== operation.targetId || operation.value !== "") {
+      throw taskError("invalid-edit-plan", "Element-deletion Edit Plan binding is invalid.");
+    }
+    return;
+  }
   const dependent = leafKind === "chartTitleText" || leafKind === "chartDataValue" || leafKind === "diagramText";
   if (!dependent) {
     if (footprint.mutationPartPath !== operation.slidePartPath || footprint.nestedFootprints.length !== 0 ||
@@ -908,6 +952,50 @@ function validateDependentTaskOperation(operation, footprint, leafKind, changedP
   } else if (!safeChartPartPath(operation.targetPartPath) || operation.diagramModelId != null || operation.diagramRunIndex != null) {
     throw taskError("invalid-edit-plan", "Chart-title Edit Plan operation contains a foreign SmartArt binding.");
   }
+}
+
+function validateTaskImageOperation(operation, footprint, changedParts, requiredChangedParts) {
+  const replacement = operation.imageReplacement;
+  if (footprint.mutationPartPath !== operation.slidePartPath || footprint.nestedFootprints.length !== 0 ||
+      !replacement || !exactObjectKeys(replacement, TASK_IMAGE_REPLACEMENT_KEYS) ||
+      replacement.assetId !== operation.value || !isSha(replacement.sha256) ||
+      replacement.assetId !== `asset/presentation/picture-bullet/${replacement.sha256}` ||
+      !Number.isSafeInteger(replacement.byteLength) || replacement.byteLength <= 0 || replacement.byteLength > 16 * 1024 * 1024) {
+    throw taskError("invalid-edit-plan", "Image Edit Plan binding is invalid.");
+  }
+  const relationshipPartPath = slideRelationshipPartPath(operation.slidePartPath);
+  if (!relationshipPartPath || replacement.relationshipPartPath !== relationshipPartPath || !changedParts.has(relationshipPartPath)) {
+    throw taskError("invalid-edit-plan", "Image Edit Plan relationship footprint is invalid.");
+  }
+  const extensions = TASK_IMAGE_EXTENSIONS_BY_CONTENT_TYPE.get(replacement.contentType);
+  if (!extensions) throw taskError("invalid-edit-plan", "Image Edit Plan content type is invalid.");
+  const mediaPrefix = `ppt/media/office-kit-${replacement.sha256.slice(0, 24)}.`;
+  if (replacement.mediaPartPath !== null) {
+    const extension = typeof replacement.mediaPartPath === "string" && replacement.mediaPartPath.startsWith(mediaPrefix)
+      ? replacement.mediaPartPath.slice(mediaPrefix.length)
+      : "";
+    if (!extensions.has(extension) || !safeOfficeKitMediaPartPath(replacement.mediaPartPath) || !changedParts.has(replacement.mediaPartPath)) {
+      throw taskError("invalid-edit-plan", "Image Edit Plan media footprint is invalid.");
+    }
+    requiredChangedParts.add(replacement.mediaPartPath);
+  }
+  if (replacement.crop !== null && !validTaskImageCrop(replacement.crop)) {
+    throw taskError("invalid-edit-plan", "Image Edit Plan crop is invalid.");
+  }
+  requiredChangedParts.add(relationshipPartPath);
+}
+
+function slideRelationshipPartPath(slidePartPath) {
+  const match = String(slidePartPath).match(/^ppt\/slides\/(slide[1-9][0-9]*[.]xml)$/u);
+  return match ? `ppt/slides/_rels/${match[1]}.rels` : undefined;
+}
+
+function validTaskImageCrop(value) {
+  if (!exactObjectKeys(value, TASK_IMAGE_CROP_KEYS)) return false;
+  const edges = [value.leftThousandthPercent, value.topThousandthPercent, value.rightThousandthPercent, value.bottomThousandthPercent];
+  if (edges.some((edge) => !Number.isSafeInteger(edge) || edge < -100_000 || edge > 100_000)) return false;
+  return value.leftThousandthPercent + value.rightThousandthPercent < 100_000 &&
+    value.topThousandthPercent + value.bottomThousandthPercent < 100_000;
 }
 
 function safeXmlDependentPartPath(value) {
@@ -972,7 +1060,7 @@ function validateTaskOperationSummary(summary) {
       !Number.isSafeInteger(summary.bytes) || summary.bytes <= 0 || summary.bytes > DEFAULT_MAX_TASK_OPERATION_BYTES ||
       !isSha(summary.sha256) || !isSha(summary.sourceRevisionSha256) || !isSha(summary.outputRevisionSha256) ||
       !Number.isSafeInteger(summary.operationCount) || summary.operationCount <= 0 ||
-      !Array.isArray(summary.changedParts) || summary.changedParts.length === 0 || summary.changedParts.some((partPath) => !safeOperationPartPath(partPath))) {
+      !Array.isArray(summary.changedParts) || summary.changedParts.length === 0 || summary.changedParts.some((partPath) => !safeChangedOperationPartPath(partPath))) {
     throw taskError("invalid-task", "Task operation record metadata is invalid.");
   }
 }
