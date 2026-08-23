@@ -1,0 +1,404 @@
+{
+  "schema": "office-kit/pptx-programmable-import-intents/v1",
+  "baseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "repetitionsPerIntent": 3,
+  "cleanSourcePerRun": true,
+  "assetsEnvironment": "OFFICEKIT_PPTX_ACCEPTANCE_ASSETS",
+  "defaultAssetsDirectory": "/Users/zfang/Downloads/飞书20260814-175228",
+  "policy": {
+    "publicPackage": "office-kit",
+    "skill": "presentations",
+    "save": "rewrite",
+    "sourceImmutable": true,
+    "secondImport": true,
+    "nonTargetPagePixels": "exact",
+    "forbiddenAgentTechniques": [
+      "raw-ooxml",
+      "python",
+      "html-pptd",
+      "@oai/artifact-tool",
+      "whole-deck-rebuild",
+      "silent-fallback"
+    ]
+  },
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "label": "算秩未来 2026",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "slideCount": 21,
+      "intents": [
+        {
+          "id": "cover-title-proof",
+          "description": "把封面主标题从长期主义改成长期验证。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/1",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "极致技术，长期主义",
+          "value": "极致技术，长期验证",
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "cover-vision-proof",
+          "description": "让英文愿景明确包含 proof。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/2",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "Vision and ambition",
+          "value": "Vision, proof and ambition",
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "cover-partner-long-term",
+          "description": "把封面伙伴文案改为长期伙伴。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/3",
+          "leafKind": "text",
+          "textLeafIndex": 2,
+          "expected": "顶峰的伙伴",
+          "value": "顶峰的长期伙伴",
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "vision-slide-heading",
+          "description": "将愿景页标题补充能力承诺。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/4/element/4",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "应运而生：算秩未来的愿景与担当",
+          "value": "应运而生：算秩未来的愿景、能力与担当",
+          "targetPage": 4,
+          "oracle": { "changedParts": ["ppt/slides/slide4.xml"] }
+        },
+        {
+          "id": "storage-capability-label",
+          "description": "把分组内快速存储标签改成高速存储验证。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/6/element/8/element/2",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "快速存储",
+          "value": "高速存储验证",
+          "targetPage": 6,
+          "oracle": { "changedParts": ["ppt/slides/slide6.xml"] }
+        },
+        {
+          "id": "partner-box-shift-right",
+          "description": "把封面伙伴文本框向右移动 10 像素等价值。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/3",
+          "leafKind": "leftEmu",
+          "expected": 544103,
+          "value": 639353,
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "partner-box-shift-down",
+          "description": "把封面伙伴文本框向下移动 10 像素等价值。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/3",
+          "leafKind": "topEmu",
+          "expected": 3244600,
+          "value": 3339850,
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "megadpp-chart-title",
+          "description": "把 MegaDPP 图表标题改成 MegaDPP Pro。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/11/element/20",
+          "leafKind": "chartTitleText",
+          "textLeafIndex": 0,
+          "expected": "MegaDPP",
+          "value": "MegaDPP Pro",
+          "targetPage": 11,
+          "oracle": { "changedParts": ["ppt/charts/chart2.xml"] }
+        },
+        {
+          "id": "benchmark-chart-value",
+          "description": "把客户案例图表第二序列首值从 23 更新为 24。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/20/element/26",
+          "leafKind": "chartDataValue",
+          "seriesIndex": 1,
+          "pointIndex": 0,
+          "expected": 23,
+          "value": 24,
+          "targetPage": 20,
+          "oracle": {
+            "changedParts": ["ppt/charts/chart4.xml", "ppt/embeddings/Microsoft_Excel____1.xlsx"],
+            "nestedPackage": {
+              "containerPart": "ppt/embeddings/Microsoft_Excel____1.xlsx",
+              "changedParts": ["xl/worksheets/sheet1.xml"]
+            }
+          }
+        },
+        {
+          "id": "contents-accent-fill",
+          "description": "把目录页字母标记的浅灰底改为浅蓝底。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/2/element/2",
+          "leafKind": "fillRgb",
+          "expected": "#e7e6e6",
+          "value": "#d9e2f3",
+          "targetPage": 2,
+          "oracle": { "changedParts": ["ppt/slides/slide2.xml"] }
+        }
+      ]
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "label": "蓝灰酸性模板",
+      "fileName": "template.pptx",
+      "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "slideCount": 19,
+      "intents": [
+        {
+          "id": "cover-subtitle",
+          "description": "把封面副标题改为 OfficeKit 保真编辑评测。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/6",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "单击此处添加副标题内容",
+          "value": "OfficeKit 保真编辑评测",
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "cover-quarter-title",
+          "description": "把封面季度工作改为季度验证。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/7",
+          "leafKind": "text",
+          "textLeafIndex": 1,
+          "expected": "季度工作",
+          "value": "季度验证",
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "cover-presenter",
+          "description": "把汇报人替换为 OfficeKit。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/8",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "汇报人：稻小壳",
+          "value": "汇报人：OfficeKit",
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "contents-quarter-label",
+          "description": "把目录卡片本季度工作改为本季度成果。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/2/element/8",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "本季度工作",
+          "value": "本季度成果",
+          "targetPage": 2,
+          "oracle": { "changedParts": ["ppt/slides/slide2.xml"] }
+        },
+        {
+          "id": "contents-key-work",
+          "description": "把目录卡片重点工作介绍改为重点成果介绍。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/2/element/9",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "重点工作介绍",
+          "value": "重点成果介绍",
+          "targetPage": 2,
+          "oracle": { "changedParts": ["ppt/slides/slide2.xml"] }
+        },
+        {
+          "id": "section-heading",
+          "description": "把第三页章节标题改为本季度成果概述。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/3/element/8",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "本季度工作概述",
+          "value": "本季度成果概述",
+          "targetPage": 3,
+          "oracle": { "changedParts": ["ppt/slides/slide3.xml"] }
+        },
+        {
+          "id": "content-heading",
+          "description": "把第四页内容标题改为本季度成果概述。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/4/element/5",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "本季度工作概述",
+          "value": "本季度成果概述",
+          "targetPage": 4,
+          "oracle": { "changedParts": ["ppt/slides/slide4.xml"] }
+        },
+        {
+          "id": "subtitle-shift-right",
+          "description": "把封面副标题向右移动 10 像素等价值。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/1/element/6",
+          "leafKind": "leftEmu",
+          "expected": 1176655,
+          "value": 1271905,
+          "targetPage": 1,
+          "oracle": { "changedParts": ["ppt/slides/slide1.xml"] }
+        },
+        {
+          "id": "contents-accent-fill",
+          "description": "更新目录页装饰块填充色。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/2/element/21",
+          "leafKind": "fillRgb",
+          "expected": "#4c5bdd",
+          "value": "#5667e8",
+          "targetPage": 2,
+          "oracle": { "changedParts": ["ppt/slides/slide2.xml"] }
+        },
+        {
+          "id": "contents-accent-line",
+          "description": "更新目录页装饰块边框色。",
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/2/element/21",
+          "leafKind": "lineRgb",
+          "expected": "#000000",
+          "value": "#1f2937",
+          "targetPage": 2,
+          "oracle": { "changedParts": ["ppt/slides/slide2.xml"] }
+        }
+      ]
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "label": "麦肯锡 SVG 客户忠诚度",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "slideCount": 8,
+      "intents": [
+        {
+          "id": "cover-programme-spelling",
+          "description": "把封面 Programme 改为 Program。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/1/element/1",
+          "nodeId": "svg-text-2",
+          "expected": "Customer Loyalty Programme",
+          "value": "Customer Loyalty Program",
+          "targetPage": 1,
+          "oracle": { "sourceSvgPart": "ppt/media/image1.svg", "changedParts": ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "cover-strategy-title",
+          "description": "把封面副标题收敛为 Customer Retention Strategy。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/1/element/1",
+          "nodeId": "svg-text-3",
+          "expected": "Strategic Framework for Customer Retention",
+          "value": "Customer Retention Strategy",
+          "targetPage": 1,
+          "oracle": { "sourceSvgPart": "ppt/media/image1.svg", "changedParts": ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "challenges-heading",
+          "description": "精简第二页挑战标题。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/2/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Critical Challenges in Customer Retention",
+          "value": "Customer Retention Challenges",
+          "targetPage": 2,
+          "oracle": { "sourceSvgPart": "ppt/media/image2.svg", "changedParts": ["ppt/slides/slide2.xml", "ppt/slides/_rels/slide2.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "repeat-purchase-metric",
+          "description": "把第二页重复购买率从 15% 更新到 18%。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/2/element/1",
+          "nodeId": "svg-text-4",
+          "expected": "15%",
+          "value": "18%",
+          "targetPage": 2,
+          "oracle": { "sourceSvgPart": "ppt/media/image2.svg", "changedParts": ["ppt/slides/slide2.xml", "ppt/slides/_rels/slide2.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "customer-base-heading",
+          "description": "把第三页标题改为 Customer Segmentation Overview。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/3/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Understanding Our Customer Base",
+          "value": "Customer Segmentation Overview",
+          "targetPage": 3,
+          "oracle": { "sourceSvgPart": "ppt/media/image3.svg", "changedParts": ["ppt/slides/slide3.xml", "ppt/slides/_rels/slide3.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "priority-matrix-heading",
+          "description": "把第四页标题改为 Priority and Performance Matrix。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/4/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Customer Priorities vs. Current Performance",
+          "value": "Priority and Performance Matrix",
+          "targetPage": 4,
+          "oracle": { "sourceSvgPart": "ppt/media/image4.svg", "changedParts": ["ppt/slides/slide4.xml", "ppt/slides/_rels/slide4.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "attrition-heading",
+          "description": "把第五页标题改为 Customer Attrition Root Causes。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/5/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Why Customers Leave: Root Cause Analysis",
+          "value": "Customer Attrition Root Causes",
+          "targetPage": 5,
+          "oracle": { "sourceSvgPart": "ppt/media/image5.svg", "changedParts": ["ppt/slides/slide5.xml", "ppt/slides/_rels/slide5.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "loyalty-pillars-heading",
+          "description": "把第六页标题改为 Four Pillars of Loyalty。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/6/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Four Pillars of Customer Loyalty Strategy",
+          "value": "Four Pillars of Loyalty",
+          "targetPage": 6,
+          "oracle": { "sourceSvgPart": "ppt/media/image6.svg", "changedParts": ["ppt/slides/slide6.xml", "ppt/slides/_rels/slide6.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "initiatives-heading",
+          "description": "把第七页标题改为 Priority Loyalty Initiatives。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/7/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Five Key Initiatives for Loyalty Programme",
+          "value": "Priority Loyalty Initiatives",
+          "targetPage": 7,
+          "oracle": { "sourceSvgPart": "ppt/media/image7.svg", "changedParts": ["ppt/slides/slide7.xml", "ppt/slides/_rels/slide7.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        },
+        {
+          "id": "roadmap-heading",
+          "description": "把第八页标题改为 Implementation Roadmap and Metrics。",
+          "operation": "svg-text",
+          "targetId": "presentation/slide/8/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Phased Implementation & Success Metrics",
+          "value": "Implementation Roadmap and Metrics",
+          "targetPage": 8,
+          "oracle": { "sourceSvgPart": "ppt/media/image8.svg", "changedParts": ["ppt/slides/slide8.xml", "ppt/slides/_rels/slide8.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "schema": "office-kit/pptx-codex-continuation-tasks/v1",
+  "baseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "trialsPerTask": 3,
+  "freshCodexContextPerTrial": true,
+  "replSessionsPerTrial": 3,
+  "requiredWorkflow": [
+    "officekit tasks",
+    "officekit repl --new",
+    "ctx.input",
+    "PresentationFile.importPptx",
+    "typed public edit",
+    "reviewArtifact",
+    "ctx.commit",
+    "officekit repl <task-id>",
+    "second typed public edit",
+    "reviewArtifact",
+    "ctx.commit",
+    "officekit repl <task-id>",
+    "second import",
+    "ctx.publish"
+  ],
+  "forbidden": [
+    "raw OOXML or ZIP inspection/patching",
+    "Python",
+    "HTML/PPTD",
+    "@oai/artifact-tool",
+    "Presentation.create or slides.add",
+    "whole-deck reconstruction",
+    "overwriting inputs/source.pptx",
+    "silent fallback"
+  ],
+  "tasks": [
+    {
+      "id": "suanzhi-acceptance-appendix",
+      "sourceId": "suanzhi-future-2026",
+      "output": "outputs/suanzhi-acceptance-appendix.pptx",
+      "goal": "从算秩未来原始演示文稿的封面复制一页源生验收附录，首轮将主标题改为“可编程导入验收”，提交并关闭会话；恢复任务后将英文副标题改为“Public API · source protected · auditable”，再次审阅提交；第三次恢复后验证源页仍在、附录页两项修改仍在，再发布。不得重建原稿。",
+      "sourceSlide": 1,
+      "targetPageAfterAppend": 22,
+      "expectedTexts": ["可编程导入验收", "Public API · source protected · auditable"],
+      "edits": [
+        {
+          "phase": 1,
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/22/element/1",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "极致技术，长期主义",
+          "value": "可编程导入验收"
+        },
+        {
+          "phase": 2,
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/22/element/2",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "Vision and ambition",
+          "value": "Public API · source protected · auditable"
+        }
+      ]
+    },
+    {
+      "id": "blue-gray-acceptance-summary",
+      "sourceId": "blue-gray-acid-template",
+      "output": "outputs/blue-gray-acceptance-summary.pptx",
+      "goal": "从蓝灰酸性模板封面复制一页源生验收总结，首轮把副标题改成“可编程导入验收”，提交并关闭会话；恢复任务后把汇报人改成“汇报人：Agent Acceptance”，再次审阅提交；第三次恢复后验证原始 19 页保持、总结页两项修改仍在，再发布。不得创建空白页或重建模板。",
+      "sourceSlide": 1,
+      "targetPageAfterAppend": 20,
+      "expectedTexts": ["可编程导入验收", "汇报人：Agent Acceptance"],
+      "edits": [
+        {
+          "phase": 1,
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/20/element/6",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "单击此处添加副标题内容",
+          "value": "可编程导入验收"
+        },
+        {
+          "phase": 2,
+          "operation": "native-leaf",
+          "targetId": "presentation/slide/20/element/8",
+          "leafKind": "text",
+          "textLeafIndex": 0,
+          "expected": "汇报人：稻小壳",
+          "value": "汇报人：Agent Acceptance"
+        }
+      ]
+    },
+    {
+      "id": "mckinsey-acceptance-close",
+      "sourceId": "mckinsey-customer-loyalty",
+      "output": "outputs/mckinsey-acceptance-close.pptx",
+      "goal": "从麦肯锡 SVG 演示文稿封面复制一页源生验收结论，首轮用公开 SVG 文本叶把标题改为“OfficeKit Acceptance”，提交并关闭会话；恢复任务后把副标题改为“Programmable import verified”，再次审阅提交；第三次恢复后验证原始 8 页保持、结论页两个 SVG 文本修改仍在，再发布。不得把 SVG 转图片、不得创建空白页或重建整份文件。",
+      "sourceSlide": 1,
+      "targetPageAfterAppend": 9,
+      "expectedTexts": ["OfficeKit Acceptance", "Programmable import verified"],
+      "edits": [
+        {
+          "phase": 1,
+          "operation": "svg-text",
+          "targetId": "presentation/slide/9/element/1",
+          "nodeId": "svg-text-1",
+          "expected": "Kimsoong",
+          "value": "OfficeKit Acceptance"
+        },
+        {
+          "phase": 2,
+          "operation": "svg-text",
+          "targetId": "presentation/slide/9/element/1",
+          "nodeId": "svg-text-2",
+          "expected": "Customer Loyalty Programme",
+          "value": "Programmable import verified"
+        }
+      ]
+    }
+  ]
+}
