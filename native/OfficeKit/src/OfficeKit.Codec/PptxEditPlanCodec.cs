@@ -20,7 +20,8 @@ internal sealed record PptxEditPlanProof(
     PresentationEditOperation Operation,
     string SourceElementSha256,
     string MutationPartPath,
-    uint? RawTextOrdinal = null);
+    uint? RawTextOrdinal = null,
+    PptxImageEditPlanProof? Image = null);
 
 internal sealed record PptxXmlPatch(
     PresentationEditOperation Operation,
@@ -87,6 +88,7 @@ internal static partial class PptxEditPlanCodec
         var proofs = ProveOperations(sourceBytes, request, sourceProjection, limits);
         var sourceParts = PackageParts(sourceBytes);
         var patchedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        var addedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var results = new List<PresentationEditOperationResult>();
 
         foreach (var group in proofs.GroupBy(proof => proof.MutationPartPath, StringComparer.OrdinalIgnoreCase))
@@ -100,10 +102,11 @@ internal static partial class PptxEditPlanCodec
             patchedParts.Add(partPath, outputPart);
         }
         ApplyEmbeddedWorkbookPatches(sourceParts, proofs, patchedParts, results);
+        ApplyImagePackagePatches(sourceParts, proofs, patchedParts, addedParts);
 
-        var outputBytes = ReplaceParts(sourceBytes, patchedParts);
+        var outputBytes = RewriteParts(sourceBytes, patchedParts, addedParts);
         var changedParts = ChangedParts(sourceBytes, outputBytes);
-        var expectedParts = patchedParts.Keys.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+        var expectedParts = patchedParts.Keys.Concat(addedParts.Keys).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         if (!changedParts.SequenceEqual(expectedParts, StringComparer.OrdinalIgnoreCase))
             throw new CodecException(
                 "presentation_edit_plan_scope_violation",
@@ -114,6 +117,12 @@ internal static partial class PptxEditPlanCodec
             var actual = ReadPart(outputBytes, path);
             if (!actual.AsSpan().SequenceEqual(expected))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan output for {path} differs from the compiled token patch.", path);
+        }
+        foreach (var (path, expected) in addedParts)
+        {
+            var actual = ReadPart(outputBytes, path);
+            if (!actual.AsSpan().SequenceEqual(expected))
+                throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan added part {path} with unexpected bytes.", path);
         }
 
         _ = PackageGuards.ValidateAndCollectOpaque(outputBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
@@ -162,7 +171,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "chartTitleText" or "chartDataValue" or "diagramText"))
+            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "chartTitleText" or "chartDataValue" or "diagramText"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -186,6 +195,16 @@ internal static partial class PptxEditPlanCodec
             else if (HasDiagramBinding(operation))
             {
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach a SmartArt run binding to {leafKind}.");
+            }
+            if (leafKind == "imageAsset")
+            {
+                if (operation.ImageReplacement is null || operation.ImageReplacement.AssetId != operation.Value)
+                    throw new CodecException("invalid_presentation_edit_target", $"PPTX image operation {operation.OperationId} requires one replacement asset matching value.");
+                ValidateImageReplacement(operation);
+            }
+            else if (operation.ImageReplacement is not null)
+            {
+                throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach an image replacement to {leafKind}.");
             }
             if (leafKind != "chartDataValue" && (operation.ChartSeriesIndex != 0 || operation.ChartPointIndex != 0))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach chart-data indices to {leafKind}.");
@@ -216,6 +235,13 @@ internal static partial class PptxEditPlanCodec
             if (textBudget > limits.MaxCells)
                 throw new CodecException("presentation_item_budget_exceeded", $"PPTX edit-plan text exceeds max_cells ({limits.MaxCells}).");
         }
+        var requestedAssetIds = request.Operations
+            .Where(operation => LeafKind(operation) == "imageAsset")
+            .Select(operation => operation.ImageReplacement.AssetId)
+            .ToHashSet(StringComparer.Ordinal);
+        var suppliedAssetIds = request.Assets.Select(asset => asset.Id).ToHashSet(StringComparer.Ordinal);
+        if (!requestedAssetIds.SetEquals(suppliedAssetIds) || request.Assets.Count != suppliedAssetIds.Count)
+            throw new CodecException("invalid_presentation_asset", "PPTX edit plan assets must match the imageAsset operation references exactly.");
     }
 
     private static IReadOnlyList<PptxEditPlanProof> ProveOperations(
@@ -231,6 +257,7 @@ internal static partial class PptxEditPlanCodec
         var slideByPath = presentationPart.SlideParts.ToDictionary(PartPath, StringComparer.OrdinalIgnoreCase);
         var projectedSlideByPath = sourceProjection.Slides.ToDictionary(slide => slide.Source.PartPath, StringComparer.OrdinalIgnoreCase);
         var proofs = new List<PptxEditPlanProof>();
+        var requestedAssets = new PptxAssetCatalog(request.Assets, limits);
         foreach (var operation in request.Operations)
         {
             if (!slideByPath.TryGetValue(operation.SlidePartPath, out var slidePart))
@@ -307,6 +334,12 @@ internal static partial class PptxEditPlanCodec
                 if (chart.TitleLeaves[(int)operation.TextLeafIndex].Text != operation.ExpectedValue)
                     throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} chart-title old value does not match the source leaf.", chart.Binding.PartPath);
                 proofs.Add(new PptxEditPlanProof(operation, elementHash, chart.Binding.PartPath));
+                continue;
+            }
+            if (LeafKind(operation) == "imageAsset")
+            {
+                var imageProof = ProveImageReplacement(sourceBytes, slidePart, element, projectedElement, operation, requestedAssets);
+                proofs.Add(new PptxEditPlanProof(operation, elementHash, operation.SlidePartPath, Image: imageProof));
                 continue;
             }
             if (element is P.Shape shape &&
@@ -389,6 +422,11 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, or p:graphicFrame.", operation.SlidePartPath);
             if (leafKind is not ("text" or "tableCellText"))
             {
+                if (leafKind == "imageAsset")
+                {
+                    patches.Add(CompileImageXmlPatch(xml, range, proof));
+                    continue;
+                }
                 patches.Add(CompileScalarXmlPatch(xml, range, proof));
                 continue;
             }
@@ -736,6 +774,11 @@ internal static partial class PptxEditPlanCodec
                 resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
                 continue;
             }
+            if (LeafKind(operation) == "imageAsset")
+            {
+                VerifyImageReplacement(slidePart, element, operation, resultById[operation.OperationId]);
+                continue;
+            }
             if (element is not P.Shape && element is not P.Picture && element is not P.GraphicFrame)
                 throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape, table, or picture.", operation.SlidePartPath);
             if (!LeafValuesEqual(ReadLeafValue(element, operation), operation.Value, LeafKind(operation)))
@@ -791,6 +834,12 @@ internal static partial class PptxEditPlanCodec
     }
 
     internal static byte[] ReplaceParts(byte[] sourceBytes, IReadOnlyDictionary<string, byte[]> replacements)
+        => RewriteParts(sourceBytes, replacements, new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase));
+
+    private static byte[] RewriteParts(
+        byte[] sourceBytes,
+        IReadOnlyDictionary<string, byte[]> replacements,
+        IReadOnlyDictionary<string, byte[]> additions)
     {
         using var stream = new MemoryStream();
         stream.Write(sourceBytes);
@@ -807,6 +856,16 @@ internal static partial class PptxEditPlanCodec
                 replacement.LastWriteTime = timestamp;
                 replacement.ExternalAttributes = attributes;
                 using var target = replacement.Open();
+                target.Write(data);
+            }
+            var addedPartTimestamp = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            foreach (var (path, data) in additions.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                if (archive.GetEntry(path) is not null)
+                    throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan cannot add existing part {path}.", path);
+                var addition = archive.CreateEntry(path, CompressionLevel.Optimal);
+                addition.LastWriteTime = addedPartTimestamp;
+                using var target = addition.Open();
                 target.Write(data);
             }
         }

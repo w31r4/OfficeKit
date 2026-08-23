@@ -3937,6 +3937,42 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   };
 }
 
+function compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
+  if (original.content.case !== "image" || requested.content.case !== "image" || original.source?.editable !== true) return undefined;
+  const beforeImage = original.content.value;
+  const afterImage = requested.content.value;
+  if (!beforeImage.assetId || !afterImage.assetId || beforeImage.assetId === afterImage.assetId) return undefined;
+  const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restored.content.value.assetId = beforeImage.assetId;
+  restored.content.value.crop = beforeImage.crop;
+  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  const source = original.source;
+  const slideSource = sourceSlide.source;
+  if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
+  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath.join("/"), "imageAsset", beforeImage.assetId, afterImage.assetId,
+    JSON.stringify(beforeImage.crop || null), JSON.stringify(afterImage.crop || null)].join("\0");
+  return {
+    operationId: `pptx-imageAsset-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
+    slideId: sourceSlide.id,
+    slidePartPath: slideSource.partPath,
+    expectedSlideSha256: slideSource.slideXmlSha256,
+    targetId: original.id,
+    shapeTreeIndex: shapeTreePath[0],
+    shapeTreePath,
+    leafKind: "imageAsset",
+    expectedElementSha256: source.elementSha256,
+    expectedSemanticSha256: source.semanticSha256,
+    textLeafIndex: 0,
+    expectedTextSha256: createHash("sha256").update(beforeImage.assetId, "utf8").digest("hex"),
+    expectedValue: beforeImage.assetId,
+    value: afterImage.assetId,
+    imageReplacement: {
+      assetId: afterImage.assetId,
+      ...(afterImage.crop ? { crop: afterImage.crop } : {}),
+    },
+  };
+}
+
 function compilePresentationTableCellOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "table" || requested.content.case !== "table" || original.source?.editable !== true) return undefined;
   const beforeTable = original.content.value;
@@ -3991,7 +4027,10 @@ function compilePresentationElementEditOperations(original, requested, sourceSli
   if (original.content.case === requested.content.case && new Set(["shape", "image"]).has(original.content.case)) {
     const scalarOperation = compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     if (scalarOperation) return [scalarOperation];
-    if (original.content.case !== "shape") return undefined;
+    if (original.content.case === "image") {
+      const operation = compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
+      return operation ? [operation] : undefined;
+    }
     const operation = compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     return operation ? [operation] : undefined;
   }
@@ -4082,6 +4121,12 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     ? fromBinary(PresentationArtifactSchema, state.sourceArtifactBytes)
     : undefined;
   if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
+  const requestedAssetIds = new Set(operations
+    .filter((operation) => operation.leafKind === "imageAsset")
+    .map((operation) => operation.imageReplacement?.assetId)
+    .filter(Boolean));
+  const assets = (envelope.assets || []).filter((asset) => requestedAssetIds.has(asset.id));
+  if (assets.length !== requestedAssetIds.size) return undefined;
   return {
     schema: "office-kit/pptx-edit-plan/v1",
     sourceRevisionSha256: sourceSha256,
@@ -4090,6 +4135,7 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     wire: {
       expectedSourceSha256: sourceSha256,
       operations,
+      assets,
     },
   };
 }
