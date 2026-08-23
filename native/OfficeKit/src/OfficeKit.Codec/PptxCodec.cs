@@ -374,6 +374,7 @@ internal static class PptxCodec
         var removedElementPartPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var removedElementRelationshipKeys = new HashSet<string>(StringComparer.Ordinal);
         var clonedPartSourcePaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var clonedPackageEntryPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var package = PresentationDocument.Open(stream, isEditable: true, new OpenSettings { AutoSave = false }))
         {
             var presentationPart = package.PresentationPart ??
@@ -447,6 +448,7 @@ internal static class PptxCodec
                 changedParts,
                 addedRelationshipIds,
                 addedPartPaths,
+                clonedPackageEntryPaths,
                 clonedPartSourcePaths);
             DeleteUnrequestedSourceSlides(
                 presentationPart,
@@ -989,7 +991,9 @@ internal static class PptxCodec
             removedSourceRelationshipKeys.Count == 0;
         var bytes = noModeledChanges
             ? sourceBytes
-            : NormalizeAddedPartTimestamps(stream.ToArray(), addedPartPaths);
+            : NormalizeAddedPartTimestamps(
+                stream.ToArray(),
+                addedPartPaths.Concat(clonedPackageEntryPaths).ToHashSet(StringComparer.OrdinalIgnoreCase));
         ValidateOutputBudget(bytes, limits);
         AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
         var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes, clonedPartSourcePaths);
@@ -3278,6 +3282,7 @@ internal static class PptxCodec
         ISet<string> changedParts,
         ISet<string> addedRelationshipIds,
         ISet<string> addedPartPaths,
+        ISet<string> clonedPackageEntryPaths,
         IDictionary<string, string> clonedPartSourcePaths)
     {
         var cloneTargets = targets.Where(target => target.IsClone).ToArray();
@@ -3312,6 +3317,7 @@ internal static class PptxCodec
             // bounded deletion pass below is the only permitted difference.
             PptxSlideCloneCodec.Validate(target.Source, clonePart, retainedSlideParts);
             changedParts.UnionWith(result.ChangedPackagePaths);
+            clonedPackageEntryPaths.UnionWith(result.ChangedPackagePaths);
             addedPartPaths.UnionWith(result.AddedOpaquePartPaths);
             addedRelationshipIds.UnionWith(result.AddedOpaqueRelationshipKeys);
             foreach (var (clonePath, sourcePath) in result.CopiedPartSourcePaths)
