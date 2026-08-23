@@ -228,6 +228,53 @@ const recoveredAfterInitFailure = await createReplSession({
 });
 await recoveredAfterInitFailure.close();
 
+const sideEffectWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-repl-side-effects-"));
+const sideEffectSession = await createReplSession({
+  workspaceRoot: sideEffectWorkspace,
+  newTaskGoal: "Report durable side effects without an explicit return",
+});
+const commitWithoutReturn = await sideEffectSession.handleLine(JSON.stringify({
+  id: "commit-without-return",
+  code: [
+    "const bytes = new TextEncoder().encode('first durable revision');",
+    "const crypto = await ctx.import('node:crypto');",
+    "const sha = crypto.createHash('sha256').update(bytes).digest('hex');",
+    "const review = {schemaVersion:1,artifactKind:'pdf',format:'pdf',verdict:'passed',semantic:{status:'passed'},structural:{status:'passed'},layout:{status:'passed'},contentView:{requested:false,status:'not-requested'},visualReview:'complete',delivery:{status:'ready',sha256:sha}};",
+    "await ctx.commit(bytes,{artifactId:'side-effect-pdf',summary:'Created the first durable revision',review});",
+    "({ committed: true });",
+  ].join(" "),
+}));
+assert.equal(commitWithoutReturn.ok, true);
+assert.equal(commitWithoutReturn.result, undefined);
+assert.equal(commitWithoutReturn.commit.commitId, "c0001");
+assert.equal(sideEffectSession.ctx.task.head.id, "c0001");
+
+const publishWithoutReturn = await sideEffectSession.handleLine(JSON.stringify({
+  id: "publish-without-return",
+  code: "await ctx.publish(ctx.task.commit,{artifactId:'side-effect-pdf',name:'side-effect.pdf'});",
+}));
+assert.equal(publishWithoutReturn.ok, true);
+assert.equal(publishWithoutReturn.result, undefined);
+assert.equal(publishWithoutReturn.publication.commitId, "c0001");
+assert.equal((await stat(publishWithoutReturn.publication.path)).isFile(), true);
+
+const failureAfterCommit = await sideEffectSession.handleLine(JSON.stringify({
+  id: "failure-after-commit",
+  code: [
+    "const bytes = new TextEncoder().encode('second durable revision');",
+    "const crypto = await ctx.import('node:crypto');",
+    "const sha = crypto.createHash('sha256').update(bytes).digest('hex');",
+    "const review = {schemaVersion:1,artifactKind:'pdf',format:'pdf',verdict:'passed',semantic:{status:'passed'},structural:{status:'passed'},layout:{status:'passed'},contentView:{requested:false,status:'not-requested'},visualReview:'complete',delivery:{status:'ready',sha256:sha}};",
+    "await ctx.commit(bytes,{artifactId:'side-effect-pdf',summary:'Created the second durable revision',review});",
+    "throw new Error('failure after commit');",
+  ].join(" "),
+}));
+assert.equal(failureAfterCommit.ok, false);
+assert.equal(failureAfterCommit.error.maybeApplied, true);
+assert.equal(failureAfterCommit.commit.commitId, "c0002");
+assert.equal(sideEffectSession.ctx.task.head.id, "c0002");
+await sideEffectSession.close();
+
 const excelRoot = await mkdtemp(path.join(os.tmpdir(), "officekit-repl-excel-"));
 const excelPaths = resolveExcelStatePaths({ env: { OFFICEKIT_EXCEL_HOME: excelRoot }, home: excelRoot });
 const excelConfig = await initializeExcelConfiguration(excelPaths, { port: 47213 });
