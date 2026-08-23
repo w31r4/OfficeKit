@@ -24,10 +24,16 @@ mode uses the imported deck as a bounded source of page patterns and assets.
    bounded edit targets, asset candidates, alternatives, and fit warnings.
 4. Duplicate selected source slides through an export/reimport boundary. A
    public slide id is position-scoped and may change after import; use the
-   source-bound manifest/ordinal locator, never a stale id. If the source graph
-   is not closed and independently owned, stop and report the blocker.
+   source-bound manifest/ordinal locator, never a stale id. A pending clone's
+   `continuationCapability` requires export/reimport before any edit. If the
+   source graph is not closed and independently owned, stop and report the
+   blocker.
 5. Edit inherited text with run-scoped `shape.text.replace`, or use an exposed
-   bounded image/SVG-text operation. Keep the inherited fonts, geometry,
+   bounded image/SVG-text operation. A reopened slide whose
+   `continuationCapability` reports ready `bounded-overlay` may add top-layer
+   textbox/basic-shape callouts and embedded rectangular images in a clean
+   SlidePart transaction. Commit/reopen before mixing that overlay with native
+   leaf or other SlidePart edits. Keep the inherited fonts, geometry,
    paragraph/run topology, placeholders, brand marks, relationships, and
    opaque descendants. If copy does not fit, shorten it or choose another
    source frame; do not silently shrink typography or rebuild the slide.

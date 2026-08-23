@@ -66,6 +66,7 @@ minimal artifact workflow:
   immutable input and return its artifact ID, path, type, size, and SHA-256.
 - `ctx.commit(candidate, options)`: promote a candidate only when its OfficeKit
   review is non-failing and its delivery SHA matches the candidate bytes.
+  Every commit requires a concise non-empty `options.summary`.
 - `ctx.publish(commit, options)`: publish an artifact from the current reviewed
   task commit to a distinct final output.
 - `ctx.recordEvidence(path, metadata)`: register bounded inspect, render, or QA
@@ -140,6 +141,12 @@ after resume is the proof that the Agent rebuilt the node index from reviewed
 bytes rather than relying on stale process state. Review and commit the new
 candidate again before publication. `session.ready.operations` is immutable
 audit evidence for prior Edit Plans, not a replacement for reinspection.
+
+Also read each target slide's `continuationCapability`. `pending-clone` means
+export and reimport before editing. A ready `bounded-overlay` permits only its
+listed top-layer shapes and embedded rectangular images, and only as one clean
+SlidePart mutation class. Commit that candidate with a summary, reopen the new
+reviewed revision, and reinspect before native-leaf or other SlidePart edits.
 
 Every cell still has a private atomic checkpoint and journal for crash
 diagnosis. These are implementation details, not recovery keys. If a prior
