@@ -10,6 +10,7 @@ import {
   canonicalizeXml,
   compareRenderedPages,
   evaluatePackageOracle,
+  inspectRenderedPages,
   sha256,
 } from "../scripts/pptx-programmable-import-oracle.mjs";
 
@@ -103,6 +104,9 @@ const pixel = compareRenderedPages({ pages: sourcePages }, { pages: outputPages,
 assert.equal(pixel.nonTargetPagesPixelIdentical, true);
 assert.equal(pixel.targetPageChanged, true);
 assert.throws(() => compareRenderedPages({ pages: sourcePages }, { pages: outputPages, cacheHit: false }, 1), /Non-target rendered pages changed/u);
+const unchangedTarget = inspectRenderedPages({ pages: sourcePages }, { pages: sourcePages, cacheHit: true }, 2);
+assert.equal(unchangedTarget.targetPageChanged, false);
+assert.equal(unchangedTarget.nonTargetPagesPixelIdentical, true);
 
 async function makeZip(parts) {
   const zip = new JSZip();
