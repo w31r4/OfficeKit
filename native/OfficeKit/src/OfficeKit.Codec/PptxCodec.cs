@@ -3465,7 +3465,14 @@ internal static class PptxCodec
                 Id = nextSlideId,
                 RelationshipId = presentationPart.GetIdOfPart(clonePart),
             };
-            ApplyCloneElementDeletions(target, clonePart, changedParts, addedRelationshipIds, addedPartPaths);
+            ApplyCloneElementDeletions(
+                target,
+                clonePart,
+                changedParts,
+                addedRelationshipIds,
+                addedPartPaths,
+                clonedPackageEntryPaths,
+                clonedPartSourcePaths);
         }
         changedParts.Add(PartPath(presentationPart));
         changedParts.Add(RelationshipPartPath(presentationPart));
@@ -3478,7 +3485,9 @@ internal static class PptxCodec
         SlidePart clonePart,
         ISet<string> changedParts,
         ISet<string> addedRelationshipIds,
-        ISet<string> addedPartPaths)
+        ISet<string> addedPartPaths,
+        ISet<string> clonedPackageEntryPaths,
+        IDictionary<string, string> clonedPartSourcePaths)
     {
         if (target.Target.ElementDeletions.Count == 0) return;
         var sourceRoot = target.Source.Part.Slide ??
@@ -3522,6 +3531,9 @@ internal static class PptxCodec
             {
                 changedParts.UnionWith(deletion.Plan.RemovedPackagePartPaths);
                 addedPartPaths.ExceptWith(deletion.Plan.RemovedPackagePartPaths);
+                clonedPackageEntryPaths.ExceptWith(deletion.Plan.RemovedPackagePartPaths);
+                foreach (var path in deletion.Plan.RemovedPackagePartPaths)
+                    clonedPartSourcePaths.Remove(path);
                 changedParts.Add("[Content_Types].xml");
             }
         }
