@@ -6342,6 +6342,12 @@ await assert.rejects(
 // boundary; the pending clone itself deliberately remains immutable.
 const authoredOverlaySource = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const authoredOverlaySourceSlide = authoredOverlaySource.slides.add({ name: "Authored overlay source" });
+assert.deepEqual(authoredOverlaySourceSlide.continuationCapability, {
+  sourceBound: false,
+  ready: true,
+  profile: "full-authoring",
+  requiresExportReopen: false,
+});
 authoredOverlaySourceSlide.shapes.add({
   name: "authored-overlay-canary",
   geometry: "roundRect",
@@ -6351,6 +6357,17 @@ authoredOverlaySourceSlide.shapes.add({
   text: "Retained source node",
 });
 const authoredOverlaySourceFile = await PresentationFile.exportPptx(authoredOverlaySource);
+const authoredOverlayCapabilityImport = await PresentationFile.importPptx(authoredOverlaySourceFile);
+const authoredOverlayCapability = authoredOverlayCapabilityImport.slides.getItem(0).continuationCapability;
+assert.equal(authoredOverlayCapability.sourceBound, true);
+assert.equal(authoredOverlayCapability.ready, true);
+assert.equal(authoredOverlayCapability.profile, "bounded-overlay");
+assert.equal(authoredOverlayCapability.requiresExportReopen, false);
+assert.equal(authoredOverlayCapability.oneSlideMutationPerExport, true);
+assert.deepEqual(authoredOverlayCapability.shapeGeometries, ["textbox", "rect", "roundRect", "ellipse"]);
+assert.equal(authoredOverlayCapability.embeddedImage, true);
+const [authoredOverlaySlideRecord] = authoredOverlayCapabilityImport.inspect({ kind: "slide" }).ndjson.trim().split("\n").map((line) => JSON.parse(line));
+assert.deepEqual(authoredOverlaySlideRecord.continuationCapability, authoredOverlayCapability);
 
 async function appendAuthoredOverlay() {
   const imported = await PresentationFile.importPptx(authoredOverlaySourceFile);
@@ -6410,7 +6427,12 @@ assert.ok(sourceCanaryOuterXml);
 assert.equal(outputCanaryOuterXml, sourceCanaryOuterXml, "every retained source shape must keep its original XML");
 
 const pendingAuthoredOverlay = await PresentationFile.importPptx(authoredOverlaySourceFile);
-pendingAuthoredOverlay.slides.getItem(0).duplicate().shapes.add({
+const pendingAuthoredOverlaySlide = pendingAuthoredOverlay.slides.getItem(0).duplicate();
+assert.equal(pendingAuthoredOverlaySlide.continuationCapability.sourceBound, true);
+assert.equal(pendingAuthoredOverlaySlide.continuationCapability.ready, false);
+assert.equal(pendingAuthoredOverlaySlide.continuationCapability.profile, "pending-clone");
+assert.equal(pendingAuthoredOverlaySlide.continuationCapability.requiresExportReopen, true);
+pendingAuthoredOverlaySlide.shapes.add({
   name: "too-early-overlay",
   geometry: "textbox",
   position: { left: 20, top: 20, width: 200, height: 60 },
@@ -6421,6 +6443,15 @@ await assert.rejects(
   (error) => error?.code === "unsupported_presentation_slide_clone",
   "a pending source-bound clone must remain immutable until export and reopen",
 );
+
+const sourceDerivedContinuation = await PresentationFile.importPptx(authoredOverlaySourceFile);
+sourceDerivedContinuation.slides.getItem(0).duplicate();
+const sourceDerivedContinuationFile = await PresentationFile.exportPptx(sourceDerivedContinuation);
+const sourceDerivedContinuationReopened = await PresentationFile.importPptx(sourceDerivedContinuationFile);
+const sourceDerivedReopenedSlide = sourceDerivedContinuationReopened.slides.getItem(1);
+assert.equal(sourceDerivedReopenedSlide.continuationCapability.sourceBound, true);
+assert.equal(sourceDerivedReopenedSlide.continuationCapability.ready, true);
+assert.equal(sourceDerivedReopenedSlide.continuationCapability.profile, "bounded-overlay");
 
 const relationshipBearingOverlay = await PresentationFile.importPptx(authoredOverlaySourceFile);
 relationshipBearingOverlay.slides.getItem(0).shapes.add({
