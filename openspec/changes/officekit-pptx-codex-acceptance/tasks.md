@@ -6,5 +6,5 @@
 - [x] Implement the deterministic packed-package intent runner.
 - [x] Implement the fresh-context Codex task/resume harness and trace policy.
 - [x] Add adversarial oracle and harness tests.
-- [ ] Execute the 90-run intent matrix and nine Codex continuation trials.
-- [ ] Commit immutable baseline evidence without changing product code or gates.
+- [x] Execute the 90-run intent matrix and nine Codex continuation trials.
+- [x] Commit immutable baseline evidence without changing product code or gates.
