@@ -42,13 +42,13 @@
     },
     {
       "path": "_framework/OfficeKit.Codec.wasm",
-      "bytes": 3104537,
-      "sha256": "71c31ee72e1282d832534cb4ba2e4f3ab6b1a8494ba979fe25754b6f6b6256b1"
+      "bytes": 3130137,
+      "sha256": "b104b7fb7523f242527144794238f11ffe331b74777c51687f19befc90ce77f4"
     },
     {
       "path": "_framework/OfficeKit.Runtime.wasm",
       "bytes": 5909,
-      "sha256": "c93902f685b82c5f74a932ae3eade55882dc983030f3ade4e703f10a377b8a4f"
+      "sha256": "ed7f386da2b33bd06535af4cc3d20f416fa17325f233070a9dc3ad7b54852e5f"
     },
     {
       "path": "_framework/System.Collections.Concurrent.wasm",
@@ -118,12 +118,12 @@
     {
       "path": "_framework/System.Private.CoreLib.wasm",
       "bytes": 1968917,
-      "sha256": "852d994ae1ec6bb1b570165f0a87133163d1dc21db5df76165c089413ee5107c"
+      "sha256": "7944eeec4f2369cbb59d9b9e6886e536dcedec9a1f991a52feba518bd9e851a2"
     },
     {
       "path": "_framework/System.Private.Uri.wasm",
-      "bytes": 74005,
-      "sha256": "aa7d0c7a52dce28a166ac560eac33db29487b373d1640133fa1f185145bd8849"
+      "bytes": 74517,
+      "sha256": "79a69a219d7e9fc75e23aea1f06b292eeb083aee5f6b5817a142816e6acf604a"
     },
     {
       "path": "_framework/System.Private.Xml.Linq.wasm",
@@ -158,7 +158,7 @@
     {
       "path": "_framework/blazor.boot.json",
       "bytes": 3131,
-      "sha256": "84f9afcf02c24bfcadf3c810b57656f9dca0295b5327b61f0c73d4e4217f6ece"
+      "sha256": "5c1bfa82e92c00b7b9f573c480a070c05a099369252285df59a0bb79d77e7292"
     },
     {
       "path": "_framework/dotnet.js",
@@ -173,7 +173,7 @@
     {
       "path": "_framework/dotnet.native.wasm",
       "bytes": 1417269,
-      "sha256": "c26770426a002001792b1a0eb729ce4746aa4bd0c1511ae5750079599e68d8c7"
+      "sha256": "b46ea8dbf76710a5e050a03af14bc4d95d9723ca5909d1b5ca6604fa47ca8d61"
     },
     {
       "path": "_framework/dotnet.runtime.js",
@@ -201,5 +201,5 @@
       "sha256": "06b54e5aefb412f17866912ddedaaa109eba4530e09eab3223e12523e2574e91"
     }
   ],
-  "totalBytes": 15632619
+  "totalBytes": 15658731
 }
