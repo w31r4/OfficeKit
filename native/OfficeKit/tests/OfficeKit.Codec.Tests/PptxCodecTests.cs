@@ -7633,6 +7633,39 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingCloneRetainsExactPreExistingChartValidationWarnings()
+    {
+        var request = ExportRequest();
+        AddCanonicalCloneChart(request.Artifact.Presentation.Slides[0]);
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddUnknownChartExtension(authored.File.ToByteArray());
+        string sourceChartPath;
+        using (var stream = new MemoryStream(sourceBytes, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            sourceChartPath = Assert.Single(package.PresentationPart!.SlideParts.Single().ChartParts).Uri.OriginalString.TrimStart('/');
+        var sourceChartBytes = ZipBytes(sourceBytes, sourceChartPath);
+
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.True(imported.Artifact.Presentation.Slides[0].Source.CloneCapability.Supported);
+        AddPendingClone(imported.Artifact.Presentation, 0, "presentation/clone/chart-with-source-warning");
+        var duplicated = Export(imported.Artifact);
+        Assert.True(duplicated.Ok, Diagnostics(duplicated));
+        Assert.Contains(duplicated.Diagnostics, item => item.Code == "source_openxml_validation_warnings_preserved");
+
+        using var outputStream = new MemoryStream(duplicated.File.ToByteArray(), writable: false);
+        using var outputPackage = PresentationDocument.Open(outputStream, false);
+        var slides = OrderedSlides(outputPackage);
+        var cloneChartPath = Assert.Single(slides[1].ChartParts).Uri.OriginalString.TrimStart('/');
+        Assert.Equal(sourceChartBytes, ZipBytes(duplicated.File.ToByteArray(), sourceChartPath));
+        Assert.Equal(sourceChartBytes, ZipBytes(duplicated.File.ToByteArray(), cloneChartPath));
+        var roundTrip = Import(duplicated.File.ToByteArray());
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal(2, roundTrip.Artifact.Presentation.Slides.Count);
+    }
+
+    [Fact]
     public void SourcePreservingExportRejectsAnEditedChartCloneBeforeWritingItsGraph()
     {
         var request = ExportRequest();
@@ -10605,6 +10638,20 @@ public sealed class PptxCodecTests
             AddZipText(archive, "ppt/customXml/_rels/owned-root.xml.rels", $"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">{leafRelationship}{externalRelationship}</Relationships>");
             AddZipBytes(archive, "ppt/customXml/owned-leaf.bin", [5, 4, 3, 2, 1]);
         }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddUnknownChartExtension(byte[] bytes)
+    {
+        const string extension = "<c:extLst><c:ext uri=\"{2E586C72-8B72-4E90-9A3F-5B77E7423A9A}\"><wps:chartProps xmlns:wps=\"https://web.wps.cn/et/2018/main\"/></c:ext></c:extLst>";
+        var chartPath = SingleZipEntryPath(bytes, path =>
+            path.Contains("/charts/chart", StringComparison.OrdinalIgnoreCase) &&
+            path.EndsWith(".xml", StringComparison.OrdinalIgnoreCase));
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+            ReplaceZipText(archive, chartPath, xml => xml.Replace("</c:chart>", $"{extension}</c:chart>", StringComparison.Ordinal));
         return stream.ToArray();
     }
 
