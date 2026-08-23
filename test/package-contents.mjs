@@ -178,9 +178,9 @@ const maxPackedBytes = 37_500_000;
 // Source-bound PDF outline editing adds one bounded leaf module plus runnable
 // Skill guidance. Keep less than 16 KiB of headroom over the measured candidate
 // instead of hiding unrelated source, generated evidence, or provider binaries.
-// The current 0.6.0 runtime payload measures 54,020,856 bytes after the
-// bounded PPTX SVG text leaf; keep only a narrow 79,144-byte growth budget.
-const maxUnpackedBytes = 54_130_000;
+// The current 0.6.0 runtime payload measures 54,180,721 bytes after the
+// bounded PPTX import projection; keep only a narrow 19,279-byte growth budget.
+const maxUnpackedBytes = 54_200_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
