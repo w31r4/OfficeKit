@@ -1,12 +1,12 @@
 ## 1. Complete imported-object accounting
 
-- [ ] 1.1 Add the four-state source-bound classification runtime and inspect
+- [x] 1.1 Add the four-state source-bound classification runtime and inspect
   records without exposing raw package selectors.
-- [ ] 1.2 Add controlled fixtures for precedence, stale/source-free refusal,
+- [x] 1.2 Add controlled fixtures for precedence, stale/source-free refusal,
   deterministic ordering, and byte-identical no-op inspection.
-- [ ] 1.3 Add the independent direct-shape-tree oracle and freeze the three
+- [x] 1.3 Add the independent direct-shape-tree oracle and freeze the three
   real-sample classification evidence manifests.
-- [ ] 1.4 Prove every visible top-level object in all three samples has exactly
+- [x] 1.4 Prove every visible top-level object in all three samples has exactly
   one classification and no silent omission.
 
 ## 2. Safe SVG styling
