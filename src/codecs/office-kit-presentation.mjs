@@ -2202,6 +2202,26 @@ function directSlideElements(slide) {
   ];
 }
 
+const SOURCE_BOUND_AUTHORED_OVERLAY_GEOMETRIES = new Set(["textbox", "rect", "roundRect", "ellipse"]);
+
+function assertSourceBoundAuthoredOverlayElement(element, slideIndex) {
+  if (!(element instanceof Shape)) {
+    throw new OfficeKitCodecError(`Presentation slide ${slideIndex + 1} source-bound authored overlays must be canonical textboxes or basic shapes.`, [], { code: "unsupported_presentation_authored_overlay" });
+  }
+  if (!SOURCE_BOUND_AUTHORED_OVERLAY_GEOMETRIES.has(element.geometry) || element.placeholder || element.useBackgroundFill !== undefined ||
+      element.customPaths?.length || element.customAdjustments?.length || element.customGuides?.length ||
+      element.customConnectionSites?.length || element.customAdjustmentHandles?.length || element.textRectangle) {
+    throw new OfficeKitCodecError(`Presentation shape ${element.id} uses geometry or layout identity outside the bounded source overlay profile.`, [], { code: "unsupported_presentation_authored_overlay" });
+  }
+  const paragraphs = [
+    ...(element.text?.paragraphs || []),
+    ...Object.values(element.text?.inheritedParagraphStyles || {}),
+  ];
+  if (paragraphs.some((paragraph) => paragraph?.bulletImage || paragraph?.runs?.some((run) => run?.link != null))) {
+    throw new OfficeKitCodecError(`Presentation shape ${element.id} cannot add picture or hyperlink relationships through a source-bound authored overlay.`, [], { code: "unsupported_presentation_authored_overlay" });
+  }
+}
+
 function legacyCommentCoordinate(value, unit, name) {
   const number = Number(value);
   if (!Number.isFinite(number)) {
@@ -2784,6 +2804,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
     const bindingState = sourceState || cloneState?.source;
     let retainedEntries = cloneState?.entries || bindingState?.entries;
     let deletedEntries = [];
+    let authoredElements = [];
     if (bindingState) {
       if (cloneState && slide.name !== bindingState.name) throw new OfficeKitCodecError(`Source-preserving PPTX export cannot rename pending clone slide ${slideIndex + 1}.`, [], { code: "unsupported_presentation_slide_clone" });
       if ((slide.layoutId || "") !== (bindingState.wire.layoutId || "")) throw new OfficeKitCodecError(`Source-preserving PPTX export cannot change slide ${slideIndex + 1}'s layout binding.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_slide_layout_binding_changed" });
@@ -2805,8 +2826,10 @@ export function presentationEnvelope(presentation, protocolVersion) {
       }
       const current = directSlideElements(slide);
       const entries = cloneState?.entries || bindingState.entries;
+      const sourceModels = new Set(entries.map((entry) => entry.model));
       retainedEntries = entries.filter((entry) => current.includes(entry.model));
       deletedEntries = entries.filter((entry) => !current.includes(entry.model));
+      authoredElements = current.filter((element) => !sourceModels.has(element));
       const allowedCloneDeletionIds = cloneState?.allowedDeletedIds instanceof Set
         ? cloneState.allowedDeletedIds
         : undefined;
@@ -2815,12 +2838,21 @@ export function presentationEnvelope(presentation, protocolVersion) {
       const authorizedCloneDeletions = Boolean(cloneState && allowedCloneDeletionIds &&
         deletedEntries.length === allowedCloneDeletionIds.size &&
         deletedEntries.every((entry) => allowedCloneDeletionIds.has(entry.wire.id)));
-      if (current.length !== retainedEntries.length ||
-          current.some((element) => !retainedEntries.some((entry) => entry.model === element)) ||
+      if (current.length !== retainedEntries.length + authoredElements.length ||
+          (cloneState && authoredElements.length > 0) ||
           (!cloneState && !typedDeletions) ||
           (cloneState && deletedEntries.length > 0 && !authorizedCloneDeletions) ||
           (cloneState && allowedCloneDeletionIds && !authorizedCloneDeletions)) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export requires slide ${slideIndex + 1}'s original ${entries.length}-element topology.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_element_topology_changed" });
+      }
+      if (!cloneState) {
+        const authoredIds = new Set();
+        for (const element of authoredElements) {
+          if (!authoredIds.add(element.id)) {
+            throw new OfficeKitCodecError(`Presentation slide ${slideIndex + 1} contains duplicate authored overlay identity ${element.id}.`, [], { code: "invalid_presentation_element" });
+          }
+          assertSourceBoundAuthoredOverlayElement(element, slideIndex);
+        }
       }
       if (!bindingState.wire.speakerNotes && slide.speakerNotes?.text && !bindingState.wire.source?.speakerNotesAddable) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export cannot add speaker notes to slide ${slideIndex + 1} because its presentation notes graph is not safely extensible.`, [], { code: "unsupported_presentation_edit" });
@@ -2838,48 +2870,51 @@ export function presentationEnvelope(presentation, protocolVersion) {
       ? presentationLegacyComments(slide, Number(bindingState?.wire.source?.slideIndex ?? slideIndex))
       : [];
     const elements = bindingState
-      ? retainedEntries.map((entry) => {
-        // A pending source-bound clone is deliberately immutable until its
-        // first export/reimport boundary.  Reuse the exact source wire for
-        // every element instead of reserializing the semantic projection;
-        // this keeps unsupported geometry and opaque descendants byte-for-
-        // byte eligible for the native OPC graph copy.  The C# clone codec
-        // performs the ownership proof and copies the original SlidePart.
-        if (cloneState) {
-          registerPresentationCloneAssets(entry.model, assetCatalog);
-          return entry.wire;
-        }
-        if (entry.wire.content.case === "shape") {
-          if (presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot) {
+      ? [
+        ...retainedEntries.map((entry) => {
+          // A pending source-bound clone is deliberately immutable until its
+          // first export/reimport boundary.  Reuse the exact source wire for
+          // every element instead of reserializing the semantic projection;
+          // this keeps unsupported geometry and opaque descendants byte-for-
+          // byte eligible for the native OPC graph copy.  The C# clone codec
+          // performs the ownership proof and copies the original SlidePart.
+          if (cloneState) {
+            registerPresentationCloneAssets(entry.model, assetCatalog);
             return entry.wire;
           }
-          if (entry.wire.content.value.placeholder) {
-            return presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks);
+          if (entry.wire.content.case === "shape") {
+            if (presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot) {
+              return entry.wire;
+            }
+            if (entry.wire.content.value.placeholder) {
+              return presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks);
+            }
+            return presentationShape(entry.model, entry.wire, assetCatalog, customShowLinks);
           }
-          return presentationShape(entry.model, entry.wire, assetCatalog, customShowLinks);
-        }
-        if (entry.wire.content.case === "image") {
-          if (presentationImageReadOnlySnapshot(entry.model) !== entry.snapshot) {
-            throw new OfficeKitCodecError(`Presentation image ${entry.model.id} changed outside its embedded rectangular image boundary.`, [], { code: "unsupported_presentation_edit" });
+          if (entry.wire.content.case === "image") {
+            if (presentationImageReadOnlySnapshot(entry.model) !== entry.snapshot) {
+              throw new OfficeKitCodecError(`Presentation image ${entry.model.id} changed outside its embedded rectangular image boundary.`, [], { code: "unsupported_presentation_edit" });
+            }
+            return presentationImage(entry.model, entry.wire, assetCatalog);
           }
-          return presentationImage(entry.model, entry.wire, assetCatalog);
-        }
-        if (entry.wire.content.case === "table") {
-          if (presentationTableReadOnlySnapshot(entry.model) !== entry.snapshot) {
-            throw new OfficeKitCodecError(`Presentation table ${entry.model.id} changed outside its name/frame/plain-text boundary.`, [], { code: "unsupported_presentation_edit" });
+          if (entry.wire.content.case === "table") {
+            if (presentationTableReadOnlySnapshot(entry.model) !== entry.snapshot) {
+              throw new OfficeKitCodecError(`Presentation table ${entry.model.id} changed outside its name/frame/plain-text boundary.`, [], { code: "unsupported_presentation_edit" });
+            }
+            return presentationTable(entry.model, entry.wire);
           }
-          return presentationTable(entry.model, entry.wire);
-        }
-        if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
-        if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
-        if (entry.wire.content.case === "group") {
-          if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
-            return entry.wire;
+          if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+          if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
+          if (entry.wire.content.case === "group") {
+            if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
+              return entry.wire;
+            }
+            return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);
           }
-          return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);
-        }
-        return presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog);
-      })
+          return presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog);
+        }),
+        ...authoredElements.map((element) => presentationElement(element, undefined, assetCatalog, undefined, customShowLinks)),
+      ]
       : directSlideElements(slide)
         .filter((element) => element instanceof Shape || element instanceof ImageElement || element instanceof TableElement || element instanceof ChartElement || element instanceof GroupShape || slide.connectors.items.includes(element))
         .map((element) => presentationElement(element, undefined, assetCatalog, undefined, customShowLinks));
