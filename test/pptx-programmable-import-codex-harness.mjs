@@ -113,6 +113,7 @@ const durable = await evaluateDurableTask({ workspace, task, source, outputPath 
 assert.equal(durable.passed, true);
 assert.equal(durable.sessions, 3);
 assert.deepEqual(durable.commits.map(({ commitId }) => commitId), ["c0001", "c0002"]);
+assert.equal(durable.publication.path, task.output);
 assert.equal(await inspectAgentRuntimeState(workspace), null);
 await mkdir(path.join(taskRoot, "sessions", "session-4"));
 assert.deepEqual(await inspectAgentRuntimeState(workspace), { code: "repl-session-budget-exceeded", observed: 4, maximum: 3 });
