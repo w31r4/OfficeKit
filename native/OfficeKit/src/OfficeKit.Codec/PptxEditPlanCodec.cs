@@ -66,6 +66,9 @@ internal static partial class PptxEditPlanCodec
     [GeneratedRegex("(?<open><(?<prefix>[A-Za-z_][\\w.-]*):t\\b[^>]*>)(?<value>.*?)(?<close></\\k<prefix>:t\\s*>)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex TextLeafPattern();
 
+    [GeneratedRegex("<(?<prefix>[A-Za-z_][\\w.-]*):tc\\b[^>]*>.*?</\\k<prefix>:tc\\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex TableCellPattern();
+
     [GeneratedRegex("(?<name>(?:[A-Za-z_][\\w.-]*:)?[A-Za-z_][\\w.-]*)\\s*=\\s*(?<quote>['\"])(?<value>.*?)\\k<quote>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex XmlAttributePattern();
 
@@ -392,6 +395,11 @@ internal static partial class PptxEditPlanCodec
             if ((leafKind == "text" && range.LocalName != "sp") ||
                 (leafKind == "tableCellText" && range.LocalName != "graphicFrame"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
+            if (leafKind == "tableCellText")
+            {
+                patches.Add(CompileTableCellTextXmlPatch(xml, range, proof, drawingPrefixes));
+                continue;
+            }
             var elementXml = xml[range.Start..range.End];
             var leaves = TextLeafPattern().Matches(elementXml)
                 .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
@@ -419,6 +427,42 @@ internal static partial class PptxEditPlanCodec
             if (ordered[index - 1].End > ordered[index].Start)
                 throw new CodecException("overlapping_presentation_edit_operations", "PPTX edit plan operations overlap in the source XML.", ordered[index].Operation.SlidePartPath);
         return ordered;
+    }
+
+    private static PptxXmlPatch CompileTableCellTextXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof,
+        IReadOnlySet<string> drawingPrefixes)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var cells = TableCellPattern().Matches(elementXml)
+            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
+            .ToArray();
+        if (operation.TextLeafIndex >= (uint)cells.Length)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw table-cell index is out of range.", operation.SlidePartPath);
+        var cell = cells[operation.TextLeafIndex];
+        var leaves = TextLeafPattern().Matches(cell.Value)
+            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
+            .ToArray();
+        if (leaves.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} table cell does not contain exactly one non-empty text leaf.", operation.SlidePartPath);
+        var leaf = leaves[0];
+        var prefix = leaf.Groups["prefix"].Value;
+        if (DecodeTextLeaf(leaf.Value, prefix) != operation.ExpectedValue)
+            throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw table-cell leaf does not match the expected text.", operation.SlidePartPath);
+        var open = leaf.Groups["open"].Value;
+        if (NeedsPreserve(operation.Value) && !PreserveSpacePattern().IsMatch(open))
+            open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
+        var start = elementRange.Start + cell.Index + leaf.Index;
+        return new PptxXmlPatch(
+            operation,
+            start,
+            start + leaf.Length,
+            open + EscapeText(operation.Value) + leaf.Groups["close"].Value,
+            proof.SourceElementSha256,
+            proof.MutationPartPath);
     }
 
     private static PptxXmlPatch[] CompileChartTitleXmlPatches(byte[] partBytes, IReadOnlyList<PptxEditPlanProof> proofs)
