@@ -6341,7 +6341,14 @@ public sealed class PptxCodecTests
     [Fact]
     public void SourcePreservingExportAppendsDeterministicEmbeddedImageOverlay()
     {
-        var sourceBytes = Invoke(ExportRequest()).File.ToByteArray();
+        var sourceBytes = ReplaceZipText(
+            Invoke(ExportRequest()).File.ToByteArray(),
+            "[Content_Types].xml",
+            xml => Regex.Replace(xml, "<Default\\b(?=[^>]*\\bExtension=\"png\")[^>]*/>", string.Empty, RegexOptions.IgnoreCase));
+        var contentTypesTimestamp = new DateTimeOffset(2004, 1, 2, 3, 4, 6, TimeSpan.Zero);
+        sourceBytes = SetZipTimestamp(sourceBytes, "[Content_Types].xml", contentTypesTimestamp);
+        var sourceContentTypesTimestamp = ZipTimestamp(sourceBytes, "[Content_Types].xml");
+        Assert.DoesNotContain("Extension=\"png\"", Encoding.UTF8.GetString(ZipBytes(sourceBytes, "[Content_Types].xml")), StringComparison.OrdinalIgnoreCase);
         var imageBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
 
         CodecResponse ExportOverlay()
@@ -6360,6 +6367,7 @@ public sealed class PptxCodecTests
         Assert.Equal(first.File, second.File);
 
         var outputBytes = first.File.ToByteArray();
+        Assert.Equal(sourceContentTypesTimestamp, ZipTimestamp(outputBytes, "[Content_Types].xml"));
         var sourcePaths = ZipPartPaths(sourceBytes);
         var outputPaths = ZipPartPaths(outputBytes);
         var addedPaths = outputPaths.Except(sourcePaths, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -11123,6 +11131,23 @@ public sealed class PptxCodecTests
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
             (archive.GetEntry(path) ?? throw new InvalidOperationException($"Missing fixture entry {path}.")).Delete();
         return stream.ToArray();
+    }
+
+    private static byte[] SetZipTimestamp(byte[] bytes, string path, DateTimeOffset timestamp)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+            (archive.GetEntry(path) ?? throw new InvalidOperationException($"Missing fixture entry {path}.")).LastWriteTime = timestamp;
+        return stream.ToArray();
+    }
+
+    private static DateTimeOffset ZipTimestamp(byte[] bytes, string path)
+    {
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read);
+        return (archive.GetEntry(path) ?? throw new InvalidOperationException($"Missing fixture entry {path}.")).LastWriteTime;
     }
 
     private static byte[] ZipBytes(byte[] bytes, string path)
