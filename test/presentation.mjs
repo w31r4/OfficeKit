@@ -6435,17 +6435,57 @@ await assert.rejects(
   "source-bound authored overlays must not introduce relationships",
 );
 
-const unsupportedImageOverlay = await PresentationFile.importPptx(authoredOverlaySourceFile);
-unsupportedImageOverlay.slides.getItem(0).images.add({
-  name: "unsupported-image-overlay",
-  dataUrl: PNG,
-  position: { left: 20, top: 20, width: 80, height: 80 },
-});
-await assert.rejects(
-  () => PresentationFile.exportPptx(unsupportedImageOverlay),
-  (error) => error?.code === "unsupported_presentation_authored_overlay",
-  "the first bounded overlay profile must fail closed for authored images",
+async function appendAuthoredImageOverlay() {
+  const imported = await PresentationFile.importPptx(authoredOverlaySourceFile);
+  imported.slides.getItem(0).images.add({
+    name: "authored-image-overlay",
+    alt: "Evidence added after importing the source presentation",
+    dataUrl: PNG,
+    fit: "stretch",
+    position: { left: 420, top: 176, width: 120, height: 96 },
+  });
+  return PresentationFile.exportPptx(imported);
+}
+
+const authoredImageOverlayOutput = await appendAuthoredImageOverlay();
+const authoredImageOverlayRepeat = await appendAuthoredImageOverlay();
+assert.deepEqual(
+  new Uint8Array(await authoredImageOverlayRepeat.arrayBuffer()),
+  new Uint8Array(await authoredImageOverlayOutput.arrayBuffer()),
+  "source-bound authored image output must be deterministic from the same source revision",
 );
+const authoredImageOverlayRoundTrip = await PresentationFile.importPptx(authoredImageOverlayOutput);
+const authoredImageRoundTrip = itemByName(authoredImageOverlayRoundTrip.slides.getItem(0).images.items, "authored-image-overlay");
+assert.equal(authoredImageRoundTrip.alt, "Evidence added after importing the source presentation");
+assert.deepEqual(authoredImageRoundTrip.position, { left: 420, top: 176, width: 120, height: 96 });
+
+const authoredImageOverlayZip = await JSZip.loadAsync(new Uint8Array(await authoredImageOverlayOutput.arrayBuffer()));
+const authoredOverlaySourceParts = Object.keys(authoredOverlaySourceZip.files).filter((name) => !authoredOverlaySourceZip.files[name].dir);
+const authoredImageOverlayParts = Object.keys(authoredImageOverlayZip.files).filter((name) => !authoredImageOverlayZip.files[name].dir);
+const authoredImageAddedParts = authoredImageOverlayParts.filter((name) => !authoredOverlaySourceZip.file(name));
+const authoredImageMediaPart = authoredImageAddedParts.filter((name) => /^ppt\/media\//.test(name));
+assert.equal(authoredImageMediaPart.length, 1);
+assert.deepEqual(
+  await authoredImageOverlayZip.file(authoredImageMediaPart[0]).async("uint8array"),
+  new Uint8Array(Buffer.from(PNG.split(",")[1], "base64")),
+);
+const authoredImageAllowedChanges = new Set([
+  "[Content_Types].xml",
+  "ppt/slides/slide1.xml",
+  "ppt/slides/_rels/slide1.xml.rels",
+]);
+for (const name of authoredOverlaySourceParts.filter((name) => !authoredImageAllowedChanges.has(name))) {
+  assert.deepEqual(
+    await authoredImageOverlayZip.file(name).async("uint8array"),
+    await authoredOverlaySourceZip.file(name).async("uint8array"),
+    `${name} changed while appending an embedded authored image`,
+  );
+}
+const authoredImageOverlayXml = await authoredImageOverlayZip.file("ppt/slides/slide1.xml").async("text");
+const authoredImageInsertionIndex = authoredOverlaySourceXml.lastIndexOf("</p:spTree>");
+assert.ok(authoredImageInsertionIndex > 0);
+assert.equal(authoredImageOverlayXml.startsWith(authoredOverlaySourceXml.slice(0, authoredImageInsertionIndex)), true);
+assert.equal(authoredImageOverlayXml.endsWith(authoredOverlaySourceXml.slice(authoredImageInsertionIndex)), true);
 
 const imageDeleteSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const imageDeleteSlide = imageDeleteSource.slides.add({ name: "Image deletion" });
