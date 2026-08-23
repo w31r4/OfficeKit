@@ -227,4 +227,168 @@ assert.deepEqual(await readFile(strategySourcePath), strategySourceBytes, "task 
 assert.deepEqual(await readFile(publishedStrategy.result.path), await readFile(finalReviewedPath));
 await publishStrategy.close();
 
+// Package-spanning edits remain durable task operations only when every added
+// media and relationship part is bound to the codec-issued image asset. Then
+// continue from each reviewed revision with the two inline operation kinds so
+// resume cannot accept a broader part-path fallback for any of the three.
+const packageEditWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-task-package-edits-"));
+const packageEditSource = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const packageEditSlide = packageEditSource.slides.add({ name: "Package edit source" });
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><rect width="320" height="180" fill="#F4F4F4"/><text x="20" y="54">Original SVG title</text></svg>';
+packageEditSlide.images.add({
+  name: "editable-svg",
+  dataUrl: `data:image/svg+xml;base64,${Buffer.from(svg, "utf8").toString("base64")}`,
+  position: { left: 20, top: 20, width: 320, height: 180 },
+});
+packageEditSlide.tables.add({
+  name: "status-table",
+  position: { left: 360, top: 20, width: 240, height: 120 },
+  values: [["Gate", "State"], ["Package", "Pending"]],
+  rows: 2,
+  columns: 2,
+});
+packageEditSlide.shapes.add({
+  name: "obsolete-note",
+  geometry: "textbox",
+  text: "Delete after import",
+  position: { left: 360, top: 180, width: 220, height: 60 },
+});
+const packageEditSourceFile = await PresentationFile.exportPptx(packageEditSource);
+const packageEditSourcePath = path.join(packageEditWorkspace, "source.pptx");
+await packageEditSourceFile.save(packageEditSourcePath);
+const packageEditSession = await createReplSession({
+  workspaceRoot: packageEditWorkspace,
+  newTaskGoal: "Persist bounded package and inline PPTX edits",
+});
+const packageEditTaskId = packageEditSession.ready.task.id;
+await packageEditSession.ctx.input(packageEditSourcePath, { artifactId: "package-edit-source" });
+const packageEditDeck = await PresentationFile.importPptx(packageEditSourceFile);
+const packageEditImage = packageEditDeck.slides.getItem(0).images.items.find((image) => image.name === "editable-svg");
+const packageEditText = packageEditImage.getSvgTextNodes().find((node) => node.text === "Original SVG title");
+assert.ok(packageEditText);
+packageEditImage.editSvgText(packageEditText.id, {
+  expectedHash: packageEditText.expectedHash,
+  value: "Reviewed SVG title",
+});
+const packageEditOutput = await PresentationFile.exportPptx(packageEditDeck);
+const packageEditPlan = packageEditOutput.metadata.editPlan;
+assert.deepEqual(packageEditPlan.operations.map((operation) => operation.leafKind), ["imageAsset"]);
+const [packageImageOperation] = packageEditPlan.operations;
+assert.equal(packageImageOperation.imageReplacement.assetId, packageImageOperation.value);
+assert.equal(packageImageOperation.imageReplacement.sha256, packageImageOperation.value.split("/").at(-1));
+assert.equal(packageImageOperation.imageReplacement.contentType, "image/svg+xml");
+assert.match(packageImageOperation.imageReplacement.relationshipPartPath, /^ppt\/slides\/_rels\/slide[1-9][0-9]*[.]xml[.]rels$/u);
+assert.match(packageImageOperation.imageReplacement.mediaPartPath, /^ppt\/media\/office-kit-[0-9a-f]{24}[.]svg$/u);
+const packageEditReview = await reviewArtifact(packageEditOutput, {
+  baseline: packageEditSourceFile,
+  outputPath: path.join(packageEditWorkspace, "candidates", "package-edits.pptx"),
+  layout: false,
+  visualReview: "unavailable",
+});
+assert.notEqual(packageEditReview.verdict, "failed", JSON.stringify(packageEditReview, null, 2));
+const forgedPlans = [];
+const forgedRelationship = structuredClone(packageEditPlan);
+forgedRelationship.operations.find((operation) => operation.leafKind === "imageAsset").imageReplacement.relationshipPartPath = "ppt/slides/_rels/slide999.xml.rels";
+forgedPlans.push(forgedRelationship);
+const forgedMedia = structuredClone(packageEditPlan);
+forgedMedia.operations.find((operation) => operation.leafKind === "imageAsset").imageReplacement.mediaPartPath = "ppt/media/office-kit-000000000000000000000000.svg";
+forgedPlans.push(forgedMedia);
+const forgedDigest = structuredClone(packageEditPlan);
+forgedDigest.operations.find((operation) => operation.leafKind === "imageAsset").imageReplacement.sha256 = "0".repeat(64);
+forgedPlans.push(forgedDigest);
+const forgedChangedPart = structuredClone(packageEditPlan);
+forgedChangedPart.changedParts.push("ppt/media/office-kit-000000000000000000000000.svg");
+forgedPlans.push(forgedChangedPart);
+for (const plan of forgedPlans) {
+  const candidate = { metadata: { editPlan: plan }, arrayBuffer: () => packageEditOutput.arrayBuffer() };
+  await assert.rejects(
+    packageEditSession.ctx.commit(candidate, {
+      artifactId: "package-edited-deck",
+      kind: "presentation",
+      name: "package-edits.pptx",
+      summary: "Reject forged package edit evidence",
+      review: packageEditReview,
+    }),
+    (error) => error.code === "invalid-edit-plan",
+  );
+}
+const packageEditCommit = await packageEditSession.ctx.commit(packageEditOutput, {
+  artifactId: "package-edited-deck",
+  kind: "presentation",
+  name: "package-edits.pptx",
+  summary: "Persist a source-bound SVG image edit",
+  review: packageEditReview,
+  next: "Edit the imported table cell",
+});
+assert.equal(packageEditCommit.commitId, "c0001");
+assert.equal(packageEditCommit.operation.operationCount, 1);
+
+const tableEditDeck = await PresentationFile.importPptx(packageEditOutput);
+tableEditDeck.slides.getItem(0).tables.items.find((table) => table.name === "status-table").cells.set(1, 1, "Passed");
+const tableEditOutput = await PresentationFile.exportPptx(tableEditDeck);
+assert.deepEqual(tableEditOutput.metadata.editPlan.operations.map((operation) => operation.leafKind), ["tableCellText"]);
+const tableEditReview = await reviewArtifact(tableEditOutput, {
+  baseline: packageEditOutput,
+  outputPath: path.join(packageEditWorkspace, "candidates", "table-edit.pptx"),
+  layout: false,
+  visualReview: "unavailable",
+});
+assert.notEqual(tableEditReview.verdict, "failed", JSON.stringify(tableEditReview, null, 2));
+const tableEditCommit = await packageEditSession.ctx.commit(tableEditOutput, {
+  artifactId: "package-edited-deck",
+  kind: "presentation",
+  name: "package-edits.pptx",
+  summary: "Persist a source-bound table cell edit",
+  review: tableEditReview,
+  next: "Delete the obsolete imported shape",
+});
+assert.equal(tableEditCommit.commitId, "c0002");
+assert.equal(tableEditCommit.operation.operationCount, 1);
+
+const deletionDeck = await PresentationFile.importPptx(tableEditOutput);
+deletionDeck.slides.getItem(0).shapes.getItem("obsolete-note").delete();
+const deletionOutput = await PresentationFile.exportPptx(deletionDeck);
+assert.deepEqual(deletionOutput.metadata.editPlan.operations.map((operation) => operation.leafKind), ["deleteElement"]);
+const [deletionOperation] = deletionOutput.metadata.editPlan.operations;
+assert.ok(deletionOperation.elementDeletion.expectedNativeId > 0);
+const deletionReview = await reviewArtifact(deletionOutput, {
+  baseline: tableEditOutput,
+  outputPath: path.join(packageEditWorkspace, "candidates", "element-deletion.pptx"),
+  layout: false,
+  visualReview: "unavailable",
+});
+assert.notEqual(deletionReview.verdict, "failed", JSON.stringify(deletionReview, null, 2));
+const forgedDeletionPlan = structuredClone(deletionOutput.metadata.editPlan);
+forgedDeletionPlan.operations[0].elementDeletion.expectedNativeId = 0;
+await assert.rejects(
+  packageEditSession.ctx.commit({ metadata: { editPlan: forgedDeletionPlan }, arrayBuffer: () => deletionOutput.arrayBuffer() }, {
+    artifactId: "package-edited-deck",
+    kind: "presentation",
+    name: "package-edits.pptx",
+    summary: "Reject a forged deletion identity",
+    review: deletionReview,
+  }),
+  (error) => error.code === "invalid-edit-plan",
+);
+const deletionCommit = await packageEditSession.ctx.commit(deletionOutput, {
+  artifactId: "package-edited-deck",
+  kind: "presentation",
+  name: "package-edits.pptx",
+  summary: "Persist a capability-proven element deletion",
+  review: deletionReview,
+  next: "Resume from all three reviewed edits",
+});
+assert.equal(deletionCommit.commitId, "c0003");
+assert.equal(deletionCommit.operation.operationCount, 1);
+await packageEditSession.close();
+
+const resumedPackageEdit = await createReplSession({ workspaceRoot: packageEditWorkspace, taskId: packageEditTaskId });
+assert.equal(resumedPackageEdit.ready.operations.length, 3);
+assert.ok(resumedPackageEdit.ready.operations.every((operation) => operation.operationCount === 1));
+const packageEditRecords = await Promise.all(resumedPackageEdit.ready.operations.map(async (operation) =>
+  JSON.parse(await readFile(operation.path, "utf8"))));
+assert.deepEqual(packageEditRecords.map((record) => record.plan.operations[0].leafKind), ["imageAsset", "tableCellText", "deleteElement"]);
+assert.deepEqual(await readFile(packageEditSourcePath), Buffer.from(await packageEditSourceFile.arrayBuffer()));
+await resumedPackageEdit.close();
+
 console.log("OfficeKit four-format task artifact smoke ok");
