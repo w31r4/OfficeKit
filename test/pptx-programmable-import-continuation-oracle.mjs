@@ -11,6 +11,7 @@ import {
 const contentTypes = '<Types><Default Extension="xml" ContentType="application/xml"/><Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/><Override PartName="/ppt/slides/slide1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>';
 const sourceBytes = await makeZip({
   "[Content_Types].xml": contentTypes,
+  "_rels/.rels": '<Relationships><Relationship Id="rIdOffice" Type="urn/officeDocument" Target="ppt/presentation.xml"/></Relationships>',
   "ppt/presentation.xml": '<p:presentation xmlns:p="urn:p" xmlns:r="urn:r"><p:sldIdLst><p:sldId id="256" r:id="rId1"/></p:sldIdLst></p:presentation>',
   "ppt/_rels/presentation.xml.rels": '<Relationships><Relationship Id="rId1" Type="urn/officeDocument/relationships/slide" Target="slides/slide1.xml"/></Relationships>',
   "ppt/slides/slide1.xml": '<p:sld xmlns:p="urn:p" xmlns:r="urn:r" xmlns:a="urn:a"><a:blip r:embed="rId2"/></p:sld>',
@@ -30,6 +31,7 @@ const task = {
 };
 const outputBytes = await makeZip({
   "[Content_Types].xml": contentTypes.replace("</Types>", '<Override PartName="/ppt/slides/slide2.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/></Types>'),
+  "_rels/.rels": '<Relationships><Relationship Id="rIdOffice" Type="urn/officeDocument" Target="ppt/presentation.xml"/></Relationships>',
   "ppt/presentation.xml": '<p:presentation xmlns:r="urn:r" xmlns:p="urn:p"><p:sldIdLst><p:sldId r:id="rId1" id="256"/><p:sldId id="257" r:id="RnewSlide"/></p:sldIdLst></p:presentation>',
   "ppt/_rels/presentation.xml.rels": '<Relationships><Relationship Target="slides/slide1.xml" Type="urn/officeDocument/relationships/slide" Id="rId1"/><Relationship Id="RnewSlide" Type="urn/officeDocument/relationships/slide" Target="slides/slide2.xml"/></Relationships>',
   "ppt/slides/slide1.xml": '<p:sld xmlns:p="urn:p" xmlns:r="urn:r" xmlns:a="urn:a"><a:blip r:embed="rId2"/></p:sld>',
