@@ -659,6 +659,99 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanDeletesOneProvenPictureWithoutReserializingTheSlide()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var picture = Assert.Single(slide.Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(picture.Source.DeletionCapability.Supported);
+        Assert.NotEqual(0U, picture.Source.DeletionCapability.NativeId);
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-picture-delete",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = picture.Id,
+            ShapeTreeIndex = picture.Source.ShapeTreeIndex,
+            LeafKind = "deleteElement",
+            ExpectedElementSha256 = picture.Source.ElementSha256,
+            ExpectedSemanticSha256 = picture.Source.SemanticSha256,
+            ExpectedValue = picture.Id,
+            Value = string.Empty,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(picture.Id))).ToLowerInvariant(),
+            ElementDeletion = new PresentationEditElementDeletion { ExpectedNativeId = picture.Source.DeletionCapability.NativeId },
+        };
+        operation.ShapeTreePath.Add(picture.Source.ShapeTreeIndex);
+        var plan = new PresentationEditPlanRequest
+        {
+            ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+            Operations = { operation },
+        };
+
+        static CodecResponse Apply(byte[] source, PresentationEditPlanRequest plan) => Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationEditPlan = plan,
+        });
+
+        string sourceRelationshipId;
+        string sourceMediaPath;
+        using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        {
+            var sourceSlide = Assert.Single(sourcePackage.PresentationPart!.SlideParts);
+            var sourcePicture = Assert.Single(sourceSlide.Slide!.Descendants<P.Picture>());
+            sourceRelationshipId = sourcePicture.BlipFill!.Blip!.Embed!.Value!;
+            sourceMediaPath = sourceSlide.GetPartById(sourceRelationshipId).Uri.OriginalString.TrimStart('/');
+        }
+
+        var edited = Apply(sourceBytes, plan);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var repeated = Apply(sourceBytes, plan);
+        Assert.True(repeated.Ok, Diagnostics(repeated));
+        Assert.Equal(edited.File, repeated.File);
+        var outputBytes = edited.File.ToByteArray();
+        var relationshipPath = $"ppt/slides/_rels/{Path.GetFileName(operation.SlidePartPath)}.rels";
+        Assert.Equal(new[] { sourceMediaPath, relationshipPath, operation.SlidePartPath }.OrderBy(path => path, StringComparer.OrdinalIgnoreCase),
+            edited.PresentationEditPlan.ChangedParts);
+        var result = Assert.Single(edited.PresentationEditPlan.Operations);
+        Assert.Equal("deleteElement", result.LeafKind);
+        Assert.Equal(string.Empty, result.OutputElementSha256);
+        Assert.Equal(result.SourceStartOffset, result.OutputEndOffset);
+        Assert.DoesNotContain(sourceMediaPath, ZipPartPaths(outputBytes), StringComparer.OrdinalIgnoreCase);
+
+        var sourceSlideXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputSlideXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, operation.SlidePartPath));
+        var sourcePictureXml = Assert.Single(Regex.Matches(sourceSlideXml, "<(?<prefix>[A-Za-z_][\\w.-]*):pic\\b[\\s\\S]*?</\\k<prefix>:pic>", RegexOptions.CultureInvariant)
+            .Cast<Match>().Select(match => match.Value));
+        Assert.Equal(sourceSlideXml.Replace(sourcePictureXml, string.Empty, StringComparison.Ordinal), outputSlideXml);
+        var sourceRelationships = Encoding.UTF8.GetString(ZipBytes(sourceBytes, relationshipPath));
+        var outputRelationships = Encoding.UTF8.GetString(ZipBytes(outputBytes, relationshipPath));
+        var removed = Regex.Matches(sourceRelationships, $"<Relationship\\b(?=[^>]*\\bId=\"{Regex.Escape(sourceRelationshipId)}\")[^>]*/>", RegexOptions.CultureInvariant)
+            .Cast<Match>().Select(match => match.Value).ToArray();
+        Assert.Equal(sourceRelationships.Replace(Assert.Single(removed), string.Empty, StringComparison.Ordinal), outputRelationships);
+
+        var reopened = Import(outputBytes);
+        Assert.True(reopened.Ok, Diagnostics(reopened));
+        Assert.DoesNotContain(Assert.Single(reopened.Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+
+        var stale = plan.Clone();
+        stale.Operations[0].ElementDeletion.ExpectedNativeId++;
+        var rejected = Apply(sourceBytes, stale);
+        Assert.False(rejected.Ok);
+        Assert.Equal("unsupported_presentation_element_delete", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void EditPlanChangesOneTableCellWithoutReserializingTheSlide()
     {
         var request = ExportRequest();
