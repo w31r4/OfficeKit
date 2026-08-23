@@ -713,18 +713,20 @@ internal static class PptxCodec
                     changed = true;
                 }
                 var sourceElements = ShapeElements(shapeTree);
+                var (retainedElements, authoredElements) = SplitSourceBoundElements(target, sourceElements.Length, slideIndex, slidePart);
                 var elementIdsByNativeId = NativeElementIds(sourceElements, target.Id);
                 var nativeIdsByElementId = elementIdsByNativeId.ToDictionary(item => item.Value, item => item.Key, StringComparer.Ordinal);
-                if (target.Elements.Count + target.ElementDeletions.Count != sourceElements.Length)
-                    throw new CodecException(
-                        "presentation_element_topology_changed",
-                        $"Source-preserving PPTX export requires slide {slideIndex + 1}'s original {sourceElements.Length}-element topology to be covered by retained elements plus explicit deletions; the artifact contains {target.Elements.Count} retained elements and {target.ElementDeletions.Count} deletions.",
-                        PartPath(slidePart));
+                foreach (var (elementId, nativeId) in AuthoredOverlayNativeIds(sourceElements, authoredElements, slideIndex, slidePart))
+                    if (!nativeIdsByElementId.TryAdd(elementId, nativeId))
+                        throw new CodecException(
+                            "invalid_presentation_element",
+                            $"Presentation slide {slideIndex + 1} authored overlay element {elementId} reuses an existing source element identity.",
+                            PartPath(slidePart));
 
                 var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
                 var requestedBySourceIndex = new Dictionary<int, PresentationElement>();
                 var previousSourceIndex = -1;
-                foreach (var requested in target.Elements)
+                foreach (var requested in retainedElements)
                 {
                     var requestedBinding = requested.Source ?? throw new CodecException(
                         "missing_presentation_element_binding",
@@ -925,6 +927,19 @@ internal static class PptxCodec
                         removedElementPartPaths.UnionWith(deletion.Plan.RemovedPackagePartPaths);
                         changedParts.Add("[Content_Types].xml");
                     }
+                    changed = true;
+                }
+                if (authoredElements.Length > 0)
+                {
+                    var relationshipCount = slideContext.AddedRelationshipIds.Count;
+                    var partCount = slideContext.AddedPartPaths.Count;
+                    foreach (var authored in authoredElements)
+                        shapeTree.Append(BuildElement(authored, nativeIdsByElementId, slideContext, slidePart));
+                    if (slideContext.AddedRelationshipIds.Count != relationshipCount || slideContext.AddedPartPaths.Count != partCount)
+                        throw new CodecException(
+                            "unsupported_presentation_authored_overlay",
+                            $"Presentation slide {slideIndex + 1} authored overlay attempted to change package relationships.",
+                            PartPath(slidePart));
                     changed = true;
                 }
                 if (changed)
@@ -1744,6 +1759,82 @@ internal static class PptxCodec
         }
     }
 
+    private static (PresentationElement[] Retained, PresentationElement[] Authored) SplitSourceBoundElements(
+        PresentationSlide slide,
+        int sourceElementCount,
+        int slideIndex,
+        OpenXmlPart owner)
+    {
+        var retainedCount = 0;
+        while (retainedCount < slide.Elements.Count && slide.Elements[retainedCount].Source is not null) retainedCount++;
+        var retained = slide.Elements.Take(retainedCount).ToArray();
+        var authored = slide.Elements.Skip(retainedCount).ToArray();
+        if (authored.Any(element => element.Source is not null))
+            throw new CodecException(
+                "presentation_element_topology_changed",
+                $"Presentation slide {slideIndex + 1} source-bound elements must remain an ordered prefix before authored overlay elements.",
+                PartPath(owner));
+        if (retained.Length + slide.ElementDeletions.Count != sourceElementCount)
+            throw new CodecException(
+                "presentation_element_topology_changed",
+                $"Source-preserving PPTX export requires slide {slideIndex + 1}'s original {sourceElementCount}-element topology to be covered by retained elements plus explicit deletions; the artifact contains {retained.Length} retained elements, {slide.ElementDeletions.Count} deletions, and {authored.Length} authored overlay elements.",
+                PartPath(owner));
+        foreach (var element in authored) ValidateAuthoredOverlayElement(element, slideIndex, owner);
+        return (retained, authored);
+    }
+
+    private static void ValidateAuthoredOverlayElement(PresentationElement element, int slideIndex, OpenXmlPart owner)
+    {
+        if (element.ContentCase != PresentationElement.ContentOneofCase.Shape)
+            throw new CodecException(
+                "unsupported_presentation_authored_overlay",
+                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} must be a canonical textbox or basic shape.",
+                PartPath(owner));
+        var shape = element.Shape;
+        if (shape.Geometry is not ("textbox" or "rect" or "roundRect" or "ellipse") ||
+            shape.Placeholder is not null || shape.DirectFrame is not null || shape.HasUseBackgroundFill ||
+            shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
+            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 || shape.TextRectangle is not null)
+            throw new CodecException(
+                "unsupported_presentation_authored_overlay",
+                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} uses geometry or layout identity outside the bounded textbox/basic-shape profile.",
+                PartPath(owner));
+        var paragraphs = (shape.TextBody?.Paragraphs ?? []).Concat(shape.TextBody?.ListStyles ?? []);
+        if (paragraphs.Any(paragraph =>
+                paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet ||
+                paragraph.Runs.Any(run => run.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.RunHyperlink)))
+            throw new CodecException(
+                "unsupported_presentation_authored_overlay",
+                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} cannot add picture or hyperlink relationships.",
+                PartPath(owner));
+    }
+
+    private static IReadOnlyDictionary<string, uint> AuthoredOverlayNativeIds(
+        IReadOnlyList<OpenXmlElement> sourceElements,
+        IReadOnlyList<PresentationElement> authored,
+        int slideIndex,
+        OpenXmlPart owner)
+    {
+        var occupied = sourceElements.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
+        var next = occupied.Count == 0 ? 1U : occupied.Max();
+        var output = new Dictionary<string, uint>(StringComparer.Ordinal);
+        foreach (var element in authored)
+        {
+            if (next == uint.MaxValue)
+                throw new CodecException(
+                    "unsupported_presentation_authored_overlay",
+                    $"Presentation slide {slideIndex + 1} has no remaining native drawing ID for authored overlay {element.Id}.",
+                    PartPath(owner));
+            next++;
+            if (!output.TryAdd(element.Id, next))
+                throw new CodecException(
+                    "invalid_presentation_element",
+                    $"Presentation slide {slideIndex + 1} contains duplicate authored overlay identity {element.Id}.",
+                    PartPath(owner));
+        }
+        return output;
+    }
+
     private static OpenXmlElement BuildElement(
         PresentationElement element,
         IReadOnlyDictionary<string, uint> nativeIdsByElementId,
@@ -2064,7 +2155,12 @@ internal static class PptxCodec
         var semantic = element.Clone();
         var placementEditable = semantic.ContentCase == PresentationElement.ContentOneofCase.Opaque && semantic.Source?.Editable == true;
         ClearElementIdentity(semantic);
-        if (semantic.ContentCase == PresentationElement.ContentOneofCase.Shape) PptxTextCodec.NormalizeSemantics(semantic.Shape);
+        if (semantic.ContentCase == PresentationElement.ContentOneofCase.Shape)
+        {
+            PptxTextCodec.NormalizeSemantics(semantic.Shape);
+            PptxLineStyleCodec.NormalizeSemantics(semantic.Shape);
+            semantic.Shape.FillRgb = string.IsNullOrWhiteSpace(semantic.Shape.FillRgb) ? string.Empty : PptxColor.Normalize(semantic.Shape.FillRgb);
+        }
         else if (placementEditable) semantic.Opaque.RawXml = string.Empty;
         return Hash(semantic.ToByteArray());
     }
@@ -2648,9 +2744,10 @@ internal static class PptxCodec
             var before = ShapeElements(sourceSlide.Slide!.CommonSlideData!.ShapeTree!);
             var after = ShapeElements(outputRoot.CommonSlideData!.ShapeTree!);
             var afterIds = NativeElementIds(after, requested.Slides[slideIndex].Id);
-            var elements = requested.Slides[slideIndex].Elements;
+            var (elements, authoredElements) = SplitSourceBoundElements(requested.Slides[slideIndex], before.Length, slideIndex, outputSlide);
+            var authoredNativeIds = AuthoredOverlayNativeIds(before, authoredElements, slideIndex, outputSlide);
             var deletions = requested.Slides[slideIndex].ElementDeletions;
-            if (before.Length != elements.Count + deletions.Count || after.Length != elements.Count)
+            if (before.Length != elements.Length + deletions.Count || after.Length != elements.Length + authoredElements.Length)
                 throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} element topology changed during source-preserving export.", PartPath(outputSlide));
             var outputNativeIds = after.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
             foreach (var deletion in deletions)
@@ -2674,7 +2771,7 @@ internal static class PptxCodec
                         $"PPTX slide {slideIndex + 1} deleted element {sourceElementIndex + 1} no longer satisfies its source deletion proof.",
                         PartPath(outputSlide));
             }
-            for (var elementIndex = 0; elementIndex < elements.Count; elementIndex++)
+            for (var elementIndex = 0; elementIndex < elements.Length; elementIndex++)
             {
                 var request = elements[elementIndex];
                 var binding = request.Source!;
@@ -2795,6 +2892,24 @@ internal static class PptxCodec
                         "presentation_postwrite_semantics_mismatch",
                         $"PPTX slide {slideIndex + 1} edited shape {elementIndex + 1} does not match requested semantics after export.",
                         PartPath(outputSlides[slideIndex]));
+            }
+            for (var authoredIndex = 0; authoredIndex < authoredElements.Length; authoredIndex++)
+            {
+                var request = authoredElements[authoredIndex];
+                var outputIndex = elements.Length + authoredIndex;
+                var outputElement = after[outputIndex];
+                var authoredOutputNativeIds = PptxElementDeletionCodec.NativeIds(outputElement).ToArray();
+                if (outputElement is not P.Shape || authoredOutputNativeIds.Length != 1 || authoredOutputNativeIds[0] != authoredNativeIds[request.Id])
+                    throw new CodecException(
+                        "presentation_postwrite_authored_overlay_mismatch",
+                        $"PPTX slide {slideIndex + 1} authored overlay {authoredIndex + 1} changed native type or identity during export.",
+                        PartPath(outputSlide));
+                var outputSemantic = ReadElement(outputElement, slideIndex, outputIndex, outputContext, elementIdsByNativeId: afterIds);
+                if (!SemanticHash(outputSemantic).Equals(SemanticHash(request), StringComparison.OrdinalIgnoreCase))
+                    throw new CodecException(
+                        "presentation_postwrite_semantics_mismatch",
+                        $"PPTX slide {slideIndex + 1} authored overlay {authoredIndex + 1} does not match requested semantics after export.",
+                        PartPath(outputSlide));
             }
         }
     }

@@ -150,6 +150,12 @@ internal static class PptxLineStyleCodec
         target.EndArrowLength = source.EndArrowLength;
     }
 
+    internal static void NormalizeSemantics(PresentationShape source)
+    {
+        source.LineStyle = NormalizeStyle(source.LineStyle, source.LineRgb);
+        source.LineRgb = string.IsNullOrWhiteSpace(source.LineRgb) ? string.Empty : PptxColor.Normalize(source.LineRgb);
+    }
+
     internal static void Validate(PresentationShape source, string shapeId)
     {
         _ = ValidateProfile(FromWire(source), $"Presentation shape {shapeId}",
