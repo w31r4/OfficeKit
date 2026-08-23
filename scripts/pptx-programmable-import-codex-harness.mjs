@@ -7,6 +7,7 @@ import {
   copyFile,
   mkdir,
   readFile,
+  realpath,
   readdir,
   rm,
   stat,
@@ -164,7 +165,11 @@ export async function evaluateDurableTask({ workspace, task, source, outputPath 
   }
   const outputBytes = await readFile(outputPath);
   const publication = manifest.publications[0];
-  if (path.resolve(publication.path) !== path.resolve(outputPath)) throw new Error(`${task.id}: publication path is not the required output`);
+  const [publishedCanonicalPath, requiredCanonicalPath] = await Promise.all([
+    realpath(publication.path),
+    realpath(outputPath),
+  ]);
+  if (publishedCanonicalPath !== requiredCanonicalPath) throw new Error(`${task.id}: publication path is not the required output`);
   if (publication.commitId !== "c0002" || publication.artifactId !== "continued-deck") throw new Error(`${task.id}: publication is not current reviewed HEAD`);
   if (sha256(outputBytes) !== publication.sha256 || publication.sha256 !== revisions[1].sha256) throw new Error(`${task.id}: publication bytes are not c0002`);
   return {
