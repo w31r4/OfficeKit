@@ -5,8 +5,8 @@
   "package": {
     "name": "office-kit",
     "version": "0.6.0",
-    "installKind": "repository",
-    "tarballSha256": null
+    "installKind": "packed-clean-install",
+    "tarballSha256": "5b6f989803c77a8a6ac81de86eb5d0aa94c8f528bd518821074d25448ad79e23"
   },
   "environment": {
     "platform": "darwin",
