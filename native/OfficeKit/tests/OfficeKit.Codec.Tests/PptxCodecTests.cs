@@ -7327,6 +7327,37 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingImageReplacementAllocatesDeterministicRelationshipId()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        var replacement = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=");
+
+        static byte[] ReplaceOnce(byte[] sourceBytes, byte[] replacement)
+        {
+            var imported = Import(sourceBytes);
+            Assert.True(imported.Ok, Diagnostics(imported));
+            var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+            var image = Assert.Single(slide.Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+            image.Image.AssetId = AddPictureAsset(imported.Artifact, replacement, "image/png");
+            var exported = Export(imported.Artifact);
+            Assert.True(exported.Ok, Diagnostics(exported));
+            return exported.File.ToByteArray();
+        }
+
+        var first = ReplaceOnce(sourceBytes, replacement);
+        var second = ReplaceOnce(sourceBytes, replacement);
+        Assert.Equal(ZipBytes(first, "ppt/slides/slide1.xml"), ZipBytes(second, "ppt/slides/slide1.xml"));
+        Assert.Equal(ZipBytes(first, "ppt/slides/_rels/slide1.xml.rels"), ZipBytes(second, "ppt/slides/_rels/slide1.xml.rels"));
+        using var stream = new MemoryStream(first, writable: false);
+        using var package = PresentationDocument.Open(stream, false);
+        var slidePart = Assert.Single(package.PresentationPart!.SlideParts);
+        var picture = Assert.Single(slidePart.Slide!.Descendants<P.Picture>());
+        Assert.StartsWith("rIdOfficeKitImage", picture.BlipFill!.Blip!.Embed!.Value!, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SourcePreservingSlideCloneAllocatesDeterministicPresentationRelationshipId()
     {
         var authored = Invoke(ExportRequest());
