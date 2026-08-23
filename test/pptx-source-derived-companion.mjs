@@ -10,6 +10,12 @@ const definitionsBytes = await readFile(path.join(repoRoot, "evals/pptx-programm
 const frozen = JSON.parse(await readFile(path.join(repoRoot, "evals/pptx-programmable-import/source-derived-companion.evidence.v1.json"), "utf8"));
 assert.equal(frozen.schema, "office-kit/pptx-source-derived-companion-evidence/v1");
 assert.equal(frozen.definitionsSha256, createHash("sha256").update(definitionsBytes).digest("hex"));
+assert.deepEqual(frozen.package, {
+  name: "office-kit",
+  version: "0.6.0",
+  installKind: "packed-clean-install",
+  tarballSha256: "5b6f989803c77a8a6ac81de86eb5d0aa94c8f528bd518821074d25448ad79e23",
+});
 assert.deepEqual(frozen.acceptance, { scope: "full-suite", status: "passed" });
 assert.equal(frozen.repetitionsPerCase, 3);
 assert.equal(frozen.environment.render, true);
