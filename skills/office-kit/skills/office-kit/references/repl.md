@@ -33,6 +33,11 @@ publishable commit descriptor, restored artifact paths, pending failures,
 constraints, prior operation records, and next action before sending code. A
 missing task ID fails; it never creates a new task by typo.
 
+End every successful file cell with an explicit top-level `return`. The
+terminal response also reports any durable `commit` or `publication` created by
+that cell. If either appears, the side effect succeeded and the phase must not
+be run again merely because `result` is absent.
+
 Use `officekit run task.mjs` instead for a genuinely one-shot script that does
 not need a durable editing context.
 
