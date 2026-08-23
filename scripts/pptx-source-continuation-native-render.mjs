@@ -12,7 +12,7 @@ import { applyContinuation, verifyContinuation } from "./pptx-source-continuatio
 import { SOURCES } from "./pptx-source-reuse-benchmark.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-const EVIDENCE_SCHEMA = "office-kit/pptx-source-continuation-native-evidence/v1";
+const EVIDENCE_SCHEMA = "office-kit/pptx-source-continuation-native-evidence/v2";
 
 export async function runSourceContinuationNativeRender(assetsDir, outputDir) {
   const office = createLibreOfficeRenderer({ timeoutMs: 180_000 });
@@ -33,11 +33,12 @@ export async function runSourceContinuationNativeRender(assetsDir, outputDir) {
     const cloneOutput = await PresentationFile.exportPptx(presentation);
     const continued = await PresentationFile.importPptx(cloneOutput.bytes);
     const clone = continued.slides.items[sourceSlideCount];
-    const target = applyContinuation(clone, continuationKind(source.id));
+    const target = applyContinuation(clone, "bounded-overlay");
     const output = await PresentationFile.exportPptx(continued);
     const verified = await PresentationFile.importPptx(output.bytes);
     const verifiedTarget = verifyContinuation(verified.slides.items[sourceSlideCount], target);
     const sourcePages = await renderNativePages(sourceBlob, sourceSlideCount, outputDir, `${source.id}-source`, office, poppler);
+    const clonedInsertedPage = await renderNativePage(new FileBlob(cloneOutput.bytes, { type: PPTX_MIME, name: `${source.id}-clone.pptx` }), sourceSlideCount, outputDir, `${source.id}-clone`, office, poppler);
     const outputPages = await renderNativePages(new FileBlob(output.bytes, { type: PPTX_MIME, name: `${source.id}-continuation.pptx` }), verified.slides.count, outputDir, `${source.id}-continuation`, office, poppler);
     if (outputPages.length !== sourcePages.length + 1) throw new Error(`${source.id} native output page count ${outputPages.length} does not equal source count + 1.`);
     const pages = [];
@@ -59,25 +60,40 @@ export async function runSourceContinuationNativeRender(assetsDir, outputDir) {
       pages.push({ sourceSlide: index + 1, outputSlide: outputIndex + 1, sourceHash: baseline.hash, outputHash: actual.hash, pixelIdentical: true });
     }
     const inserted = outputPages[sourceSlideCount];
-    if (!inserted?.blob?.bytes?.length) throw new Error(`${source.id} inserted continuation page rendered blank.`);
+    if (!inserted?.blob?.bytes?.length) throw new Error(`${source.id} inserted continuation page did not render.`);
+    const insertedQa = await visualQaArtifact({ render: () => inserted.blob }, {
+      baseline: clonedInsertedPage.blob,
+      pixelDiff: true,
+      allowPixelChange: true,
+      diffImage: false,
+      minBytes: 100,
+      maxChars: 2_000,
+    });
+    const insertedPixelDiff = insertedQa.summary.pixelDiff;
+    if (insertedPixelDiff?.skipped || insertedPixelDiff?.changed !== true) {
+      throw new Error(`${source.id} continuation overlay was not visible in native rendering: ${JSON.stringify(insertedPixelDiff)}`);
+    }
     results.push({
       id: source.id,
       sourceSha256: sha256(sourceBytes),
       sourceSlideCount: sourcePages.length,
       outputSlideCount: outputPages.length,
       insertedSlide: sourceSlideCount + 1,
-      continuationKind: continuationKind(source.id),
+      continuationKind: "bounded-overlay",
       target: verifiedTarget,
       nonTargetPagesPixelIdentical: true,
-      insertedPageNonBlank: true,
+      insertedPageRendered: true,
+      insertedPageChangedFromClone: true,
+      insertedPageChange: {
+        cloneHash: clonedInsertedPage.hash,
+        outputHash: inserted.hash,
+        differentPixels: insertedPixelDiff.differentPixels,
+        mismatchRatio: insertedPixelDiff.mismatchRatio,
+      },
       pages,
     });
   }
   return { schema: EVIDENCE_SCHEMA, renderer: { office: "LibreOffice", raster: "Poppler", dpi: 120 }, sources: results };
-}
-
-function continuationKind(id) {
-  return id === "mckinsey-customer-loyalty" ? "svg-image" : "text";
 }
 
 async function renderNativePages(blob, slideCount, outputDir, prefix, office, poppler) {
@@ -91,6 +107,15 @@ async function renderNativePages(blob, slideCount, outputDir, prefix, office, po
     pages.push({ slide: pageIndex + 1, blob: image, hash: sha256(image.bytes) });
   }
   return pages;
+}
+
+async function renderNativePage(blob, pageIndex, outputDir, prefix, office, poppler) {
+  const root = await mkdtemp(path.join(outputDir, `${prefix}-`));
+  const pdf = await office({ input: blob, inputType: PPTX_MIME, outputType: "application/pdf", format: "pdf", artifactKind: "presentation" });
+  const pdfPath = path.join(root, "render.pdf");
+  await pdf.save(pdfPath);
+  const image = await poppler({ input: pdf, inputType: "application/pdf", outputType: "image/png", format: "png", artifactKind: "presentation", pageIndex });
+  return { slide: pageIndex + 1, blob: image, hash: sha256(image.bytes) };
 }
 
 function sha256(bytes) {
