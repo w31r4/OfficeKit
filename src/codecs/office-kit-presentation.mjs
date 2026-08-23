@@ -7,6 +7,7 @@ import {
   PresentationArtifactSchema,
   PresentationDiagramTextNodeSchema,
   PresentationElementSchema,
+  PresentationElementSourceBindingSchema,
   PresentationModernCommentAnchor_Kind,
   PresentationSlideSchema,
   PresentationSlideGuide_Orientation,
@@ -2149,6 +2150,12 @@ function presentationImportedSlideShellSnapshot(slide) {
   });
 }
 
+function presentationImportedSlideShellWithoutElementsSnapshot(value) {
+  const snapshot = JSON.parse(typeof value === "string" ? value : presentationImportedSlideShellSnapshot(value));
+  delete snapshot.elementIds;
+  return JSON.stringify(snapshot);
+}
+
 function presentationElement(element, original, assetCatalog, sourceIdByCloneId, customShowLinks) {
   if (element instanceof GroupShape) return presentationGroup(element, original, assetCatalog, sourceIdByCloneId, customShowLinks);
   if (element instanceof ImageElement) return presentationImage(element, original, assetCatalog);
@@ -3973,6 +3980,33 @@ function compilePresentationImageAssetOperation(original, requested, sourceSlide
   };
 }
 
+function compilePresentationElementDeletionOperation(original, sourceSlide, sourceSha256, shapeTreePath) {
+  const source = original.source;
+  const slideSource = sourceSlide.source;
+  const capability = source?.deletionCapability;
+  if (shapeTreePath.length !== 1 || capability?.supported !== true || !Number.isSafeInteger(capability.nativeId) || capability.nativeId <= 0 ||
+      !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
+  const expectedValue = original.id;
+  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath[0], "deleteElement", source.elementSha256, capability.nativeId].join("\0");
+  return {
+    operationId: `pptx-deleteElement-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
+    slideId: sourceSlide.id,
+    slidePartPath: slideSource.partPath,
+    expectedSlideSha256: slideSource.slideXmlSha256,
+    targetId: original.id,
+    shapeTreeIndex: shapeTreePath[0],
+    shapeTreePath,
+    leafKind: "deleteElement",
+    expectedElementSha256: source.elementSha256,
+    expectedSemanticSha256: source.semanticSha256,
+    textLeafIndex: 0,
+    expectedTextSha256: createHash("sha256").update(expectedValue, "utf8").digest("hex"),
+    expectedValue,
+    value: "",
+    elementDeletion: { expectedNativeId: capability.nativeId },
+  };
+}
+
 function compilePresentationTableCellOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "table" || requested.content.case !== "table" || original.source?.editable !== true) return undefined;
   const beforeTable = original.content.value;
@@ -4072,7 +4106,8 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
   const snapshot = state.opaqueOpc?.sourcePackage;
   const sourceSha256 = String(snapshot?.sha256 || state.source?.packageSha256 || "").toLowerCase();
   if (!(snapshot?.data instanceof Uint8Array) || !/^[0-9a-f]{64}$/.test(sourceSha256)) return undefined;
-  if (state.slides.some((entry) => presentationImportedSlideShellSnapshot(entry.slide) !== entry.shellSnapshot)) return undefined;
+  if (state.slides.some((entry) => presentationImportedSlideShellWithoutElementsSnapshot(entry.slide) !==
+      presentationImportedSlideShellWithoutElementsSnapshot(entry.shellSnapshot))) return undefined;
   const envelope = presentationEnvelope(presentation, protocolVersion);
   const restoredArtifact = clonePresentationWire(PresentationArtifactSchema, envelope.payload.value);
   const requestedSlides = restoredArtifact.slides;
@@ -4086,9 +4121,23 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
   for (let slideIndex = 0; slideIndex < state.slides.length; slideIndex += 1) {
     const sourceSlide = state.slides[slideIndex];
     const requestedById = new Map(requestedSlides[slideIndex].elements.map((element, elementIndex) => [element.id, { element, elementIndex }]));
-    for (const entry of sourceSlide.entries) {
+    const deletedEntries = [];
+    for (let sourceElementIndex = 0; sourceElementIndex < sourceSlide.entries.length; sourceElementIndex += 1) {
+      const entry = sourceSlide.entries[sourceElementIndex];
       const requestedEntry = requestedById.get(entry.wire.id);
-      if (!requestedEntry) return undefined;
+      if (!requestedEntry) {
+        if (entry.model[PRESENTATION_ELEMENT_DELETED] !== true) return undefined;
+        const operation = compilePresentationElementDeletionOperation(
+          entry.wire,
+          sourceSlide.wire,
+          sourceSha256,
+          [entry.wire.source.shapeTreeIndex],
+        );
+        if (!operation) return undefined;
+        operations.push(operation);
+        deletedEntries.push({ sourceElementIndex, wire: entry.wire });
+        continue;
+      }
       const { element: requested, elementIndex } = requestedEntry;
       const issuedEdits = pendingByRootId.get(entry.wire.id);
       if (issuedEdits?.length) {
@@ -4110,6 +4159,14 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
       if (!entryOperations) return undefined;
       operations.push(...entryOperations);
       restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
+    }
+    if (deletedEntries.length) {
+      const declared = requestedSlides[slideIndex].elementDeletions || [];
+      if (declared.length !== deletedEntries.length || deletedEntries.some(({ wire }) =>
+        !declared.some((deletion) => deletion.id === wire.id && samePresentationWire(PresentationElementSourceBindingSchema, deletion.source, wire.source)))) return undefined;
+      for (const { sourceElementIndex, wire } of deletedEntries)
+        restoredArtifact.slides[slideIndex].elements.splice(sourceElementIndex, 0, wire);
+      restoredArtifact.slides[slideIndex].elementDeletions = [];
     }
   }
   operations.sort((left, right) =>
@@ -4141,7 +4198,9 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
 }
 
 export function presentationRequiresNativeLeafEditPlan(presentation) {
-  return presentation?.[PRESENTATION_STATE]?.pendingNativeLeafEdits?.size > 0;
+  const state = presentation?.[PRESENTATION_STATE];
+  return state?.pendingNativeLeafEdits?.size > 0 || state?.slides?.some(({ entries }) =>
+    entries.some(({ model }) => model[PRESENTATION_ELEMENT_DELETED] === true));
 }
 
 function presentationNativeKind(elementName) {

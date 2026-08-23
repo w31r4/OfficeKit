@@ -21,7 +21,8 @@ internal sealed record PptxEditPlanProof(
     string SourceElementSha256,
     string MutationPartPath,
     uint? RawTextOrdinal = null,
-    PptxImageEditPlanProof? Image = null);
+    PptxImageEditPlanProof? Image = null,
+    PptxElementDeletionPlan? Deletion = null);
 
 internal sealed record PptxXmlPatch(
     PresentationEditOperation Operation,
@@ -89,6 +90,7 @@ internal static partial class PptxEditPlanCodec
         var sourceParts = PackageParts(sourceBytes);
         var patchedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var addedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+        var removedParts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var results = new List<PresentationEditOperationResult>();
 
         foreach (var group in proofs.GroupBy(proof => proof.MutationPartPath, StringComparer.OrdinalIgnoreCase))
@@ -103,10 +105,11 @@ internal static partial class PptxEditPlanCodec
         }
         ApplyEmbeddedWorkbookPatches(sourceParts, proofs, patchedParts, results);
         ApplyImagePackagePatches(sourceParts, proofs, patchedParts, addedParts);
+        ApplyElementDeletionPackagePatches(sourceParts, proofs, patchedParts, removedParts);
 
-        var outputBytes = RewriteParts(sourceBytes, patchedParts, addedParts);
+        var outputBytes = RewriteParts(sourceBytes, patchedParts, addedParts, removedParts);
         var changedParts = ChangedParts(sourceBytes, outputBytes);
-        var expectedParts = patchedParts.Keys.Concat(addedParts.Keys).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
+        var expectedParts = patchedParts.Keys.Concat(addedParts.Keys).Concat(removedParts).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         if (!changedParts.SequenceEqual(expectedParts, StringComparer.OrdinalIgnoreCase))
             throw new CodecException(
                 "presentation_edit_plan_scope_violation",
@@ -124,6 +127,10 @@ internal static partial class PptxEditPlanCodec
             if (!actual.AsSpan().SequenceEqual(expected))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan added part {path} with unexpected bytes.", path);
         }
+        var outputParts = PackageParts(outputBytes);
+        foreach (var path in removedParts)
+            if (outputParts.ContainsKey(path))
+                throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan failed to remove part {path}.", path);
 
         _ = PackageGuards.ValidateAndCollectOpaque(outputBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
         var sourceValidationWarnings = PptxCodec.ValidateEditPlanOutput(sourceBytes, outputBytes, limits);
@@ -171,7 +178,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "chartTitleText" or "chartDataValue" or "diagramText"))
+            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -205,6 +212,16 @@ internal static partial class PptxEditPlanCodec
             else if (operation.ImageReplacement is not null)
             {
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach an image replacement to {leafKind}.");
+            }
+            if (leafKind == "deleteElement")
+            {
+                if (operation.ElementDeletion is null || operation.ElementDeletion.ExpectedNativeId == 0 || shapeTreePath.Count != 1 ||
+                    operation.ExpectedValue != operation.TargetId || operation.Value.Length != 0)
+                    throw new CodecException("invalid_presentation_edit_target", $"PPTX element deletion {operation.OperationId} requires one top-level codec-issued native identity binding.");
+            }
+            else if (operation.ElementDeletion is not null)
+            {
+                throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach an element deletion to {leafKind}.");
             }
             if (leafKind != "chartDataValue" && (operation.ChartSeriesIndex != 0 || operation.ChartPointIndex != 0))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach chart-data indices to {leafKind}.");
@@ -342,6 +359,12 @@ internal static partial class PptxEditPlanCodec
                 proofs.Add(new PptxEditPlanProof(operation, elementHash, operation.SlidePartPath, Image: imageProof));
                 continue;
             }
+            if (LeafKind(operation) == "deleteElement")
+            {
+                var deletionProof = ProveElementDeletion(slidePart, tree, element, projectedElement, operation);
+                proofs.Add(new PptxEditPlanProof(operation, elementHash, operation.SlidePartPath, Deletion: deletionProof));
+                continue;
+            }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 PptxCodec.SupportsBoundTextLeaf(shape))
@@ -418,6 +441,13 @@ internal static partial class PptxEditPlanCodec
                 range = new XmlRange(range.Start + child.Start, range.Start + child.End, child.LocalName);
             }
             var leafKind = LeafKind(operation);
+            if (leafKind == "deleteElement")
+            {
+                if (range.LocalName is not ("sp" or "pic" or "graphicFrame" or "cxnSp" or "grpSp"))
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX element deletion {operation.OperationId} raw target has an unsupported shape-tree type.", operation.SlidePartPath);
+                patches.Add(new PptxXmlPatch(operation, range.Start, range.End, string.Empty, proof.SourceElementSha256, proof.MutationPartPath));
+                continue;
+            }
             if (range.LocalName is not ("sp" or "pic" or "graphicFrame"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, or p:graphicFrame.", operation.SlidePartPath);
             if (leafKind is not ("text" or "tableCellText"))
@@ -734,6 +764,13 @@ internal static partial class PptxEditPlanCodec
         {
             var slidePart = slideByPath[operation.SlidePartPath];
             var tree = slidePart.Slide!.CommonSlideData!.ShapeTree!;
+            if (LeafKind(operation) == "deleteElement")
+            {
+                var nativeId = operation.ElementDeletion?.ExpectedNativeId ?? 0;
+                if (nativeId == 0 || tree.ChildElements.Any(element => PptxElementDeletionCodec.NativeId(element) == nativeId))
+                    throw new CodecException("presentation_edit_verification_failed", $"PPTX element deletion {operation.OperationId} did not remove its native target.", operation.SlidePartPath);
+                continue;
+            }
             var element = ResolveShapeTreeElement(tree, ShapeTreePath(operation), operation);
             if (LeafKind(operation) == "diagramText")
             {
@@ -834,18 +871,30 @@ internal static partial class PptxEditPlanCodec
     }
 
     internal static byte[] ReplaceParts(byte[] sourceBytes, IReadOnlyDictionary<string, byte[]> replacements)
-        => RewriteParts(sourceBytes, replacements, new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase));
+        => RewriteParts(
+            sourceBytes,
+            replacements,
+            new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase),
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase));
 
     private static byte[] RewriteParts(
         byte[] sourceBytes,
         IReadOnlyDictionary<string, byte[]> replacements,
-        IReadOnlyDictionary<string, byte[]> additions)
+        IReadOnlyDictionary<string, byte[]> additions,
+        IReadOnlySet<string> removals)
     {
+        if (replacements.Keys.Any(removals.Contains) || additions.Keys.Any(removals.Contains) || replacements.Keys.Any(additions.ContainsKey))
+            throw new CodecException("presentation_edit_plan_scope_violation", "PPTX edit plan cannot add, replace, and remove the same OPC part.");
         using var stream = new MemoryStream();
         stream.Write(sourceBytes);
         stream.Position = 0;
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
         {
+            foreach (var path in removals.OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+            {
+                var removed = archive.GetEntry(path) ?? throw new CodecException("presentation_edit_target_missing", $"PPTX part {path} selected for deletion is missing.", path);
+                removed.Delete();
+            }
             foreach (var (path, data) in replacements)
             {
                 var source = archive.GetEntry(path) ?? throw new CodecException("presentation_edit_target_missing", $"PPTX part {path} is missing.", path);
