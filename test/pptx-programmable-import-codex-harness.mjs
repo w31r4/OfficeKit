@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -69,6 +69,12 @@ const revision2Path = `revisions/continued-deck/${sha256(revision2)}.pptx`;
 await writeFile(path.join(taskRoot, revision1Path), revision1);
 await writeFile(path.join(taskRoot, revision2Path), revision2);
 await writeFile(outputPath, revision2);
+let publicationPath = outputPath;
+if (process.platform !== "win32") {
+  const workspaceAlias = `${workspace}-alias`;
+  await symlink(workspace, workspaceAlias, "dir");
+  publicationPath = path.join(workspaceAlias, task.output);
+}
 const commits = [];
 for (const [index, revision, revisionPath] of [[1, revision1, revision1Path], [2, revision2, revision2Path]]) {
   const commitId = `c${String(index).padStart(4, "0")}`;
@@ -99,7 +105,7 @@ const manifest = {
   commits,
   head: { commitId: "c0002", artifactId: "continued-deck", revisionSha256: sha256(revision2) },
   pending: [],
-  publications: [{ commitId: "c0002", artifactId: "continued-deck", path: outputPath, bytes: revision2.length, sha256: sha256(revision2) }],
+  publications: [{ commitId: "c0002", artifactId: "continued-deck", path: publicationPath, bytes: revision2.length, sha256: sha256(revision2) }],
   lastSessionId: "session-3",
 };
 await writeFile(path.join(taskRoot, "task.json"), `${JSON.stringify(manifest, null, 2)}\n`);
