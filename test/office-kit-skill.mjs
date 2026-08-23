@@ -56,6 +56,7 @@ assert.match(reviewText, /text reading view is not OCR/i);
 assert.match(reviewText, /only when it can close an identified text or table content-coverage gap/i);
 assert.match(reviewText, /does not resolve OCR, layout, image, formula, or metadata-provenance gaps/i);
 assert.match(replText, /Every commit requires a concise non-empty `options\.summary`/i);
+assert.match(replText, /explicit top-level `return`[\s\S]*durable `commit` or `publication`[\s\S]*must not[\s\S]*run again/i);
 assert.match(replText, /ctx\.input[\s\S]*does not retrieve an artifact already committed/i);
 assert.match(replText, /ctx\.task\.artifacts\.find[\s\S]*headRevision[\s\S]*path\.resolve\(ctx\.taskRoot[\s\S]*FileBlob\.load/is);
 assert.match(replText, /reviewArtifact[\s\S]*baseline: reviewedPath[\s\S]*application\/octet-stream/is);
