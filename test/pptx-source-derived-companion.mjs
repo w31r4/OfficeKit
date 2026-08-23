@@ -1,10 +1,40 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
+const definitionsBytes = await readFile(path.join(repoRoot, "evals/pptx-programmable-import/source-derived-companion.v1.json"));
+const frozen = JSON.parse(await readFile(path.join(repoRoot, "evals/pptx-programmable-import/source-derived-companion.evidence.v1.json"), "utf8"));
+assert.equal(frozen.schema, "office-kit/pptx-source-derived-companion-evidence/v1");
+assert.equal(frozen.definitionsSha256, createHash("sha256").update(definitionsBytes).digest("hex"));
+assert.deepEqual(frozen.acceptance, { scope: "full-suite", status: "passed" });
+assert.equal(frozen.repetitionsPerCase, 3);
+assert.equal(frozen.environment.render, true);
+assert.equal(frozen.coverage.status, "passed");
+assert.deepEqual(frozen.coverage.missing, []);
+assert.deepEqual(frozen.coverage.required, ["text", "geometry", "image", "table", "chart", "component", "add", "delete", "reorder"]);
+assert.equal(frozen.cases.length, 8);
+for (const item of frozen.cases) {
+  assert.equal(item.requiredRuns, 3, item.id);
+  assert.equal(item.completedRuns, 3, item.id);
+  assert.equal(item.passedRuns, 3, item.id);
+  assert.equal(item.deterministic, true, item.id);
+  assert.equal(new Set(item.runs.map(({ outputSha256 }) => outputSha256)).size, 1, item.id);
+  assert.equal(new Set(item.runs.map(({ canonicalOpcSha256 }) => canonicalOpcSha256)).size, 1, item.id);
+  for (const run of item.runs) {
+    assert.equal(run.status, "passed", item.id);
+    assert.equal(run.worker.sourceUnchanged, true, item.id);
+    assert.equal(run.worker.secondImport.passed, true, item.id);
+    assert.equal(run.packageOracle.passed, true, item.id);
+    assert.equal(run.packageOracle.nonTargetPartsByteIdentical, true, item.id);
+    assert.equal(run.pixelOracle.passed, true, item.id);
+  }
+}
+assert.doesNotMatch(JSON.stringify(frozen), /\/(?:Users|private|tmp)\//u);
+
 const runParent = await mkdtemp(path.join(os.tmpdir(), "officekit-pptx-source-derived-companion-test-"));
 const runRoot = path.join(runParent, "run");
 
