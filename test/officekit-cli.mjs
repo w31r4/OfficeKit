@@ -19,6 +19,7 @@ try {
   assert.match(help.stdout, /officekit tasks \[<task-id>\]/);
   assert.match(help.stdout, /officekit repl --new <goal>/);
   assert.match(help.stdout, /officekit repl <task-id>/);
+  assert.match(run(["repl", "--help"]).stdout, /--file <cell[.]mjs>/);
   assert.match(help.stdout, /officekit template search/);
   assert.match(help.stdout, /officekit excel <command>/);
   assert.match(help.stdout, /officekit live <command> --app <excel\|powerpoint>/);

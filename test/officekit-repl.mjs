@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
@@ -144,6 +144,58 @@ await runReplCommand(["--new", "CLI task", "--workspace", cliWorkspace], { input
 const lines = Buffer.concat(chunks).toString("utf8").trim().split("\n").map(JSON.parse);
 assert.equal(lines[0].type, "session.ready");
 assert.equal(lines[1].result, 7);
+
+const fileWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-repl-file-"));
+const codeFile = path.join(fileWorkspace, "phase-one.mjs");
+await writeFile(codeFile, "const label = 'quoted \\\"cell\\\"';\nreturn { label, taskId: ctx.task.id };\n");
+const ignoredInput = new PassThrough();
+const fileOutput = new PassThrough();
+const fileChunks = [];
+fileOutput.on("data", (chunk) => fileChunks.push(chunk));
+await runReplCommand(["--new", "File-backed cell", "--workspace", fileWorkspace, "--file", codeFile], {
+  input: ignoredInput,
+  output: fileOutput,
+  errorOutput: null,
+});
+const fileLines = Buffer.concat(fileChunks).toString("utf8").trim().split("\n").map(JSON.parse);
+assert.equal(fileLines.length, 2);
+assert.equal(fileLines[0].type, "session.ready");
+assert.equal(fileLines[1].id, "file");
+assert.deepEqual(fileLines[1].result, { label: "quoted \"cell\"", taskId: fileLines[0].task.id });
+ignoredInput.destroy();
+
+const invalidFileWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-repl-invalid-file-"));
+await assert.rejects(
+  runReplCommand(["--new", "Missing file", "--workspace", invalidFileWorkspace, "--file", path.join(invalidFileWorkspace, "missing.mjs")], {
+    input: new PassThrough(),
+    output: new PassThrough(),
+    errorOutput: null,
+  }),
+  (error) => error.code === "invalid-code-file",
+);
+assert.equal((await listTasks({ workspaceRoot: invalidFileWorkspace })).total, 0, "an invalid code file must fail before task creation");
+const directoryCode = path.join(invalidFileWorkspace, "directory.mjs");
+await mkdir(directoryCode);
+await assert.rejects(
+  runReplCommand(["--new", "Directory file", "--workspace", invalidFileWorkspace, "--file", directoryCode], {
+    input: new PassThrough(),
+    output: new PassThrough(),
+    errorOutput: null,
+  }),
+  (error) => error.code === "invalid-code-file",
+);
+if (process.platform !== "win32") {
+  const linkPath = path.join(invalidFileWorkspace, "link.mjs");
+  await symlink(codeFile, linkPath);
+  await assert.rejects(
+    runReplCommand(["--new", "Symlink file", "--workspace", invalidFileWorkspace, "--file", linkPath], {
+      input: new PassThrough(),
+      output: new PassThrough(),
+      errorOutput: null,
+    }),
+    (error) => error.code === "invalid-code-file",
+  );
+}
 
 const failedReadyWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-repl-ready-failure-"));
 await assert.rejects(
