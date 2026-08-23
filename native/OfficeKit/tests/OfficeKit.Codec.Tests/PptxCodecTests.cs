@@ -7270,6 +7270,60 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingCloneSharesAClosedMultiSlideOleObjectLeaf()
+    {
+        var authored = Invoke(HyperlinkExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddSharedReadOnlyOleObjectGraph(authored.File.ToByteArray());
+        var sourceSlide = ZipBytes(sourceBytes, "ppt/slides/slide3.xml");
+        var sourceRelationships = ZipBytes(sourceBytes, "ppt/slides/_rels/slide3.xml.rels");
+        var sourceOle = ZipBytes(sourceBytes, "ppt/embeddings/shared-read-only-ole.bin");
+
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var source = imported.Artifact.Presentation.Slides[2];
+        Assert.True(source.Source.CloneCapability.Supported, source.Source.CloneCapability.BlockedReason);
+        Assert.True(source.Source.CloneCapability.SharedPartCount >= 2U);
+        AddPendingClone(imported.Artifact.Presentation, 2, "presentation/clone/shared-read-only-ole");
+
+        var duplicated = Export(imported.Artifact);
+        Assert.True(duplicated.Ok, Diagnostics(duplicated));
+        var output = duplicated.File.ToByteArray();
+        Assert.Equal(sourceSlide, ZipBytes(output, "ppt/slides/slide3.xml"));
+        Assert.Equal(sourceRelationships, ZipBytes(output, "ppt/slides/_rels/slide3.xml.rels"));
+        Assert.Equal(sourceOle, ZipBytes(output, "ppt/embeddings/shared-read-only-ole.bin"));
+        using (var stream = new MemoryStream(output, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var slides = OrderedSlides(package);
+            var origin = slides[2];
+            var clone = slides[3];
+            var originRelationship = Assert.Single(origin.Parts, pair => pair.OpenXmlPart is EmbeddedObjectPart);
+            var cloneRelationship = Assert.Single(clone.Parts, pair => pair.OpenXmlPart is EmbeddedObjectPart);
+            Assert.Equal(originRelationship.RelationshipId, cloneRelationship.RelationshipId);
+            Assert.Equal(originRelationship.OpenXmlPart.Uri, cloneRelationship.OpenXmlPart.Uri);
+            Assert.Empty(originRelationship.OpenXmlPart.Parts);
+            Assert.Empty(originRelationship.OpenXmlPart.ExternalRelationships);
+            Assert.Empty(originRelationship.OpenXmlPart.DataPartReferenceRelationships);
+            Assert.Single(package.PresentationPart!.SlideParts
+                .SelectMany(slide => slide.Parts.Select(pair => pair.OpenXmlPart))
+                .OfType<EmbeddedObjectPart>()
+                .Select(part => part.Uri)
+                .Distinct());
+        }
+
+        var roundTrip = Import(output);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        Assert.Equal(4, roundTrip.Artifact.Presentation.Slides.Count);
+        Assert.True(roundTrip.Artifact.Presentation.Slides[3].Source.CloneCapability.Supported);
+        var clonedOle = Assert.Single(roundTrip.Artifact.Presentation.Slides[3].Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Opaque && item.Opaque.NativeKind == "oleObject");
+        Assert.Null(clonedOle.Opaque.OleWorkbook);
+        Assert.Null(clonedOle.Opaque.OleOfficePackage);
+    }
+
+    [Fact]
     public void SourcePreservingExportClonesCanonicalRunHyperlinksWithExactRelationshipIds()
     {
         var authored = Invoke(HyperlinkExportRequest());
@@ -10486,6 +10540,28 @@ public sealed class PptxCodecTests
             ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace("</Types>", $"{contentTypes}</Types>", StringComparison.Ordinal));
             AddZipBytes(archive, "ppt/embeddings/clone-source-workbook.xlsx", CreateEmbeddedWorkbook("Original clone-safe workbook"));
             AddZipBytes(archive, "ppt/media/clone-ole-preview.png", Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddSharedReadOnlyOleObjectGraph(byte[] bytes)
+    {
+        const string ole = "<p:graphicFrame xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><p:nvGraphicFramePr><p:cNvPr id=\"220\" name=\"Shared read-only OLE\"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr><p:xfrm><a:off x=\"914400\" y=\"1828800\"/><a:ext cx=\"3657600\" cy=\"2286000\"/></p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/presentationml/2006/ole\"><p:oleObj showAsIcon=\"1\" r:id=\"rIdSharedReadOnlyOle\" imgW=\"965200\" imgH=\"609600\" progId=\"Package\"><p:embed/><p:pic><p:nvPicPr><p:cNvPr id=\"0\" name=\"\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"rIdSharedReadOnlyPreview\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x=\"914400\" y=\"1828800\"/><a:ext cx=\"3657600\" cy=\"2286000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:oleObj></a:graphicData></a:graphic></p:graphicFrame>";
+        const string relationships = "<Relationship Id=\"rIdSharedReadOnlyOle\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject\" Target=\"../embeddings/shared-read-only-ole.bin\"/><Relationship Id=\"rIdSharedReadOnlyPreview\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/shared-read-only-ole-preview.png\"/>";
+        const string contentTypes = "<Override PartName=\"/ppt/embeddings/shared-read-only-ole.bin\" ContentType=\"application/vnd.openxmlformats-officedocument.oleObject\"/><Override PartName=\"/ppt/media/shared-read-only-ole-preview.png\" ContentType=\"image/png\"/>";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            foreach (var slideNumber in new[] { 1, 3 })
+            {
+                ReplaceZipText(archive, $"ppt/slides/slide{slideNumber}.xml", xml => xml.Replace("</p:spTree>", $"{ole}</p:spTree>", StringComparison.Ordinal));
+                ReplaceZipText(archive, $"ppt/slides/_rels/slide{slideNumber}.xml.rels", xml => xml.Replace("</Relationships>", $"{relationships}</Relationships>", StringComparison.Ordinal));
+            }
+            ReplaceZipText(archive, "[Content_Types].xml", xml => xml.Replace("</Types>", $"{contentTypes}</Types>", StringComparison.Ordinal));
+            AddZipBytes(archive, "ppt/embeddings/shared-read-only-ole.bin", [1, 3, 3, 7]);
+            AddZipBytes(archive, "ppt/media/shared-read-only-ole-preview.png", Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
         }
         return stream.ToArray();
     }
