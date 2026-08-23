@@ -6303,6 +6303,13 @@ public sealed class PptxCodecTests
         Assert.Equal(ZipPartPaths(sourceBytes), ZipPartPaths(outputBytes));
         foreach (var path in ZipPartPaths(sourceBytes).Where(path => !path.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase)))
             Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(outputBytes, path));
+        var sourceSlideXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, "ppt/slides/slide1.xml"));
+        var outputSlideXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, "ppt/slides/slide1.xml"));
+        var insertionIndex = sourceSlideXml.LastIndexOf("</p:spTree>", StringComparison.Ordinal);
+        Assert.True(insertionIndex > 0);
+        Assert.StartsWith(sourceSlideXml[..insertionIndex], outputSlideXml);
+        Assert.EndsWith(sourceSlideXml[insertionIndex..], outputSlideXml);
+        Assert.Contains("Agent-authored evidence", outputSlideXml[insertionIndex..]);
 
         using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
         using (var outputStream = new MemoryStream(outputBytes, writable: false))
