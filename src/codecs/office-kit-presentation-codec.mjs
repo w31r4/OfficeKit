@@ -15,6 +15,57 @@ import {
 } from "./office-kit-runtime.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const PPTX_IMAGE_EXTENSIONS_BY_CONTENT_TYPE = new Map([
+  ["image/png", new Set(["png"])],
+  ["image/jpeg", new Set(["jpg", "jpeg"])],
+  ["image/gif", new Set(["gif"])],
+  ["image/svg+xml", new Set(["svg"])],
+]);
+
+function presentationSlideRelationshipPartPath(slidePartPath) {
+  const match = String(slidePartPath).match(/^ppt\/slides\/(slide[1-9][0-9]*[.]xml)$/u);
+  return match ? `ppt/slides/_rels/${match[1]}.rels` : undefined;
+}
+
+function presentationImageEditPlanMetadata(operation, editPlan, result) {
+  const replacement = operation.imageReplacement;
+  const assets = editPlan.wire.assets.filter((asset) => asset.id === replacement?.assetId);
+  const asset = assets.length === 1 ? assets[0] : undefined;
+  const relationshipPartPath = presentationSlideRelationshipPartPath(operation.slidePartPath);
+  const contentType = String(asset?.contentType || "").toLowerCase();
+  const extensions = PPTX_IMAGE_EXTENSIONS_BY_CONTENT_TYPE.get(contentType);
+  const sha256 = String(asset?.sha256 || "").toLowerCase();
+  const bytes = asset?.data;
+  if (!replacement || replacement.assetId !== operation.value || !asset || !relationshipPartPath ||
+      !(bytes instanceof Uint8Array) || !/^[0-9a-f]{64}$/u.test(sha256) ||
+      asset.id !== `asset/presentation/picture-bullet/${sha256}` ||
+      createHash("sha256").update(bytes).digest("hex") !== sha256 || !extensions ||
+      !result.changedParts.includes(relationshipPartPath)) {
+    throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the image binding for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
+  }
+  const mediaPrefix = `ppt/media/office-kit-${sha256.slice(0, 24)}.`;
+  const mediaParts = result.changedParts.filter((partPath) => partPath.startsWith(mediaPrefix));
+  const mediaPartPath = mediaParts.length === 1 ? mediaParts[0] : undefined;
+  const mediaExtension = mediaPartPath?.slice(mediaPrefix.length);
+  if (mediaParts.length > 1 || (mediaExtension && !extensions.has(mediaExtension))) {
+    throw new OfficeKitCodecError(`OfficeKit PPTX Edit Plan result changed the image package footprint for operation ${operation.operationId}.`, [], { code: "presentation_edit_plan_result_mismatch" });
+  }
+  const crop = replacement.crop;
+  return {
+    assetId: asset.id,
+    sha256,
+    contentType,
+    byteLength: bytes.byteLength,
+    relationshipPartPath,
+    mediaPartPath: mediaPartPath ?? null,
+    crop: crop ? {
+      leftThousandthPercent: crop.leftThousandthPercent,
+      topThousandthPercent: crop.topThousandthPercent,
+      rightThousandthPercent: crop.rightThousandthPercent,
+      bottomThousandthPercent: crop.bottomThousandthPercent,
+    } : null,
+  };
+}
 
 function presentationEditPlanMetadata(editPlan, result) {
   const footprintById = new Map((result.operations || []).map((operation) => [operation.operationId, operation]));
@@ -76,6 +127,12 @@ function presentationEditPlanMetadata(editPlan, result) {
         ...(operation.leafKind === "diagramText" ? {
           diagramModelId: operation.diagramModelId,
           diagramRunIndex: operation.diagramRunIndex,
+        } : {}),
+        ...(operation.leafKind === "imageAsset" ? {
+          imageReplacement: presentationImageEditPlanMetadata(operation, editPlan, result),
+        } : {}),
+        ...(operation.leafKind === "deleteElement" ? {
+          elementDeletion: { expectedNativeId: operation.elementDeletion?.expectedNativeId },
         } : {}),
         footprint: {
           mutationPartPath: footprint.mutationPartPath,
