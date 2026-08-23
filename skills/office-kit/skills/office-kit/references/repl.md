@@ -148,8 +148,14 @@ const artifact = ctx.task.artifacts.find(({ id }) => id === "continued-deck");
 const revision = artifact?.headRevision;
 if (!revision) throw new Error("The reviewed continued-deck revision is missing");
 const reviewedPath = path.resolve(ctx.taskRoot, revision.path);
-const baseline = await FileBlob.load(reviewedPath);
+const baselineBlob = await FileBlob.load(reviewedPath);
 ```
+
+Use `baselineBlob` to reimport and edit the artifact. When calling
+`reviewArtifact(candidate, options)`, pass `baseline: reviewedPath` so the
+reviewer reads the `.pptx` format from the path. A `FileBlob.load(...)` result
+has the generic `application/octet-stream` type unless the caller supplies an
+explicit MIME type.
 
 After the final reimport and verification, publish with the current reviewed
 descriptor, for example `ctx.publish(ctx.task.commit, { name: "final.pptx" })`.
