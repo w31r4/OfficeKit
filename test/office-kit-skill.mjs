@@ -55,7 +55,7 @@ assert.match(reviewText, /text reading view is not OCR/i);
 assert.match(reviewText, /only when it can close an identified text or table content-coverage gap/i);
 assert.match(reviewText, /does not resolve OCR, layout, image, formula, or metadata-provenance gaps/i);
 assert.match(replText, /Every commit requires a concise non-empty `options\.summary`/i);
-assert.match(replText, /continuationCapability[\s\S]*pending-clone[\s\S]*export and reimport[\s\S]*bounded-overlay[\s\S]*one clean[\s\S]*Commit that candidate with a summary[\s\S]*reinspect/i);
+assert.match(replText, /continuationCapability[\s\S]*export\/reimport[\s\S]*pending-clone[\s\S]*bounded-overlay[\s\S]*clean export[\s\S]*Commit with[\s\S]*summary[\s\S]*reinspect/i);
 assert.match(presentationConversationText, /Ask at most\s+three\s+questions in one turn/i);
 assert.match(presentationConversationText, /one-screen draft guide/i);
 assert.match(presentationConversationText, /three to six short section beats/i);

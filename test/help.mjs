@@ -149,10 +149,10 @@ assert.match(HELP_CATALOG.find((item) => item.name === "image.setAccessibilityMe
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.master")?.schema?.parameters?.placeholders?.description || "", /Source-free direct-frame.*title\/body.*imported placeholders.*read-only/i);
 const shapeAddHelp = HELP_CATALOG.find((item) => item.name === "slide.shapes.add");
 assert.match(shapeAddHelp?.summary || "", /ordered adjustment\/guide formulas.*XY\/polar adjustment handles.*connection sites/i);
-assert.match(shapeAddHelp?.summary || "", /source-derived slide.*append only textbox, rect, roundRect, or ellipse.*continuationCapability.*bounded-overlay.*only SlidePart mutation class/is);
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.summary || "", /source-derived slide.*embedded rectangular images.*continuationCapability.*bounded-overlay.*only SlidePart mutation class/is);
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.continuationCapability")?.summary || "", /full-authoring.*pending-clone.*exported and reimported.*bounded-overlay.*textbox.*embedded rectangular image.*native-leaf/is);
-assert.match(HELP_CATALOG.find((item) => item.name === "slide.continuationCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*ready.*profile.*requiresExportReopen.*oneSlideMutationPerExport.*shapeGeometries.*embeddedImage.*does not authorize connector.*table.*chart.*Native-leaf/is);
+assert.match(shapeAddHelp?.summary || "", /bounded-overlay.*only textbox\/rect\/roundRect\/ellipse.*clean export/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.images.add")?.summary || "", /bounded-overlay.*rectangular images.*clean export/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.continuationCapability")?.summary || "", /full-authoring.*pending-clone.*export\/reimport.*bounded-overlay.*token-preserves.*shapes\/images.*SlidePart edits.*reviewed revision/is);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.continuationCapability")?.schema?.returns?.capability?.description || "", /sourceBound.*ready.*profile.*requiresExportReopen.*oneSlideMutationPerExport.*shapeGeometries.*embeddedImage.*other native additions.*mixed SlidePart edits.*blocked/is);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /continuationCapability/i);
 assert.match(shapeAddHelp?.schema?.parameters?.geometry?.description || "", /connector.*from.*to.*fromIdx.*toIdx/i);
 assert.match(shapeAddHelp?.schema?.parameters?.customAdjustments?.description || "", /256.*17 ECMA-376 operators.*built-ins.*Forward references.*fail closed/i);
