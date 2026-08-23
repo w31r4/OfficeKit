@@ -1,0 +1,802 @@
+{
+  "schema": "office-kit/pptx-import-object-classification-evidence/v1",
+  "manifestSha256": "7341e075e17993d88be7cc76f32fe524405b955e488c58d9e563c541f8ffe9d4",
+  "oracle": {
+    "rawSourceIndependent": true,
+    "directShapeTreeChildren": true,
+    "runtimeSelfReportedCountInsufficient": true,
+    "exactNoOpBytes": true
+  },
+  "totals": {
+    "sources": 3,
+    "slides": 48,
+    "visibleTopLevelObjects": 926,
+    "classifiedTopLevelObjects": 926
+  },
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "bytes": 6114228,
+      "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "slideCount": 21,
+      "visibleTopLevelObjects": 538,
+      "classifiedTopLevelObjects": 538,
+      "complete": true,
+      "rawRootKinds": {
+        "cxnSp": 38,
+        "graphicFrame": 22,
+        "grpSp": 35,
+        "pic": 32,
+        "sp": 411
+      },
+      "objectKinds": {
+        "connector": 38,
+        "graphicFrame": 4,
+        "group": 35,
+        "image": 18,
+        "oleObject": 18,
+        "picture": 14,
+        "shape": 411
+      },
+      "classifications": {
+        "opaque-preserved": 19,
+        "typed-editable": 519
+      },
+      "typedOperations": {
+        "accessibility": 18,
+        "delete": 516,
+        "semantic-model": 117,
+        "text": 411
+      },
+      "nativeLeafKinds": {
+        "chartDataValue": 2,
+        "chartTitleText": 1,
+        "fillRgb": 6,
+        "heightEmu": 124,
+        "leftEmu": 124,
+        "text": 275,
+        "topEmu": 124,
+        "widthEmu": 124
+      },
+      "slidesEvidenceSha256": "d354cdd9f52e76fd6ccc98d1683970528d4726cc8f1e782c850b881ce42f9d9f",
+      "slides": [
+        {
+          "slide": 1,
+          "visibleTopLevelObjects": 5,
+          "classifiedTopLevelObjects": 5,
+          "rawRootKinds": {
+            "pic": 2,
+            "sp": 3
+          },
+          "classifications": {
+            "typed-editable": 5
+          }
+        },
+        {
+          "slide": 2,
+          "visibleTopLevelObjects": 8,
+          "classifiedTopLevelObjects": 8,
+          "rawRootKinds": {
+            "grpSp": 1,
+            "pic": 1,
+            "sp": 6
+          },
+          "classifications": {
+            "typed-editable": 8
+          }
+        },
+        {
+          "slide": 3,
+          "visibleTopLevelObjects": 5,
+          "classifiedTopLevelObjects": 5,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "pic": 1,
+            "sp": 3
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 4
+          }
+        },
+        {
+          "slide": 4,
+          "visibleTopLevelObjects": 17,
+          "classifiedTopLevelObjects": 17,
+          "rawRootKinds": {
+            "pic": 3,
+            "sp": 14
+          },
+          "classifications": {
+            "typed-editable": 17
+          }
+        },
+        {
+          "slide": 5,
+          "visibleTopLevelObjects": 79,
+          "classifiedTopLevelObjects": 79,
+          "rawRootKinds": {
+            "cxnSp": 9,
+            "graphicFrame": 1,
+            "sp": 69
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 78
+          }
+        },
+        {
+          "slide": 6,
+          "visibleTopLevelObjects": 49,
+          "classifiedTopLevelObjects": 49,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "graphicFrame": 1,
+            "grpSp": 4,
+            "sp": 43
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 48
+          }
+        },
+        {
+          "slide": 7,
+          "visibleTopLevelObjects": 5,
+          "classifiedTopLevelObjects": 5,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "pic": 1,
+            "sp": 3
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 4
+          }
+        },
+        {
+          "slide": 8,
+          "visibleTopLevelObjects": 7,
+          "classifiedTopLevelObjects": 7,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "grpSp": 1,
+            "sp": 5
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 6
+          }
+        },
+        {
+          "slide": 9,
+          "visibleTopLevelObjects": 6,
+          "classifiedTopLevelObjects": 6,
+          "rawRootKinds": {
+            "graphicFrame": 2,
+            "sp": 4
+          },
+          "classifications": {
+            "opaque-preserved": 2,
+            "typed-editable": 4
+          }
+        },
+        {
+          "slide": 10,
+          "visibleTopLevelObjects": 41,
+          "classifiedTopLevelObjects": 41,
+          "rawRootKinds": {
+            "cxnSp": 2,
+            "graphicFrame": 1,
+            "grpSp": 1,
+            "pic": 7,
+            "sp": 30
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 40
+          }
+        },
+        {
+          "slide": 11,
+          "visibleTopLevelObjects": 41,
+          "classifiedTopLevelObjects": 41,
+          "rawRootKinds": {
+            "cxnSp": 5,
+            "graphicFrame": 3,
+            "grpSp": 2,
+            "sp": 31
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 40
+          }
+        },
+        {
+          "slide": 12,
+          "visibleTopLevelObjects": 18,
+          "classifiedTopLevelObjects": 18,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "pic": 1,
+            "sp": 16
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 17
+          }
+        },
+        {
+          "slide": 13,
+          "visibleTopLevelObjects": 24,
+          "classifiedTopLevelObjects": 24,
+          "rawRootKinds": {
+            "cxnSp": 3,
+            "graphicFrame": 1,
+            "grpSp": 1,
+            "pic": 1,
+            "sp": 18
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 23
+          }
+        },
+        {
+          "slide": 14,
+          "visibleTopLevelObjects": 31,
+          "classifiedTopLevelObjects": 31,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "grpSp": 6,
+            "sp": 24
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 30
+          }
+        },
+        {
+          "slide": 15,
+          "visibleTopLevelObjects": 74,
+          "classifiedTopLevelObjects": 74,
+          "rawRootKinds": {
+            "cxnSp": 4,
+            "graphicFrame": 1,
+            "grpSp": 3,
+            "pic": 6,
+            "sp": 60
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 73
+          }
+        },
+        {
+          "slide": 16,
+          "visibleTopLevelObjects": 5,
+          "classifiedTopLevelObjects": 5,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "pic": 1,
+            "sp": 3
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 4
+          }
+        },
+        {
+          "slide": 17,
+          "visibleTopLevelObjects": 31,
+          "classifiedTopLevelObjects": 31,
+          "rawRootKinds": {
+            "cxnSp": 3,
+            "graphicFrame": 1,
+            "grpSp": 1,
+            "pic": 1,
+            "sp": 25
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 30
+          }
+        },
+        {
+          "slide": 18,
+          "visibleTopLevelObjects": 20,
+          "classifiedTopLevelObjects": 20,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "graphicFrame": 1,
+            "grpSp": 4,
+            "pic": 2,
+            "sp": 12
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 19
+          }
+        },
+        {
+          "slide": 19,
+          "visibleTopLevelObjects": 33,
+          "classifiedTopLevelObjects": 33,
+          "rawRootKinds": {
+            "cxnSp": 3,
+            "graphicFrame": 1,
+            "grpSp": 4,
+            "pic": 4,
+            "sp": 21
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 32
+          }
+        },
+        {
+          "slide": 20,
+          "visibleTopLevelObjects": 30,
+          "classifiedTopLevelObjects": 30,
+          "rawRootKinds": {
+            "cxnSp": 7,
+            "graphicFrame": 2,
+            "grpSp": 7,
+            "sp": 14
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 29
+          }
+        },
+        {
+          "slide": 21,
+          "visibleTopLevelObjects": 9,
+          "classifiedTopLevelObjects": 9,
+          "rawRootKinds": {
+            "graphicFrame": 1,
+            "pic": 1,
+            "sp": 7
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 8
+          }
+        }
+      ],
+      "noOpByteIdentical": true
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "fileName": "template.pptx",
+      "bytes": 13951095,
+      "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "slideCount": 19,
+      "visibleTopLevelObjects": 380,
+      "classifiedTopLevelObjects": 380,
+      "complete": true,
+      "rawRootKinds": {
+        "cxnSp": 10,
+        "grpSp": 99,
+        "pic": 61,
+        "sp": 210
+      },
+      "objectKinds": {
+        "connector": 10,
+        "group": 99,
+        "image": 21,
+        "picture": 40,
+        "shape": 210
+      },
+      "classifications": {
+        "native-leaf-editable": 6,
+        "opaque-preserved": 4,
+        "typed-editable": 370
+      },
+      "typedOperations": {
+        "accessibility": 124,
+        "delete": 360,
+        "semantic-model": 124,
+        "text": 210
+      },
+      "nativeLeafKinds": {
+        "fillRgb": 3,
+        "heightEmu": 143,
+        "leftEmu": 143,
+        "lineRgb": 3,
+        "text": 112,
+        "topEmu": 143,
+        "widthEmu": 143
+      },
+      "slidesEvidenceSha256": "5a724c1955ba351fd31f18f31d576c6061b28095c2bd1ca14826ce759ee5c6d9",
+      "slides": [
+        {
+          "slide": 1,
+          "visibleTopLevelObjects": 15,
+          "classifiedTopLevelObjects": 15,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 3,
+            "pic": 4,
+            "sp": 7
+          },
+          "classifications": {
+            "typed-editable": 15
+          }
+        },
+        {
+          "slide": 2,
+          "visibleTopLevelObjects": 25,
+          "classifiedTopLevelObjects": 25,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 3,
+            "pic": 4,
+            "sp": 17
+          },
+          "classifications": {
+            "typed-editable": 25
+          }
+        },
+        {
+          "slide": 3,
+          "visibleTopLevelObjects": 21,
+          "classifiedTopLevelObjects": 21,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 6,
+            "pic": 6,
+            "sp": 8
+          },
+          "classifications": {
+            "native-leaf-editable": 2,
+            "typed-editable": 19
+          }
+        },
+        {
+          "slide": 4,
+          "visibleTopLevelObjects": 16,
+          "classifiedTopLevelObjects": 16,
+          "rawRootKinds": {
+            "grpSp": 5,
+            "pic": 2,
+            "sp": 9
+          },
+          "classifications": {
+            "typed-editable": 16
+          }
+        },
+        {
+          "slide": 5,
+          "visibleTopLevelObjects": 16,
+          "classifiedTopLevelObjects": 16,
+          "rawRootKinds": {
+            "grpSp": 3,
+            "pic": 2,
+            "sp": 11
+          },
+          "classifications": {
+            "opaque-preserved": 1,
+            "typed-editable": 15
+          }
+        },
+        {
+          "slide": 6,
+          "visibleTopLevelObjects": 17,
+          "classifiedTopLevelObjects": 17,
+          "rawRootKinds": {
+            "grpSp": 8,
+            "pic": 3,
+            "sp": 6
+          },
+          "classifications": {
+            "typed-editable": 17
+          }
+        },
+        {
+          "slide": 7,
+          "visibleTopLevelObjects": 21,
+          "classifiedTopLevelObjects": 21,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 6,
+            "pic": 6,
+            "sp": 8
+          },
+          "classifications": {
+            "native-leaf-editable": 2,
+            "typed-editable": 19
+          }
+        },
+        {
+          "slide": 8,
+          "visibleTopLevelObjects": 19,
+          "classifiedTopLevelObjects": 19,
+          "rawRootKinds": {
+            "grpSp": 2,
+            "pic": 4,
+            "sp": 13
+          },
+          "classifications": {
+            "typed-editable": 19
+          }
+        },
+        {
+          "slide": 9,
+          "visibleTopLevelObjects": 17,
+          "classifiedTopLevelObjects": 17,
+          "rawRootKinds": {
+            "grpSp": 7,
+            "pic": 1,
+            "sp": 9
+          },
+          "classifications": {
+            "typed-editable": 17
+          }
+        },
+        {
+          "slide": 10,
+          "visibleTopLevelObjects": 20,
+          "classifiedTopLevelObjects": 20,
+          "rawRootKinds": {
+            "grpSp": 5,
+            "pic": 3,
+            "sp": 12
+          },
+          "classifications": {
+            "typed-editable": 20
+          }
+        },
+        {
+          "slide": 11,
+          "visibleTopLevelObjects": 21,
+          "classifiedTopLevelObjects": 21,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 6,
+            "pic": 6,
+            "sp": 8
+          },
+          "classifications": {
+            "typed-editable": 21
+          }
+        },
+        {
+          "slide": 12,
+          "visibleTopLevelObjects": 26,
+          "classifiedTopLevelObjects": 26,
+          "rawRootKinds": {
+            "grpSp": 3,
+            "pic": 4,
+            "sp": 19
+          },
+          "classifications": {
+            "typed-editable": 26
+          }
+        },
+        {
+          "slide": 13,
+          "visibleTopLevelObjects": 22,
+          "classifiedTopLevelObjects": 22,
+          "rawRootKinds": {
+            "grpSp": 6,
+            "pic": 5,
+            "sp": 11
+          },
+          "classifications": {
+            "native-leaf-editable": 2,
+            "opaque-preserved": 1,
+            "typed-editable": 19
+          }
+        },
+        {
+          "slide": 14,
+          "visibleTopLevelObjects": 20,
+          "classifiedTopLevelObjects": 20,
+          "rawRootKinds": {
+            "grpSp": 9,
+            "pic": 1,
+            "sp": 10
+          },
+          "classifications": {
+            "typed-editable": 20
+          }
+        },
+        {
+          "slide": 15,
+          "visibleTopLevelObjects": 21,
+          "classifiedTopLevelObjects": 21,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 6,
+            "pic": 6,
+            "sp": 8
+          },
+          "classifications": {
+            "typed-editable": 21
+          }
+        },
+        {
+          "slide": 16,
+          "visibleTopLevelObjects": 24,
+          "classifiedTopLevelObjects": 24,
+          "rawRootKinds": {
+            "cxnSp": 3,
+            "grpSp": 4,
+            "pic": 1,
+            "sp": 16
+          },
+          "classifications": {
+            "opaque-preserved": 2,
+            "typed-editable": 22
+          }
+        },
+        {
+          "slide": 17,
+          "visibleTopLevelObjects": 30,
+          "classifiedTopLevelObjects": 30,
+          "rawRootKinds": {
+            "cxnSp": 1,
+            "grpSp": 4,
+            "pic": 1,
+            "sp": 24
+          },
+          "classifications": {
+            "typed-editable": 30
+          }
+        },
+        {
+          "slide": 18,
+          "visibleTopLevelObjects": 19,
+          "classifiedTopLevelObjects": 19,
+          "rawRootKinds": {
+            "grpSp": 9,
+            "pic": 1,
+            "sp": 9
+          },
+          "classifications": {
+            "typed-editable": 19
+          }
+        },
+        {
+          "slide": 19,
+          "visibleTopLevelObjects": 10,
+          "classifiedTopLevelObjects": 10,
+          "rawRootKinds": {
+            "grpSp": 4,
+            "pic": 1,
+            "sp": 5
+          },
+          "classifications": {
+            "typed-editable": 10
+          }
+        }
+      ],
+      "noOpByteIdentical": true
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "bytes": 47589,
+      "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "slideCount": 8,
+      "visibleTopLevelObjects": 8,
+      "classifiedTopLevelObjects": 8,
+      "complete": true,
+      "rawRootKinds": {
+        "pic": 8
+      },
+      "objectKinds": {
+        "image": 8
+      },
+      "classifications": {
+        "typed-editable": 8
+      },
+      "typedOperations": {
+        "accessibility": 8,
+        "delete": 8,
+        "semantic-model": 8,
+        "svg-text": 8
+      },
+      "nativeLeafKinds": {
+        "heightEmu": 8,
+        "leftEmu": 8,
+        "topEmu": 8,
+        "widthEmu": 8
+      },
+      "slidesEvidenceSha256": "764b002da30baeee2e03697d2c604074f29cc012bd8667b1fc604ae17cbecf1f",
+      "slides": [
+        {
+          "slide": 1,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 2,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 3,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 4,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 5,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 6,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 7,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        },
+        {
+          "slide": 8,
+          "visibleTopLevelObjects": 1,
+          "classifiedTopLevelObjects": 1,
+          "rawRootKinds": {
+            "pic": 1
+          },
+          "classifications": {
+            "typed-editable": 1
+          }
+        }
+      ],
+      "noOpByteIdentical": true
+    }
+  ]
+}
