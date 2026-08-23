@@ -45,6 +45,13 @@ export async function runSourceReuseBenchmark(assetsDir, outputDir) {
     const slide = presentation.slides.items[source.slide - 1];
     const sourceSlideCount = presentation.slides.count;
     const cloneCapability = slide.cloneCapability;
+    const cloneCoverage = {
+      totalSlides: sourceSlideCount,
+      supportedSlides: presentation.slides.items.filter((candidate) => candidate.cloneCapability.supported).length,
+      blockedSlides: presentation.slides.items
+        .map((candidate, index) => ({ slide: index + 1, reason: candidate.cloneCapability.blockedReason }))
+        .filter(({ reason }) => reason),
+    };
     const result = {
       id: source.id,
       fileName: source.fileName,
@@ -55,6 +62,7 @@ export async function runSourceReuseBenchmark(assetsDir, outputDir) {
       cloneCapability,
       expected: source.expected,
       sourceSlideCount,
+      cloneCoverage,
     };
     if (!cloneCapability.supported) {
       result.status = "blocked";
@@ -88,6 +96,7 @@ export async function runSourceReuseBenchmark(assetsDir, outputDir) {
     result.topologyChangedParts = changedExistingParts.filter((name) => TOPOLOGY_PARTS.has(name));
     result.nonTopologyChangedParts = changedExistingParts.filter((name) => !TOPOLOGY_PARTS.has(name));
     result.addedParts = addedParts;
+    result.allSlidesClone = await cloneAllSlidesTwice(sourceBytes, sourceZip, sourceSlideCount);
     results.push(result);
     await writeFile(path.join(outputDir, `${source.id}-clone.pptx`), output.bytes, { flag: "wx" });
   }
@@ -97,8 +106,70 @@ export async function runSourceReuseBenchmark(assetsDir, outputDir) {
     if (result.status === "passed" && (!result.sourceSlideUnchanged || result.outputSlideCount !== result.sourceSlideCount + 1 || result.nonTopologyChangedParts.length > 0)) {
       throw new Error(`${result.id} source-derived clone changed an existing source part or has the wrong slide count.`);
     }
+    if (result.cloneCoverage.supportedSlides !== result.cloneCoverage.totalSlides ||
+        result.cloneCoverage.blockedSlides.length > 0 ||
+        result.allSlidesClone?.status !== "passed" ||
+        result.allSlidesClone?.deterministic !== true ||
+        result.allSlidesClone?.outputSlideCount !== result.sourceSlideCount * 2 ||
+        result.allSlidesClone?.nonTopologyChangedParts.length > 0) {
+      throw new Error(`${result.id} did not prove deterministic reuse of every source slide.`);
+    }
   }
   return evidence;
+}
+
+async function cloneAllSlidesTwice(sourceBytes, sourceZip, sourceSlideCount) {
+  const cloneOnce = async () => {
+    const presentation = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: PPTX_MIME }));
+    const sourceSlides = [...presentation.slides.items];
+    if (sourceSlides.some((slide) => !slide.cloneCapability.supported)) {
+      return {
+        status: "blocked",
+        blockedSlides: sourceSlides
+          .map((slide, index) => ({ slide: index + 1, reason: slide.cloneCapability.blockedReason }))
+          .filter(({ reason }) => reason),
+      };
+    }
+    for (const sourceSlide of sourceSlides) sourceSlide.duplicate();
+    const output = await PresentationFile.exportPptx(presentation);
+    const reopened = await PresentationFile.importPptx(output.bytes);
+    const outputZip = await JSZip.loadAsync(output.bytes);
+    const sourcePartNames = Object.keys(sourceZip.files).filter((name) => !sourceZip.files[name].dir).sort();
+    const changedExistingParts = [];
+    for (const name of sourcePartNames) {
+      const outputPart = outputZip.file(name);
+      if (!outputPart) {
+        changedExistingParts.push(name);
+        continue;
+      }
+      const before = await sourceZip.file(name).async("uint8array");
+      const after = await outputPart.async("uint8array");
+      if (!Buffer.from(before).equals(Buffer.from(after))) changedExistingParts.push(name);
+    }
+    return {
+      status: "passed",
+      outputBytes: output.bytes,
+      outputSha256: sha256(output.bytes),
+      outputSlideCount: reopened.slides.count,
+      changedExistingParts,
+      topologyChangedParts: changedExistingParts.filter((name) => TOPOLOGY_PARTS.has(name)),
+      nonTopologyChangedParts: changedExistingParts.filter((name) => !TOPOLOGY_PARTS.has(name)),
+    };
+  };
+  const first = await cloneOnce();
+  if (first.status !== "passed") return first;
+  const second = await cloneOnce();
+  if (second.status !== "passed") return second;
+  return {
+    status: "passed",
+    outputSha256: first.outputSha256,
+    deterministic: Buffer.from(first.outputBytes).equals(Buffer.from(second.outputBytes)),
+    outputSlideCount: first.outputSlideCount,
+    changedExistingParts: first.changedExistingParts,
+    topologyChangedParts: first.topologyChangedParts,
+    nonTopologyChangedParts: first.nonTopologyChangedParts,
+    sourceSlideCount,
+  };
 }
 
 function sha256(bytes) {
