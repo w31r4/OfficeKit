@@ -4,7 +4,7 @@
 - [x] Define three complete durable continuation tasks with three trials each.
 - [x] Implement the independent OPC/XML/SVG/nested-package/pixel oracle.
 - [x] Implement the deterministic packed-package intent runner.
-- [ ] Implement the fresh-context Codex task/resume harness and trace policy.
-- [ ] Add adversarial oracle and harness tests.
+- [x] Implement the fresh-context Codex task/resume harness and trace policy.
+- [x] Add adversarial oracle and harness tests.
 - [ ] Execute the 90-run intent matrix and nine Codex continuation trials.
 - [ ] Commit immutable baseline evidence without changing product code or gates.
