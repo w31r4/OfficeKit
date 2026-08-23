@@ -174,15 +174,15 @@ const slowSteps = [
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 16 }),
-  presentation: Object.freeze({ start: 16, end: 29 }),
-  templates: Object.freeze({ start: 29, end: 36 }),
-  officekit: Object.freeze({ start: 36, end: 43 }),
-  documents: Object.freeze({ start: 43, end: 52 }),
-  "pdf-packs": Object.freeze({ start: 52, end: 61 }),
-  "pdf-providers": Object.freeze({ start: 61, end: 70 }),
-  "pdf-specialists": Object.freeze({ start: 70, end: 79 }),
-  qa: Object.freeze({ start: 79, end: 86 }),
-  release: Object.freeze({ start: 86, end: 91 }),
+  presentation: Object.freeze({ start: 16, end: 30 }),
+  templates: Object.freeze({ start: 30, end: 37 }),
+  officekit: Object.freeze({ start: 37, end: 44 }),
+  documents: Object.freeze({ start: 44, end: 53 }),
+  "pdf-packs": Object.freeze({ start: 53, end: 62 }),
+  "pdf-providers": Object.freeze({ start: 62, end: 71 }),
+  "pdf-specialists": Object.freeze({ start: 71, end: 80 }),
+  qa: Object.freeze({ start: 80, end: 87 }),
+  release: Object.freeze({ start: 87, end: 92 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
