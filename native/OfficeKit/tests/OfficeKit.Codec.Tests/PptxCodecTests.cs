@@ -7348,6 +7348,7 @@ public sealed class PptxCodecTests
 
         var first = ReplaceOnce(sourceBytes, replacement);
         var second = ReplaceOnce(sourceBytes, replacement);
+        Assert.Equal(first, second);
         Assert.Equal(ZipBytes(first, "ppt/slides/slide1.xml"), ZipBytes(second, "ppt/slides/slide1.xml"));
         Assert.Equal(ZipBytes(first, "ppt/slides/_rels/slide1.xml.rels"), ZipBytes(second, "ppt/slides/_rels/slide1.xml.rels"));
         using var stream = new MemoryStream(first, writable: false);
