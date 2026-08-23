@@ -19,6 +19,7 @@ assert.deepEqual(intents.sources.map(({ id }) => id), [
 
 const sourceIds = new Set();
 const intentIds = new Set();
+const addedSvgParts = new Set();
 for (const source of intents.sources) {
   assert.match(source.sha256, /^[a-f0-9]{64}$/u);
   assert.ok(Number.isInteger(source.slideCount) && source.slideCount > 0);
@@ -42,7 +43,10 @@ for (const source of intents.sources) {
     if (intent.operation === "svg-text") {
       assert.match(intent.nodeId, /^svg-text-\d+$/u);
       assert.match(intent.oracle.sourceSvgPart, /^ppt\/media\/image\d+[.]svg$/u);
-      assert.deepEqual(intent.oracle.addedParts, ["ppt/media/image9.svg"]);
+      assert.equal(intent.oracle.addedParts.length, 1);
+      assert.match(intent.oracle.addedParts[0], /^ppt\/media\/office-kit-[a-f0-9]{24}[.]svg$/u);
+      assert.equal(addedSvgParts.has(intent.oracle.addedParts[0]), false);
+      addedSvgParts.add(intent.oracle.addedParts[0]);
     } else {
       assert.equal(typeof intent.leafKind, "string");
       assert.equal(intent.oracle.addedParts, undefined);
@@ -50,6 +54,7 @@ for (const source of intents.sources) {
   }
 }
 assert.equal(intentIds.size, 30);
+assert.equal(addedSvgParts.size, 10);
 
 assert.equal(continuations.schema, "office-kit/pptx-codex-continuation-tasks/v1");
 assert.equal(continuations.baseline, intents.baseline);

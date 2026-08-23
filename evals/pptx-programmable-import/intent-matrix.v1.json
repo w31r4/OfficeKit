@@ -297,7 +297,7 @@
           "expected": "Customer Loyalty Programme",
           "value": "Customer Loyalty Program",
           "targetPage": 1,
-          "oracle": { "sourceSvgPart": "ppt/media/image1.svg", "changedParts": ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image1.svg", "changedParts": ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"], "addedParts": ["ppt/media/office-kit-a32e7d9f0713fea81af5a40b.svg"] }
         },
         {
           "id": "cover-strategy-title",
@@ -308,7 +308,7 @@
           "expected": "Strategic Framework for Customer Retention",
           "value": "Customer Retention Strategy",
           "targetPage": 1,
-          "oracle": { "sourceSvgPart": "ppt/media/image1.svg", "changedParts": ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image1.svg", "changedParts": ["ppt/slides/slide1.xml", "ppt/slides/_rels/slide1.xml.rels"], "addedParts": ["ppt/media/office-kit-54da6e234bf94319be4dac91.svg"] }
         },
         {
           "id": "challenges-heading",
@@ -319,7 +319,7 @@
           "expected": "Critical Challenges in Customer Retention",
           "value": "Customer Retention Challenges",
           "targetPage": 2,
-          "oracle": { "sourceSvgPart": "ppt/media/image2.svg", "changedParts": ["ppt/slides/slide2.xml", "ppt/slides/_rels/slide2.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image2.svg", "changedParts": ["ppt/slides/slide2.xml", "ppt/slides/_rels/slide2.xml.rels"], "addedParts": ["ppt/media/office-kit-b0dc305ff82c3d29e3f8ecd3.svg"] }
         },
         {
           "id": "repeat-purchase-metric",
@@ -330,7 +330,7 @@
           "expected": "15%",
           "value": "18%",
           "targetPage": 2,
-          "oracle": { "sourceSvgPart": "ppt/media/image2.svg", "changedParts": ["ppt/slides/slide2.xml", "ppt/slides/_rels/slide2.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image2.svg", "changedParts": ["ppt/slides/slide2.xml", "ppt/slides/_rels/slide2.xml.rels"], "addedParts": ["ppt/media/office-kit-ffa90f8c4938651b86dcbef8.svg"] }
         },
         {
           "id": "customer-base-heading",
@@ -341,7 +341,7 @@
           "expected": "Understanding Our Customer Base",
           "value": "Customer Segmentation Overview",
           "targetPage": 3,
-          "oracle": { "sourceSvgPart": "ppt/media/image3.svg", "changedParts": ["ppt/slides/slide3.xml", "ppt/slides/_rels/slide3.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image3.svg", "changedParts": ["ppt/slides/slide3.xml", "ppt/slides/_rels/slide3.xml.rels"], "addedParts": ["ppt/media/office-kit-c047b77f20279b66c0930830.svg"] }
         },
         {
           "id": "priority-matrix-heading",
@@ -352,7 +352,7 @@
           "expected": "Customer Priorities vs. Current Performance",
           "value": "Priority and Performance Matrix",
           "targetPage": 4,
-          "oracle": { "sourceSvgPart": "ppt/media/image4.svg", "changedParts": ["ppt/slides/slide4.xml", "ppt/slides/_rels/slide4.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image4.svg", "changedParts": ["ppt/slides/slide4.xml", "ppt/slides/_rels/slide4.xml.rels"], "addedParts": ["ppt/media/office-kit-76c077a48f21746fa1226250.svg"] }
         },
         {
           "id": "attrition-heading",
@@ -363,7 +363,7 @@
           "expected": "Why Customers Leave: Root Cause Analysis",
           "value": "Customer Attrition Root Causes",
           "targetPage": 5,
-          "oracle": { "sourceSvgPart": "ppt/media/image5.svg", "changedParts": ["ppt/slides/slide5.xml", "ppt/slides/_rels/slide5.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image5.svg", "changedParts": ["ppt/slides/slide5.xml", "ppt/slides/_rels/slide5.xml.rels"], "addedParts": ["ppt/media/office-kit-108610efb4ff70753222809f.svg"] }
         },
         {
           "id": "loyalty-pillars-heading",
@@ -374,7 +374,7 @@
           "expected": "Four Pillars of Customer Loyalty Strategy",
           "value": "Four Pillars of Loyalty",
           "targetPage": 6,
-          "oracle": { "sourceSvgPart": "ppt/media/image6.svg", "changedParts": ["ppt/slides/slide6.xml", "ppt/slides/_rels/slide6.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image6.svg", "changedParts": ["ppt/slides/slide6.xml", "ppt/slides/_rels/slide6.xml.rels"], "addedParts": ["ppt/media/office-kit-92826579ec99ed0218f1cede.svg"] }
         },
         {
           "id": "initiatives-heading",
@@ -385,7 +385,7 @@
           "expected": "Five Key Initiatives for Loyalty Programme",
           "value": "Priority Loyalty Initiatives",
           "targetPage": 7,
-          "oracle": { "sourceSvgPart": "ppt/media/image7.svg", "changedParts": ["ppt/slides/slide7.xml", "ppt/slides/_rels/slide7.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image7.svg", "changedParts": ["ppt/slides/slide7.xml", "ppt/slides/_rels/slide7.xml.rels"], "addedParts": ["ppt/media/office-kit-73d31f11070f15a332c5b410.svg"] }
         },
         {
           "id": "roadmap-heading",
@@ -396,7 +396,7 @@
           "expected": "Phased Implementation & Success Metrics",
           "value": "Implementation Roadmap and Metrics",
           "targetPage": 8,
-          "oracle": { "sourceSvgPart": "ppt/media/image8.svg", "changedParts": ["ppt/slides/slide8.xml", "ppt/slides/_rels/slide8.xml.rels"], "addedParts": ["ppt/media/image9.svg"] }
+          "oracle": { "sourceSvgPart": "ppt/media/image8.svg", "changedParts": ["ppt/slides/slide8.xml", "ppt/slides/_rels/slide8.xml.rels"], "addedParts": ["ppt/media/office-kit-baf2c40ec4bcf677ba1f35cf.svg"] }
         }
       ]
     }
