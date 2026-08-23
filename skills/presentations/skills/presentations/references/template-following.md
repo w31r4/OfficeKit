@@ -33,13 +33,10 @@ Store every template-following intermediate named in this reference under
 3. Create `template-frame-map.json` mapping every output slide to a source
    slide.
 4. Build `template-starter.pptx` by duplicating mapped source slides.
-5. Reimport the starter and inspect each output slide's
-   `continuationCapability`. A pending clone must cross its export/reimport
-   boundary. A ready `bounded-overlay` slide may add only top-layer
-   textbox/basic-shape or embedded rectangular-image content in an otherwise
-   clean SlidePart transaction; commit/reopen before inherited-leaf edits.
-   Apply the requested edits while preserving the source deck's structure and
-   styling.
+5. Reimport and inspect `continuationCapability`: export/reimport a
+   `pending-clone`; use ready `bounded-overlay` only for its listed shapes/images
+   in a clean export, then commit/reopen before other SlidePart edits. Preserve
+   the source structure and styling.
 6. Preserve the source template's typography exactly: keep original font
    family, font size, weight, line spacing, paragraph spacing, text insets,
    alignment, and vertical anchor for every edited text box/table cell unless
@@ -150,11 +147,9 @@ filled through the inherited element or explicitly deleted. If the chosen source
 slide lacks usable inherited slots, remap to another source slide or report a
 blocker.
 
-That frame-map rule does not forbid a later source-derived overlay. After the
-starter has been exported, reimported, and reviewed, an Agent may use only the
-additions explicitly listed by the target slide's `continuationCapability`.
-This is a separate reviewed revision, not a way to bypass inherited-slot
-coverage or add arbitrary tables, charts, connectors, groups, or native nodes.
+After starter review, a separate revision may use only additions listed by
+`continuationCapability`; it cannot bypass inherited-slot coverage or add
+arbitrary tables, charts, connectors, groups, or native nodes.
 
 The successful command writes `template-starter.manifest.json`. Each slide entry
 contains its source/output slide pair, complete inherited `locators`, and each

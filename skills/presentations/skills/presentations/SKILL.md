@@ -226,9 +226,8 @@ capability. After export, reimport and verify the intended leaf, the declared
 SlidePart/relationship/new-media footprint, byte-identical non-target parts,
 and the affected slide render.
 
-SVG text uses the separate `image.getSvgTextNodes()` contract. Read the current
-content from `node.text` (there is no `node.value`), then pass the replacement
-as `image.editSvgText(node.id, { expectedHash: node.expectedHash, value })`.
+For SVG text, use `image.getSvgTextNodes()`: current content is `node.text`, not
+`node.value`; pass the replacement in `editSvgText(..., { value })`.
 
 When `presentation.inspect({ includeComponentCandidates: true })` reports a
 repeated component occurrence with `editCapability.supported: true`, you may
@@ -307,14 +306,11 @@ deletion authority.
 
 The pending JavaScript clone receives fresh slide and element identities, and connector endpoints resolve to clone-local targets. The slide, modeled elements, native-object snapshots, notes, and comments must remain unchanged until export and reimport. Custom-show membership is never extended implicitly. One pending clone per origin is allowed; origin deletion in the same transaction fails closed. Sections, modern comments, a descendant with a parent outside the owned closure, a jump to a removed slide, unresolved semantic elements or connector targets, pending native payload replacements, and graph-budget overflow fail before partial model mutation. Open XML SDK chooses collision-free part URIs, so never assume names such as `slide2.xml`; reimport and use object IDs or inspect/resolve.
 
-After import or reimport, inspect `slide.continuationCapability` before adding
-new content. `pending-clone` means export and reimport first. A ready
-`bounded-overlay` slide may append top-layer `textbox`, `rect`, `roundRect`, or
-`ellipse` shapes and embedded rectangular images while retaining the existing
-raw shape tree. It does not authorize new connectors, groups, tables, charts,
-placeholders, custom geometry, or arbitrary native nodes. Keep the overlay as
-the only SlidePart mutation class in that export; commit and reopen a reviewed
-revision before native-leaf edits or another SlidePart mutation class.
+After import/reimport, inspect `slide.continuationCapability`.
+`pending-clone` requires export/reimport. Ready `bounded-overlay` permits only
+top-layer `textbox`, `rect`, `roundRect`, `ellipse`, and embedded rectangular
+images in a clean SlidePart export. Commit/reopen before native-leaf or other
+SlidePart edits; other new native objects remain unsupported.
 
 After reimport, independently copied chart, embedded Office package, SmartArt, InkML, media, notes, and legacy-comment parts use their own feature-specific edit capabilities. A copied opaque part does not become semantically editable merely because its graph was preserved. Read the native-object references for those later edit boundaries.
 

@@ -142,11 +142,9 @@ bytes rather than relying on stale process state. Review and commit the new
 candidate again before publication. `session.ready.operations` is immutable
 audit evidence for prior Edit Plans, not a replacement for reinspection.
 
-Also read each target slide's `continuationCapability`. `pending-clone` means
-export and reimport before editing. A ready `bounded-overlay` permits only its
-listed top-layer shapes and embedded rectangular images, and only as one clean
-SlidePart mutation class. Commit that candidate with a summary, reopen the new
-reviewed revision, and reinspect before native-leaf or other SlidePart edits.
+For PPTX, also read `slide.continuationCapability`: export/reimport a
+`pending-clone`; use ready `bounded-overlay` only in a clean export. Commit with
+a summary, reopen, and reinspect before other SlidePart edits.
 
 Every cell still has a private atomic checkpoint and journal for crash
 diagnosis. These are implementation details, not recovery keys. If a prior
