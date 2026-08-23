@@ -2205,8 +2205,9 @@ function directSlideElements(slide) {
 const SOURCE_BOUND_AUTHORED_OVERLAY_GEOMETRIES = new Set(["textbox", "rect", "roundRect", "ellipse"]);
 
 function assertSourceBoundAuthoredOverlayElement(element, slideIndex) {
+  if (element instanceof ImageElement) return;
   if (!(element instanceof Shape)) {
-    throw new OfficeKitCodecError(`Presentation slide ${slideIndex + 1} source-bound authored overlays must be canonical textboxes or basic shapes.`, [], { code: "unsupported_presentation_authored_overlay" });
+    throw new OfficeKitCodecError(`Presentation slide ${slideIndex + 1} source-bound authored overlays must be canonical textboxes, basic shapes, or embedded rectangular images.`, [], { code: "unsupported_presentation_authored_overlay" });
   }
   if (!SOURCE_BOUND_AUTHORED_OVERLAY_GEOMETRIES.has(element.geometry) || element.placeholder || element.useBackgroundFill !== undefined ||
       element.customPaths?.length || element.customAdjustments?.length || element.customGuides?.length ||
