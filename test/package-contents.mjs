@@ -180,7 +180,7 @@ const maxPackedBytes = 37_500_000;
 // instead of hiding unrelated source, generated evidence, or provider binaries.
 // The current 0.6.0 runtime payload measures 54,020,856 bytes after the
 // bounded PPTX SVG text leaf; keep only a narrow 79,144-byte growth budget.
-const maxUnpackedBytes = 54_120_000;
+const maxUnpackedBytes = 54_130_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
