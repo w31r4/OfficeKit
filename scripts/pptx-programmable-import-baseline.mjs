@@ -101,6 +101,98 @@ export function buildBaselineEvidence({ matrix, codex, matrixBytes, codexBytes, 
   };
 }
 
+export function buildCandidateEvidence({ matrix, codex, companion, matrixBytes, codexBytes, companionBytes, candidateHead }) {
+  if (!/^[0-9a-f]{40}$/u.test(candidateHead)) throw new Error("Candidate HEAD must be a full lowercase Git SHA");
+  if (matrix?.schema !== "office-kit/pptx-programmable-import-matrix/v1") throw new Error("Invalid matrix evidence schema");
+  if (codex?.schema !== "office-kit/pptx-codex-continuation-evidence/v1") throw new Error("Invalid Codex evidence schema");
+  if (companion?.schema !== "office-kit/pptx-source-derived-companion-evidence/v1") throw new Error("Invalid source-derived companion evidence schema");
+  if (matrix.baseline !== codex.baseline || matrix.baseline !== companion.productBaseline) {
+    throw new Error("Candidate evidence components use different product baselines");
+  }
+  if (matrix.acceptance?.requiredIntents !== 30 || matrix.acceptance?.requiredRuns !== 90 || matrix.repetitionsPerIntent !== 3) {
+    throw new Error("Matrix evidence is not the complete 30 x 3 run");
+  }
+  if (codex.acceptance?.requiredTasks !== 3 || codex.acceptance?.trialsPerTask !== 3 || codex.acceptance?.requiredTrials !== 9) {
+    throw new Error("Codex evidence is not the complete 3 x 3 run");
+  }
+  if (matrix.package?.name !== "office-kit" || matrix.package?.installKind !== "packed-clean-install") {
+    throw new Error("Matrix did not use a packed office-kit clean install");
+  }
+  if (codex.package?.name !== "office-kit" || codex.package?.cleanInstallPerTrial !== true) {
+    throw new Error("Codex trials did not use clean installs");
+  }
+  if (!matrix.package.tarballSha256 || matrix.package.tarballSha256 !== codex.package.tarballSha256) {
+    throw new Error("Matrix and Codex trials did not use the same deterministic tarball");
+  }
+  if (matrix.definitionsSha256 !== codex.definitions?.intentSha256) {
+    throw new Error("Matrix and Codex trials did not use the same intent definitions");
+  }
+  validateMatrixShape(matrix);
+  validateCodexShape(codex, matrix.package.tarballSha256);
+  validateCandidateMatrixOracles(matrix);
+  validateCandidateCodexOracles(codex);
+  const companionSummary = validateCompanionShape(companion);
+  if (matrix.acceptance.status !== "passed" || matrix.acceptance.passedRuns !== 90 || matrix.acceptance.deterministicIntents !== 30) {
+    throw new Error("Candidate matrix did not pass all 90 runs and 30 deterministic intents");
+  }
+  if (codex.acceptance.status !== "passed" || codex.acceptance.completedTrials !== 9 || codex.acceptance.passedTrials !== 9) {
+    throw new Error("Candidate Codex acceptance did not pass all nine fresh-context trials");
+  }
+  if (companion.acceptance.status !== "passed" || companion.coverage.status !== "passed") {
+    throw new Error("Source-derived companion evidence did not pass");
+  }
+  return {
+    schema: "office-kit/pptx-programmable-import-candidate/v1",
+    productBaseline: matrix.baseline,
+    candidateHead,
+    package: {
+      name: matrix.package.name,
+      version: matrix.package.version,
+      tarballSha256: matrix.package.tarballSha256,
+      packedCleanInstall: true,
+      codexCleanInstallPerTrial: true,
+      companionTarballSha256: companion.package.tarballSha256,
+    },
+    evidenceFiles: {
+      matrix: { path: "candidate/matrix.v1.json", sha256: sha256(matrixBytes) },
+      codex: { path: "candidate/codex.v1.json", sha256: sha256(codexBytes) },
+      companion: { path: "source-derived-companion.evidence.v1.json", sha256: sha256(companionBytes) },
+    },
+    definitions: {
+      matrixSha256: matrix.definitionsSha256,
+      continuationSha256: codex.definitions.continuationSha256,
+      intentSha256: codex.definitions.intentSha256,
+      companionSha256: companion.definitionsSha256,
+    },
+    matrix: {
+      requiredIntents: matrix.acceptance.requiredIntents,
+      requiredRuns: matrix.acceptance.requiredRuns,
+      passedRuns: matrix.acceptance.passedRuns,
+      deterministicIntents: matrix.acceptance.deterministicIntents,
+      status: matrix.acceptance.status,
+    },
+    codex: {
+      requiredTasks: codex.acceptance.requiredTasks,
+      requiredTrials: codex.acceptance.requiredTrials,
+      completedTrials: codex.acceptance.completedTrials,
+      passedTrials: codex.acceptance.passedTrials,
+      status: codex.acceptance.status,
+    },
+    sourceDerived: companionSummary,
+    environment: {
+      matrix: matrix.environment,
+      codex: codex.environment,
+      companion: companion.environment,
+    },
+    acceptance: {
+      status: "passed",
+      failuresPreserved: true,
+      oracleWeakened: false,
+      productModifiedByAcceptance: false,
+    },
+  };
+}
+
 function validateMatrixShape(matrix) {
   if (!Array.isArray(matrix.sources) || matrix.sources.length !== 3 || new Set(matrix.sources.map(({ id }) => id)).size !== 3) {
     throw new Error("Matrix evidence must contain three distinct sources");
@@ -161,21 +253,122 @@ function validateCodexShape(codex, tarballSha256) {
   if (codex.acceptance.status !== expectedStatus) throw new Error("Codex acceptance status is inconsistent");
 }
 
+function validateCandidateMatrixOracles(matrix) {
+  for (const source of matrix.sources) {
+    for (const intent of source.intents) {
+      for (const run of intent.runs) {
+        const label = `${source.id}/${intent.id}/${run.repetition}`;
+        if (run.status !== "passed" || run.sourceSha256After !== source.sourceSha256) throw new Error(`${label}: candidate source/result evidence is invalid`);
+        if (run.worker?.sourceUnchanged !== true || run.worker?.secondImport !== true || run.worker?.outputSha256 !== run.outputSha256) {
+          throw new Error(`${label}: candidate worker evidence is invalid`);
+        }
+        if (run.packageOracle?.partSet?.passed !== true || run.packageOracle?.nonTargetPartsByteIdentical !== true
+          || run.packageOracle?.relationships?.passed !== true || run.packageOracle?.targetMask?.passed !== true) {
+          throw new Error(`${label}: candidate package oracle did not pass`);
+        }
+        if (run.packageOracle.nestedPackage && run.packageOracle.nestedPackage.passed !== true) {
+          throw new Error(`${label}: nested package oracle did not pass`);
+        }
+        if (run.pixelOracle?.passed !== true || run.pixelOracle?.targetPageChanged !== true
+          || run.pixelOracle?.nonTargetPagesPixelIdentical !== true || run.pixelOracle?.nonTargetMismatches?.length !== 0) {
+          throw new Error(`${label}: candidate pixel oracle did not pass`);
+        }
+      }
+    }
+  }
+}
+
+function validateCandidateCodexOracles(codex) {
+  for (const trial of codex.trials) {
+    const label = `${trial.taskId}/${trial.repetition}`;
+    const checks = trial.checks;
+    if (trial.status !== "passed" || (trial.failures?.length ?? 0) !== 0 || checks?.codex?.passed !== true || checks?.policy?.passed !== true
+      || checks?.source?.passed !== true || checks?.output?.passed !== true || checks?.durableTask?.passed !== true
+      || checks?.packageOracle?.partSet?.passed !== true || checks?.packageOracle?.relationships?.passed !== true
+      || checks?.packageOracle?.targetMask?.passed !== true || checks?.secondImport?.passed !== true
+      || checks?.pixelOracle?.passed !== true || checks?.pixelOracle?.nonTargetPagesPixelIdentical !== true) {
+      throw new Error(`${label}: candidate Codex oracle set did not pass`);
+    }
+  }
+}
+
+function validateCompanionShape(companion) {
+  if (companion.package?.name !== "office-kit" || companion.package?.installKind !== "packed-clean-install" || !companion.package.tarballSha256) {
+    throw new Error("Source-derived companion did not use a packed office-kit clean install");
+  }
+  if (companion.repetitionsPerCase !== 3 || !Array.isArray(companion.cases) || companion.cases.length === 0) {
+    throw new Error("Source-derived companion evidence is incomplete");
+  }
+  const requiredCoverage = ["text", "geometry", "image", "table", "chart", "component", "add", "delete", "reorder"];
+  if (!Array.isArray(companion.coverage?.required) || !Array.isArray(companion.coverage?.passed)) {
+    throw new Error("Source-derived companion coverage is missing");
+  }
+  if (requiredCoverage.some((kind) => !companion.coverage.required.includes(kind) || !companion.coverage.passed.includes(kind))) {
+    throw new Error("Source-derived companion does not cover every required operation category");
+  }
+  let completedRuns = 0;
+  let passedRuns = 0;
+  for (const entry of companion.cases) {
+    if (entry.requiredRuns !== 3 || entry.completedRuns !== 3 || entry.passedRuns !== 3 || entry.deterministic !== true) {
+      throw new Error(`${entry.id}: source-derived companion case is not 3/3 deterministic`);
+    }
+    if (!Array.isArray(entry.runs) || entry.runs.length !== 3 || entry.runs.some(({ repetition, status }, index) => repetition !== index + 1 || status !== "passed")) {
+      throw new Error(`${entry.id}: source-derived companion runs are invalid`);
+    }
+    if (new Set(entry.runs.map(({ outputSha256 }) => outputSha256)).size !== 1) {
+      throw new Error(`${entry.id}: source-derived companion output is not byte-deterministic`);
+    }
+    for (const run of entry.runs) {
+      const pixelPassed = run.pixelOracle?.passed === true && (
+        run.pixelOracle?.pageContentPixelIdentical === true
+        || (run.pixelOracle?.targetPageChanged === true && run.pixelOracle?.nonTargetPagesPixelIdentical === true && run.pixelOracle?.nonTargetMismatches?.length === 0)
+      );
+      if (run.worker?.sourceUnchanged !== true || run.worker?.secondImport?.passed !== true
+        || run.packageOracle?.passed !== true || run.packageOracle?.partSet?.passed !== true
+        || run.packageOracle?.nonTargetPartsByteIdentical !== true || run.packageOracle?.targetMask?.passed !== true
+        || !pixelPassed) {
+        throw new Error(`${entry.id}/${run.repetition}: source-derived companion oracle set did not pass`);
+      }
+    }
+    completedRuns += entry.completedRuns;
+    passedRuns += entry.passedRuns;
+  }
+  return {
+    requiredCases: companion.cases.length,
+    requiredRuns: companion.cases.length * 3,
+    completedRuns,
+    passedRuns,
+    deterministicCases: companion.cases.filter(({ deterministic }) => deterministic).length,
+    coverage: requiredCoverage,
+    status: companion.acceptance.status,
+  };
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const matrixPath = path.resolve(required(args, "matrix"));
   const codexPath = path.resolve(required(args, "codex"));
   const outputPath = path.resolve(required(args, "output"));
   const [matrixBytes, codexBytes] = await Promise.all([readFile(matrixPath), readFile(codexPath)]);
-  const baseline = buildBaselineEvidence({
-    matrix: JSON.parse(matrixBytes.toString("utf8")),
-    codex: JSON.parse(codexBytes.toString("utf8")),
-    matrixBytes,
-    codexBytes,
-    harnessHead: required(args, "harness-head"),
-  });
-  await writeFile(outputPath, `${JSON.stringify(baseline, null, 2)}\n`, { flag: "wx" });
-  process.stdout.write(`${JSON.stringify({ output: outputPath, acceptance: baseline.acceptance, matrix: baseline.matrix.status, codex: baseline.codex.status }, null, 2)}\n`);
+  const matrix = JSON.parse(matrixBytes.toString("utf8"));
+  const codex = JSON.parse(codexBytes.toString("utf8"));
+  let evidence;
+  if (args.companion) {
+    const companionBytes = await readFile(path.resolve(args.companion));
+    evidence = buildCandidateEvidence({
+      matrix,
+      codex,
+      companion: JSON.parse(companionBytes.toString("utf8")),
+      matrixBytes,
+      codexBytes,
+      companionBytes,
+      candidateHead: required(args, "candidate-head"),
+    });
+  } else {
+    evidence = buildBaselineEvidence({ matrix, codex, matrixBytes, codexBytes, harnessHead: required(args, "harness-head") });
+  }
+  await writeFile(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx" });
+  process.stdout.write(`${JSON.stringify({ output: outputPath, acceptance: evidence.acceptance, matrix: evidence.matrix.status, codex: evidence.codex.status }, null, 2)}\n`);
 }
 
 function parseArgs(argv) {
