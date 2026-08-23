@@ -529,8 +529,9 @@ function parseRelationships(bytes) {
 
 function resolveRelationshipTarget(relationshipPart, target) {
   if (target.startsWith("/")) return target.slice(1);
-  const ownerPart = relationshipPart.replace(/\/_rels\/([^/]+)[.]rels$/u, "/$1");
-  return path.posix.normalize(path.posix.join(path.posix.dirname(ownerPart), target));
+  const ownerPart = ownerPartForRelationshipPart(relationshipPart);
+  const ownerDirectory = ownerPart ? path.posix.dirname(ownerPart) : "";
+  return path.posix.normalize(path.posix.join(ownerDirectory, target));
 }
 
 async function zipParts(bytes) {
