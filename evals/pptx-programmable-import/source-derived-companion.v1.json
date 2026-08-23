@@ -1,6 +1,7 @@
 {
   "schema": "office-kit/pptx-source-derived-companion-cases/v1",
   "productBaseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "assetsEnvironment": "OFFICEKIT_PPTX_ACCEPTANCE_ASSETS",
   "repetitionsPerCase": 3,
   "requiredCoverage": [
     "text",
@@ -81,7 +82,7 @@
       "operation": {
         "kind": "replace-image",
         "name": "product-image-target",
-        "fit": "cover",
+        "fit": "stretch",
         "crop": {
           "left": 0.08,
           "top": 0.06,
