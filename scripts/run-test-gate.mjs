@@ -60,6 +60,7 @@ const fastSteps = [
   nodeStep("test/presentation-design-profile.mjs"),
   nodeStep("test/pptx-source-continuation.mjs"),
   nodeStep("test/pptx-source-derived-companion.mjs"),
+  nodeStep("test/pptx-programmable-import-baseline.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
   nodeStep("test/document.mjs"),
   nodeStep("test/pdf.mjs"),
