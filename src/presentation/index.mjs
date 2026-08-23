@@ -1210,6 +1210,11 @@ function overlapArea(a, b) {
   return Math.max(0, right - left) * Math.max(0, bottom - top);
 }
 
+function coversSlideBackground(frame, slideFrame, minimumCoverage = 0.8) {
+  const slideArea = Math.max(0, slideFrame.width) * Math.max(0, slideFrame.height);
+  return slideArea > 0 && overlapArea(frame, slideFrame) / slideArea >= minimumCoverage;
+}
+
 function textOverflowIssue(slide, element, frame, measurementFrame = frame) {
   const text = element.text?.value || "";
   if (!text) return undefined;
@@ -1614,7 +1619,12 @@ export class Slide {
     const elements = [...this.shapes.items, ...this.tables.items, ...this.charts.items, ...this.images.items, ...this.groups.items, ...this.nativeObjects.items];
     const connectors = this.connectors.items;
     const minOverlapArea = options.minOverlapArea ?? 64;
+    const backgroundCoverage = options.backgroundCoverage ?? 0.8;
     const padding = options.boundsPadding ?? 0;
+    const backgroundElements = new Set(elements.filter((element) => {
+      const frame = elementFrame(element);
+      return frame && coversSlideBackground(frame, slideFrame, backgroundCoverage);
+    }));
     for (const element of elements) {
       const frame = elementFrame(element);
       if (!frame) continue;
@@ -1646,6 +1656,7 @@ export class Slide {
       for (let rightIndex = leftIndex + 1; rightIndex < elements.length; rightIndex++) {
         const left = elements[leftIndex];
         const right = elements[rightIndex];
+        if (backgroundElements.has(left) || backgroundElements.has(right)) continue;
         const leftFrame = elementFrame(left);
         const rightFrame = elementFrame(right);
         if (!leftFrame || !rightFrame) continue;
