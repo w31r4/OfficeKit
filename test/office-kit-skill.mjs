@@ -40,6 +40,7 @@ assert.match(skillText, /PDF-only task/);
 assert.match(skillText, /officekit template search \.\.\. --json/);
 assert.match(skillText, /English search terms/);
 assert.match(skillText, /post-edit review\s+contract/i);
+assert.match(skillText, /Every `ctx\.commit\(candidate, options\)` requires a concise non-empty[\s\S]*`options\.summary`/i);
 assert.match(skillText, /text reading view.*contentView: "anydoc"/is);
 assert.match(skillText, /net-new PPTX or a broad deck redesign/i);
 assert.match(skillText, /working draft.*publish only after acceptance/is);
