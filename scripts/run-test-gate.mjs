@@ -51,6 +51,7 @@ const fastSteps = [
   nodeStep("test/presentation.mjs"),
   nodeStep("test/pptx-lossless-benchmark.mjs"),
   nodeStep("test/pptx-import-object-classification.mjs"),
+  nodeStep("test/pptx-import-object-classification-evidence.mjs"),
   nodeStep("test/pptx-design-profile.mjs"),
   nodeStep("test/pptx-template-generation-evidence.mjs"),
   nodeStep("test/pptx-template-generation.mjs"),
@@ -93,6 +94,7 @@ const slowSteps = [
   nodeStep("test/presentation.mjs"),
   nodeStep("test/pptx-lossless-benchmark.mjs"),
   nodeStep("test/pptx-import-object-classification.mjs"),
+  nodeStep("test/pptx-import-object-classification-evidence.mjs"),
   nodeStep("test/pptx-source-continuation-native.mjs"),
   nodeStep("test/pptx-source-agent-continuation.mjs"),
   nodeStep("test/pptx-template-generation-agent-blackbox.mjs"),
@@ -166,15 +168,15 @@ const slowSteps = [
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 16 }),
-  presentation: Object.freeze({ start: 16, end: 26 }),
-  templates: Object.freeze({ start: 26, end: 33 }),
-  officekit: Object.freeze({ start: 33, end: 40 }),
-  documents: Object.freeze({ start: 40, end: 49 }),
-  "pdf-packs": Object.freeze({ start: 49, end: 58 }),
-  "pdf-providers": Object.freeze({ start: 58, end: 67 }),
-  "pdf-specialists": Object.freeze({ start: 67, end: 76 }),
-  qa: Object.freeze({ start: 76, end: 83 }),
-  release: Object.freeze({ start: 83, end: 88 }),
+  presentation: Object.freeze({ start: 16, end: 27 }),
+  templates: Object.freeze({ start: 27, end: 34 }),
+  officekit: Object.freeze({ start: 34, end: 41 }),
+  documents: Object.freeze({ start: 41, end: 50 }),
+  "pdf-packs": Object.freeze({ start: 50, end: 59 }),
+  "pdf-providers": Object.freeze({ start: 59, end: 68 }),
+  "pdf-specialists": Object.freeze({ start: 68, end: 77 }),
+  qa: Object.freeze({ start: 77, end: 84 }),
+  release: Object.freeze({ start: 84, end: 89 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
