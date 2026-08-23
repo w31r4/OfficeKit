@@ -180,7 +180,7 @@ export async function evaluateDurableTask({ workspace, task, source, outputPath 
     commits: revisions,
     head: manifest.head,
     pending: manifest.pending,
-    publication: { commitId: publication.commitId, artifactId: publication.artifactId, path: path.relative(workspace, publication.path), sha256: publication.sha256 },
+    publication: { commitId: publication.commitId, artifactId: publication.artifactId, path: path.relative(workspace, outputPath), sha256: publication.sha256 },
     sourceProvenance: { artifactId: sourceArtifact.id, sha256: sourceArtifact.source.sha256, storedPath: sourceArtifact.source.storedPath },
   };
 }
