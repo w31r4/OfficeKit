@@ -7431,6 +7431,7 @@ public sealed class PptxCodecTests
 
         var first = CloneOnce(sourceBytes);
         var second = CloneOnce(sourceBytes);
+        Assert.Equal(first, second);
         Assert.Equal(ZipBytes(first, "ppt/presentation.xml"), ZipBytes(second, "ppt/presentation.xml"));
         Assert.Equal(ZipBytes(first, "ppt/_rels/presentation.xml.rels"), ZipBytes(second, "ppt/_rels/presentation.xml.rels"));
         using var stream = new MemoryStream(first, writable: false);
