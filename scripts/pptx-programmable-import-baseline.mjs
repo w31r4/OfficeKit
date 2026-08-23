@@ -279,9 +279,12 @@ function validateCandidateMatrixOracles(matrix) {
 }
 
 function validateCandidateCodexOracles(codex) {
+  const outputByTask = new Map();
   for (const trial of codex.trials) {
     const label = `${trial.taskId}/${trial.repetition}`;
     const checks = trial.checks;
+    const commitIds = checks?.durableTask?.commits?.map(({ commitId }) => commitId);
+    const outputSha256 = checks?.durableTask?.publication?.sha256;
     if (trial.status !== "passed" || (trial.failures?.length ?? 0) !== 0 || checks?.codex?.passed !== true || checks?.policy?.passed !== true
       || checks?.source?.passed !== true || checks?.output?.passed !== true || checks?.durableTask?.passed !== true
       || checks?.packageOracle?.partSet?.passed !== true || checks?.packageOracle?.relationships?.passed !== true
@@ -289,6 +292,24 @@ function validateCandidateCodexOracles(codex) {
       || checks?.pixelOracle?.passed !== true || checks?.pixelOracle?.nonTargetPagesPixelIdentical !== true) {
       throw new Error(`${label}: candidate Codex oracle set did not pass`);
     }
+    if (checks.policy.findings?.length !== 0 || checks.output.createOnly !== true || checks.output.outputCount !== 1) {
+      throw new Error(`${label}: candidate Codex policy/output boundary is invalid`);
+    }
+    if (checks.durableTask.sessions !== 3 || commitIds?.join(",") !== "c0001,c0002"
+      || checks.durableTask.head?.commitId !== "c0002" || checks.durableTask.publication?.commitId !== "c0002"
+      || checks.durableTask.pending?.length !== 0) {
+      throw new Error(`${label}: candidate durable task lifecycle is invalid`);
+    }
+    if (!outputSha256 || checks.packageOracle.outputSha256 !== outputSha256 || checks.secondImport.inputSha256 !== outputSha256
+      || checks.durableTask.head.revisionSha256 !== outputSha256) {
+      throw new Error(`${label}: candidate output identity is inconsistent`);
+    }
+    if (checks.pixelOracle.appendedTargetChangedFromSource !== true || checks.pixelOracle.nonTargetMismatches?.length !== 0) {
+      throw new Error(`${label}: candidate visual continuation oracle is invalid`);
+    }
+    const previousOutput = outputByTask.get(trial.taskId);
+    if (previousOutput && previousOutput !== outputSha256) throw new Error(`${trial.taskId}: Codex continuation output is not byte-deterministic`);
+    outputByTask.set(trial.taskId, outputSha256);
   }
 }
 
@@ -296,8 +317,8 @@ function validateCompanionShape(companion) {
   if (companion.package?.name !== "office-kit" || companion.package?.installKind !== "packed-clean-install" || !companion.package.tarballSha256) {
     throw new Error("Source-derived companion did not use a packed office-kit clean install");
   }
-  if (companion.repetitionsPerCase !== 3 || !Array.isArray(companion.cases) || companion.cases.length === 0) {
-    throw new Error("Source-derived companion evidence is incomplete");
+  if (companion.repetitionsPerCase !== 3 || !Array.isArray(companion.cases) || companion.cases.length !== 8) {
+    throw new Error("Source-derived companion evidence must contain all eight cases");
   }
   const requiredCoverage = ["text", "geometry", "image", "table", "chart", "component", "add", "delete", "reorder"];
   if (!Array.isArray(companion.coverage?.required) || !Array.isArray(companion.coverage?.passed)) {
@@ -308,6 +329,7 @@ function validateCompanionShape(companion) {
   }
   let completedRuns = 0;
   let passedRuns = 0;
+  const coveredKinds = new Set();
   for (const entry of companion.cases) {
     if (entry.requiredRuns !== 3 || entry.completedRuns !== 3 || entry.passedRuns !== 3 || entry.deterministic !== true) {
       throw new Error(`${entry.id}: source-derived companion case is not 3/3 deterministic`);
@@ -330,8 +352,13 @@ function validateCompanionShape(companion) {
         throw new Error(`${entry.id}/${run.repetition}: source-derived companion oracle set did not pass`);
       }
     }
+    for (const kind of entry.covers || []) coveredKinds.add(kind);
     completedRuns += entry.completedRuns;
     passedRuns += entry.passedRuns;
+  }
+  for (const kind of companion.existingEvidence?.flatMap(({ passed, covers }) => passed ? covers : []) || []) coveredKinds.add(kind);
+  if (requiredCoverage.some((kind) => !coveredKinds.has(kind))) {
+    throw new Error("Source-derived companion case evidence does not cover every required operation category");
   }
   return {
     requiredCases: companion.cases.length,
