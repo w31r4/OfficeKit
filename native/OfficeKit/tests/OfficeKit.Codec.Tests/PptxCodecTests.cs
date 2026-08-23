@@ -6339,6 +6339,68 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourcePreservingExportAppendsDeterministicEmbeddedImageOverlay()
+    {
+        var sourceBytes = Invoke(ExportRequest()).File.ToByteArray();
+        var imageBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+
+        CodecResponse ExportOverlay()
+        {
+            var imported = Import(sourceBytes);
+            Assert.True(imported.Ok, Diagnostics(imported));
+            var assetId = AddPictureAsset(imported.Artifact, imageBytes, "image/png");
+            Assert.Single(imported.Artifact.Presentation.Slides).Elements.Add(AuthoredImageOverlayElement(assetId));
+            return Export(imported.Artifact);
+        }
+
+        var first = ExportOverlay();
+        Assert.True(first.Ok, Diagnostics(first));
+        var second = ExportOverlay();
+        Assert.True(second.Ok, Diagnostics(second));
+        Assert.Equal(first.File, second.File);
+
+        var outputBytes = first.File.ToByteArray();
+        var sourcePaths = ZipPartPaths(sourceBytes);
+        var outputPaths = ZipPartPaths(outputBytes);
+        var addedPaths = outputPaths.Except(sourcePaths, StringComparer.OrdinalIgnoreCase).ToArray();
+        var mediaPath = Assert.Single(addedPaths, path => path.StartsWith("ppt/media/", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(imageBytes, ZipBytes(outputBytes, mediaPath));
+        var allowedChanges = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "[Content_Types].xml",
+            "ppt/slides/slide1.xml",
+            "ppt/slides/_rels/slide1.xml.rels",
+        };
+        foreach (var path in sourcePaths.Where(path => !allowedChanges.Contains(path)))
+            Assert.Equal(ZipBytes(sourceBytes, path), ZipBytes(outputBytes, path));
+
+        var sourceSlideXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, "ppt/slides/slide1.xml"));
+        var outputSlideXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, "ppt/slides/slide1.xml"));
+        var insertionIndex = sourceSlideXml.LastIndexOf("</p:spTree>", StringComparison.Ordinal);
+        Assert.True(insertionIndex > 0);
+        Assert.StartsWith(sourceSlideXml[..insertionIndex], outputSlideXml);
+        Assert.EndsWith(sourceSlideXml[insertionIndex..], outputSlideXml);
+
+        using (var stream = new MemoryStream(outputBytes, writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var slidePart = Assert.Single(package.PresentationPart!.SlideParts);
+            var picture = Assert.Single(slidePart.Slide!.Descendants<P.Picture>());
+            Assert.Equal("Agent-authored image", picture.NonVisualPictureProperties!.NonVisualDrawingProperties!.Name!.Value);
+            Assert.Single(slidePart.ImageParts);
+        }
+
+        var roundTrip = Import(outputBytes);
+        Assert.True(roundTrip.Ok, Diagnostics(roundTrip));
+        var image = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements,
+            element => element.Name == "Agent-authored image");
+        Assert.Equal(PresentationElement.ContentOneofCase.Image, image.ContentCase);
+        Assert.Equal(2_100_000, image.Image.WidthEmu);
+        Assert.NotNull(image.Source);
+    }
+
+    [Fact]
     public void SourcePreservingExportRejectsUnsafeOrInterleavedAuthoredOverlay()
     {
         static CodecResponse ExportWithOverlay(Action<PresentationElement> mutate)
@@ -9917,6 +9979,26 @@ public sealed class PptxCodecTests
             FillRgb = "F8FAFC",
             LineRgb = "2563EB",
             LineWidthEmu = 12_700,
+        },
+    };
+
+    private static PresentationElement AuthoredImageOverlayElement(string assetId) => new()
+    {
+        Id = "presentation/slide/1/authored-image-overlay",
+        Name = "Agent-authored image",
+        Image = new PresentationImage
+        {
+            AssetId = assetId,
+            AltText = "Evidence added after importing the source presentation",
+            LeftEmu = 7_000_000,
+            TopEmu = 3_600_000,
+            WidthEmu = 2_100_000,
+            HeightEmu = 1_400_000,
+            Crop = new PresentationImageCrop
+            {
+                LeftThousandthPercent = 5_000,
+                RightThousandthPercent = 5_000,
+            },
         },
     };
 
