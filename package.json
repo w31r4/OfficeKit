@@ -104,6 +104,7 @@
     "test:skill:spreadsheets": "node test/spreadsheet-skill.mjs",
     "test:presentation": "node test/presentation.mjs",
     "test:pptx-lossless-benchmark": "node test/pptx-lossless-benchmark.mjs",
+    "test:pptx-import-object-classification": "node test/pptx-import-object-classification.mjs",
     "test:pptx-design-profile": "node test/pptx-design-profile.mjs",
     "test:pptx-source-continuation": "node test/pptx-source-continuation.mjs",
     "test:pptx-source-continuation-native": "node test/pptx-source-continuation-native.mjs",
