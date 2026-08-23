@@ -26,7 +26,8 @@ const task = {
 
 const prompt = buildCodexPrompt({ task, source });
 assert.match(prompt, /exactly three separate OfficeKit REPL processes/u);
-assert.match(prompt, /finite JSONL stdin/u);
+assert.match(prompt, /--file phase-1[.]mjs/u);
+assert.match(prompt, /Do not hand-build JSONL/u);
 assert.match(prompt, /never launch a second `repl --new`/u);
 assert.match(prompt, /empty task-id bootstrap session.*disqualifying/su);
 assert.match(prompt, /officekit repl --new/u);
