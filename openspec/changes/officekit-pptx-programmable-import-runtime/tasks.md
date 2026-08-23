@@ -11,13 +11,13 @@
 
 ## 2. Safe SVG styling
 
-- [ ] 2.1 Issue direct fill, stroke, and opacity leaves with source/value hash
+- [x] 2.1 Issue direct fill, stroke, and opacity leaves with source/value hash
   preconditions and token-only mutation.
-- [ ] 2.2 Issue the bounded local transform profile without changing transform
+- [x] 2.2 Issue the bounded local transform profile without changing transform
   topology.
-- [ ] 2.3 Add active/external/CSS/inherited/paint-server/stale/cross-image and
+- [x] 2.3 Add active/external/CSS/inherited/paint-server/stale/cross-image and
   malformed-value refusal tests.
-- [ ] 2.4 Prove second import, masked SVG equality, non-target OPC equality, and
+- [x] 2.4 Prove second import, masked SVG equality, non-target OPC equality, and
   deterministic repeated edits on the McKinsey sample.
 
 ## 3. Source-derived continuation
