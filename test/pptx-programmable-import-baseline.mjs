@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { buildBaselineEvidence } from "../scripts/pptx-programmable-import-baseline.mjs";
+import { buildBaselineEvidence, buildCandidateEvidence } from "../scripts/pptx-programmable-import-baseline.mjs";
 import { sha256 } from "../scripts/pptx-programmable-import-oracle.mjs";
 
 const tarballSha256 = "a".repeat(64);
@@ -67,6 +67,124 @@ assert.throws(
 assert.throws(
   () => buildBaselineEvidence({ matrix: { ...matrix, sources: matrix.sources.slice(0, 2) }, codex, matrixBytes, codexBytes, harnessHead: "e".repeat(40) }),
   /three distinct sources/u,
+);
+
+const candidateMatrix = structuredClone(matrix);
+for (const source of candidateMatrix.sources) {
+  source.sourceSha256 = "1".repeat(64);
+  for (const intent of source.intents) {
+    intent.deterministic = true;
+    for (const run of intent.runs) {
+      run.status = "passed";
+      run.sourceSha256After = source.sourceSha256;
+      run.outputSha256 = "2".repeat(64);
+      run.worker = { sourceUnchanged: true, secondImport: true, outputSha256: run.outputSha256 };
+      run.packageOracle = {
+        partSet: { passed: true },
+        nonTargetPartsByteIdentical: true,
+        relationships: { passed: true },
+        targetMask: { passed: true },
+      };
+      run.pixelOracle = { passed: true, targetPageChanged: true, nonTargetPagesPixelIdentical: true, nonTargetMismatches: [] };
+    }
+  }
+}
+candidateMatrix.acceptance = { requiredIntents: 30, requiredRuns: 90, passedRuns: 90, deterministicIntents: 30, status: "passed" };
+
+const candidateCodex = structuredClone(codex);
+for (const trial of candidateCodex.trials) {
+  trial.status = "passed";
+  trial.failures = [];
+  trial.checks = {
+    codex: { passed: true },
+    policy: { passed: true },
+    source: { passed: true },
+    output: { passed: true },
+    durableTask: { passed: true },
+    packageOracle: { partSet: { passed: true }, relationships: { passed: true }, targetMask: { passed: true } },
+    secondImport: { passed: true },
+    pixelOracle: { passed: true, nonTargetPagesPixelIdentical: true },
+  };
+}
+candidateCodex.acceptance = { requiredTasks: 3, trialsPerTask: 3, requiredTrials: 9, completedTrials: 9, passedTrials: 9, status: "passed" };
+
+const companion = {
+  schema: "office-kit/pptx-source-derived-companion-evidence/v1",
+  productBaseline: matrix.baseline,
+  definitionsSha256: "3".repeat(64),
+  repetitionsPerCase: 3,
+  package: { name: "office-kit", version: "0.6.0", installKind: "packed-clean-install", tarballSha256: "4".repeat(64) },
+  environment: { node: "synthetic" },
+  acceptance: { scope: "full-suite", status: "passed" },
+  coverage: {
+    required: ["text", "geometry", "image", "table", "chart", "component", "add", "delete", "reorder"],
+    passed: ["text", "geometry", "image", "table", "chart", "component", "add", "delete", "reorder"],
+    missing: [],
+    status: "passed",
+  },
+  cases: [{
+    id: "synthetic-companion",
+    requiredRuns: 3,
+    completedRuns: 3,
+    passedRuns: 3,
+    deterministic: true,
+    runs: Array.from({ length: 3 }, (_, index) => ({
+      repetition: index + 1,
+      status: "passed",
+      outputSha256: "5".repeat(64),
+      worker: { sourceUnchanged: true, secondImport: { passed: true } },
+      packageOracle: { passed: true, partSet: { passed: true }, nonTargetPartsByteIdentical: true, targetMask: { passed: true } },
+      pixelOracle: { passed: true, targetPageChanged: true, nonTargetPagesPixelIdentical: true, nonTargetMismatches: [] },
+    })),
+  }],
+};
+const candidateMatrixBytes = Buffer.from(`${JSON.stringify(candidateMatrix)}\n`);
+const candidateCodexBytes = Buffer.from(`${JSON.stringify(candidateCodex)}\n`);
+const companionBytes = Buffer.from(`${JSON.stringify(companion)}\n`);
+const candidate = buildCandidateEvidence({
+  matrix: candidateMatrix,
+  codex: candidateCodex,
+  companion,
+  matrixBytes: candidateMatrixBytes,
+  codexBytes: candidateCodexBytes,
+  companionBytes,
+  candidateHead: "6".repeat(40),
+});
+assert.equal(candidate.schema, "office-kit/pptx-programmable-import-candidate/v1");
+assert.equal(candidate.acceptance.status, "passed");
+assert.equal(candidate.matrix.passedRuns, 90);
+assert.equal(candidate.codex.passedTrials, 9);
+assert.equal(candidate.sourceDerived.passedRuns, 3);
+assert.equal(candidate.evidenceFiles.companion.sha256, sha256(companionBytes));
+assert.throws(
+  () => buildCandidateEvidence({
+    matrix: { ...candidateMatrix, package: { ...candidateMatrix.package, tarballSha256: "7".repeat(64) } },
+    codex: candidateCodex,
+    companion,
+    matrixBytes: candidateMatrixBytes,
+    codexBytes: candidateCodexBytes,
+    companionBytes,
+    candidateHead: "6".repeat(40),
+  }),
+  /same deterministic tarball/u,
+);
+const matrixWithFailedOracle = structuredClone(candidateMatrix);
+matrixWithFailedOracle.sources[0].intents[0].runs[0].packageOracle.targetMask.passed = false;
+assert.throws(
+  () => buildCandidateEvidence({ matrix: matrixWithFailedOracle, codex: candidateCodex, companion, matrixBytes: candidateMatrixBytes, codexBytes: candidateCodexBytes, companionBytes, candidateHead: "6".repeat(40) }),
+  /package oracle did not pass/u,
+);
+const codexWithoutDurableTask = structuredClone(candidateCodex);
+codexWithoutDurableTask.trials[0].checks.durableTask.passed = false;
+assert.throws(
+  () => buildCandidateEvidence({ matrix: candidateMatrix, codex: codexWithoutDurableTask, companion, matrixBytes: candidateMatrixBytes, codexBytes: candidateCodexBytes, companionBytes, candidateHead: "6".repeat(40) }),
+  /Codex oracle set did not pass/u,
+);
+const incompleteCompanion = structuredClone(companion);
+incompleteCompanion.coverage.passed = incompleteCompanion.coverage.passed.filter((kind) => kind !== "reorder");
+assert.throws(
+  () => buildCandidateEvidence({ matrix: candidateMatrix, codex: candidateCodex, companion: incompleteCompanion, matrixBytes: candidateMatrixBytes, codexBytes: candidateCodexBytes, companionBytes, candidateHead: "6".repeat(40) }),
+  /every required operation category/u,
 );
 
 console.log("PPTX programmable-import baseline evidence builder ok");
