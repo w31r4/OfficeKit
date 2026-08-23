@@ -542,6 +542,123 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanReplacesOnePictureAssetAndCropWithoutReserializingTheSlide()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var picture = Assert.Single(slide.Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.True(picture.Source.Editable);
+        Assert.Null(picture.Image.Crop);
+        var replacementBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=");
+        var replacementEnvelope = new ArtifactEnvelope();
+        var replacementId = AddPictureAsset(replacementEnvelope, replacementBytes, "image/png");
+        var replacementAsset = Assert.Single(replacementEnvelope.Assets);
+        var crop = new PresentationImageCrop
+        {
+            LeftThousandthPercent = 8_000,
+            TopThousandthPercent = 6_000,
+            RightThousandthPercent = 4_000,
+            BottomThousandthPercent = 2_000,
+        };
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-picture-asset",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = picture.Id,
+            ShapeTreeIndex = picture.Source.ShapeTreeIndex,
+            LeafKind = "imageAsset",
+            ExpectedElementSha256 = picture.Source.ElementSha256,
+            ExpectedSemanticSha256 = picture.Source.SemanticSha256,
+            ExpectedValue = picture.Image.AssetId,
+            Value = replacementId,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(picture.Image.AssetId))).ToLowerInvariant(),
+            ImageReplacement = new PresentationImageReplacement { AssetId = replacementId, Crop = crop },
+        };
+        operation.ShapeTreePath.Add(picture.Source.ShapeTreeIndex);
+        var plan = new PresentationEditPlanRequest
+        {
+            ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+            Operations = { operation },
+            Assets = { replacementAsset },
+        };
+
+        static CodecResponse Apply(byte[] source, PresentationEditPlanRequest plan) => Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationEditPlan = plan,
+        });
+
+        var edited = Apply(sourceBytes, plan);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var repeated = Apply(sourceBytes, plan);
+        Assert.True(repeated.Ok, Diagnostics(repeated));
+        Assert.Equal(edited.File, repeated.File);
+        var result = Assert.Single(edited.PresentationEditPlan.Operations);
+        Assert.Equal("imageAsset", result.LeafKind);
+        var changedParts = edited.PresentationEditPlan.ChangedParts.ToArray();
+        Assert.Equal(3, changedParts.Length);
+        Assert.Contains(operation.SlidePartPath, changedParts);
+        var relationshipPath = $"ppt/slides/_rels/{Path.GetFileName(operation.SlidePartPath)}.rels";
+        Assert.Contains(relationshipPath, changedParts);
+        var replacementPartPath = Assert.Single(changedParts, path => path.StartsWith("ppt/media/office-kit-", StringComparison.Ordinal));
+        var outputBytes = edited.File.ToByteArray();
+        Assert.Equal(replacementBytes, ZipBytes(outputBytes, replacementPartPath));
+
+        string sourceRelationshipId;
+        string outputRelationshipId;
+        using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var outputStream = new MemoryStream(outputBytes, writable: false))
+        using (var outputPackage = PresentationDocument.Open(outputStream, false))
+        {
+            var sourceSlide = Assert.Single(sourcePackage.PresentationPart!.SlideParts);
+            var sourcePicture = Assert.Single(sourceSlide.Slide!.Descendants<P.Picture>());
+            sourceRelationshipId = sourcePicture.BlipFill!.Blip!.Embed!.Value!;
+            var outputSlide = Assert.Single(outputPackage.PresentationPart!.SlideParts);
+            var outputPicture = Assert.Single(outputSlide.Slide!.Descendants<P.Picture>());
+            outputRelationshipId = outputPicture.BlipFill!.Blip!.Embed!.Value!;
+            Assert.NotEqual(sourceRelationshipId, outputRelationshipId);
+            var replacementPart = Assert.IsType<ImagePart>(outputSlide.GetPartById(outputRelationshipId));
+            using var replacementStream = replacementPart.GetStream(FileMode.Open, FileAccess.Read);
+            using var replacementMemory = new MemoryStream();
+            replacementStream.CopyTo(replacementMemory);
+            Assert.Equal(replacementBytes, replacementMemory.ToArray());
+        }
+
+        var sourceSlideXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputSlideXml = Encoding.UTF8.GetString(ZipBytes(outputBytes, operation.SlidePartPath));
+        var cropTokens = Regex.Matches(outputSlideXml, "<(?:[A-Za-z_][\\w.-]*:)?srcRect\\b[^>]*\\/>", RegexOptions.CultureInvariant).Cast<Match>().ToArray();
+        var cropToken = Assert.Single(cropTokens).Value;
+        Assert.Contains("xmlns:", cropToken, StringComparison.Ordinal);
+        var maskedSlide = outputSlideXml
+            .Replace(outputRelationshipId, sourceRelationshipId, StringComparison.Ordinal)
+            .Replace(cropToken, string.Empty, StringComparison.Ordinal);
+        Assert.Equal(sourceSlideXml, maskedSlide);
+
+        var sourceRelationships = Encoding.UTF8.GetString(ZipBytes(sourceBytes, relationshipPath));
+        var outputRelationships = Encoding.UTF8.GetString(ZipBytes(outputBytes, relationshipPath));
+        var appended = Regex.Matches(outputRelationships, $"<Relationship\\b(?=[^>]*\\bId=\"{Regex.Escape(outputRelationshipId)}\")[^>]*/>", RegexOptions.CultureInvariant)
+            .Cast<Match>().Select(match => match.Value).ToArray();
+        Assert.Equal(sourceRelationships, outputRelationships.Replace(Assert.Single(appended), string.Empty, StringComparison.Ordinal));
+
+        var reopened = Import(outputBytes);
+        Assert.True(reopened.Ok, Diagnostics(reopened));
+        var reopenedPicture = Assert.Single(Assert.Single(reopened.Artifact.Presentation.Slides).Elements,
+            item => item.ContentCase == PresentationElement.ContentOneofCase.Image);
+        Assert.Equal(replacementId, reopenedPicture.Image.AssetId);
+        Assert.Equal(crop, reopenedPicture.Image.Crop);
+    }
+
+    [Fact]
     public void EditPlanChangesOneTableCellWithoutReserializingTheSlide()
     {
         var request = ExportRequest();
