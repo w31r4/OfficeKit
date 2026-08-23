@@ -67,6 +67,7 @@ minimal artifact workflow:
   local workspace modules; URLs, traversal, and private package paths fail.
 - `ctx.input(path, options)`: copy a regular source into the task as an
   immutable input and return its artifact ID, path, type, size, and SHA-256.
+  It does not retrieve an artifact already committed by this task.
 - `ctx.commit(candidate, options)`: promote a candidate only when its OfficeKit
   review is non-failing and its delivery SHA matches the candidate bytes.
   Every commit requires a concise non-empty `options.summary`.
@@ -136,6 +137,23 @@ raw candidate bytes and never overwrites an input or existing output.
 `officekit repl <task-id>` creates a new session and returns absolute paths for
 the complete artifact snapshot in the latest reviewed commit. Pending failed
 candidates are diagnostic inputs, not current revisions.
+
+Inside a `--file` cell, reopen one reviewed artifact from the task state. Do
+not pass its artifact ID to `ctx.input`:
+
+```js
+const path = await ctx.import("node:path");
+const { FileBlob } = await ctx.import("office-kit");
+const artifact = ctx.task.artifacts.find(({ id }) => id === "continued-deck");
+const revision = artifact?.headRevision;
+if (!revision) throw new Error("The reviewed continued-deck revision is missing");
+const reviewedPath = path.resolve(ctx.taskRoot, revision.path);
+const baseline = await FileBlob.load(reviewedPath);
+```
+
+After the final reimport and verification, publish with the current reviewed
+descriptor, for example `ctx.publish(ctx.task.commit, { name: "final.pptx" })`.
+An artifact ID or file path is not a publishable commit.
 
 For an imported PPTX, reopen that reviewed revision and run `inspect` again
 before every continued edit. Native leaf IDs and expected hashes are bound to
