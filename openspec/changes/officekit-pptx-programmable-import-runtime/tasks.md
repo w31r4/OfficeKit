@@ -27,7 +27,7 @@
 - [ ] 3.2 Complete high-value source-derived text, geometry, image, table,
   chart, component, add, delete, and reorder workflows without rebuilding the
   source slide.
-- [ ] 3.3 Prove task commit/resume/re-inspect continuation from the latest
+- [x] 3.3 Prove task commit/resume/re-inspect continuation from the latest
   reviewed revision.
 
 ## 4. Independent acceptance
