@@ -59,8 +59,17 @@ assert.equal(continuations.replSessionsPerTrial, 3);
 assert.equal(continuations.tasks.length, 3);
 assert.deepEqual(continuations.tasks.map(({ sourceId }) => sourceId), intents.sources.map(({ id }) => id));
 assert.equal(new Set(continuations.tasks.map(({ id }) => id)).size, 3);
+assert.deepEqual(continuations.tasks.map(({ acceptanceRenderer }) => acceptanceRenderer), [
+  "keynote",
+  "keynote",
+  "libreoffice",
+]);
 for (const task of continuations.tasks) {
+  const source = intents.sources.find(({ id }) => id === task.sourceId);
+  assert.ok(source);
   assert.match(task.output, /^outputs\/[a-z0-9-]+[.]pptx$/u);
+  assert.ok(Number.isInteger(task.sourceSlide) && task.sourceSlide >= 1 && task.sourceSlide <= source.slideCount);
+  assert.equal(task.targetPageAfterAppend, source.slideCount + 1);
   assert.ok(task.goal.length >= 100);
   assert.equal(task.expectedTexts.length, 2);
   assert.ok(task.expectedTexts.every((value) => typeof value === "string" && value.length > 0));

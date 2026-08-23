@@ -61,10 +61,17 @@ await assert.rejects(
 
 const sourceRender = { pages: [{ page: 1, sha256: "source-page" }] };
 const outputRender = { pages: [{ page: 1, sha256: "source-page" }, { page: 2, sha256: "appended-page" }], cacheHit: false };
-assert.equal(compareContinuationRenderedPages(sourceRender, outputRender, 2).nonTargetPagesPixelIdentical, true);
+const rendered = compareContinuationRenderedPages(sourceRender, outputRender, 2, 1);
+assert.equal(rendered.nonTargetPagesPixelIdentical, true);
+assert.equal(rendered.clonedSourcePage, 1);
+assert.equal(rendered.appendedTargetChangedFromSource, true);
 assert.throws(
-  () => compareContinuationRenderedPages(sourceRender, { pages: [{ page: 1, sha256: "drift" }, outputRender.pages[1]] }, 2),
+  () => compareContinuationRenderedPages(sourceRender, { pages: [{ page: 1, sha256: "drift" }, outputRender.pages[1]] }, 2, 1),
   /Non-target rendered pages changed/u,
+);
+assert.throws(
+  () => compareContinuationRenderedPages(sourceRender, { pages: [...sourceRender.pages, { page: 2, sha256: "source-page" }] }, 2, 1),
+  /did not change from cloned source page/u,
 );
 
 async function makeZip(parts) {
