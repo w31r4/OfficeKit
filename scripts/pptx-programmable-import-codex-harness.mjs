@@ -21,6 +21,7 @@ import {
   evaluateContinuationPackageOracle,
   readContinuationDefinitions,
   readIntentDefinitions,
+  renderKeynotePresentationPages,
   renderPresentationPages,
   sha256,
 } from "./pptx-programmable-import-oracle.mjs";
@@ -217,6 +218,7 @@ async function main() {
   await mkdir(runRoot, { recursive: true });
   const pack = await packCandidate(runRoot);
   const render = args["no-render"] !== true;
+  const targetRenderer = resolveAcceptanceRenderer(args["target-renderer"], render);
   const repetitions = args.trials ? positiveInteger(args.trials, "trials") : definitions.trialsPerTask;
   const selectedTasks = args.task ? definitions.tasks.filter(({ id }) => id === args.task) : definitions.tasks;
   if (!selectedTasks.length) throw new Error(`Unknown --task ${args.task}`);
@@ -229,7 +231,7 @@ async function main() {
     const sourcePath = path.join(assetsDir, source.fileName);
     const sourceBytes = await readFile(sourcePath);
     if (sha256(sourceBytes) !== source.sha256) throw new Error(`${source.id}: source SHA-256 mismatch`);
-    const sourceRender = render ? await renderPresentationPages(sourcePath, renderCache, source.sha256) : null;
+    const sourceRender = render ? await renderAcceptancePages(sourcePath, renderCache, source.sha256, targetRenderer) : null;
     for (let repetition = 1; repetition <= repetitions; repetition += 1) {
       trials.push(await runTrial({
         runRoot,
@@ -242,6 +244,7 @@ async function main() {
         sourceRender,
         renderCache,
         render,
+        targetRenderer,
         repetition,
         timeoutMs: args["timeout-ms"] ? positiveInteger(args["timeout-ms"], "timeout-ms", 24 * 60 * 60 * 1000) : Number(process.env.OFFICEKIT_PPTX_CODEX_TIMEOUT_MS || DEFAULT_TIMEOUT_MS),
       }));
@@ -262,6 +265,7 @@ async function main() {
       npm: versionLine(process.platform === "win32" ? "npm.cmd" : "npm", ["--version"]),
       codex: versionLine(process.env.OFFICEKIT_CODEX_BIN || "codex", ["--version"]),
       render,
+      targetRenderer,
     },
     protocol: {
       freshCodexContextPerTrial: true,
@@ -285,7 +289,7 @@ async function main() {
   if (evidence.acceptance.status !== "passed") process.exitCode = 1;
 }
 
-async function runTrial({ runRoot, pack, definitionsPath, task, source, sourcePath, sourceBytes, sourceRender, renderCache, render, repetition, timeoutMs }) {
+async function runTrial({ runRoot, pack, definitionsPath, task, source, sourcePath, sourceBytes, sourceRender, renderCache, render, targetRenderer, repetition, timeoutMs }) {
   const trialRoot = path.join(runRoot, "trials", task.id, String(repetition));
   const workspace = path.join(trialRoot, "workspace");
   const evaluator = path.join(trialRoot, "evaluator");
@@ -365,8 +369,9 @@ async function runTrial({ runRoot, pack, definitionsPath, task, source, sourcePa
     }
     if (render) {
       try {
-        const outputRender = await renderPresentationPages(outputPath, renderCache, sha256(outputBytes));
+        const outputRender = await renderAcceptancePages(outputPath, renderCache, sha256(outputBytes), targetRenderer);
         checks.pixelOracle = compareContinuationRenderedPages(sourceRender, outputRender, task.targetPageAfterAppend);
+        checks.pixelOracle.renderer = targetRenderer;
       } catch (error) {
         checks.pixelOracle = { passed: false, reason: errorMessage(error) };
         failures.push(`Pixel oracle: ${checks.pixelOracle.reason}`);
@@ -387,6 +392,22 @@ async function runTrial({ runRoot, pack, definitionsPath, task, source, sourcePa
     checks: portableize(checks, replacements),
     evidenceDirectory: path.relative(runRoot, evaluator),
   };
+}
+
+export function resolveAcceptanceRenderer(value, render, platform = process.platform) {
+  if (!render) {
+    if (value !== undefined) throw new Error("--target-renderer cannot be used with --no-render");
+    return null;
+  }
+  if (value === undefined || value === "libreoffice") return "libreoffice";
+  if (value !== "keynote") throw new Error(`Unsupported --target-renderer ${value}; expected libreoffice or keynote`);
+  if (platform !== "darwin") throw new Error("--target-renderer keynote requires macOS");
+  return "keynote";
+}
+
+async function renderAcceptancePages(inputPath, cacheRoot, contentSha256, targetRenderer) {
+  if (targetRenderer === "keynote") return renderKeynotePresentationPages(inputPath, cacheRoot, contentSha256);
+  return renderPresentationPages(inputPath, cacheRoot, contentSha256);
 }
 
 async function packCandidate(runRoot) {
