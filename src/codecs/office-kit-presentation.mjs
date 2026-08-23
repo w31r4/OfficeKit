@@ -3937,9 +3937,57 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   };
 }
 
+function compilePresentationTableCellOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
+  if (original.content.case !== "table" || requested.content.case !== "table" || original.source?.editable !== true) return undefined;
+  const beforeTable = original.content.value;
+  const afterTable = requested.content.value;
+  if (beforeTable.rows.length !== afterTable.rows.length || beforeTable.columnWidthsEmu.length !== afterTable.columnWidthsEmu.length) return undefined;
+  const changed = [];
+  for (let rowIndex = 0; rowIndex < beforeTable.rows.length; rowIndex += 1) {
+    const beforeRow = beforeTable.rows[rowIndex];
+    const afterRow = afterTable.rows[rowIndex];
+    if (beforeRow.cells.length !== afterRow.cells.length || beforeRow.cells.length !== beforeTable.columnWidthsEmu.length) return undefined;
+    for (let columnIndex = 0; columnIndex < beforeRow.cells.length; columnIndex += 1) {
+      if (beforeRow.cells[columnIndex].text !== afterRow.cells[columnIndex].text) {
+        changed.push({ rowIndex, columnIndex, before: beforeRow.cells[columnIndex].text, after: afterRow.cells[columnIndex].text });
+      }
+    }
+  }
+  if (changed.length !== 1) return undefined;
+  const [cell] = changed;
+  const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restored.content.value.rows[cell.rowIndex].cells[cell.columnIndex].text = cell.before;
+  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  const source = original.source;
+  const slideSource = sourceSlide.source;
+  if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
+  const textLeafIndex = cell.rowIndex * beforeTable.columnWidthsEmu.length + cell.columnIndex;
+  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath.join("/"), "tableCellText", textLeafIndex, cell.before, cell.after].join("\0");
+  return {
+    operationId: `pptx-tableCellText-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
+    slideId: sourceSlide.id,
+    slidePartPath: slideSource.partPath,
+    expectedSlideSha256: slideSource.slideXmlSha256,
+    targetId: original.id,
+    shapeTreeIndex: shapeTreePath[0],
+    shapeTreePath,
+    leafKind: "tableCellText",
+    expectedElementSha256: source.elementSha256,
+    expectedSemanticSha256: source.semanticSha256,
+    textLeafIndex,
+    expectedTextSha256: createHash("sha256").update(cell.before, "utf8").digest("hex"),
+    expectedValue: cell.before,
+    value: cell.after,
+  };
+}
+
 function compilePresentationElementEditOperations(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   requested = restoreEquivalentPresentationScalarLeaves(original, requested);
   if (samePresentationWire(PresentationElementSchema, original, requested)) return [];
+  if (original.content.case === "table" && requested.content.case === "table") {
+    const operation = compilePresentationTableCellOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
+    return operation ? [operation] : undefined;
+  }
   if (original.content.case === requested.content.case && new Set(["shape", "image"]).has(original.content.case)) {
     const scalarOperation = compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     if (scalarOperation) return [scalarOperation];

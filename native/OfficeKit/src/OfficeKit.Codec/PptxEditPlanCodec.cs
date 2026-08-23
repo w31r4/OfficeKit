@@ -159,7 +159,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "chartTitleText" or "chartDataValue" or "diagramText"))
+            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "chartTitleText" or "chartDataValue" or "diagramText"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -312,6 +312,14 @@ internal static partial class PptxEditPlanCodec
             {
                 ProveLeafValue(shape, operation);
             }
+            else if (element is P.GraphicFrame table &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Table &&
+                     projectedElement.Source.Editable &&
+                     LeafKind(operation) == "tableCellText" &&
+                     PptxTableCodec.TryRead(table, out _))
+            {
+                ProveLeafValue(table, operation);
+            }
             else if (element is P.Picture picture &&
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Opaque) &&
                      projectedElement.Source.Editable &&
@@ -322,7 +330,7 @@ internal static partial class PptxEditPlanCodec
             }
             else
             {
-                throw new CodecException("unsupported_presentation_edit", $"PPTX edit operation {operation.OperationId} target is not a safely editable shape or picture leaf.", operation.SlidePartPath);
+                throw new CodecException("unsupported_presentation_edit", $"PPTX edit operation {operation.OperationId} target is not a safely editable shape, table, or picture leaf.", operation.SlidePartPath);
             }
             proofs.Add(new PptxEditPlanProof(operation, elementHash, operation.SlidePartPath));
         }
@@ -373,15 +381,17 @@ internal static partial class PptxEditPlanCodec
                 var child = children[(int)path[depth]];
                 range = new XmlRange(range.Start + child.Start, range.Start + child.End, child.LocalName);
             }
-            if (range.LocalName is not ("sp" or "pic"))
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp or p:pic.", operation.SlidePartPath);
-            if (LeafKind(operation) != "text")
+            var leafKind = LeafKind(operation);
+            if (range.LocalName is not ("sp" or "pic" or "graphicFrame"))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, or p:graphicFrame.", operation.SlidePartPath);
+            if (leafKind is not ("text" or "tableCellText"))
             {
                 patches.Add(CompileScalarXmlPatch(xml, range, proof));
                 continue;
             }
-            if (range.LocalName != "sp")
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} text target is not p:sp.", operation.SlidePartPath);
+            if ((leafKind == "text" && range.LocalName != "sp") ||
+                (leafKind == "tableCellText" && range.LocalName != "graphicFrame"))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
             var elementXml = xml[range.Start..range.End];
             var leaves = TextLeafPattern().Matches(elementXml)
                 .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
@@ -484,6 +494,15 @@ internal static partial class PptxEditPlanCodec
             if (operation.TextLeafIndex >= (uint)leaves.Length)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} text-leaf index is out of range.", operation.SlidePartPath);
             return leaves[operation.TextLeafIndex].Text;
+        }
+        if (kind == "tableCellText")
+        {
+            if (element is not P.GraphicFrame table || !PptxTableCodec.TryRead(table, out var projected))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} tableCellText target is not a supported table.", operation.SlidePartPath);
+            var cells = projected.Rows.SelectMany(row => row.Cells).ToArray();
+            if (operation.TextLeafIndex >= (uint)cells.Length)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} table-cell index is out of range.", operation.SlidePartPath);
+            return cells[operation.TextLeafIndex].Text;
         }
         var properties = element switch
         {
@@ -673,8 +692,8 @@ internal static partial class PptxEditPlanCodec
                 resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
                 continue;
             }
-            if (element is not P.Shape && element is not P.Picture)
-                throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape or picture.", operation.SlidePartPath);
+            if (element is not P.Shape && element is not P.Picture && element is not P.GraphicFrame)
+                throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape, table, or picture.", operation.SlidePartPath);
             if (!LeafValuesEqual(ReadLeafValue(element, operation), operation.Value, LeafKind(operation)))
                 throw new CodecException("presentation_edit_verification_failed", $"PPTX edit operation {operation.OperationId} did not survive package reopen.", operation.SlidePartPath);
             resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
