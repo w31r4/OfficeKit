@@ -542,6 +542,85 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanChangesOneTableCellWithoutReserializingTheSlide()
+    {
+        var request = ExportRequest();
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 1_300_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 1_600_000,
+        };
+        table.ColumnWidthsEmu.Add([1_500_000, 2_500_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 600_000,
+            Cells = { new PresentationTableCell { Text = "Metric" }, new PresentationTableCell { Text = "Value" } },
+        });
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 1_000_000,
+            Cells = { new PresentationTableCell { Text = "Revenue" }, new PresentationTableCell { Text = "$42M" } },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/1",
+            Name = "Metrics",
+            Table = table,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = authored.File.ToByteArray();
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var element = Assert.Single(slide.Elements, candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
+        const string expected = "$42M";
+        const string value = "$47M";
+        var operation = new PresentationEditOperation
+        {
+            OperationId = "op-table-cell",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = element.Id,
+            ShapeTreeIndex = element.Source.ShapeTreeIndex,
+            LeafKind = "tableCellText",
+            TextLeafIndex = 3,
+            ExpectedElementSha256 = element.Source.ElementSha256,
+            ExpectedSemanticSha256 = element.Source.SemanticSha256,
+            ExpectedValue = expected,
+            Value = value,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(expected))).ToLowerInvariant(),
+        };
+        operation.ShapeTreePath.Add(element.Source.ShapeTreeIndex);
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { operation },
+            },
+        });
+
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([operation.SlidePartPath], edited.PresentationEditPlan.ChangedParts);
+        Assert.Equal("tableCellText", Assert.Single(edited.PresentationEditPlan.Operations).LeafKind);
+        var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
+        var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
+        Assert.Equal(sourceXml, outputXml.Replace(value, expected, StringComparison.Ordinal));
+        var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements,
+            candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
+        Assert.Equal(value, reopened.Table.Rows[1].Cells[1].Text);
+    }
+
+    [Fact]
     public void EditPlanChangesOneOpaqueChartTitleLeafWithoutReserializingTheChart()
     {
         var request = ExportRequest();

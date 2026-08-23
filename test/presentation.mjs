@@ -124,22 +124,30 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
   const outputPart = Buffer.from(await outputZip.file(partPath).async("uint8array"));
   const masks = [];
   for (const item of operations) {
-    assert.notEqual(item.leafKind, "text", "byte-offset footprint assertions currently cover scalar tokens");
     const sourceStart = Number(item.footprint.sourceStartOffset);
     const sourceEnd = Number(item.footprint.sourceEndOffset);
     const outputEnd = Number(item.footprint.outputEndOffset);
     const expected = Buffer.from(String(item.expectedValue), "utf8");
     const replacement = Buffer.from(String(item.value), "utf8");
-    const outputStart = outputEnd - replacement.length;
-    assert.deepEqual(sourcePart.subarray(sourceStart, sourceEnd), expected);
-    assert.deepEqual(outputPart.subarray(outputStart, outputEnd), replacement);
-    masks.push({ start: outputStart, end: outputEnd, bytes: expected });
+    const textLike = item.leafKind === "text" || item.leafKind === "tableCellText";
+    const sourceSpan = sourcePart.subarray(sourceStart, sourceEnd);
+    const expectedOutputSpan = textLike
+      ? Buffer.from(sourceSpan.toString("utf8").replace(String(item.expectedValue), String(item.value)), "utf8")
+      : replacement;
+    const outputStart = outputEnd - expectedOutputSpan.length;
+    if (textLike) {
+      assert.equal(sourceSpan.toString("utf8").split(String(item.expectedValue)).length - 1, 1);
+    } else {
+      assert.deepEqual(sourceSpan, expected);
+    }
+    assert.deepEqual(outputPart.subarray(outputStart, outputEnd), expectedOutputSpan);
+    masks.push({ start: outputStart, end: outputEnd, bytes: sourceSpan });
   }
   let masked = outputPart;
   for (const mask of masks.sort((left, right) => right.start - left.start)) {
     masked = Buffer.concat([masked.subarray(0, mask.start), mask.bytes, masked.subarray(mask.end)]);
   }
-  assert.deepEqual(masked, sourcePart, "masking all declared scalar tokens must recover the source part exactly");
+  assert.deepEqual(masked, sourcePart, "masking all declared tokens must recover the source part exactly");
   for (const [entryPath, entry] of Object.entries(sourceZip.files)) {
     if (entry.dir || entryPath === partPath) continue;
     assert.deepEqual(
@@ -4403,6 +4411,14 @@ assert.deepEqual(tableCloneRoundTrip.slides.items.map((slide) => slide.tables.it
 assert.deepEqual(tableCloneRoundTrip.slides.items.map((slide) => slide.tables.items[0].mergeRanges), [tableCloneSourceTable.mergeRanges, tableCloneSourceTable.mergeRanges]);
 tableCloneRoundTrip.slides.getItem(1).tables.items[0].cells.set(2, 2, "Edited after table clone reimport");
 const tableCloneEditedPptx = await PresentationFile.exportPptx(tableCloneRoundTrip);
+assert.equal(tableCloneEditedPptx.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
+assert.deepEqual(tableCloneEditedPptx.metadata.editPlan.changedParts, [tableCloneSlidePath]);
+const [tableCloneCellOperation] = tableCloneEditedPptx.metadata.editPlan.operations;
+assert.equal(tableCloneCellOperation.leafKind, "tableCellText");
+assert.equal(tableCloneCellOperation.textLeafIndex, 8);
+assert.equal(tableCloneCellOperation.expectedValue, "Release");
+assert.equal(tableCloneCellOperation.value, "Edited after table clone reimport");
+await assertOnlyDeclaredPptxFootprintChanged(tableClonePptx, tableCloneEditedPptx, tableCloneCellOperation);
 const tableCloneEditedRoundTrip = await PresentationFile.importPptx(tableCloneEditedPptx);
 assert.equal(tableCloneEditedRoundTrip.slides.getItem(1).tables.items[0].values[2][2], "Edited after table clone reimport");
 assert.equal(tableCloneEditedRoundTrip.slides.getItem(0).tables.items[0].values[2][2], "Release");
