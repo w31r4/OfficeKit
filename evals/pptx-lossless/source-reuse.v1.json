@@ -14,12 +14,18 @@
         "supported": true,
         "blockedReason": "",
         "clonedPartCount": 1,
-        "sharedPartCount": 3
+        "sharedPartCount": 3,
+        "sourceRevisionSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762"
       },
       "expected": "passed",
       "sourceSlideCount": 21,
+      "cloneCoverage": {
+        "totalSlides": 21,
+        "supportedSlides": 21,
+        "blockedSlides": []
+      },
       "status": "passed",
-      "outputSha256": "39f97e9bb94252fcf137c62f6fba36cbd7245a9fb085df2a2a8be606e425196f",
+      "outputSha256": "85c1414f28c4425ea79e57d194fc9786654e3e19d5568b8b83ab3d22804e51bf",
       "outputSlideCount": 22,
       "sourceSlideUnchanged": true,
       "changedExistingParts": [
@@ -36,7 +42,25 @@
       "addedParts": [
         "ppt/slides/_rels/slide1122.xml.rels",
         "ppt/slides/slide1122.xml"
-      ]
+      ],
+      "allSlidesClone": {
+        "status": "passed",
+        "outputSha256": "a3caf3ce638b20426679a19d3e97abcba6fa33b0402d9614a9f9efda91ff7248",
+        "deterministic": true,
+        "outputSlideCount": 42,
+        "changedExistingParts": [
+          "[Content_Types].xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/presentation.xml"
+        ],
+        "topologyChangedParts": [
+          "[Content_Types].xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/presentation.xml"
+        ],
+        "nonTopologyChangedParts": [],
+        "sourceSlideCount": 21
+      }
     },
     {
       "id": "blue-gray-acid-template",
@@ -51,12 +75,18 @@
         "supported": true,
         "blockedReason": "",
         "clonedPartCount": 3,
-        "sharedPartCount": 9
+        "sharedPartCount": 9,
+        "sourceRevisionSha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d"
       },
       "expected": "passed",
       "sourceSlideCount": 19,
+      "cloneCoverage": {
+        "totalSlides": 19,
+        "supportedSlides": 19,
+        "blockedSlides": []
+      },
       "status": "passed",
-      "outputSha256": "de0da41c89e43889a27b94ce921ebac02a279df790ff40125a8067582177156a",
+      "outputSha256": "4d5751c20d96ddc28ab8612a8fd2c41e3c90771a54535d4aa2dddd4258d0d999",
       "outputSlideCount": 20,
       "sourceSlideUnchanged": true,
       "changedExistingParts": [
@@ -76,7 +106,25 @@
         "ppt/slides/_rels/slide1120.xml.rels",
         "ppt/slides/slide1120.xml",
         "ppt/tags/tag11389.xml"
-      ]
+      ],
+      "allSlidesClone": {
+        "status": "passed",
+        "outputSha256": "ce1303c34c26c48e24532e001df8b2863171f5743e04139e682d6d8fb6897362",
+        "deterministic": true,
+        "outputSlideCount": 38,
+        "changedExistingParts": [
+          "[Content_Types].xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/presentation.xml"
+        ],
+        "topologyChangedParts": [
+          "[Content_Types].xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/presentation.xml"
+        ],
+        "nonTopologyChangedParts": [],
+        "sourceSlideCount": 19
+      }
     },
     {
       "id": "mckinsey-customer-loyalty",
@@ -91,12 +139,18 @@
         "supported": true,
         "blockedReason": "",
         "clonedPartCount": 1,
-        "sharedPartCount": 2
+        "sharedPartCount": 2,
+        "sourceRevisionSha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5"
       },
       "expected": "passed",
       "sourceSlideCount": 8,
+      "cloneCoverage": {
+        "totalSlides": 8,
+        "supportedSlides": 8,
+        "blockedSlides": []
+      },
       "status": "passed",
-      "outputSha256": "26b6c5a26ba1a66669782cf240557cde3bc3001605b39f6cef37eab5d2e0a1b1",
+      "outputSha256": "37661d67179b8cbfa789c6c39fb3436e03af11c758036c9fe2957e9b6a8a6090",
       "outputSlideCount": 9,
       "sourceSlideUnchanged": true,
       "changedExistingParts": [
@@ -113,7 +167,25 @@
       "addedParts": [
         "ppt/slides/_rels/slide119.xml.rels",
         "ppt/slides/slide119.xml"
-      ]
+      ],
+      "allSlidesClone": {
+        "status": "passed",
+        "outputSha256": "fac275d32a10d954ea3625916896aa34f6f2b9fd595e97270f3e9c90eb306836",
+        "deterministic": true,
+        "outputSlideCount": 16,
+        "changedExistingParts": [
+          "[Content_Types].xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/presentation.xml"
+        ],
+        "topologyChangedParts": [
+          "[Content_Types].xml",
+          "ppt/_rels/presentation.xml.rels",
+          "ppt/presentation.xml"
+        ],
+        "nonTopologyChangedParts": [],
+        "sourceSlideCount": 8
+      }
     }
   ]
 }
