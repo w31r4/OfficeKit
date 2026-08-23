@@ -29,7 +29,7 @@ const runs = evidence.sources[0].intents[0].runs;
 assert.equal(new Set(runs.map(({ outputSha256 }) => outputSha256)).size, 1);
 assert.ok(runs.every(({ worker, packageOracle, pixelOracle }) => worker.secondImport === true && packageOracle.nonTargetPartsByteIdentical === true && packageOracle.relationships.passed === true && pixelOracle.skipped === true));
 
-const svgRunRoot = path.join(runParent, "svg-nondeterminism");
+const svgRunRoot = path.join(runParent, "svg-determinism");
 const svg = spawnSync(process.execPath, [
   "scripts/pptx-programmable-import-matrix.mjs",
   "--assets-dir", assetsDir,
@@ -40,12 +40,12 @@ const svg = spawnSync(process.execPath, [
   "--repetitions", "2",
   "--no-render",
 ], { cwd: repoRoot, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-assert.equal(svg.status, 1, `${svg.stdout}\n${svg.stderr}`);
+assert.equal(svg.status, 0, `${svg.stdout}\n${svg.stderr}`);
 const svgEvidence = JSON.parse(await readFile(path.join(svgRunRoot, "evidence.json"), "utf8"));
 assert.equal(svgEvidence.acceptance.passedRuns, 2, "both SVG edits should pass the independent per-run oracle");
-assert.equal(svgEvidence.acceptance.deterministicIntents, 0, "random copy-on-write relationship IDs must not be normalized into a deterministic pass");
-assert.equal(svgEvidence.acceptance.status, "failed");
-assert.equal(new Set(svgEvidence.sources[0].intents[0].runs.map(({ outputSha256 }) => outputSha256)).size, 2);
+assert.equal(svgEvidence.acceptance.deterministicIntents, 1, "copy-on-write image relationships and archive metadata must be deterministic");
+assert.equal(svgEvidence.acceptance.status, "passed");
+assert.equal(new Set(svgEvidence.sources[0].intents[0].runs.map(({ outputSha256 }) => outputSha256)).size, 1);
 
 const collision = spawnSync(process.execPath, [
   "scripts/pptx-programmable-import-matrix.mjs",
