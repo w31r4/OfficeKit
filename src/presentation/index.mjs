@@ -36,6 +36,7 @@ import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationEl
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
 import { buildPresentationDesignProfile } from "./design-profile.mjs";
 import { buildTemplateGenerationPlan } from "./template-plan.mjs";
+import { classifyImportedPresentationObjects } from "./import-object-classification.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
@@ -688,6 +689,18 @@ export class Presentation {
         throw error;
       }
       records.push(...capability.inspect());
+    }
+    if (options.includeImportObjects === true || kinds.has("importObject")) {
+      const state = this[PRESENTATION_STATE];
+      if (!state) {
+        const error = new Error("Imported-object classification requires a trusted PPTX source revision.");
+        error.code = "presentation_import_object_source_required";
+        throw error;
+      }
+      records.push(...classifyImportedPresentationObjects(state, {
+        nativeLeafRecords: this[PRESENTATION_NATIVE_LEAF_CAPABILITY]?.inspect?.() || [],
+        componentRecords: this[PRESENTATION_COMPONENT_CAPABILITY]?.inspect?.() || [],
+      }));
     }
     return ndjson(filterInspectRecords(records, options), options.maxChars ?? Infinity);
   }
