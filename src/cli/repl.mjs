@@ -231,12 +231,15 @@ export async function createReplSession(options = {}) {
       await appendJournal(started);
       const events = [];
       const scopedConsole = createScopedConsole(events);
+      const taskBefore = taskResponseMarker(ctx.task);
       let response;
       try {
         const result = await executeCell(request.code, ctx, scopedConsole);
         const maybeApplied = Boolean(interruptedRequest);
+        const taskDelta = taskResponseDelta(taskBefore, ctx.task);
         response = successResponse(request.id, {
           result: serializeValue(result),
+          ...taskDelta,
           events: boundedEvents(events),
           imports: [...imports.splice(0)],
           artifacts: [...artifacts],
@@ -249,10 +252,14 @@ export async function createReplSession(options = {}) {
           },
         });
       } catch (error) {
+        const taskDelta = taskResponseDelta(taskBefore, ctx.task);
         const maybeApplied = error?.maybeApplied === true ||
+          taskDelta.commit != null ||
+          taskDelta.publication != null ||
           (error?.maybeApplied !== false && executionMayHaveApplied(error));
         response = failureResponse(request.id, error, {
           maybeApplied,
+          ...taskDelta,
           events: boundedEvents(events),
           imports: [...imports.splice(0)],
           artifacts: [...artifacts],
@@ -500,6 +507,23 @@ function boundedEvents(events) {
 
 function successResponse(id, fields) {
   return { protocol: REPL_PROTOCOL_VERSION, id, ok: true, ...fields };
+}
+
+function taskResponseMarker(task) {
+  return {
+    commitId: task?.commit?.commitId ?? null,
+    publication: task?.publication == null
+      ? null
+      : `${task.publication.commitId}\n${task.publication.artifactId}\n${task.publication.path}\n${task.publication.sha256}`,
+  };
+}
+
+function taskResponseDelta(before, task) {
+  const after = taskResponseMarker(task);
+  return {
+    ...(after.commitId !== before.commitId && task?.commit ? { commit: task.commit } : {}),
+    ...(after.publication !== before.publication && task?.publication ? { publication: task.publication } : {}),
+  };
 }
 
 function failureResponse(id, error, fields = {}) {
