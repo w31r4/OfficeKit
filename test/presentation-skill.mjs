@@ -34,6 +34,11 @@ assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged rast
 assert.match(presentationSkillSource, /chartDataValue[\s\S]*ChartPart cache[\s\S]*workbook cell/i);
 assert.match(presentationSkillSource, /diagramText[\s\S]*token-splicing[\s\S]*a:t/i);
 assert.match(presentationSkillSource, /does not authorize chart or diagram identity, relationships,[\s\S]*series or SmartArt topology/i);
+assert.match(presentationSkillSource, /svgEditCapability[\s\S]*getSvgEditLeaves[\s\S]*editSvgLeaf/i);
+assert.match(presentationSkillSource, /RGB fill\/stroke[\s\S]*opacity in `0\.\.1`[\s\S]*translate[\s\S]*scale[\s\S]*rotate/i);
+assert.match(presentationSkillSource, /reinspect before another edit[\s\S]*bound to the current\s+image bytes[\s\S]*imported package revision/i);
+assert.match(presentationSkillSource, /Stylesheets[\s\S]*external references[\s\S]*foreignObject[\s\S]*XML selectors[\s\S]*outside\s+this\s+capability/i);
+assert.match(presentationSkillSource, /reimport and verify[\s\S]*new-media footprint[\s\S]*byte-identical non-target parts[\s\S]*affected slide render/i);
 assert.match(templateFollowingSource, /presentation\.designProfile\(\{ maxItems: 64 \}\)[\s\S]*descriptive evidence[\s\S]*not permission to edit raw XML/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
