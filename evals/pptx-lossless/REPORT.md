@@ -1,7 +1,8 @@
 # OfficeKit PPTX lossless-editing evidence
 
-Status: scoped portable completion report. This report records the evidence at
-commit `85712fd5a56fcff193fc912f574e613396ddf13b`. The user has explicitly
+Status: ongoing scoped portable evidence report. The immutable source corpus
+and original no-op/edit-plan evidence were frozen at commit
+`85712fd5a56fcff193fc912f574e613396ddf13b`. The user has explicitly
 moved Windows PowerPoint out of this Goal; it remains a separately scheduled
 host lane and is not claimed here.
 
@@ -20,8 +21,8 @@ The authoritative inventories and source hashes are in
 | SmartArt canary | 13,258 | `bcb469d5b586f4fd8f562b918c8d9f04ef500cd6289728683c10ee2ced7be367` | 4 | 27 / 24 | 1 / 1 / 0 | 0 / 0 / 0 | 1 / 4 / 0 | 1 |
 
 The machine-readable source of truth is kept in
-`manifest.v1.json`, `evidence.v1.json`, `source-continuation-native.v1.json`,
-`source-agent-continuation.v1.json`, and
+`manifest.v1.json`, `evidence.v1.json`, `source-continuation.v2.json`,
+`source-continuation-native.v2.json`, `source-agent-continuation.v2.json`, and
 `source-component-reuse.v1.json`.
 
 ## What is proven
@@ -37,10 +38,13 @@ The machine-readable source of truth is kept in
   retained. SVG with
   active content or external references is reported as blocked rather than
   interpreted as safe editable content.
-- Each external deck has source-derived slide reuse followed by typed
-  continuation. Original pages remain pixel-identical in the available
-  LibreOffice/Poppler renderer, the appended page is non-blank, and the source
-  remains unchanged.
+- Each external deck has source-derived slide reuse followed by a bounded
+  textbox, basic-shape, and embedded-PNG overlay. Three clean runs per deck
+  produce identical raw PPTX bytes and mutation footprints after second
+  import. Original pages remain pixel-identical in the available
+  LibreOffice/Poppler renderer; the three continued pages change 32,423,
+  32,440, and 32,469 pixels relative to their pure clones. The source files
+  remain unchanged.
 - Each external deck has a passed atomic component batch using only codec-issued
   leaf IDs:
 
@@ -55,10 +59,11 @@ The machine-readable source of truth is kept in
   declared targets, and 36 edit runs passed exact no-op, second import,
   deterministic output/footprint, and package-oracle checks.
 
-- Three independent fresh-workspace Agent runs pass the bounded native-leaf
-  slice: one title edit, one subtitle edit, and one safe image-frame edit.
-  Each changes one SlidePart, preserves every non-target OPC part, reimports,
-  protects the source, and reports no new review issue.
+- Each external deck completes a three-session public REPL rehearsal: clone,
+  add, review, and `c0001`; resume the reviewed revision, re-inspect, edit, and
+  `c0002`; then resume again, verify the text, geometry, image, and continuation
+  capability, and publish. No session restores a JavaScript heap, and every
+  source remains unchanged.
 - A real three-session task proves SmartArt edit → review → commit → resume /
   re-inspect → SlidePart title edit → review → commit → resume / verify →
   publish. The resumed process rebuilds the node index from reviewed bytes;
