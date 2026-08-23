@@ -40,8 +40,8 @@ export const DEFAULT_MAX_EVENT_BYTES = 16_384;
 export const DEFAULT_MAX_JOURNAL_BYTES = 16_777_216;
 export const REPL_USAGE = [
   "Usage:",
-  "  officekit repl --new <goal> [--workspace <path>] [limits]",
-  "  officekit repl <task-id> [--workspace <path>] [limits]",
+  "  officekit repl --new <goal> [--workspace <path>] [--file <cell.mjs>] [limits]",
+  "  officekit repl <task-id> [--workspace <path>] [--file <cell.mjs>] [limits]",
   "",
   "Run a local JSONL JavaScript task with a persistent OfficeKit context.",
   "Each input line must contain {id, code}; stdout contains one JSON response per line.",
@@ -49,6 +49,7 @@ export const REPL_USAGE = [
   "Options:",
   "  --new <goal>              Create one durable task with a natural-language goal",
   "  --workspace <path>        Workspace root (default: nearest .office-kit, Git root, or cwd)",
+  "  --file <cell.mjs>          Execute one JavaScript cell from a regular UTF-8 file, then exit",
   "  --max-request-bytes <n>   Maximum request line size",
   "  --max-response-bytes <n>  Maximum serialized response size",
   "  --max-journal-bytes <n>   Maximum checkpoint journal size",
@@ -64,15 +65,23 @@ export async function runReplCommand(
     output.write(`${REPL_USAGE}\n`);
     return;
   }
+  const fileRequest = options.codeFile == null
+    ? null
+    : await readCodeFileRequest(options.codeFile, options.maxRequestBytes);
   const session = await createReplSession(options);
   let reader;
   try {
     await writeJsonLine(output, session.ready, options.maxResponseBytes);
-    reader = createInterface({ input, crlfDelay: Infinity });
-    for await (const line of reader) {
-      if (line.trim() === "") continue;
-      const response = await session.handleLine(line);
+    if (fileRequest != null) {
+      const response = await session.handleLine(fileRequest);
       await writeJsonLine(output, response, options.maxResponseBytes);
+    } else {
+      reader = createInterface({ input, crlfDelay: Infinity });
+      for await (const line of reader) {
+        if (line.trim() === "") continue;
+        const response = await session.handleLine(line);
+        await writeJsonLine(output, response, options.maxResponseBytes);
+      }
     }
   } finally {
     reader?.close();
@@ -345,6 +354,7 @@ async function executeCell(code, ctx, scopedConsole) {
 function parseReplArguments(args) {
   const options = {
     workspaceRoot: undefined,
+    codeFile: undefined,
     taskId: undefined,
     newTaskGoal: undefined,
     maxRequestBytes: DEFAULT_MAX_REQUEST_BYTES,
@@ -358,6 +368,8 @@ function parseReplArguments(args) {
     if (value === "--help" || value === "-h") options.help = true;
     else if (value === "--workspace") options.workspaceRoot = requiredOption(values, value);
     else if (value.startsWith("--workspace=")) options.workspaceRoot = value.slice(12);
+    else if (value === "--file") options.codeFile = requiredOption(values, value);
+    else if (value.startsWith("--file=")) options.codeFile = value.slice(7);
     else if (value === "--new") options.newTaskGoal = requiredOption(values, value);
     else if (value.startsWith("--new=")) options.newTaskGoal = value.slice(6);
     else if (value === "--max-request-bytes") options.maxRequestBytes = parsePositiveLimit(requiredOption(values, value), value);
@@ -371,6 +383,28 @@ function parseReplArguments(args) {
     else throw replError("invalid-argument", `Unexpected REPL argument: ${value}.`);
   }
   return options;
+}
+
+async function readCodeFileRequest(source, maximum) {
+  const target = path.resolve(source);
+  const descriptor = await lstat(target).catch((error) => {
+    if (error?.code === "ENOENT") throw replError("invalid-code-file", `REPL code file does not exist: ${target}`);
+    throw error;
+  });
+  if (descriptor.isSymbolicLink() || !descriptor.isFile()) {
+    throw replError("invalid-code-file", `REPL code file must be a regular non-symlink file: ${target}`);
+  }
+  if (descriptor.size > maximum) throw replError("request-too-large", `REPL code file exceeds ${maximum} bytes.`);
+  let code;
+  try {
+    code = new TextDecoder("utf-8", { fatal: true }).decode(await readFile(target));
+  } catch (error) {
+    throw replError("invalid-code-file", `REPL code file must contain valid UTF-8: ${error.message}`);
+  }
+  if (code.trim() === "") throw replError("invalid-code-file", "REPL code file must contain a non-empty JavaScript cell.");
+  const request = JSON.stringify({ id: "file", code });
+  if (Buffer.byteLength(request, "utf8") > maximum) throw replError("request-too-large", `REPL code-file request exceeds ${maximum} bytes.`);
+  return request;
 }
 
 async function resolveSessionOptions(options) {
