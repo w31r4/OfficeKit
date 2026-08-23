@@ -218,14 +218,21 @@ async function main() {
   await mkdir(runRoot, { recursive: true });
   const pack = await packCandidate(runRoot);
   const render = args["no-render"] !== true;
-  const targetRenderer = resolveAcceptanceRenderer(args["target-renderer"], render);
+  const rendererOverride = args["target-renderer"] === undefined
+    ? null
+    : resolveAcceptanceRenderer(args["target-renderer"], render);
   const repetitions = args.trials ? positiveInteger(args.trials, "trials") : definitions.trialsPerTask;
   const selectedTasks = args.task ? definitions.tasks.filter(({ id }) => id === args.task) : definitions.tasks;
   if (!selectedTasks.length) throw new Error(`Unknown --task ${args.task}`);
   const renderCache = path.join(runRoot, "render-cache");
   await mkdir(renderCache);
   const trials = [];
+  const targetRenderers = {};
   for (const task of selectedTasks) {
+    const targetRenderer = render
+      ? rendererOverride ?? resolveAcceptanceRenderer(task.acceptanceRenderer, true)
+      : null;
+    targetRenderers[task.id] = targetRenderer;
     const source = intents.sources.find(({ id }) => id === task.sourceId);
     if (!source) throw new Error(`${task.id}: unknown source ${task.sourceId}`);
     const sourcePath = path.join(assetsDir, source.fileName);
@@ -265,7 +272,8 @@ async function main() {
       npm: versionLine(process.platform === "win32" ? "npm.cmd" : "npm", ["--version"]),
       codex: versionLine(process.env.OFFICEKIT_CODEX_BIN || "codex", ["--version"]),
       render,
-      targetRenderer,
+      targetRenderer: rendererOverride ?? (render ? "task-defined" : null),
+      targetRenderers,
     },
     protocol: {
       freshCodexContextPerTrial: true,
@@ -370,7 +378,7 @@ async function runTrial({ runRoot, pack, definitionsPath, task, source, sourcePa
     if (render) {
       try {
         const outputRender = await renderAcceptancePages(outputPath, renderCache, sha256(outputBytes), targetRenderer);
-        checks.pixelOracle = compareContinuationRenderedPages(sourceRender, outputRender, task.targetPageAfterAppend);
+        checks.pixelOracle = compareContinuationRenderedPages(sourceRender, outputRender, task.targetPageAfterAppend, task.sourceSlide);
         checks.pixelOracle.renderer = targetRenderer;
       } catch (error) {
         checks.pixelOracle = { passed: false, reason: errorMessage(error) };
