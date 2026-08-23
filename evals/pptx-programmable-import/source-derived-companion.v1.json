@@ -1,0 +1,183 @@
+{
+  "schema": "office-kit/pptx-source-derived-companion-cases/v1",
+  "productBaseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "repetitionsPerCase": 3,
+  "requiredCoverage": [
+    "text",
+    "geometry",
+    "image",
+    "table",
+    "chart",
+    "component",
+    "add",
+    "delete",
+    "reorder"
+  ],
+  "sources": [
+    {
+      "id": "suanzhi-future-2026",
+      "kind": "real",
+      "fileName": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+      "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+      "slideCount": 21
+    },
+    {
+      "id": "blue-gray-acid-template",
+      "kind": "real",
+      "fileName": "template.pptx",
+      "sha256": "558ce85c0d64cd2a06faf88d6a4aa331e8cd4c685c59101c835ded2fbc87696d",
+      "slideCount": 19
+    },
+    {
+      "id": "mckinsey-customer-loyalty",
+      "kind": "real",
+      "fileName": "ppt169_麦肯锡风_kimsoong_customer_loyalty.pptx",
+      "sha256": "e0bfb89454f51c400ac03797c255aa93919328ff8dba36fe414e5bcfed0536c5",
+      "slideCount": 8
+    },
+    {
+      "id": "quarterly-board-controlled",
+      "kind": "controlled",
+      "repositoryPath": "evals/assets/presentations/quarterly-board-template.pptx",
+      "sha256": "c5b86ec479ff5e601cefc8291393645208c057d65234f9eca78c822c0e3152a7",
+      "slideCount": 8
+    }
+  ],
+  "cases": [
+    {
+      "id": "blue-clone-text",
+      "covers": ["text"],
+      "sourceId": "blue-gray-acid-template",
+      "sourceSlideOrdinal": 1,
+      "operation": {
+        "kind": "native-leaf",
+        "targetElementOrdinal": 6,
+        "leafKind": "text",
+        "textLeafIndex": 0,
+        "before": "单击此处添加副标题内容",
+        "after": "OfficeKit 续写验收"
+      },
+      "packageProfile": "clone-slide-token"
+    },
+    {
+      "id": "blue-clone-geometry",
+      "covers": ["geometry"],
+      "sourceId": "blue-gray-acid-template",
+      "sourceSlideOrdinal": 1,
+      "operation": {
+        "kind": "native-leaf",
+        "targetElementOrdinal": 6,
+        "leafKind": "leftEmu",
+        "before": 1176655,
+        "after": 1271905
+      },
+      "packageProfile": "clone-slide-token"
+    },
+    {
+      "id": "controlled-clone-image",
+      "covers": ["image"],
+      "sourceId": "quarterly-board-controlled",
+      "sourceSlideOrdinal": 8,
+      "operation": {
+        "kind": "replace-image",
+        "name": "product-image-target",
+        "fit": "cover",
+        "crop": {
+          "left": 0.08,
+          "top": 0.06,
+          "right": 0.04,
+          "bottom": 0.02
+        }
+      },
+      "packageProfile": "clone-image-copy-on-write"
+    },
+    {
+      "id": "controlled-clone-table",
+      "covers": ["table"],
+      "sourceId": "quarterly-board-controlled",
+      "sourceSlideOrdinal": 5,
+      "operation": {
+        "kind": "table-cell",
+        "name": "board-metrics-table",
+        "row": 1,
+        "column": 2,
+        "before": "130",
+        "after": "138"
+      },
+      "packageProfile": "clone-slide-token"
+    },
+    {
+      "id": "suanzhi-clone-chart-data",
+      "covers": ["chart"],
+      "sourceId": "suanzhi-future-2026",
+      "sourceSlideOrdinal": 20,
+      "operation": {
+        "kind": "native-leaf",
+        "targetElementOrdinal": 26,
+        "leafKind": "chartDataValue",
+        "seriesIndex": 1,
+        "pointIndex": 0,
+        "before": 23,
+        "after": 24
+      },
+      "packageProfile": "clone-chart-data"
+    },
+    {
+      "id": "blue-component-text",
+      "covers": ["component"],
+      "sourceId": "blue-gray-acid-template",
+      "operation": {
+        "kind": "component-text",
+        "candidateId": "pc_5fe2b72b5a8b7dd6571db5ec26c0b8ca",
+        "occurrenceIndex": 0,
+        "suffix": " · continued"
+      },
+      "packageProfile": "component-slide-token"
+    },
+    {
+      "id": "mckinsey-clone-delete-image",
+      "covers": ["delete"],
+      "sourceId": "mckinsey-customer-loyalty",
+      "sourceSlideOrdinal": 1,
+      "operation": {
+        "kind": "delete-image",
+        "imageIndex": 0
+      },
+      "packageProfile": "clone-image-delete"
+    },
+    {
+      "id": "blue-clone-reorder",
+      "covers": ["reorder"],
+      "sourceId": "blue-gray-acid-template",
+      "sourceSlideOrdinal": 1,
+      "operation": {
+        "kind": "slide-reorder",
+        "destinationIndex": 1
+      },
+      "packageProfile": "presentation-slide-order"
+    }
+  ],
+  "existingEvidence": [
+    {
+      "covers": ["add"],
+      "path": "evals/pptx-lossless/source-continuation.v2.json",
+      "schema": "office-kit/pptx-source-continuation-evidence/v2",
+      "requiredSourceIds": [
+        "suanzhi-future-2026",
+        "blue-gray-acid-template",
+        "mckinsey-customer-loyalty"
+      ],
+      "requiredRepetitions": 3
+    }
+  ],
+  "notApplicable": [
+    {
+      "capability": "imported-element-z-order",
+      "reason": "V1 reorders slides only; no capability-issued public API reorders imported shape-tree elements."
+    },
+    {
+      "capability": "source-bound-table-chart-component-add",
+      "reason": "V1 authored overlays add only textbox, rect, roundRect, ellipse, and embedded rectangular images; other source-bound topology remains fail closed."
+    }
+  ]
+}
