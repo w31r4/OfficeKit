@@ -212,6 +212,20 @@ the complete ownership-tree snapshot and every dependent part hash, so any
 concurrent unissued change must reject. A coordinated move/resize uses one
 issued call per geometry leaf and one export; the compiler sorts them into a
 deterministic Edit Plan.
+
+For a bounded base64 SVG picture, inspect `image.svgEditCapability` and select
+an exact record from `image.getSvgEditLeaves()`. The issued leaves cover only
+direct RGB fill/stroke attributes, opacity in `0..1`, and one scalar already
+present in a simple `translate`, `scale`, or `rotate` transform. Apply one leaf
+with `image.editSvgLeaf(leaf.id, { expectedHash: leaf.expectedHash, value })`,
+then reinspect before another edit because every leaf is bound to the current
+image bytes, owning object, and imported package revision. Stylesheets,
+classes, scripts, events, external references, DTD, `foreignObject`, compound
+transform topology, XML selectors, and arbitrary attributes are outside this
+capability. After export, reimport and verify the intended leaf, the declared
+SlidePart/relationship/new-media footprint, byte-identical non-target parts,
+and the affected slide render.
+
 When `presentation.inspect({ includeComponentCandidates: true })` reports a
 repeated component occurrence with `editCapability.supported: true`, you may
 batch several of its issued leaves with
