@@ -6,17 +6,17 @@
 
 ## 2. Durable authoring plan
 
-- [ ] 2.1 Implement the canonical `office-kit/presentation-authoring-plan/v1` validator, size and page limits, stable JSON encoding, and SHA-256 descriptors.
-- [ ] 2.2 Add immutable private `plans/` storage, idempotent writes, exact `expectedSha256` stale-write protection, and artifact-reference validation.
-- [ ] 2.3 Upgrade task manifests to schema 2 with read-only schema-1 compatibility and mutate-time lossless migration.
+- [x] 2.1 Implement the canonical `office-kit/presentation-authoring-plan/v1` validator, size and page limits, stable JSON encoding, and SHA-256 descriptors.
+- [x] 2.2 Add immutable private `plans/` storage, idempotent writes, exact `expectedSha256` stale-write protection, and artifact-reference validation.
+- [x] 2.3 Upgrade task manifests to schema 2 with read-only schema-1 compatibility and mutate-time lossless migration.
 - [ ] 2.4 Bind each artifact commit to the active plan revision and block publication after the plan changes until a new reviewed artifact commit is made.
 - [ ] 2.5 Add task-store tests for plan validation, limits, hashes, atomic writes, idempotency, stale updates, migration, review binding, and publish blocking.
 
 ## 3. REPL and task user surface
 
-- [ ] 3.1 Upgrade the REPL protocol to 3 and add `ctx.plan()` read/write behavior without loading presentation runtimes.
-- [ ] 3.2 Expose compact plan descriptors through `ctx.task.plan` and `session.ready.task.plan` while keeping full plan bodies behind `ctx.plan()`.
-- [ ] 3.3 Extend `officekit tasks <id>` and resume summaries with mode, page count, recipe, plan state, hash, next action, and pending review information.
+- [x] 3.1 Upgrade the REPL protocol to 3 and add `ctx.plan()` read/write behavior without loading presentation runtimes.
+- [x] 3.2 Expose compact plan descriptors through `ctx.task.plan` and `session.ready.task.plan` while keeping full plan bodies behind `ctx.plan()`.
+- [x] 3.3 Extend `officekit tasks <id>` and resume summaries with mode, page count, recipe, plan state, hash, next action, and pending review information.
 - [ ] 3.4 Update REPL, task, clean-install, and lazy-root tests for schema-1 compatibility and schema-2 authoring plans.
 
 ## 4. Presentation authoring review

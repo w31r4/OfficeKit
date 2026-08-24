@@ -87,6 +87,11 @@ export function formatTaskDetail(result) {
     lines.push("", "Artifacts");
     for (const artifact of task.artifacts) lines.push(`  ${artifact.name} · ${artifact.kind}${artifact.headRevision ? ` · ${artifact.headRevision.sha256.slice(0, 12)}` : " · no commit"}`);
   }
+  if (task.plan) {
+    lines.push("", "Plan");
+    lines.push(`  ${task.plan.mode} · ${task.plan.pageCount} page${task.plan.pageCount === 1 ? "" : "s"} · ${task.plan.recipe}`);
+    lines.push(`  ${task.plan.state} · ${task.plan.sha256.slice(0, 12)} · ${formatBytes(task.plan.bytes)}`);
+  }
   lines.push("", "Head");
   lines.push(task.head
     ? `  ${task.head.id} · ${task.head.reviewVerdict} · visual ${task.head.visualReview}\n  ${task.head.summary}`

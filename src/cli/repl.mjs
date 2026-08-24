@@ -28,12 +28,14 @@ import {
   createTask,
   openTask,
   recordTaskPublication,
+  readTaskPlan,
   resolveCommittedArtifact,
   stageTaskInput,
   summarizeTask,
+  writeTaskPlan,
 } from "./task-store.mjs";
 
-export const REPL_PROTOCOL_VERSION = 2;
+export const REPL_PROTOCOL_VERSION = 3;
 export const DEFAULT_MAX_REQUEST_BYTES = 1_048_576;
 export const DEFAULT_MAX_RESPONSE_BYTES = 8_388_608;
 export const DEFAULT_MAX_EVENT_BYTES = 16_384;
@@ -158,6 +160,14 @@ export async function createReplSession(options = {}) {
       const descriptor = await stageTaskInput(task, sourcePath, inputOptions);
       ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
       return descriptor;
+    },
+    plan: async (...args) => {
+      if (args.length === 0) return readTaskPlan(task);
+      try {
+        return await writeTaskPlan(task, args[0], args[1] ?? {});
+      } finally {
+        ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+      }
     },
     commit: async (value, commitOptions = {}) => {
       try {

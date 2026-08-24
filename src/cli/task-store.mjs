@@ -14,8 +14,15 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import {
+  MAX_AUTHORING_PLAN_BYTES,
+  PRESENTATION_AUTHORING_PLAN_SCHEMA,
+  authoringPlanDescriptor,
+  normalizePresentationAuthoringPlan,
+} from "./authoring-plan.mjs";
 
-export const TASK_SCHEMA_VERSION = 1;
+export const TASK_SCHEMA_VERSION = 2;
+export const LEGACY_TASK_SCHEMA_VERSION = 1;
 export const DEFAULT_TASK_LIST_LIMIT = 5;
 export const DEFAULT_MAX_TASK_MANIFEST_BYTES = 1_048_576;
 export const DEFAULT_MAX_TASK_ARTIFACT_BYTES = 536_870_912;
@@ -73,7 +80,7 @@ export async function createTask({ workspaceRoot, goal, now = new Date() }) {
     }
   }
   await privateMode(taskRoot, 0o700);
-  for (const directory of ["inputs", "revisions", "candidates", "evidence", "operations", "sessions"]) {
+  for (const directory of ["inputs", "revisions", "candidates", "evidence", "operations", "plans", "sessions"]) {
     await ensurePrivateDirectory(path.join(taskRoot, directory), taskRoot);
   }
   const timestamp = now.toISOString();
@@ -91,6 +98,7 @@ export async function createTask({ workspaceRoot, goal, now = new Date() }) {
     pending: [],
     publications: [],
     lastSessionId: null,
+    plan: null,
   };
   await writeTaskManifest(taskRoot, manifest);
   return { workspaceRoot: workspace, taskRoot, manifest };
@@ -249,7 +257,7 @@ export async function beginTaskSession(opened, { sessionId, now = new Date() }) 
     sessionId,
     sessionRoot,
     ready: {
-      protocol: 2,
+      protocol: 3,
       type: "session.ready",
       task: summarizeTask(manifest, { detailed: true }),
       resumedFrom: headCommit ? {
@@ -345,6 +353,58 @@ export async function stageTaskInput(task, sourcePath, options = {}) {
   return artifactDescriptor(artifact, task.taskRoot);
 }
 
+export async function readTaskPlan(task) {
+  const descriptor = task.manifest.plan;
+  if (descriptor == null) return null;
+  validateStoredPlanDescriptor(descriptor);
+  const target = resolveManagedFile(task.taskRoot, descriptor.path, "authoring plan");
+  const bytes = await readRegularBounded(target, MAX_AUTHORING_PLAN_BYTES, "Authoring plan");
+  if (bytes.byteLength !== descriptor.bytes || sha256(bytes) !== descriptor.sha256) {
+    throw taskError("authoring-plan-corrupt", "Authoring plan bytes do not match the task manifest.");
+  }
+  let value;
+  try { value = JSON.parse(bytes.toString("utf8")); }
+  catch (error) { throw taskError("authoring-plan-corrupt", `Authoring plan is not valid JSON: ${boundedError(error)}`); }
+  const normalized = normalizePresentationAuthoringPlan(value);
+  if (normalized.sha256 !== descriptor.sha256 || normalized.plan.mode !== descriptor.mode ||
+      normalized.pageCount !== descriptor.pageCount || normalized.plan.recipe !== descriptor.recipe) {
+    throw taskError("authoring-plan-corrupt", "Authoring plan content does not match its manifest descriptor.");
+  }
+  validatePlanArtifactBindings(normalized.plan, task.manifest);
+  return structuredClone(normalized.plan);
+}
+
+export async function writeTaskPlan(task, value, { expectedSha256, now = new Date() } = {}) {
+  const normalized = normalizePresentationAuthoringPlan(value);
+  validatePlanArtifactBindings(normalized.plan, task.manifest);
+  const current = task.manifest.plan;
+  if (current != null) {
+    if (expectedSha256 !== current.sha256) {
+      throw taskError("stale-authoring-plan", "Updating an authoring plan requires its exact current SHA-256.", {
+        expectedSha256: current.sha256,
+      });
+    }
+    if (normalized.sha256 === current.sha256) {
+      await readTaskPlan(task);
+      return Object.freeze({ ...planDescriptorForManifest(task.manifest), unchanged: true });
+    }
+  } else if (expectedSha256 != null) {
+    throw taskError("stale-authoring-plan", "The task has no authoring plan to match expectedSha256.");
+  }
+  const relative = toPosix(path.join("plans", `${normalized.sha256}.json`));
+  const target = path.join(task.taskRoot, relative);
+  await ensurePrivateDirectory(path.dirname(target), task.taskRoot);
+  await writeImmutable(target, normalized.bytes, 0o400, { allowIdentical: true });
+  task.manifest.plan = {
+    ...authoringPlanDescriptor(normalized, { path: relative }),
+  };
+  delete task.manifest.plan.state;
+  if (normalized.plan.nextAction != null) task.manifest.next = normalized.plan.nextAction;
+  task.manifest.updatedAt = now.toISOString();
+  await writeTaskManifest(task.taskRoot, task.manifest);
+  return Object.freeze({ ...planDescriptorForManifest(task.manifest), unchanged: false });
+}
+
 export async function commitTaskArtifact(task, value, options = {}) {
   const bytes = await readArtifactBytes(value, options.maxBytes);
   const digest = sha256(bytes);
@@ -358,6 +418,12 @@ export async function commitTaskArtifact(task, value, options = {}) {
     ? null
     : normalizeConstraints(options.constraints);
   const kind = normalizeKind(options.kind ?? review.artifactKind, options.name, options.mime);
+  if (task.manifest.plan && kind === "presentation" && review.design?.planSha256 !== task.manifest.plan.sha256) {
+    throw taskError("stale-authoring-plan-review", "Presentation review must be bound to the active authoring plan SHA-256.", {
+      expectedPlanSha256: task.manifest.plan.sha256,
+      reviewPlanSha256: review.design?.planSha256 ?? null,
+    });
+  }
   if (!artifact) {
     artifact = {
       id: artifactId,
@@ -407,6 +473,7 @@ export async function commitTaskArtifact(task, value, options = {}) {
     committedAt,
     heads,
     review: revisionReview,
+    plan: task.manifest.plan ? structuredClone(task.manifest.plan) : null,
     ...(operation ? { operation } : {}),
   };
   task.manifest.commits.push(commit);
@@ -432,6 +499,9 @@ export async function resolveCommittedArtifact(task, descriptor, requestedArtifa
   }
   validateArtifactId(requestedArtifactId);
   const commit = task.manifest.commits.find((entry) => entry.id === descriptor.commitId);
+  if (task.manifest.plan && commit?.plan?.sha256 !== task.manifest.plan.sha256) {
+    throw taskError("unreviewed-authoring-plan", "The active authoring plan is newer than the current reviewed artifact commit.");
+  }
   if (commit?.heads?.[descriptor.artifactId]?.sha256 !== descriptor.revisionSha256) {
     throw taskError("invalid-commit", "Commit descriptor does not match the reviewed task commit.");
   }
@@ -476,6 +546,7 @@ export function summarizeTask(manifest, { detailed = false } = {}) {
       visualReview: headCommit.review.visualReview,
       committedAt: headCommit.committedAt,
     } : null,
+    plan: planDescriptorForManifest(manifest),
     state,
     updatedAt: manifest.updatedAt,
   };
@@ -516,8 +587,71 @@ function createCommitDescriptor(manifest, commit) {
     reviewVerdict: commit.review.verdict,
     visualReview: commit.review.visualReview,
     operation: commit.operation ? structuredClone(commit.operation) : null,
+    plan: commit.plan ? Object.freeze({ ...commit.plan, state: "reviewed" }) : null,
     artifacts: Object.entries(commit.heads).map(([artifactId, revision]) => ({ artifactId, sha256: revision.sha256 })),
   };
+}
+
+function planDescriptorForManifest(manifest) {
+  if (manifest.plan == null) return null;
+  const headCommit = manifest.head
+    ? manifest.commits.find((commit) => commit.id === manifest.head.commitId)
+    : null;
+  return Object.freeze({
+    ...structuredClone(manifest.plan),
+    state: headCommit?.plan?.sha256 === manifest.plan.sha256 ? "reviewed" : "working",
+  });
+}
+
+function validateStoredPlanDescriptor(descriptor) {
+  if (!descriptor || descriptor.schema !== PRESENTATION_AUTHORING_PLAN_SCHEMA ||
+      typeof descriptor.mode !== "string" || descriptor.mode.length === 0 || descriptor.mode.length > 64 ||
+      !Number.isSafeInteger(descriptor.pageCount) || descriptor.pageCount <= 0 || descriptor.pageCount > 64 ||
+      typeof descriptor.recipe !== "string" || descriptor.recipe.length === 0 || descriptor.recipe.length > 160 ||
+      !isSha(descriptor.sha256) || !Number.isSafeInteger(descriptor.bytes) || descriptor.bytes <= 0 || descriptor.bytes > MAX_AUTHORING_PLAN_BYTES ||
+      typeof descriptor.path !== "string") {
+    throw taskError("invalid-task", "Task authoring-plan descriptor is invalid.");
+  }
+}
+
+function validatePlanArtifactBindings(plan, manifest) {
+  const available = new Map();
+  for (const artifact of manifest.artifacts) {
+    const hashes = new Set();
+    if (artifact.source?.sha256) hashes.add(artifact.source.sha256);
+    if (artifact.headRevision?.sha256) hashes.add(artifact.headRevision.sha256);
+    for (const commit of manifest.commits) {
+      const revision = commit.heads?.[artifact.id];
+      if (revision?.sha256) hashes.add(revision.sha256);
+    }
+    available.set(artifact.id, hashes);
+  }
+  for (const ref of plan.artifactRefs ?? []) {
+    if (!available.get(ref.artifactId)?.has(ref.sha256)) {
+      throw taskError("unbound-authoring-plan-reference", `Authoring plan reference ${ref.artifactId}@${ref.sha256} is not a task artifact revision.`);
+    }
+  }
+}
+
+async function validateTaskPlanFiles(manifest, taskRoot) {
+  const descriptors = new Map();
+  if (manifest.plan) descriptors.set(manifest.plan.sha256, manifest.plan);
+  for (const commit of manifest.commits) {
+    if (commit.plan) descriptors.set(commit.plan.sha256, commit.plan);
+  }
+  for (const descriptor of descriptors.values()) {
+    const target = resolveManagedFile(taskRoot, descriptor.path, "authoring plan");
+    const bytes = await readRegularBounded(target, MAX_AUTHORING_PLAN_BYTES, "Authoring plan");
+    if (bytes.byteLength !== descriptor.bytes || sha256(bytes) !== descriptor.sha256) {
+      throw taskError("authoring-plan-corrupt", "Authoring plan hash verification failed.");
+    }
+    let value;
+    try { value = JSON.parse(bytes.toString("utf8")); }
+    catch (error) { throw taskError("authoring-plan-corrupt", `Authoring plan is not valid JSON: ${boundedError(error)}`); }
+    const normalized = normalizePresentationAuthoringPlan(value);
+    if (normalized.sha256 !== descriptor.sha256) throw taskError("authoring-plan-corrupt", "Authoring plan canonical hash verification failed.");
+    validatePlanArtifactBindings(normalized.plan, manifest);
+  }
 }
 
 async function ensureTaskStore(workspaceRoot) {
@@ -554,10 +688,11 @@ async function readTaskManifest(taskRoot, expectedId) {
   let manifest;
   try { manifest = JSON.parse(bytes.toString("utf8")); }
   catch (error) { throw taskError("invalid-task", `Task manifest is not valid JSON: ${error.message}`); }
-  validateTaskManifest(manifest, expectedId);
-  validateTaskPaths(manifest, taskRoot);
-  await validateTaskOperationFiles(manifest, taskRoot);
-  return manifest;
+  const normalized = normalizeTaskManifestForRead(manifest, expectedId);
+  validateTaskPaths(normalized, taskRoot);
+  await validateTaskOperationFiles(normalized, taskRoot);
+  await validateTaskPlanFiles(normalized, taskRoot);
+  return normalized;
 }
 
 async function writeTaskManifest(taskRoot, manifest) {
@@ -577,6 +712,7 @@ function validateTaskManifest(manifest, expectedId) {
   }
   normalizeConstraints(manifest.constraints);
   if (typeof manifest.createdAt !== "string" || typeof manifest.updatedAt !== "string") throw taskError("invalid-task", "Task timestamps are invalid.");
+  if (manifest.plan != null) validateStoredPlanDescriptor(manifest.plan);
   const artifactIds = new Set();
   for (const artifact of manifest.artifacts) {
     validateArtifactId(artifact?.id);
@@ -591,10 +727,29 @@ function validateTaskManifest(manifest, expectedId) {
     if (!/^c\d{4,}$/u.test(commit?.id) || commitIds.has(commit.id) || !artifactIds.has(commit.artifactId)) throw taskError("invalid-task", "Task commit metadata is invalid.");
     commitIds.add(commit.id);
     if (commit.operation) validateTaskOperationSummary(commit.operation);
+    if (commit.plan != null) validateStoredPlanDescriptor(commit.plan);
+    if (commit.review?.planSha256 != null && commit.review.planSha256 !== commit.plan?.sha256) {
+      throw taskError("invalid-task", "Task commit review and authoring-plan bindings do not match.");
+    }
   }
   if (manifest.head && (!commitIds.has(manifest.head.commitId) || !artifactIds.has(manifest.head.artifactId) || !isSha(manifest.head.revisionSha256))) {
     throw taskError("invalid-task", "Task HEAD is invalid.");
   }
+  return manifest;
+}
+
+function normalizeTaskManifestForRead(manifest, expectedId) {
+  if (manifest?.schemaVersion === LEGACY_TASK_SCHEMA_VERSION) {
+    const normalized = structuredClone(manifest);
+    normalized.schemaVersion = TASK_SCHEMA_VERSION;
+    normalized.plan = null;
+    for (const commit of normalized.commits ?? []) {
+      if (!("plan" in commit)) commit.plan = null;
+    }
+    validateTaskManifest(normalized, expectedId);
+    return normalized;
+  }
+  validateTaskManifest(manifest, expectedId);
   return manifest;
 }
 
@@ -616,7 +771,9 @@ function validateTaskPaths(manifest, taskRoot) {
     }
     validateRelativePrefix(commit.review?.evidence?.path, "evidence/reviews/", taskRoot, "review evidence");
     if (commit.operation) validateRelativePrefix(commit.operation.path, "operations/", taskRoot, "operation record");
+    if (commit.plan) validateRelativePrefix(commit.plan.path, "plans/", taskRoot, "authoring plan");
   }
+  if (manifest.plan) validateRelativePrefix(manifest.plan.path, "plans/", taskRoot, "authoring plan");
   for (const pending of manifest.pending) {
     if (pending.path != null) validateRelativePrefix(pending.path, "candidates/", taskRoot, "candidate");
     if (pending.review?.evidence?.path != null) validateRelativePrefix(pending.review.evidence.path, "evidence/reviews/", taskRoot, "review evidence");
@@ -698,6 +855,7 @@ function reviewSummary(review, evidence) {
     format: review.format,
     visualReview: review.visualReview,
     contentView: review.contentView?.requested ? review.contentView.status : "not-requested",
+    planSha256: review.design?.planSha256 ?? null,
     deliverySha256: review.delivery.sha256,
     limitations: [...new Set(limitations)],
     evidence,
@@ -719,6 +877,7 @@ function artifactDescriptor(artifact, taskRoot) {
 
 function deriveTaskState(manifest) {
   if (manifest.pending.length > 0) return "attention";
+  if (manifest.plan && planDescriptorForManifest(manifest).state === "working") return "working";
   if (manifest.publications.length > 0) return "published";
   if (manifest.head) return "stable";
   return "new";
@@ -732,6 +891,7 @@ function taskStorageBytes(manifest) {
   }
   for (const pending of manifest.pending) total += pending.bytes ?? 0;
   for (const commit of manifest.commits) total += commit.operation?.bytes ?? 0;
+  total += manifest.plan?.bytes ?? 0;
   return total;
 }
 

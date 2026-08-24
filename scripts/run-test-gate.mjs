@@ -120,6 +120,7 @@ const slowSteps = [
   nodeStep("test/template-creator.mjs"),
   nodeStep("test/office-kit-skill.mjs"),
   nodeStep("test/officekit-cli.mjs"),
+  nodeStep("test/presentation-authoring-plan.mjs"),
   nodeStep("test/officekit-tasks.mjs"),
   nodeStep("test/officekit-repl.mjs"),
   nodeStep("test/officekit-repl-interrupted-write.mjs"),
