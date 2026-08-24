@@ -332,6 +332,47 @@ const foregroundB = backgroundLayoutSlide.shapes.add({
 const backgroundLayoutIssues = backgroundLayoutSlide.validateLayout().issues.filter((issue) => issue.type === "overlap");
 assert.equal(backgroundLayoutIssues.some((issue) => issue.ids.includes(backgroundShape.id)), false);
 assert.equal(backgroundLayoutIssues.some((issue) => issue.ids.includes(foregroundA.id) && issue.ids.includes(foregroundB.id)), true);
+const panelLayoutDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const panelLayoutSlide = panelLayoutDeck.slides.add({ name: "Container background overlap" });
+const panelBackground = panelLayoutSlide.shapes.add({
+  name: "metric-panel",
+  position: { left: 40, top: 40, width: 280, height: 220 },
+  geometry: "roundRect",
+  fill: "#FFFFFF",
+  line: { fill: "transparent", width: 0, style: "none" },
+});
+const panelLabel = panelLayoutSlide.shapes.add({
+  name: "metric-label",
+  position: { left: 64, top: 64, width: 160, height: 28 },
+  text: "REVENUE",
+});
+const panelValue = panelLayoutSlide.shapes.add({
+  name: "metric-value",
+  position: { left: 64, top: 112, width: 180, height: 64 },
+  text: "$12.4M",
+});
+assert.equal(panelLayoutSlide.validateLayout().issues.some((issue) => issue.type === "overlap" && issue.ids.includes(panelBackground.id)), false);
+const panelTrack = panelLayoutSlide.shapes.add({
+  name: "metric-track",
+  position: { left: 64, top: 208, width: 220, height: 8 },
+  geometry: "roundRect",
+  fill: "#CBD5E1",
+  line: { fill: "transparent", width: 0, style: "none" },
+});
+const panelTrackDot = panelLayoutSlide.shapes.add({
+  name: "metric-track-dot",
+  position: { left: 150, top: 191, width: 42, height: 42 },
+  geometry: "ellipse",
+  fill: "#2563EB",
+  line: { fill: "transparent", width: 0, style: "none" },
+});
+assert.equal(panelLayoutSlide.validateLayout().issues.some((issue) => issue.type === "overlap" && issue.ids.includes(panelTrack.id) && issue.ids.includes(panelTrackDot.id)), false);
+const outsidePanelText = panelLayoutSlide.shapes.add({
+  name: "outside-panel-text",
+  position: { left: 260, top: 180, width: 160, height: 80 },
+  text: "Outside",
+});
+assert.equal(panelLayoutSlide.validateLayout().issues.some((issue) => issue.type === "overlap" && issue.ids.includes(panelBackground.id) && issue.ids.includes(outsidePanelText.id)), true);
 const unsupportedThemePresentation = Presentation.create({ theme: { colors: { accent1: "#FF0000" } } });
 unsupportedThemePresentation.slides.add().shapes.add({ text: "Theme model only" });
 await assert.rejects(

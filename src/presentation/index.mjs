@@ -1215,6 +1215,46 @@ function coversSlideBackground(frame, slideFrame, minimumCoverage = 0.8) {
   return slideArea > 0 && overlapArea(frame, slideFrame) / slideArea >= minimumCoverage;
 }
 
+function containsFrame(container, child, tolerance = 0.5) {
+  return container.left <= child.left + tolerance
+    && container.top <= child.top + tolerance
+    && container.left + container.width >= child.left + child.width - tolerance
+    && container.top + container.height >= child.top + child.height - tolerance;
+}
+
+function isFilledContainerBackground(element, frame, elements) {
+  if (!element || typeof element !== "object" || !frame) return false;
+  if (typeof element.text?.value === "string" && element.text.value.trim() !== "") return false;
+  const fill = String(element.fill || "").trim().toLowerCase();
+  if (!fill || fill === "transparent" || fill === "none") return false;
+  if (!["rect", "roundRect", "ellipse"].includes(element.geometry)) return false;
+  const containedChildren = elements.filter((candidate) => {
+    if (candidate === element) return false;
+    const childFrame = elementFrame(candidate);
+    return childFrame && containsFrame(frame, childFrame);
+  });
+  return containedChildren.length >= 1 || isLineLikeFrame(frame);
+}
+
+function isLineLikeFrame(frame) {
+  return frame.width >= frame.height * 8 || frame.height >= frame.width * 8;
+}
+
+function overlapsLineLikeContainer(container, child) {
+  if (!isLineLikeFrame(container)) return false;
+  if (container.width >= container.height * 8) {
+    const childCenter = child.left + child.width / 2;
+    return childCenter >= container.left && childCenter <= container.left + container.width;
+  }
+  const childCenter = child.top + child.height / 2;
+  return childCenter >= container.top && childCenter <= container.top + container.height;
+}
+
+function isAllowedContainerOverlap(left, leftFrame, right, rightFrame, containers) {
+  return (containers.has(left) && (containsFrame(leftFrame, rightFrame) || overlapsLineLikeContainer(leftFrame, rightFrame)))
+    || (containers.has(right) && (containsFrame(rightFrame, leftFrame) || overlapsLineLikeContainer(rightFrame, leftFrame)));
+}
+
 function textOverflowIssue(slide, element, frame, measurementFrame = frame) {
   const text = element.text?.value || "";
   if (!text) return undefined;
@@ -1625,6 +1665,10 @@ export class Slide {
       const frame = elementFrame(element);
       return frame && coversSlideBackground(frame, slideFrame, backgroundCoverage);
     }));
+    const containerBackgrounds = new Set(elements.filter((element) => {
+      const frame = elementFrame(element);
+      return isFilledContainerBackground(element, frame, elements);
+    }));
     for (const element of elements) {
       const frame = elementFrame(element);
       if (!frame) continue;
@@ -1660,6 +1704,7 @@ export class Slide {
         const leftFrame = elementFrame(left);
         const rightFrame = elementFrame(right);
         if (!leftFrame || !rightFrame) continue;
+        if (isAllowedContainerOverlap(left, leftFrame, right, rightFrame, containerBackgrounds)) continue;
         const area = overlapArea(leftFrame, rightFrame);
         if (area >= minOverlapArea) {
           issues.push({
