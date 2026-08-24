@@ -9,8 +9,8 @@
 - [x] 2.1 Implement the canonical `office-kit/presentation-authoring-plan/v1` validator, size and page limits, stable JSON encoding, and SHA-256 descriptors.
 - [x] 2.2 Add immutable private `plans/` storage, idempotent writes, exact `expectedSha256` stale-write protection, and artifact-reference validation.
 - [x] 2.3 Upgrade task manifests to schema 2 with read-only schema-1 compatibility and mutate-time lossless migration.
-- [ ] 2.4 Bind each artifact commit to the active plan revision and block publication after the plan changes until a new reviewed artifact commit is made.
-- [ ] 2.5 Add task-store tests for plan validation, limits, hashes, atomic writes, idempotency, stale updates, migration, review binding, and publish blocking.
+- [x] 2.4 Bind each artifact commit to the active plan revision and block publication after the plan changes until a new reviewed artifact commit is made.
+- [x] 2.5 Add task-store tests for plan validation, limits, hashes, atomic writes, idempotency, stale updates, migration, review binding, and publish blocking.
 
 ## 3. REPL and task user surface
 
@@ -21,11 +21,11 @@
 
 ## 4. Presentation authoring review
 
-- [ ] 4.1 Extend `reviewArtifact()` with optional `authoringPlan` and `changedPageIds` inputs and a deterministic `design` report section containing the plan hash.
-- [ ] 4.2 Implement blocking checks for page count, required unresolved items, strict color/font constraints, content budgets, and invalid changed-page scope.
-- [ ] 4.3 Implement bounded warnings for repeated composition, density jumps, card-wall patterns, repeated title syntax, and design drift without claiming aesthetic judgment.
-- [ ] 4.4 Verify local edits keep non-target pages stable, preserve honest `visualReview: unavailable`, and keep AnyDoc limited to declared content-coverage gaps.
-- [ ] 4.5 Add review tests for invariant failures, heuristic warnings, plan/commit revision mismatches, local-edit drift, and no-vision behavior.
+- [x] 4.1 Extend `reviewArtifact()` with optional `authoringPlan` and `changedPageIds` inputs and a deterministic `design` report section containing the plan hash.
+- [x] 4.2 Implement blocking checks for page count, required unresolved items, strict color/font constraints, content budgets, and invalid changed-page scope.
+- [x] 4.3 Implement bounded warnings for repeated composition, density jumps, card-wall patterns, repeated title syntax, and design drift without claiming aesthetic judgment.
+- [x] 4.4 Verify local edits keep non-target pages stable, preserve honest `visualReview: unavailable`, and keep AnyDoc limited to declared content-coverage gaps.
+- [x] 4.5 Add review tests for invariant failures, heuristic warnings, plan/commit revision mismatches, local-edit drift, and no-vision behavior.
 
 ## 5. Progressive Presentation Skill
 

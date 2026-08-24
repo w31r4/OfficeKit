@@ -844,7 +844,7 @@ function reviewSummary(review, evidence) {
   if (review.verdict === "passed-with-limitations") {
     if (review.visualReview !== "complete") limitations.push(`visualReview:${review.visualReview}`);
     if (review.contentView?.requested && review.contentView.status !== "ready") limitations.push(`contentView:${review.contentView.status}`);
-    for (const section of ["semantic", "structural", "layout", "delivery"]) {
+    for (const section of ["semantic", "structural", "layout", "design", "delivery"]) {
       const status = review[section]?.status;
       if (status && !new Set(["passed", "ready"]).has(status)) limitations.push(`${section}:${status}`);
     }

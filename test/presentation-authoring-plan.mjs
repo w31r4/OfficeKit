@@ -18,6 +18,8 @@ import {
 } from "../src/cli/task-store.mjs";
 import { formatTaskDetail } from "../src/cli/tasks.mjs";
 import { createReplSession } from "../src/cli/repl.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
+import { reviewArtifact } from "../src/review/index.mjs";
 
 function validPlan(overrides = {}) {
   return {
@@ -183,5 +185,70 @@ assert.equal(resumedSession.ready.task.plan.state, "working");
 assert.equal("brief" in resumedSession.ready.task.plan, false, "ready envelopes must keep full plan content out of band");
 assert.deepEqual(await resumedSession.ctx.plan(), replPlan);
 await resumedSession.close();
+
+const bindingWorkspace = await mkdtemp(path.join(os.tmpdir(), "officekit-authoring-plan-binding-"));
+const bindingSession = await createReplSession({ workspaceRoot: bindingWorkspace, newTaskGoal: "Bind plan, review, and artifact" });
+const bindingPlan = validPlan();
+const bindingPlanDescriptor = await bindingSession.ctx.plan(bindingPlan);
+const presentation = Presentation.create();
+presentation.slides.add({ name: "Context" }).shapes.add({
+  geometry: "textbox",
+  text: "The bounded migration path removes duplicate work",
+  position: { left: 40, top: 40, width: 520, height: 100 },
+});
+const candidate = await PresentationFile.exportPptx(presentation);
+const firstReview = await reviewArtifact(candidate, {
+  authoringPlan: bindingPlan,
+  outputPath: path.join(bindingWorkspace, "candidate.pptx"),
+  layout: false,
+  visualReview: "unavailable",
+});
+assert.notEqual(firstReview.verdict, "failed", JSON.stringify(firstReview, null, 2));
+const firstCommit = await bindingSession.ctx.commit(candidate, {
+  artifactId: "deck",
+  kind: "presentation",
+  name: "deck.pptx",
+  summary: "Commit the first plan-bound draft",
+  review: firstReview,
+});
+assert.equal(firstCommit.plan.sha256, bindingPlanDescriptor.sha256);
+assert.equal(bindingSession.ctx.task.plan.state, "reviewed");
+
+const revisedPlan = structuredClone(bindingPlan);
+revisedPlan.pages[0].claim = "The bounded path is the recommended decision";
+const revisedDescriptor = await bindingSession.ctx.plan(revisedPlan, { expectedSha256: bindingPlanDescriptor.sha256 });
+assert.equal(bindingSession.ctx.task.plan.state, "working");
+await assert.rejects(
+  bindingSession.ctx.publish(firstCommit, { name: "stale-plan.pptx" }),
+  (error) => error.code === "unreviewed-authoring-plan",
+);
+await assert.rejects(
+  bindingSession.ctx.commit(candidate, {
+    artifactId: "deck",
+    kind: "presentation",
+    name: "deck.pptx",
+    summary: "Reject a review bound to the old plan",
+    review: firstReview,
+  }),
+  (error) => error.code === "stale-authoring-plan-review" && error.expectedPlanSha256 === revisedDescriptor.sha256,
+);
+const revisedReview = await reviewArtifact(candidate, {
+  authoringPlan: revisedPlan,
+  outputPath: path.join(bindingWorkspace, "candidate-revised-plan.pptx"),
+  layout: false,
+  visualReview: "unavailable",
+});
+const revisedCommit = await bindingSession.ctx.commit(candidate, {
+  artifactId: "deck",
+  kind: "presentation",
+  name: "deck.pptx",
+  summary: "Rebind the unchanged artifact to the revised plan",
+  review: revisedReview,
+});
+assert.equal(revisedCommit.plan.sha256, revisedDescriptor.sha256);
+assert.equal(bindingSession.ctx.task.plan.state, "reviewed");
+const publication = await bindingSession.ctx.publish(revisedCommit, { name: "reviewed-plan-deck.pptx" });
+assert.equal(publication.sha256, revisedCommit.revisionSha256);
+await bindingSession.close();
 
 console.log("presentation authoring plan smoke ok");
