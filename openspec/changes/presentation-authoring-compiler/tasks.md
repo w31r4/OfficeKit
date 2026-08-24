@@ -62,5 +62,5 @@
 
 - [ ] 9.1 Update coverage, release notes, package contents, README, and version metadata for the evidence-supported `0.7.0` surface.
 - [ ] 9.2 Run affected fast gates after each atomic commit and then run full npm, docs, package, release, packed-install, and hosted CI gates at the milestone boundary.
-- [ ] 9.3 Confirm no Office Codec wire, C# codec, PDF, Spreadsheet, Document, Live Add-in, or template-asset-format changes entered the change.
+- [x] 9.3 Confirm no Office Codec wire, C# codec, PDF, Spreadsheet, Document, Live Add-in, or template-asset-format changes entered the change.
 - [ ] 9.4 Archive the OpenSpec change only after implementation tasks and evidence-gated rollout decisions are complete.
