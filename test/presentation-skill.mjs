@@ -50,7 +50,7 @@ assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the a
 assert.match(designReviewSource, /bounded signals[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*warning-free report as proof of good\s+design/u);
 assert.match(taskSources.create, /Shipped route A[\s\S]*Experimental compiler route C[\s\S]*Do not switch routes after a failure/u);
 assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*22[\s\S]*minimumCaptionFontSize[\s\S]*20[\s\S]*four different silhouettes/u);
-assert.match(taskSources.create, /dominant reading anchor[\s\S]*quantitative\s+claim[\s\S]*clear contrast/u);
+assert.match(taskSources.create, /cardWallPattern[\s\S]*replace at least one repeated card surface[\s\S]*parallel comparison[\s\S]*dominant reading anchor[\s\S]*quantitative\s+claim[\s\S]*clear contrast/u);
 assert.match(taskSources.create, /palette\.strict:\s*false[\s\S]*closed brand palette[\s\S]*theme defaults/u);
 assert.match(taskSources.create, /presentation\.validateLayout\(\)[\s\S]*independent review[\s\S]*preflight/u);
 assert.match(taskSources.create, /no unrecorded[\s\S]*cardWallPattern[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*reason/u);
