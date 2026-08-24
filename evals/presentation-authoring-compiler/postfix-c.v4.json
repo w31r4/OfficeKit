@@ -1,0 +1,74 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-directional-blind-evidence/v1",
+  "sourceCommit": "5b3972098e197f6b63b973c1ba050db75ce4447a",
+  "purpose": "Directional blind check of the generic C-route readability-floor change against the frozen A renders. This small holdout is not a replacement for the frozen 20-comparison blind study and cannot switch the shipped default.",
+  "reviewer": {
+    "tool": "codex exec",
+    "model": "gpt-5.6-sol",
+    "freshContextPerComparison": true,
+    "sourceCodeAccess": false,
+    "metadataAccess": false,
+    "renderReview": "contact-sheet PNGs only",
+    "promptContract": "Return a two-slot ranking based only on visible narrative clarity, hierarchy, presentation-scale typography, composition variety, information relationships, spacing, and rendering defects. Do not infer provenance or reward slide count."
+  },
+  "comparisons": [
+    {
+      "comparisonKey": "a7956b44be1b1890",
+      "taskId": "technical-architecture-02",
+      "trial": 2,
+      "attachmentOrder": "A-old-first,C-new-second",
+      "oldAContactSheetSha256": "312cd5c3e711811540dd15d285d92cf702620f65c99e588dea381a10a440fc73",
+      "newCContactSheetSha256": "7c517cbe4f3099ca7f5c2f8fe834c9a87c289a53634d2b8cab7686e6326e93a6",
+      "winner": "C",
+      "confidence": "high",
+      "notes": "C had clearer presentation-scale typography, stronger hierarchy, more varied compositions, and easier-to-follow visual relationships; A was more repetitive and denser."
+    },
+    {
+      "comparisonKey": "85655f39a6b81a41",
+      "taskId": "analytical-reporting-02",
+      "trial": 1,
+      "attachmentOrder": "A-old-first,C-new-second",
+      "oldAContactSheetSha256": "6d9b515f0b2fdca4ecad3898df7fc20752299c1b4a66c44e4edf4db3cc15be2b",
+      "newCContactSheetSha256": "303d36ba83bfb459a904734d1e68acdd615954808a1295b6eb68e6447d0e324b",
+      "winner": "C",
+      "confidence": "high",
+      "notes": "C had stronger typography, clearer hierarchy, more varied compositions, and more legible relationships; A was sparse with undersized labels and repeated white layouts."
+    },
+    {
+      "comparisonKey": "e4e13e3daba9e76f",
+      "taskId": "brand-launch-02",
+      "trial": 2,
+      "attachmentOrder": "C-new-first,A-old-second",
+      "oldAContactSheetSha256": "56fed6929141c66b5aa18e08b43ba81cda61b92205daf23591333fa0e91ee3ce",
+      "newCContactSheetSha256": "187e7adfce07f08578806f83124d2d05feac53d0d385996b3d809013f37dfa2e",
+      "winner": "C",
+      "confidence": "medium",
+      "notes": "C had stronger presentation-scale legibility, bolder hierarchy, clearer visual relationships, and more varied compositions; A was polished but its serif copy and labels were smaller and its layouts sparser."
+    },
+    {
+      "comparisonKey": "b3aef5640272abba",
+      "taskId": "academic-defense-01",
+      "trial": 1,
+      "attachmentOrder": "A-old-first,C-new-second",
+      "oldAContactSheetSha256": "4b93136a1f32b1db10c09dbe914cae7afeacd7efe6777eb5c6a513218a80f68d",
+      "newCContactSheetSha256": "30df81c0257bb67bf90e4e00b09296f8f2acdc3523fe0773e2c783f3913a7715",
+      "winner": "C",
+      "confidence": "high",
+      "notes": "C had substantially stronger typography, clearer hierarchy, varied compositions, and cleaner relationships between question, method, result, robustness, interpretation, and limitation; A was denser and more repetitive."
+    }
+  ],
+  "summary": {
+    "comparisons": 4,
+    "cWins": 4,
+    "aWins": 0,
+    "ties": 0,
+    "cOverA": 1,
+    "interpretation": "All four directional comparisons favored the updated C render. The result is consistent with the readability-floor hypothesis but is too small to replace the frozen blind score or establish the 60% default-switch threshold."
+  },
+  "guardrails": {
+    "frozenBlindEvidenceUnchanged": true,
+    "defaultRouteChanged": false,
+    "taskSpecificSelectorsAdded": false,
+    "visualReviewClaimed": false
+  }
+}

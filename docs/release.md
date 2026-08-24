@@ -45,6 +45,14 @@ warning. This is holdout evidence, not a blind-quality rerun, so C remains
 experimental and Grid remains the shipped route. The raw summary is recorded
 in `evals/presentation-authoring-compiler/postfix-c.v3.json`.
 
+An additional fresh two-slot directional blind check favored the updated C
+render in all four comparisons against the corresponding frozen A render. The
+reviewers consistently cited clearer presentation-scale typography, hierarchy,
+composition variety, and information relationships. This small sample is not
+the frozen blind study and cannot establish the default-switch threshold; the
+frozen score and Grid default remain unchanged. Evidence is recorded in
+`evals/presentation-authoring-compiler/postfix-c.v4.json`.
+
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
 optional Playwright renderer, while the task, output, and review checks passed.
