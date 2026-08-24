@@ -35,6 +35,9 @@ ordinary local paths, not a host-specific API.
    or link the artifact without guessing the working directory.
 7. When resolving a relative path against a declared root, reject `..`
    traversal and symlink aliases that escape that root.
+8. Treat `taskRoot` as a private store. Do not inspect task manifests, plans,
+   candidates, revisions, sessions, or evidence with shell or Node filesystem
+   tools; use `officekit tasks`, REPL responses, and public package APIs.
 
 `SKILL_DIR` is allowed when a bundled script needs to locate its own files. It
 is a Skill-relative path variable, not a workspace identity.

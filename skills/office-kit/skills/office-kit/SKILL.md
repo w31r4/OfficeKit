@@ -23,6 +23,12 @@ commit. Setup commands
 such as template search, provider installation, and Excel add-in installation
 remain explicit; they are not hidden inside a cell.
 
+Treat `taskRoot` as a private store. Do not use shell or Node filesystem tools
+(`cat`, `sed`, `ls`, `file`, `find`, `rg`, or direct reads) on task manifests,
+plans, candidates, revisions, sessions, or evidence paths. Use `officekit tasks`,
+REPL responses, and public package APIs; a returned absolute evidence path is a
+handoff location, not an instruction to inspect its private bytes.
+
 Before planning paths or a visual asset, read [the workspace and evidence
 contract](references/workspace.md) and [the visual capability matrix](references/capabilities.md).
 Before delivering an edited artifact, follow the shared [post-edit review

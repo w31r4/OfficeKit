@@ -10,6 +10,7 @@ assert.equal(matrix.length, 60);
 assert.equal(buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "C", trial: 1 }).length, 1);
 assert.match(buildPilotPrompt({ manifest, ...buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "C", trial: 1 })[0] }), /independent final review[\s\S]*without a source baseline[\s\S]*Do not read \.office-kit\/tasks/i);
 assert.match(buildPilotPrompt({ manifest, ...buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "C", trial: 1 })[0] }), /minimumBodyFontSize[\s\S]*four distinct composition silhouettes[\s\S]*cardWallPattern[\s\S]*no unrecorded design warnings[\s\S]*intentionalWarnings[\s\S]*dominant reading anchor[\s\S]*contrast[\s\S]*quantitative claim/i);
+assert.match(buildPilotPrompt({ manifest, ...buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "C", trial: 1 })[0] }), /private store[\s\S]*never use shell or node[\s\S]*evidence paths/i);
 assert.doesNotMatch(buildPilotPrompt({ manifest, ...buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "A", trial: 1 })[0] }), /minimumBodyFontSize/u);
 const pilotSource = await readFile(new URL("../scripts/presentation-authoring-pilot.mjs", import.meta.url), "utf8");
 assert.match(pilotSource, /unresolved-design-warnings/u);
