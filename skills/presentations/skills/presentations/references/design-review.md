@@ -1,0 +1,54 @@
+# Presentation design review
+
+Design review separates machine-provable plan invariants from signals that
+still require judgment.
+
+## Blocking checks
+
+With `authoringPlan`, OfficeKit can fail review for:
+
+- invalid plan or plan/candidate revision mismatch;
+- page-count mismatch;
+- required unresolved decisions;
+- colors outside a strict declared palette;
+- fonts outside a strict declared font set;
+- page text/object budgets exceeded;
+- changed or missing pages outside `changedPageIds`.
+
+Fix these before commit. A new plan revision requires a new reviewed artifact
+commit before publication.
+
+## Review warnings
+
+OfficeKit may report:
+
+- repeated modeled composition signatures;
+- sharp density changes between adjacent pages;
+- six or more same-sized boxes on one page;
+- repeated title openings;
+- new modeled color or font tokens during a local edit.
+
+These are bounded signals. Inspect the relevant pages and decide whether the
+pattern is intentional. Do not describe a warning-free report as proof of good
+design.
+
+## Visual evidence
+
+When image understanding is available, inspect rendered pages at readable
+scale and review hierarchy, crop, balance, contrast, visual rhythm, and the
+relationship between copy and graphics.
+
+When it is unavailable, retain semantic, structural, layout, and design checks
+and report `visualReview: "unavailable"`. Request human review for high-risk
+design decisions.
+
+AnyDoc is a text/table reading view. Use it for a declared content-coverage gap,
+such as unavailable visual review or truncated multi-page inspection. It does
+not verify pixel layout, images, formulas, animations, or aesthetics.
+
+## Local edit evidence
+
+Pass the latest reviewed PPTX as `baseline` and the exact plan page IDs as
+`changedPageIds`. Review affected pages visually and verify non-target page
+signatures remain stable. If the user asks for a global redesign, omit the local
+scope and update the plan first.

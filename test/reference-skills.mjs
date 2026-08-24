@@ -246,7 +246,11 @@ assert.match(presentationChartSpec, /standard `area`.*50%-hole `doughnut`/s);
 assert.match(presentationChartSpec, /Marker-only `scatter`.*aligned.*`xValues`/s);
 assert.match(presentationChartSpec, /2D `bubble`.*positive `bubbleSize`/s);
 assert.match(presentationChartSpec, /formula references[\s\S]*fail\s+closed/i);
-const presentationSkillText = await fs.readFile(path.join(skillsRoot, "presentations", "skills", "presentations", "SKILL.md"), "utf8");
+const presentationSkillRoot = path.join(skillsRoot, "presentations", "skills", "presentations");
+const presentationSkillText = [
+  await fs.readFile(path.join(presentationSkillRoot, "SKILL.md"), "utf8"),
+  await fs.readFile(path.join(presentationSkillRoot, "references", "advanced-imported-editing.md"), "utf8"),
+].join("\n");
 assert.match(presentationSkillText, /officekit-chart-families-workflow\.mjs/);
 assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-chart-families-workflow.mjs")));
 assert.match(presentationSkillText, /officekit-title-notes-edit-workflow\.mjs/);

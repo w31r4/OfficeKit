@@ -29,13 +29,13 @@
 
 ## 5. Progressive Presentation Skill
 
-- [ ] 5.1 Reduce the Presentations `SKILL.md` to at most 350 lines containing routing, safety, four design sources, five golden paths, and capability search.
-- [ ] 5.2 Add `tasks/create.md`, `create-from-template.md`, `edit-existing.md`, `continue.md`, and `review-deliver.md` with deterministic workflows.
-- [ ] 5.3 Add one-level references for authoring plans, six design mechanism packs, audience-facing text editing, design review, and advanced imported editing.
-- [ ] 5.4 Encode the evidence-first editorial flow, page-local editing rule, explicit global redesign rule, and zero-to-two mechanism-pack constraint.
-- [ ] 5.5 Preserve Grid Layout as an explicit scaffold and the current A default until experiment evidence permits switching; add no silent experimental fallback.
-- [ ] 5.6 Update OfficeKit routing and REPL references so a fresh Agent can select create, template, existing-edit, continue, and review-deliver paths.
-- [ ] 5.7 Add Skill line-count, routing, mechanism, source-mode, editorial, portability, and reference-sync tests.
+- [x] 5.1 Reduce the Presentations `SKILL.md` to at most 350 lines containing routing, safety, four design sources, five golden paths, and capability search.
+- [x] 5.2 Add `tasks/create.md`, `create-from-template.md`, `edit-existing.md`, `continue.md`, and `review-deliver.md` with deterministic workflows.
+- [x] 5.3 Add one-level references for authoring plans, six design mechanism packs, audience-facing text editing, design review, and advanced imported editing.
+- [x] 5.4 Encode the evidence-first editorial flow, page-local editing rule, explicit global redesign rule, and zero-to-two mechanism-pack constraint.
+- [x] 5.5 Preserve Grid Layout as an explicit scaffold and the current A default until experiment evidence permits switching; add no silent experimental fallback.
+- [x] 5.6 Update OfficeKit routing and REPL references so a fresh Agent can select create, template, existing-edit, continue, and review-deliver paths.
+- [x] 5.7 Add Skill line-count, routing, mechanism, source-mode, editorial, portability, and reference-sync tests.
 
 ## 6. Help adoption index
 

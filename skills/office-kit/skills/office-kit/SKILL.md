@@ -79,13 +79,13 @@ this coordination layer.
 
 ## Keep net-new PPT work conversational
 
-For a net-new PPTX or a broad deck redesign, load the Presentations Skill's
-`references/conversation-workflow.md`. Unless one-pass final delivery was
-requested, return the first checked deck as a guided working draft, revise the
-latest inspected draft in natural language, and publish only after acceptance.
-Read-only and narrow edits stay direct. Discuss the draft, changes, and final
-deck—not Skills, routing, CLI/parser mechanics, or QA internals—unless asked or
-blocked.
+For a net-new PPTX or a broad deck redesign, load the Presentations Skill and its
+selected `tasks/create*.md` route. Persist its communication brief, narrative,
+per-deck design grammar, page jobs, and editorial rules with `ctx.plan()`.
+Return the first checked deck as a guided working draft, revise the latest
+inspected draft in natural language, and publish only after acceptance unless
+the user requested one-pass final delivery. Read-only and narrow edits stay
+  direct. Discuss the draft, changes, and final deck, not Skills, routing, CLI/parser mechanics, or QA internals unless asked or blocked.
 
 ## Decide whether a template helps
 
@@ -120,8 +120,9 @@ then let the PDF Skill inspect and verify the final PDF.
 ## Execute and verify
 
 - Protect every input and retained template from overwrite.
-- For durable work, follow `tasks → repl → input → edit → review → commit →
-  publish`. Every `ctx.commit(candidate, options)` requires a concise non-empty
+- For durable presentation work, follow `tasks → repl → plan → input → edit →
+  review → commit → publish`; other artifact tasks may omit `plan`.
+  Every `ctx.commit(candidate, options)` requires a concise non-empty
   `options.summary`. A failed review remains attention and cannot replace task
   HEAD. Put a multi-line Agent-authored cell in a regular `.mjs` file and run
   it with `officekit repl ... --file <cell.mjs>`; use raw JSONL only when one

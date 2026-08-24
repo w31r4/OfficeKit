@@ -28,7 +28,7 @@ officekit repl --new "Create a promotion defense presentation" --file phase-1.mj
 With `--file`, write one ordinary UTF-8 JavaScript cell with top-level `await`;
 do not hand-escape that code into JSONL. The command emits `session.ready`,
 executes the file as one cell, emits its terminal response, and exits. Read the
-ready record's task ID, brief, current
+ready record's task ID, brief, compact authoring-plan descriptor, current
 publishable commit descriptor, restored artifact paths, pending failures,
 constraints, prior operation records, and next action before sending code. A
 missing task ID fails; it never creates a new task by typo.
@@ -68,6 +68,10 @@ files again.
 minimal artifact workflow:
 
 - `ctx.task`: current compact task state and latest reviewed head.
+- `ctx.plan()`: read the validated durable Presentation authoring plan.
+  `ctx.plan(value, {expectedSha256})` writes a bounded immutable plan revision;
+  changed writes require the exact current plan SHA-256. Full plan content is
+  not inlined into task listings or the ready envelope.
 - `ctx.import(specifier)`: published OfficeKit exports, `node:` built-ins, and
   local workspace modules; URLs, traversal, and private package paths fail.
 - `ctx.input(path, options)`: copy a regular source into the task as an
@@ -82,6 +86,10 @@ minimal artifact workflow:
   evidence already written below `evidenceRoot`.
 
 ## Edit, review, commit, publish
+
+For a planned Presentation task, read or write the authoring plan before
+composition. Pass it to `reviewArtifact`. A plan update returns the task to
+`working`; publishing stays blocked until a new reviewed commit binds it.
 
 For every meaningful edit batch:
 

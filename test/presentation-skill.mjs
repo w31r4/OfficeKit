@@ -23,13 +23,33 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const presentationSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentations");
 const packagedSlideRenderer = path.join(presentationSkillDir, "container_tools", "render_slides.py");
 const packagedRasterHelper = path.join(presentationSkillDir, "container_tools", "ensure_raster_image.py");
-const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkillSource] = await Promise.all([
+const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkillEntrySource, advancedImportedSource] = await Promise.all([
   fs.readFile(packagedSlideRenderer, "utf8"),
   fs.readFile(packagedRasterHelper, "utf8"),
   fs.readFile(path.join(presentationSkillDir, "SKILL.md"), "utf8"),
+  fs.readFile(path.join(presentationSkillDir, "references", "advanced-imported-editing.md"), "utf8"),
 ]);
+const presentationSkillSource = `${presentationSkillEntrySource}\n${advancedImportedSource}`;
 const templateFollowingSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-following.md"), "utf8");
 const templateConditionedSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-conditioned-generation.md"), "utf8");
+const designMechanismsSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-mechanisms.md"), "utf8");
+const audienceTextSource = await fs.readFile(path.join(presentationSkillDir, "references", "audience-text-editing.md"), "utf8");
+const designReviewSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-review.md"), "utf8");
+const authoringPlanSource = await fs.readFile(path.join(presentationSkillDir, "references", "authoring-plan.md"), "utf8");
+const taskNames = ["create", "create-from-template", "edit-existing", "continue", "review-deliver"];
+const taskSources = Object.fromEntries(await Promise.all(taskNames.map(async (name) => [
+  name,
+  await fs.readFile(path.join(presentationSkillDir, "tasks", `${name}.md`), "utf8"),
+])));
+assert.ok(presentationSkillEntrySource.split(/\r?\n/u).length <= 350, "the Presentation Skill entrypoint must stay within 350 lines");
+for (const name of taskNames) assert.match(presentationSkillEntrySource, new RegExp(`tasks/${name.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}[.]md`, "u"));
+for (const sourceMode of ["self-directed", "design-system", "template", "style-transfer"]) assert.match(presentationSkillEntrySource, new RegExp(`\\b${sourceMode}\\b`, "u"));
+for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technical-architecture", "visual-narrative", "academic-research", "brand-launch"]) assert.match(designMechanismsSource, new RegExp(`\\b${mechanism}\\b`, "u"));
+assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\.sha256 \}\)/u);
+assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the audience[\s\S]*Compress against the real page[\s\S]*Review the deck voice/u);
+assert.match(designReviewSource, /bounded signals[\s\S]*not describe a warning-free report as proof of good\s+design/u);
+assert.match(taskSources.create, /Shipped route A[\s\S]*Experimental compiler route C[\s\S]*Do not switch routes after a failure/u);
+assert.match(taskSources["edit-existing"], /changedPageIds[\s\S]*undeclared page change/u);
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
 assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");
 assert.match(presentationSkillSource, /chartDataValue[\s\S]*ChartPart cache[\s\S]*workbook cell/i);
@@ -2919,7 +2939,7 @@ try {
     const source = await fs.readFile(file, "utf8");
     assert.doesNotMatch(source, /\b(?:codec|initialCodec|roundtripCodec)\b/i, file + " must not expose an Office path selector");
   }
-  const skillText = await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8");
+  const skillText = `${await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8")}\n${await fs.readFile("skills/presentations/skills/presentations/references/advanced-imported-editing.md", "utf8")}`;
   const conversationWorkflowText = await fs.readFile("skills/presentations/skills/presentations/references/conversation-workflow.md", "utf8");
   const styleGuidelinesText = await fs.readFile("skills/presentations/skills/presentations/style_guidelines.md", "utf8");
   const googleSlidesRoutingText = await fs.readFile("skills/presentations/skills/presentations/routing/google_slides.md", "utf8");
