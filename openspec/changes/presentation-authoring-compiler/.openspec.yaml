@@ -1,0 +1,7 @@
+schema: spec-driven
+created: 2026-08-24
+goal: A fresh Agent using a packed OfficeKit install can turn one presentation
+  request into a reviewed, resumable, editable PPTX with a deck-specific design
+  grammar, can discover the correct existing primitives without reading a
+  monolithic Skill, and switches away from Grid-default only after the fixed
+  A/B/C acceptance thresholds pass.
