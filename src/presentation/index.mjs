@@ -1842,7 +1842,9 @@ export class Shape {
     }
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation shape ${this.name || this.id} transform`);
     this.fill = config.fill || "transparent";
-    this.line = config.line || { fill: "#334155", width: 1 };
+    this.line = config.line || (this.geometry === "textbox"
+      ? { fill: "transparent", width: 0 }
+      : { fill: "#334155", width: 1 });
     this.borderRadius = config.borderRadius;
     this.shadow = config.shadow ? { ...config.shadow } : undefined;
     this.placeholder = config.placeholder;

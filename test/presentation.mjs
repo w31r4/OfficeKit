@@ -310,6 +310,13 @@ assert.match(modelPresentation.inspect({ kind: "deck,slide,textbox,shape", maxCh
 assert.match(modelPresentation.inspect({ kind: "textbox", target: "compose\/headline", maxChars: 4000 }).ndjson, /Canonical Office model/);
 assert.equal(modelPresentation.verify().ok, true);
 assert.equal(modelPresentation.validateLayout().ok, true);
+const defaultTextBoxDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const defaultTextBox = defaultTextBoxDeck.slides.add().shapes.add({ geometry: "textbox", text: "Text without a frame" });
+assert.deepEqual(defaultTextBox.line, { fill: "transparent", width: 0 });
+const defaultTextBoxPptx = await PresentationFile.exportPptx(defaultTextBoxDeck);
+const defaultTextBoxZip = await JSZip.loadAsync(defaultTextBoxPptx.bytes);
+const defaultTextBoxXml = await defaultTextBoxZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(defaultTextBoxXml, /<p:cNvSpPr txBox="1"[\s\S]*?<a:ln[^>]*>[\s\S]*?<a:noFill[^>]*\/>/);
 const surfacedCompose = modelSlide.compose(
   column({ name: "compose-surface", fill: "#0F172A", padding: { x: 16, y: 12 } }, [
     paragraph({ name: "compose-surface-copy", className: "text-white text-xl" }, ["Readable on a declared surface"]),
