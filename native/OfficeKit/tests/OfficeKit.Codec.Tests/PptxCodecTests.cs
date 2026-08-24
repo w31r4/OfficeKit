@@ -831,6 +831,125 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void EditPlanRebasesSurvivingTargetsAfterEarlierElementDeletion()
+    {
+        var request = ExportRequest();
+        var table = new PresentationTable
+        {
+            LeftEmu = 500_000,
+            TopEmu = 1_300_000,
+            WidthEmu = 4_000_000,
+            HeightEmu = 600_000,
+        };
+        table.ColumnWidthsEmu.Add([4_000_000]);
+        table.Rows.Add(new PresentationTableRow
+        {
+            HeightEmu = 600_000,
+            Cells = { new PresentationTableCell { Text = "Pending" } },
+        });
+        request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
+        {
+            Id = "presentation/slide/1/table/rebase",
+            Name = "Rebased table",
+            Table = table,
+        });
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var imported = Import(authored.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var slide = Assert.Single(imported.Artifact.Presentation.Slides);
+        var removed = Assert.Single(slide.Elements, candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Shape);
+        var surviving = Assert.Single(slide.Elements, candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
+        Assert.True(removed.Source.DeletionCapability.Supported);
+        var deletion = new PresentationEditOperation
+        {
+            OperationId = "op-delete-before-table",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = removed.Id,
+            ShapeTreeIndex = removed.Source.ShapeTreeIndex,
+            LeafKind = "deleteElement",
+            ExpectedElementSha256 = removed.Source.ElementSha256,
+            ExpectedSemanticSha256 = removed.Source.SemanticSha256,
+            ExpectedValue = removed.Id,
+            Value = string.Empty,
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(removed.Id))).ToLowerInvariant(),
+            ElementDeletion = new PresentationEditElementDeletion { ExpectedNativeId = removed.Source.DeletionCapability.NativeId },
+        };
+        deletion.ShapeTreePath.Add(removed.Source.ShapeTreeIndex);
+        var cellEdit = new PresentationEditOperation
+        {
+            OperationId = "op-edit-table-after-delete",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = surviving.Id,
+            ShapeTreeIndex = surviving.Source.ShapeTreeIndex,
+            LeafKind = "tableCellText",
+            ExpectedElementSha256 = surviving.Source.ElementSha256,
+            ExpectedSemanticSha256 = surviving.Source.SemanticSha256,
+            ExpectedValue = "Pending",
+            Value = "Approved",
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes("Pending"))).ToLowerInvariant(),
+        };
+        cellEdit.ShapeTreePath.Add(surviving.Source.ShapeTreeIndex);
+        var plan = new PresentationEditPlanRequest
+        {
+            ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+            Operations = { deletion, cellEdit },
+        };
+
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = plan,
+        });
+
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([slide.Source.PartPath], edited.PresentationEditPlan.ChangedParts);
+        Assert.Equal(2, edited.PresentationEditPlan.Operations.Count);
+        var reopenedSlide = Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides);
+        var reopenedTable = Assert.Single(reopenedSlide.Elements);
+        Assert.Equal(PresentationElement.ContentOneofCase.Table, reopenedTable.ContentCase);
+        Assert.Equal("Approved", reopenedTable.Table.Rows[0].Cells[0].Text);
+
+        var conflictingEdit = new PresentationEditOperation
+        {
+            OperationId = "op-edit-deleted-shape",
+            SlideId = slide.Id,
+            SlidePartPath = slide.Source.PartPath,
+            ExpectedSlideSha256 = slide.Source.SlideXmlSha256,
+            TargetId = removed.Id,
+            ShapeTreeIndex = removed.Source.ShapeTreeIndex,
+            LeafKind = "text",
+            ExpectedElementSha256 = removed.Source.ElementSha256,
+            ExpectedSemanticSha256 = removed.Source.SemanticSha256,
+            ExpectedValue = removed.Shape.Text,
+            Value = "Conflicting edit",
+            ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(removed.Shape.Text))).ToLowerInvariant(),
+        };
+        conflictingEdit.ShapeTreePath.Add(removed.Source.ShapeTreeIndex);
+        var conflictingPlan = plan.Clone();
+        conflictingPlan.Operations.Clear();
+        conflictingPlan.Operations.Add(deletion);
+        conflictingPlan.Operations.Add(conflictingEdit);
+        var rejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = conflictingPlan,
+        });
+        Assert.False(rejected.Ok);
+        Assert.Equal("invalid_presentation_edit_target", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void EditPlanChangesOneOpaqueChartTitleLeafWithoutReserializingTheChart()
     {
         var request = ExportRequest();
