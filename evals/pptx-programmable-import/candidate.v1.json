@@ -1,0 +1,102 @@
+{
+  "schema": "office-kit/pptx-programmable-import-candidate/v1",
+  "productBaseline": "d5df8df94727dccd4412e6be874d1c5407b57f64",
+  "candidateHead": "e1bb8699671c3599b44b999ca308ff8d0d9581d7",
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "tarballSha256": "0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9",
+    "packedCleanInstall": true,
+    "codexCleanInstallPerTrial": true,
+    "companionTarballSha256": "5b6f989803c77a8a6ac81de86eb5d0aa94c8f528bd518821074d25448ad79e23"
+  },
+  "evidenceFiles": {
+    "matrix": {
+      "path": "candidate/matrix.v1.json",
+      "sha256": "9d0f4356e2d0b99a9a8fb3d64cea82d2c88a310d2a43e1b5bbfbbd0a889da5d8"
+    },
+    "codex": {
+      "path": "candidate/codex.v1.json",
+      "sha256": "5bde15310eab2a3a2f8cb1ac30854c4e681533b60e8b99ea4d126796e952547c"
+    },
+    "companion": {
+      "path": "source-derived-companion.evidence.v1.json",
+      "sha256": "cb1fbb477ac154fd398365507de2dfeed29734c3c602636bdd361673795ecc75"
+    }
+  },
+  "definitions": {
+    "matrixSha256": "49bcf6245d6a44484d3b14d56ab0c2b51b8f767982bcd52503d578520f89d6a9",
+    "continuationSha256": "9ca08cab364b047d4a3a2d3246a82ab68c62b1db81e40dccb6e7559f61d51044",
+    "intentSha256": "49bcf6245d6a44484d3b14d56ab0c2b51b8f767982bcd52503d578520f89d6a9",
+    "companionSha256": "72a715ca57963c165f75bddde6cd2c9362f712b3984f6798e26d0a6e5a88fdbb"
+  },
+  "matrix": {
+    "requiredIntents": 30,
+    "requiredRuns": 90,
+    "passedRuns": 90,
+    "deterministicIntents": 30,
+    "status": "passed"
+  },
+  "codex": {
+    "requiredTasks": 3,
+    "requiredTrials": 9,
+    "completedTrials": 9,
+    "passedTrials": 9,
+    "status": "passed"
+  },
+  "sourceDerived": {
+    "requiredCases": 8,
+    "requiredRuns": 24,
+    "completedRuns": 24,
+    "passedRuns": 24,
+    "deterministicCases": 8,
+    "coverage": [
+      "text",
+      "geometry",
+      "image",
+      "table",
+      "chart",
+      "component",
+      "add",
+      "delete",
+      "reorder"
+    ],
+    "status": "passed"
+  },
+  "environment": {
+    "matrix": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v26.7.0",
+      "render": true,
+      "targetRenderer": "keynote"
+    },
+    "codex": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v26.7.0",
+      "npm": "11.19.0",
+      "codex": "codex-cli 0.144.5",
+      "render": true,
+      "targetRenderer": "task-defined",
+      "targetRenderers": {
+        "suanzhi-acceptance-appendix": "keynote",
+        "blue-gray-acceptance-summary": "keynote",
+        "mckinsey-acceptance-close": "libreoffice"
+      }
+    },
+    "companion": {
+      "platform": "darwin",
+      "arch": "arm64",
+      "node": "v26.7.0",
+      "render": true,
+      "targetRenderer": "keynote"
+    }
+  },
+  "acceptance": {
+    "status": "passed",
+    "failuresPreserved": true,
+    "oracleWeakened": false,
+    "productModifiedByAcceptance": false
+  }
+}
