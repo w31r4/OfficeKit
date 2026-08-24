@@ -45,6 +45,36 @@ store, candidate revisions, renderer cache, and evaluator report outside the
 repository. A non-zero exit still writes `evidence.json`; it never converts a
 trial failure into a skip or edits the product under test.
 
+## Accepted portable candidate
+
+Candidate product commit
+`e1bb8699671c3599b44b999ca308ff8d0d9581d7` passed the full portable
+acceptance with packed `office-kit@0.6.0` tarball SHA-256
+`0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9`:
+
+- all 90 matrix runs passed, and all 30 declared intents produced identical
+  output bytes and oracle results across three clean-source repetitions;
+- 60 runs were verified directly through LibreOffice rendering, while 30
+  text changes that LibreOffice did not display were verified through the
+  declared Keynote target renderer;
+- all nine fresh Codex trials completed the required three-session task flow,
+  produced exactly reviewed commits `c0001` and `c0002`, published only
+  `c0002`, protected the source, reimported the result, and passed the
+  independent package and pixel oracles;
+- the separately frozen source-derived companion suite passed 24/24 runs over
+  eight deterministic cases, covering text, geometry, image, table, chart,
+  component, add, delete, and reorder workflows. Its exact earlier packed
+  tarball hash remains recorded separately rather than being presented as the
+  matrix/Codex tarball.
+
+The raw components are `candidate/matrix.v1.json` and
+`candidate/codex.v1.json`. `candidate.v1.json` derives their hashes and the
+existing companion-evidence hash; the committed integrity test rebuilds that
+summary and rejects weakened or incomplete oracle sets. The historical failed
+baseline below remains unchanged. This proves the three frozen samples and
+declared bounded operations on macOS; it is not a claim of arbitrary OOXML
+semantic coverage or Windows PowerPoint host acceptance.
+
 ## Frozen baseline result
 
 The committed baseline evaluates product commit
