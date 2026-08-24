@@ -259,6 +259,13 @@ internal static partial class PptxEditPlanCodec
         var suppliedAssetIds = request.Assets.Select(asset => asset.Id).ToHashSet(StringComparer.Ordinal);
         if (!requestedAssetIds.SetEquals(suppliedAssetIds) || request.Assets.Count != suppliedAssetIds.Count)
             throw new CodecException("invalid_presentation_asset", "PPTX edit plan assets must match the imageAsset operation references exactly.");
+        var deletedRoots = request.Operations
+            .Where(operation => LeafKind(operation) == "deleteElement")
+            .Select(operation => (operation.SlidePartPath.ToLowerInvariant(), ShapeTreePath(operation)[0]))
+            .ToHashSet();
+        if (request.Operations.Any(operation => LeafKind(operation) != "deleteElement" &&
+                deletedRoots.Contains((operation.SlidePartPath.ToLowerInvariant(), ShapeTreePath(operation)[0]))))
+            throw new CodecException("invalid_presentation_edit_target", "PPTX edit plan cannot mutate a native element that it also deletes.");
     }
 
     private static IReadOnlyList<PptxEditPlanProof> ProveOperations(
@@ -771,7 +778,7 @@ internal static partial class PptxEditPlanCodec
                     throw new CodecException("presentation_edit_verification_failed", $"PPTX element deletion {operation.OperationId} did not remove its native target.", operation.SlidePartPath);
                 continue;
             }
-            var element = ResolveShapeTreeElement(tree, ShapeTreePath(operation), operation);
+            var element = ResolveShapeTreeElement(tree, OutputShapeTreePath(operation, request.Operations), operation);
             if (LeafKind(operation) == "diagramText")
             {
                 if (!PptxDiagramTextCodec.TryResolveForEditPlan(element, slidePart, out var diagram) ||
@@ -1039,6 +1046,18 @@ internal static partial class PptxEditPlanCodec
     private static bool NeedsPreserve(string value) => value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]));
     private static IReadOnlyList<uint> ShapeTreePath(PresentationEditOperation operation) =>
         operation.ShapeTreePath.Count > 0 ? operation.ShapeTreePath : [operation.ShapeTreeIndex];
+    private static IReadOnlyList<uint> OutputShapeTreePath(
+        PresentationEditOperation operation,
+        IEnumerable<PresentationEditOperation> operations)
+    {
+        var path = ShapeTreePath(operation).ToArray();
+        var removedBefore = operations.Count(candidate =>
+            LeafKind(candidate) == "deleteElement" &&
+            candidate.SlidePartPath.Equals(operation.SlidePartPath, StringComparison.OrdinalIgnoreCase) &&
+            ShapeTreePath(candidate)[0] < path[0]);
+        path[0] = checked(path[0] - (uint)removedBefore);
+        return path;
+    }
     private static string LeafKind(PresentationEditOperation operation) =>
         string.IsNullOrEmpty(operation.LeafKind) ? "text" : operation.LeafKind;
     private static string MutationPartPath(PresentationEditOperation operation) =>
