@@ -37,7 +37,7 @@ palette, typography, spacing, density rhythm, motif, imagery, chart treatment,
 and strict invariants into `designGrammar`.
 
 For a self-directed compiler route, include a readability floor in the grammar,
-for example `minimumBodyFontSize: 18` and `minimumCaptionFontSize: 14` in the
+for example `minimumBodyFontSize: 20` and `minimumCaptionFontSize: 16` in the
 model's font-size units. Never shrink text to rescue an overfull page; shorten,
 split, or change the composition. When the deck has six or more pages,
 deliberately use at least four different silhouettes and repair repeated

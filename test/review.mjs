@@ -177,6 +177,29 @@ try {
   assert.equal(plannedReview.design.changedPageIds.length, 0);
   assert.match(plannedReview.summary.markdown, /Authoring-plan design checks/u);
 
+  const typographyFloorModel = Presentation.create();
+  typographyFloorModel.slides.add({ name: "Typography floor" }).shapes.add({
+    geometry: "textbox",
+    text: "Supporting note",
+    position: { left: 40, top: 40, width: 320, height: 80 },
+    textStyle: { fontFamily: "Aptos", fontSize: 14, color: "#17202A" },
+  });
+  const typographyFloorPlan = authoringPlan();
+  typographyFloorPlan.design.designGrammar.typography = {
+    strict: false,
+    roles: { title: "Aptos Display", body: "Aptos" },
+    minimumBodyFontSize: 20,
+    minimumCaptionFontSize: 16,
+  };
+  const typographyFloorReview = await reviewArtifact(typographyFloorModel, {
+    authoringPlan: typographyFloorPlan,
+    outputPath: path.join(temporary, "typography-floor.pptx"),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.equal(typographyFloorReview.verdict, "failed");
+  assert.ok(typographyFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize" && issue.actual === 14 && issue.required === 16));
+
   const warningModel = Presentation.create();
   for (let slideIndex = 0; slideIndex < 3; slideIndex += 1) {
     const slide = warningModel.slides.add({ name: `Warning ${slideIndex + 1}` });

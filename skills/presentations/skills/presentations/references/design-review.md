@@ -12,6 +12,7 @@ With `authoringPlan`, OfficeKit can fail review for:
 - required unresolved decisions;
 - colors outside a strict declared palette;
 - fonts outside a strict declared font set;
+- text runs below the declared `minimumCaptionFontSize`;
 - page text/object budgets exceeded;
 - changed or missing pages outside `changedPageIds`.
 

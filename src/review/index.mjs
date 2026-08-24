@@ -365,6 +365,7 @@ function presentationDesignReview(model, options = {}) {
   const pageSignatures = buildPageSignatures(records, pages);
   const profile = presentationDesignProfile(model, issues);
   checkStrictDesignGrammar(plan, profile, issues);
+  checkTypographyFloor(plan, records, issues);
   checkContentBudgets(plan, pageSignatures, issues);
   addDesignHeuristicWarnings(records, pageSignatures, profile, issues);
   if (changedPageIds.length > 0) {
@@ -382,6 +383,29 @@ function presentationDesignReview(model, options = {}) {
     pageSignatures,
     profile,
   };
+}
+
+function checkTypographyFloor(plan, records, issues) {
+  const typography = plan.design?.designGrammar?.typography || {};
+  const minimumCaptionFontSize = Number(typography.minimumCaptionFontSize);
+  if (!Number.isFinite(minimumCaptionFontSize) || minimumCaptionFontSize <= 0) return;
+  for (const record of records) {
+    if (!Array.isArray(record.paragraphs)) continue;
+    for (const [paragraphIndex, paragraph] of record.paragraphs.entries()) {
+      for (const [runIndex, run] of (paragraph.runs || []).entries()) {
+        const fontSize = Number(run.style?.fontSize);
+        if (!Number.isFinite(fontSize) || fontSize >= minimumCaptionFontSize) continue;
+        issues.push(reviewIssue("minimumFontSize", `Text on slide ${record.slide ?? "?"} is ${fontSize} below the declared minimum caption size ${minimumCaptionFontSize}.`, "error", {
+          slide: Number(record.slide) || undefined,
+          id: record.id,
+          paragraphIndex,
+          runIndex,
+          actual: fontSize,
+          required: minimumCaptionFontSize,
+        }));
+      }
+    }
+  }
 }
 
 function normalizeChangedPageIds(value, pageIds, issues) {

@@ -49,7 +49,7 @@ assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\
 assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the audience[\s\S]*Compress against the real page[\s\S]*Review the deck voice/u);
 assert.match(designReviewSource, /bounded signals[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*warning-free report as proof of good\s+design/u);
 assert.match(taskSources.create, /Shipped route A[\s\S]*Experimental compiler route C[\s\S]*Do not switch routes after a failure/u);
-assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*18[\s\S]*four different silhouettes/u);
+assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*20[\s\S]*minimumCaptionFontSize[\s\S]*16[\s\S]*four different silhouettes/u);
 assert.match(taskSources.create, /dominant reading anchor[\s\S]*quantitative\s+claim[\s\S]*clear contrast/u);
 assert.match(taskSources.create, /no unrecorded[\s\S]*cardWallPattern[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*reason/u);
 assert.match(taskSources["edit-existing"], /changedPageIds[\s\S]*undeclared page change/u);
