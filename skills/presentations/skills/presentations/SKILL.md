@@ -213,6 +213,16 @@ concurrent unissued change must reject. A coordinated move/resize uses one
 issued call per geometry leaf and one export; the compiler sorts them into a
 deterministic Edit Plan.
 
+Keep imported table-cell edits, same-format embedded-image replacement, and
+capability-proven element deletion on their typed model facades. Set the exact
+`table.getCell(row, column).value`, update the inspected `ImageElement.dataUrl`
+only within its supported embedded-image profile, or check
+`element.deletionCapability` before calling `element.delete()`. These paths
+compile to `tableCellText`, `imageAsset`, and `deleteElement` operations in the
+same deterministic Edit Plan; do not synthesize native leaf IDs or patch raw
+OOXML. Reimport the result and verify the declared package footprint, the
+affected slide render, and unchanged comparison pages.
+
 For a bounded base64 SVG picture, inspect `image.svgEditCapability` and select
 an exact record from `image.getSvgEditLeaves()`. The issued leaves cover only
 direct RGB fill/stroke attributes, opacity in `0..1`, and one scalar already
