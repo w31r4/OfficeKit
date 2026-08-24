@@ -1,7 +1,7 @@
 {
   "schema": "office-kit/presentation-authoring-holdout/v1",
   "status": "recorded",
-  "purpose": "Post-baseline C-route generalization checks; the first three rerun frozen task IDs and the last uses an unseen task. None alters the frozen A/B/C pilot or its rollout thresholds.",
+  "purpose": "Post-baseline C-route generalization checks; the first three rerun frozen task IDs and the last two use unseen tasks. None alters the frozen A/B/C pilot or its rollout thresholds.",
   "baseline": {
     "results": "results.v1.json",
     "frozenAt": "origin/main@a0452867",
@@ -66,6 +66,24 @@
       "taskCommits": 7,
       "publications": 1,
       "outputSha256": "7092bd675a31043397cfbf43946c0f5d76cda2eb60bee32278fd108e5140af6f"
+    },
+    {
+      "taskId": "unseen-community-health-update",
+      "trial": 1,
+      "taskSet": "unseen",
+      "sourceCommit": "ebe6a3cc",
+      "status": "passed",
+      "measurement": "task-created-to-publication",
+      "elapsedMs": 410054,
+      "totalTokens": 2578827,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": [],
+      "taskCommits": 2,
+      "publications": 1,
+      "promptSha256": "531f21b36b2f420287b63b69ccd588e9605832e8c30eba9e3ac9885be7f4253b",
+      "outputSha256": "53594ce5bcdf92706ce78d1c1bba9988367bde96d070522560195ea56933d983"
     }
   ]
 }

@@ -74,6 +74,12 @@ Create theme/Master/Layout assets only when they improve reuse. Use
 `slide.compose`, `slide.autoLayout`, native objects, and free coordinates as
 the page intent requires. Keep page helpers reusable inside the task.
 
+Before exporting a candidate, run `presentation.validateLayout()` on the
+in-memory deck and resolve every reported overflow, overlap, or off-canvas
+issue without lowering the declared readability floor. Reimport the exported
+bytes and run the independent review afterward; the preflight is a repair aid,
+not delivery evidence.
+
 Build the complete working draft before asking the user to choose internal
 layouts. The first response should offer the checked deck and a short summary
 of its story, not a design questionnaire.

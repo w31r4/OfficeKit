@@ -52,6 +52,7 @@ assert.match(taskSources.create, /Shipped route A[\s\S]*Experimental compiler ro
 assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*20[\s\S]*minimumCaptionFontSize[\s\S]*18[\s\S]*four different silhouettes/u);
 assert.match(taskSources.create, /dominant reading anchor[\s\S]*quantitative\s+claim[\s\S]*clear contrast/u);
 assert.match(taskSources.create, /palette\.strict:\s*false[\s\S]*closed brand palette[\s\S]*theme defaults/u);
+assert.match(taskSources.create, /presentation\.validateLayout\(\)[\s\S]*independent review[\s\S]*preflight/u);
 assert.match(taskSources.create, /no unrecorded[\s\S]*cardWallPattern[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*reason/u);
 assert.match(taskSources["edit-existing"], /changedPageIds[\s\S]*undeclared page change/u);
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
