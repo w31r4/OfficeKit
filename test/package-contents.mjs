@@ -177,7 +177,9 @@ const maxPackedBytes = 37_500_000;
 // specialist binaries, generated evidence, or provider binaries in the
 // tarball. The current 0.6.0 runtime payload measures 54,194,400 bytes after
 // the bounded mixed-edit fix; keep only a 5,600-byte growth budget.
-const maxUnpackedBytes = 54_200_000;
+// Help adoption metadata is shipped with the runtime so task-facing queries
+// remain self-contained. Keep a small measured headroom for that index.
+const maxUnpackedBytes = 54_500_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
