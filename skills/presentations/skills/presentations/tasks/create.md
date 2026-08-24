@@ -58,4 +58,8 @@ of its story, not a design questionnaire.
 
 Follow [Review and deliver](review-deliver.md). Pass `authoringPlan` to
 `reviewArtifact`, commit the reviewed candidate, then let the user continue by
-conversation or accept delivery.
+conversation or accept delivery. For a self-directed deck, the final review
+must be independent of any earlier draft: do not pass a source `baseline` to
+hide errors created by the same task. Resolve semantic/layout errors such as
+text overflow and unexpected overlap before committing; a baseline is for
+source-bound local edits whose unchanged findings are already evidenced.

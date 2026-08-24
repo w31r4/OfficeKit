@@ -52,3 +52,9 @@ Pass the latest reviewed PPTX as `baseline` and the exact plan page IDs as
 `changedPageIds`. Review affected pages visually and verify non-target page
 signatures remain stable. If the user asks for a global redesign, omit the local
 scope and update the plan first.
+
+For a self-directed or newly composed deck, do not use an earlier draft as a
+baseline. Run the final semantic and layout review against the candidate alone
+and repair errors such as text overflow or unexpected overlap before commit.
+Baseline review may downgrade only an unchanged, already evidenced finding in
+a source-bound local edit; it is not a way to make a new deck pass.
