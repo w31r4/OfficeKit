@@ -43,7 +43,7 @@
 
 ## 5. Final release evidence
 
-- [ ] 5.1 Update Help, API docs, Presentations Skill, coverage, release notes,
+- [x] 5.1 Update Help, API docs, Presentations Skill, coverage, release notes,
   and package gates with measured capabilities and remaining boundaries.
 - [ ] 5.2 Pass fast/slow JavaScript, OfficeKit C#, proto, reproducible WASM,
   package, release, and hosted CI gates.
