@@ -59,6 +59,8 @@ assert.ok(HELP_CATALOG.some((item) => item.name === "presentation.reuseSourceCom
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.reuseSourceComponent")?.summary || "", /top-level.*repeated component.*deletion proofs.*fail closed/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /chartDataValue.*ChartPart cache.*worksheet cell/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /diagramText.*token-splices.*a:t.*does not reserialize/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /tableCellText.*imageAsset.*deleteElement.*not arbitrary native-leaf selectors/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.schema?.returns?.receipt?.description || "", /tableCellText.*imageAsset.*deleteElement.*not accepted through this native-leaf call/i);
 assert.ok(HELP_CATALOG.some((item) => item.name === "image.svgTextCapability"));
 assert.ok(HELP_CATALOG.some((item) => item.name === "image.getSvgTextNodes"));
 assert.match(HELP_CATALOG.find((item) => item.name === "image.editSvgText")?.summary || "", /expectedHash.*escaped.*stale\/no-op/i);
