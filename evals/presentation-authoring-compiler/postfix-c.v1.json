@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-postfix-evidence/v1",
+  "sourceCommit": "ac1925d7",
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "tarballSha256": "7e5514262f519d1b9e2cf85a01acdd75112f831c1d0d547bf45164dc76a0efd5",
+    "packedBytes": 36523472,
+    "unpackedBytes": 54274464,
+    "totalFiles": 761
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "npm": "11.19.0"
+  },
+  "purpose": "Validate the portable public-API and optional-renderer guardrail after the pre-fix C matrix.",
+  "runRoot": "/tmp/officekit-authoring-pilot-C-portable-20260825b.fj4PMM",
+  "runs": [
+    {
+      "runId": "technical-architecture-02/C/2",
+      "status": "passed",
+      "elapsedMs": 515627,
+      "totalTokens": 3548797,
+      "designWarnings": ["densityRhythmJump", "cardWallPattern", "cardWallPattern", "cardWallPattern", "cardWallPattern"]
+    },
+    {
+      "runId": "analytical-reporting-02/C/1",
+      "status": "passed",
+      "elapsedMs": 534465,
+      "totalTokens": 3049491,
+      "designWarnings": ["cardWallPattern"]
+    },
+    {
+      "runId": "brand-launch-02/C/2",
+      "status": "passed",
+      "elapsedMs": 363261,
+      "totalTokens": 2023752,
+      "designWarnings": []
+    },
+    {
+      "runId": "academic-defense-01/C/1",
+      "status": "passed",
+      "elapsedMs": 617498,
+      "totalTokens": 4989946,
+      "designWarnings": ["cardWallPattern"]
+    }
+  ],
+  "summary": {
+    "expectedRuns": 4,
+    "completedRuns": 4,
+    "passedRuns": 4,
+    "medianElapsedMs": 525046,
+    "medianTotalTokens": 3299144,
+    "status": "passed",
+    "interpretation": "The guardrail removes the prior repository-internal/optional-renderer policy failure across four cross-scenario clean-install runs. Design warnings remain deterministic review signals, not hidden failures."
+  },
+  "comparison": {
+    "preFixRunRoot": "/tmp/officekit-authoring-pilot-C-postfix-20260825a",
+    "preFixExpectedRuns": 20,
+    "preFixCompletedRuns": 20,
+    "preFixPassedRuns": 19,
+    "preFixFailure": "technical-architecture-02/C/2 policy-repository-internal (artifact/task/output checks passed)",
+    "frozenQualityEvidenceUnchanged": true
+  }
+}

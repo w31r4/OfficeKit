@@ -36,6 +36,16 @@ It is additional
 generalization evidence only: it does not change the frozen blind-quality score
 or switch the shipped default.
 
+A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
+was an Agent policy violation caused by reading package internals and trying an
+optional Playwright renderer, while the task, output, and review checks passed.
+Commit `ac1925d7` adds the portable public-API/renderer boundary. Four
+cross-scenario clean-install runs, including that prior failing scenario, then
+passed `4/4` with the same typed authoring and resume workflow. The compact
+evidence is in `evals/presentation-authoring-compiler/postfix-c.v1.json`; it is
+generalization evidence only and does not change the frozen blind-quality
+threshold or switch Grid from the shipped default.
+
 The compact machine summary is committed at
 `evals/presentation-authoring-compiler/results.v1.json`, together with the 60
 small blind-packet descriptors, 40 judgment lines in
