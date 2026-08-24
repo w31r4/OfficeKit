@@ -36,10 +36,10 @@
   the runtime.
 - [x] 4.2 Run at least 30 declared intents three times from clean sources with
   deterministic output and mutation footprints.
-- [ ] 4.3 Run three continuation tasks in three fresh Codex contexts each and
+- [x] 4.3 Run three continuation tasks in three fresh Codex contexts each and
   require inspect, typed/issued edits, reimport, structural review, visual
   review, and source-safe delivery.
-- [ ] 4.4 Repeat the accepted workflows from the packed clean-install artifact.
+- [x] 4.4 Repeat the accepted workflows from the packed clean-install artifact.
 
 ## 5. Final release evidence
 
