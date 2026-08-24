@@ -17,8 +17,9 @@ completed. The package remains `0.6.0`; Grid is still the shipped default, and
 no 0.7.0 release or default-route switch is claimed until the declared
 reliability, quality, continuation, and cost thresholds are met.
 
-The implementation branch passes the 48-step fast gate, including the packed
-authoring workflows, Help adoption, and pilot-contract checks. A single
+The implementation branch passes the 48-step fast gate and the complete
+96-step slow gate, including the packed authoring workflows, Help adoption,
+template checks, provider contracts, and release/package checks. A single
 time-limited smoke run intentionally failed closed with no output or task
 publication and left no runner child process; it is runner evidence, not pilot
 quality evidence.
