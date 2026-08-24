@@ -84,6 +84,10 @@ const plan = {
 };
 ```
 
+For a self-directed deck, keep `palette.strict: false`. Reserve `strict: true`
+for an authoritative closed brand palette, and enumerate every emitted color,
+including theme/default colors, before binding the plan.
+
 ## Artifact references
 
 Declare a managed artifact once:

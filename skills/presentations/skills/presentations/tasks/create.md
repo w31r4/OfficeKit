@@ -36,6 +36,11 @@ composition intent. Select zero to two mechanism packs and write the actual
 palette, typography, spacing, density rhythm, motif, imagery, chart treatment,
 and strict invariants into `designGrammar`.
 
+For self-directed work, keep `palette.strict: false` unless the user supplied a
+closed brand palette. Strict palettes are for authoritative design systems and
+must enumerate every emitted color, including theme defaults. Do not turn an
+inferred preference into a closed palette.
+
 For a self-directed compiler route, include a readability floor in the grammar,
 for example `minimumBodyFontSize: 20` and `minimumCaptionFontSize: 18` in the
 model's font-size units. Never shrink text to rescue an overfull page; shorten,
