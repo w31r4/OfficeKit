@@ -29,8 +29,11 @@ OfficeKit may report:
 - new modeled color or font tokens during a local edit.
 
 These are bounded signals. Inspect the relevant pages and decide whether the
-pattern is intentional. Do not describe a warning-free report as proof of good
-design.
+pattern is intentional. If it is intentional, record an explicit
+`designGrammar.intentionalWarnings` entry with the warning `type`, affected
+`pageIds`, and a concrete `reason` before commit. A prose note elsewhere in the
+plan is not enough to make the exception auditable. Do not describe a
+warning-free report as proof of good design.
 
 ## Visual evidence
 

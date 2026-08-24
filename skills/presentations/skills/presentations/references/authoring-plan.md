@@ -55,6 +55,11 @@ const plan = {
       imagery: "documentary, task-relevant, minimal decoration",
       charts: "direct labels, shared scale, one highlighted series",
       invariants: ["one primary claim per page", "source note on evidence pages"],
+      intentionalWarnings: [{
+        type: "cardWallPattern",
+        pageIds: ["page-02-options"],
+        reason: "Equal-sized options are deliberately compared on one shared decision axis.",
+      }],
     },
   },
   pages: [{
