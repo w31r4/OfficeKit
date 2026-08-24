@@ -58,3 +58,9 @@ baseline. Run the final semantic and layout review against the candidate alone
 and repair errors such as text overflow or unexpected overlap before commit.
 Baseline review may downgrade only an unchanged, already evidenced finding in
 a source-bound local edit; it is not a way to make a new deck pass.
+
+Intentional layering is allowed when a filled, text-free rectangle, rounded
+rectangle, or ellipse is a bounded background container for its child objects,
+or a thin track behind centered markers. Keep those children within the
+container or track span. An object that crosses the container boundary remains
+an overlap error and must be repositioned.

@@ -63,3 +63,6 @@ must be independent of any earlier draft: do not pass a source `baseline` to
 hide errors created by the same task. Resolve semantic/layout errors such as
 text overflow and unexpected overlap before committing; a baseline is for
 source-bound local edits whose unchanged findings are already evidenced.
+Filled, text-free containers and thin tracks may sit behind their child
+objects when the children stay within their bounds; crossing those bounds is
+still an error.

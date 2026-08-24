@@ -17,6 +17,10 @@ completed. The package remains `0.6.0`; Grid is still the shipped default, and
 no 0.7.0 release or default-route switch is claimed until the declared
 reliability, quality, continuation, and cost thresholds are met.
 
+The deterministic layout review treats bounded filled containers and thin
+tracks behind centered markers as intentional layers when their child objects
+stay within the declared span; objects crossing those bounds remain failures.
+
 The implementation branch passes the 48-step fast gate and the complete
 96-step slow gate, including the packed authoring workflows, Help adoption,
 template checks, provider contracts, and release/package checks. A single
