@@ -1,0 +1,76 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-postfix-evidence/v1",
+  "sourceCommits": [
+    "4481dd4a8625e27001c591cd5bdaf59683933fb2",
+    "ffd810a3b86230f82173f0ac2e9f7280da1c320c",
+    "47f11a2db40cfd457b21d00cdf6c9662bf3f23d1",
+    "3c4ea0977d73a440dc3a76b528e6a1487eb376b7",
+    "2be6c619c517245173a7a1558364759eda21b54e"
+  ],
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "tarballSha256": "899978a3d008523c6e3d607d2e67ad5f247a66f898f301a2be9ebfc82f86b44e",
+    "packedBytes": 36524076,
+    "unpackedBytes": 54276601,
+    "totalFiles": 761
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "npm": "11.19.0"
+  },
+  "purpose": "Validate the generic Compose surface, textbox, connector, and materialized-element identity corrections in a fresh packed C-route context. This is a follow-up generalization check, not a replacement for the frozen A/B/C quality study.",
+  "runRoot": "/tmp/officekit-authoring-pilot-C-compose-identity-20260825f.q3Kx",
+  "runs": [
+    {
+      "runId": "technical-architecture-02/C/2",
+      "taskId": "technical-architecture-02",
+      "scenario": "technical-architecture",
+      "trial": 2,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 683213,
+      "totalTokens": 5078636,
+      "retryCount": 0,
+      "taskCommits": 3,
+      "publications": 2,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern"],
+      "policy": "passed",
+      "outputSha256": "5e2c9790bb6d98c60050769bead6ca413206f8dc6eef9276db0c92a75012484d",
+      "traceSha256": "542e534186eb50ea939d68bbf2f02ae6f7448163364c8b80b91ce88d29055ee4",
+      "evidenceDirectory": "runs/technical-architecture-02/C/2/evidence"
+    }
+  ],
+  "renderSpotCheck": {
+    "tool": "LibreOffice + pdftoppm",
+    "pages": 7,
+    "pageSizePoints": [960.009, 540],
+    "checkedSlides": [2, 3],
+    "slidePngSha256": {
+      "2": "010dafe65b50a508f5a23f5911f0bce7e465ff8946a405a1eb24d006141cb238",
+      "3": "203bb8e9cd0bae896d99dbe3647940354e4d2768eac61b44e00f78082e74f7a4"
+    },
+    "observation": "Forward connectors rendered between the intended composed boxes rather than at the slide origin. This is a manual spot check and is not treated as a visual-review verdict."
+  },
+  "summary": {
+    "expectedRuns": 1,
+    "completedRuns": 1,
+    "passedRuns": 1,
+    "status": "passed",
+    "medianElapsedMs": 683213,
+    "medianTotalTokens": 5078636,
+    "interpretation": "The fresh packed run passed after the generic Compose identity guidance and runtime regression. The prior frozen blind-quality score remains governing; C is still experimental and Grid remains shipped."
+  },
+  "guardrails": {
+    "taskSpecificSelectorsAdded": false,
+    "frozenQualityEvidenceUnchanged": true,
+    "visualReviewClaimed": false,
+    "defaultRouteChanged": false
+  }
+}
