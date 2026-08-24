@@ -1957,6 +1957,37 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 
 Report sourceBound/editable/addable preflight for chart graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the chart graphic-frame p:cNvPr.
@@ -1964,6 +1995,37 @@ Report sourceBound/editable/addable preflight for chart graphic-frame p:cNvPr ti
 #### `chart.delete`
 
 Explicitly remove a source-free chart or one capability-proven imported chart frame. The source-bound transaction removes its exact relationship and only ChartPart descendants without another package parent; external, repeated, nested, or identity-sensitive graphs fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -1973,6 +2035,37 @@ Explicitly remove a source-free chart or one capability-proven imported chart fr
 
 Report whether one imported top-level chart frame owns one uniquely used internal ChartPart relationship. Export re-proves relationship use and the exclusively owned descendant closure; shared ChartParts survive.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct chart p:graphicFrame, one uniquely used internal ChartPart relationship, the descendant ownership closure, and absence of connector/comment/timing/extension identity consumers.
@@ -1980,6 +2073,37 @@ Report whether one imported top-level chart frame owns one uniquely used interna
 #### `chart.setAccessibilityMetadata`
 
 Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -1992,6 +2116,37 @@ Transactionally add, change, or clear non-visible chart title/description/decora
 #### `compose.column`
 
 Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2009,6 +2164,37 @@ Create a vertical compose container. Use width/height fill, hug, or fixed pixels
 
 Create an editable text block with name, className/style text tokens, and stable inspect output.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `text` (string) required — Editable paragraph text.
@@ -2024,6 +2210,37 @@ Create an editable text block with name, className/style text tokens, and stable
 
 Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `children` (string|string[]|object[]) required — Text or run-like children passed as the first argument.
@@ -2037,6 +2254,37 @@ Create the same editable paragraph node through the reference-template-compatibl
 
 Report sourceBound/editable/addable preflight for connector p:cNvPr title/description/decorative metadata; export re-proves it.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the connector p:nvCxnSpPr/p:cNvPr.
@@ -2044,6 +2292,37 @@ Report sourceBound/editable/addable preflight for connector p:cNvPr title/descri
 #### `connector.bringToFront`
 
 Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -2053,6 +2332,37 @@ Move a source-free connector above modeled slide/group elements. Imported z-orde
 
 Explicitly remove a source-free connector or one capability-proven imported direct p:cxnSp. Relationship-bearing or nested connectors and connector/comment/timing/extension identity consumers fail closed; endpoint shapes remain untouched.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `connector` (ConnectorElement) — The removed connector facade. Source-free deletion checks current comment/connector references. Imported deletion requires connector.deletionCapability.supported and records explicit intent; export removes only the direct p:cxnSp, validates native-ID absence, leaves its endpoint shapes unchanged, and rejects relationships, nested owners, identity-sensitive graphs, or direct array splicing.
@@ -2060,6 +2370,37 @@ Explicitly remove a source-free connector or one capability-proven imported dire
 #### `connector.deletionCapability`
 
 Report whether one imported top-level canonical relationship-free connector can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -2069,6 +2410,37 @@ Report whether one imported top-level canonical relationship-free connector can 
 
 Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `connector` (ConnectorElement) — Move a source-free connector behind modeled elements. Imported connector z-order is source-bound and rejects.
@@ -2076,6 +2448,37 @@ Move a source-free connector behind modeled slide/group elements. New shape-conn
 #### `connector.setAccessibilityMetadata`
 
 Transactionally add, change, or clear non-visible connector title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2088,6 +2491,37 @@ Transactionally add, change, or clear non-visible connector title/description/de
 #### `connector.setConnectorFrom`
 
 Atomically bind a connector start to a modeled same-tree shape and explicit connection-site index.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2102,6 +2536,37 @@ Atomically bind a connector start to a modeled same-tree shape and explicit conn
 
 Atomically bind a connector end to a modeled same-tree shape and explicit connection-site index.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `target` (Shape|string) required — Modeled same-tree end shape.
@@ -2114,6 +2579,36 @@ Atomically bind a connector end to a modeled same-tree shape and explicit connec
 #### `exportPptxWithOfficeKit`
 
 Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, free-positioned p:sp lines with the shared six-style/line-end/cap/join outline profile, rich text and lists, basic fills/lines/shadows, straight/elbow/curved p:cxnSp connectors with target connection sites through that same line profile, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation.
+
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2128,6 +2623,37 @@ Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse sha
 
 Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description/decorative metadata; export re-proves it.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the group p:nvGrpSpPr/p:cNvPr.
@@ -2135,6 +2661,37 @@ Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/desc
 #### `group.delete`
 
 Delete one source-free or capability-proven imported group as a complete recursive ownership tree. Shared media and ChartParts survive; nested groups, outside connector/comment targets, relationship reuse, identity-sensitive graphs, and raw collection mutation fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -2144,6 +2701,37 @@ Delete one source-free or capability-proven imported group as a complete recursi
 
 Report whether one imported top-level canonical recursive p:grpSp exclusively owns its complete native-ID, relationship-reference, and multi-root OPC graph. Export recomputes the source-bound capability.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. Export ignores caller claims and re-proves one direct p:grpSp, unique native IDs for its complete descendant tree, absence of outside connector/comment/timing/extension identity consumers, exclusive relationship use, and the multi-root OPC ownership closure.
@@ -2151,6 +2739,37 @@ Report whether one imported top-level canonical recursive p:grpSp exclusively ow
 #### `group.setAccessibilityMetadata`
 
 Transactionally add, change, or clear non-visible group-frame title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2164,6 +2783,37 @@ Transactionally add, change, or clear non-visible group-frame title/description/
 
 Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight for picture title/description/decorative metadata.
@@ -2171,6 +2821,37 @@ Report sourceBound/editable/addable preflight for picture p:cNvPr title/descript
 #### `image.delete`
 
 Explicitly remove a source-free image or one capability-proven imported top-level embedded picture. The source-bound transaction removes the p:pic subtree and exact relationship, garbage-collects only exclusively owned media descendants, preserves shared media, and rejects external/ambiguous/identity-sensitive graphs or raw array mutation.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -2180,6 +2861,37 @@ Explicitly remove a source-free image or one capability-proven imported top-leve
 
 Report whether one imported top-level embedded picture can be deleted with its exact SlidePart relationship and exclusively owned media closure. Shared media survives; export re-proves relationship use, native identity, comments, connectors, timing, and extensions from source bytes.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct p:pic, one uniquely used embedded-image relationship, media-part ownership, and absence of connector/comment/timing/extension identity consumers.
@@ -2187,6 +2899,37 @@ Report whether one imported top-level embedded picture can be deleted with its e
 #### `image.editSvgLeaf`
 
 Replace one issued SVG RGB, opacity, or transform scalar after expectedHash verification. The exact token splice preserves all other SVG bytes and rejects stale, cross-image, invalid, unsupported, and no-op edits.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2201,6 +2944,37 @@ Replace one issued SVG RGB, opacity, or transform scalar after expectedHash veri
 
 Replace one issued direct SVG text/tspan leaf after expectedHash verification with an escaped value. The bounded image-byte transaction preserves the rest of the SVG, rejects active/external content and stale/no-op edits, and remains verifiable after PPTX export/reimport.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `nodeId` (string) required — Exact image-local SVG leaf ID returned by getSvgTextNodes().
@@ -2214,6 +2988,37 @@ Replace one issued direct SVG text/tspan leaf after expectedHash verification wi
 
 Return defensive source-issued SVG style and transform leaves for an image. Each leaf identifies its typed value and exact expectedHash without exposing XML selectors or arbitrary attributes.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `SVG edit leaves` (object[]) — Defensive copies of the currently issued typed SVG leaves. Reinspect after every image replacement or edit; leaf IDs are capabilities, not raw XML, XPath, part paths, CSS selectors, or arbitrary attribute access.
@@ -2222,6 +3027,37 @@ Return defensive source-issued SVG style and transform leaves for an image. Each
 
 Return defensive source-issued SVG text/tspan leaves for an image. Each leaf has a stable image-local ID, text, tag, and expectedHash; the returned records cannot mutate the image.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `image text nodes` (object[]) — Defensive copies of the currently issued direct SVG text/tspan leaves. Reinspect after every image replacement or edit; this is not a raw XML selector API.
@@ -2229,6 +3065,37 @@ Return defensive source-issued SVG text/tspan leaves for an image. Each leaf has
 #### `image.setAccessibilityMetadata`
 
 Transactionally add, change, or clear a picture's non-visible title/description/decorative metadata. The legacy image.alt property reads and writes the same description state rather than creating a second metadata source.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2242,6 +3109,37 @@ Transactionally add, change, or clear a picture's non-visible title/description/
 
 Report source-revision-bound direct SVG fill, stroke, opacity, and single transform-scalar leaves for a base64 SVG image. Each issued leaf carries an exact replacement hash; active content, external references, stylesheets, classes, and unsupported transform topology remain blocked.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { supported, reason, sourceSha256, sourceRevisionSha256?, leaves[] } evidence. Leaves are typed as svgFillRgb, svgStrokeRgb, svgOpacity, or svgTransformScalar and are bound to the current image bytes, owning image, slide, presentation, and imported package revision.
@@ -2250,6 +3148,37 @@ Report source-revision-bound direct SVG fill, stroke, opacity, and single transf
 
 Report bounded direct SVG text/tspan leaves for a base64 SVG image, including the image-byte SHA-256 and exact replacement hashes. Active content, external references, oversized SVGs, and nested/non-text leaves remain unsupported.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { supported, reason, sourceSha256, nodes[] } evidence for a bounded base64 SVG image. Nodes are direct text/tspan leaves with image-local IDs and expectedHash values.
@@ -2257,6 +3186,36 @@ Report bounded direct SVG text/tspan leaves for a base64 SVG image, including th
 #### `importPptxWithOfficeKit`
 
 Import PPTX bytes with editable bounded direct slide backgrounds, shapes, free-positioned p:sp lines including bounded line ends/caps/joins, rich text, recognized owner-local SlidePart placeholder text, rectangular pictures and native source rectangles, tables, target-bound p:cxnSp connectors, recursive canonical p:grpSp groups, bar/line/pie charts, the canonical literal clustered bar+line combo profile with either shared primary axes or a secondary line pair, legacy text-only speaker notes plus fixed-topology relationship-free rich notes and a re-proven addable capability for eligible notes-absent slides, unchanged-only legacy comments, fixed-topology modern comment text/status edits, defensive payload access for eligible OLE XLSX workbooks plus one uniquely bound DOCX Office-package profile, and a source-bound SmartArt text capability only for a canonical closed four-part DiagramDataPart whose nodes use fixed direct paragraphs with optional empty paragraphs, between one and 256 total direct plain runs, and canonical fixed a:br leaves. Compound/theme/custom-dash/effect/extension outlines and all other unsupported content remain source-bound and read-only rather than being flattened.
+
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2271,6 +3230,36 @@ Import PPTX bytes with editable bounded direct slide backgrounds, shapes, free-p
 
 Read a defensive FileBlob copy from an eligible source-bound top-level OLE package. It is compatible with the legacy XLSX workbook profile and currently adds one uniquely bound DOCX profile; it never exposes arbitrary OLE or native-part mutation.
 
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `officePackage` (FileBlob) — Defensive Office-package FileBlob copy with source part-path and SHA-256 metadata. It is compatible with the legacy eligible XLSX workbook profile and currently adds only one uniquely bound DOCX profile; arbitrary OLE payloads remain unavailable.
@@ -2279,6 +3268,36 @@ Read a defensive FileBlob copy from an eligible source-bound top-level OLE packa
 
 Read a defensive FileBlob copy of the XLSX payload from an eligible source-bound top-level OLE object without exposing arbitrary native-part mutation.
 
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `workbook` (FileBlob) — Defensive XLSX FileBlob copy with source part-path and SHA-256 metadata. Available only for a uniquely bound top-level OLE package relationship.
@@ -2286,6 +3305,36 @@ Read a defensive FileBlob copy of the XLSX payload from an eligible source-bound
 #### `nativeObject.replaceEmbeddedOfficePackage`
 
 Replace only a source-bound Office package on an eligible imported top-level OLE object. The current generic profile validates DOCX bytes and exact content type while preserving the OLE shell, relationships, preview, and all other native parts; malformed, shared, ambiguous, or unsupported package graphs fail closed.
+
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2299,6 +3348,36 @@ Replace only a source-bound Office package on an eligible imported top-level OLE
 
 Replace only the XLSX payload of an eligible imported top-level OLE object. OfficeKit validates the new workbook and immutable source binding, preserves the OLE shell, relationships, preview, and all other native parts, and fails closed for malformed or ambiguous graphs.
 
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `workbook` (FileBlob|Uint8Array|ArrayBuffer|ArrayBufferView) required — Replacement XLSX bytes, copied defensively and limited to 16 MiB before canonical export validation.
@@ -2310,6 +3389,37 @@ Replace only the XLSX payload of an eligible imported top-level OLE object. Offi
 #### `nativeObject.setDiagramNodeRunText`
 
 Replace one existing direct a:r/a:t value by zero-based source-order run index across a proven SmartArt node's fixed direct paragraphs. Empty paragraphs, paragraph/run topology, a:pPr, a:rPr, canonical fixed a:br, and a:endParaRPr stay source-bound; wholly empty nodes, fields, noncanonical breaks, topology changes, and unsupported diagrams reject without fallback.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2325,6 +3435,37 @@ Replace one existing direct a:r/a:t value by zero-based source-order run index a
 
 Replace a one-run source-bound SmartArt document node after its top-level four-part graph and fixed direct-paragraph/run DiagramDataPart profile are proven. Multi-run nodes reject so OfficeKit never guesses a formatting boundary.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `nodeId` (string) required — Exact existing SmartArt DiagramDataPart dgm:pt/@modelId from nativeObject.diagramText.nodes. Node creation, removal, ordering, and identity changes are not supported.
@@ -2338,6 +3479,37 @@ Replace a one-run source-bound SmartArt document node after its top-level four-p
 
 Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. Separate bounded SmartArt node/run text methods own the only modeled diagram mutation.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `name` (string) required — Requested native-object display name, limited to 1,024 characters. Imported native objects are read-only, so the method rejects.
@@ -2349,6 +3521,37 @@ Native OLE, SmartArt/diagram, contentPart, and media objects imported through Of
 #### `nativeObject.setPosition`
 
 Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2362,6 +3565,37 @@ Native OLE, SmartArt/diagram, contentPart, and media objects imported through Of
 
 Audit modeled slide objects for explicit meaningful/decorative classification and non-visible title/description coverage, while separating native-object and reading-order checks that still require manual host review. It never claims whole-deck accessibility conformance.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `maxChars` (number) — Maximum bounded NDJSON size across machine issues and manual-review records.
@@ -2373,6 +3607,37 @@ Audit modeled slide objects for explicit meaningful/decorative classification an
 #### `Presentation.create`
 
 Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2391,6 +3656,37 @@ Create a deck model whose canonical OfficeKit export supports ordinary slides, t
 
 Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `name` (string) required — Unique custom-show name, compared case-insensitively.
@@ -2405,6 +3701,37 @@ Define an ordered native p:custShowLst playback route for source-free OfficeKit 
 
 Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `idOrNameOrIndex` (string|number) required — Stable custom-show ID, exact name, or zero-based collection index.
@@ -2416,6 +3743,37 @@ Resolve a source-free or canonical imported custom show by zero-based index, sta
 #### `presentation.designProfile`
 
 Return a bounded read-only design-language profile for the current deck: source revision binding when imported, canvas, palette, typography, density, normalized geometry rhythm, layout families, slide archetypes, repeated visual candidates, and opaque native summaries. The profile is evidence for template-conditioned generation only; it contains no XML selectors, package paths, source bytes, or mutation authority.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2429,6 +3787,37 @@ Return a bounded read-only design-language profile for the current deck: source 
 #### `presentation.editComponentOccurrence`
 
 Apply one atomic batch of typed native-leaf edits to a repeated component occurrence issued by presentation.inspect({ includeComponentCandidates: true }). The occurrence editCapability and each leafId, targetId, and expectedHash are source-revision-bound; all values are validated before any leaf is changed. Only codec-issued text, color, geometry, chart, SmartArt, or other bounded leaf kinds are accepted. Raw XML, selectors, part paths, foreign leaves, duplicate leaves, stale hashes, and edits outside the selected component fail closed.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2444,6 +3833,37 @@ Apply one atomic batch of typed native-leaf edits to a repeated component occurr
 #### `presentation.editNativeLeaf`
 
 Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. Repeat the call for a coordinated move/resize; one export sorts all issued leaves into one deterministic Edit Plan. The current profile changes existing text leaves, including group children and shapes with source-owned outer styling, shape RGB/local-geometry scalars, picture local-geometry scalars (including opaque pictures whose payload and effects remain source-owned), direct rich chart-title runs, direct numeric bar-chart cache points proven against one exact cell in a uniquely bound embedded XLSX, or direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. A chartDataValue operation changes both the ChartPart cache and that worksheet cell. A diagramText operation token-splices only its issued a:t and does not reserialize the diagram part. Separate typed imported-table, embedded-image, and element-delete facades lower to tableCellText, imageAsset, and deleteElement operations in the same Edit Plan; those operation kinds are not arbitrary native-leaf selectors. The compiler binds the complete ownership tree and dependent parts. Stale hashes, concurrent non-leaf changes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes or cells, relationship fields, formulas, namespaces, and topology changes reject.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Examples:**
 
@@ -2467,6 +3887,37 @@ immutable nativeLeafEdit receipt
 
 Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `format` (string) — svg by default, montage, or layout.
@@ -2483,6 +3934,37 @@ Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or targe
 
 Return a fresh sorted, case-insensitively deduplicated list of explicitly used presentation text and bullet font families.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `families` (string[]) — Explicit font-family inventory; theme tokens such as +mj-lt are excluded.
@@ -2490,6 +3972,37 @@ Return a fresh sorted, case-insensitively deduplicated list of explicitly used p
 #### `presentation.inspect`
 
 Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Examples:**
 
@@ -2533,6 +4046,37 @@ Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide tr
 
 Clear a direct background on a bounded source-free layout. Imported-layout mutation remains source-bound and fails closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `layout` (SlideLayoutTemplate) — Clears a direct background on a bounded source-free layout. Imported-layout edits fail closed.
@@ -2540,6 +4084,37 @@ Clear a direct background on a bounded source-free layout. Imported-layout mutat
 #### `presentation.layout.placeholders.add`
 
 Append a direct-frame title/body/ctrTitle/subTitle text placeholder to a source-free layout. It becomes a native p:ph and must be materialized on each slide through applyLayout/setLayout; object/media/chart/table placeholders remain source-bound.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2558,6 +4133,37 @@ Append a direct-frame title/body/ctrTitle/subTitle text placeholder to a source-
 
 Return a defensive layout-placeholder discovery snapshot with stable IDs, names, native types/indexes, required flags, and direct-frame presence/geometry; editing the snapshot cannot mutate the model.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `summary` (object) — Fresh defensive snapshot of the layout placeholder collection. It reports ownerId, count, requiredCount, sorted types, and copied items; imported inherited placeholders explicitly report hasDirectPosition: false.
@@ -2565,6 +4171,37 @@ Return a defensive layout-placeholder discovery snapshot with stable IDs, names,
 #### `presentation.layout.setBackground`
 
 Set a direct background on a bounded source-free layout. Imported-layout mutation remains source-bound and fails closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2577,6 +4214,37 @@ Set a direct background on a bounded source-free layout. Imported-layout mutatio
 #### `presentation.layouts.add`
 
 Create one bounded source-free layout under the canonical master. Use blank, title, titleOnly, or obj/titleAndContent plus direct-frame text placeholders; imported layouts remain source-bound and read-only.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2595,6 +4263,37 @@ Create one bounded source-free layout under the canonical master. Use blank, tit
 
 Resolve a layout by its stable ID without falling back to a same-named or same-typed layout.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `id` (string) required — Exact stable layout ID.
@@ -2606,6 +4305,37 @@ Resolve a layout by its stable ID without falling back to a same-named or same-t
 #### `presentation.master`
 
 Access the one canonical source-free Slide Master. It may author a direct background, bounded text styles, and direct-frame title/body/ctrTitle/subTitle placeholders; imported Master graphs remain source-bound and read-only.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2625,6 +4355,37 @@ Access the one canonical source-free Slide Master. It may author a direct backgr
 
 Clear the direct background of the one canonical source-free master. Imported-master mutation remains source-bound and fails closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `master` (PresentationSlideMaster) — Clears the direct background of the one canonical source-free master. Imported-master edits fail closed.
@@ -2632,6 +4393,37 @@ Clear the direct background of the one canonical source-free master. Imported-ma
 #### `presentation.master.setBackground`
 
 Set the direct background of the one canonical source-free master. Imported-master mutation remains source-bound and fails closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2645,6 +4437,37 @@ Set the direct background of the one canonical source-free master. Imported-mast
 
 Set a model-level master theme override for preview only. Canonical PPTX export rejects that source-free override; imported-master mutation remains source-bound and fails closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `theme` (object|null) required — Partial master theme override, or null to inherit presentation.theme.
@@ -2656,6 +4479,37 @@ Set a model-level master theme override for preview only. Canonical PPTX export 
 #### `presentation.masters.add`
 
 Append a model-level Slide Master. Source-free PPTX authoring requires exactly one master, so use Presentation.create({ master }) or presentation.master for the canonical profile; multiple masters and imported-master edits fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2674,6 +4528,37 @@ Append a model-level Slide Master. Source-free PPTX authoring requires exactly o
 
 Resolve a model-level or imported Slide Master by stable ID or name.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `idOrName` (string) required — Stable master ID or native master name.
@@ -2685,6 +4570,37 @@ Resolve a model-level or imported Slide Master by stable ID or name.
 #### `presentation.planTemplateGeneration`
 
 Build a source-bound, read-only multi-page frame map from a trusted imported PPTX: choose clone-safe source slides by role, archetype, content density, and preferred visual kinds; issue bounded text-run targets and reusable-component candidates; report heuristic text-fit warnings, alternatives, opaque-object limits, and blocked requests without mutating the deck.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2699,6 +4615,37 @@ Build a source-bound, read-only multi-page frame map from a trusted imported PPT
 
 Map stable inspect anchor IDs back to facade objects, including custom shows, PowerPoint sections, and slide transitions; imported advanced package objects may be read-only.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `id` (string) required — Stable deck, theme, layout, slide, transition, element, custom-show, section, comment, or text-range ID.
@@ -2710,6 +4657,37 @@ Map stable inspect anchor IDs back to facade objects, including custom shows, Po
 #### `presentation.resolveComponentCandidate`
 
 Resolve one candidateId issued by presentation.inspect({ includeComponentCandidates: true }) to a defensive source-revision-bound reference. Candidates describe repeated visual structure without exposing raw XML or asset bytes; only an inspect-only candidate with a closed top-level graph can be passed to presentation.reuseSourceComponent, while ambiguous, opaque, or relationship-bound graphs carry an explicit blocked reason.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Examples:**
 
@@ -2731,6 +4709,37 @@ defensive componentCandidate record or undefined
 
 Create a new source-bound slide containing one exact top-level repeated component occurrence from presentation.inspect({ includeComponentCandidates: true }). The candidateId, occurrenceIndex, source revision, closed-graph ownership, sibling deletion proofs, and retained connector targets are checked before a complete source slide clone is projected by deleting only codec-proven sibling elements. Nested, opaque, ambiguous, comment-bound, relationship-bound, or stale candidates fail closed; the original slide and all non-target source parts remain untouched.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `candidateId` (string) required — Exact candidateId from presentation.inspect({ includeComponentCandidates: true }).
@@ -2744,6 +4753,37 @@ Create a new source-bound slide containing one exact top-level repeated componen
 #### `presentation.reuseSourceSlide`
 
 Reuse one inspected imported slide as a source-bound complete graph after matching its exact slideId, sourceRevisionSha256, and optional clone-capability ownership evidence. The operation delegates to the codec-proven slide clone profile; stale revisions, unsupported graphs, and mismatched ownership evidence fail closed before the pending clone is created.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2759,6 +4799,37 @@ Reuse one inspected imported slide as a source-bound complete graph after matchi
 
 Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `name` (string) required — Unique 1-255-character section name, compared case-insensitively.
@@ -2773,6 +4844,37 @@ Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export
 
 Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `idOrNameOrIndex` (string|number) required — Stable section ID, exact name, or zero-based collection index.
@@ -2784,6 +4886,37 @@ Resolve a source-free or canonical imported PowerPoint section by zero-based ind
 #### `presentation.slides.add`
 
 Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2801,6 +4934,37 @@ Append an editable core slide with optional hidden slideshow state, a bounded so
 #### `presentation.slides.insert`
 
 Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2820,6 +4984,37 @@ Insert a source-free slide after an existing Slide or 0-based index, or at the b
 
 Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `width` (number) required — Finite non-negative canvas width in pixels; a changed imported canvas must resolve to a positive signed 32-bit EMU value.
@@ -2833,6 +5028,37 @@ Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed siz
 
 Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `id` (string) required — Stable shape text-range ID ending in /text.
@@ -2844,6 +5070,37 @@ Inspect or resolve stable textRange anchors such as shapeId/text for editable sl
 #### `presentation.theme`
 
 Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2861,6 +5118,37 @@ Inspect the model theme and theme inheritance. Custom source-free themes are not
 
 Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `minOverlapArea` (number) — Minimum overlap area in square pixels before reporting.
@@ -2874,6 +5162,37 @@ Detect layout QA issues across slides, including off-canvas elements, geometry o
 #### `presentation.verify`
 
 Return QA issues for layout validation, missing master/layout references, placeholder fidelity, chart/data consistency, table shape, image data, and dangling comments.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2889,6 +5208,37 @@ Return QA issues for layout validation, missing master/layout references, placeh
 
 Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and guides. Visibility is local model state; a separately capability-gated fixed-topology source-bound edit profile may change only already-present grid/snap values and guide positions in viewProps.xml.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `view` (PresentationView) — Local gridlinesVisible/guidesVisible state with show/hide/toggle methods, imported grid/snap/guide getters, and capability-aware source-bound editing. Local visibility is never persisted. Imported viewProps.xml may change only through setSourceProperties when capability.editable is true; that narrow profile retains field presence, guide count/order/orientation, relationships, extensions, and every non-editable XML residual.
@@ -2897,6 +5247,37 @@ Control local editor gridline/guide visibility and inspect imported PowerPoint g
 
 Return defensive sourceBound, partPresent, editable, existing-field, and guide-count evidence for the imported PPTX view-properties part. It is preflight evidence only; export re-proves hashes, topology, and the non-editable XML residual.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, partPresent, editable, gridSpacingCxEmuPresent, gridSpacingCyEmuPresent, slideViewSnapToGridPresent, slideViewSnapToObjectsPresent, guideCount } evidence. editable is true only for a relationship-free imported fixed-topology p:viewPr profile. It is preflight evidence, not mutable authority; export independently re-proves the source part, binding hashes, topology, and residual XML.
@@ -2904,6 +5285,37 @@ Return defensive sourceBound, partPresent, editable, existing-field, and guide-c
 #### `presentation.view.setSourceProperties`
 
 Change already-present imported grid spacing, snap flags, and existing guide positions only when view.capability.editable is true. It cannot create viewProps.xml, add/remove/reorient guides, write showGuides, or reconstruct extensions/relationships; unsupported profiles fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2921,6 +5333,36 @@ Change already-present imported grid spacing, snap flags, and existing guide pos
 
 Serialize PPTX through the single bundled OfficeKit codec. Only limits is accepted; legacy codec and lossy-fallback options fail explicitly.
 
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `presentation` (Presentation) required — Presentation facade to serialize.
@@ -2934,6 +5376,36 @@ Serialize PPTX through the single bundled OfficeKit codec. Only limits is accept
 
 Import PPTX through the single bundled OfficeKit codec with bounded free-positioned p:sp lines including direct line ends/caps/joins, source-bound opaque preservation, speaker-notes edit/add capability evidence, bounded text-only edits for recognized local SlidePart placeholders and canonical SmartArt nodes whose fixed direct paragraphs retain optional empty paragraphs and contain between one and 256 total plain runs plus canonical fixed a:br leaves, eligible OLE XLSX payload access/replacement plus uniquely bound DOCX Office-package access/replacement, and fail-closed unsupported edits.
 
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `pptx` (FileBlob|Uint8Array) required — PPTX package bytes.
@@ -2946,6 +5418,36 @@ Import PPTX through the single bundled OfficeKit codec with bounded free-positio
 #### `PresentationFile.inspectPptx`
 
 Inspect bounded PPTX parts, content types, the required presentation/root officeDocument relationship, namespace-aware source XML references, legacy notes/comments evidence, and Office 2021 modern author/thread/anchor semantics after raw-input, part-count, decompression, and optional compression-ratio budgets; verifyCrc32 additionally checks ZIP entry CRCs.
+
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/review-deliver.md#evidence
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Examples:**
 
@@ -2971,6 +5473,36 @@ Inspect bounded PPTX parts, content types, the required presentation/root office
 #### `PresentationFile.patchPptx`
 
 Apply path-validated PPTX part patches, including safe slide/master/layout ID lists and slide image/chart DrawingML mutations, and atomically reject dangling package references or invalid notes/comments semantics.
+
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -2998,6 +5530,37 @@ Apply path-validated PPTX part patches, including safe slide/master/layout ID li
 
 Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/description/decorative metadata; export re-proves it.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates p:cNvPr.
@@ -3005,6 +5568,37 @@ Report sourceBound/editable/addable preflight for ordinary-shape p:cNvPr title/d
 #### `shape.delete`
 
 Explicitly remove a source-free shape or one capability-proven imported top-level ordinary shape. Relationship-owning shapes, connector/comment/timing/extension identity graphs, nested children, and raw collection mutation fail closed; pictures, connectors, tables, and charts expose their own typed deletion capability.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -3014,6 +5608,37 @@ Explicitly remove a source-free shape or one capability-proven imported top-leve
 
 Report whether one imported top-level ordinary shape is inside the bounded element-deletion profile, with a package-local native ID used for post-write absence proof. Export recomputes the capability from source bytes.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr identity evidence, not a cross-file artifact ID. Imported export ignores caller claims and re-proves the direct ShapeTree parent, element hash, unique native ID, relationship-free subtree, and absence of connector/comment/timing/extension identity consumers.
@@ -3021,6 +5646,37 @@ Report whether one imported top-level ordinary shape is inside the bounded eleme
 #### `shape.setAccessibilityMetadata`
 
 Transactionally add, change, or clear non-visible ordinary-shape title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3034,6 +5690,37 @@ Transactionally add, change, or clear non-visible ordinary-shape title/descripti
 
 Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `text` (string|string[]|object|object[]) required — Plain text, paragraph strings, inline arrays, or paragraph objects. Canonical OfficeKit export supports ordered text, fields, styled line breaks, bounded run/paragraph formatting, character and picture bullets, auto-numbering, levels, indents, spacing, tab stops, and one absolute uri, target slideId, relative action (nextSlide, previousSlide, firstSlide, lastSlide, endShow), or existing customShow name per link. customShow may include returnToSlide and survives the bounded slide clone as the same relationship-free stable-identity action without adding the clone to show membership; missing, opaque, malformed, relationship-bearing, or dangling targets fail closed.
@@ -3046,6 +5733,36 @@ Set plain or structured text with ordered text, field, and line-break inlines; b
 
 Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed.
 
+**Adoption tier:** `compatibility`
+
+**Use when:**
+
+- A package-level or legacy interoperability operation is explicitly required.
+- The caller can provide source-bound evidence and perform a second import.
+
+**Avoid when:**
+
+- Do not use as the default authoring route; use the typed Presentation facade first.
+- Do not infer that an opaque or unsupported object became editable.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- Re-import the output and compare package/source evidence.
+- Report unsupported or preserved content explicitly.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `useBackgroundFill` (boolean|undefined) — True/false only when the native attribute was present; otherwise undefined.
@@ -3053,6 +5770,37 @@ Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects 
 #### `slide.addNotes`
 
 Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3066,6 +5814,37 @@ Set speaker notes as text or relationship-free paragraph/run data for inspect, p
 
 Bind a slide to a bounded source-free layout and materialize its effective direct-frame placeholder shapes. Applying the same layout is idempotent; switching a materialized layout fails closed. The resulting p:ph identities and direct frames export natively; imported Layout relationships remain preservation-only.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/continue.md#reinspect
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `layout` (string|SlideLayoutTemplate) required — Layout name/ID or layout facade.
@@ -3077,6 +5856,37 @@ Bind a slide to a bounded source-free layout and materialize its effective direc
 #### `slide.autoLayout`
 
 Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3096,6 +5906,37 @@ Place existing shapes inside a frame using horizontal or vertical flow, gap, pad
 #### `slide.charts.add`
 
 Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or clustered bar+line combo chart. Category families use shared literal categories; scatter and bubble use aligned per-series numeric X/Y values, with positive area-based bubble sizes. Bar and line series, including combo members, accept up to 16 bounded native linear, exponential, logarithmic, power, polynomial, or moving-average trendlines plus one fixed/percentage/standard-deviation/standard-error/custom-literal errorBars projection. Imported trendline count and error-bar presence are fixed; unsupported labels/extensions/unknown children/complex lines remain source-owned. Supported variants retain title, legend, bounded axes, basic series styling, chart-level data labels, layout JSON, error-bar-aware SVG preview, and native ChartPart output across import/edit/re-export. Formula-backed custom error bars without an explicit embedded-workbook route, other formula/external data, advanced family geometry, topology changes, and unsupported styling fail closed rather than being flattened.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3123,6 +5964,37 @@ Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut
 
 Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `slide` (Slide) — The same slide with no direct background, inheriting from its preserved Layout/Master chain.
@@ -3130,6 +6002,37 @@ Remove the direct slide background so preview and PPTX output inherit from the p
 #### `slide.clearTransition`
 
 Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -3139,6 +6042,37 @@ Remove one canonical direct imported or source-free slide transition. A transiti
 
 Report whether an imported SlidePart can be copied as one ownership-checked OPC graph. The Codec copies every uniquely owned descendant, DataPart, and external relationship while rebinding proven shared layout, NotesMaster, image, and retained-slide targets. Sections, modern comments, outside-owned nodes, removed slide-jump targets, and over-budget graphs fail closed before the model changes.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, known, supported, blockedReason, clonedPartCount, sharedPartCount, sourceRevisionSha256 } preflight. clonedPartCount includes the SlidePart and uniquely owned OpenXmlPart descendants; sharedPartCount reports recognized resources rebound to the source package; sourceRevisionSha256 binds a reuse request to the exact imported package. Export ignores caller claims and re-analyzes the hash-bound package graph.
@@ -3146,6 +6080,37 @@ Report whether an imported SlidePart can be copied as one ownership-checked OPC 
 #### `slide.comments.addThread`
 
 Create either a bounded legacy PPTX annotation or an Office 2021 modern thread. A comment-free imported presentation may add canonical legacy review comments only when comments.capability.addable is true; a canonical imported legacy leaf with comments.capability.editable permits only existing root-text replacement, never addThread/replies/metadata edits. Modern mode supports a top-level element/text-range/textMatch anchor, one root, direct replies, independent people/timestamps, and active/resolved/closed state; imported modern graphs permit only fixed-topology text/status edits.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3166,6 +6131,37 @@ Create either a bounded legacy PPTX annotation or an Office 2021 modern thread. 
 
 Inspect defensive source-bound comment-family evidence before authoring or editing. A comment-free imported presentation may advertise legacy addability; one closed imported legacy leaf may instead advertise editable, which permits only its existing root text to change while author/time/coordinate/native identity/order/topology remain fixed. Modern graphs retain their separate fixed-topology edit contract.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, format, partPresent, editable, addable } evidence. For imported files, addable is true only when the complete presentation has no legacy or Office 2021 comment graph and OfficeKit can create one canonical legacy CommentAuthorsPart plus slide-local SlideCommentsPart leaves. editable is true only for an existing closed legacy leaf with one relationship-free author catalog and a re-proven fixed comment topology; then only the existing root text may change. Author, timestamp, coordinate, package-local author/index identity, order, count, relationships, and family remain fixed. This is preflight evidence, not mutable write authority; export re-proves the source bytes and fails closed on existing irregular, mixed, connected, or tampered graphs.
@@ -3173,6 +6169,37 @@ Inspect defensive source-bound comment-family evidence before authoring or editi
 #### `slide.compose`
 
 Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3186,6 +6213,37 @@ Materialize a clean-room compose tree with row, column, grid, layers, box, parag
 #### `slide.connectors.add`
 
 Legacy low-level connector authoring from explicit points or target centers. Prefer slide.shapes.connect or geometry: connector when DrawingML target-plus-site identity matters.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3205,6 +6263,37 @@ Legacy low-level connector authoring from explicit points or target centers. Pre
 
 Report full-authoring, pending-clone (export/reimport first), or bounded-overlay. Bounded overlay token-preserves the tree and allows one clean export of listed basic shapes/images. Separate SlidePart edits by reviewed revision.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/continue.md#reinspect
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, ready, profile, requiresExportReopen, oneSlideMutationPerExport?, shapeGeometries?, embeddedImage?, sourceRevisionSha256? }. pending-clone requires export/reimport. bounded-overlay permits only listed shapes/images; other native additions and mixed SlidePart edits stay blocked.
@@ -3212,6 +6301,37 @@ Report full-authoring, pending-clone (export/reimport first), or bounded-overlay
 #### `slide.delete`
 
 Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX first requires deletionCapability.supported, then removes the real SlidePart and every exclusively owned descendant (including closed notes/comments/chart/OLE/diagram/media leaves) while retaining shared parts. Inbound slide references and presentation-level custom-show/section/extension identity remain fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -3221,6 +6341,37 @@ Remove this slide. Source-free decks may remove any non-final slide. An imported
 
 Report whether an imported SlidePart and its exclusively owned OPC descendant closure can be deleted. The count includes the slide plus owned OpenXml/DataPart descendants; shared layout/master/theme/media remain outside the closure. Export re-proves the graph from source bytes and aggregates all requested slide deletions into one ownership transaction.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, known, supported, blockedReason, ownedPartCount } per-slide preflight. Imported capability presence makes known true; export ignores caller claims and recomputes one aggregate exclusive OPC descendant closure for every requested slide deletion from the hash-bound source package.
@@ -3228,6 +6379,37 @@ Report whether an imported SlidePart and its exclusively owned OPC descendant cl
 #### `slide.duplicate`
 
 Clone one original imported PPTX slide after slide.cloneCapability proves a bounded ownership graph. The JavaScript model copies the unchanged semantic element tree and resolves connector targets to fresh clone-local identities; the OfficeKit Codec then creates a distinct SlidePart, recursively byte-copies every uniquely owned OpenXmlPart and DataPart with exact local relationship IDs and external links, and rebinds only proven shared layout, NotesMaster, image, slide-jump, and other identity resources. Custom-show membership is unchanged. The pending clone cannot be edited, cloned twice, or lose its origin before export/reimport. Source-free slides, sections, modern comments, outside-owned unknown nodes, removed slide-jump targets, unresolved semantic elements/connectors, pending native payload replacements, and over-budget graphs fail closed.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The requested presentation intent is covered by this bounded, inspect-backed primitive.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- fresh presentation.inspect() evidence when editing an imported file
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/continue.md#reinspect
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -3241,6 +6423,37 @@ Clone one original imported PPTX slide after slide.cloneCapability proves a boun
 #### `slide.groups.add`
 
 Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3264,6 +6477,37 @@ Author recursive native DrawingML p:grpSp trees with optional non-visible group 
 
 Hide this slide from the ordinary slide show through the same source-bound p:sld/@show primitive as slide.setHidden(true).
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `slide` (Slide) — The same slide after setting hidden=true through the bounded p:sld/@show source-bound primitive.
@@ -3271,6 +6515,37 @@ Hide this slide from the ordinary slide show through the same source-bound p:sld
 #### `slide.images.add`
 
 Add an embedded image with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3292,6 +6567,37 @@ Add an embedded image with accessibility metadata, fit/crop, frame, rotation/fli
 
 Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `index` (number) required — Existing zero-based destination index. It must be an integer from 0 through presentation.slides.items.length - 1.
@@ -3303,6 +6609,37 @@ Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKi
 #### `slide.placeholders.getItem`
 
 Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create-from-template.md#distill-and-reuse
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3316,6 +6653,37 @@ Resolve a slide placeholder shape by stable ID, name, placeholder type, or numer
 
 Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `background` (string|object) required — Direct RGB/theme color or { fill, mode: 'solid'|'reference', index? }; reference index must be an unsigned 32-bit integer.
@@ -3327,6 +6695,37 @@ Set a direct slide background to a six-digit RGB/theme color solid fill or a nat
 #### `slide.setHidden`
 
 Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3340,6 +6739,37 @@ Set whether this slide is skipped by the ordinary slide show. OfficeKit writes o
 
 Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export.
 
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `layout` (string|SlideLayoutTemplate) required — Layout name/ID or layout facade.
@@ -3352,6 +6782,37 @@ Alias of slide.applyLayout(layout): bind and materialize a bounded source-free l
 
 Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `transition` (object) required — A complete ECMA-376 base-transition object. Effect-specific fields are direction (cardinal, corner, or in/out as applicable), orientation (horizontal/vertical), throughBlack (cut/fade), or spokes (wheel, 1..8). speed defaults to medium, advanceOnClick to true, and independent durationMs and advanceAfterMs fields accept 0..86400000.
@@ -3363,6 +6824,37 @@ Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary
 #### `slide.shapes.add`
 
 Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with accessibility metadata. Ready bounded-overlay accepts only textbox/rect/roundRect/ellipse in a clean export. Lines support dash/ends/cap/join; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. Only a connector retains target-plus-site identity.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3400,6 +6892,37 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 
 Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `from` (Shape|string) required — Start shape facade or stable ID in this same slide/group tree.
@@ -3424,6 +6947,37 @@ Connect two modeled shapes in the same slide/group tree by preset side or exact 
 
 Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema parameters:**
 
 - `target` (Shape|string) required — Same-tree rect, roundRect, textbox, or ellipse shape.
@@ -3437,6 +6991,37 @@ Resolve top/left/bottom/right to a stable bounded preset connection-site index f
 
 Show this slide in the ordinary slide show by clearing the source-bound p:sld/@show leaf through slide.setHidden(false).
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `slide` (Slide) — The same slide after setting hidden=false and clearing canonical p:sld/@show. This does not add the slide to a custom show or alter custom-show membership.
@@ -3445,6 +7030,37 @@ Show this slide in the ordinary slide show by clearing the source-bound p:sld/@s
 
 Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, partPresent, editable, addable } evidence. addable is true only for an imported notes-absent slide whose presentation graph is safely extensible. It is Agent preflight evidence, not mutable write authority; OfficeKit independently re-proves the source package before export.
@@ -3452,6 +7068,37 @@ Return defensive sourceBound, partPresent, editable, and addable evidence. addab
 #### `slide.tables.add`
 
 Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3470,6 +7117,37 @@ Add an inspectable table facade with rows, columns, values, cells, rectangular m
 
 Report whether the imported p:sld/@show state is known and editable. OfficeKit exposes the inverse Agent-facing hidden boolean; invalid native lexical values stay source-owned and fail closed.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Defensive { sourceBound, known, editable } preflight. known is false for an opaque or invalid native p:sld/@show value; editable is not mutable write authority because OfficeKit re-proves the source SlidePart and semantic hash at export.
@@ -3477,6 +7155,37 @@ Report whether the imported p:sld/@show state is known and editable. OfficeKit e
 #### `slideCommentThread.addReply`
 
 Append a direct reply to a source-free Office 2021 modern comment thread. Imported reply topology is fixed: existing reply text/status may change, but adding or removing replies fails closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3494,6 +7203,37 @@ Append a direct reply to a source-free Office 2021 modern comment thread. Import
 
 Set the modern root comment status back to active while preserving fixed imported identity, anchor, position, and reply topology.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `thread` (SlideCommentThread) — Set resolved=false and the modern root status to active. Legacy comments cannot encode this state.
@@ -3501,6 +7241,37 @@ Set the modern root comment status back to active while preserving fixed importe
 #### `slideCommentThread.resolve`
 
 Set the modern root comment status to resolved. Imported export re-proves author/date/anchor/position/topology and source-part hashes before changing only status.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -3510,6 +7281,37 @@ Set the modern root comment status to resolved. Imported export re-proves author
 
 Report sourceBound/editable/addable preflight for table graphic-frame p:cNvPr title/description/decorative metadata; export re-proves it.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, editable, addable } preflight; export revalidates the table graphic-frame p:cNvPr.
@@ -3517,6 +7319,37 @@ Report sourceBound/editable/addable preflight for table graphic-frame p:cNvPr ti
 #### `table.delete`
 
 Explicitly remove a source-free table or one capability-proven imported direct table p:graphicFrame. Relationship-bearing, irregular, nested, or identity-sensitive frames and raw collection mutation fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema returns:**
 
@@ -3526,6 +7359,37 @@ Explicitly remove a source-free table or one capability-proven imported direct t
 
 Report whether one imported top-level bounded relationship-free DrawingML table can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability.
 
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
 **Schema returns:**
 
 - `capability` (object) — Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct bounded DrawingML table p:graphicFrame, a relationship-free subtree, a unique native ID, and absence of connector/comment/timing/extension identity consumers.
@@ -3533,6 +7397,37 @@ Report whether one imported top-level bounded relationship-free DrawingML table 
 #### `table.merge`
 
 Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 
@@ -3545,6 +7440,37 @@ Merge one inclusive rectangular table range, retain the upper-left value, clear 
 #### `table.setAccessibilityMetadata`
 
 Transactionally add, change, or clear non-visible table title/description/decorative metadata. Imported irregular graphic-frame p:cNvPr graphs fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/edit-existing.md#bounded-edit
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
 
 **Schema parameters:**
 

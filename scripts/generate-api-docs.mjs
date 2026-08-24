@@ -26,7 +26,7 @@ function escapeTable(value) {
 }
 
 function hasDetails(item) {
-  return Boolean(item.examples?.length || item.options?.length || item.params?.length || item.notes?.length || item.returns || item.schema);
+  return Boolean(item.examples?.length || item.options?.length || item.params?.length || item.notes?.length || item.returns || item.schema || item.adoptionTier);
 }
 
 function detailList(label, values) {
@@ -44,6 +44,20 @@ function schemaSummary(label, schemaSection) {
   const entries = schemaEntries(schemaSection);
   if (!entries.length) return [];
   return [`**${label}:**`, "", ...entries.map((entry) => `- \`${entry.name}\`${entry.type ? ` (${entry.type})` : ""}${entry.required ? " required" : ""}${entry.description ? ` — ${entry.description}` : ""}`), ""];
+}
+
+function adoptionSummary(item) {
+  if (!item.adoptionTier) return [];
+  return [
+    `**Adoption tier:** \`${item.adoptionTier}\``,
+    "",
+    ...detailList("Use when", item.useWhen),
+    ...detailList("Avoid when", item.avoidWhen),
+    ...detailList("Requires", item.requires),
+    ...detailList("Review", item.review),
+    ...detailList("Recipes", item.recipes),
+    ...detailList("Example paths", item.examplePaths),
+  ];
 }
 
 for (const artifactKind of [...byKind.keys()].sort()) {
@@ -65,6 +79,7 @@ for (const artifactKind of [...byKind.keys()].sort()) {
       lines.push("");
       lines.push(item.summary || "");
       lines.push("");
+      lines.push(...adoptionSummary(item));
       lines.push(...detailList("Examples", item.examples));
       lines.push(...detailList("Options", item.options || item.params));
       lines.push(...schemaSummary("Schema parameters", item.schema?.parameters));

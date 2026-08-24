@@ -39,10 +39,10 @@
 
 ## 6. Help adoption index
 
-- [ ] 6.1 Extend Presentation Help records and search indexing with `adoptionTier`, `useWhen`, `avoidWhen`, `requires`, `review`, and `recipes`.
-- [ ] 6.2 Classify all public Presentation APIs as golden, advanced, or compatibility and add complete adoption metadata to every golden API.
-- [ ] 6.3 Add real recipe paths and minimal runnable examples for Compose, AutoLayout, layout validation, design profile, template planning, inspect, source reuse, component reuse, SVG editing, and layout placeholders.
-- [ ] 6.4 Regenerate API documentation from Help metadata and add natural-language adoption-search and broken-recipe tests.
+- [x] 6.1 Extend Presentation Help records and search indexing with `adoptionTier`, `useWhen`, `avoidWhen`, `requires`, `review`, and `recipes`.
+- [x] 6.2 Classify all public Presentation APIs as golden, advanced, or compatibility and add complete adoption metadata to every golden API.
+- [x] 6.3 Add real recipe paths and minimal runnable examples for Compose, AutoLayout, layout validation, design profile, template planning, inspect, source reuse, component reuse, SVG editing, and layout placeholders.
+- [x] 6.4 Regenerate API documentation from Help metadata and add natural-language adoption-search and broken-recipe tests.
 
 ## 7. Packed clean-install workflows
 

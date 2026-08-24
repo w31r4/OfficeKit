@@ -76,6 +76,7 @@ const fastSteps = [
   nodeStep("test/verify.mjs"),
   nodeStep("test/review.mjs"),
   nodeStep("test/help.mjs"),
+  nodeStep("test/help-adoption.mjs"),
   nodeStep("test/package-contents.mjs"),
 ];
 
@@ -173,6 +174,7 @@ const slowSteps = [
   nodeStep("test/package-contents.mjs"),
   nodeStep("test/standalone-distribution.mjs"),
   nodeStep("test/help.mjs"),
+  nodeStep("test/help-adoption.mjs"),
 ];
 
 const slowSegments = Object.freeze({

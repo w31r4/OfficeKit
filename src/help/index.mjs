@@ -2698,6 +2698,127 @@ const WORKBOOK_HELP_SCHEMAS = {
   }, "sparkline", "SparklineGroup", "Editable standard Office 2010 x14 sparkline group for inspect/layout/SVG preview and OfficeKit XLSX I/O. Source-free groups use the documented reversible mapping; imported canonical groups are source-bound and permit property edits without topology changes. Unsupported native sparkline graphs remain opaque and unchanged."),
 };
 
+const PRESENTATION_GOLDEN_NAMES = new Set([
+  "Presentation.create",
+  "presentation.inspect",
+  "presentation.designProfile",
+  "presentation.planTemplateGeneration",
+  "presentation.resolve",
+  "presentation.export",
+  "presentation.validateLayout",
+  "presentation.verify",
+  "presentation.theme",
+  "presentation.master",
+  "presentation.layouts.add",
+  "presentation.layouts.getById",
+  "presentation.layout.placeholders.add",
+  "presentation.layout.placeholders.summary",
+  "slide.compose",
+  "slide.autoLayout",
+  "slide.shapes.add",
+  "slide.images.add",
+  "slide.tables.add",
+  "slide.charts.add",
+  "slide.groups.add",
+  "shape.text.set",
+  "presentation.textRange",
+  "slide.duplicate",
+  "slide.applyLayout",
+  "slide.setLayout",
+  "slide.placeholders.getItem",
+  "presentation.resolveComponentCandidate",
+  "presentation.editNativeLeaf",
+  "presentation.editComponentOccurrence",
+  "presentation.reuseSourceSlide",
+  "presentation.reuseSourceComponent",
+  "image.svgTextCapability",
+  "image.getSvgTextNodes",
+  "image.editSvgText",
+  "image.svgEditCapability",
+  "image.getSvgEditLeaves",
+  "image.editSvgLeaf",
+  "presentation.auditAccessibility",
+]);
+
+const PRESENTATION_COMPATIBILITY_NAMES = new Set([
+  "PresentationFile.inspectPptx",
+  "PresentationFile.patchPptx",
+  "PresentationFile.exportPptx",
+  "PresentationFile.importPptx",
+  "exportPptxWithOfficeKit",
+  "importPptxWithOfficeKit",
+  "nativeObject.getEmbeddedWorkbook",
+  "nativeObject.replaceEmbeddedWorkbook",
+  "nativeObject.getEmbeddedOfficePackage",
+  "nativeObject.replaceEmbeddedOfficePackage",
+  "shape.useBackgroundFill",
+]);
+
+const PRESENTATION_RECIPE_PATHS = Object.freeze({
+  create: "skills/presentations/skills/presentations/tasks/create.md",
+  template: "skills/presentations/skills/presentations/tasks/create-from-template.md",
+  edit: "skills/presentations/skills/presentations/tasks/edit-existing.md",
+  continue: "skills/presentations/skills/presentations/tasks/continue.md",
+  review: "skills/presentations/skills/presentations/tasks/review-deliver.md",
+});
+
+const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
+
+function presentationRecipeFor(name) {
+  if (/designProfile|planTemplateGeneration|master|layout|placeholder|reuseSource|resolveComponent/.test(name)) {
+    return `${PRESENTATION_RECIPE_PATHS.template}#distill-and-reuse`;
+  }
+  if (/edit|set|delete|move|svg|textRange|NativeLeaf|ComponentOccurrence/.test(name)) {
+    return `${PRESENTATION_RECIPE_PATHS.edit}#bounded-edit`;
+  }
+  if (/inspect|verify|audit|export/.test(name)) {
+    return `${PRESENTATION_RECIPE_PATHS.review}#evidence`;
+  }
+  if (/duplicate|continuation|slide\.setLayout|slide\.applyLayout/.test(name)) {
+    return `${PRESENTATION_RECIPE_PATHS.continue}#reinspect`;
+  }
+  return `${PRESENTATION_RECIPE_PATHS.create}#compose-and-review`;
+}
+
+function presentationAdoptionFor(item) {
+  if (item.artifactKind !== "presentation") return undefined;
+  const { name } = item;
+  const adoptionTier = PRESENTATION_GOLDEN_NAMES.has(name)
+    ? "golden"
+    : PRESENTATION_COMPATIBILITY_NAMES.has(name)
+      ? "compatibility"
+      : "advanced";
+  const imported = /inspect|resolve|reuse|edit|NativeLeaf|ComponentOccurrence|Svg|svg|File|nativeObject|clone|duplicate|continuation|deletion|visibility|comments|speakerNotes|transition|section|customShow|view/i.test(name);
+  const useWhen = adoptionTier === "golden"
+    ? [
+        imported ? "The requested presentation intent is covered by this bounded, inspect-backed primitive." : "The agent is compiling or refining a presentation plan with an explicit reader outcome.",
+        "The operation can be followed by the Presentation review and commit workflow.",
+      ]
+    : adoptionTier === "compatibility"
+      ? ["A package-level or legacy interoperability operation is explicitly required.", "The caller can provide source-bound evidence and perform a second import."]
+      : ["A specific advanced PresentationML capability is requested after its capability record has been inspected.", "The task can tolerate a narrower edit surface than the golden authoring routes."];
+  const avoidWhen = adoptionTier === "compatibility"
+    ? ["Do not use as the default authoring route; use the typed Presentation facade first.", "Do not infer that an opaque or unsupported object became editable."]
+    : adoptionTier === "advanced"
+      ? ["Do not substitute it for the create, template, edit, continue, or review task route.", "Do not bypass source hashes, capability checks, or fail-closed boundaries."]
+      : ["Do not use it to bypass the active authoring plan or to edit raw package paths.", "Do not publish before semantic, structural, layout, and delivery review."];
+  const requires = adoptionTier === "golden"
+    ? ["Presentation facade", imported ? "fresh presentation.inspect() evidence when editing an imported file" : "active authoring plan when the task creates a deck"]
+    : ["Presentation facade", "capability or source evidence appropriate to the operation"];
+  const review = adoptionTier === "compatibility"
+    ? ["Re-import the output and compare package/source evidence.", "Report unsupported or preserved content explicitly."]
+    : ["presentation.validateLayout and presentation.verify", "reviewArtifact with the active plan and changed page scope", "visualReview: complete, unavailable, or requires-human"];
+  return {
+    adoptionTier,
+    useWhen,
+    avoidWhen,
+    requires,
+    review,
+    recipes: [presentationRecipeFor(name)],
+    examplePaths: [PRESENTATION_EXAMPLE_PATH],
+  };
+}
+
 for (const item of HELP_CATALOG) {
   const details = HELP_DETAIL_OVERRIDES[item.name];
   if (details) Object.assign(item, details);
@@ -2730,11 +2851,14 @@ for (const item of HELP_CATALOG) {
       },
     };
   }
+  const adoption = presentationAdoptionFor(item);
+  if (adoption) Object.assign(item, adoption);
 }
 
 export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) {
   const q = String(query || "*").toLowerCase();
   const search = String(options.search || "").toLowerCase();
+  const adoptionTier = options.adoptionTier || options.tier || "*";
   const queryPattern = q.includes("*")
     ? new RegExp(`^${q.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`, "i")
     : undefined;
@@ -2742,7 +2866,9 @@ export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) 
   return HELP_CATALOG.filter((item) => {
     const kindMatch = artifactKind === "*" || item.artifactKind === artifactKind || (artifactKind === "unknown" && item.artifactKind === "shared");
     if (!kindMatch) return false;
-    const haystack = `${item.name}\n${item.summary}\n${item.category || ""}\n${(item.examples || []).join("\n")}\n${(item.options || item.params || []).join("\n")}\n${item.returns || ""}\n${JSON.stringify(item.schema || {})}\n${(item.notes || []).join("\n")}`.toLowerCase();
+    const tierMatch = adoptionTier === "*" || item.adoptionTier === adoptionTier;
+    if (!tierMatch) return false;
+    const haystack = `${item.name}\n${item.summary}\n${item.category || ""}\n${(item.examples || []).join("\n")}\n${(item.options || item.params || []).join("\n")}\n${item.returns || ""}\n${JSON.stringify(item.schema || {})}\n${(item.notes || []).join("\n")}\n${JSON.stringify({ adoptionTier: item.adoptionTier, useWhen: item.useWhen, avoidWhen: item.avoidWhen, requires: item.requires, review: item.review, recipes: item.recipes, examplePaths: item.examplePaths })}`.toLowerCase();
     const name = item.name.toLowerCase();
     const queryMatch = q === "*" || queryPattern?.test(name) || name.includes(q) || name.includes(q.replace(/^fx\./, "")) || haystack.includes(q);
     const searchMatch = searchTerms.length === 0 || searchTerms.some((term) => haystack.includes(term));

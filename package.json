@@ -144,7 +144,7 @@
     "test:examples": "node test/examples.mjs",
     "test:release-check": "node test/release-check.mjs",
     "test:package-contents": "node test/package-contents.mjs",
-    "test:help": "node test/help.mjs",
+    "test:help": "node test/help.mjs && node test/help-adoption.mjs",
     "test:pack": "node test/office-kit-package.mjs && npm pack --dry-run"
   },
   "dependencies": {
