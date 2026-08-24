@@ -35,6 +35,18 @@ tarball identity and receive their own package/release gates. This milestone
 is complete for the three frozen samples and declared operations on macOS; it
 does not claim arbitrary OOXML semantics or Windows PowerPoint host acceptance.
 
+Final integration commit
+`debb7a331056e39e0f44c4e6e75d04bf9642abc0` passed the 45-step fast gate and
+the complete 92-step slow-gate table, OfficeKit Codec 441/441, OfficeBridge
+5/5, protocol and API generation, the 39-file reproducible WASM audit, package
+clean-install, and the offline release check. The final package inventory is
+750 files at 36,499,596 packed bytes and 54,194,400 unpacked bytes. Hosted fast
+CI passed in run
+`32679886166 <https://github.com/w31r4/OfficeKit/actions/runs/32679886166>`>.
+The scheduled hosted slow lane was not duplicated inside its documented
+12-hour release-candidate cooldown; the same final tree completed every slow
+segment locally.
+
 ## Current 0.6.0 milestone (2026-08-22): Multi-page template-conditioned Agent evidence
 
 The v2 portable lane extends the bounded template planner from one cloned
