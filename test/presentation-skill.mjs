@@ -49,6 +49,7 @@ assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\
 assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the audience[\s\S]*Compress against the real page[\s\S]*Review the deck voice/u);
 assert.match(designReviewSource, /bounded signals[\s\S]*not describe a warning-free report as proof of good\s+design/u);
 assert.match(taskSources.create, /Shipped route A[\s\S]*Experimental compiler route C[\s\S]*Do not switch routes after a failure/u);
+assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*18[\s\S]*four different silhouettes/u);
 assert.match(taskSources["edit-existing"], /changedPageIds[\s\S]*undeclared page change/u);
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
 assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");

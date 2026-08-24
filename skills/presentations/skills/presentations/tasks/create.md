@@ -36,6 +36,14 @@ composition intent. Select zero to two mechanism packs and write the actual
 palette, typography, spacing, density rhythm, motif, imagery, chart treatment,
 and strict invariants into `designGrammar`.
 
+For a self-directed compiler route, include a readability floor in the grammar,
+for example `minimumBodyFontSize: 18` and `minimumCaptionFontSize: 14` in the
+model's font-size units. Never shrink text to rescue an overfull page; shorten,
+split, or change the composition. When the deck has six or more pages,
+deliberately use at least four different silhouettes and repair repeated
+composition, density-jump, or card-wall warnings unless the plan records why
+the repetition is intentional.
+
 ## 4. Compile a complete working draft
 
 Use Presentation Help by intent, then compose with the golden primitives:

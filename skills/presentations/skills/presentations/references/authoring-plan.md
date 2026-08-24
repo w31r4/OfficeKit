@@ -45,6 +45,8 @@ const plan = {
       },
       typography: {
         roles: { title: "Aptos Display", body: "Aptos", data: "Aptos Mono" },
+        minimumBodyFontSize: 18,
+        minimumCaptionFontSize: 14,
         strict: false,
       },
       spacing: { base: 8, outerMargin: 48 },
