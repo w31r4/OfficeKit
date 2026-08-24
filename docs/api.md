@@ -1920,7 +1920,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.cloneCapability` | api | Report whether an imported SlidePart can be copied as one ownership-checked OPC graph. The Codec copies every uniquely owned descendant, DataPart, and external relationship while rebinding proven shared layout, NotesMaster, image, and retained-slide targets. Sections, modern comments, outside-owned nodes, removed slide-jump targets, and over-budget graphs fail closed before the model changes. |
 | `slide.comments.addThread` | api | Create either a bounded legacy PPTX annotation or an Office 2021 modern thread. A comment-free imported presentation may add canonical legacy review comments only when comments.capability.addable is true; a canonical imported legacy leaf with comments.capability.editable permits only existing root-text replacement, never addThread/replies/metadata edits. Modern mode supports a top-level element/text-range/textMatch anchor, one root, direct replies, independent people/timestamps, and active/resolved/closed state; imported modern graphs permit only fixed-topology text/status edits. |
 | `slide.comments.capability` | api | Inspect defensive source-bound comment-family evidence before authoring or editing. A comment-free imported presentation may advertise legacy addability; one closed imported legacy leaf may instead advertise editable, which permits only its existing root text to change while author/time/coordinate/native identity/order/topology remain fixed. Modern graphs retain their separate fixed-topology edit contract. |
-| `slide.compose` | api | Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects. |
+| `slide.compose` | api | Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects. Capture the returned elements for later edits or connector targets; compose nodes remain declarative and are not Shape facades. |
 | `slide.connectors.add` | api | Legacy low-level connector authoring from explicit points or target centers. Prefer slide.shapes.connect or geometry: connector when DrawingML target-plus-site identity matters. |
 | `slide.continuationCapability` | api | Report full-authoring, pending-clone (export/reimport first), or bounded-overlay. Bounded overlay token-preserves the tree and allows one clean export of listed basic shapes/images. Separate SlidePart edits by reviewed revision. |
 | `slide.delete` | api | Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX first requires deletionCapability.supported, then removes the real SlidePart and every exclusively owned descendant (including closed notes/comments/chart/OLE/diagram/media leaves) while retaining shared parts. Inbound slide references and presentation-level custom-show/section/extension identity remain fail closed. |
@@ -6170,7 +6170,7 @@ Inspect defensive source-bound comment-family evidence before authoring or editi
 
 #### `slide.compose`
 
-Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects.
+Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects. Capture the returned elements for later edits or connector targets; compose nodes remain declarative and are not Shape facades.
 
 **Adoption tier:** `golden`
 
@@ -6210,7 +6210,7 @@ Materialize a clean-room compose tree with row, column, grid, layers, box, parag
 
 **Schema returns:**
 
-- `elements` (object[]) — Materialized editable slide elements.
+- `elements` (object[]) — Materialized editable slide elements. Capture this return value when a later edit or connector needs a Shape/Table/Chart/Image facade; the input compose nodes themselves are declarative and have no stable object identity.
 
 #### `slide.connectors.add`
 

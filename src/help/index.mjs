@@ -378,7 +378,7 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "group.setAccessibilityMetadata", summary: "Transactionally add, change, or clear non-visible group-frame title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits." },
   { artifactKind: "presentation", kind: "api", name: "group.deletionCapability", summary: "Report whether one imported top-level canonical recursive p:grpSp exclusively owns its complete native-ID, relationship-reference, and multi-root OPC graph. Export recomputes the source-bound capability." },
   { artifactKind: "presentation", kind: "api", name: "group.delete", summary: "Delete one source-free or capability-proven imported group as a complete recursive ownership tree. Shared media and ChartParts survive; nested groups, outside connector/comment targets, relationship reuse, identity-sensitive graphs, and raw collection mutation fail closed." },
-  { artifactKind: "presentation", kind: "api", name: "slide.compose", summary: "Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects." },
+  { artifactKind: "presentation", kind: "api", name: "slide.compose", summary: "Materialize a clean-room compose tree with row, column, grid, layers, box, paragraph/text, shape, table, chart, image, and rule nodes into editable slide objects. Capture the returned elements for later edits or connector targets; compose nodes remain declarative and are not Shape facades." },
   { artifactKind: "presentation", kind: "api", name: "slide.autoLayout", summary: "Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options." },
   { artifactKind: "presentation", kind: "api", name: "slide.tables.add", summary: "Add an inspectable table facade with rows, columns, values, cells, rectangular merges, layout JSON, SVG preview, and canonical OfficeKit plain-text PPTX output." },
   { artifactKind: "presentation", kind: "api", name: "table.merge", summary: "Merge one inclusive rectangular table range, retain the upper-left value, clear and lock covered cells, and emit canonical DrawingML merge topology." },
@@ -2028,7 +2028,7 @@ const PRESENTATION_HELP_SCHEMAS = {
   "slide.compose": helpSchema({
     node: { type: "object", required: true, description: "Compose tree rooted in row, column, grid, layers, box, paragraph/text, shape, table, chart, image, or rule." },
     frame: { type: "object", description: "Pixel materialization frame; defaults to an inset slide frame." },
-  }, "elements", "object[]", "Materialized editable slide elements."),
+  }, "elements", "object[]", "Materialized editable slide elements. Capture this return value when a later edit or connector needs a Shape/Table/Chart/Image facade; the input compose nodes themselves are declarative and have no stable object identity."),
   "slide.autoLayout": helpSchema({
     shapes: { type: "object[]", required: true, description: "Existing editable slide elements." },
     frame: { type: "string|object", description: "slide, a frame object, or an element facade." },
