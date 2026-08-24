@@ -52,8 +52,8 @@
 
 ## 8. A/B/C authoring experiment
 
-- [ ] 8.1 Add a versioned pilot manifest for 10 tasks across five scenarios, two trials, three arms, fixed model/material/time/token conditions, and anonymous randomized judging.
-- [ ] 8.2 Implement the packed fresh-context runner, artifact oracle, metric collector, retry accounting, and independent visual-blind-review packet generator.
+- [x] 8.1 Add a versioned pilot manifest for 10 tasks across five scenarios, two trials, three arms, fixed model/material/time/token conditions, and anonymous randomized judging.
+- [x] 8.2 Implement the packed fresh-context runner, artifact oracle, metric collector, retry accounting, and independent visual-blind-review packet generator.
 - [ ] 8.3 Run all 60 pilot generations and publish raw run evidence, hard-gate metrics, quality judgments, time, token, and retry summaries.
 - [ ] 8.4 Apply the predeclared thresholds: switch C to the default only on success; otherwise retain A and record C as experimental without changing the verdict.
 - [ ] 8.5 If C passes, add the 30-task expansion matrix to the presentation slow gate and verify selected continuation tasks at at least 90 percent success.

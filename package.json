@@ -147,6 +147,9 @@
     "test:help": "node test/help.mjs && node test/help-adoption.mjs",
     "test:presentation-authoring-eval": "node test/presentation-authoring-eval-manifest.mjs",
     "test:presentation-authoring-packed": "node test/presentation-authoring-packed.mjs",
+    "test:presentation-authoring-pilot": "node test/presentation-authoring-pilot.mjs",
+    "eval:presentation-authoring-pilot": "node scripts/presentation-authoring-pilot.mjs",
+    "eval:score-presentation-authoring-pilot": "node scripts/score-presentation-authoring-pilot.mjs",
     "test:pack": "node test/office-kit-package.mjs && npm pack --dry-run"
   },
   "dependencies": {

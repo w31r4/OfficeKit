@@ -78,6 +78,7 @@ const fastSteps = [
   nodeStep("test/help.mjs"),
   nodeStep("test/help-adoption.mjs"),
   nodeStep("test/presentation-authoring-eval-manifest.mjs"),
+  nodeStep("test/presentation-authoring-pilot.mjs"),
   nodeStep("test/package-contents.mjs"),
 ];
 
