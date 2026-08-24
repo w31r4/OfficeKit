@@ -84,6 +84,24 @@
       "publications": 1,
       "promptSha256": "531f21b36b2f420287b63b69ccd588e9605832e8c30eba9e3ac9885be7f4253b",
       "outputSha256": "53594ce5bcdf92706ce78d1c1bba9988367bde96d070522560195ea56933d983"
+    },
+    {
+      "taskId": "unseen-museum-launch-brief",
+      "trial": 1,
+      "taskSet": "unseen",
+      "sourceCommit": "8f7476e1",
+      "status": "passed",
+      "measurement": "task-created-to-publication",
+      "elapsedMs": 281405,
+      "totalTokens": 2477468,
+      "slides": 6,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": [],
+      "taskCommits": 2,
+      "publications": 1,
+      "promptSha256": "07df03d5071becce2ff7454a75477fb0ba379e977ebefde5f41f320df57b8c20",
+      "outputSha256": "ef8e34be457b59fcb2e56cf324d78b940b301da9962e00ed05940eb6bd5bf993"
     }
   ]
 }

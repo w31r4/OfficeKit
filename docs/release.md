@@ -21,7 +21,7 @@ against A and `60%` against B. The A threshold is `60%`, so the scorer records
 `0.6.0`; no 0.7.0 release or default-route switch is claimed until the failed
 quality threshold is addressed and the remaining release gates are complete.
 
-After the frozen pilot, three post-baseline reruns of frozen task IDs and two
+After the frozen pilot, three post-baseline reruns of frozen task IDs and three
 unseen tasks passed packed task, plan, review, resume, and publication checks.
 The follow-up route raises the declared caption floor to 18, asks the Agent to
 avoid a deck-wide pale-card or dark-canvas treatment, and keeps inferred
@@ -29,7 +29,10 @@ self-directed palettes advisory unless a closed brand palette is supplied;
 these are general authoring contracts, not task-specific fixtures. The latest
 unseen community-health run still required one bounded layout repair in a fresh
 REPL and finished with no design warnings. The follow-up evidence is recorded
-in `evals/presentation-authoring-compiler/holdout.v1.json`. It is additional
+in `evals/presentation-authoring-compiler/holdout.v1.json`. The latest museum
+launch brief completed in two task commits with no design warnings; its
+task-created-to-publication window was 281405 ms with 2477468 observed tokens.
+It is additional
 generalization evidence only: it does not change the frozen blind-quality score
 or switch the shipped default.
 
