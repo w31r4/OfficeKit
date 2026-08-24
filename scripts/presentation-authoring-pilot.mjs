@@ -134,10 +134,10 @@ async function runPilotTrial({ manifest, packageInfo, runRoot, task, arm, trial,
   const failures = [];
   if (codex.status !== 0) failures.push(`codex-exit-${codex.status}`);
   if (!policy.passed) failures.push(...policy.findings.map(({ code }) => `policy-${code}`));
-  const output = await verifyOutput({ officekitBin, workspace, outputPath, evidenceRoot }).catch((error) => ({ passed: false, reason: errorMessage(error) }));
-  if (!output.passed) failures.push(`output-${output.reason || "failed"}`);
   const taskState = await inspectPilotTask(workspace, arm).catch((error) => ({ passed: false, reason: errorMessage(error) }));
   if (!taskState.passed) failures.push(`task-${taskState.reason || "failed"}`);
+  const output = await verifyOutput({ officekitBin, workspace, outputPath, evidenceRoot, authoringPlanPath: taskState.planPath }).catch((error) => ({ passed: false, reason: errorMessage(error) }));
+  if (!output.passed) failures.push(`output-${output.reason || "failed"}`);
   const run = {
     schema: "office-kit/presentation-authoring-pilot-run/v1",
     runId,
@@ -170,16 +170,35 @@ export function buildPilotPrompt({ manifest, task, arm, trial, armOrder }) {
   return `You are a fresh OfficeKit Agent context in a blinded authoring pilot.\n\nTask: ${task.goal}\nScenario: ${task.scenario}\nTrial: ${trial}\nArm route: ${route}\nArm order token: ${armOrder.join(",")}\n\nUse only the installed public OfficeKit Skills and the office-kit package. Work from the sentence above, create a useful multi-page PPTX, and keep the task durable: use officekit repl, commit a reviewed draft, start a fresh REPL process to continue one local edit, review again, and publish outputs/result.pptx. The deck must be created with typed OfficeKit primitives and reimported before delivery. Run an independent final review against the self-directed candidate without a source baseline; fix every semantic/layout error such as text overflow or unexpected overlap before commit.${compilerGuardrails} Use visualReview: unavailable when no visual tool exists; never claim visual completion. Do not read .office-kit/tasks, task.json, plan files, or evidence files directly with shell or node; use officekit tasks/repl responses and public package APIs. Do not use @oai/artifact-tool, Python, HTML/PPTD, raw OOXML, ZIP/XML patching, another writer, or a silent fallback. Do not ask a question unless a missing answer changes the audience or conclusion. Finish only after the published output exists.`;
 }
 
-async function verifyOutput({ officekitBin, workspace, outputPath, evidenceRoot }) {
+async function verifyOutput({ officekitBin, workspace, outputPath, evidenceRoot, authoringPlanPath }) {
   const descriptor = await stat(outputPath).catch(() => null);
   if (!descriptor?.isFile()) return { passed: false, reason: "missing-result-pptx" };
   const verifier = path.join(evidenceRoot, "verify.mjs");
-  await writeFile(verifier, `import { readFile } from "node:fs/promises";\nimport { FileBlob, PresentationFile, reviewArtifact } from "office-kit";\nconst file = process.argv[2];\nconst bytes = await readFile(file);\nconst blob = new FileBlob(bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });\nconst presentation = await PresentationFile.importPptx(blob);\nconst review = await reviewArtifact(blob, { layout: false, visualReview: "unavailable" });\nconsole.log(JSON.stringify({ slides: presentation.slides.items.length, reviewVerdict: review.verdict, visualReview: review.visualReview, sha256: presentation.source?.packageSha256 || null }));\n`, { flag: "wx" });
-  const result = runRequired(process.execPath, [officekitBin, "run", verifier, "--", outputPath], workspace, "packed public presentation verifier");
+  const verifierSource = [
+    'import { readFile } from "node:fs/promises";',
+    'import { FileBlob, PresentationFile, reviewArtifact } from "office-kit";',
+    'const file = process.argv[2];',
+    'const planPath = process.argv[3] || null;',
+    'const bytes = await readFile(file);',
+    'const blob = new FileBlob(bytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });',
+    'const presentation = await PresentationFile.importPptx(blob);',
+    'const authoringPlan = planPath ? JSON.parse(await readFile(planPath, "utf8")) : undefined;',
+    'const review = await reviewArtifact(blob, { layout: false, visualReview: "unavailable", ...(authoringPlan ? { authoringPlan } : {}) });',
+    'const designWarnings = (review.design?.issues || []).filter((issue) => issue.severity === "warning").map((issue) => issue.type);',
+    'console.log(JSON.stringify({ slides: presentation.slides.items.length, reviewVerdict: review.verdict, visualReview: review.visualReview, sha256: presentation.source?.packageSha256 || null, designWarnings }));',
+    'if (authoringPlan && designWarnings.length > 0) {',
+    '  throw new Error("unresolved-design-warnings: " + [...new Set(designWarnings)].join(","));',
+    '}',
+    '',
+  ].join("\n");
+  await writeFile(verifier, verifierSource, { flag: "wx" });
+  const verifierArgs = [officekitBin, "run", verifier, "--", outputPath];
+  if (authoringPlanPath) verifierArgs.push(authoringPlanPath);
+  const result = runRequired(process.execPath, verifierArgs, workspace, "packed public presentation verifier");
   const parsed = JSON.parse(result.stdout.trim().split(/\r?\n/u).filter(Boolean).at(-1));
   if (!Number.isInteger(parsed.slides) || parsed.slides < 1) return { passed: false, reason: "no-slides" };
   if (!["passed", "passed-with-limitations"].includes(parsed.reviewVerdict)) return { passed: false, reason: `review-${parsed.reviewVerdict}` };
-  return { passed: true, slides: parsed.slides, reviewVerdict: parsed.reviewVerdict, visualReview: parsed.visualReview };
+  return { passed: true, slides: parsed.slides, reviewVerdict: parsed.reviewVerdict, visualReview: parsed.visualReview, designWarnings: parsed.designWarnings };
 }
 
 async function inspectPilotTask(workspace, arm) {
@@ -195,7 +214,14 @@ async function inspectPilotTask(workspace, arm) {
     return { passed: false, reason: "task-not-reviewed-and-published", commits: commits.length, publications: publications.length };
   }
   if (arm === "C" && !manifest.plan) return { passed: false, reason: "authoring-plan-missing" };
-  return { passed: true, taskId: taskIds[0], commits: commits.length, publications: publications.length, plan: Boolean(manifest.plan) };
+  return {
+    passed: true,
+    taskId: taskIds[0],
+    commits: commits.length,
+    publications: publications.length,
+    plan: Boolean(manifest.plan),
+    planPath: manifest.plan ? path.join(taskRoot, manifest.plan.path) : null,
+  };
 }
 
 async function writeBlindPacket({ runRoot, run, output }) {
