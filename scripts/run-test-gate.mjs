@@ -61,6 +61,7 @@ const fastSteps = [
   nodeStep("test/pptx-source-continuation.mjs"),
   nodeStep("test/pptx-source-derived-companion.mjs"),
   nodeStep("test/pptx-programmable-import-baseline.mjs"),
+  nodeStep("test/pptx-programmable-import-candidate-evidence.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
   nodeStep("test/document.mjs"),
   nodeStep("test/pdf.mjs"),
