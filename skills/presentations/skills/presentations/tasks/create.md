@@ -42,7 +42,7 @@ must enumerate every emitted color, including theme defaults. Do not turn an
 inferred preference into a closed palette.
 
 For a self-directed compiler route, include a readability floor in the grammar,
-for example `minimumBodyFontSize: 20` and `minimumCaptionFontSize: 18` in the
+for example `minimumBodyFontSize: 22` and `minimumCaptionFontSize: 20` in the
 model's font-size units. Never shrink text to rescue an overfull page; shorten,
 split, or change the composition. When the deck has six or more pages,
 deliberately use at least four different silhouettes and repair repeated
