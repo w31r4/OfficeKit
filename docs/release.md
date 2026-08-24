@@ -46,6 +46,17 @@ evidence is in `evals/presentation-authoring-compiler/postfix-c.v1.json`; it is
 generalization evidence only and does not change the frozen blind-quality
 threshold or switch Grid from the shipped default.
 
+The subsequent generic primitive pass fixed Compose container surfaces, made
+textbox defaults borderless, clarified connector endpoint and z-order semantics,
+and made materialized elements returned from Compose safe to reuse as connector
+targets. A fresh packed `technical-architecture-02/C/2` context passed with
+three task commits, two publications, and no policy findings. Its output was
+rendered with LibreOffice and connector placement was spot-checked on slides 2
+and 3. The run and hashes are recorded in
+`evals/presentation-authoring-compiler/postfix-c.v2.json`; this is generalization
+evidence only, and the frozen blind-quality result still governs the default
+route.
+
 The compact machine summary is committed at
 `evals/presentation-authoring-compiler/results.v1.json`, together with the 60
 small blind-packet descriptors, 40 judgment lines in
