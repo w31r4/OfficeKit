@@ -1,5 +1,40 @@
 # Release
 
+## Current 0.6.0 milestone (2026-08-24): Three-sample programmable-import acceptance
+
+Candidate product commit
+`e1bb8699671c3599b44b999ca308ff8d0d9581d7` passed the frozen portable
+acceptance through the exact packed `office-kit@0.6.0` tarball SHA-256
+`0152742d17a07a7b53e53f83f75c08c829804ab8f73ad65841a5e49946e7e8a9`
+(36,498,040 packed bytes, 54,190,087 unpacked bytes, 750 files). All 90
+clean-source matrix runs passed and all 30 declared intents produced identical
+output bytes and oracle results across three repetitions. LibreOffice rendered
+60 runs; Keynote rendered the 30 declared text cases that LibreOffice did not
+display.
+
+Every matrix run protected the source, completed a second import, preserved
+the exact part set and non-target bytes, retained relationship identity,
+recovered target XML or SVG after masking only the issued mutation, and kept
+non-target pages pixel-identical. Nine fresh Codex trials also passed: each
+installed the same tarball with lifecycle scripts disabled, used three durable
+task sessions, produced reviewed commits `c0001` and `c0002`, and published
+only `c0002`. The separate source-derived companion suite passed 24/24 runs
+over eight deterministic cases covering text, geometry, image, table, chart,
+component, add, delete, and reorder; its earlier packed tarball remains recorded
+as a separate identity rather than being conflated with this candidate.
+
+The integrity-bound summary is
+`evals/pptx-programmable-import/candidate.v1.json`; its matrix, Codex, and
+companion component SHA-256 values are respectively
+`9d0f4356e2d0b99a9a8fb3d64cea82d2c88a310d2a43e1b5bbfbbd0a889da5d8`,
+`5bde15310eab2a3a2f8cb1ac30854c4e681533b60e8b99ea4d126796e952547c`,
+and `cb1fbb477ac154fd398365507de2dfeed29734c3c602636bdd361673795ecc75`.
+The historical failed baseline remains committed and unchanged. Later
+evaluator, Help, Skill, and documentation commits do not alter this measured
+tarball identity and receive their own package/release gates. This milestone
+is complete for the three frozen samples and declared operations on macOS; it
+does not claim arbitrary OOXML semantics or Windows PowerPoint host acceptance.
+
 ## Current 0.6.0 milestone (2026-08-22): Multi-page template-conditioned Agent evidence
 
 The v2 portable lane extends the bounded template planner from one cloned
