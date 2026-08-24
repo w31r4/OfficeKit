@@ -49,10 +49,6 @@ deliberately use at least four different silhouettes and repair repeated
 composition, density-jump, or card-wall warnings unless the plan records why
 the repetition is intentional.
 
-For a `cardWallPattern` warning, replace at least one repeated card surface with
-a diagram, comparison, timeline, or other anchored information relationship;
-retain a card wall only when the content genuinely requires parallel comparison.
-
 At page level, give each slide one dominant reading anchor. A quantitative
 claim should be encoded as a meaningful relationship—chart, axis, connector,
 direct label, or spatial comparison—not as a decorative list of values. Choose
