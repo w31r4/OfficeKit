@@ -237,6 +237,18 @@ try {
   assert.equal(result.audit.schema, "office-kit.template-edit-audit.v1");
   assert.equal(result.audit.status, "succeeded");
   assert.equal(result.audit.operation.count, 8);
+  assert.deepEqual(result.audit.operation.compilationPhases, [
+    {
+      kind: "semantic-projection",
+      operationCount: 5,
+      operationTypes: ["replace-text", "set-chart-series-values", "set-chart-title", "set-position", "set-text"],
+    },
+    {
+      kind: "source-bound-edit-plan",
+      operationCount: 3,
+      operationTypes: ["delete-element", "replace-image", "set-table-cell"],
+    },
+  ]);
   assert.equal(result.audit.operation.operations.every((operation) => operation.executed), true);
   assert.equal(result.audit.operation.operations.filter((operation) => operation.type !== "delete-element").every((operation) => operation.finalElementId), true);
   assert.equal(result.audit.operation.operations.find((operation) => operation.type === "delete-element").finalElementId, null);
