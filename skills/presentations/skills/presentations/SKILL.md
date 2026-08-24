@@ -10,6 +10,9 @@ artifact, and return a reviewed working file. Run JavaScript with
 `officekit run` or use the durable task REPL for work that will continue across
 sessions.
 
+Never import or use `@oai/artifact-tool`: it is a different host-bundled runtime,
+not an OfficeKit alias or fallback, and its output must never be attributed to OfficeKit.
+
 Use the installed OfficeKit contracts at
 `../office-kit/references/workspace.md`, `../office-kit/references/repl.md`, and
 `../office-kit/references/review.md` for workspace, durable-session, and shared
