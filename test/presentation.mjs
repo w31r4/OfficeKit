@@ -310,6 +310,25 @@ assert.match(modelPresentation.inspect({ kind: "deck,slide,textbox,shape", maxCh
 assert.match(modelPresentation.inspect({ kind: "textbox", target: "compose\/headline", maxChars: 4000 }).ndjson, /Canonical Office model/);
 assert.equal(modelPresentation.verify().ok, true);
 assert.equal(modelPresentation.validateLayout().ok, true);
+const [composeConnectorFrom] = modelSlide.compose(
+  composeShape({ name: "compose-connector-from", geometry: "rect", width: 140, height: 60, fill: "#E2E8F0" }, ["From"]),
+  { frame: { left: 80, top: 540, width: 140, height: 60 } },
+);
+const [composeConnectorTo] = modelSlide.compose(
+  composeShape({ name: "compose-connector-to", geometry: "rect", width: 140, height: 60, fill: "#CCFBF1" }, ["To"]),
+  { frame: { left: 620, top: 540, width: 140, height: 60 } },
+);
+const composedConnector = modelSlide.shapes.connect(composeConnectorFrom, composeConnectorTo, {
+  fromSide: "right",
+  toSide: "left",
+  tail: { type: "arrow" },
+  line: { fill: "#0F766E", width: 2 },
+});
+assert.deepEqual(composedConnector.start, { x: 220, y: 570 });
+assert.deepEqual(composedConnector.end, { x: 620, y: 570 });
+assert.deepEqual(composedConnector.tail, { type: "arrow" });
+composedConnector.bringToFront();
+assert.equal(composedConnector.isForeground, true);
 const defaultTextBoxDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const defaultTextBox = defaultTextBoxDeck.slides.add().shapes.add({ geometry: "textbox", text: "Text without a frame" });
 assert.deepEqual(defaultTextBox.line, { fill: "transparent", width: 0 });
