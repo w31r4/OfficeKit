@@ -60,6 +60,12 @@ warning is intentional, add a `designGrammar.intentionalWarnings` entry with
 its exact `type`, affected `pageIds`, and a concrete `reason`; a prose note in
 an invariant does not count as an auditable exception.
 
+Use the public Help index and shipped examples to discover API shapes. Do not
+inspect `node_modules/office-kit/src` or other package internals to infer an
+API. In a packed or portable run, do not install optional renderers or invoke
+Playwright/Chromium; use the available public render/verify path and report
+`visualReview: unavailable` when no visual capability is present.
+
 ## 4. Compile a complete working draft
 
 Use Presentation Help by intent, then compose with the golden primitives:

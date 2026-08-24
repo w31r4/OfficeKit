@@ -13,6 +13,11 @@ publication.
 6. Complete visual or human review when available.
 7. Verify destination, source protection, bytes, and SHA-256.
 
+Use only a renderer that the current installation explicitly provides. A clean
+packed install does not imply Playwright, Chromium, or another optional visual
+runtime is present; do not install one as part of the task. When it is absent,
+complete the structural review and report `visualReview: "unavailable"`.
+
 Read [design review](../references/design-review.md) for invariant and warning
 semantics.
 
