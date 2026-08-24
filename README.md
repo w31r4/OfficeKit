@@ -179,6 +179,21 @@ editing a closed file behind the user's back. The first real host acceptance
 matrix is Windows x64 desktop PowerPoint; macOS currently has build, mock, and
 package checks only.
 
+## Create a presentation from one request
+
+For a new deck, the Presentations route turns a clear request into a working
+draft: it fixes the audience and conclusion, plans the story, chooses a
+deck-specific visual grammar, composes the pages, and checks the result before
+delivery. A supplied template, brand guide, or reference deck remains the
+design authority; without one, the Agent can choose its own visual direction.
+Grid Layout is an explicit scaffold, not a hidden fallback.
+
+The plan is stored with the task, so a later session can reopen the reviewed
+revision, see the pending decision, make a local change, and review it again.
+The compiler pilot is still evidence-gated; the current shipped default does
+not change until its reliability, quality, continuation, and cost thresholds
+are met.
+
 ## One front door, with direct routes when you want them
 
 For ordinary work, start with OfficeKit. It inspects the inputs, decides the

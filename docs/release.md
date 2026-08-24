@@ -1,5 +1,28 @@
 # Release
 
+## Unreleased: Presentation authoring compiler pilot scaffold (target 0.7.0)
+
+The Presentation authoring compiler change adds a bounded `ctx.plan()` revision
+for a brief, narrative, deck-specific design grammar, ordered page plan,
+editorial rules, unresolved decisions, and the next recipe. The Presentations
+Skill is now a short router over five task workflows, six design-mechanism
+references, and Help adoption metadata for the existing Compose, AutoLayout,
+design-profile, template-planning, source-reuse, SVG, and review primitives.
+
+Packed clean-install evidence covers self-directed and template-conditioned
+plan → compose → review → commit → resume → local edit → publish workflows.
+The A/B/C pilot manifest and runner are also packaged and contract-tested, but
+the 60 fresh-context Codex runs and blind quality judgments have not yet been
+completed. The package remains `0.6.0`; Grid is still the shipped default, and
+no 0.7.0 release or default-route switch is claimed until the declared
+reliability, quality, continuation, and cost thresholds are met.
+
+The implementation branch passes the 48-step fast gate, including the packed
+authoring workflows, Help adoption, and pilot-contract checks. A single
+time-limited smoke run intentionally failed closed with no output or task
+publication and left no runner child process; it is runner evidence, not pilot
+quality evidence.
+
 ## Current 0.6.0 milestone (2026-08-24): Three-sample programmable-import acceptance
 
 Candidate product commit
