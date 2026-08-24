@@ -189,7 +189,7 @@ try {
     strict: false,
     roles: { title: "Aptos Display", body: "Aptos" },
     minimumBodyFontSize: 20,
-    minimumCaptionFontSize: 16,
+    minimumCaptionFontSize: 18,
   };
   const typographyFloorReview = await reviewArtifact(typographyFloorModel, {
     authoringPlan: typographyFloorPlan,
@@ -198,7 +198,7 @@ try {
     visualReview: "unavailable",
   });
   assert.equal(typographyFloorReview.verdict, "failed");
-  assert.ok(typographyFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize" && issue.actual === 14 && issue.required === 16));
+  assert.ok(typographyFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize" && issue.actual === 14 && issue.required === 18));
 
   const warningModel = Presentation.create();
   for (let slideIndex = 0; slideIndex < 3; slideIndex += 1) {

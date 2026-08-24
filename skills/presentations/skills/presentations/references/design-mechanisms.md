@@ -14,6 +14,9 @@ silently inheriting a library style:
   split, or restructure before shrinking text;
 - choose text/background pairs with clear contrast, and check them at contact-
   sheet scale instead of trusting a token name such as `muted`;
+- do not let one pale card surface or dark canvas become the default treatment
+  for every page; use contrast and surface changes to explain the story rather
+  than to fill space;
 - give each quantitative claim an information relationship (a chart, axis,
   connector, direct label, or spatial comparison), not a decorative list of
   numbers;
