@@ -36,6 +36,15 @@ It is additional
 generalization evidence only: it does not change the frozen blind-quality score
 or switch the shipped default.
 
+The C-route readability holdout then raised only the generic authoring guidance
+floor to body 22 and caption 20; A/B routes and the runtime verifier were left
+unchanged. Four unseen packed clean-install Codex contexts passed with no retry
+or policy finding. Median elapsed time was 538062 ms and median observed usage
+was 2853152.5 tokens; one technical deck retained the bounded `cardWallPattern`
+warning. This is holdout evidence, not a blind-quality rerun, so C remains
+experimental and Grid remains the shipped route. The raw summary is recorded
+in `evals/presentation-authoring-compiler/postfix-c.v3.json`.
+
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
 optional Playwright renderer, while the task, output, and review checks passed.

@@ -1,0 +1,112 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-postfix-evidence/v1",
+  "sourceCommits": [
+    "5b3972098e197f6b63b973c1ba050db75ce4447a"
+  ],
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "tarballSha256": "6475e5147d6b6eab55971aa3b8c4f05798b0b035112e3c141f4596073a3db7a9",
+    "packedBytes": 36525245,
+    "unpackedBytes": 54284542,
+    "totalFiles": 761
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "npm": "11.19.0"
+  },
+  "purpose": "Check whether a generic C-route readability floor of minimumBodyFontSize 22 and minimumCaptionFontSize 20 improves cross-scenario output without task-specific selectors, retries, or a runtime verifier change. This holdout evidence does not replace the frozen A/B/C quality study.",
+  "runRoot": "/tmp/officekit-authoring-pilot-C-fontfloor-20260825.g0xd",
+  "runs": [
+    {
+      "runId": "technical-architecture-02/C/2",
+      "taskId": "technical-architecture-02",
+      "scenario": "technical-architecture",
+      "trial": 2,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 1056847,
+      "totalTokens": 7080360,
+      "retryCount": 0,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern"],
+      "policy": "passed",
+      "evidenceDirectory": "runs/technical-architecture-02/C/2/evidence"
+    },
+    {
+      "runId": "analytical-reporting-02/C/1",
+      "taskId": "analytical-reporting-02",
+      "scenario": "analytical-reporting",
+      "trial": 1,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 613129,
+      "totalTokens": 3117948,
+      "retryCount": 0,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": [],
+      "policy": "passed",
+      "evidenceDirectory": "runs/analytical-reporting-02/C/1/evidence"
+    },
+    {
+      "runId": "brand-launch-02/C/2",
+      "taskId": "brand-launch-02",
+      "scenario": "brand-launch",
+      "trial": 2,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 462995,
+      "totalTokens": 2588357,
+      "retryCount": 0,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": [],
+      "policy": "passed",
+      "evidenceDirectory": "runs/brand-launch-02/C/2/evidence"
+    },
+    {
+      "runId": "academic-defense-01/C/1",
+      "taskId": "academic-defense-01",
+      "scenario": "academic-defense",
+      "trial": 1,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 455751,
+      "totalTokens": 2279660,
+      "retryCount": 0,
+      "slides": 9,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": [],
+      "policy": "passed",
+      "evidenceDirectory": "runs/academic-defense-01/C/1/evidence"
+    }
+  ],
+  "summary": {
+    "expectedRuns": 4,
+    "completedRuns": 4,
+    "passedRuns": 4,
+    "status": "passed",
+    "medianElapsedMs": 538062,
+    "medianTotalTokens": 2853152.5,
+    "interpretation": "The generic readability-floor prompt completed four unseen cross-scenario packed C runs without retries or policy findings. One technical-architecture run retained a bounded cardWallPattern warning; all runs honestly reported visualReview unavailable. This is generalization evidence only: the frozen blind-quality score still governs, C remains experimental, and the shipped Grid route is unchanged."
+  },
+  "guardrails": {
+    "taskSpecificSelectorsAdded": false,
+    "runtimeVerifierChanged": false,
+    "frozenQualityEvidenceUnchanged": true,
+    "visualReviewClaimed": false,
+    "defaultRouteChanged": false
+  }
+}
