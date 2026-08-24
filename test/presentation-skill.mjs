@@ -3118,6 +3118,7 @@ try {
   assert.match(skillText, /visibilityCapability\.known.*visibilityCapability\.editable.*slide\.hide\(\).*slide\.show\(\).*p:sld\/@show="0".*fail closed/is);
   assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
   assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
+  assert.match(skillText, /table\.getCell\(row, column\)\.value.*ImageElement\.dataUrl.*deletionCapability.*tableCellText.*imageAsset.*deleteElement.*do not synthesize native leaf IDs.*package footprint.*unchanged comparison pages/is);
   assert.match(skillText, /presentation\.auditAccessibility\(\)/);
   assert.match(skillText, /officekit-accessibility-audit-workflow\.mjs/);
   assert.match(skillText, /machineCheckPassed: true.*whole-deck conformance/is);
