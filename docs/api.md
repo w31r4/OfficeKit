@@ -1936,7 +1936,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed. |
 | `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with accessibility metadata. Ready bounded-overlay accepts only textbox/rect/roundRect/ellipse in a clean export. Lines support dash/ends/cap/join; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. Only a connector retains target-plus-site identity. |
-| `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
+| `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. `head` is the from/start end and `tail` is the to/end end; use tail for a forward arrow, and bringToFront() when a background shape would hide the route. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
 | `slide.shapes.getConnectionSiteIndex` | api | Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed. |
 | `slide.show` | api | Show this slide in the ordinary slide show by clearing the source-bound p:sld/@show leaf through slide.setHidden(false). |
 | `slide.speakerNotes.capability` | api | Return defensive sourceBound, partPresent, editable, and addable evidence. addable identifies an imported notes-absent slide whose source NotesMaster/SlideMaster Theme graph can safely receive a canonical NotesSlide. Export independently re-proves the package graph, so mutating model or wire data cannot grant authority. |
@@ -6892,7 +6892,7 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 
 #### `slide.shapes.connect`
 
-Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export.
+Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. `head` is the from/start end and `tail` is the to/end end; use tail for a forward arrow, and bringToFront() when a background shape would hide the route. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export.
 
 **Adoption tier:** `advanced`
 
@@ -6935,15 +6935,15 @@ Connect two modeled shapes in the same slide/group tree by preset side or exact 
 - `fromIdx` (number) — Exact unsigned DrawingML start connection-site index, including an index into a custom shape's ordered customConnectionSites.
 - `toIdx` (number) — Exact unsigned DrawingML end connection-site index, including an index into a custom shape's ordered customConnectionSites.
 - `line` (object) — { style: solid|dashed|none, fill, width } plus compatibility startArrow/endArrow fields.
-- `head` (object) — Optional start line end { type: none|triangle|stealth|diamond|oval|arrow, width?: sm|med|lg, length?: sm|med|lg }.
-- `tail` (object) — Optional end line end using the same bounded type/size union.
+- `head` (object) — Optional start (`from`) line end { type: none|triangle|stealth|diamond|oval|arrow, width?: sm|med|lg, length?: sm|med|lg }.
+- `tail` (object) — Optional end (`to`) line end using the same bounded type/size union; use this for a usual forward arrow.
 - `cap` (string) — flat, round, or square.
 - `join` (string) — round, bevel, or miter.
 - `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to p:nvCxnSpPr/p:cNvPr.
 
 **Schema returns:**
 
-- `connector` (ConnectorElement) — A source-free connector behind its nodes by default. Target movement reroutes modeled sites. Recognized imported connectors retain target-plus-site identity, but their z-order stays source-bound.
+- `connector` (ConnectorElement) — A source-free connector behind its nodes by default; call bringToFront() when a background panel would cover its route. `head` is the from/start end and `tail` is the to/end end. Target movement reroutes modeled sites. Recognized imported connectors retain target-plus-site identity, but their z-order stays source-bound.
 
 #### `slide.shapes.getConnectionSiteIndex`
 

@@ -24,13 +24,18 @@ const connector = slide.shapes.connect(sourceShape, targetShape, {
   fromSide: "right",
   toSide: "left",
   line: { style: "solid", fill: "slate-500", width: 2 },
-  head: { type: "arrow", width: "med", length: "med" },
+  tail: { type: "arrow", width: "med", length: "med" },
   accessibility: {
     title: "Source to target flow",
     description: "Connector from the source card to the target card.",
   },
 });
 ```
+
+`head` is the line start (`from`) end and `tail` is the line end (`to`) end.
+Use `tail` for the usual source-to-target arrow. New connectors are placed
+behind slide shapes so they do not cover nodes; call `connector.bringToFront()`
+when a background panel or another shape would otherwise hide the route.
 
 Endpoints accept shape facades or shape ids. `fromSide` and `toSide` accept
 `"top"`, `"left"`, `"bottom"`, or `"right"` and resolve to the nearest
