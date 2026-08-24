@@ -168,18 +168,17 @@ const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
 // and hosted gates. The 0.6.0 global CLI deliberately ships the twenty audited
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
-// cross-platform headroom over the measured 36,175,810-byte archive.
+// cross-platform headroom over the measured 36,498,370-byte archive.
 const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
 // and offline consumer guidance. Repository-generated evidence such as the API
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries or generated repository evidence in the tarball. The
-// Source-bound PDF outline editing adds one bounded leaf module plus runnable
-// Skill guidance. Keep less than 16 KiB of headroom over the measured candidate
-// instead of hiding unrelated source, generated evidence, or provider binaries.
-// The current 0.6.0 runtime payload measures 54,180,721 bytes after the
-// bounded PPTX import projection; keep only a narrow 19,279-byte growth budget.
+// Keep less than 16 KiB of headroom over the measured candidate instead of
+// hiding unrelated source, generated evidence, or provider binaries. The
+// current 0.6.0 runtime payload measures 54,191,256 bytes after the bounded
+// PPTX import Help and Skill guidance; keep only an 8,744-byte growth budget.
 const maxUnpackedBytes = 54_200_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
