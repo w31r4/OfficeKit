@@ -49,7 +49,11 @@ export function buildPilotMatrix(manifest, { taskId, arm, trial } = {}) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const manifest = await loadPilotManifest();
-  const matrix = buildPilotMatrix(manifest, args);
+  const matrix = buildPilotMatrix(manifest, {
+    taskId: args.task,
+    arm: args.arm,
+    trial: args.trial,
+  });
   if (args["dry-run"]) {
     process.stdout.write(`${JSON.stringify({
       schema: "office-kit/presentation-authoring-pilot-plan/v1",
@@ -236,7 +240,11 @@ async function runCodex({ codexBin, workspace, evidenceRoot, prompt, timeoutMs }
   child.stdout.on("data", (chunk) => { if (Buffer.byteLength(traceText) + Buffer.byteLength(chunk) <= MAX_CAPTURE_BYTES) traceText += chunk; });
   child.stderr.on("data", (chunk) => { if (Buffer.byteLength(stderr) + Buffer.byteLength(chunk) <= MAX_CAPTURE_BYTES) stderr += chunk; });
   child.stdin.end(prompt);
-  const timer = setTimeout(() => terminateProcessTree(child.pid), timeoutMs);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    terminateProcessTree(child.pid);
+  }, timeoutMs);
   const result = await new Promise((resolve) => {
     child.once("close", (status, signal) => resolve({ status: status ?? 1, signal }));
     child.once("error", (error) => resolve({ status: 127, signal: null, error: error.message }));
@@ -246,8 +254,9 @@ async function runCodex({ codexBin, workspace, evidenceRoot, prompt, timeoutMs }
   await writeFile(stderrPath, stderr, { flag: "wx" });
   const finalBytes = await readFile(finalPath).catch(() => null);
   return {
-    status: result.status,
+    status: timedOut ? 124 : result.status,
     signal: result.signal,
+    timedOut,
     error: result.error || null,
     traceText,
     tokenUsage: extractTokenUsage(traceText),
@@ -320,7 +329,35 @@ async function sha256File(file) {
 
 function terminateProcessTree(pid, signal = "SIGTERM") {
   if (!pid) return;
+  if (process.platform !== "win32") {
+    for (const descendant of descendantProcessIds(pid).reverse()) {
+      try { process.kill(descendant, signal); } catch {}
+    }
+  }
   try { if (process.platform !== "win32") process.kill(-pid, signal); else process.kill(pid, signal); } catch {}
+}
+
+function descendantProcessIds(rootPid) {
+  if (process.platform === "win32") return [];
+  const result = spawnSync("ps", ["-axo", "pid=,ppid="], { encoding: "utf8" });
+  if (result.status !== 0) return [];
+  const children = new Map();
+  for (const line of result.stdout.split(/\r?\n/u)) {
+    const match = line.trim().match(/^(\d+)\s+(\d+)$/u);
+    if (!match) continue;
+    const pid = Number(match[1]);
+    const parent = Number(match[2]);
+    if (!children.has(parent)) children.set(parent, []);
+    children.get(parent).push(pid);
+  }
+  const output = [];
+  const pending = [...(children.get(rootPid) || [])];
+  while (pending.length) {
+    const pid = pending.pop();
+    output.push(pid);
+    pending.push(...(children.get(pid) || []));
+  }
+  return output;
 }
 
 function runRequired(command, args, cwd, label) {

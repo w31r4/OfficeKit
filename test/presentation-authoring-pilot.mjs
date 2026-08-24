@@ -6,6 +6,7 @@ import { scorePilot } from "../scripts/score-presentation-authoring-pilot.mjs";
 const manifest = await loadPilotManifest();
 const matrix = buildPilotMatrix(manifest);
 assert.equal(matrix.length, 60);
+assert.equal(buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "C", trial: 1 }).length, 1);
 assert.equal(new Set(matrix.map((entry) => entry.task.id)).size, 10);
 assert.deepEqual(new Set(matrix.map((entry) => entry.arm)), new Set(["A", "B", "C"]));
 assert.equal(new Set(matrix.map((entry) => entry.armOrder.join(""))).size > 1, true, "arm order must be deterministically randomized");
