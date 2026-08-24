@@ -1,8 +1,8 @@
 ## 1. Change baseline and contracts
 
 - [x] 1.1 Validate the OpenSpec proposal, design, delta specs, and task graph in strict mode.
-- [ ] 1.2 Record the frozen A baseline at `origin/main@a0452867` and the conditional default-switch rule in the evaluation manifest.
-- [ ] 1.3 Add fast contract tests that keep the Office wire protocol at 2 and reject eager Office, MuPDF, provider, or Live runtime initialization.
+- [x] 1.2 Record the frozen A baseline at `origin/main@a0452867` and the conditional default-switch rule in the evaluation manifest.
+- [x] 1.3 Add fast contract tests that keep the Office wire protocol at 2 and reject eager Office, MuPDF, provider, or Live runtime initialization.
 
 ## 2. Durable authoring plan
 
@@ -17,7 +17,7 @@
 - [x] 3.1 Upgrade the REPL protocol to 3 and add `ctx.plan()` read/write behavior without loading presentation runtimes.
 - [x] 3.2 Expose compact plan descriptors through `ctx.task.plan` and `session.ready.task.plan` while keeping full plan bodies behind `ctx.plan()`.
 - [x] 3.3 Extend `officekit tasks <id>` and resume summaries with mode, page count, recipe, plan state, hash, next action, and pending review information.
-- [ ] 3.4 Update REPL, task, clean-install, and lazy-root tests for schema-1 compatibility and schema-2 authoring plans.
+- [x] 3.4 Update REPL, task, clean-install, and lazy-root tests for schema-1 compatibility and schema-2 authoring plans.
 
 ## 4. Presentation authoring review
 

@@ -145,6 +145,7 @@
     "test:release-check": "node test/release-check.mjs",
     "test:package-contents": "node test/package-contents.mjs",
     "test:help": "node test/help.mjs && node test/help-adoption.mjs",
+    "test:presentation-authoring-eval": "node test/presentation-authoring-eval-manifest.mjs",
     "test:pack": "node test/office-kit-package.mjs && npm pack --dry-run"
   },
   "dependencies": {

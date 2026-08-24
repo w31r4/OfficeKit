@@ -1,0 +1,83 @@
+{
+  "schema": "office-kit/presentation-authoring-pilot/v1",
+  "status": "not-run",
+  "baseline": {
+    "arm": "A",
+    "route": "grid-default",
+    "sourceCommit": "a0452867216b6589e90d2149c2e4e115eb03f63b",
+    "frozenAt": "origin/main@a0452867",
+    "defaultUntilThresholdsPass": true
+  },
+  "arms": {
+    "A": {
+      "label": "grid-default",
+      "routeInstruction": "Use the currently shipped Grid scaffold when no visual direction is supplied.",
+      "shippedDefault": true
+    },
+    "B": {
+      "label": "principles-only",
+      "routeInstruction": "Use composition principles and free coordinates without selecting a registered Grid scaffold.",
+      "shippedDefault": false
+    },
+    "C": {
+      "label": "authoring-compiler",
+      "routeInstruction": "Write a durable authoring plan, select zero to two design mechanisms, compose freely, and run design review.",
+      "shippedDefault": false
+    }
+  },
+  "tasks": [
+    { "id": "business-review-01", "scenario": "business-review", "goal": "Turn a quarterly operating update into a decision-ready deck." },
+    { "id": "business-review-02", "scenario": "business-review", "goal": "Explain a product metric change with evidence and next actions." },
+    { "id": "academic-defense-01", "scenario": "academic-defense", "goal": "Present a research question, method, result, and limitation." },
+    { "id": "academic-defense-02", "scenario": "academic-defense", "goal": "Turn a thesis outline into a concise defense narrative." },
+    { "id": "technical-architecture-01", "scenario": "technical-architecture", "goal": "Explain a system boundary, data flow, and operational risks." },
+    { "id": "technical-architecture-02", "scenario": "technical-architecture", "goal": "Compare two implementation options and recommend one." },
+    { "id": "analytical-reporting-01", "scenario": "analytical-reporting", "goal": "Summarize a small dataset with honest charts and findings." },
+    { "id": "analytical-reporting-02", "scenario": "analytical-reporting", "goal": "Turn a written analysis into an executive reading path." },
+    { "id": "brand-launch-01", "scenario": "brand-launch", "goal": "Introduce a product, audience, proof, and launch action." },
+    { "id": "brand-launch-02", "scenario": "brand-launch", "goal": "Create a visual launch story from a short product brief." }
+  ],
+  "design": {
+    "trialsPerTask": 2,
+    "armsPerTask": 3,
+    "freshContextPerRun": true,
+    "totalRuns": 60,
+    "sameInputsAcrossArms": true,
+    "randomizeArmOrder": true,
+    "blindJudging": true,
+    "modelAndTokenBudget": "must be recorded per run and held constant across arms",
+    "timeLimit": "must be recorded per run and held constant across arms",
+    "package": "packed clean-install"
+  },
+  "hardMetrics": [
+    "opens-and-reimports",
+    "verify-and-layout-review",
+    "no-overflow-bounds-or-unexpected-overlap",
+    "facts-and-source-evidence",
+    "plan-commit-resume",
+    "editability",
+    "source-protection"
+  ],
+  "qualityMetrics": [
+    "narrative",
+    "topic-and-style-fit",
+    "text-naturalness",
+    "silhouette-and-density-diversity",
+    "information-relationships",
+    "follow-up-improvement"
+  ],
+  "thresholds": {
+    "hardPassRate": { "operator": ">=", "value": 0.95 },
+    "hardPassDeltaFromA": { "operator": ">=", "value": -0.02 },
+    "blindWinRateOverA": { "operator": ">=", "value": 0.6 },
+    "blindWinRateOverB": { "operator": ">=", "value": 0.55 },
+    "selectedContinuationSuccess": { "operator": ">=", "value": 0.9 },
+    "medianTimeAndTokensRatioToA": { "operator": "<=", "value": 1.5 }
+  },
+  "rolloutRule": "Switch C to the no-direction default only when every threshold passes on this frozen pilot. Otherwise keep A shipped and record C as experimental.",
+  "evidence": {
+    "rawRuns": "evals/presentation-authoring-compiler/runs/",
+    "blindPackets": "evals/presentation-authoring-compiler/blind/",
+    "summary": "evals/presentation-authoring-compiler/results.v1.json"
+  }
+}
