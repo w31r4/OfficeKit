@@ -183,6 +183,7 @@ function materializeContainerSurface(slide, props, frame) {
   const fill = props.fill || classStyle.fill;
   if (!fill || fill === "transparent" || fill === "none") return [];
   return [slide.shapes.add({
+    id: props.id,
     name: props.name ? `${props.name}-surface` : undefined,
     geometry: props.geometry || "rect",
     position: frame,

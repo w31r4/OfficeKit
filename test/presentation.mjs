@@ -337,13 +337,14 @@ const defaultTextBoxZip = await JSZip.loadAsync(defaultTextBoxPptx.bytes);
 const defaultTextBoxXml = await defaultTextBoxZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(defaultTextBoxXml, /<p:cNvSpPr txBox="1"[\s\S]*?<a:ln[^>]*>[\s\S]*?<a:noFill[^>]*\/>/);
 const surfacedCompose = modelSlide.compose(
-  column({ name: "compose-surface", fill: "#0F172A", padding: { x: 16, y: 12 } }, [
+  column({ id: "compose-surface", name: "compose-surface", fill: "#0F172A", padding: { x: 16, y: 12 } }, [
     paragraph({ name: "compose-surface-copy", className: "text-white text-xl" }, ["Readable on a declared surface"]),
   ]),
   { frame: { left: 880, top: 80, width: 320, height: 120 } },
 );
 const surfacedBackground = surfacedCompose.find((element) => element.name === "compose-surface-surface");
 assert.ok(surfacedBackground, "filled compose containers must materialize a background shape");
+assert.equal(surfacedBackground.id, "compose-surface");
 assert.equal(surfacedBackground.fill, "#0F172A");
 const surfacedPptx = await PresentationFile.exportPptx(modelPresentation);
 const surfacedZip = await JSZip.loadAsync(surfacedPptx.bytes);
