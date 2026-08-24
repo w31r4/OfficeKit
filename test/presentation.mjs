@@ -310,6 +310,19 @@ assert.match(modelPresentation.inspect({ kind: "deck,slide,textbox,shape", maxCh
 assert.match(modelPresentation.inspect({ kind: "textbox", target: "compose\/headline", maxChars: 4000 }).ndjson, /Canonical Office model/);
 assert.equal(modelPresentation.verify().ok, true);
 assert.equal(modelPresentation.validateLayout().ok, true);
+const surfacedCompose = modelSlide.compose(
+  column({ name: "compose-surface", fill: "#0F172A", padding: { x: 16, y: 12 } }, [
+    paragraph({ name: "compose-surface-copy", className: "text-white text-xl" }, ["Readable on a declared surface"]),
+  ]),
+  { frame: { left: 880, top: 80, width: 320, height: 120 } },
+);
+const surfacedBackground = surfacedCompose.find((element) => element.name === "compose-surface-surface");
+assert.ok(surfacedBackground, "filled compose containers must materialize a background shape");
+assert.equal(surfacedBackground.fill, "#0F172A");
+const surfacedPptx = await PresentationFile.exportPptx(modelPresentation);
+const surfacedZip = await JSZip.loadAsync(surfacedPptx.bytes);
+const surfacedSlideXml = await surfacedZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(surfacedSlideXml, /name="compose-surface-surface"[\s\S]*?<a:solidFill[^>]*>[\s\S]*?val="0F172A"/);
 const backgroundLayoutDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const backgroundLayoutSlide = backgroundLayoutDeck.slides.add({ name: "Background overlap" });
 const backgroundShape = backgroundLayoutSlide.shapes.add({

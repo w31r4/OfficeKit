@@ -2214,7 +2214,9 @@ const PRESENTATION_HELP_SCHEMAS = {
     height: { type: "string|number", description: "fill, hug, or fixed pixel height." },
     gap: { type: "number", description: "Child gap in pixels." },
     padding: { type: "number|object", description: "Container padding." },
-  }, "node", "object", "Vertical compose node."),
+    fill: { type: "string", description: "Optional solid surface fill; the container materializes a background shape behind its children." },
+    geometry: { type: "string", description: "Optional surface geometry when fill is set; defaults to rect." },
+  }, "node", "object", "Vertical compose node. A declared fill is exported as a background surface behind the children."),
   "compose.paragraph": helpSchema({
     text: { type: "string", required: true, description: "Editable paragraph text." },
     name: { type: "string", description: "Stable element name." },

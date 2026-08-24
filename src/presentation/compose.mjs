@@ -178,6 +178,20 @@ function styleFromClassName(className = "") {
   return style;
 }
 
+function materializeContainerSurface(slide, props, frame) {
+  const classStyle = styleFromClassName(props.className);
+  const fill = props.fill || classStyle.fill;
+  if (!fill || fill === "transparent" || fill === "none") return [];
+  return [slide.shapes.add({
+    name: props.name ? `${props.name}-surface` : undefined,
+    geometry: props.geometry || "rect",
+    position: frame,
+    fill,
+    line: props.line || { fill: "transparent", width: 0 },
+    borderRadius: props.borderRadius || classStyle.borderRadius,
+  })];
+}
+
 function composeIntrinsicSize(composeNode) {
   const props = composeNode.props || {};
   const text = textFromComposeChildren(composeNode.children);
@@ -250,7 +264,10 @@ export function materializeComposeNode(slide, composeNode, frame) {
     const pad = normalizePadding(props.padding);
     const inner = innerFrame(frame, pad);
     const childFrames = composeChildFrames(children.filter(isComposeNode), inner, type, Number(props.gap || 0));
-    return children.filter(isComposeNode).flatMap((child, index) => materializeComposeNode(slide, child, childFrames[index]));
+    return [
+      ...materializeContainerSurface(slide, props, frame),
+      ...children.filter(isComposeNode).flatMap((child, index) => materializeComposeNode(slide, child, childFrames[index])),
+    ];
   }
   if (type === "grid") {
     const gridChildren = children.filter(isComposeNode);
@@ -262,23 +279,29 @@ export function materializeComposeNode(slide, composeNode, frame) {
     const columns = resolveGridTracks(inner.width, props.columns, fallbackColumns, columnGap);
     const fallbackRows = Math.max(1, props.rows?.length || Math.ceil((gridChildren.length || 1) / columns.length));
     const rows = resolveGridTracks(inner.height, props.rows, fallbackRows, rowGap);
-    return gridChildren.flatMap((child, index) => {
-      const columnIndex = Math.min(columns.length - 1, Number(child.props?.column ?? child.props?.col ?? (index % columns.length)));
-      const rowIndex = Math.min(rows.length - 1, Number(child.props?.row ?? Math.floor(index / columns.length)));
-      const columnSpan = Math.min(columns.length - columnIndex, Math.max(1, Number(child.props?.columnSpan ?? 1)));
-      const rowSpan = Math.min(rows.length - rowIndex, Math.max(1, Number(child.props?.rowSpan ?? 1)));
-      return materializeComposeNode(slide, child, gridChildFrame(inner, columns, rows, columnGap, rowGap, columnIndex, rowIndex, columnSpan, rowSpan));
-    });
+    return [
+      ...materializeContainerSurface(slide, props, frame),
+      ...gridChildren.flatMap((child, index) => {
+        const columnIndex = Math.min(columns.length - 1, Number(child.props?.column ?? child.props?.col ?? (index % columns.length)));
+        const rowIndex = Math.min(rows.length - 1, Number(child.props?.row ?? Math.floor(index / columns.length)));
+        const columnSpan = Math.min(columns.length - columnIndex, Math.max(1, Number(child.props?.columnSpan ?? 1)));
+        const rowSpan = Math.min(rows.length - rowIndex, Math.max(1, Number(child.props?.rowSpan ?? 1)));
+        return materializeComposeNode(slide, child, gridChildFrame(inner, columns, rows, columnGap, rowGap, columnIndex, rowIndex, columnSpan, rowSpan));
+      }),
+    ];
   }
   if (type === "layers") {
     const pad = normalizePadding(props.padding);
     const inner = innerFrame(frame, pad);
-    return children.filter(isComposeNode).flatMap((child) => materializeComposeNode(slide, child, {
-      left: inner.left,
-      top: inner.top,
-      width: typeof child.props?.width === "number" ? child.props.width : inner.width,
-      height: typeof child.props?.height === "number" ? child.props.height : inner.height,
-    }));
+    return [
+      ...materializeContainerSurface(slide, props, frame),
+      ...children.filter(isComposeNode).flatMap((child) => materializeComposeNode(slide, child, {
+        left: inner.left,
+        top: inner.top,
+        width: typeof child.props?.width === "number" ? child.props.width : inner.width,
+        height: typeof child.props?.height === "number" ? child.props.height : inner.height,
+      })),
+    ];
   }
   if (type === "box") {
     const classStyle = styleFromClassName(props.className);

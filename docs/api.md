@@ -2155,10 +2155,12 @@ Create a vertical compose container. Use width/height fill, hug, or fixed pixels
 - `height` (string|number) — fill, hug, or fixed pixel height.
 - `gap` (number) — Child gap in pixels.
 - `padding` (number|object) — Container padding.
+- `fill` (string) — Optional solid surface fill; the container materializes a background shape behind its children.
+- `geometry` (string) — Optional surface geometry when fill is set; defaults to rect.
 
 **Schema returns:**
 
-- `node` (object) — Vertical compose node.
+- `node` (object) — Vertical compose node. A declared fill is exported as a background surface behind the children.
 
 #### `compose.paragraph`
 
