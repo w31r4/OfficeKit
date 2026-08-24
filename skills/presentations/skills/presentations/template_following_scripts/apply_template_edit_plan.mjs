@@ -42,6 +42,7 @@ const ACTION_OPERATIONS = Object.freeze({
   replace: new Set(["replace-image"]),
   delete: new Set(["delete-element"]),
 });
+const SOURCE_BOUND_EDIT_PLAN_OPERATIONS = new Set(["set-table-cell", "replace-image", "delete-element"]);
 
 function usage() {
   return [
@@ -432,7 +433,7 @@ export async function applyTemplateEditPlan(options) {
   const normalizedPlan = normalizePlan(plan, manifest, manifestBytes, starterBytes);
 
   const { FileBlob, PresentationFile } = await importArtifactTool(workspaceDir);
-  const presentation = await PresentationFile.importPptx(fileBlob(FileBlob, starterBytes, path.basename(starterPath)));
+  let presentation = await PresentationFile.importPptx(fileBlob(FileBlob, starterBytes, path.basename(starterPath)));
   const slides = slidesFromPresentation(presentation);
   if (slides.length !== manifest.slides.length) throw new Error("Starter slide count does not match its manifest.");
   const beforeRecords = inspectRecordsBySlide(presentation);
@@ -441,22 +442,45 @@ export async function applyTemplateEditPlan(options) {
   const assets = new Map();
   const handlers = operationHandlers({ workspaceDir, planDir: path.dirname(planPath), assets });
   const verifications = [];
-  const auditOperations = [];
+  const auditOperations = Array(normalizedPlan.operationCount);
+  const scheduledOperations = normalizedPlan.targets.flatMap((targetPlan) => targetPlan.operations.map((operation) => ({
+    targetPlan,
+    operation,
+  }))).map((entry, auditIndex) => ({ ...entry, auditIndex }));
+  const phases = [
+    {
+      kind: "semantic-projection",
+      operations: scheduledOperations.filter(({ operation }) => !SOURCE_BOUND_EDIT_PLAN_OPERATIONS.has(operation.type)),
+    },
+    {
+      kind: "source-bound-edit-plan",
+      operations: scheduledOperations.filter(({ operation }) => SOURCE_BOUND_EDIT_PLAN_OPERATIONS.has(operation.type)),
+    },
+  ].filter((phase) => phase.operations.length > 0);
+  const compilationPhases = [];
 
-  for (const targetPlan of normalizedPlan.targets) {
-    const key = `${targetPlan.outputSlide}:${targetPlan.targetIndex}`;
-    const records = beforeRecords.get(targetPlan.outputSlide) || [];
-    for (const operation of targetPlan.operations) {
+  for (let phaseIndex = 0; phaseIndex < phases.length; phaseIndex += 1) {
+    const phase = phases[phaseIndex];
+    let currentRecordsBySlide = inspectRecordsBySlide(presentation);
+    for (const { targetPlan, operation, auditIndex } of phase.operations) {
+      const key = `${targetPlan.outputSlide}:${targetPlan.targetIndex}`;
       const starterElementId = targetPlan.starterElementIds[operation.elementIndex];
-      const target = presentation.resolve(starterElementId);
+      const sourceRecords = beforeRecords.get(targetPlan.outputSlide) || [];
+      const sourceRecordIndex = sourceRecords.findIndex((record) => record.id === starterElementId);
+      if (sourceRecordIndex < 0) throw new Error(`Edit target ${key} element ${operation.elementIndex} is absent from bounded inspection.`);
+      const sourceIdentity = identityShape(sourceRecords[sourceRecordIndex]);
+      const currentRecords = currentRecordsBySlide.get(targetPlan.outputSlide) || [];
+      const currentMatches = currentRecords.filter((record) => identityShape(record) === sourceIdentity);
+      if (currentMatches.length !== 1) {
+        throw new Error(`Edit target ${key} element ${operation.elementIndex} no longer resolves uniquely after ${phase.kind}.`);
+      }
+      const target = presentation.resolve(currentMatches[0].id);
       if (!target) throw new Error(`Edit target ${key} element ${operation.elementIndex} no longer resolves.`);
       assertTargetSlide(target, targetPlan.outputSlide, `Edit target ${key}`);
-      const recordIndex = records.findIndex((record) => record.id === starterElementId);
-      if (recordIndex < 0) throw new Error(`Edit target ${key} element ${operation.elementIndex} is absent from bounded inspection.`);
       const label = `Edit target ${key} ${operation.type}`;
       const outcome = await handlers[operation.type](target, operation, label);
       const deletedSourceIdentities = outcome.deletedElementIds
-        ? records
+        ? currentRecords
           .filter((record) => outcome.deletedElementIds.includes(record.id))
           .map(identityShape)
         : [];
@@ -464,18 +488,17 @@ export async function applyTemplateEditPlan(options) {
         throw new Error(`${label} recursive deletion ownership did not match bounded inspection.`);
       }
       untouchedSlides.delete(targetPlan.outputSlide);
-      const auditIndex = auditOperations.length;
       verifications.push({
         label,
         outputSlide: targetPlan.outputSlide,
-        sourceRecordIndex: recordIndex,
-        sourceIdentity: identityShape(records[recordIndex]),
+        sourceRecordIndex,
+        sourceIdentity,
         verify: outcome.verify,
         deleted: outcome.deleted === true,
         deletedSourceIdentities,
         auditIndex,
       });
-      auditOperations.push({
+      auditOperations[auditIndex] = {
         outputSlide: targetPlan.outputSlide,
         targetIndex: targetPlan.targetIndex,
         elementIndex: operation.elementIndex,
@@ -484,7 +507,18 @@ export async function applyTemplateEditPlan(options) {
         type: operation.type,
         executed: true,
         ...Object.fromEntries(Object.entries(outcome).filter(([name]) => !["verify", "bytes", "deletedElementIds"].includes(name))),
-      });
+      };
+      if (outcome.deleted === true) currentRecordsBySlide = inspectRecordsBySlide(presentation);
+    }
+    compilationPhases.push({
+      kind: phase.kind,
+      operationCount: phase.operations.length,
+      operationTypes: [...new Set(phase.operations.map(({ operation }) => operation.type))].sort(),
+    });
+    if (phaseIndex < phases.length - 1) {
+      const intermediateBytes = await exportBytes(PresentationFile, presentation);
+      presentation = await PresentationFile.importPptx(fileBlob(FileBlob, intermediateBytes, `template-edit-${phase.kind}.pptx`));
+      if (slidesFromPresentation(presentation).length !== slides.length) throw new Error(`Template edit ${phase.kind} phase changed slide topology.`);
     }
   }
 
@@ -576,7 +610,12 @@ export async function applyTemplateEditPlan(options) {
         bytes: snapshot.bytes.length,
       })),
       output: { path: out, sha256: sha256(outputBytes), bytes: outputBytes.length },
-      operation: { type: "source-bound-template-edit-plan", count: normalizedPlan.operationCount, operations: auditOperations },
+      operation: {
+        type: "source-bound-template-edit-plan",
+        count: normalizedPlan.operationCount,
+        compilationPhases,
+        operations: auditOperations,
+      },
       validation: {
         sourceImmutable: true,
         manifestImmutable: true,
