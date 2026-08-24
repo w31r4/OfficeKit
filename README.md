@@ -190,9 +190,10 @@ Grid Layout is an explicit scaffold, not a hidden fallback.
 
 The plan is stored with the task, so a later session can reopen the reviewed
 revision, see the pending decision, make a local change, and review it again.
-The compiler pilot is still evidence-gated; the current shipped default does
-not change until its reliability, quality, continuation, and cost thresholds
-are met.
+The frozen A/B/C machine pilot has completed 60 packed fresh-context runs. C
+met the machine hard, continuation, and cost thresholds, but the anonymous
+blind quality packets are still unjudged, so the shipped Grid default remains
+in place until every declared threshold is evidenced.
 
 ## One front door, with direct routes when you want them
 

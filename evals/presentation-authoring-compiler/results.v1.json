@@ -1,0 +1,107 @@
+{
+  "schema": "office-kit/presentation-authoring-pilot-results/v1",
+  "manifestSchema": "office-kit/presentation-authoring-pilot/v1",
+  "expectedRuns": 60,
+  "observedRuns": 60,
+  "arms": {
+    "A": {
+      "runs": 20,
+      "hardPassRate": 0.85,
+      "medianCost": {
+        "timeMs": 440961.5,
+        "totalTokens": 2475239,
+        "combined": 1354912904465
+      }
+    },
+    "B": {
+      "runs": 20,
+      "hardPassRate": 0.95,
+      "medianCost": {
+        "timeMs": 515316,
+        "totalTokens": 3160729.5,
+        "combined": 1622957894142
+      }
+    },
+    "C": {
+      "runs": 20,
+      "hardPassRate": 1,
+      "medianCost": {
+        "timeMs": 409084,
+        "totalTokens": 2626194,
+        "combined": 1145167926591.5
+      }
+    }
+  },
+  "blind": {
+    "judgments": 0,
+    "overA": null,
+    "overB": null
+  },
+  "continuationSuccess": 1,
+  "thresholds": {
+    "hardPassRate": {
+      "status": "passed",
+      "actual": 1,
+      "requirement": {
+        "operator": ">=",
+        "value": 0.95
+      }
+    },
+    "hardPassDeltaFromA": {
+      "status": "passed",
+      "actual": 0.15000000000000002,
+      "requirement": {
+        "operator": ">=",
+        "value": -0.02
+      }
+    },
+    "blindWinRateOverA": {
+      "status": "insufficient-evidence",
+      "actual": null,
+      "requirement": {
+        "operator": ">=",
+        "value": 0.6
+      }
+    },
+    "blindWinRateOverB": {
+      "status": "insufficient-evidence",
+      "actual": null,
+      "requirement": {
+        "operator": ">=",
+        "value": 0.55
+      }
+    },
+    "selectedContinuationSuccess": {
+      "status": "passed",
+      "actual": 1,
+      "requirement": {
+        "operator": ">=",
+        "value": 0.9
+      }
+    },
+    "medianTimeAndTokensRatioToA": {
+      "status": "passed",
+      "actual": 0.8451967080818972,
+      "requirement": {
+        "operator": "<=",
+        "value": 1.5
+      }
+    }
+  },
+  "rollout": {
+    "status": "keep-A",
+    "shippedDefault": "A",
+    "experimental": "C",
+    "reason": "At least one predeclared threshold is missing or failed; keep A shipped."
+  },
+  "evidence": {
+    "machineRunRoots": {
+      "A": "/tmp/officekit-authoring-pilot-A-full-20260824n",
+      "B": "/tmp/officekit-authoring-pilot-B-full-20260824o",
+      "C": "/tmp/officekit-authoring-pilot-C-full-20260824p"
+    },
+    "blindPacketStatus": "generated-unjudged",
+    "blindPacketCount": 60,
+    "rawTraceRetention": "external-run-root"
+  }
+}

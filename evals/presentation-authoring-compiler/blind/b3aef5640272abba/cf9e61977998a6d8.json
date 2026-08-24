@@ -1,0 +1,22 @@
+{
+  "schema": "office-kit/presentation-authoring-blind-packet/v1",
+  "packetId": "cf9e61977998a6d8",
+  "comparisonKey": "b3aef5640272abba",
+  "taskId": "academic-defense-01",
+  "trial": 1,
+  "artifact": {
+    "relativePath": "runs/academic-defense-01/A/1/workspace/outputs/result.pptx",
+    "sha256": "28b735bffc26f252a08969603d894a5fb62752128486cc69687fbe42964574e9"
+  },
+  "machine": {
+    "passed": true,
+    "slides": 6,
+    "reviewVerdict": "passed-with-limitations",
+    "visualReview": "unavailable"
+  },
+  "judge": {
+    "status": "unjudged",
+    "winner": null,
+    "notes": null
+  }
+}

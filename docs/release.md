@@ -1,6 +1,6 @@
 # Release
 
-## Unreleased: Presentation authoring compiler pilot scaffold (target 0.7.0)
+## Unreleased: Presentation authoring compiler pilot evidence (target 0.7.0)
 
 The Presentation authoring compiler change adds a bounded `ctx.plan()` revision
 for a brief, narrative, deck-specific design grammar, ordered page plan,
@@ -11,11 +11,21 @@ design-profile, template-planning, source-reuse, SVG, and review primitives.
 
 Packed clean-install evidence covers self-directed and template-conditioned
 plan → compose → review → commit → resume → local edit → publish workflows.
-The A/B/C pilot manifest and runner are also packaged and contract-tested, but
-the 60 fresh-context Codex runs and blind quality judgments have not yet been
-completed. The package remains `0.6.0`; Grid is still the shipped default, and
-no 0.7.0 release or default-route switch is claimed until the declared
-reliability, quality, continuation, and cost thresholds are met.
+The frozen A/B/C pilot completed all `60/60` fresh-context Codex runs. Machine
+results were A `17/20`, B `19/20`, and C `20/20`; C met the machine hard,
+continuation, and cost thresholds, while A's policy failures remain visible in
+the recorded results. Blind quality packets are generated but still
+`unjudged`, so the scorer records `keep-A` and the shipped Grid default does
+not change. The package remains `0.6.0`; no 0.7.0 release or default-route
+switch is claimed until every declared reliability, quality, continuation, and
+cost threshold is evidenced.
+
+The compact machine summary is committed at
+`evals/presentation-authoring-compiler/results.v1.json`, together with the 60
+small blind-packet descriptors and three per-arm run manifests. Full traces,
+task workspaces, and rendered artifacts remain in the external run roots; the
+committed evidence does not pretend those large transient files are part of
+the npm package.
 
 The deterministic layout review treats bounded filled containers and thin
 tracks behind centered markers as intentional layers when their child objects

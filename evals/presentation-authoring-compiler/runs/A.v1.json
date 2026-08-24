@@ -1,0 +1,1293 @@
+{
+  "schema": "office-kit/presentation-authoring-pilot-runs/v1",
+  "manifestSha256": "cabca99b1b7a6fa061a7053b1aa37bbd9fe0fd8832aa5a4a39946ea3abf0b7a5",
+  "package": {
+    "name": "office-kit",
+    "version": "0.6.0",
+    "tarballPath": "/tmp/officekit-authoring-pilot-A-full-20260824n/package/office-kit-0.6.0.tgz",
+    "tarballSha256": "6fdb4376c643bcdddc7f1c39f6aeb391478b21006ec9951f9e083aa805ab81d7",
+    "packedBytes": 36521127,
+    "unpackedBytes": 54267888,
+    "totalFiles": 761
+  },
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "node": "v26.7.0",
+    "npm": "11.19.0"
+  },
+  "runs": [
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "business-review-01/A/1",
+      "taskId": "business-review-01",
+      "scenario": "business-review",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 529367,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2497449,
+        "outputTokens": 23933,
+        "totalTokens": 2521382
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2497449,
+            "outputTokens": 23933,
+            "totalTokens": 2521382
+          },
+          "traceSha256": "e84dd2f1cd81441b5f61352a81e9894813a0903826f79100cded262e63f1afbe",
+          "stderrSha256": "f4dfa86500073eb9b9ad2b6df4efd4a6140f7ebc3c12fa7f51cab3a59d9742fc",
+          "finalSha256": "032f30970a78b16f472dbca833e9c56110855cefd15bd69909f108c74376d403"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 38,
+          "authoredFileCount": 7,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_a7c2322e746a",
+          "commits": 3,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/business-review-01/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "business-review-01/A/2",
+      "taskId": "business-review-01",
+      "scenario": "business-review",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 620527,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3189583,
+        "outputTokens": 27799,
+        "totalTokens": 3217382
+      },
+      "status": "failed",
+      "failures": [
+        "policy-raw-opc",
+        "policy-raw-opc"
+      ],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3189583,
+            "outputTokens": 27799,
+            "totalTokens": 3217382
+          },
+          "traceSha256": "d603213de418e8db7c93e419e7c3fa0357c8507c8dee37f8b0d43dc100abdda9",
+          "stderrSha256": "b8be9399aea169fde930f3d4d1d07f27bff45a410a6f2d6ae7c1a83051a69afe",
+          "finalSha256": "f45d188ed4d7dd1425c7171b5c7d0faac68fc0bd7dd58299475a9cc6bfae782b"
+        },
+        "policy": {
+          "passed": false,
+          "commandCount": 56,
+          "authoredFileCount": 11,
+          "findings": [
+            {
+              "code": "raw-opc",
+              "origin": "trace-command:7"
+            },
+            {
+              "code": "raw-opc",
+              "origin": "trace-command:8"
+            }
+          ]
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_509d2be8c367",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/business-review-01/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "business-review-02/A/1",
+      "taskId": "business-review-02",
+      "scenario": "business-review",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 289737,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2057297,
+        "outputTokens": 11993,
+        "totalTokens": 2069290
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2057297,
+            "outputTokens": 11993,
+            "totalTokens": 2069290
+          },
+          "traceSha256": "37887360295dc97b980d080819e2b471391c527ecfc8927c06f126cbd630a75e",
+          "stderrSha256": "96139993faca24365805e82b26c133bf0038ffb93a18d0d27b780158ba5d5a49",
+          "finalSha256": "2d733a27e5f7a2157e921ba295e951e4dcf4234151d992c2fa4b0e050aadd9e2"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 32,
+          "authoredFileCount": 5,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 7,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_b05788fa81f3",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/business-review-02/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "business-review-02/A/2",
+      "taskId": "business-review-02",
+      "scenario": "business-review",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 388266,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2401567,
+        "outputTokens": 16516,
+        "totalTokens": 2418083
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2401567,
+            "outputTokens": 16516,
+            "totalTokens": 2418083
+          },
+          "traceSha256": "4e759bd59a0e82c29f88ceb6662394f5299df28e5e0f4cc0b9beb142d6e76ec5",
+          "stderrSha256": "bac34f52753a9ffa0a67027791bf3ffafd0798077d1c43b0457ce4ed499e5cdc",
+          "finalSha256": "180639bc1c320f0afc3c62ffe78d9eaafdbdacda547c66c71b8ff82a9c8a3f77"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 50,
+          "authoredFileCount": 11,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 7,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_142beebd98e9",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/business-review-02/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "academic-defense-01/A/1",
+      "taskId": "academic-defense-01",
+      "scenario": "academic-defense",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 519668,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 5733908,
+        "outputTokens": 20170,
+        "totalTokens": 5754078
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 5733908,
+            "outputTokens": 20170,
+            "totalTokens": 5754078
+          },
+          "traceSha256": "b7ed097d3dded5cf6484e08f2835bcbc0cd8aafec56f953c0a02e1ee9cfc51a5",
+          "stderrSha256": "0eaca508e101e3ea966b0a3a1c94f39d9ff33e4677df16b779d1f174e9123b4c",
+          "finalSha256": "012ccce6115874e2c6a5ce9b25508b38d74b89a2e6cf3f4048eb10c31e939dd3"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 72,
+          "authoredFileCount": 9,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 6,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_926c19685577",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/academic-defense-01/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "academic-defense-01/A/2",
+      "taskId": "academic-defense-01",
+      "scenario": "academic-defense",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 293338,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 1073112,
+        "outputTokens": 12734,
+        "totalTokens": 1085846
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 1073112,
+            "outputTokens": 12734,
+            "totalTokens": 1085846
+          },
+          "traceSha256": "a50f12b0d5dd99af0ae952435e3f53454b77d24ffdee5c39411c85e9860bf498",
+          "stderrSha256": "b75847282143218a1732445cadf17695de3e5460eb14a8375bbda1fa2b99be37",
+          "finalSha256": "428bee86a6b317dbbcba5b7602dd4f4cad4223c55c55ce67e0044ba1d8bd4001"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 28,
+          "authoredFileCount": 5,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 6,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_6aed363775a1",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/academic-defense-01/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "academic-defense-02/A/1",
+      "taskId": "academic-defense-02",
+      "scenario": "academic-defense",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 304218,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 1316231,
+        "outputTokens": 13670,
+        "totalTokens": 1329901
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 1316231,
+            "outputTokens": 13670,
+            "totalTokens": 1329901
+          },
+          "traceSha256": "3f926433f6bbfad0ef8fd1e93ea73b68701b781049b53e22b1c58d5d0052671d",
+          "stderrSha256": "11968e0c13071eaa715708eac3e3572161c16c7659afdc3a99319d04e70ed17d",
+          "finalSha256": "ae50a732e50f663ef848eb77ac002719dc8adcddf57bbed6d589e0f4a039b305"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 34,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 9,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_a1dc3ca2558c",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/academic-defense-02/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "academic-defense-02/A/2",
+      "taskId": "academic-defense-02",
+      "scenario": "academic-defense",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 566091,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2404378,
+        "outputTokens": 24718,
+        "totalTokens": 2429096
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2404378,
+            "outputTokens": 24718,
+            "totalTokens": 2429096
+          },
+          "traceSha256": "fb976fa0b0d278087ccac7d126ad01fcf69899450832d41d65a13182730a185c",
+          "stderrSha256": "ab0316e2491efd62bb01558db31911849ebbbcfc23af0f509fc57c54f6e2ae54",
+          "finalSha256": "9630530cc7fba23d8a58665bb21aa547ca8f7bbdddee000eaa47cb25f6e4966e"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 44,
+          "authoredFileCount": 13,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_dd9a11951ec6",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/academic-defense-02/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "technical-architecture-01/A/1",
+      "taskId": "technical-architecture-01",
+      "scenario": "technical-architecture",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 695587,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2380597,
+        "outputTokens": 18831,
+        "totalTokens": 2399428
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2380597,
+            "outputTokens": 18831,
+            "totalTokens": 2399428
+          },
+          "traceSha256": "1bbe45da09a6ca5dfa87ea2015157a686a3c6ba39dcd9e1bf52a21400c9e8cb9",
+          "stderrSha256": "d59e03eb04f0428dd930ef0c5192ccc5e1a7325285bef8e73016f8184d0b8a12",
+          "finalSha256": "2d26adba6d60281425cbeb4faa05a2b507f33b3a8113e8517a6f318ced1a0d19"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 50,
+          "authoredFileCount": 7,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 7,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_1f4c00b87ad8",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/technical-architecture-01/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "technical-architecture-01/A/2",
+      "taskId": "technical-architecture-01",
+      "scenario": "technical-architecture",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 339420,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 1390351,
+        "outputTokens": 14108,
+        "totalTokens": 1404459
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 1390351,
+            "outputTokens": 14108,
+            "totalTokens": 1404459
+          },
+          "traceSha256": "6fb7fed96201f6af8d551a902d83b39ac982d0e860a7a776052478593096f23e",
+          "stderrSha256": "01ff320cce97febd7ad238958889981c2d6c7cdc96e79628457ba3d8b9aa89a3",
+          "finalSha256": "e4c73e9cbd30328706355b8ee9fbb6184bb6f4c0b9a94b77aad2228836b9efea"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 34,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_aa1e04ea4bfe",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/technical-architecture-01/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "technical-architecture-02/A/1",
+      "taskId": "technical-architecture-02",
+      "scenario": "technical-architecture",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 458715,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3528606,
+        "outputTokens": 16086,
+        "totalTokens": 3544692
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3528606,
+            "outputTokens": 16086,
+            "totalTokens": 3544692
+          },
+          "traceSha256": "14c69d927165b7bbe5e453664d7d5722b47872d310047869ef1be64a3201926c",
+          "stderrSha256": "940cec1595f7887444342383a344c185c99098edc73f6f86b0c82e9ad769ab38",
+          "finalSha256": "3e8ab3fdf267dee7be41d64896f87388e7dc5e59775387326fc9964c8671f95b"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 64,
+          "authoredFileCount": 13,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 7,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_e472b8bcaa53",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/technical-architecture-02/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "technical-architecture-02/A/2",
+      "taskId": "technical-architecture-02",
+      "scenario": "technical-architecture",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 596016,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3753430,
+        "outputTokens": 25422,
+        "totalTokens": 3778852
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3753430,
+            "outputTokens": 25422,
+            "totalTokens": 3778852
+          },
+          "traceSha256": "5a9d05b0d8c64084341ec9c19fdecf13691ea2fed5d719a42026ed55eb381a61",
+          "stderrSha256": "20e5d285c6b0f82654c3f3d0e4526cf7c6ff2e24f5e56b5326929639dfb787ef",
+          "finalSha256": "d96e648c6026e07da37ea1342a50cbfd1ac5ed5bb97d05475bf4132b1f07c228"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 58,
+          "authoredFileCount": 9,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_efbc32781ade",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/technical-architecture-02/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "analytical-reporting-01/A/1",
+      "taskId": "analytical-reporting-01",
+      "scenario": "analytical-reporting",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 525132,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3710050,
+        "outputTokens": 21727,
+        "totalTokens": 3731777
+      },
+      "status": "failed",
+      "failures": [
+        "policy-task-store-bypass",
+        "policy-task-store-bypass",
+        "policy-task-store-bypass",
+        "policy-task-store-bypass"
+      ],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3710050,
+            "outputTokens": 21727,
+            "totalTokens": 3731777
+          },
+          "traceSha256": "6f0b2cabc6bbd4ce09f2dd1261127faa7352e0c415157fa37517b6f4f106a11b",
+          "stderrSha256": "8eb8b75f93dec901184a04464bb3233b87015e148dc85577893e48053f89a7da",
+          "finalSha256": "0adf96114f2f52968a8a90c28c26eb776e3646a72e5a5b8daab8a068b756e6d8"
+        },
+        "policy": {
+          "passed": false,
+          "commandCount": 52,
+          "authoredFileCount": 4,
+          "findings": [
+            {
+              "code": "task-store-bypass",
+              "origin": "trace-command:5"
+            },
+            {
+              "code": "task-store-bypass",
+              "origin": "trace-command:6"
+            },
+            {
+              "code": "task-store-bypass",
+              "origin": "trace-command:7"
+            },
+            {
+              "code": "task-store-bypass",
+              "origin": "trace-command:8"
+            }
+          ]
+        },
+        "output": {
+          "passed": true,
+          "slides": 6,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_694a8822f948",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/analytical-reporting-01/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "analytical-reporting-01/A/2",
+      "taskId": "analytical-reporting-01",
+      "scenario": "analytical-reporting",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 597919,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3916631,
+        "outputTokens": 25586,
+        "totalTokens": 3942217
+      },
+      "status": "failed",
+      "failures": [
+        "policy-task-store-bypass",
+        "policy-task-store-bypass"
+      ],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3916631,
+            "outputTokens": 25586,
+            "totalTokens": 3942217
+          },
+          "traceSha256": "8e8132102944aafbf61c2ac70fd388dd12d41f22cc674afbb808e1138af5d66a",
+          "stderrSha256": "7e30e662f9877a6b2b247fde5ac5503eb3bf4f84913b140cef9f9757ecfb053e",
+          "finalSha256": "acf640470a13c9635d0315a96965e6a917f84d3d2095543e3341bc800ec66fa5"
+        },
+        "policy": {
+          "passed": false,
+          "commandCount": 60,
+          "authoredFileCount": 7,
+          "findings": [
+            {
+              "code": "task-store-bypass",
+              "origin": "trace-command:5"
+            },
+            {
+              "code": "task-store-bypass",
+              "origin": "trace-command:6"
+            }
+          ]
+        },
+        "output": {
+          "passed": true,
+          "slides": 6,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_3d7c48aa962f",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/analytical-reporting-01/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "analytical-reporting-02/A/1",
+      "taskId": "analytical-reporting-02",
+      "scenario": "analytical-reporting",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 303097,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2037263,
+        "outputTokens": 12493,
+        "totalTokens": 2049756
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2037263,
+            "outputTokens": 12493,
+            "totalTokens": 2049756
+          },
+          "traceSha256": "49a7e4681bf2a6d60eecbf5108257f17bef35fe56c57617db049dbaf21713a77",
+          "stderrSha256": "c31dd89b639ee873e790451c2e6e087cda61eac7ed4d533b8b3fc565256b5d94",
+          "finalSha256": "39d66e71720d6b148a261ce14f1ccac5082f78715fc7a5a0082ee2d903bdb117"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 40,
+          "authoredFileCount": 8,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 6,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_d0ffde4f7214",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/analytical-reporting-02/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "analytical-reporting-02/A/2",
+      "taskId": "analytical-reporting-02",
+      "scenario": "analytical-reporting",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 330576,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2138377,
+        "outputTokens": 13318,
+        "totalTokens": 2151695
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2138377,
+            "outputTokens": 13318,
+            "totalTokens": 2151695
+          },
+          "traceSha256": "5c9c2ae60e3f98958624e64ed350718c64ed077f7688d2afd4917b766a5aca8e",
+          "stderrSha256": "ed6ef07f9a77cb1ab1ea0e2269591b66439449a82035ff85928266943e154c20",
+          "finalSha256": "2d663c60807097529be77e66f4864ad6f5502df6a7d253275085108a70ed75cf"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 36,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_29254a7065c0",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/analytical-reporting-02/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "brand-launch-01/A/1",
+      "taskId": "brand-launch-01",
+      "scenario": "brand-launch",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 412268,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2515560,
+        "outputTokens": 16406,
+        "totalTokens": 2531966
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2515560,
+            "outputTokens": 16406,
+            "totalTokens": 2531966
+          },
+          "traceSha256": "faa07b7f21e5e1c310b158c715e78f99a370c59e32a42596b391d8857bfee75b",
+          "stderrSha256": "096489516f425b1f66dff9e61973c17942612061efaf551b67c7260f998b62b4",
+          "finalSha256": "96de95fb4a391d60495e5b16ea022cebde2581f30667155b093683d16acb5c4c"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 46,
+          "authoredFileCount": 7,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 6,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_7a0bd794ae34",
+          "commits": 3,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/brand-launch-01/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "brand-launch-01/A/2",
+      "taskId": "brand-launch-01",
+      "scenario": "brand-launch",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 394435,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 2166241,
+        "outputTokens": 17027,
+        "totalTokens": 2183268
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 2166241,
+            "outputTokens": 17027,
+            "totalTokens": 2183268
+          },
+          "traceSha256": "beb9057f5009d00481195a3d3a0c41a989f992c10f730f5cc72fd5c64dd2c5fe",
+          "stderrSha256": "1ef1978cfa603f83073e3827f623605239bbd644ff3cee51918868d1d7538542",
+          "finalSha256": "81c2f318ff1aed06267a8e60b879ff3c8c1710fdb595d6f1563cbcadf8cdcebf"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 40,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 7,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_5d7f7ae1333c",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/brand-launch-01/A/2/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "brand-launch-02/A/1",
+      "taskId": "brand-launch-02",
+      "scenario": "brand-launch",
+      "arm": "A",
+      "trial": 1,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 606374,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3577181,
+        "outputTokens": 22928,
+        "totalTokens": 3600109
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3577181,
+            "outputTokens": 22928,
+            "totalTokens": 3600109
+          },
+          "traceSha256": "84a8aee006c516a6b2939fc3112395dae13f0b3ebcb8e91a4ba0520fb98ce823",
+          "stderrSha256": "1c22367e2e6bed48a040e8cf293bc84d804a3161019520e0066b345d46396941",
+          "finalSha256": "55ab4025c2565f8be7dfbd91f686b7ad420f7c433f787cc8a2326579ecad225c"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 62,
+          "authoredFileCount": 6,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 7,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_ef25f212c388",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/brand-launch-02/A/1/evidence"
+    },
+    {
+      "schema": "office-kit/presentation-authoring-pilot-run/v1",
+      "runId": "brand-launch-02/A/2",
+      "taskId": "brand-launch-02",
+      "scenario": "brand-launch",
+      "arm": "A",
+      "trial": 2,
+      "armOrder": [
+        "A"
+      ],
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 423208,
+      "retryCount": 0,
+      "attempts": 1,
+      "tokenUsage": {
+        "observed": true,
+        "inputTokens": 3233857,
+        "outputTokens": 16268,
+        "totalTokens": 3250125
+      },
+      "status": "passed",
+      "failures": [],
+      "checks": {
+        "codex": {
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "error": null,
+          "tokenUsage": {
+            "observed": true,
+            "inputTokens": 3233857,
+            "outputTokens": 16268,
+            "totalTokens": 3250125
+          },
+          "traceSha256": "ea73da5033661032a494a31e33331be3a517d2ea68d1c625bf4cfc037f7782ae",
+          "stderrSha256": "f285fee2c4590a40cbd2f809b5a2f42b43819ec1faf64efa43b7e41d0f71e332",
+          "finalSha256": "0f5a14694fa2b60c593da645777a3650a1ac034d7f0e3fb5444d0f470e7200a2"
+        },
+        "policy": {
+          "passed": true,
+          "commandCount": 60,
+          "authoredFileCount": 7,
+          "findings": []
+        },
+        "output": {
+          "passed": true,
+          "slides": 8,
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        "task": {
+          "passed": true,
+          "taskId": "t_752065cdfad8",
+          "commits": 2,
+          "publications": 1,
+          "plan": true
+        }
+      },
+      "evidenceDirectory": "runs/brand-launch-02/A/2/evidence"
+    }
+  ],
+  "acceptance": {
+    "expectedRuns": 20,
+    "completedRuns": 20,
+    "passedRuns": 17,
+    "status": "failed"
+  }
+}

@@ -8,7 +8,7 @@ const manifestPath = path.join(repoRoot, "evals", "presentation-authoring-compil
 const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
 
 assert.equal(manifest.schema, "office-kit/presentation-authoring-pilot/v1");
-assert.equal(manifest.status, "not-run");
+assert.equal(manifest.status, "machine-complete-blind-pending");
 assert.equal(manifest.baseline.arm, "A");
 assert.equal(manifest.baseline.route, "grid-default");
 assert.equal(manifest.baseline.frozenAt, "origin/main@a0452867");
@@ -22,6 +22,13 @@ assert.equal(manifest.design.freshContextPerRun, true);
 assert.equal(manifest.design.package, "packed clean-install");
 for (const threshold of Object.values(manifest.thresholds)) assert.ok([">=", "<=", ">"].includes(threshold.operator));
 assert.match(manifest.rolloutRule, /every threshold passes.*otherwise keep A shipped.*C.*experimental/i);
+const resultsPath = path.join(repoRoot, "evals", "presentation-authoring-compiler", "results.v1.json");
+const results = JSON.parse(await fs.readFile(resultsPath, "utf8"));
+assert.equal(results.observedRuns, manifest.design.totalRuns);
+assert.equal(results.rollout.status, "keep-A");
+assert.equal(results.blind.judgments, 0);
+assert.equal(results.thresholds.blindWinRateOverA.status, "insufficient-evidence");
+assert.equal(results.thresholds.blindWinRateOverB.status, "insufficient-evidence");
 assert.doesNotMatch(JSON.stringify(manifest), /(?:\/Users\/|[A-Z]:\\|\/tmp\/)/u);
 
 console.log("presentation authoring evaluation manifest ok");

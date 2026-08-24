@@ -1,6 +1,6 @@
 {
   "schema": "office-kit/presentation-authoring-pilot/v1",
-  "status": "not-run",
+  "status": "machine-complete-blind-pending",
   "baseline": {
     "arm": "A",
     "route": "grid-default",
