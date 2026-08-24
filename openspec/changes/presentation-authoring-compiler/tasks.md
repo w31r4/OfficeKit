@@ -54,8 +54,8 @@
 
 - [x] 8.1 Add a versioned pilot manifest for 10 tasks across five scenarios, two trials, three arms, fixed model/material/time/token conditions, and anonymous randomized judging.
 - [x] 8.2 Implement the packed fresh-context runner, artifact oracle, metric collector, retry accounting, and independent visual-blind-review packet generator.
-- [ ] 8.3 Run all 60 pilot generations and publish raw run evidence, hard-gate metrics, quality judgments, time, token, and retry summaries.
-- [x] 8.4 Apply the predeclared thresholds: the machine scorer records `keep-A` because the 60-run machine matrix is complete but blind packets remain unjudged; C stays experimental and Grid remains shipped.
+- [x] 8.3 Run all 60 pilot generations and publish raw run evidence, hard-gate metrics, fresh read-only Codex blind quality judgments, time, token, and retry summaries.
+- [x] 8.4 Apply the predeclared thresholds: C scores `50%` over A (below the `60%` requirement) and `60%` over B (meeting the `55%` requirement), so the scorer records `keep-A`; C stays experimental and Grid remains shipped.
 - [ ] 8.5 If C passes, add the 30-task expansion matrix to the presentation slow gate and verify selected continuation tasks at at least 90 percent success.
 
 ## 9. Release and closure

@@ -15,8 +15,17 @@
     "visualReview": "unavailable"
   },
   "judge": {
-    "status": "unjudged",
-    "winner": null,
-    "notes": null
+    "status": "judged",
+    "reviewer": "codex-exec-fresh-ephemeral",
+    "model": "gpt-5.6-sol",
+    "comparisonKey": "cf05896ae61cf777",
+    "slot": "two",
+    "rank": 1,
+    "rankingSlots": [
+      "two",
+      "three",
+      "one"
+    ],
+    "notes": "Two has the clearest executive narrative, strongest hierarchy, cohesive styling, readable charts, and useful variation across overview, evidence, limitations, and actions. Three is clean and logically sequenced with good chart-to-text relationships, but feels more template-like and slightly less visually engaging. One is coherent but substantially denser and smaller, with weaker reading hierarchy and more cramped charts, tables, and annotations."
   }
 }

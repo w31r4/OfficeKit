@@ -33,9 +33,9 @@
     }
   },
   "blind": {
-    "judgments": 0,
-    "overA": null,
-    "overB": null
+    "judgments": 40,
+    "overA": 0.5,
+    "overB": 0.6
   },
   "continuationSuccess": 1,
   "thresholds": {
@@ -56,16 +56,16 @@
       }
     },
     "blindWinRateOverA": {
-      "status": "insufficient-evidence",
-      "actual": null,
+      "status": "failed",
+      "actual": 0.5,
       "requirement": {
         "operator": ">=",
         "value": 0.6
       }
     },
     "blindWinRateOverB": {
-      "status": "insufficient-evidence",
-      "actual": null,
+      "status": "passed",
+      "actual": 0.6,
       "requirement": {
         "operator": ">=",
         "value": 0.55
@@ -100,8 +100,11 @@
       "B": "/tmp/officekit-authoring-pilot-B-full-20260824o",
       "C": "/tmp/officekit-authoring-pilot-C-full-20260824p"
     },
-    "blindPacketStatus": "generated-unjudged",
+    "blindPacketStatus": "judged",
     "blindPacketCount": 60,
+    "blindJudgmentCount": 40,
+    "blindReview": "evals/presentation-authoring-compiler/blind-review.v1.json",
+    "rawJudgmentLines": "evals/presentation-authoring-compiler/judgments.v1.jsonl",
     "rawTraceRetention": "external-run-root"
   }
 }

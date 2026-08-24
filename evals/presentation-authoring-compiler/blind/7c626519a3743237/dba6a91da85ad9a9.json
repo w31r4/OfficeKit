@@ -15,8 +15,17 @@
     "visualReview": "unavailable"
   },
   "judge": {
-    "status": "unjudged",
-    "winner": null,
-    "notes": null
+    "status": "judged",
+    "reviewer": "codex-exec-fresh-ephemeral",
+    "model": "gpt-5.6-sol",
+    "comparisonKey": "7c626519a3743237",
+    "slot": "three",
+    "rank": 2,
+    "rankingSlots": [
+      "two",
+      "three",
+      "one"
+    ],
+    "notes": "Two has the clearest reading path, strongest legibility, disciplined hierarchy, and useful chart-to-claim relationships across a coherent diagnosis-to-decision narrative. Three is visually polished and varied with a strong causal storyline, but much supporting text is very small. One is cohesive and well structured, yet its denser layouts, tiny labels, and lower-contrast elements make several slides harder to scan."
   }
 }

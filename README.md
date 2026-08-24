@@ -190,10 +190,11 @@ Grid Layout is an explicit scaffold, not a hidden fallback.
 
 The plan is stored with the task, so a later session can reopen the reviewed
 revision, see the pending decision, make a local change, and review it again.
-The frozen A/B/C machine pilot has completed 60 packed fresh-context runs. C
-met the machine hard, continuation, and cost thresholds, but the anonymous
-blind quality packets are still unjudged, so the shipped Grid default remains
-in place until every declared threshold is evidenced.
+The frozen A/B/C pilot has completed 60 packed fresh-context runs and 40
+pairwise blind quality judgments from fresh, read-only Codex reviewers. C met
+the machine and continuation/cost thresholds and beat B at 60%, but reached
+only 50% against the Grid baseline A (the threshold is 60%). Grid therefore
+remains the shipped default; C stays available as the experimental route.
 
 ## One front door, with direct routes when you want them
 

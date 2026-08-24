@@ -15,8 +15,17 @@
     "visualReview": "unavailable"
   },
   "judge": {
-    "status": "unjudged",
-    "winner": null,
-    "notes": null
+    "status": "judged",
+    "reviewer": "codex-exec-fresh-ephemeral",
+    "model": "gpt-5.6-sol",
+    "comparisonKey": "f9014caf69f88b34",
+    "slot": "three",
+    "rank": 2,
+    "rankingSlots": [
+      "one",
+      "three",
+      "two"
+    ],
+    "notes": "ONE has the clearest end-to-end narrative, strongest hierarchy, polished chart/callout relationships, and good composition variety, with only some small supporting text. THREE is similarly cohesive and visually refined, but several dense labels and compact charts reduce readability. TWO is clean and logically ordered, yet feels comparatively sparse and template-like; its charts and table are smaller, with weaker visual emphasis and less compositional variety."
   }
 }

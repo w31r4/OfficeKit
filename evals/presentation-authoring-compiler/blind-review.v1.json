@@ -1,0 +1,31 @@
+{
+  "schema": "office-kit/presentation-authoring-blind-review/v1",
+  "status": "complete",
+  "reviewer": {
+    "tool": "codex exec",
+    "model": "gpt-5.6-sol",
+    "ephemeral": true,
+    "sandbox": "read-only",
+    "freshContextPerComparison": true,
+    "sourceCodeAccess": false,
+    "metadataAccess": false
+  },
+  "source": {
+    "renderManifestSha256": "e7c988cd698368fb68449ca5ec7ac1b4c3cf54715facac039f949c34a64c2cea",
+    "rankingEvidenceSha256": "a06244d01af421d212abeaf75afc855fc482cef191163bb0a2cea37ece8f1856",
+    "renderRoot": "/tmp/officekit-authoring-blind-20260824s",
+    "judgeRoot": "/tmp/officekit-authoring-blind-ranked-20260824u"
+  },
+  "comparisons": 20,
+  "pairwiseJudgments": 40,
+  "summary": {
+    "cOverA": 0.5,
+    "cOverB": 0.6,
+    "winnerCounts": {
+      "C": 22,
+      "A": 10,
+      "B": 8,
+      "ties": 0
+    }
+  }
+}

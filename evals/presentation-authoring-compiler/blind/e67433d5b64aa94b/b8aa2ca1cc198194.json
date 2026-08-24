@@ -15,8 +15,17 @@
     "visualReview": "unavailable"
   },
   "judge": {
-    "status": "unjudged",
-    "winner": null,
-    "notes": null
+    "status": "judged",
+    "reviewer": "codex-exec-fresh-ephemeral",
+    "model": "gpt-5.6-sol",
+    "comparisonKey": "e67433d5b64aa94b",
+    "slot": "one",
+    "rank": 3,
+    "rankingSlots": [
+      "two",
+      "three",
+      "one"
+    ],
+    "notes": "Two has the clearest executive narrative, strongest hierarchy, most varied yet consistent compositions, and the best integration of charts, evidence, and decisions. Three is coherent and visually disciplined with useful funnel and timeline relationships, but several labels and annotations are quite small. One is polished and cohesive, though its reading path is less immediate, supporting text is often tiny, and the repeated card-heavy layouts provide less analytical clarity and composition variety."
   }
 }

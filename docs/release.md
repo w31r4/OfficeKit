@@ -14,18 +14,21 @@ plan → compose → review → commit → resume → local edit → publish wor
 The frozen A/B/C pilot completed all `60/60` fresh-context Codex runs. Machine
 results were A `17/20`, B `19/20`, and C `20/20`; C met the machine hard,
 continuation, and cost thresholds, while A's policy failures remain visible in
-the recorded results. Blind quality packets are generated but still
-`unjudged`, so the scorer records `keep-A` and the shipped Grid default does
-not change. The package remains `0.6.0`; no 0.7.0 release or default-route
-switch is claimed until every declared reliability, quality, continuation, and
-cost threshold is evidenced.
+the recorded results. A separate fresh-context, read-only Codex blind review
+completed 20 three-way rankings (40 pairwise judgments): C scored `50%`
+against A and `60%` against B. The A threshold is `60%`, so the scorer records
+`keep-A`; Grid remains shipped and C remains experimental. The package remains
+`0.6.0`; no 0.7.0 release or default-route switch is claimed until the failed
+quality threshold is addressed and the remaining release gates are complete.
 
 The compact machine summary is committed at
 `evals/presentation-authoring-compiler/results.v1.json`, together with the 60
-small blind-packet descriptors and three per-arm run manifests. Full traces,
-task workspaces, and rendered artifacts remain in the external run roots; the
-committed evidence does not pretend those large transient files are part of
-the npm package.
+small blind-packet descriptors, 40 judgment lines in
+`evals/presentation-authoring-compiler/judgments.v1.jsonl`, the blind-review
+provenance record, and three per-arm run manifests. Full traces, task
+workspaces, rendered artifacts, and anonymous contact sheets remain in the
+external run roots; the committed evidence does not pretend those large
+transient files are part of the npm package.
 
 The deterministic layout review treats bounded filled containers and thin
 tracks behind centered markers as intentional layers when their child objects
