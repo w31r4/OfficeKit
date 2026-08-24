@@ -4,6 +4,28 @@ Mechanisms guide how information behaves across a deck. They do not provide a
 palette, font, coordinate set, or layout ID. Select zero to two, then write a
 specific design grammar for the actual audience and content.
 
+## Cross-cutting authoring floor
+
+Mechanisms are deliberately open-ended, but a self-directed deck still needs a
+small quality floor. Put the floor in the deck's `designGrammar`, rather than
+silently inheriting a library style:
+
+- state a readable body and caption size in the model's font-size units; shorten,
+  split, or restructure before shrinking text;
+- choose text/background pairs with clear contrast, and check them at contact-
+  sheet scale instead of trusting a token name such as `muted`;
+- give each quantitative claim an information relationship (a chart, axis,
+  connector, direct label, or spatial comparison), not a decorative list of
+  numbers;
+- vary the dominant composition across a six-or-more-page deck and record an
+  intentional exception when repetition serves the story;
+- keep one clear reading anchor per page; do not fill unused space with equal-
+  weight cards or captions.
+
+These are authoring heuristics, not claims of aesthetic correctness. The
+deterministic review may report bounded warnings; the Agent must inspect and
+repair them or record why they are intentional.
+
 ## Editorial minimal (`editorial-minimal`)
 
 - Build pages around one claim and one carefully chosen piece of evidence.

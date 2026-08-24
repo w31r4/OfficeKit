@@ -44,6 +44,12 @@ deliberately use at least four different silhouettes and repair repeated
 composition, density-jump, or card-wall warnings unless the plan records why
 the repetition is intentional.
 
+At page level, give each slide one dominant reading anchor. A quantitative
+claim should be encoded as a meaningful relationship—chart, axis, connector,
+direct label, or spatial comparison—not as a decorative list of values. Choose
+foreground/background pairs with clear contrast and inspect the rendered page
+at contact-sheet scale; do not rely on a `muted` token to make small text safe.
+
 ## 4. Compile a complete working draft
 
 Use Presentation Help by intent, then compose with the golden primitives:
