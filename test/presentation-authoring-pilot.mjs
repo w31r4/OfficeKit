@@ -5,6 +5,12 @@ import { buildPilotMatrix, buildPilotPrompt, loadPilotManifest } from "../script
 import { scorePilot } from "../scripts/score-presentation-authoring-pilot.mjs";
 
 const manifest = await loadPilotManifest();
+const holdout = JSON.parse(await readFile(new URL("../evals/presentation-authoring-compiler/holdout.v1.json", import.meta.url), "utf8"));
+assert.equal(holdout.schema, "office-kit/presentation-authoring-holdout/v1");
+assert.equal(holdout.baseline.blindQualityStillGovernsDefault, true);
+assert.equal(holdout.runs.length, 3);
+assert.ok(holdout.runs.every((run) => run.status === "passed" && run.reviewVerdict === "passed-with-limitations" && run.visualReview === "unavailable"));
+assert.equal(new Set(holdout.runs.map((run) => run.taskId)).size, holdout.runs.length);
 const matrix = buildPilotMatrix(manifest);
 assert.equal(matrix.length, 60);
 assert.equal(buildPilotMatrix(manifest, { taskId: "business-review-01", arm: "C", trial: 1 }).length, 1);

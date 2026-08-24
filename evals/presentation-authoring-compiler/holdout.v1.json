@@ -1,0 +1,52 @@
+{
+  "schema": "office-kit/presentation-authoring-holdout/v1",
+  "status": "recorded",
+  "purpose": "Post-baseline C-route generalization checks; these runs do not alter the frozen A/B/C pilot or its rollout thresholds.",
+  "baseline": {
+    "results": "results.v1.json",
+    "frozenAt": "origin/main@a0452867",
+    "route": "C",
+    "blindQualityStillGovernsDefault": true
+  },
+  "runs": [
+    {
+      "taskId": "academic-defense-02",
+      "trial": 2,
+      "sourceCommit": "b283d83a",
+      "status": "passed",
+      "elapsedMs": 541172,
+      "totalTokens": 2861542,
+      "slides": 8,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern"],
+      "outputSha256": "9b8334ce1773f9f9268b7a474052d9e5ab1d3668206faac6ebb27787fc151d32"
+    },
+    {
+      "taskId": "business-review-02",
+      "trial": 1,
+      "sourceCommit": "273dc321",
+      "status": "passed",
+      "elapsedMs": 633445,
+      "totalTokens": 5679710,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["densityRhythmJump", "cardWallPattern"],
+      "outputSha256": "ff6a1ab1927a5ca3d6ef5fb78f1217dca79fd525d264aa1986e6087ade393e90"
+    },
+    {
+      "taskId": "brand-launch-02",
+      "trial": 1,
+      "sourceCommit": "1891edc3",
+      "status": "passed",
+      "elapsedMs": 405959,
+      "totalTokens": 2758237,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["repeatedComposition"],
+      "outputSha256": "915abdd74610488c78ed9372a6caa4b7a2ce71de61eaa971ea72be7dd426b2a2"
+    }
+  ]
+}
