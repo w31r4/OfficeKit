@@ -21,6 +21,15 @@ against A and `60%` against B. The A threshold is `60%`, so the scorer records
 `0.6.0`; no 0.7.0 release or default-route switch is claimed until the failed
 quality threshold is addressed and the remaining release gates are complete.
 
+After the frozen pilot, three independent C holdouts (academic defense,
+business review, and brand launch) passed packed task, plan, review, resume, and
+publication checks. The follow-up route raises the declared caption floor to
+18 and asks the Agent to avoid a deck-wide pale-card or dark-canvas treatment;
+these are general authoring constraints, not task-specific fixtures. The
+holdouts are recorded in `evals/presentation-authoring-compiler/holdout.v1.json`.
+They are additional generalization evidence only: they do not change the
+frozen blind-quality score or switch the shipped default.
+
 The compact machine summary is committed at
 `evals/presentation-authoring-compiler/results.v1.json`, together with the 60
 small blind-packet descriptors, 40 judgment lines in
