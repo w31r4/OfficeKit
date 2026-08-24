@@ -1827,8 +1827,17 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `chart.delete` | api | Explicitly remove a source-free chart or one capability-proven imported chart frame. The source-bound transaction removes its exact relationship and only ChartPart descendants without another package parent; external, repeated, nested, or identity-sensitive graphs fail closed. |
 | `chart.deletionCapability` | api | Report whether one imported top-level chart frame owns one uniquely used internal ChartPart relationship. Export re-proves relationship use and the exclusively owned descendant closure; shared ChartParts survive. |
 | `chart.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed. |
+| `compose.box` | api | Create a materialized shape surface with optional children inset by padding; use a named box as a stable connector or edit target. |
+| `compose.chart` | api | Create a materialized chart in a resolved compose frame; encode quantitative claims as data relationships rather than decorative labels. |
 | `compose.column` | api | Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels. |
+| `compose.grid` | api | Create a grid compose container with bounded row/column tracks, spans, gaps, padding, and an optional surface. |
+| `compose.image` | api | Create a materialized image node with frame, fit/crop, alt text, and an explicit user or template asset; a prompt creates only a marked placeholder. |
+| `compose.layers` | api | Create a layered compose container whose children share the inner frame; use it for overlays and explicit z-order. |
 | `compose.paragraph` | api | Create an editable text block with name, className/style text tokens, and stable inspect output. |
+| `compose.row` | api | Create a horizontal compose container. Use fixed, hug, or fill child widths with an explicit gap and optional surface. |
+| `compose.rule` | api | Create a thin horizontal or vertical rule as a materialized shape, using the resolved frame and stroke token. |
+| `compose.shape` | api | Create a materialized native shape, including text-bearing shapes and straight connectors, from a declarative compose node. |
+| `compose.table` | api | Create a materialized table in a resolved compose frame; keep the table data and column/row budget explicit. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
 | `connector.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for connector p:cNvPr title/description/decorative metadata; export re-proves it. |
 | `connector.bringToFront` | api | Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects. |
@@ -2113,6 +2122,102 @@ Transactionally add, change, or clear non-visible chart title/description/decora
 
 - `chart` (ChartElement) — Same chart. Source-free and canonical imported metadata is editable; unsupported graphic-frame p:cNvPr profiles fail closed without disabling unrelated supported chart edits.
 
+#### `compose.box`
+
+Create a materialized shape surface with optional children inset by padding; use a named box as a stable connector or edit target.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Stable materialized ID.
+- `name` (string) — Stable materialized name.
+- `geometry` (string) — Native geometry such as rect or roundRect.
+- `fill` (string) — Solid fill token or color.
+- `line` (object) — Optional line style; defaults to no visible line.
+- `padding` (number|object) — Inset applied to child nodes.
+- `children` (object[]) — Optional child nodes materialized inside the box.
+
+**Schema returns:**
+
+- `node` (object) — Materialized box surface and optional child container.
+
+#### `compose.chart`
+
+Create a materialized chart in a resolved compose frame; encode quantitative claims as data relationships rather than decorative labels.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Stable materialized ID.
+- `name` (string) — Stable materialized name.
+- `chartType` (string) required — Supported chart type such as bar, line, or pie.
+- `categories` (string[]) — Category labels.
+- `series` (object[]) — Named data series and styles.
+
+**Schema returns:**
+
+- `node` (object) — Materialized chart node. Use a chart for quantitative relationships rather than a decorative card list.
+
 #### `compose.column`
 
 Create a vertical compose container. Use width/height fill, hug, or fixed pixels; gap and padding are in pixels.
@@ -2150,6 +2255,8 @@ Create a vertical compose container. Use width/height fill, hug, or fixed pixels
 
 **Schema parameters:**
 
+- `id` (string) — Optional stable materialized ID for a filled container surface.
+- `name` (string) — Optional stable name; filled surfaces receive a `-surface` suffix.
 - `children` (object[]) — Ordered child compose nodes.
 - `width` (string|number) — fill, hug, or fixed pixel width.
 - `height` (string|number) — fill, hug, or fixed pixel height.
@@ -2161,6 +2268,152 @@ Create a vertical compose container. Use width/height fill, hug, or fixed pixels
 **Schema returns:**
 
 - `node` (object) — Vertical compose node. A declared fill is exported as a background surface behind the children.
+
+#### `compose.grid`
+
+Create a grid compose container with bounded row/column tracks, spans, gaps, padding, and an optional surface.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Optional stable materialized ID for a filled container surface.
+- `name` (string) — Optional stable name; filled surfaces receive a `-surface` suffix.
+- `children` (object[]) — Grid child nodes; each may set row, column, rowSpan, or columnSpan.
+- `columns` (object[]|number[]) — Bounded fixed/fr column tracks.
+- `rows` (object[]|number[]) — Bounded fixed/fr row tracks.
+- `gap` (number) — Shared row and column gap in pixels.
+- `padding` (number|object) — Container padding.
+- `fill` (string) — Optional solid surface fill behind children.
+
+**Schema returns:**
+
+- `node` (object) — Grid compose node with bounded tracks and spans.
+
+#### `compose.image`
+
+Create a materialized image node with frame, fit/crop, alt text, and an explicit user or template asset; a prompt creates only a marked placeholder.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Stable materialized ID.
+- `name` (string) — Stable materialized name.
+- `dataUrl` (string) — Embedded PNG/JPEG/GIF/SVG data URL.
+- `uri` (string) — Explicit local or approved asset URI.
+- `fit` (string) — stretch, contain, cover, or crop semantics.
+- `alt` (string) — Accessibility description.
+- `prompt` (string) — Creates a marked placeholder only; it is not a generation tool.
+
+**Schema returns:**
+
+- `node` (object) — Materialized image node with explicit asset and accessibility boundary.
+
+#### `compose.layers`
+
+Create a layered compose container whose children share the inner frame; use it for overlays and explicit z-order.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Optional stable materialized ID for a filled container surface.
+- `name` (string) — Optional stable name; filled surfaces receive a `-surface` suffix.
+- `children` (object[]) — Ordered overlay nodes; later materialized children are foreground.
+- `padding` (number|object) — Container padding.
+- `fill` (string) — Optional solid surface fill behind children.
+
+**Schema returns:**
+
+- `node` (object) — Layered compose node. Use explicit child names and returned elements when later operations need identity.
 
 #### `compose.paragraph`
 
@@ -2207,6 +2460,195 @@ Create an editable text block with name, className/style text tokens, and stable
 **Schema returns:**
 
 - `node` (object) — Paragraph compose node.
+
+#### `compose.row`
+
+Create a horizontal compose container. Use fixed, hug, or fill child widths with an explicit gap and optional surface.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Optional stable materialized ID for a filled container surface.
+- `name` (string) — Optional stable name; filled surfaces receive a `-surface` suffix.
+- `children` (object[]) — Ordered child compose nodes.
+- `width` (string|number) — fill, hug, or fixed pixel width.
+- `height` (string|number) — fill, hug, or fixed pixel height.
+- `gap` (number) — Child gap in pixels.
+- `padding` (number|object) — Container padding.
+- `fill` (string) — Optional solid surface fill behind children.
+
+**Schema returns:**
+
+- `node` (object) — Horizontal compose node. Capture the materialized elements returned by slide.compose for later edits or connector targets.
+
+#### `compose.rule`
+
+Create a thin horizontal or vertical rule as a materialized shape, using the resolved frame and stroke token.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `stroke` (string) — Rule color.
+- `weight` (number) — Rule thickness in pixels.
+
+**Schema returns:**
+
+- `node` (object) — Materialized horizontal or vertical rule.
+
+#### `compose.shape`
+
+Create a materialized native shape, including text-bearing shapes and straight connectors, from a declarative compose node.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Stable materialized ID.
+- `name` (string) — Stable materialized name.
+- `geometry` (string) required — Native geometry or `straightConnector1`.
+- `fill` (string) — Solid fill token or color.
+- `line` (object) — Optional line and arrow style.
+- `text` (string) — Optional text for a text-bearing shape.
+- `children` (object[]) — Optional rich-text children.
+
+**Schema returns:**
+
+- `node` (object) — Materialized native shape. For connectors between shapes, use slide.shapes.connect with materialized return values.
+
+#### `compose.table`
+
+Create a materialized table in a resolved compose frame; keep the table data and column/row budget explicit.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `id` (string) — Stable materialized ID.
+- `name` (string) — Stable materialized name.
+- `rows` (object[]|string[][]) — Bounded table row data.
+- `columns` (object[]|string[]) — Optional column definitions.
+
+**Schema returns:**
+
+- `node` (object) — Materialized table node; keep row count and text budget within the resolved frame.
 
 #### `compose.text`
 

@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 546);
+assert.equal(HELP_CATALOG.length, 555);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
@@ -770,7 +770,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 127);
+assert.equal(presentationCatalog.length, 136);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");
