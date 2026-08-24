@@ -46,9 +46,9 @@
 
 ## 7. Packed clean-install workflows
 
-- [ ] 7.1 Add a one-sentence self-directed creation scenario that writes a plan, composes a deck, reviews, commits, resumes, edits locally, and publishes.
-- [ ] 7.2 Add a template-conditioned creation scenario using design profile, template planning, source-slide/component reuse, review, and resume.
-- [ ] 7.3 Verify both scenarios from the packed artifact with no project-local OfficeKit dependency and no raw OOXML patching.
+- [x] 7.1 Add a one-sentence self-directed creation scenario that writes a plan, composes a deck, reviews, commits, resumes, edits locally, and publishes.
+- [x] 7.2 Add a template-conditioned creation scenario using design profile, template planning, source-slide/component reuse, review, and resume.
+- [x] 7.3 Verify both scenarios from the packed artifact with no project-local OfficeKit dependency and no raw OOXML patching.
 
 ## 8. A/B/C authoring experiment
 

@@ -177,6 +177,7 @@ const slowSteps = [
   nodeStep("test/help.mjs"),
   nodeStep("test/help-adoption.mjs"),
   nodeStep("test/presentation-authoring-eval-manifest.mjs"),
+  nodeStep("test/presentation-authoring-packed.mjs"),
 ];
 
 const slowSegments = Object.freeze({
@@ -189,7 +190,7 @@ const slowSegments = Object.freeze({
   "pdf-providers": Object.freeze({ start: 62, end: 71 }),
   "pdf-specialists": Object.freeze({ start: 71, end: 80 }),
   qa: Object.freeze({ start: 80, end: 87 }),
-  release: Object.freeze({ start: 87, end: 92 }),
+  release: Object.freeze({ start: 87, end: 96 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
