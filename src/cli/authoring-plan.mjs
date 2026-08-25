@@ -27,9 +27,33 @@ export const PRESENTATION_DESIGN_MECHANISMS = Object.freeze([
   "brand-launch",
 ]);
 
+export const PRESENTATION_DELIVERY_MODES = Object.freeze(["live", "reader", "hybrid"]);
+export const PRESENTATION_MOTION_POLICIES = Object.freeze(["adaptive", "none", "explicit"]);
+export const PRESENTATION_MOTION_RECIPES = Object.freeze([
+  "data-rise",
+  "causal-reveal",
+  "comparison-beat",
+  "focus-pulse",
+  "calm-continuity",
+  "morph-continuity",
+]);
+
 const MODE_SET = new Set(PRESENTATION_AUTHORING_MODES);
 const SOURCE_MODE_SET = new Set(PRESENTATION_DESIGN_SOURCE_MODES);
 const MECHANISM_SET = new Set(PRESENTATION_DESIGN_MECHANISMS);
+const DELIVERY_MODE_SET = new Set(PRESENTATION_DELIVERY_MODES);
+const MOTION_POLICY_SET = new Set(PRESENTATION_MOTION_POLICIES);
+const MOTION_RECIPE_SET = new Set(PRESENTATION_MOTION_RECIPES);
+const MOTION_PURPOSE_RECIPE = new Map([
+  ["data-reveal", "data-rise"],
+  ["causal-sequence", "causal-reveal"],
+  ["comparison", "comparison-beat"],
+  ["focus", "focus-pulse"],
+  ["continuity", "calm-continuity"],
+  ["morph", "morph-continuity"],
+]);
+const MOTION_TRANSITIONS = new Set(["none", "fade", "push", "morph"]);
+const MOTION_STARTS = new Set(["withPrevious", "afterPrevious", "onClick"]);
 const TOP_LEVEL_KEYS = new Set([
   "schema",
   "mode",
@@ -59,8 +83,9 @@ export function normalizePresentationAuthoringPlan(value) {
   for (const field of ["brief", "narrative", "design", "editorial"]) {
     if (!isPlainObject(value[field])) throw planError("invalid-authoring-plan", `Authoring plan ${field} must be a plain object.`);
   }
+  validateBrief(value.brief);
   validateDesign(value.design);
-  validatePages(value.pages);
+  validatePages(value.pages, value.design.motionPolicy);
   const artifactRefs = validateArtifactRefs(value.artifactRefs ?? []);
   validateReferences(value, artifactRefs);
   boundedString(value.recipe, "Authoring plan recipe", 160);
@@ -80,6 +105,10 @@ export function normalizePresentationAuthoringPlan(value) {
     bytes,
     sha256: createHash("sha256").update(bytes).digest("hex"),
     pageCount: value.pages.length,
+    deliveryMode: value.brief.deliveryMode ?? "hybrid",
+    motionPolicy: value.design.motionPolicy ?? "adaptive",
+    motionPageCount: value.pages.filter((page) => page.motionIntent != null).length,
+    designGrammarSha256: createHash("sha256").update(canonicalJson(value.design.designGrammar)).digest("hex"),
   });
 }
 
@@ -92,6 +121,10 @@ export function authoringPlanDescriptor(normalized, { path = null, state = "work
     mode: normalized.plan.mode,
     pageCount: normalized.pageCount,
     recipe: normalized.plan.recipe,
+    deliveryMode: normalized.deliveryMode,
+    motionPolicy: normalized.motionPolicy,
+    motionPageCount: normalized.motionPageCount,
+    designGrammarSha256: normalized.designGrammarSha256,
     state,
     sha256: normalized.sha256,
     bytes: normalized.bytes.byteLength,
@@ -101,6 +134,12 @@ export function authoringPlanDescriptor(normalized, { path = null, state = "work
 
 export function canonicalJson(value) {
   return `${canonicalValue(value)}\n`;
+}
+
+function validateBrief(brief) {
+  if (brief.deliveryMode != null && !DELIVERY_MODE_SET.has(brief.deliveryMode)) {
+    throw planError("invalid-authoring-plan", `Authoring plan brief.deliveryMode must be one of ${PRESENTATION_DELIVERY_MODES.join(", ")}.`);
+  }
 }
 
 function validateDesign(design) {
@@ -116,9 +155,12 @@ function validateDesign(design) {
   if (!isPlainObject(design.designGrammar) || Object.keys(design.designGrammar).length === 0) {
     throw planError("invalid-authoring-plan", "Authoring plan design.designGrammar must be a non-empty plain object.");
   }
+  if (design.motionPolicy != null && !MOTION_POLICY_SET.has(design.motionPolicy)) {
+    throw planError("invalid-authoring-plan", `Authoring plan design.motionPolicy must be one of ${PRESENTATION_MOTION_POLICIES.join(", ")}.`);
+  }
 }
 
-function validatePages(pages) {
+function validatePages(pages, motionPolicy) {
   if (!Array.isArray(pages) || pages.length === 0 || pages.length > MAX_AUTHORING_PLAN_PAGES) {
     throw planError("invalid-authoring-plan", `Authoring plan pages must contain 1 to ${MAX_AUTHORING_PLAN_PAGES} entries.`);
   }
@@ -132,6 +174,44 @@ function validatePages(pages) {
     boundedString(page.claim, `Authoring plan page ${id} claim`, 4_096);
     boundedString(page.compositionIntent, `Authoring plan page ${id} compositionIntent`, 2_048);
     if (page.contentBudget != null) validateContentBudget(page.contentBudget, id);
+    if (page.motionIntent != null) validateMotionIntent(page.motionIntent, id, motionPolicy);
+  }
+}
+
+function validateMotionIntent(value, pageId, motionPolicy) {
+  if (!isPlainObject(value)) throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motionIntent must be a plain object.`);
+  assertExactKeys(value, new Set(["purpose", "recipe", "units", "transition"]), `Authoring plan page ${pageId} motionIntent`);
+  if (!MOTION_PURPOSE_RECIPE.has(value.purpose)) {
+    throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motionIntent purpose is invalid.`);
+  }
+  if (!MOTION_RECIPE_SET.has(value.recipe) || MOTION_PURPOSE_RECIPE.get(value.purpose) !== value.recipe) {
+    throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motionIntent recipe does not match its purpose.`);
+  }
+  if (!MOTION_TRANSITIONS.has(value.transition ?? "none")) {
+    throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motionIntent transition is invalid.`);
+  }
+  if (!Array.isArray(value.units) || value.units.length > 32) {
+    throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motionIntent units must contain at most 32 entries.`);
+  }
+  if (motionPolicy === "none" && (value.units.length > 0 || value.transition !== "none")) {
+    throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} cannot declare motion while design.motionPolicy is none.`);
+  }
+  const ids = new Set();
+  const orders = new Set();
+  for (const [index, unit] of value.units.entries()) {
+    if (!isPlainObject(unit)) throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motion unit ${index + 1} must be a plain object.`);
+    assertExactKeys(unit, new Set(["id", "targetRole", "order", "start"]), `Authoring plan page ${pageId} motion unit ${index + 1}`);
+    const id = boundedString(unit.id, `Authoring plan page ${pageId} motion unit ${index + 1} id`, 128);
+    boundedString(unit.targetRole, `Authoring plan page ${pageId} motion unit ${id} targetRole`, 256);
+    if (!SAFE_ID.test(id) || ids.has(id)) throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motion unit IDs must be unique safe identifiers.`);
+    if (!Number.isSafeInteger(unit.order) || unit.order <= 0 || orders.has(unit.order)) {
+      throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motion unit order must be unique positive integers.`);
+    }
+    if (unit.start != null && !MOTION_STARTS.has(unit.start)) {
+      throw planError("invalid-authoring-plan", `Authoring plan page ${pageId} motion unit start is invalid.`);
+    }
+    ids.add(id);
+    orders.add(unit.order);
   }
 }
 

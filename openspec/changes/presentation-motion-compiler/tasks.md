@@ -1,7 +1,7 @@
 ## 1. Planning and authoring contract
 
 - [x] 1.1 Correct the OpenSpec to retain string composition intent and the complete original motion scope without adding another composition schema.
-- [ ] 1.2 Add backward-compatible delivery and motion-intent validation, then surface delivery mode, design grammar, composition intent, motion intent, review state, and next action in task/resume descriptors without restoring runtime state.
+- [x] 1.2 Add backward-compatible delivery and motion-intent validation, persist the full plan revision, and surface a compact delivery/motion summary in task/resume descriptors without restoring runtime state.
 - [ ] 1.3 Update the C-route authoring instructions with visual-carrier-first composition and six motion recipes.
 
 ## 2. Motion runtime

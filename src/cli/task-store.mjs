@@ -367,7 +367,11 @@ export async function readTaskPlan(task) {
   catch (error) { throw taskError("authoring-plan-corrupt", `Authoring plan is not valid JSON: ${boundedError(error)}`); }
   const normalized = normalizePresentationAuthoringPlan(value);
   if (normalized.sha256 !== descriptor.sha256 || normalized.plan.mode !== descriptor.mode ||
-      normalized.pageCount !== descriptor.pageCount || normalized.plan.recipe !== descriptor.recipe) {
+      normalized.pageCount !== descriptor.pageCount || normalized.plan.recipe !== descriptor.recipe ||
+      descriptor.deliveryMode != null && normalized.deliveryMode !== descriptor.deliveryMode ||
+      descriptor.motionPolicy != null && normalized.motionPolicy !== descriptor.motionPolicy ||
+      descriptor.motionPageCount != null && normalized.motionPageCount !== descriptor.motionPageCount ||
+      descriptor.designGrammarSha256 != null && normalized.designGrammarSha256 !== descriptor.designGrammarSha256) {
     throw taskError("authoring-plan-corrupt", "Authoring plan content does not match its manifest descriptor.");
   }
   validatePlanArtifactBindings(normalized.plan, task.manifest);
@@ -608,6 +612,10 @@ function validateStoredPlanDescriptor(descriptor) {
       typeof descriptor.mode !== "string" || descriptor.mode.length === 0 || descriptor.mode.length > 64 ||
       !Number.isSafeInteger(descriptor.pageCount) || descriptor.pageCount <= 0 || descriptor.pageCount > 64 ||
       typeof descriptor.recipe !== "string" || descriptor.recipe.length === 0 || descriptor.recipe.length > 160 ||
+      descriptor.deliveryMode != null && !new Set(["live", "reader", "hybrid"]).has(descriptor.deliveryMode) ||
+      descriptor.motionPolicy != null && !new Set(["adaptive", "none", "explicit"]).has(descriptor.motionPolicy) ||
+      descriptor.motionPageCount != null && (!Number.isSafeInteger(descriptor.motionPageCount) || descriptor.motionPageCount < 0 || descriptor.motionPageCount > descriptor.pageCount) ||
+      descriptor.designGrammarSha256 != null && !isSha(descriptor.designGrammarSha256) ||
       !isSha(descriptor.sha256) || !Number.isSafeInteger(descriptor.bytes) || descriptor.bytes <= 0 || descriptor.bytes > MAX_AUTHORING_PLAN_BYTES ||
       typeof descriptor.path !== "string") {
     throw taskError("invalid-task", "Task authoring-plan descriptor is invalid.");

@@ -25,7 +25,7 @@ function validPlan(overrides = {}) {
   return {
     schema: "office-kit/presentation-authoring-plan/v1",
     mode: "create",
-    brief: { audience: "Engineering leadership", purpose: "Make one architecture decision" },
+    brief: { audience: "Engineering leadership", purpose: "Make one architecture decision", deliveryMode: "live" },
     narrative: { thesis: "Adopt the bounded migration path", sections: ["Context", "Decision"] },
     design: {
       sourceMode: "self-directed",
@@ -35,6 +35,7 @@ function validPlan(overrides = {}) {
         typography: { title: "Aptos Display", body: "Aptos" },
         densityRhythm: "alternate sparse conclusions with denser evidence",
       },
+      motionPolicy: "adaptive",
     },
     pages: [{
       id: "p01-context",
@@ -43,6 +44,12 @@ function validPlan(overrides = {}) {
       evidence: ["Measured build time"],
       contentBudget: { maxCharacters: 420, maxObjects: 12 },
       compositionIntent: "One dominant comparison with a narrow evidence rail",
+      motionIntent: {
+        purpose: "comparison",
+        recipe: "comparison-beat",
+        transition: "fade",
+        units: [{ id: "comparison", targetRole: "dominant comparison", order: 1, start: "onClick" }],
+      },
     }],
     editorial: { voice: "direct, evidence-led", avoid: ["empty transition phrases"] },
     artifactRefs: [],
@@ -60,6 +67,15 @@ const reordered = normalizePresentationAuthoringPlan({
 });
 assert.equal(first.sha256, reordered.sha256, "object-key order must not change plan identity");
 assert.ok(first.bytes.byteLength < MAX_AUTHORING_PLAN_BYTES);
+assert.equal(first.deliveryMode, "live");
+assert.equal(first.motionPageCount, 1);
+assert.throws(
+  () => normalizePresentationAuthoringPlan(validPlan({ pages: [{
+    ...validPlan().pages[0],
+    motionIntent: { purpose: "comparison", recipe: "comparison-beat", units: Array.from({ length: 33 }, (_, index) => ({ id: `u-${index}`, targetRole: "comparison", order: index + 1 })) },
+  }] })),
+  (error) => error.code === "invalid-authoring-plan",
+);
 
 const cyclic = validPlan();
 cyclic.brief.self = cyclic;
@@ -138,6 +154,8 @@ assert.equal(changedDescriptor.state, "working");
 assert.equal((await listTasks({ workspaceRoot: workspace })).tasks[0].plan.sha256, changedDescriptor.sha256);
 const detail = await taskDetail({ workspaceRoot: workspace, taskId: created.manifest.id });
 assert.equal(detail.task.plan.mode, "create-from-template");
+assert.equal(detail.task.plan.deliveryMode, "live");
+assert.equal(detail.task.plan.motionPolicy, "adaptive");
 assert.doesNotMatch(JSON.stringify(detail.task.plan), /Engineering leadership/u, "task detail must not inline the full plan");
 assert.match(formatTaskDetail(detail), /Plan\n  create-from-template · 1 page · tasks\/create-from-template[.]md/u);
 

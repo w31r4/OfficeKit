@@ -90,6 +90,7 @@ export function formatTaskDetail(result) {
   if (task.plan) {
     lines.push("", "Plan");
     lines.push(`  ${task.plan.mode} · ${task.plan.pageCount} page${task.plan.pageCount === 1 ? "" : "s"} · ${task.plan.recipe}`);
+    if (task.plan.deliveryMode) lines.push(`  ${task.plan.deliveryMode} delivery · ${task.plan.motionPolicy} motion · ${task.plan.motionPageCount} motion page${task.plan.motionPageCount === 1 ? "" : "s"}`);
     lines.push(`  ${task.plan.state} · ${task.plan.sha256.slice(0, 12)} · ${formatBytes(task.plan.bytes)}`);
   }
   lines.push("", "Head");
