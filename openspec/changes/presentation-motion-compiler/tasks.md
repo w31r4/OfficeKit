@@ -21,5 +21,5 @@
 
 - [x] 4.1 Rebuild the complete 14-page Bitcoin deck with visual carriers, richer static composition, chart/causal motion, and Morph continuity.
 - [x] 4.2 Produce one small architecture deck and one small brand Morph deck and record structural/Keynote evidence.
-- [ ] 4.3 Run only the focused runtime/plan/review checks during development, then run one final npm/proto/C#/WASM/package gate.
-- [ ] 4.4 Update coverage/release metadata for target 0.8.0, commit the implementation in functional slices, and push the branch.
+- [x] 4.3 Run only the focused runtime/plan/review checks during development, then run one final npm/proto/C#/WASM/package gate.
+- [x] 4.4 Update coverage/release metadata for target 0.8.0, commit the implementation in functional slices, and push the branch.
