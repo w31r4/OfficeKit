@@ -26,7 +26,10 @@ for (const task of expansion.tasks) {
 }
 assert.equal(expansion.execution.runner, "scripts/presentation-authoring-expansion.mjs");
 assert.match(await readFile(path.join(repoRoot, expansion.execution.runner), "utf8"), /runPilotTrial/u);
-assert.equal(expansion.execution.fullMatrixRequired, true);
+assert.equal(expansion.execution.fullMatrixRequired, false);
+assert.equal(expansion.execution.maxAdHocRuns, 3);
+assert.match(await readFile(path.join(repoRoot, expansion.execution.runner), "utf8"), /MAX_AD_HOC_TASKS = 3/u);
+assert.match(await readFile(path.join(repoRoot, expansion.execution.runner), "utf8"), /--tasks is required/u);
 if (expansion.execution.status === "registered") {
   assert.equal(expansion.execution.fullMatrixRuns, 0);
 } else {
@@ -65,4 +68,4 @@ assert.ok(v7.mainRuns.every((run) => run.arm === "C" && run.status === "passed" 
 const v8 = JSON.parse(await readFile(path.join(repoRoot, "evals/presentation-authoring-compiler/postfix-c.v8.json"), "utf8"));
 assert.equal(v8.unseenHoldout.runs.C.completed, v8.unseenHoldout.runs.C.passed);
 
-console.log("presentation authoring expansion contract ok (30 tasks registered, continuation 23/23)");
+console.log("presentation authoring expansion contract ok (30 tasks catalogued, max 3 ad-hoc runs, continuation 23/23)");

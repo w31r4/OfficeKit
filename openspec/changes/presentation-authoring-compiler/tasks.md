@@ -56,7 +56,7 @@
 - [x] 8.2 Implement the packed fresh-context runner, artifact oracle, metric collector, retry accounting, and independent visual-blind-review packet generator.
 - [x] 8.3 Run all 60 pilot generations and publish raw run evidence, hard-gate metrics, fresh read-only Codex blind quality judgments, time, token, and retry summaries.
 - [x] 8.4 Preserve the frozen pilot result: C scores `50%` over A (below the `60%` requirement) and `60%` over B (meeting the `55%` requirement), so the historical scorer records `keep-A` without being overwritten.
-- [x] 8.5 Register the diverse 30-task brief-only expansion contract with a standalone opt-in runner, explicitly excluding it from daily/release slow gates, and verify the selected post-fix continuation evidence at `23/23` (`100%`); keep the full live matrix opt-in rather than fabricating pass records.
+- [x] 8.5 Register the diverse 30-task brief-only expansion catalog, but disable the full live matrix. The standalone runner requires an explicit selection of at most three task IDs, is excluded from daily/release slow gates, and the selected post-fix continuation evidence remains `23/23` (`100%`); no planned task is converted into a fabricated pass record.
 
 ## 9. Release and closure
 

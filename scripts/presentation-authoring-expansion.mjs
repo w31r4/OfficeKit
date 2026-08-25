@@ -15,6 +15,7 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const expansionPath = path.join(repoRoot, "evals/presentation-authoring-compiler/expansion.v1.json");
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
+const MAX_AD_HOC_TASKS = 3;
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
@@ -23,6 +24,7 @@ async function main() {
   assert.equal(expansion.route, "C");
   assert.equal(expansion.tasks.length, expansion.taskCount);
   const pilot = await loadPilotManifest();
+  const selectedTasks = selectTasks(expansion.tasks, args.tasks);
   const runRoot = path.resolve(required(args, "run-root"));
   await requireAbsent(runRoot);
   await mkdir(runRoot, { recursive: true });
@@ -32,14 +34,14 @@ async function main() {
     ? positiveInteger(args["timeout-ms"], "timeout-ms", 24 * 60 * 60 * 1000)
     : DEFAULT_TIMEOUT_MS;
   const codexBin = args.codex || process.env.OFFICEKIT_CODEX_BIN || "codex";
-  const records = new Array(expansion.tasks.length);
+  const records = new Array(selectedTasks.length);
   let nextIndex = 0;
 
   async function worker() {
     while (true) {
       const index = nextIndex++;
-      if (index >= expansion.tasks.length) return;
-      const task = expansion.tasks[index];
+      if (index >= selectedTasks.length) return;
+      const task = selectedTasks[index];
       try {
         records[index] = await runPilotTrial({
           manifest: pilot,
@@ -97,10 +99,10 @@ async function main() {
     },
     runs: compactRuns,
     acceptance: {
-      expectedRuns: expansion.tasks.length,
+      expectedRuns: selectedTasks.length,
       completedRuns: compactRuns.length,
       passedRuns: compactRuns.filter((run) => run.status === "passed").length,
-      status: compactRuns.length === expansion.tasks.length && compactRuns.every((run) => run.status === "passed") ? "passed" : "failed",
+      status: compactRuns.length === selectedTasks.length && compactRuns.every((run) => run.status === "passed") ? "passed" : "failed",
     },
   };
   const summaryPath = args.summary ? path.resolve(args.summary) : path.join(runRoot, "expansion-runs.v1.json");
@@ -151,6 +153,23 @@ function parseArgs(argv) {
     else throw new Error(`Missing value for ${token}`);
   }
   return result;
+}
+
+function selectTasks(tasks, value) {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("--tasks is required; the full expansion matrix is disabled and at most three task IDs may be selected.");
+  }
+  const ids = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  if (ids.length === 0 || ids.length > MAX_AD_HOC_TASKS) {
+    throw new Error(`--tasks must contain between 1 and ${MAX_AD_HOC_TASKS} task IDs.`);
+  }
+  if (new Set(ids).size !== ids.length) throw new Error("--tasks must not contain duplicate task IDs.");
+  const byId = new Map(tasks.map((task) => [task.id, task]));
+  return ids.map((id) => {
+    const task = byId.get(id);
+    if (!task) throw new Error(`Unknown expansion task ID ${JSON.stringify(id)}.`);
+    return task;
+  });
 }
 
 function required(args, name) {

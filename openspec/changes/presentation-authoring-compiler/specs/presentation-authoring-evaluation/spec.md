@@ -47,4 +47,4 @@ records the new rollout decision separately.
 
 #### Scenario: All thresholds pass
 - **WHEN** all thresholds pass on the frozen pilot or on a qualifying post-fix rerun plus unseen holdout
-- **THEN** the Skill changes its no-direction route to C, a thirty-task brief-only expansion is registered as an opt-in evaluation outside daily/release slow gates, and the historical pilot remains append-only evidence
+- **THEN** the Skill changes its no-direction route to C, a thirty-task brief-only catalog is retained for future experiments while the full live matrix is disabled, and any standalone run requires no more than three explicitly selected task IDs outside daily/release slow gates; the historical pilot remains append-only evidence
