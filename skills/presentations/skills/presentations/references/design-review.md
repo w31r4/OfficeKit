@@ -19,6 +19,23 @@ With `authoringPlan`, OfficeKit can fail review for:
 Fix these before commit. A new plan revision requires a new reviewed artifact
 commit before publication.
 
+## Six-layer reading order
+
+Use the same report to review six different responsibilities:
+
+1. factual traceability belongs to the Agent and cited evidence;
+2. communication checks compare primary job, expected outcome, scenario,
+   delivery mode, after-use, and any weak-medium mitigation;
+3. narrative checks compare page jobs, claims, evidence order, and action;
+4. cognitive checks use budgets, hierarchy, density, and information relations;
+5. visual checks locate deterministic composition risks and require rendered
+   judgment when available;
+6. native-operation checks cover package, layout, motion, editability, and
+   delivery evidence.
+
+Runtime checks must not claim that uncited facts are true or that a page is
+beautiful.
+
 ## Review warnings
 
 OfficeKit may report:
@@ -26,6 +43,9 @@ OfficeKit may report:
 - repeated modeled composition signatures;
 - sharp density changes between adjacent pages;
 - six or more same-sized boxes on one page;
+- one large geometry dominating several consecutive pages;
+- a large outlined container with no meaningful surface role;
+- text hierarchy that does not correspond to its container hierarchy;
 - repeated title openings;
 - new modeled color or font tokens during a local edit;
 - a missing or unfinished visual carrier;

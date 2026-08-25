@@ -57,9 +57,11 @@ continue in a fresh Agent context, use `officekit repl` and persist one
 
 The plan records:
 
-- mode and communication brief;
+- mode, primary communication job, expected audience change, medium fit, and
+  after-use;
 - narrative thesis, sections, and ordered page jobs;
-- authoritative design source and a deck-specific design grammar;
+- one primary scenario, at most one secondary scenario, a chosen visual
+  direction, an authoritative design source, and a deck-specific grammar;
 - zero to two design mechanism packs;
 - page claims, evidence, content budgets, composition intents, and assets;
 - editorial rules, unresolved decisions, recipe, and next action.
@@ -67,6 +69,27 @@ The plan records:
 Read [the authoring-plan contract](references/authoring-plan.md) before writing
 or updating it. A plan update uses the current plan SHA-256. Review and commit
 the next candidate before publishing under the new plan revision.
+
+## Start creation from the communication task
+
+For `create` and `create-from-template`, read these in order before composing:
+
+1. [presentation doctrine](references/presentation-doctrine.md);
+2. [the shared visual floor](style_guidelines.md);
+3. [scenario policy](references/scenario-policy.md);
+4. exactly one primary scenario guide, plus one secondary guide only when the
+   plan records a real secondary scenario;
+5. the selected design-source route and any chosen mechanisms.
+
+The seven scenario guides are `scenario-analysis-decision.md`,
+`scenario-business-proposal.md`, `scenario-management-report.md`,
+`scenario-academic-research.md`, `scenario-education-training.md`,
+`scenario-technical-engineering.md`, and `scenario-brand-creative.md`, all in
+`references/`.
+
+Record `brief.primaryJob`, `brief.expectedOutcome`, `brief.mediumFit`,
+`design.scenario`, and `design.direction` before drawing. A weak medium fit is
+not a stop condition: record the limitation and mitigation, then continue.
 
 ## Choose a design source
 
@@ -85,8 +108,15 @@ preferences. Inspect them before choosing colors, fonts, layouts, or assets.
 For a self-directed deck, select zero to two mechanisms from
 [design mechanisms](references/design-mechanisms.md), then write concrete
 choices for this deck. Mechanisms guide composition and rhythm; the plan owns
-the actual palette, typography, spacing, motif, imagery, chart treatment, and
-invariants.
+the actual palette roles and surface hierarchy, typography roles and size
+rhythm, geometry and corner rules, line semantics, density rhythm, visual
+carriers, imagery/SVG/chart/diagram treatment, allowed motifs, invariants, and
+anti-patterns.
+
+When no authority supplies a direction, form two or three materially different
+directions internally and select one. Record its name and rationale. Ask the
+user only when design authorities conflict or the choice changes a material
+requirement.
 
 The authoring-compiler recipe uses per-deck grammar and free Compose and is the
 default for an unspecified self-directed deck. Grid Layout remains an explicit

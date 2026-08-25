@@ -11,10 +11,10 @@
 
 ## 3. Scenario-driven Presentations Skill
 
-- [ ] 3.1 Write the clean-room scenario policy and seven scenario guides with a shared structure and no Kimi distribution content.
-- [ ] 3.2 Make the create route load the doctrine, shared visual floor, scenario policy, and selected scenario before design mechanisms and Compose.
-- [ ] 3.3 Restore four-source precedence, internal direction selection, medium-fit continuation, and complete deck-specific grammar requirements across create, template, continue, and review routes.
-- [ ] 3.4 Update the Presentations Skill smoke and package scan with minimal routing and clean-room assertions.
+- [x] 3.1 Write the clean-room scenario policy and seven scenario guides with a shared structure and no Kimi distribution content.
+- [x] 3.2 Make the create route load the doctrine, shared visual floor, scenario policy, and selected scenario before design mechanisms and Compose.
+- [x] 3.3 Restore four-source precedence, internal direction selection, medium-fit continuation, and complete deck-specific grammar requirements across create, template, continue, and review routes.
+- [x] 3.4 Update the Presentations Skill smoke and package scan with minimal routing and clean-room assertions.
 
 ## 4. Strategy-bound review and Help
 

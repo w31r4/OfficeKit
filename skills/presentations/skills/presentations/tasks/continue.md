@@ -13,7 +13,8 @@ Open the selected task with `officekit repl <task-id> --file <cell.mjs>`.
 
 Read:
 
-- `session.ready.task.plan` for compact plan identity and state;
+- `session.ready.task.plan` for compact plan identity, communication job,
+  primary scenario, chosen direction, delivery mode, medium fit, and state;
 - `await ctx.plan()` for the full validated plan;
 - `ctx.task.commit` and restored artifact revisions;
 - pending review failures and `next`.
@@ -26,6 +27,12 @@ and rebuild all node/capability indexes with `inspect()`.
 Follow the plan's `recipe` and `nextAction`. If intent or design changes, write
 an updated plan with its current SHA-256. The task becomes `working` until a new
 artifact commit binds that plan.
+
+If the resumed plan is marked `legacy`, do not invent missing strategy during a
+local edit. Preserve its existing design and add the communication fields only
+when the user asks for broader creation or redesign. When the scenario or
+direction changes, reread the doctrine, scenario policy, selected scenario
+guide, and shared visual floor before composing.
 
 For local edits, preserve unchanged page copy and design roles and pass exact
 `changedPageIds` to review. Commit each meaningful reviewed phase. Publish only

@@ -3,6 +3,12 @@
 Use this route when a PPTX template, brand system, or visual reference is the
 authoritative design source.
 
+Before inspecting the source, read [presentation doctrine](../references/presentation-doctrine.md),
+[the shared visual floor](../style_guidelines.md), [scenario policy](../references/scenario-policy.md),
+and the selected primary scenario guide. Record the communication job, expected
+audience change, delivery mode, after-use, and medium fit. A weak medium fit is
+documented and mitigated; it does not silently change the requested deliverable.
+
 ## 1. Stage and identify authority
 
 Copy the source with `ctx.input`. Record its artifact ID and SHA-256 in
@@ -30,9 +36,18 @@ for source-derived clone and continuation boundaries.
 
 ## 3. Write the plan
 
-Use mode `create-from-template` and source mode `template` or `design-system`.
+Use mode `create-from-template` and source mode `template`, `design-system`, or
+`style-transfer` according to the actual authority. A user-supplied template or
+brand system overrides scenario defaults; the scenario guide fills only
+undefined decisions.
 Link the authoritative source through `artifactRef`. The deck-specific grammar
 may narrow or name source roles; it must not invent unsupported template facts.
+
+Record one selected direction that explains how this deck will use the source
+for its audience and content. Complete the grammar with palette/surface roles,
+type rhythm, geometry and line rules, density rhythm, visual carriers,
+image/SVG/chart/diagram treatment, allowed motifs, and anti-patterns. Mark
+unresolved source facts instead of guessing them.
 
 ## 4. Generate new content
 

@@ -25,7 +25,11 @@ const plan = {
   brief: {
     audience: "Engineering leadership",
     purpose: "Choose a deployment architecture",
-    desiredOutcome: "Approve the bounded migration",
+    primaryJob: "decide",
+    supportingJobs: ["align"],
+    expectedOutcome: "Leadership approves the bounded migration and its owner",
+    mediumFit: "strong",
+    afterUse: "Decision record and implementation handoff",
     durationMinutes: 15,
     language: "en",
     evidence: ["Measured build and recovery results"],
@@ -38,6 +42,14 @@ const plan = {
   design: {
     sourceMode: "self-directed",
     mechanismPacks: ["technical-architecture"],
+    scenario: {
+      primary: "technical-engineering",
+      secondary: "analysis-decision",
+    },
+    direction: {
+      name: "Traceable migration decision",
+      rationale: "The audience needs a system view tied directly to evidence, risk, and ownership",
+    },
     designGrammar: {
       palette: {
         roles: { background: "#F5F1E8", ink: "#17202A", accent: "#D15B2A" },
@@ -50,10 +62,14 @@ const plan = {
         strict: false,
       },
       spacing: { base: 8, outerMargin: 48 },
+      geometry: "straight boundaries, square evidence frames, restrained rounding",
+      lines: "solid for control flow, dashed for deferred migration",
       densityRhythm: "alternate sparse decisions with denser evidence",
+      visualCarriers: ["system boundary diagram", "shared-scale comparison chart"],
       motif: "thin route lines and one cropped evidence frame",
       imagery: "documentary, task-relevant, minimal decoration",
       charts: "direct labels, shared scale, one highlighted series",
+      antiPatterns: ["generic card wall", "unexplained arrows", "decorative circles"],
       invariants: ["one primary claim per page", "source note on evidence pages"],
       intentionalWarnings: [{
         type: "cardWallPattern",
@@ -87,6 +103,13 @@ const plan = {
 For a self-directed deck, keep `palette.strict: false`. Reserve `strict: true`
 for an authoritative closed brand palette, and enumerate every emitted color,
 including theme/default colors, before binding the plan.
+
+New plans require `brief.primaryJob`, `brief.expectedOutcome`, one primary
+`design.scenario`, and a selected `design.direction`. When `mediumFit` is
+`weak`, include `mediumFitNote` with the limitation and mitigation. Existing
+pre-strategy plans remain readable and appear as `strategyStatus: "legacy"` in
+task summaries; do not manufacture missing strategy during an unrelated local
+edit.
 
 ## Artifact references
 

@@ -1,6 +1,9 @@
-# Presentation Style Guidelines
+# Shared visual floor
 
-Apply these guidelines to every deck. Explicit user instructions and supplied references override these defaults.
+Apply these fundamentals to every deck. They are a floor, not a house style.
+The selected scenario, design source, and deck-specific grammar decide the
+actual look. Explicit user instructions and supplied references override these
+defaults.
 
 ## Define the Communication Job
 
@@ -71,6 +74,37 @@ A title should communicate a point a human presenter would plausibly say aloud. 
 - Use one composition instead of a collection of UI panels. Avoid card grids, pills, badges, button-like text boxes, tabs, navigation patterns, dense dashboard layouts, and other component-library styling that implies interactivity.
 - Use stylized text boxes sparingly and favor a flat structure on the canvas.
 - Keep palette, typography, spacing, alignment, and visual treatment consistent unless the content calls for a deliberate change.
+
+## Make the Design Grammar Concrete
+
+Before drawing, define the actual grammar for this deck:
+
+- palette roles and surface hierarchy;
+- typography roles and the size rhythm between deck title, page claim, section
+  marker, body, data, and source;
+- geometry language, corner scale, and line semantics;
+- density rhythm and the intended range of page silhouettes;
+- the dominant visual carriers for evidence, causality, comparison, sequence,
+  or emotion;
+- image crop, SVG, chart, diagram, icon, and native-vector rules;
+- one or two repeatable motifs and the contexts where they are allowed;
+- explicit anti-patterns for this deck.
+
+Do not use one universal `box()` helper or `roundRect + outline + shadow` as the
+default answer to every page. Use ordinary rectangles, lines, bands, axes,
+connectors, image crops, text blocks, and negative space when they express the
+relationship more directly. Rounded containers are appropriate only when their
+grouping role is clear.
+
+Integrate text with its composition. Align headings to the visual structure,
+use rules or baselines when they clarify hierarchy, and make padding follow one
+spacing scale. A label floating inside an unrelated large container is not a
+resolved composition.
+
+Every page needs a dominant carrier. That carrier may be a chart, image,
+diagram, typographic statement, table, native vector composition, or deliberate
+mix. Supporting decoration cannot become the largest or highest-contrast object
+unless the plan explicitly makes it the message.
 
 ## Typography and Fit
 

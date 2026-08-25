@@ -5,13 +5,18 @@ publication.
 
 ## Review in order
 
-1. Reimport the candidate and verify semantic content.
-2. Inspect the OOXML package and relationships.
-3. Run layout/render checks for overflow, bounds, overlap, crop, and geometry.
-4. Run authoring-plan design checks.
-5. Request an AnyDoc reading view only for a declared text/table coverage gap.
-6. Complete visual or human review when available.
-7. Verify destination, source protection, bytes, and SHA-256.
+1. Factual: verify claims, sources, locked text, and traceability.
+2. Communication: verify the audience change, job, scenario, delivery mode,
+   medium-fit mitigation, and after-use.
+3. Narrative: verify cumulative page responsibilities, evidence order, and the
+   closing decision or action.
+4. Cognitive and visual: inspect content budgets, hierarchy, density rhythm,
+   visual carriers, composition, and plan-bound design risks.
+5. Native operation: reimport, inspect the package, run layout/render and
+   motion checks, and preserve source-bound topology.
+6. Delivery: complete visual or human review when available, use AnyDoc only
+   for a declared text/table coverage gap, then verify destination, source
+   protection, bytes, and SHA-256.
 
 Use only a renderer that the current installation explicitly provides. A clean
 packed install does not imply Playwright, Chromium, or another optional visual
@@ -41,8 +46,9 @@ the exact plan page IDs for a local edit.
 
 - Fix semantic, package, layout, strict plan, content-budget, required
   unresolved, and undeclared-page errors before commit.
-- Evaluate repetition, density, rhythm, card-wall, title-form, and design-drift
-  warnings in context. They are deterministic signals, not aesthetic verdicts.
+- Evaluate repetition, density, rhythm, card-wall, dominant-geometry, hollow-
+  container, text/container hierarchy, title-form, and design-drift warnings in
+  context. They are deterministic signals, not aesthetic verdicts.
 - Report `visualReview: "unavailable"` when the Agent cannot understand rendered
   pages. Structural checks do not become visual approval.
 

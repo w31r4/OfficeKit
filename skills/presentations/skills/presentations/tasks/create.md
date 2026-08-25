@@ -3,7 +3,7 @@
 Use this route when the user wants a new deck and has not supplied an
 authoritative template.
 
-## 1. Resolve only material ambiguity
+## 1. Define the communication task
 
 Infer audience, purpose, outcome, duration, language, and evidence from the
 request and available files. Ask at most three questions only when an answer
@@ -12,7 +12,25 @@ changes the audience, conclusion, evidence, or design authority.
 Lock facts before rewriting. Read
 [audience-facing text editing](../references/audience-text-editing.md).
 
-## 2. Select the authoring route
+Then read, in order:
+
+1. [presentation doctrine](../references/presentation-doctrine.md);
+2. [the shared visual floor](../style_guidelines.md);
+3. [scenario policy](../references/scenario-policy.md);
+4. the one selected primary scenario guide.
+
+Record one `brief.primaryJob`, any `supportingJobs`, the concrete
+`expectedOutcome`, `mediumFit`, `mediumFitNote` when weak, and `afterUse`.
+Choose one primary scenario and at most one meaningful secondary scenario.
+When slides are a weak fit, state the limitation and a practical mitigation,
+then continue.
+
+## 2. Choose the visual direction and authoring route
+
+This route uses `self-directed`. Form two or three genuinely different design
+directions internally—for example, a figure-led analytical direction and an
+annotated editorial direction—not minor palette variations. Select one and
+record `design.direction.name` and its audience/content/delivery rationale.
 
 - Shipped route C: use `authoring-compiler-v1`, read [design mechanisms](../references/design-mechanisms.md),
   and create a deck-specific grammar before drawing. This is the default for
@@ -34,8 +52,10 @@ const planDescriptor = await ctx.plan(plan);
 
 Give every page one reader task, claim, evidence set, content budget, and
 composition intent. Select zero to two mechanism packs and write the actual
-palette, typography, spacing, density rhythm, motif, imagery, chart treatment,
-and strict invariants into `designGrammar`.
+palette roles and surface hierarchy, typography roles and size rhythm,
+geometry and corner rules, line semantics, spacing, density rhythm, dominant
+visual carriers, image/SVG/chart/diagram treatment, allowed motifs, strict
+invariants, and forbidden patterns into `designGrammar`.
 
 Set `brief.deliveryMode` to `live`, `reader`, or `hybrid`, and
 `design.motionPolicy` to `adaptive`, `none`, or `explicit`. For every page,
@@ -97,8 +117,9 @@ the page intent requires. Keep page helpers reusable inside the task.
 Compile in this order:
 
 ```text
-Narrative -> theme tokens -> page archetype -> visual carrier
-          -> composition -> motion units -> review
+communication job -> scenario -> chosen direction -> design grammar
+                  -> narrative -> page archetype -> visual carrier
+                  -> composition -> motion units -> review
 ```
 
 The page must work as a static contact-sheet image before motion is added.

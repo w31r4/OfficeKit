@@ -36,6 +36,20 @@ const designMechanismsSource = await fs.readFile(path.join(presentationSkillDir,
 const audienceTextSource = await fs.readFile(path.join(presentationSkillDir, "references", "audience-text-editing.md"), "utf8");
 const designReviewSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-review.md"), "utf8");
 const authoringPlanSource = await fs.readFile(path.join(presentationSkillDir, "references", "authoring-plan.md"), "utf8");
+const doctrineSource = await fs.readFile(path.join(presentationSkillDir, "references", "presentation-doctrine.md"), "utf8");
+const scenarioPolicySource = await fs.readFile(path.join(presentationSkillDir, "references", "scenario-policy.md"), "utf8");
+const styleFloorSource = await fs.readFile(path.join(presentationSkillDir, "style_guidelines.md"), "utf8");
+const scenarioNames = [
+  "analysis-decision",
+  "business-proposal",
+  "management-report",
+  "academic-research",
+  "education-training",
+  "technical-engineering",
+  "brand-creative",
+];
+const scenarioSources = await Promise.all(scenarioNames.map((name) =>
+  fs.readFile(path.join(presentationSkillDir, "references", `scenario-${name}.md`), "utf8")));
 const taskNames = ["create", "create-from-template", "edit-existing", "continue", "review-deliver"];
 const taskSources = Object.fromEntries(await Promise.all(taskNames.map(async (name) => [
   name,
@@ -48,6 +62,15 @@ for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technic
 assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\.sha256 \}\)/u);
 assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the audience[\s\S]*Compress against the real page[\s\S]*Review the deck voice/u);
 assert.match(designReviewSource, /bounded signals[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*warning-free report as proof of good\s+design/u);
+assert.match(doctrineSource, /communication event[\s\S]*editable deck[\s\S]*live or self-guided sequence[\s\S]*native artifact/u);
+assert.match(taskSources.create, /presentation doctrine[\s\S]*shared visual floor[\s\S]*scenario policy[\s\S]*selected primary scenario guide/u);
+for (const scenario of scenarioNames) assert.match(scenarioPolicySource, new RegExp(`\\b${scenario}\\b`, "u"));
+for (const sourceMode of ["self-directed", "design-system", "template", "style-transfer"]) assert.match(scenarioPolicySource, new RegExp(`\\b${sourceMode}\\b`, "u"));
+for (const source of scenarioSources) {
+  assert.match(source, /## Audience task[\s\S]*## Narrative[\s\S]*## Density and rhythm[\s\S]*## Visual carriers and archetypes[\s\S]*## Visual grammar[\s\S]*## Avoid[\s\S]*## Review questions/u);
+}
+assert.match(styleFloorSource, /palette roles and surface hierarchy[\s\S]*geometry language[\s\S]*line semantics[\s\S]*dominant visual carrier/u);
+assert.doesNotMatch(`${presentationSkillEntrySource}\n${doctrineSource}\n${scenarioPolicySource}\n${scenarioSources.join("\n")}`, /Kimi|presentation-artifact-tool|office-artifact-tool\/kimi|\/Users\/zfang/iu);
 assert.match(taskSources.create, /Shipped route C[\s\S]*default for[\s\S]*Grid scaffold explicitly[\s\S]*Do not switch routes after a failure/u);
 assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*22[\s\S]*minimumCaptionFontSize[\s\S]*20[\s\S]*four different silhouettes/u);
 assert.match(taskSources.create, /dominant reading anchor[\s\S]*quantitative\s+claim[\s\S]*clear contrast[\s\S]*fewer, stronger elements[\s\S]*plain text mainly[\s\S]*contact-sheet scale/u);

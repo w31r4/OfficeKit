@@ -414,6 +414,15 @@ for (const required of [
   "skills/presentations/skills/presentations/agents/openai.yaml",
   "skills/presentations/skills/presentations/agents/agent.yaml",
   "skills/presentations/skills/presentations/references/conversation-workflow.md",
+  "skills/presentations/skills/presentations/references/presentation-doctrine.md",
+  "skills/presentations/skills/presentations/references/scenario-policy.md",
+  "skills/presentations/skills/presentations/references/scenario-analysis-decision.md",
+  "skills/presentations/skills/presentations/references/scenario-business-proposal.md",
+  "skills/presentations/skills/presentations/references/scenario-management-report.md",
+  "skills/presentations/skills/presentations/references/scenario-academic-research.md",
+  "skills/presentations/skills/presentations/references/scenario-education-training.md",
+  "skills/presentations/skills/presentations/references/scenario-technical-engineering.md",
+  "skills/presentations/skills/presentations/references/scenario-brand-creative.md",
   "skills/presentations/skills/powerpoint-live-control/SKILL.md",
   "skills/presentations/skills/powerpoint-live-control/agents/openai.yaml",
   "skills/presentations/skills/powerpoint-live-control/assets/icon.svg",
@@ -549,6 +558,13 @@ assert.ok(files.every((file) => !file.includes("/tests/") && !file.startsWith("t
 assert.ok(files.every((file) => !file.includes(".DS_Store") && !file.includes("__pycache__") && !file.endsWith(".pyc")), "npm package must exclude local metadata and Python bytecode");
 assert.ok(files.filter((file) => file.startsWith("src/pdf/providers/")).every((file) => !/\.(?:tar\.gz|tgz|zip|whl|jar|exe|dylib|so)$/i.test(file)), "npm package must ship provider policy/source only, never capability-pack binaries");
 assert.ok(files.every((file) => !file.startsWith("reference/")), "npm package must exclude reference material");
+const packagedPresentationGuidance = files.filter((file) =>
+  file.startsWith("skills/presentations/skills/presentations/") && file.endsWith(".md"));
+for (const file of packagedPresentationGuidance) {
+  const source = await fs.readFile(path.join(repoRoot, file), "utf8");
+  assert.doesNotMatch(source, /presentation-artifact-tool|office-artifact-tool\/kimi|\/Users\/zfang/iu,
+    `packaged Presentation guidance must not contain extracted-product paths: ${file}`);
+}
 assert.ok(!files.includes("native/OfficeBridge/OfficeBridge.sln"), "npm package must not publish a solution whose test project is repository-only");
 const packagedTemplateSidecars = files.filter((file) =>
   /^skills\/default-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
