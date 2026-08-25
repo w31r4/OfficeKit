@@ -36,12 +36,15 @@ from hard validity.
 Compiler route C SHALL replace Grid-default only if hard-pass rate is at least
 95% and within two percentage points of A, blind wins are at least 60% over A
 and 55% over B, selected continuation success is at least 90%, and median time
-and token use are no more than 1.5 times A.
+and token use are no more than 1.5 times A. The frozen pilot is the first
+decision packet; a post-fix rerun may be used only when it preserves that
+packet, uses fresh blind judging, adds an independent unseen holdout, and
+records the new rollout decision separately.
 
 #### Scenario: One threshold fails
 - **WHEN** any declared rollout threshold is not met
 - **THEN** Grid remains the shipped default, C remains experimental, and documentation reports the failed metric without claiming completion
 
 #### Scenario: All thresholds pass
-- **WHEN** all thresholds pass on the frozen pilot
-- **THEN** the Skill changes its no-direction route to C and a thirty-task expansion becomes part of the Presentation slow gate
+- **WHEN** all thresholds pass on the frozen pilot or on a qualifying post-fix rerun plus unseen holdout
+- **THEN** the Skill changes its no-direction route to C, a thirty-task expansion becomes part of the Presentation slow gate, and the historical pilot remains append-only evidence

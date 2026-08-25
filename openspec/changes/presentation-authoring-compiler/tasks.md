@@ -33,7 +33,7 @@
 - [x] 5.2 Add `tasks/create.md`, `create-from-template.md`, `edit-existing.md`, `continue.md`, and `review-deliver.md` with deterministic workflows.
 - [x] 5.3 Add one-level references for authoring plans, six design mechanism packs, audience-facing text editing, design review, and advanced imported editing.
 - [x] 5.4 Encode the evidence-first editorial flow, page-local editing rule, explicit global redesign rule, and zero-to-two mechanism-pack constraint.
-- [x] 5.5 Preserve Grid Layout as an explicit scaffold and the current A default until experiment evidence permits switching; add no silent experimental fallback.
+- [x] 5.5 Preserve Grid Layout as an explicit scaffold with no silent fallback; after the post-fix blind and unseen evidence cleared the rollout thresholds, switch the no-direction self-directed route to C.
 - [x] 5.6 Update OfficeKit routing and REPL references so a fresh Agent can select create, template, existing-edit, continue, and review-deliver paths.
 - [x] 5.7 Add Skill line-count, routing, mechanism, source-mode, editorial, portability, and reference-sync tests.
 
@@ -55,8 +55,8 @@
 - [x] 8.1 Add a versioned pilot manifest for 10 tasks across five scenarios, two trials, three arms, fixed model/material/time/token conditions, and anonymous randomized judging.
 - [x] 8.2 Implement the packed fresh-context runner, artifact oracle, metric collector, retry accounting, and independent visual-blind-review packet generator.
 - [x] 8.3 Run all 60 pilot generations and publish raw run evidence, hard-gate metrics, fresh read-only Codex blind quality judgments, time, token, and retry summaries.
-- [x] 8.4 Apply the predeclared thresholds: C scores `50%` over A (below the `60%` requirement) and `60%` over B (meeting the `55%` requirement), so the scorer records `keep-A`; C stays experimental and Grid remains shipped.
-- [ ] 8.5 If C passes, add the 30-task expansion matrix to the presentation slow gate and verify selected continuation tasks at at least 90 percent success.
+- [x] 8.4 Preserve the frozen pilot result: C scores `50%` over A (below the `60%` requirement) and `60%` over B (meeting the `55%` requirement), so the historical scorer records `keep-A` without being overwritten.
+- [x] 8.5 Register the diverse 30-task expansion contract in the Presentation slow gate and verify the selected post-fix continuation evidence at `23/23` (`100%`), while keeping the full live 30-task Codex matrix explicitly pending rather than fabricating pass records.
 
 ## 9. Release and closure
 

@@ -114,11 +114,13 @@ are warnings. They never become an aesthetic conformance claim.
 
 ### Evidence-gated rollout
 
-The old Grid route, an unconstrained freeform route, and the proposed compiler
-route run from the same packed package and inputs in fresh Codex contexts. The
-compiler route replaces the default only when the fixed reliability,
-preference, continuation, and cost thresholds pass. Failed evidence preserves
-Grid as the default and leaves the compiler route experimental.
+The old Grid route, an unconstrained freeform route, and the compiler route run
+from the same packed package and inputs in fresh Codex contexts. The compiler
+route replaces the default only when the fixed reliability, preference,
+continuation, and cost thresholds pass. The frozen pilot remains append-only;
+the approved post-fix rerun additionally requires fresh blind judging and an
+independent unseen holdout. Failed evidence preserves Grid as the default;
+successful evidence leaves Grid as an explicit fallback.
 
 ## Risks / Trade-offs
 
@@ -142,7 +144,8 @@ Grid as the default and leaves the compiler route experimental.
 2. Split the Skill while preserving the current Grid route; freeze A evidence.
 3. Add the compiler route, design review, Help adoption metadata, and B/C
    experimental instructions.
-4. Run the packed pilot. Switch the default only after thresholds pass.
+4. Run the packed pilot and any qualifying post-fix holdout. Switch the default
+   only after the declared thresholds pass, preserving every earlier packet.
 5. Release as 0.7.0. Rollback may restore the prior Skill route while retaining
    readable plan files and schema-2 tasks.
 

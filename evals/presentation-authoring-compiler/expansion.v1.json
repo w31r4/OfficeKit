@@ -1,0 +1,63 @@
+{
+  "schema": "office-kit/presentation-authoring-expansion/v1",
+  "generatedAt": "2026-08-25",
+  "purpose": "Register a diverse thirty-task post-rollout matrix without changing the frozen pilot or claiming that unrun Codex trials passed.",
+  "route": "C",
+  "sourcePolicy": "brief-only",
+  "taskCount": 30,
+  "scenarioCount": 5,
+  "tasksPerScenario": 6,
+  "tasks": [
+    { "id": "business-quarterly-decision", "scenario": "business-review", "goal": "Turn a quarterly operating update into a decision-ready deck.", "contentShape": "decision-with-evidence", "revisionIntent": "tighten-the-recommendation" },
+    { "id": "business-metric-change", "scenario": "business-review", "goal": "Explain a product metric change with evidence and next actions.", "contentShape": "metric-story", "revisionIntent": "clarify-the-causal-chain" },
+    { "id": "business-operating-risks", "scenario": "business-review", "goal": "Make the quarter's operating risks and mitigations legible to leadership.", "contentShape": "risk-matrix", "revisionIntent": "reduce-cautionary-copy" },
+    { "id": "business-board-update", "scenario": "business-review", "goal": "Condense a board update into a short narrative with an explicit ask.", "contentShape": "executive-brief", "revisionIntent": "strengthen-the-final-ask" },
+    { "id": "business-postmortem", "scenario": "business-review", "goal": "Present a blameless incident postmortem and the decisions that follow.", "contentShape": "timeline-and-actions", "revisionIntent": "separate-facts-from-interpretation" },
+    { "id": "business-resource-allocation", "scenario": "business-review", "goal": "Compare competing investments and recommend a resource allocation.", "contentShape": "weighted-comparison", "revisionIntent": "make-tradeoffs-explicit" },
+
+    { "id": "academic-research-question", "scenario": "academic-defense", "goal": "Present a research question, method, result, and limitation.", "contentShape": "question-method-result", "revisionIntent": "make-the-contribution-specific" },
+    { "id": "academic-thesis-outline", "scenario": "academic-defense", "goal": "Turn a thesis outline into a concise defense narrative.", "contentShape": "chapter-arc", "revisionIntent": "remove-repeated-background" },
+    { "id": "academic-literature-gap", "scenario": "academic-defense", "goal": "Explain a literature gap and show how the study addresses it.", "contentShape": "gap-to-contribution", "revisionIntent": "tighten-citations-and-claims" },
+    { "id": "academic-limitation", "scenario": "academic-defense", "goal": "Discuss limitations without weakening the central result.", "contentShape": "claim-and-boundary", "revisionIntent": "balance-confidence-and-caveat" },
+    { "id": "academic-experiment-comparison", "scenario": "academic-defense", "goal": "Compare experimental conditions and highlight the defensible conclusion.", "contentShape": "controlled-comparison", "revisionIntent": "improve-chart-reading-order" },
+    { "id": "academic-future-work", "scenario": "academic-defense", "goal": "Close a defense with evidence-based future work rather than a generic summary.", "contentShape": "roadmap-with-open-questions", "revisionIntent": "make-next-steps-concrete" },
+
+    { "id": "technical-system-boundary", "scenario": "technical-architecture", "goal": "Explain a system boundary, data flow, and operational risks.", "contentShape": "architecture-overview", "revisionIntent": "label-trust-boundaries" },
+    { "id": "technical-data-flow", "scenario": "technical-architecture", "goal": "Show how data moves through a service and where validation occurs.", "contentShape": "data-flow", "revisionIntent": "remove-nonessential-nodes" },
+    { "id": "technical-option-comparison", "scenario": "technical-architecture", "goal": "Compare two implementation options and recommend one.", "contentShape": "option-tradeoff", "revisionIntent": "make-the-decision-rule-visible" },
+    { "id": "technical-incident-path", "scenario": "technical-architecture", "goal": "Explain an incident path from trigger to mitigation and follow-up.", "contentShape": "incident-sequence", "revisionIntent": "separate-observed-and-inferred-events" },
+    { "id": "technical-security-trust", "scenario": "technical-architecture", "goal": "Describe authentication, authorization, and the trust assumptions that remain.", "contentShape": "security-boundary", "revisionIntent": "remove-security-theater-language" },
+    { "id": "technical-migration-plan", "scenario": "technical-architecture", "goal": "Lay out a staged migration with rollback conditions and ownership.", "contentShape": "phased-migration", "revisionIntent": "make-rollback-executable" },
+
+    { "id": "analytical-cohort-retention", "scenario": "analytical-reporting", "goal": "Explain cohort retention with an honest chart and a useful conclusion.", "contentShape": "cohort-trend", "revisionIntent": "clarify-denominator-and-window" },
+    { "id": "analytical-funnel-dropoff", "scenario": "analytical-reporting", "goal": "Show where a funnel loses users and what evidence supports the diagnosis.", "contentShape": "funnel-and-causes", "revisionIntent": "prioritize-the-largest-loss" },
+    { "id": "analytical-forecast-actual", "scenario": "analytical-reporting", "goal": "Compare forecast and actual performance without hiding uncertainty.", "contentShape": "variance-analysis", "revisionIntent": "surface-the-forecast-error" },
+    { "id": "analytical-survey-themes", "scenario": "analytical-reporting", "goal": "Summarize survey themes while preserving the difference between signal and anecdote.", "contentShape": "themes-and-quotes", "revisionIntent": "reduce-quote-density" },
+    { "id": "analytical-experiment-readout", "scenario": "analytical-reporting", "goal": "Read out an experiment result with a clear decision and known limits.", "contentShape": "experiment-result", "revisionIntent": "make-evidence-hierarchy-explicit" },
+    { "id": "analytical-unit-economics", "scenario": "analytical-reporting", "goal": "Explain unit economics and the levers that change the outcome.", "contentShape": "driver-tree", "revisionIntent": "connect-metric-to-action" },
+
+    { "id": "brand-product-positioning", "scenario": "brand-launch", "goal": "Introduce a product through a specific audience problem and position.", "contentShape": "positioning-story", "revisionIntent": "remove-generic-superlatives" },
+    { "id": "brand-audience-story", "scenario": "brand-launch", "goal": "Build a launch narrative around an audience, moment, and product promise.", "contentShape": "audience-journey", "revisionIntent": "make-the-audience-observable" },
+    { "id": "brand-proof-points", "scenario": "brand-launch", "goal": "Present proof points that support a product promise without overclaiming.", "contentShape": "proof-stack", "revisionIntent": "separate-proof-from-copy" },
+    { "id": "brand-launch-timeline", "scenario": "brand-launch", "goal": "Turn launch milestones into an owned timeline with decision gates.", "contentShape": "launch-roadmap", "revisionIntent": "assign-gate-ownership" },
+    { "id": "brand-campaign-creative", "scenario": "brand-launch", "goal": "Show a campaign idea, its creative system, and how it will be tested.", "contentShape": "creative-system", "revisionIntent": "reduce-moodboard-to-message" },
+    { "id": "brand-post-launch-loop", "scenario": "brand-launch", "goal": "Close a launch deck with a measurable learning and iteration loop.", "contentShape": "feedback-loop", "revisionIntent": "replace-vague-follow-up" }
+  ],
+  "execution": {
+    "status": "registered",
+    "fullMatrixRuns": 0,
+    "fullMatrixRequired": true,
+    "note": "The full thirty-task live matrix is a slow-lane follow-up. This committed contract deliberately does not convert planned tasks into fabricated pass records."
+  },
+  "selectedContinuation": {
+    "requiredSuccessRate": 0.9,
+    "evidence": [
+      { "path": "evals/presentation-authoring-compiler/postfix-c.v7.json", "runPattern": "*/C/*", "completed": 20, "passed": 20 },
+      { "path": "evals/presentation-authoring-compiler/postfix-c.v8.json", "scope": "unseenHoldout.C", "completed": 3, "passed": 3 }
+    ],
+    "completed": 23,
+    "passed": 23,
+    "successRate": 1,
+    "status": "passed"
+  }
+}
