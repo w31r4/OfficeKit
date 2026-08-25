@@ -24,9 +24,9 @@
 
 ## 5. Visual examples and real use
 
-- [ ] 5.1 Replace the universal rounded-container dogfood helpers with distinct analysis, management, and brand visual grammars.
-- [ ] 5.2 Produce and inspect one financial deck plus compact management and brand decks; record only concrete issues and playback limitations.
-- [ ] 5.3 Add a regression assertion only for any repeatable product failure found in the real decks.
+- [x] 5.1 Replace the universal rounded-container dogfood helpers with distinct analysis, management, and brand visual grammars.
+- [x] 5.2 Produce and inspect one financial deck plus compact management and brand decks; record only concrete issues and playback limitations.
+- [x] 5.3 Add a regression assertion only for any repeatable product failure found in the real decks.
 
 ## 6. Release and closeout
 

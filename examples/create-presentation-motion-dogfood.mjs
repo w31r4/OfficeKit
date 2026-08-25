@@ -11,7 +11,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { Presentation, PresentationFile } from "office-kit";
+import { Presentation, PresentationFile, reviewArtifact } from "office-kit";
 
 const outputRoot = path.resolve(process.argv[2] || path.join(os.tmpdir(), "officekit-motion-dogfood"));
 const FONT = "PingFang SC";
@@ -74,11 +74,11 @@ function text(slide, name, value, position, options = {}) {
 function box(slide, name, position, options = {}) {
   return slide.shapes.add({
     name,
-    geometry: options.geometry || "roundRect",
+    geometry: options.geometry || "rect",
     position,
     fill: options.fill || C.panel,
     line: options.line || { fill: options.lineColor || C.gold, width: options.lineWidth ?? 1 },
-    shadow: options.shadow === false ? undefined : { color: "#000000", blurRadius: 10, distance: 4, direction: 45, opacity: 0.3 },
+    shadow: options.shadow === true ? { color: "#000000", blurRadius: 10, distance: 4, direction: 45, opacity: 0.3 } : undefined,
     text: options.text || "",
     textStyle: {
       fontFamily: options.fontFamily || FONT,
@@ -150,6 +150,33 @@ function addBaseTransition(slide) {
   slide.setTransition({ effect: "fade", speed: "fast", durationMs: 420, advanceOnClick: true });
 }
 
+function metricPanel(slide, name, position, options) {
+  const panel = box(slide, `${name}-surface`, position, {
+    fill: options.fill || C.panel2,
+    lineColor: options.accent || C.gold,
+  });
+  const valueSize = options.valueSize || 32;
+  text(slide, `${name}-value`, options.value, frame(position.left + 12, position.top + 4, position.width - 24, 58), {
+    fontFamily: options.valueFont || "Aptos Display",
+    fontSize: valueSize,
+    color: options.valueColor || C.white,
+    bold: true,
+  });
+  text(slide, `${name}-label`, options.label, frame(position.left + 12, position.top + 62, position.width - 24, 42), {
+    fontSize: options.labelSize || 20,
+    color: options.labelColor || C.white,
+    bold: true,
+  });
+  if (options.detail) {
+    text(slide, `${name}-detail`, options.detail, frame(position.left + 12, position.top + 104, position.width - 24, Math.max(44, position.height - 112)), {
+      fontSize: options.detailSize || 17,
+      color: options.detailColor || C.muted,
+      bold: options.detailBold,
+    });
+  }
+  return panel;
+}
+
 function buildBitcoinDeck() {
   const deck = newDarkDeck();
 
@@ -162,7 +189,7 @@ function buildBitcoinDeck() {
   text(cover, "cover-title-2", "2026 年 8 月行情驱动因素解析", frame(74, 255, 730, 64), { fontSize: 32, color: C.gold2, bold: true });
   text(cover, "cover-subtitle", "一周 +22%：多因素共振下的暴涨逻辑", frame(78, 345, 620, 48), { fontSize: 24, color: C.white });
   const coverHero = addCircuit(cover, "cover-bitcoin-circuit", frame(830, 105, 360, 430));
-  box(cover, "cover-stat", frame(77, 464, 335, 118), { fill: C.panel2, lineColor: C.gold, text: "+22%\n7 days", fontSize: 30, bold: true });
+  metricPanel(cover, "cover-stat", frame(77, 464, 335, 118), { value: "+22%", label: "7 DAYS", accent: C.gold, valueSize: 34 });
   text(cover, "cover-date", "2026.08.25  ·  MARKET BRIEF", frame(78, 625, 500, 24), { fontSize: 14, color: C.muted });
   cover.animations.add(coverHero, { effect: "zoom", start: "afterPrevious", durationMs: 720 });
   footer(cover, "公开市场资料整理，2026-08-25", [SOURCES.treasury, SOURCES.etf]);
@@ -191,7 +218,7 @@ function buildBitcoinDeck() {
   // 3. Market: chart grows by time. Morph focuses framework outcome into price.
   const market = deck.slides.add({ name: "行情回顾" });
   market.setBackground(C.bg);
-  title(market, "MARKET", "7 天从约 6.4 万跃升至 7.9 万美元，修复速度快于基本面变化", 3);
+  title(market, "MARKET", "7 天从约 6.4 万涨至 7.9 万美元，反弹快于基本面修复", 3);
   const marketHero = box(market, "market-focus-detail", frame(970, 52, 205, 92), { geometry: "ellipse", fill: C.gold, line: { fill: C.gold2, width: 2 }, color: C.ink, text: "$79K", fontSize: 30, bold: true });
   market.setMorph({ from: framework, durationMs: 820, pairs: [{ key: "market-focus", from: frameworkHero, to: marketHero }] });
   const marketChart = market.charts.add("line", {
@@ -204,7 +231,7 @@ function buildBitcoinDeck() {
     axes: { category: { title: "Date" }, value: { title: "USD", min: 60000, max: 82000, majorUnit: 5000 } },
     dataLabels: { showValue: false },
   });
-  box(market, "market-cap", frame(930, 210, 260, 136), { fill: C.panel2, lineColor: C.gold, text: "$1.59T\n估算市值", fontSize: 30, bold: true });
+  metricPanel(market, "market-cap", frame(930, 210, 260, 136), { value: "$1.59T", label: "估算市值", accent: C.gold, valueSize: 31 });
   box(market, "market-context", frame(930, 378, 260, 166), { fill: C.panel, lineColor: C.muted, text: "今年 5 月以来首次\n逼近 8 万美元\n\n反弹 ≠ 新 ATH", fontSize: 21, bold: true });
   market.animations.add(marketChart, { effect: "wipe", direction: "right", chartBuild: "category-element", start: "onClick", durationMs: 720, staggerMs: 95, animateChartBackground: false });
   footer(market, "公开市场价格，2026-08-25", [SOURCES.treasury]);
@@ -247,8 +274,8 @@ function buildBitcoinDeck() {
   debasement.setBackground(C.bg);
   addBaseTransition(debasement);
   title(debasement, "DEBASEMENT", "黄金定价避险，比特币放大流动性：同叙事、不同风险曲线", 5);
-  const goldSide = box(debasement, "gold-side", frame(78, 196, 500, 360), { fill: "#1A1710", lineColor: C.gold2, text: "GOLD\n\n央行与机构持仓\n波动较低\n避险共识更成熟", fontSize: 27, bold: true });
-  const btcSide = box(debasement, "btc-side", frame(702, 196, 500, 360), { fill: "#101824", lineColor: C.blue, text: "BITCOIN\n\n固定供给叙事\n全天候交易\n高弹性、高波动", fontSize: 27, bold: true });
+  const goldSide = box(debasement, "gold-side", frame(78, 196, 500, 360), { fill: "#1A1710", lineColor: C.gold2, text: "GOLD\n\n央行与机构持仓\n波动较低\n避险共识更成熟", fontSize: 22, bold: true });
+  const btcSide = box(debasement, "btc-side", frame(702, 196, 500, 360), { fill: "#101824", lineColor: C.blue, text: "BITCOIN\n\n固定供给叙事\n全天候交易\n高弹性、高波动", fontSize: 22, bold: true });
   box(debasement, "versus", frame(594, 315, 92, 92), { geometry: "ellipse", fill: C.gold, line: { fill: C.gold2, width: 2 }, color: C.ink, text: "VS", fontSize: 24, bold: true });
   text(debasement, "debasement-bottom", "组合含义：黄金守住购买力，比特币表达对流动性的高 beta。", frame(210, 594, 860, 40), { fontSize: 22, color: C.gold2, bold: true });
   debasement.animations.add(goldSide, { effect: "fly", direction: "left", start: "onClick", durationMs: 480 });
@@ -293,8 +320,8 @@ function buildBitcoinDeck() {
     axes: { category: { title: "Aug 2026" }, value: { title: "USD mn", min: 0, max: 700, majorUnit: 100 } },
     dataLabels: { showValue: true, position: "outsideEnd" },
   });
-  box(etf, "etf-week", frame(920, 205, 275, 145), { fill: C.panel2, lineColor: C.gold, text: "$1.92B\n周净流入", fontSize: 33, bold: true });
-  box(etf, "ibit-share", frame(920, 386, 275, 168), { fill: C.panel, lineColor: C.blue, text: "$1.33B\nIBIT · 69%\n\n机构买盘集中", fontSize: 24, bold: true });
+  metricPanel(etf, "etf-week", frame(920, 205, 275, 145), { value: "$1.92B", label: "周净流入", accent: C.gold, valueSize: 33 });
+  metricPanel(etf, "ibit-share", frame(920, 386, 275, 168), { value: "$1.33B", label: "IBIT · 69%", detail: "机构买盘集中", accent: C.blue, valueSize: 29, detailColor: C.white, detailBold: true });
   etf.animations.add(etfChart, { effect: "wipe", direction: "up", chartBuild: "category-element", start: "onClick", durationMs: 680, staggerMs: 100, animateChartBackground: false });
   footer(etf, "Bitcoin.com ETF tracker，2026-08-21", [SOURCES.etf]);
 
@@ -307,7 +334,7 @@ function buildBitcoinDeck() {
   box(supply, "demand-bar", frame(90, 270, 920, 92), { geometry: "rect", fill: C.gold, line: { fill: C.gold, width: 0 }, color: C.ink, text: "约 3,000–4,000 BTC / day", fontSize: 26, bold: true, shadow: false });
   text(supply, "supply-label", "NEW MINING SUPPLY", frame(90, 420, 350, 32), { fontSize: 18, color: C.blue, bold: true });
   box(supply, "supply-bar", frame(90, 470, 230, 92), { geometry: "rect", fill: C.blue, line: { fill: C.blue, width: 0 }, color: C.ink, text: "约 450", fontSize: 26, bold: true, shadow: false });
-  box(supply, "imbalance-multiple", frame(1040, 270, 160, 292), { fill: C.panel2, lineColor: C.gold2, text: "≈ 8×\n\n需求 / 新供给", fontSize: 30, bold: true });
+  metricPanel(supply, "imbalance-multiple", frame(1040, 270, 160, 292), { value: "≈ 8×", label: "需求 / 新供给", accent: C.gold2, valueSize: 34, labelSize: 17 });
   text(supply, "supply-caveat", "这是边际流量比较，不代表 ETF 吸收全部成交量。", frame(90, 610, 900, 28), { fontSize: 16, color: C.muted });
   footer(supply, "ETF 流量与区块奖励估算，2026-08");
 
@@ -331,7 +358,7 @@ function buildBitcoinDeck() {
     squeeze.animations.add(node, { effect: "fade", start: index === 0 ? "onClick" : "afterPrevious", durationMs: 360 });
     squeeze.animations.add(loopLines[index], { effect: "wipe", direction: "right", start: "afterPrevious", durationMs: 260 });
   });
-  box(squeeze, "squeeze-stat", frame(930, 188, 268, 104), { fill: "#25151A", lineColor: C.red, text: ">$4B\n看空仓位被清算", fontSize: 24, bold: true });
+  metricPanel(squeeze, "squeeze-stat", frame(930, 188, 268, 104), { value: ">$4B", label: "看空仓位被清算", fill: "#25151A", accent: C.red, valueSize: 28, labelSize: 18 });
   footer(squeeze, "AP，统计至 2026-08-21", [SOURCES.treasury]);
 
   // 10. Whale split signal.
@@ -340,9 +367,9 @@ function buildBitcoinDeck() {
   addBaseTransition(whale);
   title(whale, "ON-CHAIN", "长期增持与短期抛售同时出现，市场正在换手而非单边一致", 10);
   const whaleImage = addWhale(whale, "whale-illustration", frame(78, 210, 440, 350));
-  box(whale, "accumulate", frame(575, 205, 280, 168), { fill: C.panel2, lineColor: C.green, text: "+43,000 BTC\n此前 60 日增持", fontSize: 28, bold: true });
-  box(whale, "distribute", frame(900, 205, 280, 168), { fill: C.panel2, lineColor: C.red, text: "−7,700 BTC\n8/19–8/22 转移/抛售", fontSize: 26, bold: true });
-  box(whale, "interpretation", frame(575, 420, 605, 140), { fill: C.panel, lineColor: C.gold, text: "多头筹码仍厚，但 8 万美元附近的边际卖压已经出现。", fontSize: 25, bold: true });
+  metricPanel(whale, "accumulate", frame(575, 205, 280, 168), { value: "+43,000", label: "BTC · 此前 60 日增持", accent: C.green, valueSize: 28, labelSize: 17 });
+  metricPanel(whale, "distribute", frame(900, 205, 280, 168), { value: "−7,700", label: "BTC · 8/19–8/22", detail: "转移 / 抛售", accent: C.red, valueSize: 28, labelSize: 17, detailColor: C.white, detailBold: true });
+  box(whale, "interpretation", frame(575, 420, 605, 140), { fill: C.panel, lineColor: C.gold, text: "多头筹码仍厚，但 8 万美元附近的边际卖压已经出现。", fontSize: 23, bold: true });
   whale.animations.add(whaleImage, { effect: "zoom", start: "afterPrevious", durationMs: 520 });
   footer(whale, "Bitcoin.com，2026-08-22", [SOURCES.whale]);
 
@@ -351,10 +378,10 @@ function buildBitcoinDeck() {
   sentiment.setBackground(C.bg);
   addBaseTransition(sentiment);
   title(sentiment, "TECHNICALS", "8 万美元是情绪与筹码的共同压力位，追涨赔率开始下降", 11);
-  const gauge = box(sentiment, "sentiment-gauge", frame(90, 205, 300, 300), { geometry: "ellipse", fill: C.panel2, line: { fill: C.gold, width: 12 }, text: "GREED\n74", fontSize: 34, bold: true });
-  box(sentiment, "resistance", frame(470, 205, 320, 128), { fill: "#25151A", lineColor: C.red, text: "$80K\n关键阻力", fontSize: 30, bold: true });
-  box(sentiment, "support", frame(470, 377, 320, 128), { fill: "#10231E", lineColor: C.green, text: "$74K\n首要支撑", fontSize: 30, bold: true });
-  box(sentiment, "rsi", frame(850, 205, 340, 300), { fill: C.panel, lineColor: C.gold2, text: "RSI\n进入超买区\n\n趋势仍强\n回撤风险上升", fontSize: 27, bold: true });
+  const gauge = box(sentiment, "sentiment-gauge", frame(90, 205, 300, 300), { geometry: "ellipse", fill: C.panel2, line: { fill: C.gold, width: 12 }, text: "GREED  74", fontSize: 30, bold: true });
+  metricPanel(sentiment, "resistance", frame(470, 205, 320, 128), { value: "$80K", label: "关键阻力", fill: "#25151A", accent: C.red, valueSize: 30 });
+  metricPanel(sentiment, "support", frame(470, 377, 320, 128), { value: "$74K", label: "首要支撑", fill: "#10231E", accent: C.green, valueSize: 30 });
+  box(sentiment, "rsi", frame(850, 205, 340, 300), { fill: C.panel, lineColor: C.gold2, text: "RSI\n进入超买区\n\n趋势仍强\n回撤风险上升", fontSize: 22, bold: true });
   sentiment.animations.add(gauge, { phase: "emphasis", effect: "pulse", start: "afterPrevious", durationMs: 520 });
   footer(sentiment, "市场技术指标，2026-08-25");
 
@@ -399,53 +426,217 @@ function buildBitcoinDeck() {
   return deck;
 }
 
-function buildArchitectureDeck() {
-  const deck = newDarkDeck();
-  const slide = deck.slides.add({ name: "Agent artifact compiler" });
-  slide.setBackground(C.bg);
-  title(slide, "ARCHITECTURE", "Agent 决定内容，编译器保证文件、定位与复核", 1);
-  const labels = [
-    ["Brief", "目标 / 受众 / 证据", C.blue],
-    ["Plan", "叙事 / 设计语法", C.gold2],
-    ["Compose", "原生对象 / 布局", C.green],
-    ["Review", "结构 / 视觉 / 播放", C.red],
+function buildManagementDeck() {
+  const deck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+  const paper = "#F2EFE8";
+  const ink = "#1B1D1F";
+  const red = "#C54B36";
+  const blue = "#285F8F";
+  const green = "#3B7458";
+  const rule = "#B8B2A8";
+
+  const managementHeader = (slide, section, claim, index) => {
+    text(slide, `management-section-${index}`, `${String(index).padStart(2, "0")} / ${section}`, frame(64, 42, 270, 28), { fontSize: 13, color: red, bold: true });
+    text(slide, `management-claim-${index}`, claim, frame(64, 86, 1080, 76), { fontSize: 34, color: ink, bold: true });
+    line(slide, `management-rule-${index}`, 64, 170, 1216, 170, rule, 1);
+  };
+
+  const cover = deck.slides.add({ name: "转正答辩：从交付到体系" });
+  cover.setBackground(paper);
+  box(cover, "cover-red-field", frame(0, 0, 24, 720), { fill: red, line: { fill: red, width: 0 } });
+  text(cover, "cover-eyebrow", "PROBATION REVIEW / 2026", frame(72, 74, 500, 28), { fontSize: 14, color: red, bold: true });
+  text(cover, "cover-management-title-1", "从完成功能，", frame(72, 146, 760, 80), { fontSize: 52, color: ink, bold: true });
+  text(cover, "cover-management-title-2", "到建立可持续交付体系", frame(72, 236, 780, 80), { fontSize: 52, color: ink, bold: true });
+  line(cover, "cover-management-rule", 74, 360, 760, 360, ink, 3);
+  text(cover, "cover-management-subtitle", "转正答辩 · Agent 基础设施与 Office 工程", frame(74, 386, 640, 42), { fontSize: 22, color: "#56595C" });
+  text(cover, "cover-management-number", "03", frame(920, 130, 240, 170), { fontSize: 118, color: red, bold: true });
+  text(cover, "cover-management-number-label", "个可复用系统\n替代一次性交付", frame(930, 328, 260, 90), { fontSize: 24, color: ink, bold: true });
+  footer(cover, "OfficeKit management-report example");
+
+  const outcomes = deck.slides.add({ name: "阶段成果" });
+  outcomes.setBackground(paper);
+  outcomes.setTransition({ effect: "fade", durationMs: 420, advanceOnClick: true });
+  managementHeader(outcomes, "OUTCOMES", "真正的增量不是功能数量，而是交付能力开始复用", 2);
+  const outcomeChart = outcomes.charts.add("bar", {
+    name: "delivery-compounding",
+    title: "Reusable delivery capacity",
+    position: frame(64, 218, 690, 380),
+    categories: ["第 1 月", "第 2 月", "第 3 月"],
+    series: [{ name: "可复用能力", values: [28, 61, 100], color: red }],
+    legend: false,
+    axes: { category: { title: "阶段" }, value: { title: "Index", min: 0, max: 110, majorUnit: 20 } },
+    dataLabels: { showValue: true, position: "outsideEnd" },
+  });
+  text(outcomes, "outcome-large", "100", frame(850, 220, 300, 112), { fontSize: 76, color: red, bold: true });
+  text(outcomes, "outcome-large-label", "能力复用指数", frame(854, 350, 300, 42), { fontSize: 20, color: ink, bold: true });
+  line(outcomes, "outcome-side-rule", 850, 390, 1160, 390, rule, 1);
+  text(outcomes, "outcome-list", "Office 文件原生编译\n持久任务与恢复\n结构、视觉与播放复核", frame(850, 420, 330, 150), { fontSize: 22, color: ink });
+  outcomes.animations.add(outcomeChart, { effect: "wipe", direction: "up", chartBuild: "category-element", start: "onClick", durationMs: 650, staggerMs: 100 });
+  footer(outcomes, "阶段复盘示例数据");
+
+  const system = deck.slides.add({ name: "工作方式升级" });
+  system.setBackground(paper);
+  system.setTransition({ effect: "fade", durationMs: 420, advanceOnClick: true });
+  managementHeader(system, "SYSTEM", "交付从个人记忆迁移到可恢复、可验证的工作流", 3);
+  const lanes = [
+    ["01", "计划", "受众、结论、证据和设计方向先落盘", blue],
+    ["02", "编译", "可编辑原生对象承载图表、关系与叙事", red],
+    ["03", "复核", "语义、结构、布局、视觉和交付形成证据", green],
   ];
-  const nodes = [];
-  const links = [];
-  labels.forEach(([name, copy, accent], index) => {
-    const left = 70 + index * 300;
-    const node = box(slide, `arch-${name}`, frame(left, 275, 235, 150), { fill: C.panel2, lineColor: accent, text: `${name}\n${copy}`, fontSize: 23, bold: true });
-    nodes.push(node);
-    if (index > 0) links.push(slide.connectors.add({ name: `arch-link-${index}`, start: { x: left - 55, y: 350 }, end: { x: left - 10, y: 350 }, line: { fill: C.gold, width: 3, endArrow: "triangle" } }));
+  const laneShapes = [];
+  lanes.forEach(([number, label, copy, accent], index) => {
+    const top = 220 + index * 130;
+    box(system, `lane-band-${number}`, frame(64, top, 1120, 98), { fill: index % 2 ? "#E7E2D9" : "#EDE9E1", line: { fill: "transparent", width: 0 } });
+    text(system, `lane-number-${number}`, number, frame(86, top + 20, 80, 54), { fontSize: 28, color: accent, bold: true });
+    text(system, `lane-label-${number}`, label, frame(190, top + 22, 150, 48), { fontSize: 27, color: ink, bold: true });
+    const copyShape = text(system, `lane-copy-${number}`, copy, frame(390, top + 24, 700, 44), { fontSize: 21, color: ink });
+    laneShapes.push(copyShape);
   });
-  nodes.forEach((node, index) => {
-    slide.animations.add(node, { effect: "fade", start: index === 0 ? "onClick" : "afterPrevious", durationMs: 380 });
-    if (links[index]) slide.animations.add(links[index], { effect: "wipe", direction: "right", start: "afterPrevious", durationMs: 240 });
+  laneShapes.forEach((shape, index) => system.animations.add(shape, { effect: "wipe", direction: "right", start: index === 0 ? "onClick" : "afterPrevious", durationMs: 380 }));
+  footer(system, "OfficeKit durable authoring workflow");
+
+  const next = deck.slides.add({ name: "下一阶段" });
+  next.setBackground(paper);
+  next.setTransition({ effect: "fade", durationMs: 420, advanceOnClick: true });
+  managementHeader(next, "NEXT", "下一阶段只追三件事：真实采用、复杂保真、跨平台验收", 4);
+  const actions = [
+    ["真实采用", "用答辩、报告和模板续写\n暴露可用性问题", "01", red],
+    ["复杂保真", "让第三方 PPTX 成为\n可继续编程的初始状态", "02", blue],
+    ["跨平台", "补齐 Windows 原生播放\n与 Live host 验收", "03", green],
+  ];
+  actions.forEach(([label, copy, number, accent], index) => {
+    const left = 64 + index * 390;
+    text(next, `next-number-${number}`, number, frame(left, 226, 100, 72), { fontSize: 42, color: accent, bold: true });
+    line(next, `next-rule-${number}`, left, 315, left + 330, 315, accent, 3);
+    text(next, `next-label-${number}`, label, frame(left, 338, 300, 52), { fontSize: 27, color: ink, bold: true });
+    text(next, `next-copy-${number}`, copy, frame(left, 410, 320, 110), { fontSize: 20, color: "#4C4E50" });
   });
-  footer(slide, "OfficeKit Causal Reveal example");
+  text(next, "next-decision", "需要的支持：用真实任务评估价值，而不是继续用 API 数量替代产品判断。", frame(64, 598, 1100, 40), { fontSize: 20, color: ink, bold: true });
+  footer(next, "OfficeKit management-report example");
   return deck;
 }
 
 function buildBrandDeck() {
-  const deck = newDarkDeck();
+  const deck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
+  const black = "#050505";
+  const acid = "#E7FF3D";
+  const coral = "#FF5B45";
+  const bone = "#F5F1E8";
+
+  const ray = (slide, name, position, flip = false) => {
+    const { width, height } = position;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+      <rect width="100%" height="100%" fill="${black}"/>
+      <g transform="${flip ? `translate(${width} 0) scale(-1 1)` : ""}">
+        <path d="M0 ${height * .52}L${width} 0v${height * .16}z" fill="${acid}"/>
+        <path d="M0 ${height * .52}L${width} ${height * .22}v${height * .16}z" fill="${coral}"/>
+        <path d="M0 ${height * .52}L${width} ${height * .46}v${height * .08}z" fill="${bone}"/>
+        <path d="M0 ${height * .52}L${width} ${height * .68}v${height * .18}z" fill="${coral}" opacity=".72"/>
+        <path d="M0 ${height * .52}L${width} ${height * .9}v${height * .1}z" fill="${acid}" opacity=".78"/>
+      </g>
+    </svg>`;
+    return slide.images.add({ name, position, dataUrl: svgDataUrl(svg), fit: "cover", alt: "High-contrast signal rays" });
+  };
+
   const overview = deck.slides.add({ name: "Brand overview" });
-  overview.setBackground(C.bg);
-  const from = box(overview, "brand-hero-overview", frame(110, 155, 360, 360), { geometry: "ellipse", fill: C.gold, line: { fill: C.gold2, width: 3 }, color: C.ink, text: "01\nSIGNAL", fontSize: 36, bold: true });
-  text(overview, "brand-title", "One signal.\nOne decisive move.", frame(560, 220, 590, 150), { fontFamily: "Aptos Display", fontSize: 48, bold: true });
-  text(overview, "brand-caption", "Morph continuity keeps identity while the story changes scale.", frame(565, 405, 550, 80), { fontFamily: "Aptos", fontSize: 21, color: C.muted });
-  footer(overview, "OfficeKit Morph Continuity example");
+  overview.setBackground(black);
+  ray(overview, "brand-rays-overview", frame(708, 0, 572, 720));
+  const from = box(overview, "brand-signal-overview", frame(72, 76, 34, 548), { fill: acid, line: { fill: acid, width: 0 } });
+  text(overview, "brand-series", "OFFICEKIT / BRAND SIGNAL 01", frame(146, 80, 500, 26), { fontFamily: "Arial", fontSize: 13, color: acid, bold: true });
+  text(overview, "brand-title-1", "MAKE", frame(140, 140, 530, 90), { fontFamily: "Arial Black", fontSize: 62, color: bone, bold: true });
+  text(overview, "brand-title-2", "THE IDEA", frame(140, 230, 530, 90), { fontFamily: "Arial Black", fontSize: 62, color: bone, bold: true });
+  text(overview, "brand-title-3", "UNMISSABLE.", frame(140, 320, 530, 90), { fontFamily: "Arial Black", fontSize: 62, color: bone, bold: true });
+  line(overview, "brand-title-rule", 144, 480, 620, 480, coral, 6);
+  text(overview, "brand-caption-1", "A launch deck creates one memory.", frame(146, 500, 500, 44), { fontFamily: "Arial", fontSize: 19, color: bone });
+  text(overview, "brand-caption-2", "That memory becomes action.", frame(146, 548, 500, 44), { fontFamily: "Arial", fontSize: 19, color: bone });
+  text(overview, "brand-index", "01", frame(600, 628, 70, 50), { fontFamily: "Arial Black", fontSize: 30, color: acid, bold: true });
 
   const detail = deck.slides.add({ name: "Brand detail" });
-  detail.setBackground(C.bg);
-  const to = box(detail, "brand-hero-detail", frame(690, 70, 500, 500), { geometry: "ellipse", fill: C.gold, line: { fill: C.gold2, width: 3 }, color: C.ink, text: "01\nSIGNAL", fontSize: 48, bold: true });
-  text(detail, "brand-detail-title", "Identity stays.\nMeaning expands.", frame(80, 190, 540, 150), { fontFamily: "Aptos Display", fontSize: 46, bold: true });
-  text(detail, "brand-detail-copy", "The same native object moves, grows and remains editable after round-trip.", frame(84, 390, 500, 105), { fontFamily: "Aptos", fontSize: 22, color: C.muted });
+  detail.setBackground(acid);
+  ray(detail, "brand-rays-detail", frame(0, 0, 510, 720), true);
+  const to = box(detail, "brand-signal-detail", frame(600, 54, 52, 606), { fill: black, line: { fill: black, width: 0 } });
+  text(detail, "brand-detail-series", "ONE SIGNAL / CONTINUOUS IDEA", frame(706, 66, 500, 64), { fontFamily: "Arial", fontSize: 13, color: black, bold: true });
+  ["IDENTITY", "STAYS.", "MEANING", "EXPANDS."].forEach((value, index) => {
+    text(detail, `brand-detail-title-${index + 1}`, value, frame(700, 132 + index * 82, 500, 82), { fontFamily: "Arial Black", fontSize: 54, color: black, bold: true });
+  });
+  text(detail, "brand-detail-copy-1", "Morph moves the signal.", frame(704, 500, 470, 44), { fontFamily: "Arial", fontSize: 18, color: black });
+  text(detail, "brand-detail-copy-2", "Native, editable, continuous.", frame(704, 548, 470, 44), { fontFamily: "Arial", fontSize: 18, color: black });
+  line(detail, "brand-detail-rule", 706, 626, 1154, 626, coral, 6);
   detail.setMorph({ from: overview, durationMs: 900, pairs: [{ key: "brand-signal", from, to }] });
-  footer(detail, "OfficeKit Morph Continuity example");
   return deck;
 }
 
-async function emitDeck(name, deck) {
+function createStrategyPlan(deck, strategy) {
+  const pages = deck.slides.items.map((slide, index) => {
+    const page = strategy.pages[index] || {};
+    const animations = slide.animations.items;
+    const morph = slide.morph.value;
+    let purpose = "continuity";
+    let recipe = "calm-continuity";
+    if (morph) {
+      purpose = "morph";
+      recipe = "morph-continuity";
+    } else if (animations.some((animation) => animation.chartBuild)) {
+      purpose = "data-reveal";
+      recipe = "data-rise";
+    } else if (animations.some((animation) => animation.effect === "pulse")) {
+      purpose = "focus";
+      recipe = "focus-pulse";
+    } else if (animations.length > 1) {
+      purpose = "causal-sequence";
+      recipe = "causal-reveal";
+    }
+    const transition = morph ? "morph" : slide.transition.toJSON()?.effect || "none";
+    const semanticUnits = animations.map((animation, unitIndex) => ({
+      id: `motion-${index + 1}-${unitIndex + 1}`,
+      targetRole: animation.targetKind || "native visual",
+      order: unitIndex + 1,
+    }));
+    if (morph) semanticUnits.push({ id: `motion-${index + 1}-morph`, targetRole: "continuity signal", order: semanticUnits.length + 1 });
+    return {
+      id: `page-${String(index + 1).padStart(2, "0")}`,
+      readerTask: page.readerTask || `Understand ${slide.name || `page ${index + 1}`}`,
+      claim: page.claim || slide.name || `Page ${index + 1}`,
+      evidence: page.evidence || ["Native editable presentation objects"],
+      contentBudget: { maxCharacters: page.maxCharacters || 1_500, maxObjects: page.maxObjects || 80 },
+      compositionIntent: page.compositionIntent || "A mixed visual carrier connects the page claim to supporting evidence",
+      ...(semanticUnits.length || transition !== "none" ? {
+        motionIntent: { purpose, recipe, units: semanticUnits, transition },
+      } : {}),
+    };
+  });
+  return {
+    schema: "office-kit/presentation-authoring-plan/v1",
+    mode: "create",
+    brief: {
+      audience: strategy.audience,
+      purpose: strategy.purpose,
+      primaryJob: strategy.primaryJob,
+      supportingJobs: strategy.supportingJobs,
+      expectedOutcome: strategy.expectedOutcome,
+      mediumFit: "strong",
+      afterUse: strategy.afterUse,
+      deliveryMode: strategy.deliveryMode,
+    },
+    narrative: { thesis: strategy.thesis, sections: strategy.sections },
+    design: {
+      sourceMode: "self-directed",
+      mechanismPacks: strategy.mechanismPacks,
+      motionPolicy: "adaptive",
+      scenario: { primary: strategy.scenario, secondary: strategy.secondaryScenario || null },
+      direction: { name: strategy.directionName, rationale: strategy.directionRationale },
+      designGrammar: strategy.designGrammar,
+    },
+    pages,
+    editorial: { voice: strategy.voice, lockedFacts: strategy.lockedFacts || [], avoid: strategy.avoid || [] },
+    artifactRefs: [],
+    recipe: "tasks/create.md",
+    unresolved: [],
+    nextAction: "Review the rendered deck and fix only concrete communication or presentation failures",
+  };
+}
+
+async function emitDeck(name, deck, plan) {
   const deckDir = path.join(outputRoot, name);
   const renderDir = path.join(deckDir, "svg");
   await mkdir(renderDir, { recursive: true });
@@ -463,6 +654,14 @@ async function emitDeck(name, deck) {
     const svg = await (await slide.export({ format: "svg" })).text();
     await writeFile(path.join(renderDir, `${String(slide.index + 1).padStart(2, "0")}.svg`), svg);
   }
+  const review = await reviewArtifact(file, {
+    format: "pptx",
+    outputPath: pptxPath,
+    authoringPlan: plan,
+    layout: false,
+    playbackEvidence: "structural",
+    visualReview: "requires-human",
+  });
 
   const evidence = {
     artifact: path.basename(pptxPath),
@@ -480,6 +679,18 @@ async function emitDeck(name, deck) {
       warnings: secondVerification.issues.filter((issue) => issue.severity === "warning").length,
     },
     motionRecords: parseNdjson(motion.ndjson),
+    strategy: {
+      primaryJob: review.design.strategy.primaryJob,
+      scenario: review.design.strategy.scenario,
+      direction: review.design.strategy.direction,
+      deliveryMode: review.design.strategy.deliveryMode,
+    },
+    review: {
+      verdict: review.verdict,
+      designStatus: review.design.status,
+      motionStatus: review.motion.status,
+      issues: [...review.design.issues, ...review.motion.issues].map((issue) => ({ severity: issue.severity, type: issue.type, message: issue.message })),
+    },
     playbackEvidence: "structural",
     powerpointPlayback: "unverified",
   };
@@ -489,8 +700,99 @@ async function emitDeck(name, deck) {
 
 await mkdir(outputRoot, { recursive: true });
 const outputs = [];
-outputs.push(await emitDeck("bitcoin-rally-2026", buildBitcoinDeck()));
-outputs.push(await emitDeck("architecture-causal-reveal", buildArchitectureDeck()));
-outputs.push(await emitDeck("brand-morph-continuity", buildBrandDeck()));
+const bitcoin = buildBitcoinDeck();
+outputs.push(await emitDeck("bitcoin-rally-2026", bitcoin, createStrategyPlan(bitcoin, {
+  audience: "Investors and financial professionals familiar with digital assets",
+  purpose: "Explain why Bitcoin rallied and frame the next decision without overstating certainty",
+  primaryJob: "explain",
+  supportingJobs: ["inform", "decide"],
+  expectedOutcome: "The audience distinguishes persistent demand from short-squeeze acceleration and knows which signals to monitor next",
+  afterUse: "Investment discussion, scenario monitoring, and decision record",
+  deliveryMode: "hybrid",
+  thesis: "Liquidity, policy, institutional demand and leverage reinforced one another, but only persistent flows can sustain the rally",
+  sections: ["Framework", "Drivers", "Risk", "Scenarios"],
+  mechanismPacks: ["enterprise-data-review", "visual-narrative"],
+  scenario: "analysis-decision",
+  directionName: "Black-gold market terminal",
+  directionRationale: "A dark information-dense field lets evidence charts carry authority while gold marks the decision signal",
+  designGrammar: {
+    palette: { roles: { background: C.bg, surface: C.panel, evidence: C.blue, signal: C.gold, positive: C.green, risk: C.red } },
+    typography: { roles: { display: FONT, body: FONT, numeric: "Aptos Display" } },
+    geometry: "Square analytical panels, thin dividers, one circular market signal only when it encodes a cycle or gauge",
+    densityRhythm: "Dense evidence pages alternate with sparse synthesis and transition pages",
+    carriers: "Charts, causal diagrams, comparison fields, and data-linked native vectors",
+    forbidden: ["decorative card wall", "unexplained empty space", "animation without information order"],
+  },
+  voice: "Professional, evidence-led, and explicit about uncertainty",
+  lockedFacts: ["$1.92B weekly ETF inflow", "$2.99B liquidation event", "BTC moved from about $64K to $79K"],
+  avoid: ["investment certainty", "generic crypto hype", "repetitive contrast slogans"],
+  pages: Array.from({ length: 14 }, (_, index) => ({
+    compositionIntent: index === 0 ? "Large editable Bitcoin SVG illustration and decisive typography" : index === 1 ? "Relationship diagram around one market outcome" : "Mixed chart, diagram, or typographic evidence carrier with bounded annotation",
+  })),
+})));
+
+const management = buildManagementDeck();
+outputs.push(await emitDeck("management-probation-review", management, createStrategyPlan(management, {
+  audience: "Direct manager and promotion reviewers",
+  purpose: "Show how probation-period delivery became a reusable operating system and request support for the next stage",
+  primaryJob: "report",
+  supportingJobs: ["align", "decide"],
+  expectedOutcome: "Reviewers understand the compounded delivery capability and agree on the three next priorities",
+  afterUse: "Review record and next-quarter alignment note",
+  deliveryMode: "live",
+  thesis: "The durable result is a repeatable delivery system, not a list of isolated features",
+  sections: ["Outcome", "System", "Next decision"],
+  mechanismPacks: ["enterprise-data-review", "editorial-minimal"],
+  scenario: "management-report",
+  directionName: "Editorial operating review",
+  directionRationale: "Paper, rules and numbered evidence create sober managerial credibility without imitating a dashboard",
+  designGrammar: {
+    palette: { roles: { paper: "#F2EFE8", ink: "#1B1D1F", decision: "#C54B36", system: "#285F8F", proof: "#3B7458" } },
+    typography: { roles: { title: FONT, body: FONT, numeric: "Aptos Display" } },
+    geometry: "Square fields, ruled columns, broad horizontal bands, no generic cards",
+    densityRhythm: "Sparse cover, one chart, one process page, one decision page",
+    carriers: "Bar chart, operating bands, and ruled decision columns",
+    forbidden: ["rounded card wall", "decorative dashboard chrome", "unsubstantiated owner language"],
+  },
+  voice: "Specific, modest, and outcome-led",
+  avoid: ["feature inventory", "repeating owner", "inflated claims"],
+  pages: [
+    { compositionIntent: "Sparse editorial typography with one oversized numeric proof" },
+    { compositionIntent: "Native bar chart and large numeric evidence rail" },
+    { compositionIntent: "Horizontal process diagram using broad bands and thin rules" },
+    { compositionIntent: "Typographic decision table with three ruled columns and one explicit ask" },
+  ],
+})));
+
+const brand = buildBrandDeck();
+outputs.push(await emitDeck("brand-morph-continuity", brand, createStrategyPlan(brand, {
+  audience: "Launch-event audience",
+  purpose: "Make one product identity memorable and demonstrate continuous native motion",
+  primaryJob: "mobilize",
+  supportingJobs: ["persuade"],
+  expectedOutcome: "The audience retains one visual signal and connects it to the launch action",
+  afterUse: "Launch-stage playback and editable campaign source",
+  deliveryMode: "live",
+  thesis: "One strong signal can hold identity while the story changes scale",
+  sections: ["Signal", "Expansion"],
+  mechanismPacks: ["brand-launch", "visual-narrative"],
+  scenario: "brand-creative",
+  directionName: "Acid signal broadcast",
+  directionRationale: "Full-bleed black, acid yellow, coral rays and oversized type create recall without relying on card containers",
+  designGrammar: {
+    palette: { roles: { black: "#050505", acid: "#E7FF3D", coral: "#FF5B45", bone: "#F5F1E8" } },
+    typography: { roles: { display: "Arial Black", body: "Arial" } },
+    geometry: "Full-bleed light rays, one moving vertical signal, hard edges",
+    densityRhythm: "Two high-impact sparse statements connected by Morph",
+    carriers: "Oversized typography and a native signal bar over vector rays",
+    forbidden: ["dashboard panels", "gold circle hero", "multiple competing motifs"],
+  },
+  voice: "Direct, energetic, and memorable",
+  avoid: ["feature list", "decorative explanation", "generic launch superlatives"],
+  pages: [
+    { compositionIntent: "Full-bleed vector rays, oversized typography, and one native vertical signal" },
+    { compositionIntent: "Full-bleed inverted field, oversized typography, and the same Morph signal" },
+  ],
+})));
 await writeFile(path.join(outputRoot, "manifest.json"), `${JSON.stringify({ generatedAt: new Date().toISOString(), outputs }, null, 2)}\n`);
 console.log(JSON.stringify({ outputRoot, outputs }, null, 2));
