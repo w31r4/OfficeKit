@@ -31,11 +31,12 @@ unknown imported timing, and Office wire protocol 2.
 
 ### Additive plan fields, legacy-compatible normalization
 
-Keep the v1 plan schema and existing string `compositionIntent` readable. New
-plans may use a structured composition object and optional `motionIntent`.
+Keep the v1 plan schema and the existing string `compositionIntent`. The C route
+uses that string to name the page's visual carrier and composition job; it does
+not add a structured composition object. Plans may add optional `motionIntent`.
 `deliveryMode` and `motionPolicy` default to `hybrid` and `adaptive` when absent;
-the C Skill writes them explicitly. Plan validation bounds units, carrier,
-density, recipe, and trigger values without parsing arbitrary prose.
+the C Skill writes them explicitly. Plan validation bounds recipes, units,
+transitions, and trigger values without parsing arbitrary composition prose.
 
 ### Semantic motion before native timing
 
@@ -71,8 +72,9 @@ visual carrier.
 
 ## Risks / Trade-offs
 
-- [Legacy plans lack structured composition] → Read them unchanged and issue a
-  non-blocking legacy warning; new C plans use the structured form.
+- [A composition string may be vague] → Keep the schema small and require the C
+  Skill to name one visual carrier before motion; review warns when the declared
+  carrier cannot be matched to the completed page.
 - [Chart stagger cannot be represented for a graph] → Reject that combination
   with an explicit capability error instead of dropping the stagger.
 - [Imported timing is richer than the canonical profile] → Preserve it opaque

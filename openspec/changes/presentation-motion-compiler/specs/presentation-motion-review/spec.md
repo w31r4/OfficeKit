@@ -28,10 +28,10 @@ pairs, plan mismatches, and reader-policy violations.
   the deck automatically.
 
 ### Requirement: Composition warnings
-Review SHALL warn when a new structured composition plan has no matching visual
-carrier, an unintentionally tiny occupied canvas, repeated card-wall silhouettes,
-or motion attached to an unfinished composition. Warnings SHALL remain distinct
-from deterministic blocking failures.
+Review SHALL warn when the visual carrier named by composition intent has no
+matching page object, an unintentionally tiny occupied canvas, repeated
+card-wall silhouettes, or motion attached to an unfinished composition.
+Warnings SHALL remain distinct from deterministic blocking failures.
 
 #### Scenario: Detect an under-composed page
 - **WHEN** a non-sparse page declares a chart carrier but contains only a title and

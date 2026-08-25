@@ -16,19 +16,20 @@ resolve to `hybrid` and `adaptive` for the C authoring route.
 - **THEN** it remains readable without hash rewriting and the route reports the
   default hybrid/adaptive policy.
 
-### Requirement: Structured composition intent
-New C-route plans SHALL support a structured `pages[].compositionIntent` with a
-visual `carrier`, `density`, `dominant`, and bounded `supporting` roles. Existing
-non-empty string composition intents SHALL remain valid for migration.
+### Requirement: Visual-carrier composition intent
+The C authoring route SHALL keep `pages[].compositionIntent` as non-empty text
+and SHALL name the page's primary visual carrier in that text before selecting
+motion. The plan schema SHALL NOT add a second structured composition object.
 
 #### Scenario: Select a visual carrier before motion
-- **WHEN** a page declares a chart carrier and balanced density
+- **WHEN** a page composition intent declares a chart as its primary carrier
 - **THEN** the authoring route can select chart-specific composition and motion
   recipes without selecting an implicit Grid layout.
 
-#### Scenario: Preserve legacy composition text
-- **WHEN** a legacy page supplies a non-empty string composition intent
-- **THEN** plan normalization succeeds and review may report a migration warning.
+#### Scenario: Preserve the existing composition contract
+- **WHEN** a page supplies a non-empty string composition intent
+- **THEN** plan normalization succeeds without converting it into another
+  schema or object model.
 
 ### Requirement: Bounded motion intent
 A page MAY declare `motionIntent` containing one of six purposes, one matching

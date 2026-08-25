@@ -4,7 +4,7 @@ OfficeKit can already compose visually free presentations, but the shipped autho
 
 ## What Changes
 
-- Extend the durable presentation authoring plan with delivery mode, motion policy, page composition intent, and bounded motion intent without adding a second plan format.
+- Extend the durable presentation authoring plan with delivery mode, motion policy, and bounded motion intent while keeping the existing string composition intent and avoiding a second plan format.
 - Add typed slide animation and Morph operations for fade, wipe, fly, zoom, pulse, text builds, chart builds, trigger order, and explicit object pairing.
 - Compile the typed operations into a bounded canonical PresentationML timing graph while preserving unknown imported timing and Morph structures as opaque source content.
 - Make the C authoring route select motion from `reader`, `hybrid`, or `live` delivery intent and expose six reusable communication recipes.
