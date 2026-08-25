@@ -209,11 +209,14 @@ const bindingSession = await createReplSession({ workspaceRoot: bindingWorkspace
 const bindingPlan = validPlan();
 const bindingPlanDescriptor = await bindingSession.ctx.plan(bindingPlan);
 const presentation = Presentation.create();
-presentation.slides.add({ name: "Context" }).shapes.add({
+const bindingSlide = presentation.slides.add({ name: "Context" });
+const bindingShape = bindingSlide.shapes.add({
   geometry: "textbox",
   text: "The bounded migration path removes duplicate work",
   position: { left: 40, top: 40, width: 520, height: 100 },
 });
+bindingSlide.setTransition({ effect: "fade", durationMs: 500, advanceOnClick: true });
+bindingSlide.animations.add(bindingShape, { effect: "fade", start: "onClick", durationMs: 400 });
 const candidate = await PresentationFile.exportPptx(presentation);
 const firstReview = await reviewArtifact(candidate, {
   authoringPlan: bindingPlan,
