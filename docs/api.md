@@ -1921,10 +1921,13 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
 | `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
+| `slide.animations.add` | api | Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by allAtOnce, series, category, seriesElement, or categoryElement. The typed surface writes canonical PowerPoint timing and never accepts raw XML. |
+| `slide.animations.remove` | api | Remove one animation issued by slide.animations or identified by its stable animation ID. Imported timing must be capability-editable; opaque timing is preserved and rejects mutation. |
 | `slide.applyLayout` | api | Bind a slide to a bounded source-free layout and materialize its effective direct-frame placeholder shapes. Applying the same layout is idempotent; switching a materialized layout fails closed. The resulting p:ph identities and direct frames export natively; imported Layout relationships remain preservation-only. |
 | `slide.autoLayout` | api | Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options. |
 | `slide.charts.add` | api | Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or clustered bar+line combo chart. Category families use shared literal categories; scatter and bubble use aligned per-series numeric X/Y values, with positive area-based bubble sizes. Bar and line series, including combo members, accept up to 16 bounded native linear, exponential, logarithmic, power, polynomial, or moving-average trendlines plus one fixed/percentage/standard-deviation/standard-error/custom-literal errorBars projection. Imported trendline count and error-bar presence are fixed; unsupported labels/extensions/unknown children/complex lines remain source-owned. Supported variants retain title, legend, bounded axes, basic series styling, chart-level data labels, layout JSON, error-bar-aware SVG preview, and native ChartPart output across import/edit/re-export. Formula-backed custom error bars without an explicit embedded-workbook route, other formula/external data, advanced family geometry, topology changes, and unsupported styling fail closed rather than being flattened. |
 | `slide.clearBackground` | api | Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded. |
+| `slide.clearMorph` | api | Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation. |
 | `slide.clearTransition` | api | Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation. |
 | `slide.cloneCapability` | api | Report whether an imported SlidePart can be copied as one ownership-checked OPC graph. The Codec copies every uniquely owned descendant, DataPart, and external relationship while rebinding proven shared layout, NotesMaster, image, and retained-slide targets. Sections, modern comments, outside-owned nodes, removed slide-jump targets, and over-budget graphs fail closed before the model changes. |
 | `slide.comments.addThread` | api | Create either a bounded legacy PPTX annotation or an Office 2021 modern thread. A comment-free imported presentation may add canonical legacy review comments only when comments.capability.addable is true; a canonical imported legacy leaf with comments.capability.editable permits only existing root-text replacement, never addThread/replies/metadata edits. Modern mode supports a top-level element/text-range/textMatch anchor, one root, direct replies, independent people/timestamps, and active/resolved/closed state; imported modern graphs permit only fixed-topology text/status edits. |
@@ -1943,6 +1946,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setHidden` | api | Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
+| `slide.setMorph` | api | Author a bounded cross-slide Morph transition with a duration and unique named object pairs. The destination slide keeps the names used for pairing, while unknown imported Morph extensions remain source-bound and are not reconstructed. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed. |
 | `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with accessibility metadata. Ready bounded-overlay accepts only textbox/rect/roundRect/ellipse in a clean export. Lines support dash/ends/cap/join; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. Only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. `head` is the from/start end and `tail` is the to/end end; use tail for a forward arrow, and bringToFront() when a background shape would hide the route. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
@@ -6254,6 +6258,101 @@ Set speaker notes as text or relationship-free paragraph/run data for inspect, p
 
 - `notes` (object) — Speaker-notes record. Source-free notes and simple hash-bound imported text remain editable; an imported relationship-free rich body may edit only its fixed paragraph/inline topology. A notes-absent imported slide may add a canonical NotesSlide only when speakerNotes.capability.addable is true; export re-proves that package graph. Fields, hyperlinks, picture bullets, notes-page layout, list styles, and unsafe NotesMaster graphs remain preservation-only.
 
+#### `slide.animations.add`
+
+Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by allAtOnce, series, category, seriesElement, or categoryElement. The typed surface writes canonical PowerPoint timing and never accepts raw XML.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/motion.md#typed-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `target` (Shape|ImageElement|TableElement|ChartElement|string) required — A target on this slide or its stable target ID.
+- `effect` (string) — fade, wipe, fly, zoom, or pulse.
+- `phase` (string) — entrance, emphasis, or exit.
+- `start` (string) — withPrevious, afterPrevious, or onClick.
+- `direction` (string) — Required for wipe/fly: left, right, up, or down.
+- `durationMs` (number) — Positive integer duration from 1 through 60000.
+- `delayMs` (number) — Optional integer delay from 0 through 60000.
+- `textBuild` (string) — Optional whole or paragraph text build.
+- `chartBuild` (string) — Optional allAtOnce, series, category, seriesElement, or categoryElement chart build.
+- `staggerMs` (number) — Optional per-item stagger from 0 through 10000.
+
+**Schema returns:**
+
+- `animation` (object) — The normalized animation record. Imported timing must be capability-editable; source-free timing is emitted as canonical PresentationML.
+
+#### `slide.animations.remove`
+
+Remove one animation issued by slide.animations or identified by its stable animation ID. Imported timing must be capability-editable; opaque timing is preserved and rejects mutation.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/motion.md#typed-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `animation` (object|string) required — An animation record or stable animation ID returned by slide.animations.
+
+**Schema returns:**
+
+- `boolean` (Whether one existing animation was removed.)
+
 #### `slide.applyLayout`
 
 Bind a slide to a bounded source-free layout and materialize its effective direct-frame placeholder shapes. Applying the same layout is idempotent; switching a materialized layout fails closed. The resulting p:ph identities and direct frames export natively; imported Layout relationships remain preservation-only.
@@ -6442,6 +6541,45 @@ Remove the direct slide background so preview and PPTX output inherit from the p
 **Schema returns:**
 
 - `slide` (Slide) — The same slide with no direct background, inheriting from its preserved Layout/Master chain.
+
+#### `slide.clearMorph`
+
+Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/motion.md#typed-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `slide` (Slide) — The same slide with no authored Morph transition.
 
 #### `slide.clearTransition`
 
@@ -7221,6 +7359,49 @@ Alias of slide.applyLayout(layout): bind and materialize a bounded source-free l
 **Schema returns:**
 
 - `slide` (Slide) — Alias of applyLayout that returns the slide.
+
+#### `slide.setMorph`
+
+Author a bounded cross-slide Morph transition with a duration and unique named object pairs. The destination slide keeps the names used for pairing, while unknown imported Morph extensions remain source-bound and are not reconstructed.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/motion.md#typed-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `morph` (object) required — { durationMs?, pairs: [{ key, fromId, toId }] }; one through 256 unique named pairs.
+
+**Schema returns:**
+
+- `slide` (Slide) — The same slide with a bounded Morph transition. Pairs are stable object identities, not raw XML selectors.
 
 #### `slide.setTransition`
 

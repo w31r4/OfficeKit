@@ -331,6 +331,10 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "slide.clearBackground", summary: "Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded." },
   { artifactKind: "presentation", kind: "api", name: "slide.setTransition", summary: "Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "slide.clearTransition", summary: "Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation." },
+  { artifactKind: "presentation", kind: "api", name: "slide.animations.add", summary: "Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by allAtOnce, series, category, seriesElement, or categoryElement. The typed surface writes canonical PowerPoint timing and never accepts raw XML." },
+  { artifactKind: "presentation", kind: "api", name: "slide.animations.remove", summary: "Remove one animation issued by slide.animations or identified by its stable animation ID. Imported timing must be capability-editable; opaque timing is preserved and rejects mutation." },
+  { artifactKind: "presentation", kind: "api", name: "slide.setMorph", summary: "Author a bounded cross-slide Morph transition with a duration and unique named object pairs. The destination slide keeps the names used for pairing, while unknown imported Morph extensions remain source-bound and are not reconstructed." },
+  { artifactKind: "presentation", kind: "api", name: "slide.clearMorph", summary: "Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation." },
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.add", summary: "Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque." },
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.getItem", summary: "Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.add", summary: "Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque." },
@@ -1835,6 +1839,25 @@ const PRESENTATION_HELP_SCHEMAS = {
     transition: { type: "object", required: true, description: "A complete ECMA-376 base-transition object. Effect-specific fields are direction (cardinal, corner, or in/out as applicable), orientation (horizontal/vertical), throughBlack (cut/fade), or spokes (wheel, 1..8). speed defaults to medium, advanceOnClick to true, and independent durationMs and advanceAfterMs fields accept 0..86400000." },
   }, "slide", "Slide", "The same slide with a normalized direct p:transition. Source-free slides may author it. An imported slide may replace exactly one canonical direct base transition, or add one only when transition.capability.addable proves the root contains only p:cSld plus optional p:clrMapOvr and has no transition, timing, or extension leaf. Opaque source graphs are not reconstructed."),
   "slide.clearTransition": helpSchema({}, "slide", "Slide", "The same slide with no direct p:transition. Removing an imported transition requires the same canonical editable source profile as replacement."),
+  "slide.animations.add": helpSchema({
+    target: { type: "Shape|ImageElement|TableElement|ChartElement|string", required: true, description: "A target on this slide or its stable target ID." },
+    effect: { type: "string", description: "fade, wipe, fly, zoom, or pulse." },
+    phase: { type: "string", description: "entrance, emphasis, or exit." },
+    start: { type: "string", description: "withPrevious, afterPrevious, or onClick." },
+    direction: { type: "string", description: "Required for wipe/fly: left, right, up, or down." },
+    durationMs: { type: "number", description: "Positive integer duration from 1 through 60000." },
+    delayMs: { type: "number", description: "Optional integer delay from 0 through 60000." },
+    textBuild: { type: "string", description: "Optional whole or paragraph text build." },
+    chartBuild: { type: "string", description: "Optional allAtOnce, series, category, seriesElement, or categoryElement chart build." },
+    staggerMs: { type: "number", description: "Optional per-item stagger from 0 through 10000." },
+  }, "animation", "object", "The normalized animation record. Imported timing must be capability-editable; source-free timing is emitted as canonical PresentationML."),
+  "slide.animations.remove": helpSchema({
+    animation: { type: "object|string", required: true, description: "An animation record or stable animation ID returned by slide.animations." },
+  }, "boolean", "Whether one existing animation was removed."),
+  "slide.setMorph": helpSchema({
+    morph: { type: "object", required: true, description: "{ durationMs?, pairs: [{ key, fromId, toId }] }; one through 256 unique named pairs." },
+  }, "slide", "Slide", "The same slide with a bounded Morph transition. Pairs are stable object identities, not raw XML selectors."),
+  "slide.clearMorph": helpSchema({}, "slide", "Slide", "The same slide with no authored Morph transition."),
   "presentation.inspect": helpSchema({
     kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
     search: { type: "string", description: "Case-insensitive record filter." },
@@ -2803,6 +2826,10 @@ const PRESENTATION_GOLDEN_NAMES = new Set([
   "slide.images.add",
   "slide.tables.add",
   "slide.charts.add",
+  "slide.animations.add",
+  "slide.animations.remove",
+  "slide.setMorph",
+  "slide.clearMorph",
   "slide.groups.add",
   "shape.text.set",
   "presentation.textRange",
@@ -2844,11 +2871,13 @@ const PRESENTATION_RECIPE_PATHS = Object.freeze({
   edit: "skills/presentations/skills/presentations/tasks/edit-existing.md",
   continue: "skills/presentations/skills/presentations/tasks/continue.md",
   review: "skills/presentations/skills/presentations/tasks/review-deliver.md",
+  motion: "skills/presentations/skills/presentations/references/motion.md",
 });
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
 
 function presentationRecipeFor(name) {
+  if (/animation|Morph/.test(name)) return `${PRESENTATION_RECIPE_PATHS.motion}#typed-surface`;
   if (/designProfile|planTemplateGeneration|master|layout|placeholder|reuseSource|resolveComponent/.test(name)) {
     return `${PRESENTATION_RECIPE_PATHS.template}#distill-and-reuse`;
   }

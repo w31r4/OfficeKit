@@ -143,6 +143,33 @@ layout. Prefer a small set of reusable helpers inside the task over copying
 whole page implementations. Keep all objects selectable and editable unless a
 source asset must remain opaque for fidelity.
 
+## Use motion as a communication primitive
+
+Choose motion from the speaking job, not from an effect catalogue. For a live
+talk, reveal a causal chain or one data series at a time; for a reading deck,
+keep most content visible; for a hybrid deck, animate only the sequence the
+audience must follow. One or two purposeful effects per page is the default.
+
+```js
+slide.animations.add(chart, {
+  effect: "wipe", direction: "up", chartBuild: "series", start: "onClick",
+  durationMs: 650,
+});
+slide.animations.add(riskShape, {
+  effect: "pulse", phase: "emphasis", start: "afterPrevious",
+});
+slide.setMorph({ durationMs: 700, pairs: [{ key: "hero", fromId: "s1", toId: "s2" }] });
+```
+
+The supported effects are `fade`, `wipe`, `fly`, `zoom`, and `pulse`.
+`textBuild` accepts `whole` or `paragraph`; chart builds accept
+`allAtOnce`, `series`, `category`, `seriesElement`, or `categoryElement`.
+Use `withPrevious`, `afterPrevious`, or `onClick` to express order. Review by
+inspecting the timing records, rendering every changed page, and checking the
+static layout as well as the playback intent. Imported timing or Morph
+extensions that are not capability-issued remain preserved and are not
+reconstructed.
+
 Treat `image_view` and `image_generate` as optional Agent capabilities. Use
 user/template images first, then native PowerPoint shapes, charts, tables, and
 typography; use generated imagery when available and relevant. If `image_view`

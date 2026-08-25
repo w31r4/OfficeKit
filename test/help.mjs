@@ -22,7 +22,7 @@ import { FileBlob as LeafFileBlob } from "../src/shared/file-blob.mjs";
 assert.deepEqual(Object.keys(rootApi).sort(), [
   "ChartElement", "DocumentFile", "DocumentModel", "FileBlob", "GroupShape",
   "HELP_CATALOG", "ImageElement", "PdfArtifact", "PdfFile", "Presentation",
-  "PresentationFile", "Range", "Shape", "Slide", "SlideTransition", "SpreadsheetFile",
+  "PresentationFile", "Range", "Shape", "Slide", "SlideAnimations", "SlideMorph", "SlideTransition", "SpreadsheetFile",
   "TableElement", "Workbook", "Worksheet", "WorksheetDataTableCollection", "box", "chart", "column", "grid",
   "clearOfficeFontDesignMetrics", "helpArtifact", "image", "layers", "node", "paragraph",
   "registerScopedOfficeFontDesignMetrics", "renderArtifact", "resolveOfficeFontDesignMetrics",
@@ -33,7 +33,7 @@ assert.strictEqual(HELP_CATALOG, LEAF_HELP_CATALOG, "root must re-export the hel
 assert.strictEqual(node, leafNode, "root must re-export the Compose binding");
 assert.strictEqual(text, leafText, "root must re-export the reference-compatible text Compose binding");
 assert.strictEqual(FileBlob, LeafFileBlob, "root must re-export the FileBlob constructor binding");
-for (const name of ["Presentation", "PresentationFile", "Slide", "SlideTransition", "Shape", "TableElement", "ChartElement", "ImageElement", "GroupShape"]) {
+for (const name of ["Presentation", "PresentationFile", "Slide", "SlideAnimations", "SlideMorph", "SlideTransition", "Shape", "TableElement", "ChartElement", "ImageElement", "GroupShape"]) {
   assert.strictEqual(rootApi[name], presentationApi[name], `root must re-export the ${name} constructor binding`);
 }
 for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Range", "SpreadsheetFile"]) {
@@ -41,7 +41,7 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 }
 
 assert.ok(HELP_CATALOG.length >= 40);
-assert.equal(HELP_CATALOG.length, 555);
+assert.equal(HELP_CATALOG.length, 559);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
@@ -49,6 +49,9 @@ assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.designProfile")?.summary || "", /read-only design-language profile.*source revision.*no XML selectors/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.planTemplateGeneration")?.summary || "", /source-bound.*multi-page frame map.*clone-safe.*fit.*blocked/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.planTemplateGeneration")?.schema?.parameters?.slides?.required, true);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.animations.add")?.summary || "", /fade.*wipe.*fly.*zoom.*pulse.*withPrevious.*chartBuild/i);
+assert.equal(HELP_CATALOG.find((item) => item.name === "slide.animations.add")?.schema?.parameters?.target?.required, true);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.setMorph")?.summary || "", /Morph.*named object pairs.*source-bound/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf")?.summary || "", /targetId.*leafId.*expectedHash.*raw XML.*reject/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.editComponentOccurrence")?.summary || "", /atomic.*native-leaf.*expectedHash.*fail closed/i);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.editComponentOccurrence")?.schema?.parameters?.edits?.required, true);
@@ -770,7 +773,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "document.setDateContentC
 assert.equal(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.schema?.parameters?.dryRun?.type, "boolean");
 assert.match(HELP_CATALOG.find((item) => item.name === "document.materializeFields")?.summary || "", /SEQ counters.*REF cached results.*PAGEREF.*pagination host/i);
 const presentationCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
-assert.equal(presentationCatalog.length, 136);
+assert.equal(presentationCatalog.length, 140);
 assert.ok(presentationCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "slide.charts.add")?.schema?.parameters?.series?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "presentation.slides.insert")?.schema?.parameters?.after?.type, "Slide|number|null");
