@@ -179,20 +179,19 @@ const slowSteps = [
   nodeStep("test/help-adoption.mjs"),
   nodeStep("test/presentation-authoring-eval-manifest.mjs"),
   nodeStep("test/presentation-authoring-packed.mjs"),
-  nodeStep("test/presentation-authoring-expansion.mjs"),
 ];
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 16 }),
-  presentation: Object.freeze({ start: 16, end: 31 }),
-  templates: Object.freeze({ start: 31, end: 38 }),
-  officekit: Object.freeze({ start: 38, end: 45 }),
-  documents: Object.freeze({ start: 45, end: 54 }),
-  "pdf-packs": Object.freeze({ start: 54, end: 63 }),
-  "pdf-providers": Object.freeze({ start: 63, end: 72 }),
-  "pdf-specialists": Object.freeze({ start: 72, end: 81 }),
-  qa: Object.freeze({ start: 81, end: 88 }),
-  release: Object.freeze({ start: 88, end: 97 }),
+  presentation: Object.freeze({ start: 16, end: 30 }),
+  templates: Object.freeze({ start: 30, end: 37 }),
+  officekit: Object.freeze({ start: 37, end: 44 }),
+  documents: Object.freeze({ start: 44, end: 53 }),
+  "pdf-packs": Object.freeze({ start: 53, end: 62 }),
+  "pdf-providers": Object.freeze({ start: 62, end: 71 }),
+  "pdf-specialists": Object.freeze({ start: 71, end: 80 }),
+  qa: Object.freeze({ start: 80, end: 87 }),
+  release: Object.freeze({ start: 87, end: 96 }),
 });
 
 const segmentRanges = Object.values(slowSegments);

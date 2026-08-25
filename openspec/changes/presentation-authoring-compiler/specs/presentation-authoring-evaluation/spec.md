@@ -47,4 +47,4 @@ records the new rollout decision separately.
 
 #### Scenario: All thresholds pass
 - **WHEN** all thresholds pass on the frozen pilot or on a qualifying post-fix rerun plus unseen holdout
-- **THEN** the Skill changes its no-direction route to C, a thirty-task expansion becomes part of the Presentation slow gate, and the historical pilot remains append-only evidence
+- **THEN** the Skill changes its no-direction route to C, a thirty-task brief-only expansion is registered as an opt-in evaluation outside daily/release slow gates, and the historical pilot remains append-only evidence

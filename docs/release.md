@@ -106,11 +106,12 @@ complete: template-conditioned work still follows its source, visual review
 remains capability-dependent, and the historical A/B/C packets remain
 append-only evidence.
 
-The approved C rollout also registers a 30-task, five-scenario expansion
-contract in `evals/presentation-authoring-compiler/expansion.v1.json` and the
-Presentation slow gate. Selected continuation evidence is `23/23` (`100%`).
-The full live 30-task Codex matrix is intentionally still marked pending in
-that manifest; no planned task is counted as a passing run.
+The approved C rollout also registers a 30-task, five-scenario brief-only
+expansion contract in `evals/presentation-authoring-compiler/expansion.v1.json`
+with a standalone runner. This costly evaluation is deliberately excluded
+from the daily and release slow gates. Selected continuation evidence is
+`23/23` (`100%`). The full live matrix remains opt-in and no planned task is
+counted as a passing run.
 
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
