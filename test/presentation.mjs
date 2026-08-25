@@ -6830,31 +6830,42 @@ const motionDeck = Presentation.create({ slideSize: { width: 640, height: 360 } 
 const motionSlide = motionDeck.slides.add({ name: "Motion object" });
 const motionShape = motionSlide.shapes.add({ name: "motion-target", text: "Reveal", position: { left: 40, top: 40, width: 200, height: 70 } });
 const motionFlyShape = motionSlide.shapes.add({ name: "motion-fly", position: { left: 280, top: 40, width: 160, height: 70 } });
-motionSlide.animations.add(motionShape, { effect: "fade", start: "onClick", durationMs: 700, textBuild: "paragraph" });
+motionSlide.animations.add(motionShape, { effect: "fade", start: "onClick", durationMs: 700, textBuild: "paragraph", staggerMs: 120 });
 motionSlide.animations.add(motionShape, { effect: "pulse", phase: "emphasis", start: "withPrevious", durationMs: 500 });
 motionSlide.animations.add(motionFlyShape, { effect: "fly", direction: "left", durationMs: 450 });
+assert.throws(() => motionShape.delete(), /animation targets it/);
 const motionSource = await PresentationFile.exportPptx(motionDeck);
 const motionZip = await JSZip.loadAsync(new Uint8Array(await motionSource.arrayBuffer()));
 const motionSlideXml = await motionZip.file("ppt/slides/slide1.xml").async("text");
 assert.match(motionSlideXml, /<p:timing[\s\S]*<p:animEffect[\s\S]*<p:animScale/);
 assert.match(motionSlideXml, /filter="fly\(left\)"/);
+assert.match(motionSlideXml, /<p:iterate type="el"><p:tmAbs val="120"\s*\/><\/p:iterate>/);
 const motionImported = await PresentationFile.importPptx(motionSource);
-assert.deepEqual(motionImported.slides.getItem(0).animations.items.map(({ effect, start, durationMs, textBuild, direction }) => ({ effect, start, durationMs, textBuild, direction })), [
-  { effect: "fade", start: "onClick", durationMs: 700, textBuild: "paragraph", direction: undefined },
-  { effect: "fly", start: "afterPrevious", durationMs: 450, textBuild: undefined, direction: "left" },
-  { effect: "pulse", start: "withPrevious", durationMs: 500, textBuild: undefined, direction: undefined },
+assert.deepEqual(motionImported.slides.getItem(0).animations.items.map(({ effect, start, durationMs, textBuild, direction, staggerMs }) => ({ effect, start, durationMs, textBuild, direction, staggerMs })), [
+  { effect: "fade", start: "onClick", durationMs: 700, textBuild: "paragraph", direction: undefined, staggerMs: 120 },
+  { effect: "fly", start: "afterPrevious", durationMs: 450, textBuild: undefined, direction: "left", staggerMs: undefined },
+  { effect: "pulse", start: "withPrevious", durationMs: 500, textBuild: undefined, direction: undefined, staggerMs: undefined },
 ]);
 
 const motionChartDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const motionChartSlide = motionChartDeck.slides.add({ name: "Motion chart" });
 const motionChart = motionChartSlide.charts.add("bar", { name: "ETF flow", position: { left: 40, top: 40, width: 500, height: 250 }, categories: ["Mon", "Tue", "Wed"], series: [{ name: "USD", values: [3, 5, 8] }] });
-motionChartSlide.animations.add(motionChart, { effect: "wipe", direction: "up", chartBuild: "series" });
+motionChartSlide.animations.add(motionChart, { effect: "wipe", direction: "up", chartBuild: "category-element", staggerMs: 90, animateChartBackground: false });
 const motionChartSource = await PresentationFile.exportPptx(motionChartDeck);
 const motionChartZip = await JSZip.loadAsync(new Uint8Array(await motionChartSource.arrayBuffer()));
 const motionChartXml = await motionChartZip.file("ppt/slides/slide1.xml").async("text");
-assert.match(motionChartXml, /<p:bldGraphic[\s\S]*<a:bldChart bld="series"/);
+assert.match(motionChartXml, /<p:iterate type="el"><p:tmAbs val="90"\s*\/><\/p:iterate>/);
+assert.match(motionChartXml, /<p:bldGraphic[\s\S]*<a:bldChart bld="categoryEl" animBg="0"/);
 const motionChartImported = await PresentationFile.importPptx(motionChartSource);
-assert.equal(motionChartImported.slides.getItem(0).animations.items[0].chartBuild, "series");
+assert.deepEqual(
+  (({ chartBuild, staggerMs, animateChartBackground }) => ({ chartBuild, staggerMs, animateChartBackground }))(motionChartImported.slides.getItem(0).animations.items[0]),
+  { chartBuild: "category-element", staggerMs: 90, animateChartBackground: false },
+);
+
+const motionLimitSlide = Presentation.create().slides.add({ name: "Motion limit" });
+const motionLimitShape = motionLimitSlide.shapes.add({ text: "Bounded", position: { left: 10, top: 10, width: 100, height: 40 } });
+for (let index = 0; index < 32; index += 1) motionLimitSlide.animations.add(motionLimitShape, { id: `limit-${index}`, effect: "fade" });
+assert.throws(() => motionLimitSlide.animations.add(motionLimitShape, { id: "limit-33", effect: "fade" }), /at most 32/);
 
 const motionMorphDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const motionMorphSlide = motionMorphDeck.slides.add({ name: "Motion Morph" });

@@ -6,8 +6,8 @@
 
 ## 2. Motion runtime
 
-- [ ] 2.1 Align public chart-build names, add chart-background control, enforce target/build compatibility, and enforce semantic/timing limits.
-- [ ] 2.2 Compile delay/stagger deterministically or fail closed when the native graph cannot represent the request.
+- [x] 2.1 Align public chart-build names, add chart-background control, enforce target/build compatibility, and enforce semantic/timing limits.
+- [x] 2.2 Compile delay/stagger deterministically or fail closed when the native graph cannot represent the request.
 - [ ] 2.3 Replace local-only Morph metadata with validated adjacent-slide source/destination pairing and matching native names.
 - [ ] 2.4 Preserve unsupported imported timing/Morph graphs opaque and expose individual animation/Morph inspection records.
 

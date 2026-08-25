@@ -50,6 +50,18 @@ export function deletePresentationElement(element, collection, kind, { ownedElem
     error.code = "unsupported_presentation_element_delete";
     throw error;
   }
+  if ((element.slide?.animations?.items || []).some((animation) => targetsOwnedElement(animation.targetId))) {
+    const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while an animation targets it.`);
+    error.code = "unsupported_presentation_element_delete";
+    throw error;
+  }
+  const morphReference = (element.slide?.presentation?.slides?.items || []).some((slide) =>
+    (slide.morph?.value?.pairs || []).some((pair) => targetsOwnedElement(pair.fromId) || targetsOwnedElement(pair.toId)));
+  if (morphReference) {
+    const error = new Error(`Presentation ${kind} ${element.id} cannot be deleted while a Morph pair targets it.`);
+    error.code = "unsupported_presentation_element_delete";
+    throw error;
+  }
 
   const capability = element.deletionCapability;
   if (capability.sourceBound && (!capability.known || !capability.supported)) {

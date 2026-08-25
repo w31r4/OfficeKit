@@ -17,6 +17,8 @@ internal static class PptxTimingCodec
     private const string PNamespace = "http://schemas.openxmlformats.org/presentationml/2006/main";
     private const string OfficeKitNamespace = "urn:officekit:motion";
     private const uint MaxDurationMilliseconds = 60_000;
+    private const int MaxSemanticAnimations = 32;
+    private const int MaxExpandedTimingNodes = 64;
 
     internal sealed record TimingRead(
         IReadOnlyList<PresentationAnimation> Animations,
@@ -56,6 +58,7 @@ internal static class PptxTimingCodec
                 var ctn = behavior.Descendants(XName.Get("cTn", PNamespace)).FirstOrDefault();
                 var duration = ParseDuration(ctn?.Attribute("dur")?.Value) ?? 500U;
                 var (start, delay) = ParseStart(behavior);
+                var stagger = ParseStagger(behavior);
                 var id = behavior.Ancestors(XName.Get("cTn", PNamespace)).Select(node => node.Attribute("id")?.Value).FirstOrDefault(value => !string.IsNullOrEmpty(value)) ?? $"{index + 1}";
                 var animation = new PresentationAnimation
                 {
@@ -69,6 +72,7 @@ internal static class PptxTimingCodec
                     DurationMs = duration,
                 };
                 if (delay > 0) animation.DelayMs = delay;
+                if (stagger > 0) animation.StaggerMs = stagger;
                 animations.Add(animation);
                 index++;
             }
@@ -80,12 +84,14 @@ internal static class PptxTimingCodec
                     !elementIdsByNativeId.TryGetValue(nativeId, out var targetId)) return Opaque(root);
                 var direction = behavior.Attribute("officekit:direction")?.Value ?? "right";
                 var (start, delay) = ParseStart(behavior);
+                var stagger = ParseStagger(behavior);
                 var animation = new PresentationAnimation
                 {
                     Id = $"anim-motion-{nativeId}", TargetId = targetId, TargetKind = "element", Effect = "fly",
                     Phase = "entrance", Start = start, Direction = direction, DurationMs = 500,
                 };
                 if (delay > 0) animation.DelayMs = delay;
+                if (stagger > 0) animation.StaggerMs = stagger;
                 animations.Add(animation);
             }
 
@@ -96,6 +102,7 @@ internal static class PptxTimingCodec
                     !elementIdsByNativeId.TryGetValue(nativeId, out var targetId)) return Opaque(root);
                 var isPulse = behavior.Descendants(XName.Get("to", PNamespace)).Any(to => to.Attribute("x")?.Value == "110000");
                 var (start, delay) = ParseStart(behavior);
+                var stagger = ParseStagger(behavior);
                 var duration = ParseDuration(behavior.Descendants(XName.Get("cTn", PNamespace)).FirstOrDefault()?.Attribute("dur")?.Value) ?? 500U;
                 var animation = new PresentationAnimation
                 {
@@ -103,6 +110,7 @@ internal static class PptxTimingCodec
                     Phase = isPulse ? "emphasis" : "entrance", Start = start, DurationMs = duration,
                 };
                 if (delay > 0) animation.DelayMs = delay;
+                if (stagger > 0) animation.StaggerMs = stagger;
                 animations.Add(animation);
             }
 
@@ -110,7 +118,7 @@ internal static class PptxTimingCodec
             {
                 if (!uint.TryParse(build.Attribute("spid")?.Value, NumberStyles.None, CultureInfo.InvariantCulture, out var nativeId) ||
                     !elementIdsByNativeId.TryGetValue(nativeId, out var targetId)) return Opaque(root);
-                UpsertBuildAnimation(animations, targetId, "element", null, build.Attribute("build")?.Value == "p" ? "paragraph" : "whole");
+                UpsertBuildAnimation(animations, targetId, "text", null, build.Attribute("build")?.Value == "p" ? "paragraph" : "whole", null);
             }
 
             var chartBuilds = root.Descendants(XName.Get("bldOleChart", PNamespace)).ToArray();
@@ -122,11 +130,11 @@ internal static class PptxTimingCodec
                 {
                     "series" => "series",
                     "category" => "category",
-                    "seriesEl" => "seriesElement",
-                    "categoryEl" => "categoryElement",
-                    _ => "allAtOnce",
+                    "seriesEl" => "series-element",
+                    "categoryEl" => "category-element",
+                    _ => "all-at-once",
                 };
-                UpsertBuildAnimation(animations, targetId, "chart", value, null);
+                UpsertBuildAnimation(animations, targetId, "chart", value, null, ParseBoolean(build.Attribute("animBg")?.Value));
             }
             foreach (var build in root.Descendants(XName.Get("bldGraphic", PNamespace)).Descendants(XName.Get("bldChart", "http://schemas.openxmlformats.org/drawingml/2006/main")))
             {
@@ -137,11 +145,11 @@ internal static class PptxTimingCodec
                 {
                     "series" => "series",
                     "category" => "category",
-                    "seriesEl" => "seriesElement",
-                    "categoryEl" => "categoryElement",
-                    _ => "allAtOnce",
+                    "seriesEl" => "series-element",
+                    "categoryEl" => "category-element",
+                    _ => "all-at-once",
                 };
-                UpsertBuildAnimation(animations, targetId, "chart", value, null);
+                UpsertBuildAnimation(animations, targetId, "chart", value, null, ParseBoolean(build.Attribute("animBg")?.Value));
             }
 
             return new(animations, morph, true, true, false, SemanticHash(animations, morph));
@@ -170,7 +178,15 @@ internal static class PptxTimingCodec
         return (string.Equals(condition?.Attribute("evt")?.Value, "onClick", StringComparison.Ordinal) ? "onClick" : "afterPrevious", delay);
     }
 
-    private static void UpsertBuildAnimation(List<PresentationAnimation> animations, string targetId, string targetKind, string? chartBuild, string? textBuild)
+    private static uint ParseStagger(XElement behavior)
+    {
+        var iterate = behavior.Ancestors(XName.Get("cTn", PNamespace))
+            .Select(node => node.Element(XName.Get("iterate", PNamespace)))
+            .FirstOrDefault(node => node is not null);
+        return ParseDuration(iterate?.Element(XName.Get("tmAbs", PNamespace))?.Attribute("val")?.Value) ?? 0U;
+    }
+
+    private static void UpsertBuildAnimation(List<PresentationAnimation> animations, string targetId, string targetKind, string? chartBuild, string? textBuild, bool? animateChartBackground)
     {
         // A build list is separate from the effect graph. When several effects
         // target the same object, bind the build to the first compatible effect
@@ -183,6 +199,7 @@ internal static class PptxTimingCodec
             existing.TargetKind = targetKind;
             if (chartBuild is not null) existing.ChartBuild = chartBuild;
             if (textBuild is not null) existing.TextBuild = textBuild;
+            if (animateChartBackground is not null) existing.AnimateChartBackground = animateChartBackground.Value;
             return;
         }
         var stableId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(targetId))).ToLowerInvariant()[..8];
@@ -193,6 +210,7 @@ internal static class PptxTimingCodec
         };
         if (chartBuild is not null) animation.ChartBuild = chartBuild;
         if (textBuild is not null) animation.TextBuild = textBuild;
+        if (animateChartBackground is not null) animation.AnimateChartBackground = animateChartBackground.Value;
         animations.Add(animation);
     }
 
@@ -200,7 +218,11 @@ internal static class PptxTimingCodec
 
     internal static string SemanticHash(IEnumerable<PresentationAnimation> animations, PresentationMorph? morph)
     {
-        var semantic = string.Join("|", animations.Select(animation => string.Join(",", animation.Id, animation.TargetId, animation.Effect, animation.Phase, animation.Start, animation.Direction, animation.DurationMs, animation.ChartBuild, animation.TextBuild)));
+        var semantic = string.Join("|", animations.Select(animation => string.Join(",",
+            animation.Id, animation.TargetId, animation.TargetKind, animation.Effect, animation.Phase,
+            animation.Start, animation.Direction, animation.DurationMs, animation.DelayMs,
+            animation.ChartBuild, animation.TextBuild, animation.StaggerMs,
+            animation.HasAnimateChartBackground ? animation.AnimateChartBackground : null)));
         if (morph is not null) semantic += $"|morph:{morph.DurationMs}:{string.Join(";", morph.Pairs.Select(pair => string.Join(",", pair.Key, pair.FromId, pair.ToId)))}";
         return Hash(Encoding.UTF8.GetBytes(semantic));
     }
@@ -261,6 +283,8 @@ internal static class PptxTimingCodec
 
     internal static void Validate(PresentationSlide source, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
     {
+        if (source.Animations.Count > MaxSemanticAnimations || source.Animations.Count * 2 > MaxExpandedTimingNodes)
+            throw new CodecException("presentation_animation_limit_exceeded", $"Presentation slides support at most {MaxSemanticAnimations} semantic animations and {MaxExpandedTimingNodes} expanded timing nodes.");
         foreach (var animation in source.Animations)
         {
             if (animation.DurationMs is 0 or > MaxDurationMilliseconds)
@@ -271,6 +295,20 @@ internal static class PptxTimingCodec
                 throw new CodecException("invalid_presentation_animation", $"Unsupported presentation animation effect {animation.Effect}.");
             if (animation.Start is not ("withPrevious" or "afterPrevious" or "onClick"))
                 throw new CodecException("invalid_presentation_animation", "Presentation animation start must be withPrevious, afterPrevious, or onClick.");
+            if (animation.DelayMs > MaxDurationMilliseconds || animation.StaggerMs > 10_000)
+                throw new CodecException("invalid_presentation_animation", "Presentation animation delay or stagger exceeds the supported bound.");
+            if (animation.Effect == "pulse" && animation.Phase != "emphasis" || animation.Effect != "pulse" && animation.Phase == "emphasis")
+                throw new CodecException("invalid_presentation_animation", "Presentation emphasis supports pulse only, and pulse requires emphasis.");
+            if (!string.IsNullOrEmpty(animation.TextBuild) && animation.TargetKind is not ("shape" or "textbox" or "text" or "element"))
+                throw new CodecException("invalid_presentation_animation", "Presentation text builds require a text-bearing target.");
+            if (!string.IsNullOrEmpty(animation.ChartBuild) && animation.TargetKind != "chart")
+                throw new CodecException("invalid_presentation_animation", "Presentation chart builds require a chart target.");
+            if (!string.IsNullOrEmpty(animation.ChartBuild) && animation.ChartBuild is not ("all-at-once" or "series" or "category" or "series-element" or "category-element"))
+                throw new CodecException("invalid_presentation_animation", "Presentation chart build is unsupported.");
+            if (animation.HasStaggerMs && animation.StaggerMs > 0 && animation.TextBuild != "paragraph" && animation.ChartBuild is not ("series" or "category" or "series-element" or "category-element"))
+                throw new CodecException("invalid_presentation_animation", "Presentation stagger requires paragraph text or a segmented chart build.");
+            if (animation.HasAnimateChartBackground && string.IsNullOrEmpty(animation.ChartBuild))
+                throw new CodecException("invalid_presentation_animation", "Presentation chart-background animation requires a chart build.");
         }
         if (source.Morph is not null)
         {
@@ -311,7 +349,7 @@ internal static class PptxTimingCodec
                     : $"<p:stCondLst><p:cond delay=\"{first.DelayMs}\"/></p:stCondLst>";
                 sb.Append($"<p:par><p:cTn id=\"{groupId++}\" dur=\"indefinite\" nodeType=\"withGroup\">{groupStart}<p:childTnLst>");
                 foreach (var (animation, nativeId, animationId) in group)
-                    sb.Append($"<p:par><p:cTn id=\"{animationId}\" dur=\"{animation.DurationMs}\">{AnimationBehaviorXml(animation, nativeId, animationId)}</p:cTn></p:par>");
+                    sb.Append($"<p:par><p:cTn id=\"{animationId}\" dur=\"{animation.DurationMs}\">{IterateXml(animation)}{AnimationBehaviorXml(animation, nativeId, animationId)}</p:cTn></p:par>");
                 sb.Append("</p:childTnLst></p:cTn></p:par>");
             }
             else
@@ -320,7 +358,7 @@ internal static class PptxTimingCodec
                 var start = animation.Start == "onClick"
                     ? $"<p:stCondLst><p:cond evt=\"onClick\" delay=\"{animation.DelayMs}\"/></p:stCondLst>"
                     : $"<p:stCondLst><p:cond delay=\"{animation.DelayMs}\"/></p:stCondLst>";
-                sb.Append($"<p:par><p:cTn id=\"{animationId}\" dur=\"{animation.DurationMs}\">{start}{AnimationBehaviorXml(animation, nativeId, animationId)}</p:cTn></p:par>");
+                sb.Append($"<p:par><p:cTn id=\"{animationId}\" dur=\"{animation.DurationMs}\">{start}{IterateXml(animation)}{AnimationBehaviorXml(animation, nativeId, animationId)}</p:cTn></p:par>");
             }
         }
         sb.Append("</p:childTnLst></p:cTn></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst>");
@@ -332,14 +370,20 @@ internal static class PptxTimingCodec
                 builds.Append($"<p:bldP spid=\"{nativeId}\" grpId=\"0\" build=\"{(animation.TextBuild == "paragraph" ? "p" : "whole")}\" bldLvl=\"1\"/>");
             if (!string.IsNullOrEmpty(animation.ChartBuild))
             {
-                var build = animation.ChartBuild switch { "series" => "series", "category" => "category", "seriesElement" => "seriesEl", "categoryElement" => "categoryEl", _ => "allAtOnce" };
-                builds.Append($"<p:bldGraphic spid=\"{nativeId}\" grpId=\"0\"><p:bldSub><a:bldChart bld=\"{build}\" animBg=\"1\"/></p:bldSub></p:bldGraphic>");
+                var build = animation.ChartBuild switch { "series" => "series", "category" => "category", "series-element" => "seriesEl", "category-element" => "categoryEl", _ => "allAtOnce" };
+                var animateBackground = animation.HasAnimateChartBackground && animation.AnimateChartBackground ? "1" : "0";
+                builds.Append($"<p:bldGraphic spid=\"{nativeId}\" grpId=\"0\"><p:bldSub><a:bldChart bld=\"{build}\" animBg=\"{animateBackground}\"/></p:bldSub></p:bldGraphic>");
             }
         }
         if (builds.Length > 0) sb.Append($"<p:bldLst>{builds}</p:bldLst>");
         sb.Append("</p:timing>");
         return sb.ToString();
     }
+
+    private static string IterateXml(PresentationAnimation animation) =>
+        animation.HasStaggerMs && animation.StaggerMs > 0
+            ? $"<p:iterate type=\"el\"><p:tmAbs val=\"{animation.StaggerMs}\"/></p:iterate>"
+            : string.Empty;
 
     private static string AnimationBehaviorXml(PresentationAnimation animation, uint nativeId, uint animationId)
     {
@@ -398,6 +442,13 @@ internal static class PptxTimingCodec
     }
 
     private static uint? ParseDuration(string? value) => uint.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var number) ? number : null;
+
+    private static bool? ParseBoolean(string? value) => value switch
+    {
+        "1" or "true" => true,
+        "0" or "false" => false,
+        _ => null,
+    };
 
     private static string Escape(string value) => System.Security.SecurityElement.Escape(value) ?? string.Empty;
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();

@@ -3732,6 +3732,7 @@ message PresentationAnimation {
   string text_build = 10;
   string chart_build = 11;
   optional uint32 stagger_ms = 12;
+  optional bool animate_chart_background = 13;
 }
 
 // Deterministic cross-slide Morph pairing. `from_id` and `to_id` must resolve

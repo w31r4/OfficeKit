@@ -1421,6 +1421,7 @@ function wirePresentationAnimation(animation, ownerLabel) {
     return {
       id: value.id,
       targetId: value.targetId,
+      targetKind: value.targetKind,
       effect: value.effect,
       phase: value.phase,
       start: value.start,
@@ -1430,6 +1431,7 @@ function wirePresentationAnimation(animation, ownerLabel) {
       ...(value.textBuild ? { textBuild: value.textBuild } : {}),
       ...(value.chartBuild ? { chartBuild: value.chartBuild } : {}),
       ...(value.staggerMs === undefined ? {} : { staggerMs: value.staggerMs }),
+      ...(value.animateChartBackground === undefined ? {} : { animateChartBackground: value.animateChartBackground }),
     };
   } catch (error) {
     throw new OfficeKitCodecError(`Invalid ${ownerLabel} animation: ${error.message}`, [], { code: "invalid_presentation_animation" });
@@ -1441,6 +1443,7 @@ function modelPresentationAnimation(source, ownerLabel) {
     return normalizePresentationAnimation({
       id: source.id,
       targetId: source.targetId,
+      targetKind: source.targetKind,
       effect: source.effect,
       phase: source.phase,
       start: source.start,
@@ -1450,6 +1453,7 @@ function modelPresentationAnimation(source, ownerLabel) {
       ...(source.textBuild ? { textBuild: source.textBuild } : {}),
       ...(source.chartBuild ? { chartBuild: source.chartBuild } : {}),
       ...(source.staggerMs === undefined ? {} : { staggerMs: Number(source.staggerMs) }),
+      ...(source.animateChartBackground === undefined ? {} : { animateChartBackground: Boolean(source.animateChartBackground) }),
     });
   } catch (error) {
     throw new OfficeKitCodecError(`Invalid ${ownerLabel} animation: ${error.message}`, [], { code: "invalid_presentation_artifact" });

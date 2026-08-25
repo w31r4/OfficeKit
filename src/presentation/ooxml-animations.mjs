@@ -8,7 +8,13 @@ const PHASES = new Set(["entrance", "emphasis", "exit"]);
 const STARTS = new Set(["withPrevious", "afterPrevious", "onClick"]);
 const DIRECTIONS = new Set(["left", "right", "up", "down"]);
 const TEXT_BUILDS = new Set(["whole", "paragraph"]);
-const CHART_BUILDS = new Set(["allAtOnce", "series", "category", "seriesElement", "categoryElement"]);
+const CHART_BUILD_ALIASES = new Map([
+  ["all-at-once", "all-at-once"], ["allAtOnce", "all-at-once"],
+  ["series", "series"], ["category", "category"],
+  ["series-element", "series-element"], ["seriesElement", "series-element"],
+  ["category-element", "category-element"], ["categoryElement", "category-element"],
+]);
+const MAX_SEMANTIC_ANIMATIONS = 32;
 
 export const PRESENTATION_ANIMATIONS_CAPABILITY = Symbol.for("office-kit.slide-animations-capability");
 export const PRESENTATION_MORPH_CAPABILITY = Symbol.for("office-kit.slide-morph-capability");
@@ -32,24 +38,29 @@ function idHash(value) {
 export function normalizePresentationAnimation(config = {}, owner = "slide") {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new TypeError("Presentation animation must be an object.");
   const unsupported = Object.keys(config).filter((key) => !new Set([
-    "id", "target", "targetId", "effect", "phase", "start", "direction", "durationMs", "delayMs", "textBuild", "chartBuild", "staggerMs",
+    "id", "target", "targetId", "targetKind", "effect", "phase", "start", "direction", "durationMs", "delayMs", "textBuild", "chartBuild", "staggerMs", "animateChartBackground",
   ]).has(key));
   if (unsupported.length) throw new TypeError(`Presentation animation has unsupported fields: ${unsupported.join(", ")}.`);
   const target = config.targetId ?? (typeof config.target === "string" ? config.target : config.target?.id);
   if (!target) throw new TypeError(`Presentation ${owner} animation requires a target object or targetId.`);
+  const targetKind = String(config.targetKind || inferAnimationTargetKind(config.target) || "element");
   const effect = String(config.effect || "fade");
   if (!EFFECTS.has(effect)) throw new TypeError(`Presentation animation effect must be one of: ${[...EFFECTS].join(", ")}.`);
   const phase = String(config.phase || "entrance");
   if (!PHASES.has(phase)) throw new TypeError("Presentation animation phase must be entrance, emphasis, or exit.");
+  if (effect === "pulse" && phase !== "emphasis") throw new TypeError("Presentation pulse is an emphasis animation.");
+  if (effect !== "pulse" && phase === "emphasis") throw new TypeError("Presentation emphasis supports the pulse effect only.");
   const start = String(config.start || "afterPrevious");
   if (!STARTS.has(start)) throw new TypeError("Presentation animation start must be withPrevious, afterPrevious, or onClick.");
   const direction = config.direction === undefined ? undefined : String(config.direction);
   if (direction !== undefined && !DIRECTIONS.has(direction)) throw new TypeError("Presentation animation direction must be left, right, up, or down.");
   const textBuild = config.textBuild === undefined ? undefined : String(config.textBuild);
   if (textBuild !== undefined && !TEXT_BUILDS.has(textBuild)) throw new TypeError("Presentation animation textBuild must be whole or paragraph.");
-  const chartBuild = config.chartBuild === undefined ? undefined : String(config.chartBuild);
-  if (chartBuild !== undefined && !CHART_BUILDS.has(chartBuild)) throw new TypeError("Presentation animation chartBuild must be allAtOnce, series, category, seriesElement, or categoryElement.");
+  const chartBuild = config.chartBuild === undefined ? undefined : CHART_BUILD_ALIASES.get(String(config.chartBuild));
+  if (config.chartBuild !== undefined && chartBuild === undefined) throw new TypeError("Presentation animation chartBuild must be all-at-once, series, category, series-element, or category-element.");
   if (textBuild && chartBuild) throw new TypeError("Presentation animation cannot specify both textBuild and chartBuild.");
+  if (textBuild && !hasTextTarget(config.target, targetKind)) throw new TypeError("Presentation textBuild requires a text-bearing shape or text box.");
+  if (chartBuild && targetKind !== "chart") throw new TypeError("Presentation chartBuild requires a ChartElement target.");
   if ((effect === "wipe" || effect === "fly") && !direction) throw new TypeError(`Presentation ${effect} animation requires direction.`);
   if (effect !== "wipe" && effect !== "fly" && direction) throw new TypeError(`Presentation ${effect} animation does not accept direction.`);
   if (chartBuild && effect !== "wipe" && effect !== "fade") throw new TypeError("Chart build animations support fade or wipe effects only.");
@@ -57,9 +68,20 @@ export function normalizePresentationAnimation(config = {}, owner = "slide") {
   if (durationMs === 0) throw new RangeError("Presentation animation durationMs must be greater than zero.");
   const delayMs = boundedInteger(config.delayMs, "delayMs", MAX_DELAY_MS);
   const staggerMs = boundedInteger(config.staggerMs, "staggerMs", MAX_STAGGER_MS);
+  if (staggerMs && !(textBuild === "paragraph" || chartBuild && chartBuild !== "all-at-once")) {
+    throw new TypeError("Presentation staggerMs requires paragraph text or a segmented chart build.");
+  }
+  if (config.animateChartBackground !== undefined && typeof config.animateChartBackground !== "boolean") {
+    throw new TypeError("Presentation animateChartBackground must be a boolean.");
+  }
+  if (config.animateChartBackground !== undefined && !chartBuild) {
+    throw new TypeError("Presentation animateChartBackground requires chartBuild.");
+  }
+  const animateChartBackground = chartBuild ? config.animateChartBackground ?? false : undefined;
   return {
     id: String(config.id || `anim-${idHash(`${target}:${effect}:${phase}:${start}:${durationMs}:${delayMs}:${staggerMs}`)}`),
     targetId: String(target),
+    targetKind,
     effect,
     phase,
     start,
@@ -69,7 +91,23 @@ export function normalizePresentationAnimation(config = {}, owner = "slide") {
     ...(textBuild ? { textBuild } : {}),
     ...(chartBuild ? { chartBuild } : {}),
     ...(staggerMs ? { staggerMs } : {}),
+    ...(animateChartBackground === undefined ? {} : { animateChartBackground }),
   };
+}
+
+function inferAnimationTargetKind(target) {
+  if (!target || typeof target !== "object") return undefined;
+  if (target.kind === "groupShape") return "group";
+  if (target.kind) return String(target.kind);
+  if (target.chartType) return "chart";
+  if (target.rows && target.columns && Array.isArray(target.values)) return "table";
+  if (Object.hasOwn(target, "dataUrl") || Object.hasOwn(target, "fit")) return "image";
+  if (target.text) return target.geometry === "textbox" ? "textbox" : "shape";
+  return "element";
+}
+
+function hasTextTarget(target, targetKind) {
+  return Boolean(target?.text) || ["shape", "textbox", "text", "element"].includes(targetKind);
 }
 
 export function normalizePresentationMorph(config = {}) {
@@ -108,6 +146,7 @@ export class SlideAnimations {
     const resolved = typeof target === "string" ? this.slide.resolve(target) : target;
     if (!resolved || resolved.slide !== this.slide) throw new Error("Presentation animation target must belong to this slide.");
     const value = normalizePresentationAnimation({ ...options, target: resolved });
+    if (this._items.length >= MAX_SEMANTIC_ANIMATIONS) throw new RangeError(`Presentation slides support at most ${MAX_SEMANTIC_ANIMATIONS} semantic animations.`);
     if (this._items.some((item) => item.id === value.id)) throw new Error(`Presentation animation id ${value.id} already exists on this slide.`);
     if (this[PRESENTATION_ANIMATIONS_CAPABILITY]?.sourceBound && !this.capability.addable && this._items.length === 0) {
       throw new Error("Imported presentation timing is not safely extensible by this codec profile.");
