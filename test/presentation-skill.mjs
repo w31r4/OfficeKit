@@ -48,7 +48,7 @@ for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technic
 assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\.sha256 \}\)/u);
 assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the audience[\s\S]*Compress against the real page[\s\S]*Review the deck voice/u);
 assert.match(designReviewSource, /bounded signals[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*warning-free report as proof of good\s+design/u);
-assert.match(taskSources.create, /Shipped route A[\s\S]*Experimental compiler route C[\s\S]*Do not switch routes after a failure/u);
+assert.match(taskSources.create, /Shipped route C[\s\S]*default for[\s\S]*Grid scaffold explicitly[\s\S]*Do not switch routes after a failure/u);
 assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*22[\s\S]*minimumCaptionFontSize[\s\S]*20[\s\S]*four different silhouettes/u);
 assert.match(taskSources.create, /dominant reading anchor[\s\S]*quantitative\s+claim[\s\S]*clear contrast[\s\S]*fewer, stronger elements[\s\S]*plain text mainly[\s\S]*contact-sheet scale/u);
 assert.match(taskSources.create, /palette\.strict:\s*false[\s\S]*closed brand palette[\s\S]*theme defaults/u);

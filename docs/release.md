@@ -16,10 +16,11 @@ results were A `17/20`, B `19/20`, and C `20/20`; C met the machine hard,
 continuation, and cost thresholds, while A's policy failures remain visible in
 the recorded results. A separate fresh-context, read-only Codex blind review
 completed 20 three-way rankings (40 pairwise judgments): C scored `50%`
-against A and `60%` against B. The A threshold is `60%`, so the scorer records
-`keep-A`; Grid remains shipped and C remains experimental. The package remains
-`0.6.0`; no 0.7.0 release or default-route switch is claimed until the failed
-quality threshold is addressed and the remaining release gates are complete.
+against A and `60%` against B. The A threshold is `60%`, so the historical
+scorer records `keep-A`. That frozen result is retained unchanged; it is not
+the current route decision after the post-fix evidence below. The package
+remains `0.6.0` while the 0.7.0 release and remaining release gates are
+completed.
 
 After the frozen pilot, three post-baseline reruns of frozen task IDs and three
 unseen tasks passed packed task, plan, review, resume, and publication checks.
@@ -92,10 +93,18 @@ against A and `14/20` against B; median time and token ratios against A were
 C in packed clean-install environments (`9/9` passed), and a separate fresh
 blind review favored C in `2/3` comparisons against each arm. These results
 are useful generalization evidence, but they deliberately do not overwrite
-the predeclared frozen pilot after its first blind result was observed. Grid
-remains the shipped default and C remains experimental until an independently
-predeclared extended matrix confirms the improvement. Evidence is recorded in
+the predeclared frozen pilot after its first blind result was observed. The
+historical pilot is preserved rather than overwritten. The post-fix rerun and
+unseen holdout meet the declared machine, blind-quality, continuation, and cost
+thresholds, so the approved rollout switches C to the default for unspecified
+self-directed creation. Grid remains an explicit fallback when requested.
+Evidence and the rollout record are in
 `evals/presentation-authoring-compiler/postfix-c.v8.json`.
+
+This is a route decision, not a claim that every slow or host-specific gate is
+complete: template-conditioned work still follows its source, visual review
+remains capability-dependent, and the historical A/B/C packets remain
+append-only evidence.
 
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an

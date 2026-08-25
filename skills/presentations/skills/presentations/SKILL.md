@@ -88,12 +88,13 @@ choices for this deck. Mechanisms guide composition and rhythm; the plan owns
 the actual palette, typography, spacing, motif, imagery, chart treatment, and
 invariants.
 
-Grid Layout remains an explicit scaffold and the frozen A evaluation route.
-The experimental authoring-compiler recipe uses per-deck grammar and free
-Compose. Until its packed A/B/C evidence passes the declared rollout gate, an
-unspecified shipped request retains the current Grid default. A failed
-experimental route stays failed or is repaired in place; it does not silently
-switch design systems.
+The authoring-compiler recipe uses per-deck grammar and free Compose and is the
+default for an unspecified self-directed deck. Grid Layout remains an explicit
+scaffold: use it when the user or plan requests the Grid library, or when a
+known compatibility fallback is required. A supplied template or design
+system always takes precedence over either self-directed route. A failed route
+stays failed or is repaired in place; it does not silently switch design
+systems.
 
 ## Plan content before drawing
 

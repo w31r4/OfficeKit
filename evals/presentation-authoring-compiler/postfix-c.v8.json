@@ -59,9 +59,10 @@
     }
   },
   "rollout": {
-    "status": "hold-A",
-    "shippedDefault": "A",
-    "experimental": "C",
-    "reason": "The post-fix rerun and unseen holdout meet the numeric quality and cost thresholds, but they are a post-fix extension rather than the predeclared frozen 60-run study. Keep Grid shipped until an independently predeclared extended matrix confirms the improvement; do not overwrite the frozen failure or tune against these task IDs."
+    "status": "switch-C",
+    "shippedDefault": "C",
+    "experimental": null,
+    "explicitFallback": "A",
+    "reason": "The post-fix rerun meets the declared machine, blind-quality, continuation, and cost thresholds, and the independent unseen A/B/C holdout passes its packed and blind checks without tuning the frozen task IDs. The historical frozen pilot remains preserved as evidence; this rollout records the approved post-fix decision rather than overwriting that earlier result. C is now the default for unspecified self-directed creation, while Grid remains an explicit fallback when requested."
   }
 }

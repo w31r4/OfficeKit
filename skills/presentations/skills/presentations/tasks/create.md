@@ -14,11 +14,12 @@ Lock facts before rewriting. Read
 
 ## 2. Select the authoring route
 
-- Shipped route A: use the Grid scaffold while it remains the recorded default.
-- Experimental compiler route C: select `authoring-compiler-v1`, read
-  [design mechanisms](../references/design-mechanisms.md), and create a
-  deck-specific grammar before drawing.
-- Use Grid explicitly when the user or plan requests it.
+- Shipped route C: use `authoring-compiler-v1`, read [design mechanisms](../references/design-mechanisms.md),
+  and create a deck-specific grammar before drawing. This is the default for
+  an unspecified self-directed deck.
+- Use the Grid scaffold explicitly when the user or plan requests the Grid
+  library, or when a known compatibility fallback is required. Do not let a
+  Grid choice silently replace a supplied template or design system.
 
 Do not switch routes after a failure. Repair the selected route or report the
 blocking evidence.
