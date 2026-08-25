@@ -79,6 +79,7 @@ async function main() {
   const result = {
     schema: "office-kit/presentation-authoring-expansion-runs/v1",
     expansionManifestSha256: sha256(await readFile(expansionPath)),
+    expansionDefinitionSha256: sha256(JSON.stringify(expansionDefinition(expansion))),
     route: "C",
     sourcePolicy: "brief-only",
     package: {
@@ -133,6 +134,11 @@ function compactRun(run) {
       output: output ? { passed: output.passed, slides: output.slides, reviewVerdict: output.reviewVerdict, visualReview: output.visualReview, designWarnings: output.designWarnings } : null,
     },
   };
+}
+
+function expansionDefinition(expansion) {
+  const { execution: _execution, ...definition } = expansion;
+  return definition;
 }
 
 function parseArgs(argv) {

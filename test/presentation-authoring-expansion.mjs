@@ -39,6 +39,9 @@ if (expansion.execution.status === "registered") {
   assert.equal(fullMatrix.acceptance.completedRuns, expansion.taskCount);
   assert.equal(fullMatrix.acceptance.passedRuns, expansion.taskCount);
   assert.equal(fullMatrix.acceptance.status, "passed");
+  const { execution: _execution, ...expansionDefinition } = expansion;
+  const expectedDefinitionHash = (await import("node:crypto")).createHash("sha256").update(JSON.stringify(expansionDefinition)).digest("hex");
+  assert.equal(fullMatrix.expansionDefinitionSha256, expectedDefinitionHash);
   assert.doesNotMatch(JSON.stringify(fullMatrix), /(?:\/Users\/|[A-Z]:\\|\/tmp\/)/u);
 }
 const continuation = expansion.selectedContinuation;
