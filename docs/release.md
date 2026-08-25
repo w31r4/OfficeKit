@@ -1,5 +1,55 @@
 # Release
 
+## Unreleased: OfficeKit 0.9.0 Presentation strategy compiler
+
+OfficeKit 0.9.0 makes communication strategy a durable part of Presentation
+authoring. The public doctrine defines a deck as a communication activity,
+editable document, playback experience, and native artifact. Authoring plans
+now record the primary audience job, expected outcome, medium fit, after-use,
+one primary scenario, an optional secondary scenario, and the selected visual
+direction. Existing plan v1 revisions remain readable and receive a bounded
+compatibility warning instead of a migration rewrite.
+
+The Presentations Skill now routes creation through the doctrine, a shared
+visual floor, one of seven clean-room scenario guides, one of four design
+sources, a chosen direction, and a deck-specific grammar before Compose and
+Motion. The guides distinguish analysis/decision, business proposal,
+management report, academic research, education/training, technical
+engineering, and brand/creative work. User templates and brand systems remain
+higher authorities. Grid is explicit rather than an automatic fallback, and
+no Kimi application text, path, template payload, or private implementation is
+included in the package.
+
+The existing review API now reports communication, narrative, cognitive,
+visual, structural, motion, and delivery evidence against the same plan
+revision. It blocks only deterministic contract failures. Repeated dominant
+geometry, hollow containers, card surfaces, weak type/container hierarchy, and
+similar visual risks remain warnings rather than automated taste claims.
+
+One real authoring run produced three distinct grammars through the public API:
+a 14-slide black/gold financial analysis deck, a four-slide editorial
+management review, and a two-slide acid-signal brand launch with a paired
+Morph. All three passed authored verification and second import with zero
+errors or warnings. Their SHA-256 values are
+`d14ac6f126228ee6c33365d8a3640cabd8144b02f3335fc43d925ce4f5449e9a`,
+`eecbc4b23deabd8fe71292cc965f8c504f63c593c75db0b4a24f1bb87e37c9d2`,
+and `8eed1ed76d9859bfab64b1ff31e49927fcc06ebb2c32911bd355a05acd3c7f30`.
+Browser-rendered slide review found and fixed one general product defect: SVG
+review baselines now use the effective imported run size instead of collapsing
+large multiline headings to a 24 px frame default. The financial deck retains
+bounded rhythm and motion warnings; the management and brand design/motion
+reports pass. Playback evidence is structural, and Windows PowerPoint playback
+remains unverified.
+
+The packed `office-kit@0.9.0` payload has 774 files, is 36,592,843 bytes
+compressed and 54,493,577 bytes unpacked. Newly built self-contained archives
+pin the same package and Node 24.18.0: darwin-arm64 is 88,605,002 bytes with
+SHA-256 `1ffa07ae61ec46632e2e7e472d7a7f234a07d206c38dcbadb28a49e6dc7fdb48`;
+linux-x64 is 93,730,351 bytes with SHA-256
+`b071ea660175c689bf736c2e6f7703d5684edd8c6ba616dc816ff33208b8c787`;
+and win32-x64 is 85,507,988 bytes with SHA-256
+`f3030959d58cb4ff0d3b6da23e65ffb5d877fb812c595ca439a22a3a807b52c4`.
+
 ## Unreleased: OfficeKit 0.8.0 Presentation motion compiler
 
 OfficeKit 0.8.0 completes the typed Presentation motion surface without adding
