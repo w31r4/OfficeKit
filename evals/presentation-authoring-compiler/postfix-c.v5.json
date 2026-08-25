@@ -1,0 +1,89 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-visual-relationship-evidence/v1",
+  "sourceCommit": "71c9f5e9cfe9755746c682131e01918a74dd5453",
+  "purpose": "Cross-scenario holdout and directional blind check for the generic C-route guidance to use fewer, stronger elements and express comparisons, causality, timelines, and quantities as visual relationships.",
+  "reviewer": {
+    "tool": "codex exec",
+    "model": "gpt-5.6-sol",
+    "freshContextPerComparison": true,
+    "sourceCodeAccess": false,
+    "metadataAccess": false,
+    "renderReview": "contact-sheet PNGs only"
+  },
+  "runs": [
+    {
+      "runId": "technical-architecture-02/C/2",
+      "taskId": "technical-architecture-02",
+      "scenario": "technical-architecture",
+      "trial": 2,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 773920,
+      "totalTokens": 5335973,
+      "retryCount": 0,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern"],
+      "policy": "passed"
+    },
+    {
+      "runId": "analytical-reporting-02/C/1",
+      "taskId": "analytical-reporting-02",
+      "scenario": "analytical-reporting",
+      "trial": 1,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 415610,
+      "totalTokens": 2687605,
+      "retryCount": 0,
+      "slides": 6,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern"],
+      "policy": "passed"
+    }
+  ],
+  "directionalBlind": [
+    {
+      "comparisonKey": "a7956b44be1b1890",
+      "taskId": "technical-architecture-02",
+      "trial": 2,
+      "attachmentOrder": "A-old-first,C-new-second",
+      "oldAContactSheetSha256": "312cd5c3e711811540dd15d285d92cf702620f65c99e588dea381a10a440fc73",
+      "newCContactSheetSha256": "f32bdf7087c6106257428372f49a0153cf8a0546b1d3a566950a71130aaaa7ad",
+      "winner": "C",
+      "confidence": "high",
+      "notes": "C had markedly stronger presentation-scale typography, clearer hierarchy, more varied compositions, and more legible visual relationships across scoring, routing, tradeoff, and gated-process slides."
+    },
+    {
+      "comparisonKey": "85655f39a6b81a41",
+      "taskId": "analytical-reporting-02",
+      "trial": 1,
+      "attachmentOrder": "C-new-first,A-old-second",
+      "oldAContactSheetSha256": "6d9b515f0b2fdca4ecad3898df7fc20752299c1b4a66c44e4edf4db3cc15be2b",
+      "newCContactSheetSha256": "5f3970153c9bb9fa3ed1f1ac7c0be84f71d74cf4b9c0e884cdcc4a5a02a4a94f",
+      "winner": "C",
+      "confidence": "high",
+      "notes": "C had stronger presentation-scale typography, visual hierarchy, contrast, composition variety, and clearer signal-to-decision relationships; A was sparse with smaller details and repeated white-page compositions."
+    }
+  ],
+  "summary": {
+    "machineRuns": 2,
+    "machinePasses": 2,
+    "retryCount": 0,
+    "blindComparisons": 2,
+    "cWins": 2,
+    "aWins": 0,
+    "cOverA": 1,
+    "interpretation": "The abstract visual-relationship guidance improved the two-scene directional comparison without reducing machine completion. The sample is intentionally small and does not replace the frozen blind study or establish the default-switch threshold; C remains experimental."
+  },
+  "guardrails": {
+    "taskSpecificSelectorsAdded": false,
+    "frozenBlindEvidenceUnchanged": true,
+    "defaultRouteChanged": false,
+    "visualReviewClaimed": false
+  }
+}

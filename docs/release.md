@@ -53,6 +53,14 @@ the frozen blind study and cannot establish the default-switch threshold; the
 frozen score and Grid default remain unchanged. Evidence is recorded in
 `evals/presentation-authoring-compiler/postfix-c.v4.json`.
 
+The next C holdout kept the rule abstract: prefer fewer, stronger elements and
+express comparisons, causality, timelines, and quantities as visual
+relationships. Two new packed contexts passed with zero retries, and two fresh
+blind contact-sheet comparisons favored C. This did not eliminate the
+non-blocking `cardWallPattern` warning, so it is directional quality evidence,
+not a claim that the full blind threshold has been met. Details are recorded in
+`evals/presentation-authoring-compiler/postfix-c.v5.json`.
+
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
 optional Playwright renderer, while the task, output, and review checks passed.
