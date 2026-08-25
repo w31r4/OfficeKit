@@ -24,11 +24,23 @@ for (const task of expansion.tasks) {
   assert.match(task.id, /^[a-z0-9]+(?:-[a-z0-9]+)+$/u);
   for (const field of ["goal", "contentShape", "revisionIntent"]) assert.ok(task[field]?.trim(), `${task.id}: ${field}`);
 }
-assert.equal(expansion.execution.status, "registered");
 assert.equal(expansion.execution.runner, "scripts/presentation-authoring-expansion.mjs");
 assert.match(await readFile(path.join(repoRoot, expansion.execution.runner), "utf8"), /runPilotTrial/u);
-assert.equal(expansion.execution.fullMatrixRuns, 0);
 assert.equal(expansion.execution.fullMatrixRequired, true);
+if (expansion.execution.status === "registered") {
+  assert.equal(expansion.execution.fullMatrixRuns, 0);
+} else {
+  assert.equal(expansion.execution.status, "completed");
+  assert.equal(expansion.execution.fullMatrixRuns, expansion.taskCount);
+  assert.equal(expansion.execution.fullMatrixPassed, expansion.taskCount);
+  assert.equal(expansion.execution.evidence, "evals/presentation-authoring-compiler/expansion-runs.v1.json");
+  const fullMatrix = JSON.parse(await readFile(path.join(repoRoot, expansion.execution.evidence), "utf8"));
+  assert.equal(fullMatrix.acceptance.expectedRuns, expansion.taskCount);
+  assert.equal(fullMatrix.acceptance.completedRuns, expansion.taskCount);
+  assert.equal(fullMatrix.acceptance.passedRuns, expansion.taskCount);
+  assert.equal(fullMatrix.acceptance.status, "passed");
+  assert.doesNotMatch(JSON.stringify(fullMatrix), /(?:\/Users\/|[A-Z]:\\|\/tmp\/)/u);
+}
 const continuation = expansion.selectedContinuation;
 assert.equal(continuation.completed, 23);
 assert.equal(continuation.passed, 23);
