@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-postfix-c.v8",
+  "generatedAt": "2026-08-25",
+  "purpose": "Post-fix C-route quality rerun plus an independent three-task A/B/C holdout. The evidence tests generalization without replacing the frozen pilot after observing its first blind score.",
+  "basis": {
+    "candidate": "postfix-c.v7 body-floor",
+    "manifest": "pilot.v1.json",
+    "package": {
+      "name": "office-kit",
+      "version": "0.6.0",
+      "tarballSha256": "6f44a649d94229cfa55f198515a53408be5e1e60bc797e232e33074c2c674ad4",
+      "packedBytes": 36525496,
+      "unpackedBytes": 54286071,
+      "totalFiles": 761
+    }
+  },
+  "primaryMatrix": {
+    "uniqueRuns": 20,
+    "passed": 20,
+    "retries": 0,
+    "allPackedCleanInstall": true,
+    "allPolicyChecksPassed": true,
+    "designWarnings": {
+      "cardWallPattern": 16,
+      "densityRhythmJump": 6
+    },
+    "blind": {
+      "comparisons": 20,
+      "pairwiseJudgments": 40,
+      "cOverA": { "wins": 12, "losses": 8, "rate": 0.6 },
+      "cOverB": { "wins": 14, "losses": 6, "rate": 0.7 },
+      "rankingSha256": "278f22ab9c60835ee051c8aca5bcb8b169c1b3e8ab15d7881edf2e2e7c63a7ee",
+      "renderManifestSha256": "7f3a8157b789639760fcc188498031ef4e971c3655200e2c473bfca7a8280533"
+    }
+  },
+  "costAgainstFrozenA": {
+    "medianTimeMs": { "a": 440961.5, "c": 550951.5, "ratio": 1.2494322067 },
+    "medianTotalTokens": { "a": 2475239, "c": 3194005, "ratio": 1.2903824641 },
+    "threshold": 1.5
+  },
+  "unseenHoldout": {
+    "tasks": [
+      "unseen-product-retrospective",
+      "unseen-community-health-update",
+      "unseen-museum-launch-brief"
+    ],
+    "runs": {
+      "A": { "completed": 3, "passed": 3, "runsSha256": "d86fe28fdb52ac52da7c2852960cce75ffe8b05897c5e7899b5397f10b95639c" },
+      "B": { "completed": 3, "passed": 3, "runsSha256": "800d344ddd49ff1636a5190a1071bb2cfb6b5d5ab4a7687cdddd7b36ee172c47" },
+      "C": { "completed": 3, "passed": 3, "runsSha256": "81739f1d11fb45345d3387257fde751bdef6b8e82b1b3dc7b7d4cd0616aaeae8" }
+    },
+    "blind": {
+      "comparisons": 3,
+      "pairwiseJudgments": 6,
+      "cOverA": { "wins": 2, "losses": 1, "rate": 0.6666666667 },
+      "cOverB": { "wins": 2, "losses": 1, "rate": 0.6666666667 },
+      "rankingSha256": "2aefd25915749ca849ce9f7f64a2e37c68e81335bc47f78e09417606ca9e15fa",
+      "renderManifestSha256": "23ff2e5ec2aae321a4a9414fc187eedd71e828efdd2d21d49a8d6aa69cc32f52"
+    }
+  },
+  "rollout": {
+    "status": "hold-A",
+    "shippedDefault": "A",
+    "experimental": "C",
+    "reason": "The post-fix rerun and unseen holdout meet the numeric quality and cost thresholds, but they are a post-fix extension rather than the predeclared frozen 60-run study. Keep Grid shipped until an independently predeclared extended matrix confirms the improvement; do not overwrite the frozen failure or tune against these task IDs."
+  }
+}

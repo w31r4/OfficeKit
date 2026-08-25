@@ -85,6 +85,18 @@ frozen A/C blind-quality threshold remains unmet, so Grid stays shipped and C
 stays experimental. The complete summary is in
 `evals/presentation-authoring-compiler/postfix-c.v7.json`.
 
+The post-fix quality rerun then compared the updated C renders against the
+frozen A/B renders in 20 fresh three-way judgments. C won `12/20` comparisons
+against A and `14/20` against B; median time and token ratios against A were
+`1.25x` and `1.29x`. Three additional unseen tasks were run through A, B, and
+C in packed clean-install environments (`9/9` passed), and a separate fresh
+blind review favored C in `2/3` comparisons against each arm. These results
+are useful generalization evidence, but they deliberately do not overwrite
+the predeclared frozen pilot after its first blind result was observed. Grid
+remains the shipped default and C remains experimental until an independently
+predeclared extended matrix confirms the improvement. Evidence is recorded in
+`evals/presentation-authoring-compiler/postfix-c.v8.json`.
+
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
 optional Playwright renderer, while the task, output, and review checks passed.
