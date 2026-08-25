@@ -1,6 +1,6 @@
 # Release
 
-## Unreleased: Presentation motion compiler (target 0.8.0)
+## Unreleased: OfficeKit 0.8.0 Presentation motion compiler
 
 OfficeKit 0.8.0 completes the typed Presentation motion surface without adding
 a second authoring language. `slide.animations` supports bounded fade, wipe,
@@ -35,6 +35,18 @@ object-level timing in its Build In inspector, so that portion remains
 structural evidence rather than a playback claim. Windows PowerPoint playback
 is unverified and is not presented as completed host acceptance.
 
+The release metadata is pinned to newly built 0.8.0 archives rather than
+renamed 0.6.0 assets: darwin-arm64 is 88,594,661 bytes with SHA-256
+`398a472e01942170af5bd1116226cc9386b35c25bf2f1f3ca4295db21f2311f6`;
+linux-x64 is 93,707,460 bytes with SHA-256
+`9dc04142a3f0e204f346a070eb8d331671fc6723fdda60e32514063acc84c7af`;
+and win32-x64 is 85,482,450 bytes with SHA-256
+`ebdfa8d7b3886af2d5f78867739093f7070bfdbe57c100f6dec10e303502a465`.
+Each archive embeds the same packed `office-kit@0.8.0` payload and pinned Node
+24.18.0 runtime. The npm payload contains 765 files, measures 36,570,772 bytes
+compressed and 54,434,283 bytes unpacked, and remains below the existing
+37,500,000 / 54,500,000 byte release ceilings.
+
 ## Unreleased: Presentation authoring compiler pilot evidence (target 0.7.0)
 
 The Presentation authoring compiler change adds a bounded `ctx.plan()` revision
@@ -53,9 +65,9 @@ the recorded results. A separate fresh-context, read-only Codex blind review
 completed 20 three-way rankings (40 pairwise judgments): C scored `50%`
 against A and `60%` against B. The A threshold is `60%`, so the historical
 scorer records `keep-A`. That frozen result is retained unchanged; it is not
-the current route decision after the post-fix evidence below. The package
-remains `0.6.0` while the 0.7.0 release and remaining release gates are
-completed.
+the current route decision after the post-fix evidence below. That pilot used
+`office-kit@0.6.0`; the package line has since advanced through the approved C
+rollout to the 0.8.0 motion release above.
 
 After the frozen pilot, three post-baseline reruns of frozen task IDs and three
 unseen tasks passed packed task, plan, review, resume, and publication checks.

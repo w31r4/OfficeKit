@@ -175,7 +175,7 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries, generated evidence, or provider binaries in the
-// tarball. The current 0.8.0 runtime payload measures 54,194,400 bytes after
+// tarball. The current 0.8.0 runtime payload measures 54,434,283 bytes after
 // the bounded mixed-edit fix; keep only a 5,600-byte growth budget.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
