@@ -25,6 +25,8 @@ for (const task of expansion.tasks) {
   for (const field of ["goal", "contentShape", "revisionIntent"]) assert.ok(task[field]?.trim(), `${task.id}: ${field}`);
 }
 assert.equal(expansion.execution.status, "registered");
+assert.equal(expansion.execution.runner, "scripts/presentation-authoring-expansion.mjs");
+assert.match(await readFile(path.join(repoRoot, expansion.execution.runner), "utf8"), /runPilotTrial/u);
 assert.equal(expansion.execution.fullMatrixRuns, 0);
 assert.equal(expansion.execution.fullMatrixRequired, true);
 const continuation = expansion.selectedContinuation;

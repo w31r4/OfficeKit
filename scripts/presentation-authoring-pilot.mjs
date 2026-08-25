@@ -102,7 +102,7 @@ async function main() {
   if (result.acceptance.status !== "passed") process.exitCode = 1;
 }
 
-async function runPilotTrial({ manifest, packageInfo, runRoot, task, arm, trial, armOrder, timeoutMs, codexBin }) {
+export async function runPilotTrial({ manifest, packageInfo, runRoot, task, arm, trial, armOrder, timeoutMs, codexBin }) {
   const runId = `${task.id}/${arm}/${trial}`;
   const trialRoot = path.join(runRoot, "runs", task.id, arm, String(trial));
   const workspace = path.join(trialRoot, "workspace");
@@ -317,7 +317,7 @@ function extractTokenUsage(trace) {
   return { observed, inputTokens: observed ? input : null, outputTokens: observed ? output : null, totalTokens: observed ? input + output : null };
 }
 
-async function packCandidate(runRoot) {
+export async function packCandidate(runRoot) {
   const packageRoot = path.join(runRoot, "package");
   await mkdir(packageRoot, { recursive: true });
   const packed = runRequired(process.platform === "win32" ? "npm.cmd" : "npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", packageRoot], repoRoot, "npm pack pilot candidate");

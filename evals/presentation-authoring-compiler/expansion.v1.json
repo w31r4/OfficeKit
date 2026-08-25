@@ -45,6 +45,7 @@
   ],
   "execution": {
     "status": "registered",
+    "runner": "scripts/presentation-authoring-expansion.mjs",
     "fullMatrixRuns": 0,
     "fullMatrixRequired": true,
     "note": "The full thirty-task live matrix is a slow-lane follow-up. This committed contract deliberately does not convert planned tasks into fabricated pass records."
