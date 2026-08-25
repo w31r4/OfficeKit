@@ -344,7 +344,14 @@ export function presentationParagraphsSvg(paragraphs, frame, defaultStyle = {}, 
   const counters = new Map();
   return paragraphs.map((paragraph) => {
     const paragraphStyle = { ...defaultStyle, ...(paragraph.style || {}) };
-    const fontSize = paragraphStyle.fontSize || 24;
+    // Imported DrawingML commonly carries the effective font size on each
+    // run while the text frame retains a smaller default. Base the SVG
+    // baseline and line advance on the largest rendered run so large
+    // multiline headings do not collapse into the default 24 px rhythm.
+    const fontSize = Math.max(
+      Number(paragraphStyle.fontSize) || 24,
+      ...paragraph.runs.map((run) => Number(run.style?.fontSize) || 0),
+    );
     const spacing = paragraph.lineSpacing || paragraphStyle.lineSpacing || 1.2;
     const lineHeight = spacing > 10 ? spacing : fontSize * spacing;
     y += paragraph.spaceBefore ?? fontSize * (paragraph.spaceBeforePercent || 0);

@@ -3911,6 +3911,22 @@ const singleAxisChartRoundTrip = await PresentationFile.importPptx(await Present
 assert.equal(singleAxisChartRoundTrip.slides.getItem(0).charts.items[0].axes.category.title, "");
 assert.equal(singleAxisChartRoundTrip.slides.getItem(0).charts.items[0].axes.value.title, "Configured value axis");
 
+// A real strategy-deck review exposed imported large headings whose SVG
+// baselines still used the 24 px frame default. One round-trip assertion keeps
+// the render evidence aligned with the actual run size without an effect grid.
+const largeHeadingDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+largeHeadingDeck.slides.add().shapes.add({
+  geometry: "textbox",
+  text: "FIRST LINE\nSECOND LINE",
+  position: { left: 40, top: 40, width: 520, height: 180 },
+  textStyle: { fontFamily: "Arial", fontSize: 52, bold: true },
+});
+const largeHeadingRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(largeHeadingDeck));
+const largeHeadingSvg = largeHeadingRoundTrip.slides.getItem(0).toSvg();
+const largeHeadingBaselines = [...largeHeadingSvg.matchAll(/<text\b[^>]*\by="([^"]+)"[^>]*font-size="52"/g)].map((match) => Number(match[1]));
+assert.equal(largeHeadingBaselines.length, 2);
+assert.ok(largeHeadingBaselines[1] - largeHeadingBaselines[0] >= 52 * 1.15);
+
 const mixedAxisCombo = Presentation.create({ slideSize: { width: 640, height: 360 } });
 mixedAxisCombo.slides.add({ name: "Rejected mixed combo" }).charts.add("combo", {
   name: "mixed-axis-combo",
