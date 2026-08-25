@@ -206,7 +206,23 @@ internal static class PptxCodec
             var elements = ShapeElements(shapeTree);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
-            var slideTiming = PptxTimingCodec.Read(slideRoot, elementIdsByNativeId);
+            P.Slide? previousSlideRoot = null;
+            IReadOnlyDictionary<uint, string>? previousElementIdsByNativeId = null;
+            string? previousSlideArtifactId = null;
+            if (slideIndex > 0)
+            {
+                previousSlideRoot = slideParts[slideIndex - 1].Slide;
+                var previousShapeTree = previousSlideRoot?.CommonSlideData?.ShapeTree;
+                previousSlideArtifactId = $"presentation/slide/{slideIndex}";
+                if (previousShapeTree is not null)
+                    previousElementIdsByNativeId = NativeElementIds(ShapeElements(previousShapeTree), previousSlideArtifactId);
+            }
+            var slideTiming = PptxTimingCodec.Read(
+                slideRoot,
+                elementIdsByNativeId,
+                previousSlideRoot,
+                previousElementIdsByNativeId,
+                previousSlideArtifactId);
             var sourceEntry = new PptxSourceSlideEntry(slideIndex, slideId, relationshipId, slidePart);
             var deletionPlan = PptxSlideDeletionCodec.Analyze(presentationPart, sourceEntry, opaque);
             var clonePlan = PptxSlideCloneCodec.Analyze(presentationPart, sourceEntry, slideParts.ToHashSet());
@@ -732,12 +748,29 @@ internal static class PptxCodec
                 var (retainedElements, authoredElements) = SplitSourceBoundElements(target, sourceElements.Length, slideIndex, slidePart);
                 var elementIdsByNativeId = NativeElementIds(sourceElements, target.Id);
                 var nativeIdsByElementId = elementIdsByNativeId.ToDictionary(item => item.Value, item => item.Key, StringComparer.Ordinal);
-                var originalTiming = PptxTimingCodec.Read(slideRoot, elementIdsByNativeId);
+                P.Slide? previousSourceRoot = null;
+                IReadOnlyDictionary<uint, string>? previousSourceElementIds = null;
+                string? previousSourceSlideId = null;
+                if (targetSlide.Source.Index > 0)
+                {
+                    previousSourceRoot = slideParts[targetSlide.Source.Index - 1].Slide;
+                    var previousSourceShapeTree = previousSourceRoot?.CommonSlideData?.ShapeTree;
+                    previousSourceSlideId = $"presentation/slide/{targetSlide.Source.Index}";
+                    if (previousSourceShapeTree is not null)
+                        previousSourceElementIds = NativeElementIds(ShapeElements(previousSourceShapeTree), previousSourceSlideId);
+                }
+                var originalTiming = PptxTimingCodec.Read(
+                    slideRoot,
+                    elementIdsByNativeId,
+                    previousSourceRoot,
+                    previousSourceElementIds,
+                    previousSourceSlideId);
                 if (!binding.TimingSemanticSha256.Equals(originalTiming.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                     throw new CodecException(
                         "presentation_slide_source_timing_mismatch",
                         $"Presentation slide {slideIndex + 1} timing does not match its source binding.",
                         PartPath(slidePart));
+                PptxTimingCodec.ValidateMorphContext(target, slideIndex > 0 ? targetSlides[slideIndex - 1].Target : null);
                 var requestedTimingHash = PptxTimingCodec.SemanticHash(target.Animations, target.Morph);
                 var requestedOpaqueNoop = originalTiming.Present && !originalTiming.Editable && target.Animations.Count == 0 && target.Morph is null;
                 if (!requestedOpaqueNoop && !requestedTimingHash.Equals(originalTiming.SemanticSha256, StringComparison.OrdinalIgnoreCase))
@@ -1753,6 +1786,7 @@ internal static class PptxCodec
                 .ToDictionary(item => item.Id, item => item.NativeId, StringComparer.Ordinal);
             foreach (var element in source.Elements)
                 shapeTree.Append(BuildElement(element, nativeIdsByElementId, slideContext, slidePart));
+            PptxTimingCodec.ValidateMorphContext(source, slideIndex > 0 ? artifact.Slides[slideIndex - 1] : null);
             PptxTimingCodec.Build(slidePart.Slide!, source, nativeIdsByElementId);
             slidePart.Slide.Save();
         }
@@ -2718,6 +2752,7 @@ internal static class PptxCodec
             throw new CodecException("missing_presentation_part", "PPTX source package has no Presentation part.", "ppt/presentation.xml");
         var outputPresentationPart = outputPackage.PresentationPart ??
             throw new CodecException("missing_presentation_part", "PPTX output package has no Presentation part.", "ppt/presentation.xml");
+        var orderedSourceSlides = OrderedSlideParts(sourcePackage);
         var sourceTargets = BindSourcePreservingSlides(
             sourcePresentationPart,
             sourcePresentationPart.Presentation?.SlideIdList?.Elements<P.SlideId>().ToArray() ?? [],
@@ -2782,7 +2817,8 @@ internal static class PptxCodec
         for (var slideIndex = 0; slideIndex < requested.Slides.Count; slideIndex++)
         {
             if (sourceTargets[slideIndex].IsClone) continue;
-            var sourceSlide = sourceTargets[slideIndex].Source.Part;
+            var target = sourceTargets[slideIndex];
+            var sourceSlide = target.Source.Part;
             var outputSlide = outputSlides[slideIndex];
             var outputRoot = outputSlide.Slide ??
                 throw new CodecException("missing_slide_root", $"PPTX output slide {slideIndex + 1} has no slide root.", PartPath(outputSlide));
@@ -2818,8 +2854,42 @@ internal static class PptxCodec
             var sourceTimingElements = ShapeElements(sourceRoot.CommonSlideData?.ShapeTree ??
                 throw new CodecException("missing_shape_tree", $"PPTX source slide {slideIndex + 1} has no shape tree.", PartPath(sourceSlide)));
             var sourceTimingIds = NativeElementIds(sourceTimingElements, requested.Slides[slideIndex].Id);
-            var sourceTiming = PptxTimingCodec.Read(sourceRoot, sourceTimingIds);
-            var outputTiming = PptxTimingCodec.Read(outputRoot, sourceTimingIds);
+            P.Slide? previousSourceRoot = null;
+            IReadOnlyDictionary<uint, string>? previousSourceTimingIds = null;
+            string? previousSourceSlideId = null;
+            if (target.Source.Index > 0)
+            {
+                previousSourceRoot = orderedSourceSlides[target.Source.Index - 1].Slide;
+                var previousSourceTarget = sourceTargets.FirstOrDefault(candidate =>
+                    !candidate.IsClone && candidate.Source.Index == target.Source.Index - 1);
+                previousSourceSlideId = previousSourceTarget?.Target.Id;
+                var previousSourceTree = previousSourceRoot?.CommonSlideData?.ShapeTree;
+                if (previousSourceTree is not null && !string.IsNullOrWhiteSpace(previousSourceSlideId))
+                    previousSourceTimingIds = NativeElementIds(ShapeElements(previousSourceTree), previousSourceSlideId);
+            }
+            var sourceTiming = PptxTimingCodec.Read(
+                sourceRoot,
+                sourceTimingIds,
+                previousSourceRoot,
+                previousSourceTimingIds,
+                previousSourceSlideId);
+            P.Slide? previousOutputRoot = null;
+            IReadOnlyDictionary<uint, string>? previousOutputTimingIds = null;
+            string? previousOutputSlideId = null;
+            if (slideIndex > 0)
+            {
+                previousOutputRoot = outputSlides[slideIndex - 1].Slide;
+                previousOutputSlideId = requested.Slides[slideIndex - 1].Id;
+                var previousOutputTree = previousOutputRoot?.CommonSlideData?.ShapeTree;
+                if (previousOutputTree is not null)
+                    previousOutputTimingIds = NativeElementIds(ShapeElements(previousOutputTree), previousOutputSlideId);
+            }
+            var outputTiming = PptxTimingCodec.Read(
+                outputRoot,
+                sourceTimingIds,
+                previousOutputRoot,
+                previousOutputTimingIds,
+                previousOutputSlideId);
             var requestedTimingHash = PptxTimingCodec.SemanticHash(requested.Slides[slideIndex].Animations, requested.Slides[slideIndex].Morph);
             var requestedOpaqueNoop = sourceTiming.Present && !sourceTiming.Editable && requested.Slides[slideIndex].Animations.Count == 0 && requested.Slides[slideIndex].Morph is null;
             if (!requestedOpaqueNoop && !outputTiming.SemanticSha256.Equals(requestedTimingHash, StringComparison.OrdinalIgnoreCase))

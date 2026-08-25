@@ -28,13 +28,23 @@ internal static class PptxTimingCodec
         bool Addable,
         string SemanticSha256);
 
-    internal static TimingRead Read(P.Slide source, IReadOnlyDictionary<uint, string> elementIdsByNativeId)
+    internal static TimingRead Read(P.Slide source, IReadOnlyDictionary<uint, string> elementIdsByNativeId) =>
+        Read(source, elementIdsByNativeId, null, null, null);
+
+    internal static TimingRead Read(
+        P.Slide source,
+        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
+        P.Slide? previousSource,
+        IReadOnlyDictionary<uint, string>? previousElementIdsByNativeId,
+        string? previousSlideId)
     {
         var timing = source.Timing;
-        var morph = ReadMorph(source, elementIdsByNativeId);
+        var morphPresent = HasMorph(source);
+        var morph = ReadMorph(source, elementIdsByNativeId, previousSource, previousElementIdsByNativeId, previousSlideId);
+        if (morphPresent && morph is null) return Opaque(source);
         var addable = timing is null && morph is null && source.ChildElements.All(child => child is P.CommonSlideData or P.ColorMapOverride or P.Transition);
         if (timing is null)
-            return new([], morph, morph is not null, false, addable, SemanticHash([], morph));
+            return new([], morph, morph is not null, morph is not null, addable, SemanticHash([], morph));
 
         try
         {
@@ -156,11 +166,20 @@ internal static class PptxTimingCodec
         }
         catch
         {
-            return Opaque(new XElement("timing"));
+            return Opaque(source);
         }
     }
 
     private static TimingRead Opaque(XElement root) => new([], null, true, false, false, Hash(Encoding.UTF8.GetBytes(root.ToString(SaveOptions.DisableFormatting))));
+
+    private static TimingRead Opaque(P.Slide source)
+    {
+        var root = XElement.Parse(source.OuterXml, LoadOptions.PreserveWhitespace);
+        var motionXml = string.Concat(root.Elements().Where(element =>
+            element.Name.LocalName == "timing" || element.DescendantsAndSelf().Any(child => child.Name.LocalName == "morph"))
+            .Select(element => element.ToString(SaveOptions.DisableFormatting)));
+        return new([], null, true, false, false, Hash(Encoding.UTF8.GetBytes(motionXml)));
+    }
 
     private static (string Start, uint Delay) ParseStart(XElement behavior)
     {
@@ -223,7 +242,7 @@ internal static class PptxTimingCodec
             animation.Start, animation.Direction, animation.DurationMs, animation.DelayMs,
             animation.ChartBuild, animation.TextBuild, animation.StaggerMs,
             animation.HasAnimateChartBackground ? animation.AnimateChartBackground : null)));
-        if (morph is not null) semantic += $"|morph:{morph.DurationMs}:{string.Join(";", morph.Pairs.Select(pair => string.Join(",", pair.Key, pair.FromId, pair.ToId)))}";
+        if (morph is not null) semantic += $"|morph:{morph.FromSlideId}:{morph.DurationMs}:{string.Join(";", morph.Pairs.Select(pair => string.Join(",", pair.Key, pair.FromId, pair.ToId)))}";
         return Hash(Encoding.UTF8.GetBytes(semantic));
     }
 
@@ -236,8 +255,9 @@ internal static class PptxTimingCodec
     internal static void Apply(P.Slide target, PresentationSlide source, IReadOnlyDictionary<string, uint> nativeIdsByElementId, bool allowOpaqueReplacement)
     {
         Validate(source, nativeIdsByElementId);
-        if (target.Timing is not null && !allowOpaqueReplacement)
+        if ((target.Timing is not null || HasMorph(target)) && !allowOpaqueReplacement)
             throw new CodecException("unsupported_presentation_timing_edit", "Imported presentation timing is opaque and cannot be replaced safely.");
+        RemoveCanonicalMorph(target);
         target.Timing?.Remove();
         if (source.Animations.Count == 0)
         {
@@ -251,23 +271,9 @@ internal static class PptxTimingCodec
 
     private static void ApplyMorphTransition(P.Slide target, PresentationMorph morph, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
     {
-        // Morph is a transition extension (not a timing sidecar). Prefixing the
-        // destination object names with !! is PowerPoint's stable by-object
-        // pairing contract; the typed pairs remain in the task/artifact plan.
-        var transition = target.Transition;
-        if (transition is null)
-        {
-            transition = new P.Transition { Speed = P.TransitionSpeedValues.Medium, AdvanceOnClick = true };
-            transition.Append(new P.FadeTransition());
-            target.AddChild(transition, true);
-        }
-        const string p14Namespace = "http://schemas.microsoft.com/office/powerpoint/2010/main";
-        transition.AddNamespaceDeclaration("p14", p14Namespace);
-        transition.SetAttribute(new OpenXmlAttribute("p14", "dur", p14Namespace, morph.DurationMs.ToString(CultureInfo.InvariantCulture)));
-        var extension = new P.ExtensionListWithModification($"<p:extLst xmlns:p=\"{PNamespace}\" xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2015/09/main\"><p:ext uri=\"{{officekit-morph-v1}}\"><p15:morph option=\"byObject\"/></p:ext></p:extLst>");
-        transition.Append(extension);
-        // The native IDs are validated here even though the p15 element only
-        // carries the option; it prevents accepting a stale pair silently.
+        // PowerPoint writes modern transitions through Markup Compatibility:
+        // a p159 Morph choice plus a plain fade fallback. Stable !! names on
+        // both adjacent slides provide the explicit by-object pairing.
         foreach (var pair in morph.Pairs)
         {
             if (!nativeIdsByElementId.ContainsKey(pair.ToId))
@@ -279,6 +285,22 @@ internal static class PptxTimingCodec
                 drawingName.SetAttribute(new OpenXmlAttribute(string.Empty, "name", string.Empty, $"!!{pair.Key}"));
             }
         }
+        var duration = morph.DurationMs.ToString(CultureInfo.InvariantCulture);
+        var alternate = new AlternateContent($"<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:p159=\"http://schemas.microsoft.com/office/powerpoint/2015/09/main\" Requires=\"p159\"><p:transition xmlns:p=\"{PNamespace}\" spd=\"slow\" xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" p14:dur=\"{duration}\"><p159:morph option=\"byObject\"/></p:transition></mc:Choice><mc:Fallback><p:transition xmlns:p=\"{PNamespace}\" spd=\"slow\"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>");
+        var anchor = (OpenXmlElement?)target.ColorMapOverride ?? target.CommonSlideData;
+        if (anchor is null) target.Append(alternate);
+        else target.InsertAfter(alternate, anchor);
+    }
+
+    private static void RemoveCanonicalMorph(P.Slide target)
+    {
+        foreach (var alternate in target.Elements<AlternateContent>().Where(element =>
+                     element.OuterXml.Contains("http://schemas.microsoft.com/office/powerpoint/2015/09/main", StringComparison.Ordinal) &&
+                     element.OuterXml.Contains(":morph", StringComparison.Ordinal)).ToArray())
+            alternate.Remove();
+        foreach (var transition in target.Elements<P.Transition>().Where(element =>
+                     element.Descendants().Any(child => child.LocalName == "morph" && child.NamespaceUri == "http://schemas.microsoft.com/office/powerpoint/2015/09/main")).ToArray())
+            transition.Remove();
     }
 
     internal static void Validate(PresentationSlide source, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
@@ -312,6 +334,8 @@ internal static class PptxTimingCodec
         }
         if (source.Morph is not null)
         {
+            if (string.IsNullOrWhiteSpace(source.Morph.FromSlideId))
+                throw new CodecException("invalid_presentation_morph", "Presentation Morph requires an adjacent from_slide_id.");
             if (source.Morph.DurationMs is 0 or > MaxDurationMilliseconds)
                 throw new CodecException("invalid_presentation_morph", "Presentation Morph duration_ms must be from 1 through 60000.");
             foreach (var pair in source.Morph.Pairs)
@@ -319,6 +343,62 @@ internal static class PptxTimingCodec
                     throw new CodecException("invalid_presentation_morph", $"Presentation Morph pair {pair.Key} does not resolve to a local object.");
         }
     }
+
+    internal static void ValidateMorphContext(PresentationSlide destination, PresentationSlide? source)
+    {
+        var morph = destination.Morph;
+        if (morph is null) return;
+        if (source is null || !morph.FromSlideId.Equals(source.Id, StringComparison.Ordinal))
+            throw new CodecException("invalid_presentation_morph", "Presentation Morph must reference the immediately preceding slide.");
+        if (morph.Pairs.Count is < 1 or > 256)
+            throw new CodecException("invalid_presentation_morph", "Presentation Morph requires one through 256 object pairs.");
+
+        var sourceElements = MorphElementIndex(source);
+        var destinationElements = MorphElementIndex(destination);
+        var sourceIds = new HashSet<string>(StringComparer.Ordinal);
+        var destinationIds = new HashSet<string>(StringComparer.Ordinal);
+        var keys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pair in morph.Pairs)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || !keys.Add(pair.Key) ||
+                !sourceIds.Add(pair.FromId) || !destinationIds.Add(pair.ToId))
+                throw new CodecException("invalid_presentation_morph", "Presentation Morph pair keys and object targets must be unique.");
+            if (!sourceElements.TryGetValue(pair.FromId, out var from) || !destinationElements.TryGetValue(pair.ToId, out var to))
+                throw new CodecException("invalid_presentation_morph", $"Presentation Morph pair {pair.Key} does not resolve across the adjacent slides.");
+            if (!MorphCompatible(from, to))
+                throw new CodecException("invalid_presentation_morph", $"Presentation Morph pair {pair.Key} requires compatible non-chart objects.");
+            var expectedName = $"!!{pair.Key}";
+            if (!from.Name.Equals(expectedName, StringComparison.Ordinal) || !to.Name.Equals(expectedName, StringComparison.Ordinal))
+                throw new CodecException("invalid_presentation_morph", $"Presentation Morph pair {pair.Key} must use matching Selection Pane names on both slides.");
+        }
+    }
+
+    private static IReadOnlyDictionary<string, PresentationElement> MorphElementIndex(PresentationSlide slide)
+    {
+        var output = new Dictionary<string, PresentationElement>(StringComparer.Ordinal);
+        foreach (var element in FlattenElements(slide.Elements))
+            if (string.IsNullOrWhiteSpace(element.Id) || !output.TryAdd(element.Id, element))
+                throw new CodecException("invalid_presentation_morph", "Presentation Morph slide objects require unique non-empty identities.");
+        return output;
+    }
+
+    private static IEnumerable<PresentationElement> FlattenElements(IEnumerable<PresentationElement> elements)
+    {
+        foreach (var element in elements)
+        {
+            yield return element;
+            if (element.ContentCase != PresentationElement.ContentOneofCase.Group) continue;
+            foreach (var child in FlattenElements(element.Group.Children)) yield return child;
+        }
+    }
+
+    private static bool MorphCompatible(PresentationElement from, PresentationElement to) =>
+        from.ContentCase == to.ContentCase &&
+        from.ContentCase is PresentationElement.ContentOneofCase.Shape or
+            PresentationElement.ContentOneofCase.Image or
+            PresentationElement.ContentOneofCase.Table or
+            PresentationElement.ContentOneofCase.Connector or
+            PresentationElement.ContentOneofCase.Group;
 
     private static string BuildXml(PresentationSlide source, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
     {
@@ -402,34 +482,67 @@ internal static class PptxTimingCodec
         return $"<p:childTnLst>{behavior}</p:childTnLst>";
     }
 
-    private static PresentationMorph? ReadMorph(P.Slide source, IReadOnlyDictionary<uint, string> elementIdsByNativeId)
+    private static bool HasMorph(P.Slide source)
+    {
+        try
+        {
+            var root = XElement.Parse(source.OuterXml, LoadOptions.PreserveWhitespace);
+            return root.Descendants().Any(child =>
+                child.Name.LocalName == "morph" && child.Name.NamespaceName == "http://schemas.microsoft.com/office/powerpoint/2015/09/main");
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static PresentationMorph? ReadMorph(
+        P.Slide source,
+        IReadOnlyDictionary<uint, string> elementIdsByNativeId,
+        P.Slide? previousSource,
+        IReadOnlyDictionary<uint, string>? previousElementIdsByNativeId,
+        string? previousSlideId)
     {
         try
         {
             const string p14Namespace = "http://schemas.microsoft.com/office/powerpoint/2010/main";
-            var transition = source.Transition;
-            var hasMorph = transition?.Descendants().Any(child => child.LocalName == "morph") == true;
-            if (!hasMorph)
-            {
-                var root = XElement.Parse(source.OuterXml, LoadOptions.PreserveWhitespace);
-                hasMorph = root.Descendants().Any(child => child.Name.LocalName == "morph");
-                if (!hasMorph) return null;
-            }
-            var duration = ParseDuration(transition?.GetAttribute("dur", p14Namespace).Value) ?? 600U;
-            var pairs = source.Descendants()
-                .Where(element => element.LocalName == "cNvPr")
-                .Select(element => (Name: element.GetAttribute("name", string.Empty).Value ?? string.Empty, Id: element.GetAttribute("id", string.Empty).Value ?? string.Empty))
-                .Where(item => item.Name.StartsWith("!!", StringComparison.Ordinal) && uint.TryParse(item.Id, NumberStyles.None, CultureInfo.InvariantCulture, out _))
-                .Select(item => new { Key = item.Name[2..], NativeId = uint.Parse(item.Id, CultureInfo.InvariantCulture) })
-                .Where(item => elementIdsByNativeId.ContainsKey(item.NativeId))
-                .Select(item => new PresentationMorphPair { Key = item.Key, FromId = elementIdsByNativeId[item.NativeId], ToId = elementIdsByNativeId[item.NativeId] })
+            if (!HasMorph(source)) return null;
+            if (previousSource is null || previousElementIdsByNativeId is null || string.IsNullOrWhiteSpace(previousSlideId)) return null;
+            var root = XElement.Parse(source.OuterXml, LoadOptions.PreserveWhitespace);
+            var morph = root.Descendants().FirstOrDefault(child =>
+                child.Name.LocalName == "morph" && child.Name.NamespaceName == "http://schemas.microsoft.com/office/powerpoint/2015/09/main");
+            if (morph?.Attribute("option")?.Value != "byObject") return null;
+            var transition = morph.Ancestors().FirstOrDefault(element => element.Name.LocalName == "transition");
+            var duration = ParseDuration(transition?.Attribute(XName.Get("dur", p14Namespace))?.Value) ?? 600U;
+            var destinations = MorphNames(source, elementIdsByNativeId);
+            var sources = MorphNames(previousSource, previousElementIdsByNativeId);
+            if (destinations is null || sources is null || destinations.Count == 0 || destinations.Keys.Any(key => !sources.ContainsKey(key))) return null;
+            var pairs = destinations
+                .OrderBy(item => item.Key, StringComparer.Ordinal)
+                .Select(item => new PresentationMorphPair { Key = item.Key, FromId = sources[item.Key], ToId = item.Value })
                 .ToList();
-            return pairs.Count == 0 ? null : new PresentationMorph { DurationMs = duration, Pairs = { pairs } };
+            return new PresentationMorph { FromSlideId = previousSlideId, DurationMs = duration, Pairs = { pairs } };
         }
         catch
         {
             return null;
         }
+    }
+
+    private static Dictionary<string, string>? MorphNames(P.Slide source, IReadOnlyDictionary<uint, string> elementIdsByNativeId)
+    {
+        var pairs = source.Descendants()
+                .Where(element => element.LocalName == "cNvPr")
+                .Select(element => (Name: element.GetAttribute("name", string.Empty).Value ?? string.Empty, Id: element.GetAttribute("id", string.Empty).Value ?? string.Empty))
+                .Where(item => item.Name.StartsWith("!!", StringComparison.Ordinal) && uint.TryParse(item.Id, NumberStyles.None, CultureInfo.InvariantCulture, out _))
+                .Select(item => new { Key = item.Name[2..], NativeId = uint.Parse(item.Id, CultureInfo.InvariantCulture) })
+                .Where(item => elementIdsByNativeId.ContainsKey(item.NativeId))
+                .ToList();
+        if (pairs.Any(item => item.Key.Length == 0) || pairs.Select(item => item.Key).Distinct(StringComparer.Ordinal).Count() != pairs.Count)
+        {
+            return null;
+        }
+        return pairs.ToDictionary(item => item.Key, item => elementIdsByNativeId[item.NativeId], StringComparer.Ordinal);
     }
 
     private static (string Effect, string Direction) ParseFilter(string filter)

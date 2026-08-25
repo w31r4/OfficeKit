@@ -6868,17 +6868,24 @@ for (let index = 0; index < 32; index += 1) motionLimitSlide.animations.add(moti
 assert.throws(() => motionLimitSlide.animations.add(motionLimitShape, { id: "limit-33", effect: "fade" }), /at most 32/);
 
 const motionMorphDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
-const motionMorphSlide = motionMorphDeck.slides.add({ name: "Motion Morph" });
-const motionMorphFrom = motionMorphSlide.shapes.add({ name: "from", position: { left: 40, top: 40, width: 120, height: 60 } });
+const motionMorphSourceSlide = motionMorphDeck.slides.add({ name: "Motion Morph source" });
+const motionMorphFrom = motionMorphSourceSlide.shapes.add({ name: "from", position: { left: 40, top: 40, width: 120, height: 60 } });
+const motionMorphSlide = motionMorphDeck.slides.add({ name: "Motion Morph destination" });
 const motionMorphTo = motionMorphSlide.shapes.add({ name: "to", position: { left: 360, top: 180, width: 160, height: 80 } });
-motionMorphSlide.setMorph({ durationMs: 800, pairs: [{ key: "hero", fromId: motionMorphFrom.id, toId: motionMorphTo.id }] });
+motionMorphSlide.setMorph({ from: motionMorphSourceSlide, durationMs: 800, pairs: [{ key: "hero", from: motionMorphFrom, to: motionMorphTo }] });
 const motionMorphSource = await PresentationFile.exportPptx(motionMorphDeck);
 const motionMorphZip = await JSZip.loadAsync(new Uint8Array(await motionMorphSource.arrayBuffer()));
-const motionMorphXml = await motionMorphZip.file("ppt/slides/slide1.xml").async("text");
+const motionMorphSourceXml = await motionMorphZip.file("ppt/slides/slide1.xml").async("text");
+const motionMorphXml = await motionMorphZip.file("ppt/slides/slide2.xml").async("text");
 assert.match(motionMorphXml, /p14:dur="800"/);
-assert.match(motionMorphXml, /p15:morph option="byObject"/);
+assert.match(motionMorphXml, /p159:morph option="byObject"/);
+assert.match(motionMorphSourceXml, /name="!!hero"/);
 assert.match(motionMorphXml, /name="!!hero"/);
 const motionMorphImported = await PresentationFile.importPptx(motionMorphSource);
-assert.equal(motionMorphImported.slides.getItem(0).morph.value.pairs[0].key, "hero");
+assert.deepEqual(motionMorphImported.slides.getItem(1).morph.value, {
+  fromSlideId: motionMorphImported.slides.getItem(0).id,
+  durationMs: 800,
+  pairs: [{ key: "hero", fromId: motionMorphImported.slides.getItem(0).shapes.items[0].id, toId: motionMorphImported.slides.getItem(1).shapes.items[0].id }],
+});
 
 console.log("presentation smoke ok");

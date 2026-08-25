@@ -1464,7 +1464,7 @@ function wirePresentationMorph(morph, ownerLabel) {
   if (!morph) return undefined;
   try {
     const value = normalizePresentationMorph(morph);
-    return { durationMs: value.durationMs, pairs: value.pairs.map((pair) => ({ key: pair.key, fromId: pair.fromId, toId: pair.toId })) };
+    return { durationMs: value.durationMs, pairs: value.pairs.map((pair) => ({ key: pair.key, fromId: pair.fromId, toId: pair.toId })), fromSlideId: value.fromSlideId };
   } catch (error) {
     throw new OfficeKitCodecError(`Invalid ${ownerLabel} Morph: ${error.message}`, [], { code: "invalid_presentation_morph" });
   }
@@ -1476,6 +1476,7 @@ function modelPresentationMorph(source, ownerLabel) {
     return normalizePresentationMorph({
       durationMs: Number(source.durationMs),
       pairs: (source.pairs || []).map((pair) => ({ key: pair.key, fromId: pair.fromId, toId: pair.toId })),
+      fromSlideId: source.fromSlideId,
     });
   } catch (error) {
     throw new OfficeKitCodecError(`Invalid ${ownerLabel} Morph: ${error.message}`, [], { code: "invalid_presentation_artifact" });
@@ -5009,8 +5010,8 @@ export async function presentationFromEnvelope(envelope) {
     Object.defineProperty(slide.morph, PRESENTATION_MORPH_CAPABILITY, {
       value: Object.freeze({
         sourceBound: true,
-        editable: false,
-        addable: !Boolean(sourceSlide.morph),
+        editable: Boolean(sourceSlide.source?.timingEditable && sourceSlide.morph),
+        addable: Boolean(sourceSlide.source?.timingAddable && !sourceSlide.morph),
       }),
     });
     const entries = [];

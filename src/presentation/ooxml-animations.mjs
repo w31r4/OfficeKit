@@ -112,20 +112,100 @@ function hasTextTarget(target, targetKind) {
 
 export function normalizePresentationMorph(config = {}) {
   if (!config || typeof config !== "object" || Array.isArray(config)) throw new TypeError("Presentation Morph must be an object.");
+  const fromSlideId = String(config.fromSlideId || (typeof config.from === "string" ? config.from : config.from?.id) || "");
+  if (!fromSlideId) throw new TypeError("Presentation Morph requires an adjacent source slide.");
   const durationMs = boundedInteger(config.durationMs ?? 600, "Morph durationMs", MAX_DURATION_MS);
   if (durationMs === 0) throw new RangeError("Presentation Morph durationMs must be greater than zero.");
   if (!Array.isArray(config.pairs) || config.pairs.length === 0 || config.pairs.length > 256) throw new TypeError("Presentation Morph requires one through 256 pairs.");
   const pairs = config.pairs.map((pair, index) => {
     if (!pair || typeof pair !== "object") throw new TypeError(`Presentation Morph pair ${index + 1} must be an object.`);
     const key = String(pair.key || "");
-    const fromId = String(pair.fromId || pair.from || "");
-    const toId = String(pair.toId || pair.to || "");
+    const fromId = String(pair.fromId || (typeof pair.from === "string" ? pair.from : pair.from?.id) || "");
+    const toId = String(pair.toId || (typeof pair.to === "string" ? pair.to : pair.to?.id) || "");
     if (!key || !fromId || !toId) throw new TypeError(`Presentation Morph pair ${index + 1} requires key, fromId, and toId.`);
     return { key, fromId, toId };
   });
   const keys = new Set(pairs.map((pair) => pair.key));
   if (keys.size !== pairs.length) throw new TypeError("Presentation Morph pair keys must be unique.");
-  return { durationMs, pairs };
+  return { fromSlideId, durationMs, pairs };
+}
+
+function morphTargets(slide) {
+  return [
+    ...slide.shapes.items,
+    ...slide.tables.items,
+    ...slide.charts.items,
+    ...slide.images.items,
+    ...slide.connectors.items,
+    ...slide.nativeObjects.items,
+    ...slide.groups.items.flatMap((group) => group.allElements()),
+  ];
+}
+
+function morphKind(target) {
+  const kind = inferAnimationTargetKind(target);
+  if (kind === "chart") return "chart";
+  if (kind === "textbox") return "shape";
+  if (kind === "groupShape") return "group";
+  if (["shape", "image", "table", "connector", "group"].includes(kind)) return kind;
+  return undefined;
+}
+
+function resolveMorphSlide(destination, reference) {
+  const presentation = destination.presentation;
+  const slide = typeof reference === "string"
+    ? presentation.slides.items.find((candidate) => candidate.id === reference)
+    : reference;
+  if (!slide || slide.presentation !== presentation) throw new Error("Presentation Morph source slide must belong to the destination presentation.");
+  if (destination.index <= 0 || slide.index !== destination.index - 1) throw new Error("Presentation Morph requires the immediately preceding slide as its source.");
+  return slide;
+}
+
+function resolveMorphTarget(slide, reference, label) {
+  const target = typeof reference === "string" ? slide.resolve(reference) : reference;
+  if (!target || target.slide !== slide || typeof target.name !== "string") {
+    throw new Error(`Presentation Morph ${label} object must belong to its declared slide.`);
+  }
+  const kind = morphKind(target);
+  if (!kind) throw new Error(`Presentation Morph ${label} object type is not supported.`);
+  if (kind === "chart") throw new Error("Presentation charts do not support object Morph; use chart build animation instead.");
+  return { target, kind };
+}
+
+function normalizeSlideMorph(slide, config) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw new TypeError("Presentation Morph must be an object.");
+  if (slide.transition?.configured) throw new Error("Presentation Morph cannot be combined with another transition on the destination slide.");
+  const sourceSlide = resolveMorphSlide(slide, config.from ?? config.fromSlideId);
+  const rawPairs = Array.isArray(config.pairs) ? config.pairs : [];
+  const normalized = normalizePresentationMorph({
+    ...config,
+    fromSlideId: sourceSlide.id,
+    pairs: rawPairs.map((pair) => ({
+      ...pair,
+      fromId: typeof pair?.from === "string" ? pair.from : pair?.from?.id ?? pair?.fromId,
+      toId: typeof pair?.to === "string" ? pair.to : pair?.to?.id ?? pair?.toId,
+    })),
+  });
+  const pairTargets = normalized.pairs.map((pair, index) => {
+    const from = resolveMorphTarget(sourceSlide, rawPairs[index]?.from ?? pair.fromId, "source");
+    const to = resolveMorphTarget(slide, rawPairs[index]?.to ?? pair.toId, "destination");
+    if (from.kind !== to.kind) throw new Error(`Presentation Morph pair ${pair.key} requires compatible object types.`);
+    return { pair, from: from.target, to: to.target };
+  });
+  const fromIds = new Set(pairTargets.map(({ from }) => from.id));
+  const toIds = new Set(pairTargets.map(({ to }) => to.id));
+  if (fromIds.size !== pairTargets.length || toIds.size !== pairTargets.length) throw new Error("Presentation Morph objects may appear in only one pair.");
+  for (const { pair, from, to } of pairTargets) {
+    const nativeName = `!!${pair.key}`;
+    const conflicts = [...morphTargets(sourceSlide), ...morphTargets(slide)]
+      .filter((target) => target !== from && target !== to && target.name === nativeName);
+    if (conflicts.length) throw new Error(`Presentation Morph pair name ${nativeName} conflicts with an existing Selection Pane name.`);
+  }
+  for (const { pair, from, to } of pairTargets) {
+    from.name = `!!${pair.key}`;
+    to.name = `!!${pair.key}`;
+  }
+  return normalized;
 }
 
 export class SlideAnimations {
@@ -186,7 +266,7 @@ export class SlideMorph {
   get value() { return clone(this._value); }
   set(value) {
     if (this[PRESENTATION_MORPH_CAPABILITY]?.sourceBound && !this.capability.editable && this._value) throw new Error("Imported Morph extension is opaque and cannot be edited.");
-    this._value = value == null ? undefined : normalizePresentationMorph(value);
+    this._value = value == null ? undefined : normalizeSlideMorph(this.slide, value);
     return this.slide;
   }
   clear() { return this.set(undefined); }
