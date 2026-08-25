@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -25,7 +25,16 @@ function validPlan(overrides = {}) {
   return {
     schema: "office-kit/presentation-authoring-plan/v1",
     mode: "create",
-    brief: { audience: "Engineering leadership", purpose: "Make one architecture decision", deliveryMode: "live" },
+    brief: {
+      audience: "Engineering leadership",
+      purpose: "Make one architecture decision",
+      deliveryMode: "live",
+      primaryJob: "decide",
+      supportingJobs: ["align"],
+      expectedOutcome: "Leadership selects one bounded migration path",
+      mediumFit: "strong",
+      afterUse: "Decision record and implementation handoff",
+    },
     narrative: { thesis: "Adopt the bounded migration path", sections: ["Context", "Decision"] },
     design: {
       sourceMode: "self-directed",
@@ -36,6 +45,11 @@ function validPlan(overrides = {}) {
         densityRhythm: "alternate sparse conclusions with denser evidence",
       },
       motionPolicy: "adaptive",
+      scenario: { primary: "technical-engineering", secondary: "analysis-decision" },
+      direction: {
+        name: "Bounded systems decision",
+        rationale: "The audience needs a traceable architecture comparison before committing resources",
+      },
     },
     pages: [{
       id: "p01-context",
@@ -69,6 +83,24 @@ assert.equal(first.sha256, reordered.sha256, "object-key order must not change p
 assert.ok(first.bytes.byteLength < MAX_AUTHORING_PLAN_BYTES);
 assert.equal(first.deliveryMode, "live");
 assert.equal(first.motionPageCount, 1);
+assert.equal(first.strategyStatus, "current");
+assert.equal(first.primaryJob, "decide");
+assert.equal(first.primaryScenario, "technical-engineering");
+assert.equal(first.directionName, "Bounded systems decision");
+assert.equal(first.mediumFit, "strong");
+const compatibleLegacyPlan = validPlan();
+for (const key of ["primaryJob", "supportingJobs", "expectedOutcome", "mediumFit", "afterUse"]) delete compatibleLegacyPlan.brief[key];
+delete compatibleLegacyPlan.design.scenario;
+delete compatibleLegacyPlan.design.direction;
+assert.equal(normalizePresentationAuthoringPlan(compatibleLegacyPlan).strategyStatus, "legacy");
+assert.throws(
+  () => normalizePresentationAuthoringPlan(compatibleLegacyPlan, { allowLegacy: false }),
+  (error) => error.code === "missing-presentation-strategy",
+);
+assert.throws(
+  () => normalizePresentationAuthoringPlan(validPlan({ brief: { ...validPlan().brief, mediumFit: "weak" } })),
+  (error) => error.code === "invalid-authoring-plan",
+);
 assert.throws(
   () => normalizePresentationAuthoringPlan(validPlan({ pages: [{
     ...validPlan().pages[0],
@@ -95,22 +127,51 @@ assert.throws(
 );
 assert.throws(
   () => normalizePresentationAuthoringPlan(validPlan({ design: {
-    sourceMode: "self-directed",
-    mechanismPacks: ["technical-architecture"],
+    ...validPlan().design,
     designGrammar: { rawXml: "<p:sp/>" },
   } })),
   (error) => error.code === "unsafe-authoring-plan",
 );
 assert.throws(
   () => normalizePresentationAuthoringPlan(validPlan({ design: {
-    sourceMode: "self-directed",
-    mechanismPacks: ["technical-architecture"],
+    ...validPlan().design,
     designGrammar: { notes: "x".repeat(MAX_AUTHORING_PLAN_BYTES) },
   } })),
   (error) => error.code === "authoring-plan-too-large",
 );
 
 const workspace = await mkdtemp(path.join(os.tmpdir(), "officekit-authoring-plan-"));
+const newUnplannedTask = await createTask({ workspaceRoot: workspace, goal: "Reject an incomplete new plan" });
+await assert.rejects(
+  writeTaskPlan(newUnplannedTask, compatibleLegacyPlan),
+  (error) => error.code === "missing-presentation-strategy",
+);
+
+const storedLegacyTask = await createTask({ workspaceRoot: workspace, goal: "Read a pre-strategy plan" });
+const storedLegacy = normalizePresentationAuthoringPlan(compatibleLegacyPlan);
+const storedLegacyRelative = path.posix.join("plans", `${storedLegacy.sha256}.json`);
+await mkdir(path.join(storedLegacyTask.taskRoot, "plans"), { recursive: true });
+await writeFile(path.join(storedLegacyTask.taskRoot, storedLegacyRelative), storedLegacy.bytes, { mode: 0o400 });
+const storedLegacyManifestPath = path.join(storedLegacyTask.taskRoot, "task.json");
+const storedLegacyManifest = JSON.parse(await readFile(storedLegacyManifestPath, "utf8"));
+storedLegacyManifest.plan = {
+  schema: storedLegacy.plan.schema,
+  mode: storedLegacy.plan.mode,
+  pageCount: storedLegacy.pageCount,
+  recipe: storedLegacy.plan.recipe,
+  deliveryMode: storedLegacy.deliveryMode,
+  motionPolicy: storedLegacy.motionPolicy,
+  motionPageCount: storedLegacy.motionPageCount,
+  designGrammarSha256: storedLegacy.designGrammarSha256,
+  sha256: storedLegacy.sha256,
+  bytes: storedLegacy.bytes.byteLength,
+  path: storedLegacyRelative,
+};
+await writeFile(storedLegacyManifestPath, `${JSON.stringify(storedLegacyManifest, null, 2)}\n`);
+const reopenedLegacyTask = await openTask({ workspaceRoot: workspace, taskId: storedLegacyTask.manifest.id });
+assert.deepEqual(await readTaskPlan(reopenedLegacyTask), compatibleLegacyPlan);
+assert.equal((await taskDetail({ workspaceRoot: workspace, taskId: storedLegacyTask.manifest.id })).task.plan.strategyStatus, "legacy");
+
 const created = await createTask({ workspaceRoot: workspace, goal: "Create a planned presentation" });
 const source = path.join(workspace, "reference.pptx");
 await writeFile(source, "reference-package-bytes");
@@ -118,6 +179,7 @@ const staged = await stageTaskInput(created, source, { artifactId: "reference-de
 const plan = validPlan({
   mode: "create-from-template",
   design: {
+    ...validPlan().design,
     sourceMode: "template",
     mechanismPacks: [],
     designGrammar: { evidence: "Distilled from the staged reference" },
@@ -156,8 +218,12 @@ const detail = await taskDetail({ workspaceRoot: workspace, taskId: created.mani
 assert.equal(detail.task.plan.mode, "create-from-template");
 assert.equal(detail.task.plan.deliveryMode, "live");
 assert.equal(detail.task.plan.motionPolicy, "adaptive");
+assert.equal(detail.task.plan.primaryJob, "decide");
+assert.equal(detail.task.plan.primaryScenario, "technical-engineering");
+assert.equal(detail.task.plan.directionName, "Bounded systems decision");
 assert.doesNotMatch(JSON.stringify(detail.task.plan), /Engineering leadership/u, "task detail must not inline the full plan");
 assert.match(formatTaskDetail(detail), /Plan\n  create-from-template · 1 page · tasks\/create-from-template[.]md/u);
+assert.match(formatTaskDetail(detail), /decide · technical-engineering · Bounded systems decision/u);
 
 const unbound = validPlan({
   artifactRefs: [{ artifactId: "missing", sha256: "1".repeat(64) }],

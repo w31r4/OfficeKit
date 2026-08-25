@@ -17,6 +17,9 @@ import process from "node:process";
 import {
   MAX_AUTHORING_PLAN_BYTES,
   PRESENTATION_AUTHORING_PLAN_SCHEMA,
+  PRESENTATION_COMMUNICATION_JOBS,
+  PRESENTATION_MEDIUM_FITS,
+  PRESENTATION_SCENARIOS,
   authoringPlanDescriptor,
   normalizePresentationAuthoringPlan,
 } from "./authoring-plan.mjs";
@@ -36,6 +39,10 @@ const TASK_IGNORE = "*\n!.gitignore\n";
 const ARTIFACT_KINDS = new Set(["document", "workbook", "presentation", "pdf"]);
 const VISUAL_REVIEW_STATUSES = new Set(["complete", "unavailable", "requires-human"]);
 const RESOLVED_BY_COMMIT = new Set(["review-failed", "stale-review"]);
+const PRESENTATION_COMMUNICATION_JOB_SET = new Set(PRESENTATION_COMMUNICATION_JOBS);
+const PRESENTATION_MEDIUM_FIT_SET = new Set(PRESENTATION_MEDIUM_FITS);
+const PRESENTATION_SCENARIO_SET = new Set(PRESENTATION_SCENARIOS);
+const PRESENTATION_STRATEGY_STATUS_SET = new Set(["current", "legacy"]);
 
 export async function resolveTaskWorkspace({ workspaceRoot, cwd = process.cwd() } = {}) {
   if (workspaceRoot != null) return canonicalDirectory(workspaceRoot, "workspace");
@@ -371,7 +378,12 @@ export async function readTaskPlan(task) {
       descriptor.deliveryMode != null && normalized.deliveryMode !== descriptor.deliveryMode ||
       descriptor.motionPolicy != null && normalized.motionPolicy !== descriptor.motionPolicy ||
       descriptor.motionPageCount != null && normalized.motionPageCount !== descriptor.motionPageCount ||
-      descriptor.designGrammarSha256 != null && normalized.designGrammarSha256 !== descriptor.designGrammarSha256) {
+      descriptor.designGrammarSha256 != null && normalized.designGrammarSha256 !== descriptor.designGrammarSha256 ||
+      descriptor.strategyStatus != null && normalized.strategyStatus !== descriptor.strategyStatus ||
+      descriptor.primaryJob != null && normalized.primaryJob !== descriptor.primaryJob ||
+      descriptor.primaryScenario != null && normalized.primaryScenario !== descriptor.primaryScenario ||
+      descriptor.directionName != null && normalized.directionName !== descriptor.directionName ||
+      descriptor.mediumFit != null && normalized.mediumFit !== descriptor.mediumFit) {
     throw taskError("authoring-plan-corrupt", "Authoring plan content does not match its manifest descriptor.");
   }
   validatePlanArtifactBindings(normalized.plan, task.manifest);
@@ -379,9 +391,11 @@ export async function readTaskPlan(task) {
 }
 
 export async function writeTaskPlan(task, value, { expectedSha256, now = new Date() } = {}) {
-  const normalized = normalizePresentationAuthoringPlan(value);
-  validatePlanArtifactBindings(normalized.plan, task.manifest);
   const current = task.manifest.plan;
+  const normalized = normalizePresentationAuthoringPlan(value, {
+    allowLegacy: current != null && (current.strategyStatus == null || current.strategyStatus === "legacy"),
+  });
+  validatePlanArtifactBindings(normalized.plan, task.manifest);
   if (current != null) {
     if (expectedSha256 !== current.sha256) {
       throw taskError("stale-authoring-plan", "Updating an authoring plan requires its exact current SHA-256.", {
@@ -603,6 +617,7 @@ function planDescriptorForManifest(manifest) {
     : null;
   return Object.freeze({
     ...structuredClone(manifest.plan),
+    strategyStatus: manifest.plan.strategyStatus ?? "legacy",
     state: headCommit?.plan?.sha256 === manifest.plan.sha256 ? "reviewed" : "working",
   });
 }
@@ -616,6 +631,13 @@ function validateStoredPlanDescriptor(descriptor) {
       descriptor.motionPolicy != null && !new Set(["adaptive", "none", "explicit"]).has(descriptor.motionPolicy) ||
       descriptor.motionPageCount != null && (!Number.isSafeInteger(descriptor.motionPageCount) || descriptor.motionPageCount < 0 || descriptor.motionPageCount > descriptor.pageCount) ||
       descriptor.designGrammarSha256 != null && !isSha(descriptor.designGrammarSha256) ||
+      descriptor.strategyStatus != null && !PRESENTATION_STRATEGY_STATUS_SET.has(descriptor.strategyStatus) ||
+      descriptor.primaryJob != null && !PRESENTATION_COMMUNICATION_JOB_SET.has(descriptor.primaryJob) ||
+      descriptor.primaryScenario != null && !PRESENTATION_SCENARIO_SET.has(descriptor.primaryScenario) ||
+      descriptor.directionName != null && (typeof descriptor.directionName !== "string" || descriptor.directionName.trim() === "" || descriptor.directionName.length > 160) ||
+      descriptor.mediumFit != null && !PRESENTATION_MEDIUM_FIT_SET.has(descriptor.mediumFit) ||
+      descriptor.strategyStatus === "current" &&
+        (descriptor.primaryJob == null || descriptor.primaryScenario == null || descriptor.directionName == null || descriptor.mediumFit == null) ||
       !isSha(descriptor.sha256) || !Number.isSafeInteger(descriptor.bytes) || descriptor.bytes <= 0 || descriptor.bytes > MAX_AUTHORING_PLAN_BYTES ||
       typeof descriptor.path !== "string") {
     throw taskError("invalid-task", "Task authoring-plan descriptor is invalid.");

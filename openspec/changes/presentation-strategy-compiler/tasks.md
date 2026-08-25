@@ -5,9 +5,9 @@
 
 ## 2. Durable presentation strategy
 
-- [ ] 2.1 Add bounded communication-job, medium-fit, after-use, scenario, and chosen-direction validation to authoring-plan v1.
-- [ ] 2.2 Expose strategy descriptors through task listing, detail, commit binding, and REPL resume while retaining legacy-plan compatibility.
-- [ ] 2.3 Extend the existing authoring-plan test with one current strategy plan, one invalid value, and one legacy plan.
+- [x] 2.1 Add bounded communication-job, medium-fit, after-use, scenario, and chosen-direction validation to authoring-plan v1.
+- [x] 2.2 Expose strategy descriptors through task listing, detail, commit binding, and REPL resume while retaining legacy-plan compatibility.
+- [x] 2.3 Extend the existing authoring-plan test with one current strategy plan, one invalid value, and one legacy plan.
 
 ## 3. Scenario-driven Presentations Skill
 

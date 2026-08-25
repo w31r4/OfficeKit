@@ -28,6 +28,27 @@ export const PRESENTATION_DESIGN_MECHANISMS = Object.freeze([
 ]);
 
 export const PRESENTATION_DELIVERY_MODES = Object.freeze(["live", "reader", "hybrid"]);
+export const PRESENTATION_COMMUNICATION_JOBS = Object.freeze([
+  "inform",
+  "explain",
+  "persuade",
+  "decide",
+  "align",
+  "teach",
+  "report",
+  "mobilize",
+  "handoff",
+]);
+export const PRESENTATION_MEDIUM_FITS = Object.freeze(["strong", "acceptable", "weak"]);
+export const PRESENTATION_SCENARIOS = Object.freeze([
+  "analysis-decision",
+  "business-proposal",
+  "management-report",
+  "academic-research",
+  "education-training",
+  "technical-engineering",
+  "brand-creative",
+]);
 export const PRESENTATION_MOTION_POLICIES = Object.freeze(["adaptive", "none", "explicit"]);
 export const PRESENTATION_MOTION_RECIPES = Object.freeze([
   "data-rise",
@@ -42,6 +63,9 @@ const MODE_SET = new Set(PRESENTATION_AUTHORING_MODES);
 const SOURCE_MODE_SET = new Set(PRESENTATION_DESIGN_SOURCE_MODES);
 const MECHANISM_SET = new Set(PRESENTATION_DESIGN_MECHANISMS);
 const DELIVERY_MODE_SET = new Set(PRESENTATION_DELIVERY_MODES);
+const COMMUNICATION_JOB_SET = new Set(PRESENTATION_COMMUNICATION_JOBS);
+const MEDIUM_FIT_SET = new Set(PRESENTATION_MEDIUM_FITS);
+const SCENARIO_SET = new Set(PRESENTATION_SCENARIOS);
 const MOTION_POLICY_SET = new Set(PRESENTATION_MOTION_POLICIES);
 const MOTION_RECIPE_SET = new Set(PRESENTATION_MOTION_RECIPES);
 const MOTION_PURPOSE_RECIPE = new Map([
@@ -71,7 +95,7 @@ const FORBIDDEN_KEY = /^(?:raw[-_]?xml|xml|xpath|part[-_]?path|relationship[-_]?
 const SAFE_ID = /^[a-z0-9][a-z0-9._-]{0,127}$/u;
 const SHA256 = /^[a-f0-9]{64}$/u;
 
-export function normalizePresentationAuthoringPlan(value) {
+export function normalizePresentationAuthoringPlan(value, { allowLegacy = true } = {}) {
   assertPlainJson(value, "$", new Set(), 0);
   assertExactKeys(value, TOP_LEVEL_KEYS, "Authoring plan");
   if (value.schema !== PRESENTATION_AUTHORING_PLAN_SCHEMA) {
@@ -83,6 +107,13 @@ export function normalizePresentationAuthoringPlan(value) {
   for (const field of ["brief", "narrative", "design", "editorial"]) {
     if (!isPlainObject(value[field])) throw planError("invalid-authoring-plan", `Authoring plan ${field} must be a plain object.`);
   }
+  const strategyComplete = hasCompleteCommunicationStrategy(value.brief, value.design);
+  if (!strategyComplete && !allowLegacy) {
+    throw planError("missing-presentation-strategy", "A new presentation plan requires a communication job, expected outcome, scenario, and chosen design direction.");
+  }
+  const strategy = strategyComplete
+    ? validateCommunicationStrategy(value.brief, value.design)
+    : null;
   validateBrief(value.brief);
   validateDesign(value.design);
   validatePages(value.pages, value.design.motionPolicy);
@@ -109,6 +140,11 @@ export function normalizePresentationAuthoringPlan(value) {
     motionPolicy: value.design.motionPolicy ?? "adaptive",
     motionPageCount: value.pages.filter((page) => page.motionIntent != null).length,
     designGrammarSha256: createHash("sha256").update(canonicalJson(value.design.designGrammar)).digest("hex"),
+    strategyStatus: strategy ? "current" : "legacy",
+    primaryJob: strategy?.primaryJob ?? null,
+    primaryScenario: strategy?.primaryScenario ?? null,
+    directionName: strategy?.directionName ?? null,
+    mediumFit: strategy?.mediumFit ?? null,
   });
 }
 
@@ -125,6 +161,11 @@ export function authoringPlanDescriptor(normalized, { path = null, state = "work
     motionPolicy: normalized.motionPolicy,
     motionPageCount: normalized.motionPageCount,
     designGrammarSha256: normalized.designGrammarSha256,
+    strategyStatus: normalized.strategyStatus,
+    primaryJob: normalized.primaryJob,
+    primaryScenario: normalized.primaryScenario,
+    directionName: normalized.directionName,
+    mediumFit: normalized.mediumFit,
     state,
     sha256: normalized.sha256,
     bytes: normalized.bytes.byteLength,
@@ -140,6 +181,57 @@ function validateBrief(brief) {
   if (brief.deliveryMode != null && !DELIVERY_MODE_SET.has(brief.deliveryMode)) {
     throw planError("invalid-authoring-plan", `Authoring plan brief.deliveryMode must be one of ${PRESENTATION_DELIVERY_MODES.join(", ")}.`);
   }
+}
+
+function hasCompleteCommunicationStrategy(brief, design) {
+  return Object.hasOwn(brief, "primaryJob") && Object.hasOwn(brief, "expectedOutcome") &&
+    Object.hasOwn(design, "scenario") && Object.hasOwn(design, "direction");
+}
+
+function validateCommunicationStrategy(brief, design) {
+  if (!COMMUNICATION_JOB_SET.has(brief.primaryJob)) {
+    throw planError("invalid-authoring-plan", `Authoring plan brief.primaryJob must be one of ${PRESENTATION_COMMUNICATION_JOBS.join(", ")}.`);
+  }
+  boundedString(brief.expectedOutcome, "Authoring plan brief.expectedOutcome", 4_096);
+  if (brief.supportingJobs != null) {
+    if (!Array.isArray(brief.supportingJobs) || brief.supportingJobs.length > 8 ||
+        new Set(brief.supportingJobs).size !== brief.supportingJobs.length ||
+        brief.supportingJobs.some((entry) => !COMMUNICATION_JOB_SET.has(entry) || entry === brief.primaryJob)) {
+      throw planError("invalid-authoring-plan", "Authoring plan brief.supportingJobs must contain up to eight unique secondary communication jobs.");
+    }
+  }
+  if (brief.mediumFit != null && !MEDIUM_FIT_SET.has(brief.mediumFit)) {
+    throw planError("invalid-authoring-plan", `Authoring plan brief.mediumFit must be one of ${PRESENTATION_MEDIUM_FITS.join(", ")}.`);
+  }
+  if (brief.mediumFit === "weak" && brief.mediumFitNote == null) {
+    throw planError("invalid-authoring-plan", "Authoring plan brief.mediumFitNote is required when mediumFit is weak.");
+  }
+  if (brief.mediumFitNote != null) boundedString(brief.mediumFitNote, "Authoring plan brief.mediumFitNote", 2_048);
+  if (brief.afterUse != null) boundedString(brief.afterUse, "Authoring plan brief.afterUse", 2_048);
+
+  if (!isPlainObject(design.scenario)) {
+    throw planError("invalid-authoring-plan", "Authoring plan design.scenario must name one primary scenario.");
+  }
+  assertExactKeys(design.scenario, new Set(["primary", "secondary"]), "Authoring plan design.scenario");
+  if (!SCENARIO_SET.has(design.scenario.primary)) {
+    throw planError("invalid-authoring-plan", `Authoring plan design.scenario.primary must be one of ${PRESENTATION_SCENARIOS.join(", ")}.`);
+  }
+  if (design.scenario.secondary != null &&
+      (!SCENARIO_SET.has(design.scenario.secondary) || design.scenario.secondary === design.scenario.primary)) {
+    throw planError("invalid-authoring-plan", "Authoring plan design.scenario.secondary must be a different supported scenario or null.");
+  }
+  if (!isPlainObject(design.direction)) {
+    throw planError("invalid-authoring-plan", "Authoring plan design.direction must contain a selected direction.");
+  }
+  assertExactKeys(design.direction, new Set(["name", "rationale"]), "Authoring plan design.direction");
+  boundedString(design.direction.name, "Authoring plan design.direction.name", 160);
+  boundedString(design.direction.rationale, "Authoring plan design.direction.rationale", 2_048);
+  return {
+    primaryJob: brief.primaryJob,
+    primaryScenario: design.scenario.primary,
+    directionName: design.direction.name,
+    mediumFit: brief.mediumFit ?? "acceptable",
+  };
 }
 
 function validateDesign(design) {
