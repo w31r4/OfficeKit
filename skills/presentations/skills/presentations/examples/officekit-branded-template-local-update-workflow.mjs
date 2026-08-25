@@ -45,7 +45,7 @@ function auditEnvelope(sourceBytes, outputBytes, output, checks) {
   return {
     schema: "office-kit.presentation-audit.v1",
     status: "succeeded",
-    provider: { actual: "office-kit", version: "0.6.0", silentFallback: false },
+    provider: { actual: "office-kit", version: "0.8.0", silentFallback: false },
     savePolicy: { strategy: "rewrite", sourceImmutable: true },
     source: { sha256: sha256(sourceBytes), name: "template.pptx" },
     output: { sha256: sha256(outputBytes), name: "quarterly-board-updated.pptx" },
