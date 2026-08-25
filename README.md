@@ -182,11 +182,17 @@ package checks only.
 ## Create a presentation from one request
 
 For a new deck, the Presentations route turns a clear request into a working
-draft: it fixes the audience and conclusion, plans the story, chooses a
-deck-specific visual grammar, composes the pages, and checks the result before
-delivery. A supplied template, brand guide, or reference deck remains the
-design authority; without one, the Agent can choose its own visual direction.
-Grid Layout is an explicit scaffold, not a hidden fallback.
+draft by deciding what must change for the audience, how the deck will be used,
+which presentation scenario applies, and what visual direction serves that
+job. It then plans the story, composes the pages, adds motion only when useful,
+and checks the result before delivery. A supplied template, brand guide, or
+reference deck remains the design authority; without one, the Agent chooses a
+task-specific direction. Grid Layout is an explicit scaffold, not a hidden
+fallback.
+
+Read [What OfficeKit Means by a Presentation](docs/what-is-a-presentation.md)
+for the communication, lifecycle, quality, and native-artifact principles that
+drive this workflow.
 
 The plan is stored with the task, so a later session can reopen the reviewed
 revision, see the pending decision, make a local change, and review it again.

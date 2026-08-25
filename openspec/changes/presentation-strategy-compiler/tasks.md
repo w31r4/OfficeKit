@@ -1,7 +1,7 @@
 ## 1. Doctrine and public positioning
 
-- [ ] 1.1 Publish the English canonical presentation doctrine and synchronized Chinese edition.
-- [ ] 1.2 Link the doctrine from both READMEs and record the 0.9 positioning boundary.
+- [x] 1.1 Publish the English canonical presentation doctrine and synchronized Chinese edition.
+- [x] 1.2 Link the doctrine from both READMEs and record the 0.9 positioning boundary.
 
 ## 2. Durable presentation strategy
 
