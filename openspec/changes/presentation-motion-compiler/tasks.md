@@ -13,8 +13,8 @@
 
 ## 3. Review and guidance
 
-- [ ] 3.1 Add motion review and playback-evidence fields to the existing review report.
-- [ ] 3.2 Add deterministic composition warnings for missing carrier, under-composition, repeated silhouettes, and unfinished pages.
+- [x] 3.1 Add motion review and playback-evidence fields to the existing review report.
+- [x] 3.2 Add deterministic composition warnings for missing carrier, under-composition, repeated silhouettes, and unfinished pages.
 - [ ] 3.3 Add the six runnable recipes, Kimi/PPT Master-inspired design guidance, Help adoption records, and API documentation.
 
 ## 4. Real artifacts and release

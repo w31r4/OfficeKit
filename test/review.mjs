@@ -177,6 +177,48 @@ try {
   assert.equal(plannedReview.design.changedPageIds.length, 0);
   assert.match(plannedReview.summary.markdown, /Authoring-plan design checks/u);
 
+  const motionReviewModel = Presentation.create();
+  const motionReviewSlide = motionReviewModel.slides.add({ name: "Motion review" });
+  const motionReviewTarget = motionReviewSlide.shapes.add({
+    geometry: "rect",
+    name: "Primary risk",
+    text: "Liquidity risk",
+    position: { left: 120, top: 100, width: 420, height: 180 },
+  });
+  motionReviewSlide.animations.add(motionReviewTarget, { effect: "pulse", phase: "emphasis", start: "afterPrevious" });
+  const motionPlan = authoringPlan(1);
+  motionPlan.brief.deliveryMode = "live";
+  motionPlan.design.motionPolicy = "adaptive";
+  motionPlan.pages[0].compositionIntent = "native vector focus with one dominant risk statement";
+  motionPlan.pages[0].motionIntent = {
+    purpose: "focus",
+    recipe: "focus-pulse",
+    transition: "none",
+    units: [{ id: "risk-pulse", targetRole: "primary risk", order: 1, start: "afterPrevious" }],
+  };
+  const motionReview = await reviewArtifact(motionReviewModel, {
+    authoringPlan: motionPlan,
+    outputPath: path.join(temporary, "motion-review.pptx"),
+    layout: false,
+    playbackEvidence: "structural",
+    visualReview: "unavailable",
+  });
+  assert.notEqual(motionReview.verdict, "failed", JSON.stringify(motionReview, null, 2));
+  assert.equal(motionReview.motion.animationCount, 1);
+  assert.equal(motionReview.playbackEvidence, "structural");
+  assert.match(motionReview.summary.markdown, /Motion and playback checks/u);
+
+  const readerMotionPlan = structuredClone(motionPlan);
+  readerMotionPlan.brief.deliveryMode = "reader";
+  const readerMotionReview = await reviewArtifact(motionReviewModel, {
+    authoringPlan: readerMotionPlan,
+    outputPath: path.join(temporary, "reader-motion-review.pptx"),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.equal(readerMotionReview.verdict, "failed");
+  assert.ok(readerMotionReview.motion.issues.some((issue) => issue.type === "readerMotionUnauthorized"));
+
   const typographyFloorModel = Presentation.create();
   const typographyFloorSlide = typographyFloorModel.slides.add({ name: "Typography floor" });
   typographyFloorSlide.shapes.add({

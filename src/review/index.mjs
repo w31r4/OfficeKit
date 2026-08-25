@@ -49,6 +49,7 @@ const FORMAT_ALIASES = new Map([
 
 const MIME_FORMATS = new Map(Object.entries(FORMAT_DETAILS).map(([format, details]) => [details.type, format]));
 const VISUAL_REVIEW_STATUSES = new Set(["complete", "unavailable", "requires-human"]);
+const PLAYBACK_EVIDENCE_STATUSES = new Set(["structural", "keynote", "powerpoint"]);
 
 function positiveInteger(value, fallback, label) {
   if (value == null) return fallback;
@@ -367,7 +368,7 @@ function presentationDesignReview(model, options = {}) {
   checkStrictDesignGrammar(plan, profile, issues);
   checkTypographyFloor(plan, records, issues);
   checkContentBudgets(plan, pageSignatures, issues);
-  addDesignHeuristicWarnings(records, pageSignatures, profile, issues);
+  addDesignHeuristicWarnings(model, plan, records, pageSignatures, profile, issues);
   if (changedPageIds.length > 0) {
     compareChangedPageScope(pageSignatures, options.baselineDesign, changedPageIds, issues);
     compareDesignDrift(profile, options.baselineDesign, issues);
@@ -382,6 +383,135 @@ function presentationDesignReview(model, options = {}) {
     issues,
     pageSignatures,
     profile,
+  };
+}
+
+function presentationMotionReview(model, options = {}) {
+  const playbackEvidence = options.playbackEvidence ?? "structural";
+  if (!PLAYBACK_EVIDENCE_STATUSES.has(playbackEvidence)) {
+    throw new TypeError("playbackEvidence must be structural, keynote, or powerpoint.");
+  }
+  if (!(model instanceof Presentation)) {
+    return {
+      status: "blocked",
+      ok: false,
+      planSha256: null,
+      playbackEvidence,
+      animationCount: 0,
+      motionUnits: [],
+      morphPairs: [],
+      issues: [reviewIssue("motionReviewBlocked", "Motion review requires a successfully reopened Presentation.")],
+    };
+  }
+
+  const issues = [];
+  let normalized;
+  if (options.authoringPlan != null) {
+    try { normalized = normalizePresentationAuthoringPlan(options.authoringPlan); }
+    catch (error) { issues.push(reviewIssue("invalidMotionAuthoringPlan", boundedMessage(error))); }
+  }
+  const plan = normalized?.plan;
+  const motionUnits = [];
+  const morphPairs = [];
+  const rhythms = [];
+  let animationCount = 0;
+
+  for (const [index, slide] of model.slides.items.entries()) {
+    const page = plan?.pages[index];
+    const animations = slide.animations.items;
+    const morph = slide.morph.value;
+    animationCount += animations.length;
+    const semanticUnitCount = animations.length + (morph ? 1 : 0);
+    const rhythm = animations.map((animation) => `${animation.effect}:${animation.start}`).join("|") || (morph ? "morph" : "static");
+    rhythms.push(rhythm);
+
+    if (animations.length > 32 || animations.length * 2 > 64) {
+      issues.push(reviewIssue("motionNodeLimit", `Slide ${index + 1} exceeds the supported semantic or expanded timing-node limit.`, "error", { slide: index + 1 }));
+    }
+    for (const [order, animation] of animations.entries()) {
+      const target = slide.resolve(animation.targetId);
+      motionUnits.push({
+        slide: index + 1,
+        pageId: page?.id,
+        order: order + 1,
+        id: animation.id,
+        targetId: animation.targetId,
+        effect: animation.effect,
+        start: animation.start,
+        chartBuild: animation.chartBuild,
+        textBuild: animation.textBuild,
+      });
+      if (!target) issues.push(reviewIssue("invalidMotionTarget", `Animation ${animation.id} on slide ${index + 1} targets a missing object.`, "error", { slide: index + 1, id: animation.id }));
+      if (animation.chartBuild && animation.targetKind !== "chart") {
+        issues.push(reviewIssue("invalidChartBuildTarget", `Animation ${animation.id} uses chartBuild on a non-chart target.`, "error", { slide: index + 1, id: animation.id }));
+      }
+      if (animation.textBuild && !["shape", "textbox", "text", "element"].includes(animation.targetKind)) {
+        issues.push(reviewIssue("invalidTextBuildTarget", `Animation ${animation.id} uses textBuild on a non-text target.`, "error", { slide: index + 1, id: animation.id }));
+      }
+    }
+
+    if (morph) {
+      const sourceSlide = index > 0 ? model.slides.items[index - 1] : undefined;
+      if (!sourceSlide || morph.fromSlideId !== sourceSlide.id) {
+        issues.push(reviewIssue("invalidMorphAdjacency", `Slide ${index + 1} Morph does not reference its immediately preceding slide.`, "error", { slide: index + 1 }));
+      }
+      for (const pair of morph.pairs) {
+        const from = sourceSlide?.resolve(pair.fromId);
+        const to = slide.resolve(pair.toId);
+        const expectedName = `!!${pair.key}`;
+        const compatible = Boolean(from && to && from.name === expectedName && to.name === expectedName);
+        morphPairs.push({ slide: index + 1, pageId: page?.id, key: pair.key, fromId: pair.fromId, toId: pair.toId, compatible });
+        if (!compatible) issues.push(reviewIssue("invalidMorphPair", `Morph pair ${pair.key} on slide ${index + 1} no longer resolves to matching native object names.`, "error", { slide: index + 1, key: pair.key }));
+      }
+    }
+
+    const intent = page?.motionIntent;
+    const declaredUnits = intent?.units || [];
+    if (intent && declaredUnits.length !== semanticUnitCount) {
+      issues.push(reviewIssue("motionPlanMismatch", `Page ${page.id} declares ${declaredUnits.length} motion units but the artifact contains ${semanticUnitCount}.`, "error", { pageId: page.id, slide: index + 1 }));
+    }
+    if (intent) {
+      const transition = slide.transition.toJSON();
+      const matchesTransition = intent.transition === "morph"
+        ? Boolean(morph)
+        : intent.transition === "none" || intent.transition == null
+          ? !transition && !morph
+          : transition?.effect === intent.transition;
+      if (!matchesTransition) issues.push(reviewIssue("motionTransitionMismatch", `Page ${page.id} transition does not match its motion intent.`, "error", { pageId: page.id, slide: index + 1 }));
+      for (const [unitIndex, unit] of [...declaredUnits].sort((left, right) => left.order - right.order).entries()) {
+        if (unit.start && animations[unitIndex]?.start && unit.start !== animations[unitIndex].start) {
+          issues.push(reviewIssue("motionStartMismatch", `Page ${page.id} motion unit ${unit.id} start does not match the authored timeline.`, "error", { pageId: page.id, slide: index + 1, id: unit.id }));
+        }
+      }
+    }
+    if (plan?.brief.deliveryMode === "reader" && semanticUnitCount > 0 && plan.design.motionPolicy !== "explicit") {
+      issues.push(reviewIssue("readerMotionUnauthorized", `Reader-mode page ${page?.id || index + 1} contains motion without an explicit motion policy.`, "error", { pageId: page?.id, slide: index + 1 }));
+    }
+    if (semanticUnitCount > 4) issues.push(reviewIssue("excessiveMotionUnits", `Slide ${index + 1} contains ${semanticUnitCount} motion units; review whether every step serves the spoken narrative.`, "warning", { slide: index + 1 }));
+    if (animations.filter((animation) => animation.effect === "pulse").length > 1) {
+      issues.push(reviewIssue("repeatedPulse", `Slide ${index + 1} pulses more than one object.`, "warning", { slide: index + 1 }));
+    }
+    if (semanticUnitCount > 0 && options.design?.issues?.some((issue) => issue.slide === index + 1 && ["unfinishedComposition", "underComposedPage"].includes(issue.type))) {
+      issues.push(reviewIssue("motionOnUnfinishedComposition", `Slide ${index + 1} adds motion before its static composition is complete.`, "warning", { slide: index + 1 }));
+    }
+  }
+
+  for (let index = 2; index < rhythms.length; index += 1) {
+    if (rhythms[index] !== "static" && rhythms[index] === rhythms[index - 1] && rhythms[index] === rhythms[index - 2]) {
+      issues.push(reviewIssue("repeatedMotionRhythm", `Slides ${index - 1}, ${index}, and ${index + 1} repeat the same motion rhythm.`, "warning", { slides: [index - 1, index, index + 1] }));
+    }
+  }
+
+  const ok = !hasHardIssue(issues);
+  return {
+    status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed",
+    ok,
+    planSha256: normalized?.sha256 || null,
+    playbackEvidence,
+    animationCount,
+    motionUnits,
+    morphPairs,
+    issues,
   };
 }
 
@@ -550,7 +680,7 @@ function checkContentBudgets(plan, pageSignatures, issues) {
   }
 }
 
-function addDesignHeuristicWarnings(records, pageSignatures, profile, issues) {
+function addDesignHeuristicWarnings(model, plan, records, pageSignatures, profile, issues) {
   const repeated = new Map();
   for (const archetype of profile.archetypes) {
     const slides = repeated.get(archetype.signature) || [];
@@ -598,6 +728,40 @@ function addDesignHeuristicWarnings(records, pageSignatures, profile, issues) {
   for (const [stem, slides] of titleStems) {
     if (slides.length >= 3) issues.push(reviewIssue("repeatedTitleForm", `Slides ${slides.join(", ")} begin with the same title form “${stem}”.`, "warning", { slides }));
   }
+  addCompositionIntentWarnings(model, plan, records, pageSignatures, issues);
+}
+
+const VISUAL_CARRIER_PATTERN = /(?:image|photo|illustration|chart|graph|diagram|flow|typograph|vector|table|timeline|screenshot|icon|图片|图表|关系图|文字构图|矢量|表格|流程|时间线)/iu;
+const SPARSE_INTENT_PATTERN = /(?:sparse|minimal|negative space|single focal|留白|极简|单一焦点)/iu;
+
+function addCompositionIntentWarnings(model, plan, records, pageSignatures, issues) {
+  const slideArea = Math.max(1, Number(model.slideSize?.width) * Number(model.slideSize?.height));
+  for (const [index, page] of plan.pages.entries()) {
+    const slide = index + 1;
+    const intent = String(page.compositionIntent || "");
+    const sparse = SPARSE_INTENT_PATTERN.test(intent);
+    if (!VISUAL_CARRIER_PATTERN.test(intent)) {
+      issues.push(reviewIssue("missingVisualCarrierIntent", `Page ${page.id} does not name the visual carrier that should communicate its claim.`, "warning", { pageId: page.id, slide }));
+    }
+    const signature = pageSignatures[index];
+    if (!signature || sparse) continue;
+    if (signature.objectCount <= 1) {
+      issues.push(reviewIssue("unfinishedComposition", `Page ${page.id} has no declared sparse intent but contains only ${signature.objectCount} modeled visual object.`, "warning", { pageId: page.id, slide }));
+    }
+    const boxes = records
+      .filter((record) => Number(record.slide) === slide && Array.isArray(record.bbox) && record.bbox.length === 4)
+      .map((record) => record.bbox.map(Number))
+      .filter((bbox) => bbox.every(Number.isFinite) && bbox[2] > 0 && bbox[3] > 0);
+    if (!boxes.length) continue;
+    const left = Math.min(...boxes.map((bbox) => bbox[0]));
+    const top = Math.min(...boxes.map((bbox) => bbox[1]));
+    const right = Math.max(...boxes.map((bbox) => bbox[0] + bbox[2]));
+    const bottom = Math.max(...boxes.map((bbox) => bbox[1] + bbox[3]));
+    const envelopeRatio = Math.max(0, right - left) * Math.max(0, bottom - top) / slideArea;
+    if (envelopeRatio < 0.28) {
+      issues.push(reviewIssue("underComposedPage", `Page ${page.id} uses only ${Math.round(envelopeRatio * 100)}% of the slide envelope without an explicit sparse composition intent.`, "warning", { pageId: page.id, slide, envelopeRatio }));
+    }
+  }
 }
 
 function compareChangedPageScope(current, baselineDesign, changedPageIds, issues) {
@@ -644,6 +808,7 @@ function createReviewMarkdown(report, maxChars) {
   const structuralIssues = report.structural.issues || [];
   const layoutIssues = report.layout.issues || [];
   const designIssues = report.design?.issues || [];
+  const motionIssues = report.motion?.issues || [];
   const deliveryIssues = report.delivery.issues || [];
   const counts = Object.entries(report.semantic.recordCounts || {}).map(([kind, count]) => `${kind}=${count}`).join(", ") || "unavailable";
   const prefix = [
@@ -673,6 +838,11 @@ function createReviewMarkdown(report, maxChars) {
     "",
     `Status: ${report.design?.status || "not-applicable"}${report.design?.planSha256 ? `; plan: ${report.design.planSha256}` : ""}.`,
     ...summarizeIssues(designIssues),
+    "",
+    "### Motion and playback checks",
+    "",
+    `Status: ${report.motion?.status || "not-applicable"}; evidence: ${report.motion?.playbackEvidence || "not-applicable"}; animations: ${report.motion?.animationCount || 0}; Morph pairs: ${report.motion?.morphPairs?.length || 0}.`,
+    ...summarizeIssues(motionIssues),
     "",
     "## 9. Text reading view (optional)",
     "",
@@ -871,7 +1041,14 @@ export async function reviewArtifact(input, options = {}) {
       baselineDesign: baselineReview?.design,
     })
     : { status: "not-applicable", ok: true, planSha256: null, changedPageIds: [], issues: [] };
-  const hardFailure = !semantic.ok || !structural.ok || !layout.ok || !design.ok || !delivery.ok;
+  const motion = materialized.format === "pptx"
+    ? presentationMotionReview(model, {
+      authoringPlan: options.authoringPlan,
+      playbackEvidence: options.playbackEvidence,
+      design,
+    })
+    : { status: "not-applicable", ok: true, planSha256: null, playbackEvidence: null, animationCount: 0, motionUnits: [], morphPairs: [], issues: [] };
+  const hardFailure = !semantic.ok || !structural.ok || !layout.ok || !design.ok || !motion.ok || !delivery.ok;
   const limitations = !hardFailure && (
     visualReview !== "complete"
     || (contentView.requested && contentView.status !== "ready")
@@ -879,6 +1056,7 @@ export async function reviewArtifact(input, options = {}) {
     || structural.status === "passed-with-warnings"
     || layout.status !== "passed"
     || design.status === "passed-with-warnings"
+    || motion.status === "passed-with-warnings"
     || delivery.status !== "ready"
   );
   const report = {
@@ -890,6 +1068,8 @@ export async function reviewArtifact(input, options = {}) {
     structural,
     layout,
     design,
+    motion,
+    ...(materialized.format === "pptx" ? { playbackEvidence: motion.playbackEvidence } : {}),
     contentView,
     visualReview,
     delivery,
