@@ -68,7 +68,7 @@ cd your-project
 officekit init
 ```
 
-`officekit init` 会识别项目里的 Agent 配置，并让你选择将 8 个 OfficeKit Skill
+`officekit init` 会识别项目里的 Agent 配置，并让你选择将 9 个 OfficeKit Skill
 写入哪些目录。直接回车接受识别结果；需要明确指定时：
 
 ```sh
@@ -171,6 +171,10 @@ macOS 当前只跑构建、mock 和打包检查。
 品牌规范或参考文件始终是设计权威；没有这些材料时，Agent 会为当前任务选择独立的
 视觉方向。Grid Layout 只是显式可选的脚手架，不是隐藏 fallback。
 
+自定义设计会先制作开场页、证据页和最高风险页进行校准，再扩展整份演示文稿。
+Presentation Editorial Trim 会在构图前和首轮渲染后分别整理文案，保留事实、来源、
+用户锁定措辞和局部编辑边界。
+
 完整方法见 [OfficeKit 所说的演示文稿是什么](docs/what-is-a-presentation.zh-CN.md)，
 其中说明了沟通任务、生命周期、六层质量模型和原生产物边界。
 
@@ -186,6 +190,7 @@ macOS 当前只跑构建、mock 和打包检查。
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | 已确定要处理 Excel、CSV、公式、模型或图表。 |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | 通过本机 OfficeKit Add-in 操作 Microsoft Excel 桌面版里已经打开的工作簿。 |
 | [Presentations](skills/presentations/skills/presentations/SKILL.md) | 已确定要创建或修改 PowerPoint。 |
+| [Presentation Editorial Trim](skills/presentations/skills/presentation-editorial-trim/SKILL.md) | 只优化演示文稿文案，同时保留事实、来源、设计和局部修改范围。 |
 | [PowerPoint Live Control](skills/presentations/skills/powerpoint-live-control/SKILL.md) | 操作桌面版 PowerPoint 中已经打开的演示文稿。 |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |

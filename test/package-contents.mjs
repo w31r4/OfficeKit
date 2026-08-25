@@ -179,12 +179,12 @@ const maxPackedBytes = 37_500_000;
 // only a narrow 6,423-byte growth budget.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
-const maxUnpackedBytes = 54_500_000;
+const maxUnpackedBytes = 54_600_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
 // silently consuming the recovered product-growth headroom.
-const maxSkillPngBytes = 3_550_000;
+const maxSkillPngBytes = 3_565_000;
 
 for (const required of [
   "LICENSE",
@@ -423,6 +423,9 @@ for (const required of [
   "skills/presentations/skills/presentations/references/scenario-education-training.md",
   "skills/presentations/skills/presentations/references/scenario-technical-engineering.md",
   "skills/presentations/skills/presentations/references/scenario-brand-creative.md",
+  "skills/presentations/skills/presentation-editorial-trim/SKILL.md",
+  "skills/presentations/skills/presentation-editorial-trim/agents/openai.yaml",
+  "skills/presentations/skills/presentation-editorial-trim/references/patterns.md",
   "skills/presentations/skills/powerpoint-live-control/SKILL.md",
   "skills/presentations/skills/powerpoint-live-control/agents/openai.yaml",
   "skills/presentations/skills/powerpoint-live-control/assets/icon.svg",
@@ -435,6 +438,7 @@ for (const required of [
   "skills/presentations/skills/presentations/examples/officekit-object-accessibility-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-chart-trendline-workflow.mjs",
+  "skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-legacy-comment-add-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-legacy-comment-edit-workflow.mjs",
   "skills/presentations/skills/presentations/examples/officekit-speaker-notes-add-workflow.mjs",
@@ -590,7 +594,7 @@ assert.ok(
 );
 const skillPngs = report.files.filter(({ path: filename }) => /^skills\/(?:documents|spreadsheets|presentations|pdf)\/.*\.png$/.test(filename));
 const skillPngBytes = skillPngs.reduce((total, { size }) => total + size, 0);
-assert.equal(skillPngs.length, 40, "npm package must retain all 40 public Skill PNG assets");
+assert.equal(skillPngs.length, 41, "npm package must retain all 41 public Skill PNG assets");
 assert.ok(skillPngBytes < maxSkillPngBytes, `public Skill PNG payload unexpectedly large: ${skillPngBytes} (limit ${maxSkillPngBytes})`);
 assert.ok(report.size < maxPackedBytes, `npm package archive unexpectedly large: ${report.size} (limit ${maxPackedBytes})`);
 assert.ok(report.unpackedSize < maxUnpackedBytes, `npm package unpacked size unexpectedly large: ${report.unpackedSize} (limit ${maxUnpackedBytes})`);

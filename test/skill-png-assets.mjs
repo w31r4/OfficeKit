@@ -15,14 +15,25 @@ const referenceFiles = await listSkillPngFiles(referenceRoot);
 const relative = (root, filename) => path.relative(root, filename).split(path.sep).join("/");
 const projectPaths = projectFiles.map((filename) => relative(REPO_ROOT, filename));
 const referencePaths = referenceFiles.map((filename) => relative(referenceRoot, filename));
-const extraProjectPath = "skills/spreadsheets/skills/excel-live-control/assets/file-spreadsheet.png";
+const extraProjectAssets = [
+  {
+    path: "skills/presentations/skills/presentation-editorial-trim/assets/file-presentation.png",
+    canonical: "skills/presentations/skills/presentations/assets/file-presentation.png",
+    label: "Presentation editorial icon",
+  },
+  {
+    path: "skills/spreadsheets/skills/excel-live-control/assets/file-spreadsheet.png",
+    canonical: "skills/spreadsheets/skills/spreadsheets/assets/file-spreadsheet.png",
+    label: "Excel live-control icon",
+  },
+];
 
-assert.equal(projectFiles.length, 40, "the four npm Skill bundles must retain their 40 published PNG assets");
+assert.equal(projectFiles.length, 41, "the four npm Skill bundles must retain their 41 published PNG assets");
 assert.equal(referenceFiles.length, 39, "the pinned reference must retain its 39 source PNG assets");
 assert.deepEqual(
   projectPaths.filter((filename) => !referencePaths.includes(filename)),
-  [extraProjectPath],
-  "only the compatibility Excel live-control icon may extend the reference PNG path set",
+  extraProjectAssets.map((asset) => asset.path),
+  "only the declared workflow icons may extend the reference PNG path set",
 );
 
 let projectBytes = 0;
@@ -43,17 +54,23 @@ for (const referenceFilename of referenceFiles) {
   assert.equal(optimizePngBytes(projectPng).changed, false, `${assetPath} has remaining deterministic lossless savings`);
 }
 
-const extraPng = await fs.readFile(path.join(REPO_ROOT, extraProjectPath));
-projectBytes += extraPng.length;
+for (const asset of extraProjectAssets) {
+  const [extraPng, canonicalPng] = await Promise.all([
+    fs.readFile(path.join(REPO_ROOT, asset.path)),
+    fs.readFile(path.join(referenceRoot, asset.canonical)),
+  ]);
+  projectBytes += extraPng.length;
+  const extraIdentity = pngIdentity(extraPng);
+  const canonicalIdentity = pngIdentity(canonicalPng);
+  assert.ok(extraIdentity.inflated.equals(canonicalIdentity.inflated), `${asset.label} changed its source pixel stream`);
+  assert.ok(extraIdentity.nonIdat.equals(canonicalIdentity.nonIdat), `${asset.label} changed its source metadata`);
+  assert.equal(optimizePngBytes(extraPng).changed, false, `${asset.label} has remaining deterministic lossless savings`);
+}
 const canonicalSpreadsheetIcon = await fs.readFile(path.join(
   referenceRoot,
   "skills/spreadsheets/skills/spreadsheets/assets/file-spreadsheet.png",
 ));
-const extraIdentity = pngIdentity(extraPng);
 const canonicalIdentity = pngIdentity(canonicalSpreadsheetIcon);
-assert.ok(extraIdentity.inflated.equals(canonicalIdentity.inflated), "Excel live-control icon changed its source pixel stream");
-assert.ok(extraIdentity.nonIdat.equals(canonicalIdentity.nonIdat), "Excel live-control icon changed its source metadata");
-assert.equal(optimizePngBytes(extraPng).changed, false, "Excel live-control icon has remaining deterministic lossless savings");
 const canonicalOptimization = optimizePngBytes(canonicalSpreadsheetIcon);
 assert.equal(canonicalOptimization.changed, true, "the pinned reference icon must exercise the write path");
 const canonicalOptimizedIdentity = pngIdentity(canonicalOptimization.bytes);
@@ -71,7 +88,7 @@ assert.throws(
 );
 
 assert.equal(referenceBytes, 4_385_190, "pinned reference PNG byte inventory changed without review");
-assert.equal(projectBytes, 3_548_674, "optimized public Skill PNG byte inventory changed without review");
-assert.equal(4_397_178 - projectBytes, 848_504, "expected lossless package recovery changed");
+assert.equal(projectBytes, 3_557_964, "optimized public Skill PNG byte inventory changed without review");
+assert.equal(4_406_468 - projectBytes, 848_504, "expected lossless package recovery changed");
 
-console.log("Skill PNG asset integrity ok: 40 files, 848504 bytes recovered without semantic or metadata drift");
+console.log("Skill PNG asset integrity ok: 41 files, 848504 bytes recovered without semantic or metadata drift");

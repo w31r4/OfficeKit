@@ -74,7 +74,7 @@ officekit init
 ```
 
 `officekit init` finds the Agent configurations in the project and lets you
-choose which directories receive the eight OfficeKit Skills. Press Enter to
+choose which directories receive the nine OfficeKit Skills. Press Enter to
 accept the detected targets, or name them explicitly:
 
 ```sh
@@ -196,11 +196,9 @@ drive this workflow.
 
 The plan is stored with the task, so a later session can reopen the reviewed
 revision, see the pending decision, make a local change, and review it again.
-The frozen A/B/C pilot has completed 60 packed fresh-context runs and 40
-pairwise blind quality judgments from fresh, read-only Codex reviewers. C met
-the machine and continuation/cost thresholds and beat B at 60%, but reached
-only 50% against the Grid baseline A (the threshold is 60%). Grid therefore
-remains the shipped default; C stays available as the experimental route.
+For self-directed decks, OfficeKit calibrates an opening page, an evidence page,
+and the densest page before expanding the full story. Route C is the default;
+Grid remains an explicit scaffold when the user or plan requests it.
 
 ## One front door, with direct routes when you want them
 
@@ -214,6 +212,7 @@ output route, considers templates, and hands each file to its owning Skill.
 | [Spreadsheets](skills/spreadsheets/skills/spreadsheets/SKILL.md) | Excel, CSV, formulas, models, data preparation, and charts. |
 | [Excel Live Control](skills/spreadsheets/skills/excel-live-control/SKILL.md) | Working with a workbook already open in Microsoft Excel desktop through the local OfficeKit Add-in. |
 | [Presentations](skills/presentations/skills/presentations/SKILL.md) | Creating or changing a PowerPoint presentation. |
+| [Presentation Editorial Trim](skills/presentations/skills/presentation-editorial-trim/SKILL.md) | Polishing slide copy while preserving facts, sources, design, and local edit scope. |
 | [PowerPoint Live Control](skills/presentations/skills/powerpoint-live-control/SKILL.md) | Working with a presentation already open in desktop PowerPoint through the local OfficeKit bridge. |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | Reading, creating, inspecting, or processing a PDF. |
 | [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving your own DOCX, XLSX, or PPTX reference as a reusable template. |

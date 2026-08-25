@@ -326,7 +326,7 @@ try {
     { NODE_DEBUG: "esm" },
   );
   const initialized = JSON.parse(initializationProbe.stdout);
-  assert.equal(initialized.created, 8);
+  assert.equal(initialized.created, 9);
   assert.doesNotMatch(
     initializationProbe.stderr,
     /node_modules\/mupdf|src\/pdf\/mupdf|runtime\/office-kit\/main|src\/codecs\//iu,

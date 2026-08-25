@@ -76,7 +76,7 @@ try {
   const initialized = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(initialized.ok, true);
   assert.deepEqual(initialized.tools.map((tool) => tool.id), ["claude", "cursor"]);
-  assert.equal(initialized.created, 16);
+  assert.equal(initialized.created, 18);
   assert.equal(initialized.updated, 0);
   assert.equal(initialized.unchanged, 0);
   for (const toolRoot of [".claude", ".cursor"]) {
@@ -86,6 +86,7 @@ try {
       "spreadsheets",
       "excel-live-control",
       "presentations",
+      "presentation-editorial-trim",
       "powerpoint-live-control",
       "pdf",
       "template-creator",
@@ -103,14 +104,14 @@ try {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.schemaVersion, 1);
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
-  assert.equal(manifest.installations.length, 16);
+  assert.equal(manifest.installations.length, 18);
   assert.equal(manifest.package.name, "office-kit");
   assert.equal(manifest.package.version, "0.9.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);
   assert.equal(idempotent.updated, 0);
-  assert.equal(idempotent.unchanged, 16);
+  assert.equal(idempotent.unchanged, 18);
 
   const managedSkill = path.join(project, ".claude", "skills", "office-kit", "SKILL.md");
   const sourceSkill = path.join(
@@ -130,7 +131,7 @@ try {
     run(["update", project, "--force", "--json"]).stdout,
   );
   assert.equal(restored.updated, 1);
-  assert.equal(restored.unchanged, 15);
+  assert.equal(restored.unchanged, 17);
   assert.equal(
     sha256(fs.readFileSync(managedSkill)),
     sha256(fs.readFileSync(sourceSkill)),

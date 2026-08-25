@@ -420,13 +420,14 @@ try {
     }
     const initializedResult = JSON.parse(initialized.stdout);
     if (
-      initializedResult.created !== 8 ||
+      initializedResult.created !== 9 ||
       initializedResult.tools[0]?.id !== "agents" ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "office-kit", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "documents", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "spreadsheets", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "excel-live-control", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentations", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-editorial-trim", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "pdf", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "template-creator", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "powerpoint-live-control", "SKILL.md"))
@@ -809,7 +810,7 @@ function testGlobalCli({ temporary }) {
   const initialized = JSON.parse(expectSuccess([
     "init", ".", "--tools", "agents", "--json",
   ], project).stdout);
-  assert.equal(initialized.created, 8);
+  assert.equal(initialized.created, 9);
   assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "office-kit", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "powerpoint-live-control", "SKILL.md")));
   assert.equal(
@@ -820,7 +821,7 @@ function testGlobalCli({ temporary }) {
   const updated = JSON.parse(expectSuccess([
     "update", ".", "--json",
   ], project).stdout);
-  assert.equal(updated.unchanged, 8);
+  assert.equal(updated.unchanged, 9);
 
   const expectedTemplateCounts = new Map([
     ["document", 7],
