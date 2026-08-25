@@ -81,13 +81,13 @@ const standaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.sh"),
   "utf8",
 );
-assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.8\.0/);
+assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.9\.0/);
 assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
 const windowsStandaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.ps1"),
   "utf8",
 );
-assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.8\.0"/);
+assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.9\.0"/);
 assert.match(windowsStandaloneInstaller, /win32-x64/);
 assert.doesNotMatch(windowsStandaloneInstaller, /RELEASE_(?:SHA256|SIZE)/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
@@ -168,15 +168,15 @@ const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
 // and hosted gates. The 0.9.0 global CLI deliberately ships the twenty audited
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
-// cross-platform headroom over the measured 36,499,596-byte archive.
+// cross-platform headroom over the measured 36,592,843-byte archive.
 const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
 // and offline consumer guidance. Repository-generated evidence such as the API
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries, generated evidence, or provider binaries in the
-// tarball. The current 0.9.0 runtime payload measures 54,434,283 bytes before
-// the bounded mixed-edit fix; keep only a 5,600-byte growth budget.
+// tarball. The current 0.9.0 runtime payload measures 54,493,577 bytes; keep
+// only a narrow 6,423-byte growth budget.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
 const maxUnpackedBytes = 54_500_000;
