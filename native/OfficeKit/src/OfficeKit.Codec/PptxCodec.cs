@@ -206,6 +206,7 @@ internal static class PptxCodec
             var elements = ShapeElements(shapeTree);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
+            var slideTiming = PptxTimingCodec.Read(slideRoot, elementIdsByNativeId);
             var sourceEntry = new PptxSourceSlideEntry(slideIndex, slideId, relationshipId, slidePart);
             var deletionPlan = PptxSlideDeletionCodec.Analyze(presentationPart, sourceEntry, opaque);
             var clonePlan = PptxSlideCloneCodec.Analyze(presentationPart, sourceEntry, slideParts.ToHashSet());
@@ -238,6 +239,10 @@ internal static class PptxCodec
                     TransitionEditable = PptxTransitionCodec.Supports(slideRoot),
                     TransitionPresent = PptxTransitionCodec.HasTransition(slideRoot),
                     TransitionAddable = PptxTransitionCodec.CanAdd(slideRoot),
+                    TimingPresent = slideTiming.Present,
+                    TimingEditable = slideTiming.Editable,
+                    TimingAddable = slideTiming.Addable,
+                    TimingSemanticSha256 = slideTiming.SemanticSha256,
                     VisibilitySemanticSha256 = slideVisibility.SemanticSha256,
                     VisibilityEditable = slideVisibility.Editable,
                     DeletionCapability = new PresentationSlideDeletionCapability
@@ -258,6 +263,8 @@ internal static class PptxCodec
             if (slideVisibility.Hidden is { } hidden) target.Hidden = hidden;
             if (slideBackground is not null) target.Background = slideBackground;
             if (slideTransition is not null) target.Transition = slideTransition;
+            target.Animations.AddRange(slideTiming.Animations);
+            if (slideTiming.Morph is not null) target.Morph = slideTiming.Morph;
             if (PptxSpeakerNotesCodec.Read(slidePart) is { } speakerNotes)
                 target.SpeakerNotes = speakerNotes;
             target.LegacyComments.Add(PptxLegacyCommentsCodec.Read(presentationPart, slidePart, slideIndex, diagnostics));
@@ -714,9 +721,36 @@ internal static class PptxCodec
                     changed = true;
                 }
                 var sourceElements = ShapeElements(shapeTree);
+                // Timing edits can change whether a native shape is safe to
+                // delete, but the imported element binding is about the
+                // source revision. Capture that contract before replacing the
+                // timing tree so an animation edit does not masquerade as a
+                // shape-capability mutation.
+                var sourceDeletionPlans = sourceElements
+                    .Select(element => PptxElementDeletionCodec.Analyze(slidePart, element, sourceElements))
+                    .ToArray();
                 var (retainedElements, authoredElements) = SplitSourceBoundElements(target, sourceElements.Length, slideIndex, slidePart);
                 var elementIdsByNativeId = NativeElementIds(sourceElements, target.Id);
                 var nativeIdsByElementId = elementIdsByNativeId.ToDictionary(item => item.Value, item => item.Key, StringComparer.Ordinal);
+                var originalTiming = PptxTimingCodec.Read(slideRoot, elementIdsByNativeId);
+                if (!binding.TimingSemanticSha256.Equals(originalTiming.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+                    throw new CodecException(
+                        "presentation_slide_source_timing_mismatch",
+                        $"Presentation slide {slideIndex + 1} timing does not match its source binding.",
+                        PartPath(slidePart));
+                var requestedTimingHash = PptxTimingCodec.SemanticHash(target.Animations, target.Morph);
+                var requestedOpaqueNoop = originalTiming.Present && !originalTiming.Editable && target.Animations.Count == 0 && target.Morph is null;
+                if (!requestedOpaqueNoop && !requestedTimingHash.Equals(originalTiming.SemanticSha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    var canReplaceTiming = originalTiming.Editable || (originalTiming.Addable && (target.Animations.Count > 0 || target.Morph is not null));
+                    if (!canReplaceTiming)
+                        throw new CodecException(
+                            "unsupported_presentation_edit",
+                            $"Presentation slide {slideIndex + 1} timing is preserved but not safely editable by this codec slice.",
+                            PartPath(slidePart));
+                    PptxTimingCodec.Apply(slideRoot, target, nativeIdsByElementId, allowOpaqueReplacement: originalTiming.Editable || originalTiming.Addable);
+                    changed = true;
+                }
                 foreach (var (elementId, nativeId) in AuthoredOverlayNativeIds(sourceElements, authoredElements, slideIndex, slidePart))
                     if (!nativeIdsByElementId.TryAdd(elementId, nativeId))
                         throw new CodecException(
@@ -777,7 +811,7 @@ internal static class PptxCodec
                     // therefore retain the imported owner ID while proving each
                     // element binding against the original SlidePart.
                     var original = ReadElement(sourceElement, target.Id, elementIndex, slideContext, nativeObjects, elementIdsByNativeId);
-                    var deletionPlan = PptxElementDeletionCodec.Analyze(slidePart, sourceElement, sourceElements);
+                    var deletionPlan = sourceDeletionPlans[elementIndex];
                     SetElementDeletionCapability(original, deletionPlan);
                     if (original.ContentCase == PresentationElement.ContentOneofCase.Table)
                     {
@@ -1719,6 +1753,7 @@ internal static class PptxCodec
                 .ToDictionary(item => item.Id, item => item.NativeId, StringComparer.Ordinal);
             foreach (var element in source.Elements)
                 shapeTree.Append(BuildElement(element, nativeIdsByElementId, slideContext, slidePart));
+            PptxTimingCodec.Build(slidePart.Slide!, source, nativeIdsByElementId);
             slidePart.Slide.Save();
         }
         var notesMasterRelationshipId = PptxSpeakerNotesCodec.BuildSourceFree(presentationPart, themePart, slideParts, artifact.Slides);
@@ -2779,6 +2814,18 @@ internal static class PptxCodec
                 throw new CodecException(
                     "presentation_postwrite_transition_semantics_mismatch",
                     $"PPTX slide {slideIndex + 1} transition does not match requested semantics after export.",
+                    PartPath(outputSlide));
+            var sourceTimingElements = ShapeElements(sourceRoot.CommonSlideData?.ShapeTree ??
+                throw new CodecException("missing_shape_tree", $"PPTX source slide {slideIndex + 1} has no shape tree.", PartPath(sourceSlide)));
+            var sourceTimingIds = NativeElementIds(sourceTimingElements, requested.Slides[slideIndex].Id);
+            var sourceTiming = PptxTimingCodec.Read(sourceRoot, sourceTimingIds);
+            var outputTiming = PptxTimingCodec.Read(outputRoot, sourceTimingIds);
+            var requestedTimingHash = PptxTimingCodec.SemanticHash(requested.Slides[slideIndex].Animations, requested.Slides[slideIndex].Morph);
+            var requestedOpaqueNoop = sourceTiming.Present && !sourceTiming.Editable && requested.Slides[slideIndex].Animations.Count == 0 && requested.Slides[slideIndex].Morph is null;
+            if (!requestedOpaqueNoop && !outputTiming.SemanticSha256.Equals(requestedTimingHash, StringComparison.OrdinalIgnoreCase))
+                throw new CodecException(
+                    "presentation_postwrite_timing_semantics_mismatch",
+                    $"PPTX slide {slideIndex + 1} timing does not match requested animation semantics after export.",
                     PartPath(outputSlide));
             var sourceContext = new PptxPartContext(sourceSlide, sourceIdByPartPath, assets: sourceAssets, customShows: customShowCatalog);
             var outputContext = new PptxPartContext(outputSlides[slideIndex], outputIdByPartPath, assets: outputAssets, customShows: customShowCatalog);

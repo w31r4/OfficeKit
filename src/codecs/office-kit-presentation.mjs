@@ -18,6 +18,7 @@ import { normalizePresentationRunLink } from "../presentation/ooxml-hyperlinks.m
 import { planPresentationCustomShows } from "../presentation/ooxml-custom-shows.mjs";
 import { planPresentationSections } from "../presentation/ooxml-sections.mjs";
 import { normalizePresentationTransition, PRESENTATION_TRANSITION_CAPABILITY } from "../presentation/ooxml-transitions.mjs";
+import { normalizePresentationAnimation, normalizePresentationMorph, PRESENTATION_ANIMATIONS_CAPABILITY, PRESENTATION_MORPH_CAPABILITY } from "../presentation/ooxml-animations.mjs";
 import { deterministicPresentationGuid } from "../presentation/ooxml-modern-comments.mjs";
 import { normalizePresentationThemeConfig } from "../presentation/ooxml-theme.mjs";
 import { normalizePresentationTextBodyProperties } from "../presentation/text-body-properties.mjs";
@@ -1410,6 +1411,70 @@ function modelPresentationTransition(source, slideIndex) {
     });
   } catch (error) {
     throw new OfficeKitCodecError(`OfficeKit returned invalid slide ${slideIndex + 1} transition semantics: ${error.message}`, [], { code: "invalid_presentation_artifact" });
+  }
+}
+
+function wirePresentationAnimation(animation, ownerLabel) {
+  const value = animation && typeof animation.toJSON === "function" ? animation.toJSON() : animation;
+  if (!value) return undefined;
+  try {
+    return {
+      id: value.id,
+      targetId: value.targetId,
+      effect: value.effect,
+      phase: value.phase,
+      start: value.start,
+      ...(value.direction ? { direction: value.direction } : {}),
+      durationMs: value.durationMs,
+      ...(value.delayMs === undefined ? {} : { delayMs: value.delayMs }),
+      ...(value.textBuild ? { textBuild: value.textBuild } : {}),
+      ...(value.chartBuild ? { chartBuild: value.chartBuild } : {}),
+      ...(value.staggerMs === undefined ? {} : { staggerMs: value.staggerMs }),
+    };
+  } catch (error) {
+    throw new OfficeKitCodecError(`Invalid ${ownerLabel} animation: ${error.message}`, [], { code: "invalid_presentation_animation" });
+  }
+}
+
+function modelPresentationAnimation(source, ownerLabel) {
+  try {
+    return normalizePresentationAnimation({
+      id: source.id,
+      targetId: source.targetId,
+      effect: source.effect,
+      phase: source.phase,
+      start: source.start,
+      ...(source.direction ? { direction: source.direction } : {}),
+      durationMs: Number(source.durationMs),
+      ...(source.delayMs === undefined ? {} : { delayMs: Number(source.delayMs) }),
+      ...(source.textBuild ? { textBuild: source.textBuild } : {}),
+      ...(source.chartBuild ? { chartBuild: source.chartBuild } : {}),
+      ...(source.staggerMs === undefined ? {} : { staggerMs: Number(source.staggerMs) }),
+    });
+  } catch (error) {
+    throw new OfficeKitCodecError(`Invalid ${ownerLabel} animation: ${error.message}`, [], { code: "invalid_presentation_artifact" });
+  }
+}
+
+function wirePresentationMorph(morph, ownerLabel) {
+  if (!morph) return undefined;
+  try {
+    const value = normalizePresentationMorph(morph);
+    return { durationMs: value.durationMs, pairs: value.pairs.map((pair) => ({ key: pair.key, fromId: pair.fromId, toId: pair.toId })) };
+  } catch (error) {
+    throw new OfficeKitCodecError(`Invalid ${ownerLabel} Morph: ${error.message}`, [], { code: "invalid_presentation_morph" });
+  }
+}
+
+function modelPresentationMorph(source, ownerLabel) {
+  if (!source) return undefined;
+  try {
+    return normalizePresentationMorph({
+      durationMs: Number(source.durationMs),
+      pairs: (source.pairs || []).map((pair) => ({ key: pair.key, fromId: pair.fromId, toId: pair.toId })),
+    });
+  } catch (error) {
+    throw new OfficeKitCodecError(`Invalid ${ownerLabel} Morph: ${error.message}`, [], { code: "invalid_presentation_artifact" });
   }
 }
 
@@ -2953,6 +3018,8 @@ export function presentationEnvelope(presentation, protocolVersion) {
       ...(slide.layoutId ? { layoutId: slide.layoutId } : {}),
       ...(slide.background?.fill ? { background: wireBackground(slide.background, `slide ${slideIndex + 1}`) } : {}),
       ...(slide.transition?.configured ? { transition: wirePresentationTransition(slide.transition) } : {}),
+      ...(slide.animations.count ? { animations: slide.animations.items.map((animation) => wirePresentationAnimation(animation, `slide ${slideIndex + 1}`)) } : {}),
+      ...(slide.morph.configured ? { morph: wirePresentationMorph(slide.morph.value, `slide ${slideIndex + 1}`) } : {}),
       ...(speakerNotes ? { speakerNotes } : {}),
       ...(legacyComments.length ? { legacyComments } : {}),
       ...(modernComments.length ? { modernComments } : {}),
@@ -4861,6 +4928,8 @@ export async function presentationFromEnvelope(envelope) {
       ...(sourceSlide.hidden === undefined ? {} : { hidden: sourceSlide.hidden }),
       ...(sourceSlide.background ? { background: modelBackground(sourceSlide.background) } : {}),
       ...(sourceSlide.transition ? { transition: modelPresentationTransition(sourceSlide.transition, slideStates.length) } : {}),
+      ...(sourceSlide.animations?.length ? { animations: sourceSlide.animations.map((animation) => modelPresentationAnimation(animation, `slide ${slideStates.length + 1}`)) } : {}),
+      ...(sourceSlide.morph ? { morph: modelPresentationMorph(sourceSlide.morph, `slide ${slideStates.length + 1}`) } : {}),
     });
     Object.defineProperty(slide, PRESENTATION_SLIDE_VISIBILITY_CAPABILITY, {
       value: Object.freeze({
@@ -4923,6 +4992,21 @@ export async function presentationFromEnvelope(envelope) {
         partPresent: Boolean(sourceSlide.source?.transitionPresent),
         editable: Boolean(sourceSlide.source?.transitionEditable),
         addable: Boolean(sourceSlide.source?.transitionAddable),
+      }),
+    });
+    Object.defineProperty(slide.animations, PRESENTATION_ANIMATIONS_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        present: Boolean(sourceSlide.source?.timingPresent),
+        editable: Boolean(sourceSlide.source?.timingEditable),
+        addable: Boolean(sourceSlide.source?.timingAddable),
+      }),
+    });
+    Object.defineProperty(slide.morph, PRESENTATION_MORPH_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        editable: false,
+        addable: !Boolean(sourceSlide.morph),
       }),
     });
     const entries = [];

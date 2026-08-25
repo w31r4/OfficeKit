@@ -23,6 +23,7 @@ import { chartErrorBarMagnitudes } from "../shared/chart-error-bars.mjs";
 import { planPresentationCustomShows, PresentationCustomShowCollection } from "./ooxml-custom-shows.mjs";
 import { planPresentationSections, PresentationSectionCollection } from "./ooxml-sections.mjs";
 import { SlideTransition } from "./ooxml-transitions.mjs";
+import { SlideAnimations, SlideMorph } from "./ooxml-animations.mjs";
 import { inheritPresentationParagraphs, normalizePresentationParagraphs, normalizePresentationParagraphStyles, presentationParagraphsNeedSerialization, presentationParagraphsSvg, presentationParagraphsText, replacePresentationParagraphText } from "./text-paragraphs.mjs";
 import { normalizePresentationTextBodyProperties } from "./text-body-properties.mjs";
 import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle, presentationCustomPathsSvg, presentationCustomTextRectangleFrame } from "./custom-geometry.mjs";
@@ -53,7 +54,7 @@ const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 
-export { SlideTransition };
+export { SlideTransition, SlideAnimations, SlideMorph };
 
 const PPTX_PACKAGE_CONFIG = {
   family: "PPTX",
@@ -1506,6 +1507,8 @@ export class Slide {
     this.speakerNotes = new SpeakerNotes(this, options.notes || options.speakerNotes?.text || "");
     this.background = options.background ? normalizePresentationBackground(options.background) : {};
     this.transition = new SlideTransition(this, options.transition);
+    this.animations = new SlideAnimations(this, options.animations || []);
+    this.morph = new SlideMorph(this, options.morph);
     this._hidden = options.hidden ?? false;
   }
 
@@ -1602,6 +1605,12 @@ export class Slide {
   clearBackground() { this.background = {}; return this; }
   setTransition(transition) { this.transition.set(transition); return this; }
   clearTransition() { this.transition.clear(); return this; }
+  setMorph(morph) {
+    if (morph == null) this.morph.clear();
+    else this.morph.set(morph);
+    return this;
+  }
+  clearMorph() { this.morph.clear(); return this; }
   applyLayout(layoutOrName) {
     const layout = typeof layoutOrName === "string" ? this.presentation.layouts.getItem(layoutOrName) : layoutOrName;
     if (!(layout instanceof SlideLayoutTemplate) || layout.presentation !== this.presentation) {
@@ -1632,6 +1641,8 @@ export class Slide {
     if (kinds.has("comment") || kinds.has("thread")) records.push(...this.comments.items.map((comment) => comment.inspectRecord()));
     if (kinds.has("notes")) records.push({ kind: "notes", id: `${this.id}/notes`, slide: this.index + 1, text: this.speakerNotes.text, textPreview: this.speakerNotes.text.slice(0, 300), textChars: this.speakerNotes.text.length, capability: this.speakerNotes.capability });
     if (kinds.has("transition")) records.push(this.transition.inspectRecord());
+    if (kinds.has("animations") || kinds.has("animation")) records.push(this.animations.inspectRecord());
+    if (kinds.has("morph")) records.push(this.morph.inspectRecord());
     return records;
   }
 
@@ -1639,6 +1650,8 @@ export class Slide {
   resolve(id) {
     if (id === this.speakerNotes.id) return this.speakerNotes;
     if (id === this.transition.id) return this.transition;
+    if (id === this.morph.id) return this.morph;
+    if (id === `${this.id}/animations`) return this.animations;
     if (String(id || "").endsWith("/text")) {
       const parentId = String(id).slice(0, -5);
       const shape = this.shapes.items.find((item) => item.id === parentId);
@@ -1743,7 +1756,7 @@ export class Slide {
     return slideLayoutSlice(this, {
       schema: "office-kit-artifact.layout/v1",
       unit: "px",
-      slide: { id: this.id, slide: this.index + 1, frame: this.frame, hidden: this.hidden, background: this.effectiveBackground(), transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined },
+      slide: { id: this.id, slide: this.index + 1, frame: this.frame, hidden: this.hidden, background: this.effectiveBackground(), transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined },
       elements,
     }, options);
   }
@@ -1754,7 +1767,7 @@ export class Slide {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(this.effectiveBackground(), this.effectiveTheme()))}"/>${elements}</svg>`;
   }
 
-  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
+  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
 
   compose(composeNode, options = {}) {
     const frame = options.frame || { left: 72, top: 64, width: this.presentation.slideSize.width - 144, height: this.presentation.slideSize.height - 128 };

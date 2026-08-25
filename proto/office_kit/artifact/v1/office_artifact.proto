@@ -1584,6 +1584,13 @@ message PresentationSlide {
   // one hash-bound record only after the public typed delete primitive runs,
   // and the codec independently re-proves the concrete source graph.
   repeated PresentationElementDeletion element_deletions = 13;
+  // Canonical, typed in-slide motion requests. Imported timing graphs that do
+  // not match this bounded profile stay opaque and are never flattened.
+  repeated PresentationAnimation animations = 14;
+  // Optional deterministic Morph pairing for this slide entering from the
+  // immediately preceding slide. The native extension is emitted only for
+  // explicit pairs and remains absent for ordinary slides.
+  PresentationMorph morph = 15;
 }
 
 message PresentationElementDeletion {
@@ -1735,6 +1742,12 @@ message PresentationSlideSourceBinding {
   // graph-preserving clone path. Presence makes the capability known; export
   // independently rebuilds the plan from the hash-bound source package.
   PresentationSlideCloneCapability clone_capability = 20;
+  // Whether the slide owns a timing graph, whether it matches the bounded
+  // canonical profile, and whether a new graph may be added safely.
+  bool timing_present = 21;
+  bool timing_editable = 22;
+  bool timing_addable = 23;
+  string timing_semantic_sha256 = 24;
 }
 
 message PresentationSlideDeletionCapability {
@@ -3702,6 +3715,36 @@ message PresentationTransition {
   // integer milliseconds. This is distinct from advance_after_ms, which
   // controls when the slide advances after the transition has played.
   optional uint32 duration_ms = 9;
+}
+
+// One bounded native p:timing animation. The public profile intentionally
+// uses semantic targets and never exposes XPath, part paths, or raw XML.
+message PresentationAnimation {
+  string id = 1;
+  string target_id = 2;
+  string target_kind = 3;
+  string effect = 4;
+  string phase = 5;
+  string start = 6;
+  string direction = 7;
+  optional uint32 duration_ms = 8;
+  optional uint32 delay_ms = 9;
+  string text_build = 10;
+  string chart_build = 11;
+  optional uint32 stagger_ms = 12;
+}
+
+// Deterministic cross-slide Morph pairing. `from_id` and `to_id` must resolve
+// to stable objects on adjacent slides; PowerPoint owns the actual tween.
+message PresentationMorph {
+  optional uint32 duration_ms = 1;
+  repeated PresentationMorphPair pairs = 2;
+}
+
+message PresentationMorphPair {
+  string key = 1;
+  string from_id = 2;
+  string to_id = 3;
 }
 
 // Appended to preserve every pre-existing generated descriptor index. This is

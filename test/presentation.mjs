@@ -6823,4 +6823,51 @@ assert.throws(
 );
 assert.equal(connectedElementDeleteImported.slides.getItem(0).shapes.count, 2);
 
+// Motion compiler smoke: authored object timing must be valid PresentationML,
+// preserve trigger order on import, and remain editable without rebuilding the
+// surrounding slide.
+const motionDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const motionSlide = motionDeck.slides.add({ name: "Motion object" });
+const motionShape = motionSlide.shapes.add({ name: "motion-target", text: "Reveal", position: { left: 40, top: 40, width: 200, height: 70 } });
+const motionFlyShape = motionSlide.shapes.add({ name: "motion-fly", position: { left: 280, top: 40, width: 160, height: 70 } });
+motionSlide.animations.add(motionShape, { effect: "fade", start: "onClick", durationMs: 700, textBuild: "paragraph" });
+motionSlide.animations.add(motionShape, { effect: "pulse", phase: "emphasis", start: "withPrevious", durationMs: 500 });
+motionSlide.animations.add(motionFlyShape, { effect: "fly", direction: "left", durationMs: 450 });
+const motionSource = await PresentationFile.exportPptx(motionDeck);
+const motionZip = await JSZip.loadAsync(new Uint8Array(await motionSource.arrayBuffer()));
+const motionSlideXml = await motionZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(motionSlideXml, /<p:timing[\s\S]*<p:animEffect[\s\S]*<p:animScale/);
+assert.match(motionSlideXml, /filter="fly\(left\)"/);
+const motionImported = await PresentationFile.importPptx(motionSource);
+assert.deepEqual(motionImported.slides.getItem(0).animations.items.map(({ effect, start, durationMs, textBuild, direction }) => ({ effect, start, durationMs, textBuild, direction })), [
+  { effect: "fade", start: "onClick", durationMs: 700, textBuild: "paragraph", direction: undefined },
+  { effect: "fly", start: "afterPrevious", durationMs: 450, textBuild: undefined, direction: "left" },
+  { effect: "pulse", start: "withPrevious", durationMs: 500, textBuild: undefined, direction: undefined },
+]);
+
+const motionChartDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const motionChartSlide = motionChartDeck.slides.add({ name: "Motion chart" });
+const motionChart = motionChartSlide.charts.add("bar", { name: "ETF flow", position: { left: 40, top: 40, width: 500, height: 250 }, categories: ["Mon", "Tue", "Wed"], series: [{ name: "USD", values: [3, 5, 8] }] });
+motionChartSlide.animations.add(motionChart, { effect: "wipe", direction: "up", chartBuild: "series" });
+const motionChartSource = await PresentationFile.exportPptx(motionChartDeck);
+const motionChartZip = await JSZip.loadAsync(new Uint8Array(await motionChartSource.arrayBuffer()));
+const motionChartXml = await motionChartZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(motionChartXml, /<p:bldGraphic[\s\S]*<a:bldChart bld="series"/);
+const motionChartImported = await PresentationFile.importPptx(motionChartSource);
+assert.equal(motionChartImported.slides.getItem(0).animations.items[0].chartBuild, "series");
+
+const motionMorphDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const motionMorphSlide = motionMorphDeck.slides.add({ name: "Motion Morph" });
+const motionMorphFrom = motionMorphSlide.shapes.add({ name: "from", position: { left: 40, top: 40, width: 120, height: 60 } });
+const motionMorphTo = motionMorphSlide.shapes.add({ name: "to", position: { left: 360, top: 180, width: 160, height: 80 } });
+motionMorphSlide.setMorph({ durationMs: 800, pairs: [{ key: "hero", fromId: motionMorphFrom.id, toId: motionMorphTo.id }] });
+const motionMorphSource = await PresentationFile.exportPptx(motionMorphDeck);
+const motionMorphZip = await JSZip.loadAsync(new Uint8Array(await motionMorphSource.arrayBuffer()));
+const motionMorphXml = await motionMorphZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(motionMorphXml, /p14:dur="800"/);
+assert.match(motionMorphXml, /p15:morph option="byObject"/);
+assert.match(motionMorphXml, /name="!!hero"/);
+const motionMorphImported = await PresentationFile.importPptx(motionMorphSource);
+assert.equal(motionMorphImported.slides.getItem(0).morph.value.pairs[0].key, "hero");
+
 console.log("presentation smoke ok");
