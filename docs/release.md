@@ -20,6 +20,28 @@ higher authorities. Grid is explicit rather than an automatic fallback, and
 no Kimi application text, path, template payload, or private implementation is
 included in the package.
 
+The Presentations plugin now also ships `presentation-editorial-trim`, a narrow
+copy-editing Skill derived from the repository's strong technical-document
+editing discipline but rewritten for slide titles, visible support, labels and
+sources, and speaker notes. It performs one pass before composition and one
+after rendering. Exact facts, units, dates, citations, uncertainty, legal text,
+and user-approved wording remain locked; pattern guidance such as false
+contrast, throat clearing, repeated triads, and unsupported superlatives is a
+diagnostic prompt rather than a replacement list. New, template-conditioned,
+imported, and resumed work use this one editorial authority instead of carrying
+parallel prose workflows.
+
+Self-directed creation now calibrates an opening page, an evidence page, and
+the densest or highest-risk page before the rest of the deck. Each composition
+decision records both its visual carrier and the carrier's source strategy, and
+any correction becomes a normal authoring-plan revision. The seven scenario
+guides now share evidence hierarchy, page archetype, imagery/data treatment,
+density, geometry, line, surface, typography, and repair guidance without
+fixing a palette or page template. A public five-page example demonstrates an
+evidence chart, image-led composition, relationship diagram, asymmetric
+editorial page, and restrained motif as separate decisions rather than one
+universal helper.
+
 The existing review API now reports communication, narrative, cognitive,
 visual, structural, motion, and delivery evidence against the same plan
 revision. It blocks only deterministic contract failures. Repeated dominant
@@ -41,14 +63,24 @@ bounded rhythm and motion warnings; the management and brand design/motion
 reports pass. Playback evidence is structural, and Windows PowerPoint playback
 remains unverified.
 
-The packed `office-kit@0.9.0` payload has 774 files, is 36,592,843 bytes
-compressed and 54,493,577 bytes unpacked. Newly built self-contained archives
-pin the same package and Node 24.18.0: darwin-arm64 is 88,605,002 bytes with
-SHA-256 `1ffa07ae61ec46632e2e7e472d7a7f234a07d206c38dcbadb28a49e6dc7fdb48`;
-linux-x64 is 93,730,351 bytes with SHA-256
-`b071ea660175c689bf736c2e6f7703d5684edd8c6ba616dc816ff33208b8c787`;
-and win32-x64 is 85,507,988 bytes with SHA-256
-`f3030959d58cb4ff0d3b6da23e65ffb5d877fb812c595ca439a22a3a807b52c4`.
+A separate one-off use produced three unseen three-page decks: a Chinese dense
+management reader, a live technical narrative, and a brand deck under an
+explicit sharp-edge three-color design system. Each passed model verification,
+PPTX export, second import, structural review, and rendered inspection. A
+bounded copy-only edit of the reader deck retained the exact source file, every
+locked number and source label, and all non-target package parts; only
+`ppt/slides/slide2.xml` changed. The run exposed text-frame sizing and reversed
+connector-arrow defects, which were fixed in the example code. Visual review
+was performed on the renders; automated review remains
+`passed-with-limitations` because it correctly records that visual judgment is
+not supplied by the runtime itself.
+
+The current packed `office-kit@0.9.0` payload has 779 files, is 36,604,738
+bytes compressed and 54,540,224 bytes unpacked. It remains below the revised
+37,500,000 / 54,600,000 byte ceilings. The self-contained archives recorded by
+the earlier strategy candidate predate the new Skill and are not release
+evidence for this tree; the ordinary release lane must rebuild and repin all
+three platform archives before publication.
 
 ## Unreleased: OfficeKit 0.8.0 Presentation motion compiler
 
