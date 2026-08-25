@@ -30,6 +30,6 @@
 
 ## 6. Release and closeout
 
-- [ ] 6.1 Update coverage, release evidence, package metadata, and version to 0.9.0 without changing Office wire or generated codec behavior.
-- [ ] 6.2 Run the narrow Skill/plan/review/package checks, then one final npm, package, and release verification pass.
-- [ ] 6.3 Mark the OpenSpec tasks complete, commit by subsystem, push the feature branch normally, and coordinate a fast-forward main integration.
+- [x] 6.1 Update coverage, release evidence, package metadata, and version to 0.9.0 without changing Office wire or generated codec behavior.
+- [x] 6.2 Run the narrow Skill/plan/review/package checks, then one final npm, package, and release verification pass.
+- [x] 6.3 Mark the OpenSpec tasks complete, commit by subsystem, push the feature branch normally, and coordinate a fast-forward main integration.
