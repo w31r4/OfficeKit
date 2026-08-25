@@ -145,30 +145,52 @@ source asset must remain opaque for fidelity.
 
 ## Use motion as a communication primitive
 
-Choose motion from the speaking job, not from an effect catalogue. For a live
-talk, reveal a causal chain or one data series at a time; for a reading deck,
-keep most content visible; for a hybrid deck, animate only the sequence the
-audience must follow. One or two purposeful effects per page is the default.
+Finish the static page before adding motion:
+
+```text
+Narrative -> theme tokens -> page archetype -> visual carrier
+          -> composition -> motion units -> review
+```
+
+Record `brief.deliveryMode` as `live`, `reader`, or `hybrid`, and
+`design.motionPolicy` as `adaptive`, `none`, or `explicit`. Every page
+`compositionIntent` must name its actual visual carrier. Motion may reveal a
+relationship already present in the composition; it must not disguise an
+under-composed page.
+
+Choose motion from the speaking job, not from an effect catalogue. Reader
+decks stay static. Hybrid decks use a short common transition and animate only
+data, sequence, or causality. Live decks may use deliberate beats, usually no
+more than four motion units per page.
 
 ```js
 slide.animations.add(chart, {
-  effect: "wipe", direction: "up", chartBuild: "series", start: "onClick",
-  durationMs: 650,
+  effect: "wipe", direction: "up", chartBuild: "category-element",
+  start: "onClick", durationMs: 650, staggerMs: 90,
 });
 slide.animations.add(riskShape, {
   effect: "pulse", phase: "emphasis", start: "afterPrevious",
 });
-slide.setMorph({ durationMs: 700, pairs: [{ key: "hero", fromId: "s1", toId: "s2" }] });
+detailSlide.setMorph({
+  from: overviewSlide,
+  durationMs: 700,
+  pairs: [{ key: "hero", from: overviewHero, to: detailHero }],
+});
 ```
 
 The supported effects are `fade`, `wipe`, `fly`, `zoom`, and `pulse`.
 `textBuild` accepts `whole` or `paragraph`; chart builds accept
-`allAtOnce`, `series`, `category`, `seriesElement`, or `categoryElement`.
+`all-at-once`, `series`, `category`, `series-element`, or `category-element`.
 Use `withPrevious`, `afterPrevious`, or `onClick` to express order. Review by
 inspecting the timing records, rendering every changed page, and checking the
 static layout as well as the playback intent. Imported timing or Morph
 extensions that are not capability-issued remain preserved and are not
 reconstructed.
+
+Use [the six motion recipes](references/motion.md) for data rise, causal
+reveal, comparison beats, focus emphasis, calm continuity, and Morph
+continuity. Use at most one baseline transition and one section transition in
+a deck. Do not auto-advance or add sound.
 
 Treat `image_view` and `image_generate` as optional Agent capabilities. Use
 user/template images first, then native PowerPoint shapes, charts, tables, and

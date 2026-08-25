@@ -1921,7 +1921,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `shape.text.set` | api | Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export. |
 | `shape.useBackgroundFill` | api | Read the presence-aware imported PresentationML p:sp useBgFill flag. It affects preview paint but remains source-bound and read-only; source-free authoring or wire mutation fails closed. |
 | `slide.addNotes` | api | Set speaker notes as text or relationship-free paragraph/run data for inspect, preview, and canonical PPTX output. OfficeKit authors source-free notes, preserves the legacy text-only edit path, and edits a fixed imported rich paragraph/run topology; fields, hyperlinks, picture bullets, notes-body list styles/layout, and unsafe NotesMaster graphs remain source-bound and fail closed. |
-| `slide.animations.add` | api | Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by allAtOnce, series, category, seriesElement, or categoryElement. The typed surface writes canonical PowerPoint timing and never accepts raw XML. |
+| `slide.animations.add` | api | Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by all-at-once, series, category, series-element, or category-element. The typed surface writes canonical PowerPoint timing and never accepts raw XML. |
 | `slide.animations.remove` | api | Remove one animation issued by slide.animations or identified by its stable animation ID. Imported timing must be capability-editable; opaque timing is preserved and rejects mutation. |
 | `slide.applyLayout` | api | Bind a slide to a bounded source-free layout and materialize its effective direct-frame placeholder shapes. Applying the same layout is idempotent; switching a materialized layout fails closed. The resulting p:ph identities and direct frames export natively; imported Layout relationships remain preservation-only. |
 | `slide.autoLayout` | api | Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options. |
@@ -1946,7 +1946,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
 | `slide.setHidden` | api | Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
-| `slide.setMorph` | api | Author a bounded cross-slide Morph transition with a duration and unique named object pairs. The destination slide keeps the names used for pairing, while unknown imported Morph extensions remain source-bound and are not reconstructed. |
+| `slide.setMorph` | api | Author a bounded cross-slide Morph transition between adjacent slides with real source and destination objects and unique named object pairs. OfficeKit gives both objects the same Selection Pane identity; unknown imported Morph extensions remain source-bound and are not reconstructed. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed. |
 | `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with accessibility metadata. Ready bounded-overlay accepts only textbox/rect/roundRect/ellipse in a clean export. Lines support dash/ends/cap/join; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. Only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. `head` is the from/start end and `tail` is the to/end end; use tail for a forward arrow, and bringToFront() when a background shape would hide the route. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
@@ -4471,7 +4471,7 @@ Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide tr
 
 **Schema parameters:**
 
-- `kind` (string) — Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds.
+- `kind` (string) — Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/animation/morph/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds.
 - `search` (string) — Case-insensitive record filter.
 - `target` (string) — Stable target ID/anchor.
 - `before` (number) — Context records before matches.
@@ -6260,7 +6260,7 @@ Set speaker notes as text or relationship-free paragraph/run data for inspect, p
 
 #### `slide.animations.add`
 
-Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by allAtOnce, series, category, seriesElement, or categoryElement. The typed surface writes canonical PowerPoint timing and never accepts raw XML.
+Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by all-at-once, series, category, series-element, or category-element. The typed surface writes canonical PowerPoint timing and never accepts raw XML.
 
 **Adoption tier:** `golden`
 
@@ -6291,11 +6291,11 @@ Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs
 
 **Schema parameters:**
 
-- `target` (Shape|ImageElement|TableElement|ChartElement|string) required — A target on this slide or its stable target ID.
+- `target` (Shape|ImageElement|TableElement|ChartElement|Connector|GroupShape|string) required — A target on this slide or its stable target ID.
 - `effect` (string) — fade, wipe, fly, zoom, or pulse.
 - `phase` (string) — entrance, emphasis, or exit.
 - `start` (string) — withPrevious, afterPrevious, or onClick.
@@ -6303,8 +6303,9 @@ Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use
 - `durationMs` (number) — Positive integer duration from 1 through 60000.
 - `delayMs` (number) — Optional integer delay from 0 through 60000.
 - `textBuild` (string) — Optional whole or paragraph text build.
-- `chartBuild` (string) — Optional allAtOnce, series, category, seriesElement, or categoryElement chart build.
+- `chartBuild` (string) — Optional all-at-once, series, category, series-element, or category-element chart build.
 - `staggerMs` (number) — Optional per-item stagger from 0 through 10000.
+- `animateChartBackground` (boolean) — Whether the chart background participates in the chart build; defaults to false.
 
 **Schema returns:**
 
@@ -6343,7 +6344,7 @@ Remove one animation issued by slide.animations or identified by its stable anim
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs
 
 **Schema parameters:**
 
@@ -6575,7 +6576,7 @@ Clear a source-free or capability-approved Morph transition. Imported unknown Mo
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs
 
 **Schema returns:**
 
@@ -7362,7 +7363,7 @@ Alias of slide.applyLayout(layout): bind and materialize a bounded source-free l
 
 #### `slide.setMorph`
 
-Author a bounded cross-slide Morph transition with a duration and unique named object pairs. The destination slide keeps the names used for pairing, while unknown imported Morph extensions remain source-bound and are not reconstructed.
+Author a bounded cross-slide Morph transition between adjacent slides with real source and destination objects and unique named object pairs. OfficeKit gives both objects the same Selection Pane identity; unknown imported Morph extensions remain source-bound and are not reconstructed.
 
 **Adoption tier:** `golden`
 
@@ -7393,15 +7394,15 @@ Author a bounded cross-slide Morph transition with a duration and unique named o
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs
 
 **Schema parameters:**
 
-- `morph` (object) required — { durationMs?, pairs: [{ key, fromId, toId }] }; one through 256 unique named pairs.
+- `morph` (object) required — { from: immediatelyPreviousSlide, durationMs?, pairs: [{ key, from: sourceObject, to: destinationObject }] }; one through 256 unique named pairs.
 
 **Schema returns:**
 
-- `slide` (Slide) — The same slide with a bounded Morph transition. Pairs are stable object identities, not raw XML selectors.
+- `slide` (Slide) — The same destination slide with a bounded Morph transition. Both paired objects receive the same !!key Selection Pane identity; charts, non-adjacent slides, incompatible kinds, duplicate objects, name conflicts, and conflicting transitions reject.
 
 #### `slide.setTransition`
 
@@ -8363,6 +8364,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 
 **Examples:**
 
+- await reviewArtifact('/absolute/path/output.pptx', { authoringPlan, changedPageIds: ['page-04'], playbackEvidence: 'structural', visualReview: 'unavailable' })
 - await reviewArtifact('/absolute/path/output.pptx', { source: '/absolute/path/input.pptx', contentView: 'anydoc', visualReview: 'unavailable' })
 
 **Options:**
@@ -8371,6 +8373,9 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - outputPath
 - source
 - baseline
+- authoringPlan
+- changedPageIds
+- playbackEvidence
 - contentView
 - visualReview
 - layout
@@ -8387,6 +8392,9 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - `source` (string|FileBlob|Uint8Array|Blob) — Optional read-only source used for SHA-256 and canonical input/output collision evidence.
 - `baseline` (string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact) — Optional pre-edit artifact. Exact matching semantic/layout issues are marked preexisting warnings; structural package failures and new errors still fail the review.
 - `outputPath` (string) — Absolute or working-directory-relative final path when reviewing an in-memory model.
+- `authoringPlan` (object) — Optional office-kit/presentation-authoring-plan/v1 plan. Presentation review checks its design and motion intent against the candidate.
+- `changedPageIds` (string[]) — Optional stable plan page IDs for a local edit. Non-target page changes become design-scope errors.
+- `playbackEvidence` (string) — structural, keynote, or powerpoint. Host values require actual playback evidence and are not inferred from XML.
 - `contentView` (string|boolean) — Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser.
 - `visualReview` (string) — Caller-attested complete, unavailable, or requires-human. Text reading/OCR output never qualifies as complete.
 - `layout` (boolean) — Set false only when a separate render review is already recorded; otherwise a representative render check runs.
@@ -8398,16 +8406,17 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 
 **Schema returns:**
 
-- `report` (object) — Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; each review stage retains its own status and evidence.
+- `report` (object) — Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; design and motion remain distinct from static visual and host playback evidence.
 
 **Returns:**
 
-{ verdict, semantic, structural, layout, contentView, visualReview, delivery, baseline, summary }
+{ verdict, semantic, structural, layout, design, motion, playbackEvidence, contentView, visualReview, delivery, baseline, summary }
 
 **Notes:**
 
 - The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.
 - Do not request the text reading view routinely. Use contentView='anydoc' only when it can close an identified text or table content-coverage gap; it does not resolve OCR, layout, image, formula, or metadata-provenance gaps.
+- playbackEvidence='structural' proves only timing targets and package structure. Use keynote or powerpoint only after actual host playback.
 
 #### `setOfficeFontDesignMetrics`
 

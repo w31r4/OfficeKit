@@ -27,7 +27,10 @@ OfficeKit may report:
 - sharp density changes between adjacent pages;
 - six or more same-sized boxes on one page;
 - repeated title openings;
-- new modeled color or font tokens during a local edit.
+- new modeled color or font tokens during a local edit;
+- a missing or unfinished visual carrier;
+- motion added before the declared composition is complete;
+- repeated motion rhythm or excessive pulse emphasis.
 
 These are bounded signals. Inspect the relevant pages and decide whether the
 pattern is intentional. If it is intentional, record an explicit
@@ -49,6 +52,12 @@ design decisions.
 AnyDoc is a text/table reading view. Use it for a declared content-coverage gap,
 such as unavailable visual review or truncated multi-page inspection. It does
 not verify pixel layout, images, formulas, animations, or aesthetics.
+
+For animated decks, record `playbackEvidence` separately. `structural` proves
+only that the timing graph, targets, builds, and Morph pairs are coherent.
+`keynote` or `powerpoint` means that host was actually used for playback. Static
+render review remains required because correct timing cannot repair a weak or
+broken page composition.
 
 ## Local edit evidence
 

@@ -37,6 +37,15 @@ composition intent. Select zero to two mechanism packs and write the actual
 palette, typography, spacing, density rhythm, motif, imagery, chart treatment,
 and strict invariants into `designGrammar`.
 
+Set `brief.deliveryMode` to `live`, `reader`, or `hybrid`, and
+`design.motionPolicy` to `adaptive`, `none`, or `explicit`. For every page,
+make `compositionIntent` name the visual carrier that does the explanatory
+work: an image, chart, diagram, typographic composition, native vector, or a
+deliberate mix. Add `motionIntent` only after that static composition is
+complete. Use [the motion recipes](../references/motion.md) when sequence,
+causality, comparison, emphasis, or continuity is part of the communication
+job.
+
 For self-directed work, keep `palette.strict: false` unless the user supplied a
 closed brand palette. Strict palettes are for authoritative design systems and
 must enumerate every emitted color, including theme defaults. Do not turn an
@@ -84,6 +93,17 @@ deck.help("compose a planned presentation page");
 Create theme/Master/Layout assets only when they improve reuse. Use
 `slide.compose`, `slide.autoLayout`, native objects, and free coordinates as
 the page intent requires. Keep page helpers reusable inside the task.
+
+Compile in this order:
+
+```text
+Narrative -> theme tokens -> page archetype -> visual carrier
+          -> composition -> motion units -> review
+```
+
+The page must work as a static contact-sheet image before motion is added.
+Motion strengthens the reading order; it is not a substitute for visual
+hierarchy, data graphics, imagery, or spatial relationships.
 
 Before exporting a candidate, run `presentation.validateLayout()` on the
 in-memory deck and resolve every reported overflow, overlap, or off-canvas

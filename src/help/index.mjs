@@ -331,9 +331,9 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "slide.clearBackground", summary: "Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded." },
   { artifactKind: "presentation", kind: "api", name: "slide.setTransition", summary: "Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "slide.clearTransition", summary: "Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation." },
-  { artifactKind: "presentation", kind: "api", name: "slide.animations.add", summary: "Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by allAtOnce, series, category, seriesElement, or categoryElement. The typed surface writes canonical PowerPoint timing and never accepts raw XML." },
+  { artifactKind: "presentation", kind: "api", name: "slide.animations.add", summary: "Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by all-at-once, series, category, series-element, or category-element. The typed surface writes canonical PowerPoint timing and never accepts raw XML." },
   { artifactKind: "presentation", kind: "api", name: "slide.animations.remove", summary: "Remove one animation issued by slide.animations or identified by its stable animation ID. Imported timing must be capability-editable; opaque timing is preserved and rejects mutation." },
-  { artifactKind: "presentation", kind: "api", name: "slide.setMorph", summary: "Author a bounded cross-slide Morph transition with a duration and unique named object pairs. The destination slide keeps the names used for pairing, while unknown imported Morph extensions remain source-bound and are not reconstructed." },
+  { artifactKind: "presentation", kind: "api", name: "slide.setMorph", summary: "Author a bounded cross-slide Morph transition between adjacent slides with real source and destination objects and unique named object pairs. OfficeKit gives both objects the same Selection Pane identity; unknown imported Morph extensions remain source-bound and are not reconstructed." },
   { artifactKind: "presentation", kind: "api", name: "slide.clearMorph", summary: "Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation." },
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.add", summary: "Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque." },
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.getItem", summary: "Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name." },
@@ -701,12 +701,13 @@ const HELP_DETAIL_OVERRIDES = {
     },
   },
   reviewArtifact: {
-    examples: ["await reviewArtifact('/absolute/path/output.pptx', { source: '/absolute/path/input.pptx', contentView: 'anydoc', visualReview: 'unavailable' })"],
-    options: ["format/kind", "outputPath", "source", "baseline", "contentView", "visualReview", "layout", "renderOptions", "maxBytes", "maxContentChars", "maxInspectChars", "maxSummaryChars"],
-    returns: "{ verdict, semantic, structural, layout, contentView, visualReview, delivery, baseline, summary }",
+    examples: ["await reviewArtifact('/absolute/path/output.pptx', { authoringPlan, changedPageIds: ['page-04'], playbackEvidence: 'structural', visualReview: 'unavailable' })", "await reviewArtifact('/absolute/path/output.pptx', { source: '/absolute/path/input.pptx', contentView: 'anydoc', visualReview: 'unavailable' })"],
+    options: ["format/kind", "outputPath", "source", "baseline", "authoringPlan", "changedPageIds", "playbackEvidence", "contentView", "visualReview", "layout", "renderOptions", "maxBytes", "maxContentChars", "maxInspectChars", "maxSummaryChars"],
+    returns: "{ verdict, semantic, structural, layout, design, motion, playbackEvidence, contentView, visualReview, delivery, baseline, summary }",
     notes: [
       "The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.",
       "Do not request the text reading view routinely. Use contentView='anydoc' only when it can close an identified text or table content-coverage gap; it does not resolve OCR, layout, image, formula, or metadata-provenance gaps.",
+      "playbackEvidence='structural' proves only timing targets and package structure. Use keynote or powerpoint only after actual host playback.",
     ],
     schema: {
       parameters: {
@@ -715,6 +716,9 @@ const HELP_DETAIL_OVERRIDES = {
         source: { type: "string|FileBlob|Uint8Array|Blob", description: "Optional read-only source used for SHA-256 and canonical input/output collision evidence." },
         baseline: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", description: "Optional pre-edit artifact. Exact matching semantic/layout issues are marked preexisting warnings; structural package failures and new errors still fail the review." },
         outputPath: { type: "string", description: "Absolute or working-directory-relative final path when reviewing an in-memory model." },
+        authoringPlan: { type: "object", description: "Optional office-kit/presentation-authoring-plan/v1 plan. Presentation review checks its design and motion intent against the candidate." },
+        changedPageIds: { type: "string[]", description: "Optional stable plan page IDs for a local edit. Non-target page changes become design-scope errors." },
+        playbackEvidence: { type: "string", description: "structural, keynote, or powerpoint. Host values require actual playback evidence and are not inferred from XML." },
         contentView: { type: "string|boolean", description: "Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser." },
         visualReview: { type: "string", description: "Caller-attested complete, unavailable, or requires-human. Text reading/OCR output never qualifies as complete." },
         layout: { type: "boolean", description: "Set false only when a separate render review is already recorded; otherwise a representative render check runs." },
@@ -725,7 +729,7 @@ const HELP_DETAIL_OVERRIDES = {
         maxSummaryChars: { type: "number", description: "Positive combined review-summary character budget." },
       },
       returns: {
-        report: { type: "object", description: "Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; each review stage retains its own status and evidence." },
+        report: { type: "object", description: "Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; design and motion remain distinct from static visual and host playback evidence." },
       },
     },
   },
@@ -1840,7 +1844,7 @@ const PRESENTATION_HELP_SCHEMAS = {
   }, "slide", "Slide", "The same slide with a normalized direct p:transition. Source-free slides may author it. An imported slide may replace exactly one canonical direct base transition, or add one only when transition.capability.addable proves the root contains only p:cSld plus optional p:clrMapOvr and has no transition, timing, or extension leaf. Opaque source graphs are not reconstructed."),
   "slide.clearTransition": helpSchema({}, "slide", "Slide", "The same slide with no direct p:transition. Removing an imported transition requires the same canonical editable source profile as replacement."),
   "slide.animations.add": helpSchema({
-    target: { type: "Shape|ImageElement|TableElement|ChartElement|string", required: true, description: "A target on this slide or its stable target ID." },
+    target: { type: "Shape|ImageElement|TableElement|ChartElement|Connector|GroupShape|string", required: true, description: "A target on this slide or its stable target ID." },
     effect: { type: "string", description: "fade, wipe, fly, zoom, or pulse." },
     phase: { type: "string", description: "entrance, emphasis, or exit." },
     start: { type: "string", description: "withPrevious, afterPrevious, or onClick." },
@@ -1848,18 +1852,19 @@ const PRESENTATION_HELP_SCHEMAS = {
     durationMs: { type: "number", description: "Positive integer duration from 1 through 60000." },
     delayMs: { type: "number", description: "Optional integer delay from 0 through 60000." },
     textBuild: { type: "string", description: "Optional whole or paragraph text build." },
-    chartBuild: { type: "string", description: "Optional allAtOnce, series, category, seriesElement, or categoryElement chart build." },
+    chartBuild: { type: "string", description: "Optional all-at-once, series, category, series-element, or category-element chart build." },
     staggerMs: { type: "number", description: "Optional per-item stagger from 0 through 10000." },
+    animateChartBackground: { type: "boolean", description: "Whether the chart background participates in the chart build; defaults to false." },
   }, "animation", "object", "The normalized animation record. Imported timing must be capability-editable; source-free timing is emitted as canonical PresentationML."),
   "slide.animations.remove": helpSchema({
     animation: { type: "object|string", required: true, description: "An animation record or stable animation ID returned by slide.animations." },
   }, "boolean", "Whether one existing animation was removed."),
   "slide.setMorph": helpSchema({
-    morph: { type: "object", required: true, description: "{ durationMs?, pairs: [{ key, fromId, toId }] }; one through 256 unique named pairs." },
-  }, "slide", "Slide", "The same slide with a bounded Morph transition. Pairs are stable object identities, not raw XML selectors."),
+    morph: { type: "object", required: true, description: "{ from: immediatelyPreviousSlide, durationMs?, pairs: [{ key, from: sourceObject, to: destinationObject }] }; one through 256 unique named pairs." },
+  }, "slide", "Slide", "The same destination slide with a bounded Morph transition. Both paired objects receive the same !!key Selection Pane identity; charts, non-adjacent slides, incompatible kinds, duplicate objects, name conflicts, and conflicting transitions reject."),
   "slide.clearMorph": helpSchema({}, "slide", "Slide", "The same slide with no authored Morph transition."),
   "presentation.inspect": helpSchema({
-    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
+    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/animation/morph/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
     search: { type: "string", description: "Case-insensitive record filter." },
     target: { type: "string", description: "Stable target ID/anchor." },
     before: { type: "number", description: "Context records before matches." },
@@ -2875,6 +2880,7 @@ const PRESENTATION_RECIPE_PATHS = Object.freeze({
 });
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
+const PRESENTATION_MOTION_EXAMPLE_PATH = "skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs";
 
 function presentationRecipeFor(name) {
   if (/animation|Morph/.test(name)) return `${PRESENTATION_RECIPE_PATHS.motion}#typed-surface`;
@@ -2928,7 +2934,7 @@ function presentationAdoptionFor(item) {
     requires,
     review,
     recipes: [presentationRecipeFor(name)],
-    examplePaths: [PRESENTATION_EXAMPLE_PATH],
+    examplePaths: [/animation|Morph/.test(name) ? PRESENTATION_MOTION_EXAMPLE_PATH : PRESENTATION_EXAMPLE_PATH],
   };
 }
 

@@ -4,6 +4,12 @@ Mechanisms guide how information behaves across a deck. They do not provide a
 palette, font, coordinate set, or layout ID. Select zero to two, then write a
 specific design grammar for the actual audience and content.
 
+Keep three concerns separate: the deck-specific theme tokens define its visual
+language, the page composition makes the static argument, and the behavior
+layer controls reveal or continuity. A strong static page may already feel
+dynamic through scale, direction, contrast, cropping, and data relationships;
+animation is optional. Judge the contact sheet before adding timing.
+
 ## Cross-cutting authoring floor
 
 Mechanisms are deliberately open-ended, but a self-directed deck still needs a
