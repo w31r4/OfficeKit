@@ -18,9 +18,9 @@
 
 ## 4. Strategy-bound review and Help
 
-- [ ] 4.1 Extend the existing Presentation design report with strategy descriptors and bounded communication, narrative, cognitive, and visual-risk issues.
-- [ ] 4.2 Add stable warnings for repeated dominant geometry, large hollow containers, repeated card surfaces, and weak text/container hierarchy without claiming aesthetic judgment.
-- [ ] 4.3 Update Help and generated API documentation, adding one combined review contract assertion to the existing test.
+- [x] 4.1 Extend the existing Presentation design report with strategy descriptors and bounded communication, narrative, cognitive, and visual-risk issues.
+- [x] 4.2 Add stable warnings for repeated dominant geometry, large hollow containers, repeated card surfaces, and weak text/container hierarchy without claiming aesthetic judgment.
+- [x] 4.3 Update Help and generated API documentation, adding one combined review contract assertion to the existing test.
 
 ## 5. Visual examples and real use
 

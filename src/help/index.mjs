@@ -568,7 +568,7 @@ export const HELP_CATALOG = [
   },
 
   { artifactKind: "shared", kind: "api", name: "verifyArtifact", summary: "Run an artifact's verify() method and return a bounded NDJSON QA report." },
-  { artifactKind: "shared", kind: "api", name: "reviewArtifact", summary: "Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity." },
+  { artifactKind: "shared", kind: "api", name: "reviewArtifact", summary: "Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, plan-bound presentation communication/narrative/cognitive/visual risks, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity." },
   { artifactKind: "shared", kind: "api", name: "visualQaArtifact", summary: "Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline render, optionally register small translations, and return a configurable aligned PNG diff heatmap." },
   { artifactKind: "shared", kind: "api", name: "renderArtifact", summary: "Render an artifact through its render/export method, attach normalized FileBlob metadata, and optionally pass SVG output through a caller-provided renderer adapter for PNG/WebP/JPEG/PDF output." },
   { artifactKind: "shared", kind: "api", name: "createPlaywrightRenderer", summary: "Create an optional Playwright renderer adapter from office-kit/renderers/playwright for deterministic SVG/HTML to PNG, WebP, JPEG, or PDF conversion with network blocked by default." },
@@ -708,6 +708,7 @@ const HELP_DETAIL_OVERRIDES = {
       "The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.",
       "Do not request the text reading view routinely. Use contentView='anydoc' only when it can close an identified text or table content-coverage gap; it does not resolve OCR, layout, image, formula, or metadata-provenance gaps.",
       "playbackEvidence='structural' proves only timing targets and package structure. Use keynote or powerpoint only after actual host playback.",
+      "For a Presentation authoring plan, design.strategy records the communication job, scenario, direction, medium fit, delivery mode, and after-use; design.layers groups deterministic communication, narrative, cognitive, and visual-risk findings. These signals do not verify factual truth or aesthetic quality.",
     ],
     schema: {
       parameters: {
@@ -716,7 +717,7 @@ const HELP_DETAIL_OVERRIDES = {
         source: { type: "string|FileBlob|Uint8Array|Blob", description: "Optional read-only source used for SHA-256 and canonical input/output collision evidence." },
         baseline: { type: "string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact", description: "Optional pre-edit artifact. Exact matching semantic/layout issues are marked preexisting warnings; structural package failures and new errors still fail the review." },
         outputPath: { type: "string", description: "Absolute or working-directory-relative final path when reviewing an in-memory model." },
-        authoringPlan: { type: "object", description: "Optional office-kit/presentation-authoring-plan/v1 plan. Presentation review checks its design and motion intent against the candidate." },
+        authoringPlan: { type: "object", description: "Optional office-kit/presentation-authoring-plan/v1 plan. Presentation review checks its communication strategy, narrative/cognitive/visual risks, design grammar, and motion intent against the candidate." },
         changedPageIds: { type: "string[]", description: "Optional stable plan page IDs for a local edit. Non-target page changes become design-scope errors." },
         playbackEvidence: { type: "string", description: "structural, keynote, or powerpoint. Host values require actual playback evidence and are not inferred from XML." },
         contentView: { type: "string|boolean", description: "Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser." },
@@ -729,7 +730,7 @@ const HELP_DETAIL_OVERRIDES = {
         maxSummaryChars: { type: "number", description: "Positive combined review-summary character budget." },
       },
       returns: {
-        report: { type: "object", description: "Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; design and motion remain distinct from static visual and host playback evidence." },
+        report: { type: "object", description: "Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; Presentation design.strategy and design.layers remain bounded risk evidence, while factual, visual, and playback judgments remain explicit and separate." },
       },
     },
   },

@@ -8121,7 +8121,7 @@ Transactionally add, change, or clear non-visible table title/description/decora
 | `renderArtifact` | api | Render an artifact through its render/export method, attach normalized FileBlob metadata, and optionally pass SVG output through a caller-provided renderer adapter for PNG/WebP/JPEG/PDF output. |
 | `renderFileWithNativeOffice` | api | Render or convert a DOCX/XLSX/PPTX/PDF FileBlob through a configured native Office bridge command, returning a FileBlob for PDF/PNG/WebP or other requested output. |
 | `resolveOfficeFontDesignMetrics` | api | Resolve the requested primary family, style, and nearest numeric weight from scoped then process-level font design metrics without silently skipping to later family fallbacks. |
-| `reviewArtifact` | api | Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity. |
+| `reviewArtifact` | api | Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, plan-bound presentation communication/narrative/cognitive/visual risks, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity. |
 | `setOfficeFontDesignMetrics` | api | Replace the process-level Office font design-metric registry with normalized public metric records used by deterministic layout integrations. |
 | `skiaPaintBaselineCompensationPx` | api | Return the signed subpixel residual between a finite paint baseline and its nearest integer pixel, or zero for non-finite input. |
 | `verifyArtifact` | api | Run an artifact's verify() method and return a bounded NDJSON QA report. |
@@ -8360,7 +8360,7 @@ Resolve the requested primary family, style, and nearest numeric weight from sco
 
 #### `reviewArtifact`
 
-Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity.
+Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report covering modeled semantics, package structure, representative render evidence, plan-bound presentation communication/narrative/cognitive/visual risks, an optional compact text reading view powered by AnyDoc, visual-review status, and delivery identity.
 
 **Examples:**
 
@@ -8392,7 +8392,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - `source` (string|FileBlob|Uint8Array|Blob) — Optional read-only source used for SHA-256 and canonical input/output collision evidence.
 - `baseline` (string|FileBlob|Uint8Array|Blob|Workbook|Presentation|DocumentModel|PdfArtifact) — Optional pre-edit artifact. Exact matching semantic/layout issues are marked preexisting warnings; structural package failures and new errors still fail the review.
 - `outputPath` (string) — Absolute or working-directory-relative final path when reviewing an in-memory model.
-- `authoringPlan` (object) — Optional office-kit/presentation-authoring-plan/v1 plan. Presentation review checks its design and motion intent against the candidate.
+- `authoringPlan` (object) — Optional office-kit/presentation-authoring-plan/v1 plan. Presentation review checks its communication strategy, narrative/cognitive/visual risks, design grammar, and motion intent against the candidate.
 - `changedPageIds` (string[]) — Optional stable plan page IDs for a local edit. Non-target page changes become design-scope errors.
 - `playbackEvidence` (string) — structural, keynote, or powerpoint. Host values require actual playback evidence and are not inferred from XML.
 - `contentView` (string|boolean) — Set to anydoc or true to request the bounded text reading view. Omitted, none, or false does not initialize its AnyDoc parser.
@@ -8406,7 +8406,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 
 **Schema returns:**
 
-- `report` (object) — Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; design and motion remain distinct from static visual and host playback evidence.
+- `report` (object) — Schema-v1 post-edit report. Verdict is passed, passed-with-limitations, or failed; Presentation design.strategy and design.layers remain bounded risk evidence, while factual, visual, and playback judgments remain explicit and separate.
 
 **Returns:**
 
@@ -8417,6 +8417,7 @@ Reopen a final DOCX, XLSX, PPTX, or PDF and return one bounded post-edit report 
 - The text reading view is runtime-lazy and optional; AnyDoc is its parser backend. It is not a structural authority, render validator, OCR route, or substitute for direct pixel/aesthetic review.
 - Do not request the text reading view routinely. Use contentView='anydoc' only when it can close an identified text or table content-coverage gap; it does not resolve OCR, layout, image, formula, or metadata-provenance gaps.
 - playbackEvidence='structural' proves only timing targets and package structure. Use keynote or powerpoint only after actual host playback.
+- For a Presentation authoring plan, design.strategy records the communication job, scenario, direction, medium fit, delivery mode, and after-use; design.layers groups deterministic communication, narrative, cognitive, and visual-risk findings. These signals do not verify factual truth or aesthetic quality.
 
 #### `setOfficeFontDesignMetrics`
 

@@ -20,11 +20,25 @@ function authoringPlan(pageCount = 3, overrides = {}) {
   return {
     schema: "office-kit/presentation-authoring-plan/v1",
     mode: "create",
-    brief: { audience: "Decision makers", purpose: "Choose a migration path" },
+    brief: {
+      audience: "Decision makers",
+      purpose: "Choose a migration path",
+      primaryJob: "decide",
+      supportingJobs: ["align"],
+      expectedOutcome: "Decision makers approve one bounded migration path",
+      mediumFit: "strong",
+      afterUse: "Decision record and delivery handoff",
+      deliveryMode: "hybrid",
+    },
     narrative: { thesis: "Use the bounded path" },
     design: {
       sourceMode: "self-directed",
       mechanismPacks: ["technical-architecture"],
+      scenario: { primary: "technical-engineering", secondary: "analysis-decision" },
+      direction: {
+        name: "Traceable systems decision",
+        rationale: "The audience needs architecture evidence tied directly to risk and ownership",
+      },
       designGrammar: {
         palette: { strict: false, roles: { background: "#F8FAFC", accent: "#2563EB" } },
         typography: { strict: false, roles: { title: "Aptos Display", body: "Aptos" } },
@@ -35,6 +49,7 @@ function authoringPlan(pageCount = 3, overrides = {}) {
       id: `page-${index + 1}`,
       readerTask: `Read page ${index + 1}`,
       claim: `Claim ${index + 1}`,
+      evidence: [`Evidence ${index + 1}`],
       compositionIntent: index % 2 ? "split comparison" : "single focal statement",
       contentBudget: { maxCharacters: 2_000, maxObjects: 50 },
     })),
@@ -175,7 +190,13 @@ try {
   assert.equal(plannedReview.design.planSha256, normalizePresentationAuthoringPlan(plan).sha256);
   assert.equal(plannedReview.design.pageSignatures.length, 3);
   assert.equal(plannedReview.design.changedPageIds.length, 0);
+  assert.equal(plannedReview.design.strategy.primaryJob, "decide");
+  assert.equal(plannedReview.design.strategy.scenario.primary, "technical-engineering");
+  assert.equal(plannedReview.design.strategy.direction.name, "Traceable systems decision");
+  assert.equal(plannedReview.design.layers.communication.status, "passed");
+  assert.equal(plannedReview.design.layers.narrative.status, "passed");
   assert.match(plannedReview.summary.markdown, /Authoring-plan design checks/u);
+  assert.match(plannedReview.summary.markdown, /Strategy: decide; scenario: technical-engineering; direction: Traceable systems decision/u);
 
   const motionReviewModel = Presentation.create();
   const motionReviewSlide = motionReviewModel.slides.add({ name: "Motion review" });
@@ -280,12 +301,39 @@ try {
   const warningModel = Presentation.create();
   for (let slideIndex = 0; slideIndex < 3; slideIndex += 1) {
     const slide = warningModel.slides.add({ name: `Warning ${slideIndex + 1}` });
-    const count = slideIndex === 1 ? 6 : 1;
+    const count = slideIndex === 1 ? 12 : 1;
     for (let item = 0; item < count; item += 1) {
       slide.shapes.add({
         geometry: "rect",
         text: item === 0 ? `Metric card ${slideIndex + 1}` : `Detail ${item + 1}`,
         position: { left: 20 + (item % 3) * 170, top: 20 + Math.floor(item / 3) * 100, width: 150, height: 80 },
+      });
+    }
+    slide.shapes.add({
+      geometry: "ellipse",
+      name: `Dominant orbit ${slideIndex + 1}`,
+      position: { left: 660, top: 180, width: 600, height: 400 },
+      fill: "#E2E8F0",
+      line: { color: "#64748B", width: 1 },
+    });
+    if (slideIndex === 0) {
+      slide.shapes.add({
+        geometry: "rect",
+        name: "Large empty boundary",
+        position: { left: 20, top: 250, width: 600, height: 390 },
+        fill: null,
+        line: { color: "#334155", width: 2 },
+      });
+    }
+    if (slideIndex === 2) {
+      slide.shapes.add({
+        geometry: "rect",
+        name: "Undifferentiated report container",
+        text: "Quarterly risk\nOwner and next action",
+        position: { left: 20, top: 260, width: 550, height: 320 },
+        fill: "#FFFFFF",
+        line: { color: "#CBD5E1", width: 1 },
+        textStyle: { fontFamily: "Aptos", fontSize: 20 },
       });
     }
   }
@@ -298,7 +346,11 @@ try {
   assert.notEqual(warningReview.verdict, "failed", JSON.stringify(warningReview, null, 2));
   assert.ok(warningReview.design.issues.some((issue) => issue.type === "densityRhythmJump" && issue.severity === "warning"));
   assert.ok(warningReview.design.issues.some((issue) => issue.type === "cardWallPattern" && issue.severity === "warning"));
+  assert.ok(warningReview.design.issues.some((issue) => issue.type === "repeatedDominantGeometry" && issue.severity === "warning"));
+  assert.ok(warningReview.design.issues.some((issue) => issue.type === "largeHollowContainer" && issue.severity === "warning"));
+  assert.ok(warningReview.design.issues.some((issue) => issue.type === "weakTextContainerHierarchy" && issue.severity === "warning"));
   assert.ok(warningReview.design.issues.some((issue) => issue.type === "repeatedTitleForm" && issue.severity === "warning"));
+  assert.equal(warningReview.design.layers.visual.status, "passed-with-warnings");
 
   const wrongPageCount = await reviewArtifact(plannedModel, {
     authoringPlan: authoringPlan(2),

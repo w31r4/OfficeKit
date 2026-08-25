@@ -343,6 +343,8 @@ function presentationDesignReview(model, options = {}) {
     };
   }
   const plan = normalized.plan;
+  const strategy = presentationStrategyDescriptor(normalized);
+  addPresentationStrategyIssues(plan, normalized, issues);
   const pages = plan.pages;
   const actualPageCount = model.slides.items.length;
   if (actualPageCount !== pages.length) {
@@ -379,11 +381,99 @@ function presentationDesignReview(model, options = {}) {
     status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed",
     ok,
     planSha256: normalized.sha256,
+    strategy,
+    layers: summarizePresentationDesignLayers(issues),
     changedPageIds,
     issues,
     pageSignatures,
     profile,
   };
+}
+
+function presentationStrategyDescriptor(normalized) {
+  const plan = normalized.plan;
+  if (normalized.strategyStatus === "legacy") {
+    return {
+      status: "legacy",
+      primaryJob: null,
+      supportingJobs: [],
+      expectedOutcome: null,
+      mediumFit: null,
+      mediumFitNote: null,
+      afterUse: null,
+      deliveryMode: plan.brief.deliveryMode ?? "hybrid",
+      scenario: null,
+      direction: null,
+    };
+  }
+  return {
+    status: "current",
+    primaryJob: plan.brief.primaryJob,
+    supportingJobs: [...(plan.brief.supportingJobs || [])],
+    expectedOutcome: plan.brief.expectedOutcome,
+    mediumFit: plan.brief.mediumFit ?? "acceptable",
+    mediumFitNote: plan.brief.mediumFitNote ?? null,
+    afterUse: plan.brief.afterUse ?? null,
+    deliveryMode: plan.brief.deliveryMode ?? "hybrid",
+    scenario: structuredClone(plan.design.scenario),
+    direction: structuredClone(plan.design.direction),
+  };
+}
+
+function addPresentationStrategyIssues(plan, normalized, issues) {
+  if (normalized.strategyStatus === "legacy") {
+    issues.push(reviewIssue("legacyPresentationStrategy", "The authoring plan predates communication strategy fields. Preserve its existing scope or add strategy during an explicit redesign.", "warning", { layer: "communication" }));
+    return;
+  }
+  if (plan.brief.deliveryMode == null) {
+    issues.push(reviewIssue("inferredDeliveryMode", "The plan does not record a delivery mode; review used the hybrid default.", "warning", { layer: "communication" }));
+  }
+  if (plan.brief.afterUse == null) {
+    issues.push(reviewIssue("missingAfterUse", "The plan does not state how the deck will be used after delivery.", "warning", { layer: "communication" }));
+  }
+  if (plan.brief.mediumFit === "weak") {
+    issues.push(reviewIssue("weakMediumFit", `The plan records a weak medium fit: ${plan.brief.mediumFitNote}`, "warning", { layer: "communication" }));
+  }
+  const claims = new Map();
+  for (const page of plan.pages) {
+    const key = String(page.claim || "").trim().replace(/\s+/gu, " ").toLocaleLowerCase("en-US");
+    if (!key) continue;
+    const pageIds = claims.get(key) || [];
+    pageIds.push(page.id);
+    claims.set(key, pageIds);
+  }
+  for (const pageIds of claims.values()) {
+    if (pageIds.length > 1) issues.push(reviewIssue("repeatedPageClaim", `Pages ${pageIds.join(", ")} repeat the same primary claim.`, "warning", { layer: "narrative", pageIds }));
+  }
+  const evidencePages = plan.pages.filter((page) => Array.isArray(page.evidence) && page.evidence.length > 0).length;
+  if (["analysis-decision", "academic-research", "management-report"].includes(plan.design.scenario.primary) && evidencePages === 0) {
+    issues.push(reviewIssue("missingNarrativeEvidence", `Scenario ${plan.design.scenario.primary} has no page-level evidence references.`, "warning", { layer: "narrative" }));
+  }
+}
+
+function summarizePresentationDesignLayers(issues) {
+  const summaries = Object.fromEntries(["communication", "narrative", "cognitive", "visual"].map((layer) => [layer, {
+    status: "passed",
+    errors: 0,
+    warnings: 0,
+  }]));
+  for (const issue of issues) {
+    const layer = issue.layer || designIssueLayer(issue.type);
+    const summary = summaries[layer] || summaries.visual;
+    if (issueSeverity(issue) === "error") summary.errors += 1;
+    else summary.warnings += 1;
+  }
+  for (const summary of Object.values(summaries)) {
+    summary.status = summary.errors > 0 ? "failed" : summary.warnings > 0 ? "passed-with-warnings" : "passed";
+  }
+  return summaries;
+}
+
+function designIssueLayer(type) {
+  if (["authoringPlanPageCount", "requiredAuthoringDecision", "repeatedPageClaim", "missingNarrativeEvidence"].includes(type)) return "narrative";
+  if (["contentBudgetCharacters", "contentBudgetObjects", "minimumFontSize", "densityRhythmJump"].includes(type)) return "cognitive";
+  if (["legacyPresentationStrategy", "inferredDeliveryMode", "missingAfterUse", "weakMediumFit"].includes(type)) return "communication";
+  return "visual";
 }
 
 function presentationMotionReview(model, options = {}) {
@@ -715,6 +805,7 @@ function addDesignHeuristicWarnings(model, plan, records, pageSignatures, profil
     const maximum = Math.max(0, ...sizes.values());
     if (maximum >= 6) issues.push(reviewIssue("cardWallPattern", `Slide ${slide} contains ${maximum} same-sized modeled boxes. Confirm that the card-wall structure is intentional.`, "warning", { slide }));
   }
+  addGeometryAndHierarchyWarnings(model, records, issues);
   const titles = records.filter((record) => record.kind === "slide" && typeof record.title === "string" && record.title.trim()).map((record) => ({
     slide: Number(record.slide),
     stem: record.title.trim().split(/\s+/u).slice(0, 2).join(" ").toLocaleLowerCase("en-US"),
@@ -729,6 +820,76 @@ function addDesignHeuristicWarnings(model, plan, records, pageSignatures, profil
     if (slides.length >= 3) issues.push(reviewIssue("repeatedTitleForm", `Slides ${slides.join(", ")} begin with the same title form “${stem}”.`, "warning", { slides }));
   }
   addCompositionIntentWarnings(model, plan, records, pageSignatures, issues);
+}
+
+function addGeometryAndHierarchyWarnings(model, records, issues) {
+  const slideArea = Math.max(1, Number(model.slideSize?.width) * Number(model.slideSize?.height));
+  const dominant = [];
+  for (const [index, slide] of model.slides.items.entries()) {
+    const candidates = slide.shapes.items
+      .map((shape) => ({ shape, areaRatio: elementAreaRatio(shape, slideArea) }))
+      .filter(({ areaRatio }) => areaRatio >= 0.18 && areaRatio <= 0.78)
+      .sort((left, right) => right.areaRatio - left.areaRatio);
+    const first = candidates[0];
+    dominant.push(first ? { slide: index + 1, geometry: String(first.shape.geometry || "unknown"), areaRatio: first.areaRatio } : null);
+
+    for (const { shape, areaRatio } of candidates) {
+      if (areaRatio >= 0.25 && isHollowShape(shape) && hasVisibleLine(shape)) {
+        issues.push(reviewIssue("largeHollowContainer", `Slide ${index + 1} contains a large outlined ${shape.geometry || "shape"} without a modeled surface fill. Confirm that the boundary has an information role.`, "warning", {
+          layer: "visual",
+          slide: index + 1,
+          id: shape.id,
+          areaRatio,
+        }));
+        break;
+      }
+    }
+  }
+  for (let index = 2; index < dominant.length; index += 1) {
+    const run = dominant.slice(index - 2, index + 1);
+    if (run.every(Boolean) && run.every((entry) => entry.geometry === run[0].geometry)) {
+      issues.push(reviewIssue("repeatedDominantGeometry", `Slides ${run.map((entry) => entry.slide).join(", ")} repeat ${run[0].geometry} as the dominant modeled geometry. Review whether the visual argument is also repeating.`, "warning", {
+        layer: "visual",
+        slides: run.map((entry) => entry.slide),
+        geometry: run[0].geometry,
+      }));
+      index += 2;
+    }
+  }
+
+  for (const record of records) {
+    if (!Array.isArray(record.paragraphs) || record.paragraphs.length < 2 || !Array.isArray(record.bbox)) continue;
+    const slide = model.slides.items[Number(record.slide) - 1];
+    const shape = slide?.shapes.items.find((entry) => entry.id === record.id);
+    if (!shape || shape.geometry === "textbox" || elementAreaRatio(shape, slideArea) < 0.18) continue;
+    const sizes = new Set(record.paragraphs.flatMap((paragraph) => (paragraph.runs || []))
+      .map((run) => Number(run.style?.fontSize))
+      .filter(Number.isFinite));
+    if (sizes.size <= 1) {
+      issues.push(reviewIssue("weakTextContainerHierarchy", `Slide ${record.slide} places multiple text paragraphs inside one large ${shape.geometry || "shape"} without a modeled type-size hierarchy.`, "warning", {
+        layer: "visual",
+        slide: Number(record.slide),
+        id: record.id,
+      }));
+    }
+  }
+}
+
+function elementAreaRatio(element, slideArea) {
+  const width = Number(element?.position?.width);
+  const height = Number(element?.position?.height);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return 0;
+  return width * height / slideArea;
+}
+
+function isHollowShape(shape) {
+  if (shape.fill == null || shape.fill === "none" || shape.fill === "transparent") return true;
+  return typeof shape.fill === "object" && Number(shape.fill.transparency) >= 0.95;
+}
+
+function hasVisibleLine(shape) {
+  if (typeof shape.line === "string") return shape.line !== "none" && shape.line !== "transparent";
+  return shape.line != null && shape.line !== false && Number(shape.line.width ?? 1) > 0;
 }
 
 const VISUAL_CARRIER_PATTERN = /(?:image|photo|illustration|chart|graph|diagram|flow|typograph|vector|table|timeline|screenshot|icon|图片|图表|关系图|文字构图|矢量|表格|流程|时间线)/iu;
@@ -837,6 +998,9 @@ function createReviewMarkdown(report, maxChars) {
     "### Authoring-plan design checks",
     "",
     `Status: ${report.design?.status || "not-applicable"}${report.design?.planSha256 ? `; plan: ${report.design.planSha256}` : ""}.`,
+    ...(report.design?.strategy?.status === "current" ? [
+      `Strategy: ${report.design.strategy.primaryJob}; scenario: ${report.design.strategy.scenario.primary}; direction: ${report.design.strategy.direction.name}; delivery: ${report.design.strategy.deliveryMode}.`,
+    ] : report.design?.strategy?.status === "legacy" ? ["Strategy: legacy plan; communication strategy was not recorded."] : []),
     ...summarizeIssues(designIssues),
     "",
     "### Motion and playback checks",
