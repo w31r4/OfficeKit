@@ -751,11 +751,18 @@ internal static class PptxCodec
                 P.Slide? previousSourceRoot = null;
                 IReadOnlyDictionary<uint, string>? previousSourceElementIds = null;
                 string? previousSourceSlideId = null;
-                if (targetSlide.Source.Index > 0)
+                if (targetSlide.Source.Index > 0 && PptxTimingCodec.HasMorph(slideRoot))
                 {
-                    previousSourceRoot = slideParts[targetSlide.Source.Index - 1].Slide;
+                    var previousSourceTarget = retainedTargets.FirstOrDefault(candidate =>
+                        candidate.Source.Index == targetSlide.Source.Index - 1);
+                    if (previousSourceTarget is null)
+                        throw new CodecException(
+                            "invalid_presentation_morph",
+                            $"Presentation slide {slideIndex + 1} cannot retain Morph after its source predecessor was removed.",
+                            PartPath(slidePart));
+                    previousSourceRoot = previousSourceTarget.Source.Part.Slide;
                     var previousSourceShapeTree = previousSourceRoot?.CommonSlideData?.ShapeTree;
-                    previousSourceSlideId = $"presentation/slide/{targetSlide.Source.Index}";
+                    previousSourceSlideId = previousSourceTarget.Target.Id;
                     if (previousSourceShapeTree is not null)
                         previousSourceElementIds = NativeElementIds(ShapeElements(previousSourceShapeTree), previousSourceSlideId);
                 }
@@ -2857,7 +2864,7 @@ internal static class PptxCodec
             P.Slide? previousSourceRoot = null;
             IReadOnlyDictionary<uint, string>? previousSourceTimingIds = null;
             string? previousSourceSlideId = null;
-            if (target.Source.Index > 0)
+            if (target.Source.Index > 0 && PptxTimingCodec.HasMorph(sourceRoot))
             {
                 previousSourceRoot = orderedSourceSlides[target.Source.Index - 1].Slide;
                 var previousSourceTarget = sourceTargets.FirstOrDefault(candidate =>
@@ -2876,7 +2883,7 @@ internal static class PptxCodec
             P.Slide? previousOutputRoot = null;
             IReadOnlyDictionary<uint, string>? previousOutputTimingIds = null;
             string? previousOutputSlideId = null;
-            if (slideIndex > 0)
+            if (slideIndex > 0 && PptxTimingCodec.HasMorph(outputRoot))
             {
                 previousOutputRoot = outputSlides[slideIndex - 1].Slide;
                 previousOutputSlideId = requested.Slides[slideIndex - 1].Id;

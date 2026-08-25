@@ -482,7 +482,7 @@ internal static class PptxTimingCodec
         return $"<p:childTnLst>{behavior}</p:childTnLst>";
     }
 
-    private static bool HasMorph(P.Slide source)
+    internal static bool HasMorph(P.Slide source)
     {
         try
         {
