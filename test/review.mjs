@@ -178,13 +178,23 @@ try {
   assert.match(plannedReview.summary.markdown, /Authoring-plan design checks/u);
 
   const typographyFloorModel = Presentation.create();
-  typographyFloorModel.slides.add({ name: "Typography floor" }).shapes.add({
+  const typographyFloorSlide = typographyFloorModel.slides.add({ name: "Typography floor" });
+  typographyFloorSlide.shapes.add({
     geometry: "textbox",
+    name: "Source note",
     text: "Supporting note",
     position: { left: 40, top: 40, width: 320, height: 80 },
     textStyle: { fontFamily: "Aptos", fontSize: 14, color: "#17202A" },
   });
+  typographyFloorSlide.shapes.add({
+    geometry: "textbox",
+    name: "Body copy",
+    text: "Readable body",
+    position: { left: 40, top: 140, width: 320, height: 80 },
+    textStyle: { fontFamily: "Aptos", fontSize: 19, color: "#17202A" },
+  });
   const typographyFloorPlan = authoringPlan();
+  typographyFloorPlan.pages = [typographyFloorPlan.pages[0]];
   typographyFloorPlan.design.designGrammar.typography = {
     strict: false,
     roles: { title: "Aptos Display", body: "Aptos" },
@@ -198,7 +208,32 @@ try {
     visualReview: "unavailable",
   });
   assert.equal(typographyFloorReview.verdict, "failed");
-  assert.ok(typographyFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize" && issue.actual === 14 && issue.required === 18));
+  assert.ok(typographyFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize" && issue.actual === 14 && issue.required === 18 && issue.role === "caption"));
+  assert.ok(typographyFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize" && issue.actual === 19 && issue.required === 20 && issue.role === "body"));
+
+  const captionFloorModel = Presentation.create();
+  captionFloorModel.slides.add({ name: "Caption floor" }).shapes.add({
+    geometry: "textbox",
+    name: "Source note",
+    text: "Readable source note",
+    position: { left: 40, top: 40, width: 320, height: 80 },
+    textStyle: { fontFamily: "Aptos", fontSize: 19, color: "#17202A" },
+  });
+  const captionFloorPlan = authoringPlan(1);
+  captionFloorPlan.design.designGrammar.typography = {
+    strict: false,
+    roles: { title: "Aptos Display", body: "Aptos" },
+    minimumBodyFontSize: 22,
+    minimumCaptionFontSize: 18,
+  };
+  const captionFloorReview = await reviewArtifact(captionFloorModel, {
+    authoringPlan: captionFloorPlan,
+    outputPath: path.join(temporary, "caption-floor.pptx"),
+    layout: false,
+    visualReview: "unavailable",
+  });
+  assert.notEqual(captionFloorReview.verdict, "failed", JSON.stringify(captionFloorReview, null, 2));
+  assert.equal(captionFloorReview.design.issues.some((issue) => issue.type === "minimumFontSize"), false);
 
   const warningModel = Presentation.create();
   for (let slideIndex = 0; slideIndex < 3; slideIndex += 1) {

@@ -36,8 +36,10 @@ It is additional
 generalization evidence only: it does not change the frozen blind-quality score
 or switch the shipped default.
 
-The C-route readability holdout then raised only the generic authoring guidance
-floor to body 22 and caption 20; A/B routes and the runtime verifier were left
+The C-route readability holdout then raised the generic authoring guidance floor
+to body 22 and caption 20. The independent review now applies the body floor to
+ordinary text and the caption floor only to explicitly caption-like text roles;
+title placeholders remain outside those two declared floors. A/B routes remain
 unchanged. Four unseen packed clean-install Codex contexts passed with no retry
 or policy finding. Median elapsed time was 538062 ms and median observed usage
 was 2853152.5 tokens; one technical deck retained the bounded `cardWallPattern`

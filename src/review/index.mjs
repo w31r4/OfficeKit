@@ -387,25 +387,56 @@ function presentationDesignReview(model, options = {}) {
 
 function checkTypographyFloor(plan, records, issues) {
   const typography = plan.design?.designGrammar?.typography || {};
+  const minimumBodyFontSize = Number(typography.minimumBodyFontSize);
   const minimumCaptionFontSize = Number(typography.minimumCaptionFontSize);
-  if (!Number.isFinite(minimumCaptionFontSize) || minimumCaptionFontSize <= 0) return;
+  const hasBodyFloor = Number.isFinite(minimumBodyFontSize) && minimumBodyFontSize > 0;
+  const hasCaptionFloor = Number.isFinite(minimumCaptionFontSize) && minimumCaptionFontSize > 0;
+  if (!hasBodyFloor && !hasCaptionFloor) return;
   for (const record of records) {
     if (!Array.isArray(record.paragraphs)) continue;
     for (const [paragraphIndex, paragraph] of record.paragraphs.entries()) {
       for (const [runIndex, run] of (paragraph.runs || []).entries()) {
         const fontSize = Number(run.style?.fontSize);
-        if (!Number.isFinite(fontSize) || fontSize >= minimumCaptionFontSize) continue;
-        issues.push(reviewIssue("minimumFontSize", `Text on slide ${record.slide ?? "?"} is ${fontSize} below the declared minimum caption size ${minimumCaptionFontSize}.`, "error", {
+        if (!Number.isFinite(fontSize)) continue;
+        const role = presentationTextRole(record, paragraph, run);
+        const required = role === "caption"
+          ? (hasCaptionFloor ? minimumCaptionFontSize : undefined)
+          : role === "title"
+            ? undefined
+            : hasBodyFloor ? minimumBodyFontSize : minimumCaptionFontSize;
+        if (required == null || fontSize >= required) continue;
+        issues.push(reviewIssue("minimumFontSize", `Text on slide ${record.slide ?? "?"} is ${fontSize} below the declared minimum ${role} size ${required}.`, "error", {
           slide: Number(record.slide) || undefined,
           id: record.id,
           paragraphIndex,
           runIndex,
           actual: fontSize,
-          required: minimumCaptionFontSize,
+          required,
+          role,
         }));
       }
     }
   }
+}
+
+const CAPTION_ROLE_PATTERN = /(?:caption|footnote|footer|source|legend|axis|annotation|eyebrow|kicker|meta|citation|small|note)/iu;
+const TITLE_PLACEHOLDER_TYPES = new Set(["title", "ctrTitle"]);
+
+function presentationTextRole(record, paragraph, run) {
+  const placeholder = record?.placeholder;
+  if (TITLE_PLACEHOLDER_TYPES.has(String(placeholder?.type || ""))) return "title";
+  const hints = [
+    run?.style?.role,
+    run?.style?.textRole,
+    paragraph?.role,
+    paragraph?.style?.role,
+    record?.textRole,
+    record?.role,
+    record?.name,
+    placeholder?.name,
+  ].filter((value) => typeof value === "string" && value.trim());
+  if (hints.some((value) => CAPTION_ROLE_PATTERN.test(value))) return "caption";
+  return "body";
 }
 
 function normalizeChangedPageIds(value, pageIds, issues) {
