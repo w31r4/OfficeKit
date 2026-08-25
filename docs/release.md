@@ -72,6 +72,19 @@ contexts passed with zero retries and no policy findings; median elapsed time wa
 not replace the frozen blind study or switch the shipped Grid default. Evidence is
 recorded in `evals/presentation-authoring-compiler/postfix-c.v6.json`.
 
+The completed C-only matrix then filled the remaining task IDs with parallel
+workers while keeping the two trials within each task serial. The primary matrix
+is exactly `20/20` unique packed clean-install Codex runs: all passed with zero
+retries and policy findings, median elapsed time `542185 ms`, p90 `685720 ms`,
+median observed usage `3158898` tokens, and p90 `3543046`. The route still emits
+bounded non-blocking warnings (`cardWallPattern` 16 occurrences and
+`densityRhythmJump` 6), and every run reports `visualReview: unavailable`. Eight
+duplicate worker trials are recorded separately as stability evidence and are not
+counted in the 20-run matrix. This is machine generalization evidence only; the
+frozen A/C blind-quality threshold remains unmet, so Grid stays shipped and C
+stays experimental. The complete summary is in
+`evals/presentation-authoring-compiler/postfix-c.v7.json`.
+
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
 optional Playwright renderer, while the task, output, and review checks passed.
