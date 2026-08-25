@@ -9,6 +9,13 @@ and the selected primary scenario guide. Record the communication job, expected
 audience change, delivery mode, after-use, and medium fit. A weak medium fit is
 documented and mitigated; it does not silently change the requested deliverable.
 
+Load the sibling
+[`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
+Skill. Use its pre-composition pass after locking source wording and its
+post-render pass after the template composition is visible. Template wording,
+terminology, and factual qualifiers remain authoritative unless the requested
+scope changes them.
+
 ## 1. Stage and identify authority
 
 Copy the source with `ctx.input`. Record its artifact ID and SHA-256 in
@@ -49,6 +56,11 @@ type rhythm, geometry and line rules, density rhythm, visual carriers,
 image/SVG/chart/diagram treatment, allowed motifs, and anti-patterns. Mark
 unresolved source facts instead of guessing them.
 
+Every page `compositionIntent` must name its dominant carrier and source
+strategy, such as a cloned source slide, reusable template component, supplied
+image, source SVG, or newly authored native chart/diagram/table. “Follow the
+template” is not a sufficient composition intent.
+
 ## 4. Generate new content
 
 Use source-slide and source-component reuse where capabilities support it.
@@ -57,6 +69,12 @@ or making another bounded edit. Use native Layout placeholders when they match
 the content job. Compose new editable objects when the source has no suitable
 archetype.
 
+Before expanding a deck longer than four pages, render an opening page, one
+evidence page, and the densest or highest-risk page. Compare that spread with
+the source's evidenced grammar. For four pages or fewer, inspect the complete
+deck. If the grammar or reuse strategy changes, update the same authoring plan
+with `expectedSha256`; do not create a second design state.
+
 Do not flatten opaque source content, rebuild the package, or substitute Grid
 for a failed template operation.
 
@@ -64,4 +82,5 @@ for a failed template operation.
 
 Review the generated deck against the staged source and active plan. Verify
 source protection, template facts, package integrity, page design, and visual
-continuity. Commit the result before any follow-up edit or publication.
+continuity. Run the editorial page-fit pass without erasing template voice or
+source qualifiers. Commit the result before any follow-up edit or publication.

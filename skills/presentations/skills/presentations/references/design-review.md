@@ -36,6 +36,15 @@ Use the same report to review six different responsibilities:
 Runtime checks must not claim that uncited facts are true or that a page is
 beautiful.
 
+## Separate rationale from evidence
+
+The authoring plan records why a carrier, grammar, or exception was chosen.
+Review evidence records what the exported artifact actually contains and what
+was inspected. Do not treat a plan sentence such as “the image provides the
+focus” as proof that the image exists, is legible, or dominates the rendered
+page. Likewise, a warning-free report does not retroactively justify an
+unrecorded design choice.
+
 ## Review warnings
 
 OfficeKit may report:
@@ -58,6 +67,23 @@ pattern is intentional. If it is intentional, record an explicit
 `pageIds`, and a concrete `reason` before commit. A prose note elsewhere in the
 plan is not enough to make the exception auditable. Do not describe a
 warning-free report as proof of good design.
+
+## Repair order
+
+Repair a weak page in this order:
+
+1. **Claim and evidence:** correct the page job, source, qualifier, or
+   unsupported conclusion.
+2. **Carrier:** choose a chart, image, diagram, table, typography, vector, or
+   mixed carrier that can actually express that relationship.
+3. **Composition and hierarchy:** fix scale, reading order, alignment, density,
+   and text/container relationships.
+4. **Style and motif:** refine palette roles, type treatment, surfaces, lines,
+   crops, and restrained recurring detail.
+5. **Motion:** add or repair timing only after the static page works.
+
+Do not recolor an inventory of boxes when the problem is missing evidence, and
+do not animate an unresolved composition.
 
 ## Visual evidence
 

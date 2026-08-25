@@ -6455,6 +6455,7 @@ Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut
 
 **Use when:**
 
+- Use a de-defaulted evidence chart when comparison, change, distribution, or contribution is the page's primary claim.
 - The agent is compiling or refining a presentation plan with an explicit reader outcome.
 - The operation can be followed by the Presentation review and commit workflow.
 
@@ -6480,7 +6481,7 @@ Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs
 
 **Schema parameters:**
 
@@ -6757,6 +6758,7 @@ Materialize a clean-room compose tree with row, column, grid, layers, box, parag
 
 **Use when:**
 
+- Use free composition for an asymmetric editorial page or restrained recurring motif instead of a universal container grid.
 - The agent is compiling or refining a presentation plan with an explicit reader outcome.
 - The operation can be followed by the Presentation review and commit workflow.
 
@@ -6782,7 +6784,7 @@ Materialize a clean-room compose tree with row, column, grid, layers, box, parag
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs
 
 **Schema parameters:**
 
@@ -7103,6 +7105,7 @@ Add an embedded image with accessibility metadata, fit/crop, frame, rotation/fli
 
 **Use when:**
 
+- Use an image-led composition when a supplied, referenced, sourced, or generated image carries the page's context or emotion.
 - The agent is compiling or refining a presentation plan with an explicit reader outcome.
 - The operation can be followed by the Presentation review and commit workflow.
 
@@ -7128,7 +7131,7 @@ Add an embedded image with accessibility metadata, fit/crop, frame, rotation/fli
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs
 
 **Schema parameters:**
 
@@ -7455,6 +7458,7 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 
 **Use when:**
 
+- Use editable native geometry and typography when their spatial relationship is the visual carrier.
 - The agent is compiling or refining a presentation plan with an explicit reader outcome.
 - The operation can be followed by the Presentation review and commit workflow.
 
@@ -7480,7 +7484,7 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs
 
 **Schema parameters:**
 
@@ -7518,22 +7522,23 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 
 Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. `head` is the from/start end and `tail` is the to/end end; use tail for a forward arrow, and bringToFront() when a background shape would hide the route. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export.
 
-**Adoption tier:** `advanced`
+**Adoption tier:** `golden`
 
 **Use when:**
 
-- A specific advanced PresentationML capability is requested after its capability record has been inspected.
-- The task can tolerate a narrower edit surface than the golden authoring routes.
+- Use a relationship diagram whose connectors encode direction, causality, dependency, or handoff.
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
 
 **Avoid when:**
 
-- Do not substitute it for the create, template, edit, continue, or review task route.
-- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
 
 **Requires:**
 
 - Presentation facade
-- capability or source evidence appropriate to the operation
+- active authoring plan when the task creates a deck
 
 **Review:**
 
@@ -7547,7 +7552,7 @@ Connect two modeled shapes in the same slide/group tree by preset side or exact 
 
 **Example paths:**
 
-- examples/create-pptx-compose.mjs
+- skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs
 
 **Schema parameters:**
 

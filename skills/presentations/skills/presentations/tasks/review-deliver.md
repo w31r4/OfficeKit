@@ -18,6 +18,12 @@ publication.
    for a declared text/table coverage gap, then verify destination, source
    protection, bytes, and SHA-256.
 
+Before final voice review, load the sibling
+[`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
+Skill. Read titles in sequence, check visible support and labels against locked
+facts, and verify that presenter-only detail is placed consistently with the
+delivery mode. A local task reviews only its declared pages.
+
 Use only a renderer that the current installation explicitly provides. A clean
 packed install does not imply Playwright, Chromium, or another optional visual
 runtime is present; do not install one as part of the task. When it is absent,
@@ -46,6 +52,9 @@ the exact plan page IDs for a local edit.
 
 - Fix semantic, package, layout, strict plan, content-budget, required
   unresolved, and undeclared-page errors before commit.
+- Repair design findings in this order: claim/evidence, carrier,
+  composition/hierarchy, style/motif, then motion. Do not begin with decoration
+  when the information relationship is wrong.
 - Evaluate repetition, density, rhythm, card-wall, dominant-geometry, hollow-
   container, text/container hierarchy, title-form, and design-drift warnings in
   context. They are deterministic signals, not aesthetic verdicts.

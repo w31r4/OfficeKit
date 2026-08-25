@@ -77,6 +77,11 @@ const plan = {
         reason: "Equal-sized options are deliberately compared on one shared decision axis.",
       }],
     },
+    calibration: {
+      pageIds: ["page-01-decision", "page-03-evidence", "page-05-risk"],
+      status: "reviewed",
+      decision: "Keep the shared scale and increase evidence-page label contrast.",
+    },
   },
   pages: [{
     id: "page-01-decision",
@@ -84,14 +89,16 @@ const plan = {
     claim: "The bounded path is the safest deployable option",
     evidence: ["Recovery test result"],
     contentBudget: { maxCharacters: 420, maxObjects: 12 },
-    compositionIntent: "one decision statement above a compact option comparison",
+    compositionIntent: "shared-scale comparison chart from measured task data, with one decision statement above it",
     assetRefs: [],
   }],
   editorial: {
     voice: "direct, specific, evidence-led",
     titleMode: "claim",
-    lockedFacts: ["Measured values and source labels"],
-    avoid: ["empty transitions", "stacked slogans", "false certainty"],
+    lockedFacts: ["Measured values, dates, units, and source labels"],
+    protectedWording: ["Approved product and legal terminology"],
+    avoidPatterns: ["throat clearing", "stacked slogans", "false certainty"],
+    scope: { mode: "deck", pageIds: [] },
   },
   artifactRefs: [],
   recipe: "tasks/create.md",
@@ -110,6 +117,27 @@ New plans require `brief.primaryJob`, `brief.expectedOutcome`, one primary
 pre-strategy plans remain readable and appear as `strategyStatus: "legacy"` in
 task summaries; do not manufacture missing strategy during an unrelated local
 edit.
+
+The `editorial` object uses the existing open JSON contract; it does not create
+a second schema. Record the intended `voice`, `titleMode`, `lockedFacts`,
+`protectedWording`, `avoidPatterns`, and `scope`. Use `scope.mode: "local"`
+with exact plan page IDs for a bounded edit and `scope.mode: "deck"` only when
+the task authorizes deck-wide shaping. The sibling
+`presentation-editorial-trim` Skill interprets these fields while preserving
+names, values, citations, uncertainty, and source meaning.
+
+For self-directed decks longer than four pages, record the opening, evidence,
+and densest/high-risk calibration page IDs under `design.calibration`. A deck
+of four pages or fewer records the complete page set. When calibration changes
+the grammar, write an updated plan with the current `expectedSha256`; resume
+uses that plan revision and the latest reviewed artifact rather than a second
+design file or restored JavaScript heap.
+
+Each page `compositionIntent` must name the visual carrier and its source
+strategy. It should distinguish, for example, a native chart from measured task
+data, a supplied image, a template-derived component, or an authored diagram.
+Coordinates, columns, and “clean layout” are implementation details, not
+sufficient intent.
 
 ## Artifact references
 

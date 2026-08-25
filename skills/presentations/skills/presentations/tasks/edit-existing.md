@@ -20,6 +20,12 @@ Use an `edit-existing` authoring plan for broad or resumable work. Preserve the
 source design grammar and editorial voice. List only the pages that the user
 asked to change; a global redesign requires explicit scope.
 
+For copy changes, load the sibling
+[`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
+Skill. Record exact facts, citations, protected wording, and target page IDs
+before editing. Inherit the deck's existing title rhythm and terminology; do
+not normalize non-target pages to the new wording.
+
 ## 3. Apply a bounded edit
 
 Prefer typed APIs. Use `editNativeLeaf` only with inspect-issued IDs and the
@@ -28,6 +34,10 @@ capability. Avoid raw XML, XPath, relationship IDs, and whole-package rebuilds.
 
 Export after a source-bound edit. Reimport and reinspect before the next edit;
 capability IDs do not survive revision changes.
+
+If copy reflows, render the changed pages and run the editorial page-fit pass.
+Do not alter layout or neighboring objects when the requested scope is
+copy-only unless fit cannot be restored safely; report that limitation instead.
 
 ## 4. Review the edit boundary
 

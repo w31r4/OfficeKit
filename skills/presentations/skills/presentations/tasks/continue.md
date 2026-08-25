@@ -34,9 +34,20 @@ when the user asks for broader creation or redesign. When the scenario or
 direction changes, reread the doctrine, scenario policy, selected scenario
 guide, and shared visual floor before composing.
 
+For a calibrated creation task, read `design.calibration`, reopen its latest
+reviewed artifact, and continue with the recorded grammar decision. Do not
+repeat direction selection or create another design state unless the user or
+new evidence changes the authoritative design source.
+
 For local edits, preserve unchanged page copy and design roles and pass exact
 `changedPageIds` to review. Commit each meaningful reviewed phase. Publish only
 the current reviewed commit.
+
+When the next action includes copy work, load the sibling
+[`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
+Skill and reuse the plan's editorial voice, locked facts, protected wording,
+avoided patterns, and local/global scope. Do not infer a new deck-wide voice
+from the fresh Agent context.
 
 Read the installed OfficeKit Skill's `references/repl.md` for crash recovery,
 immutable inputs, and publication rules.

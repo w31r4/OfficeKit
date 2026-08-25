@@ -134,16 +134,29 @@ evidence, or authoritative design source. Ask no more than three at once.
 Before authoring:
 
 1. Lock facts, sources, user-provided wording, and constraints.
-2. State the central conclusion or reader outcome.
-3. Give every page one reader task and one primary claim.
-4. Attach evidence to the page that uses it.
-5. Set a realistic text and object budget for each page.
-6. Choose a composition intent before coordinates or layout helpers.
-7. Write the plan, then compile it with existing Presentation primitives.
+2. Load the sibling
+   [`presentation-editorial-trim`](../presentation-editorial-trim/SKILL.md)
+   Skill and shape titles, visible support, labels/sources, and notes before
+   composition.
+3. State the central conclusion or reader outcome.
+4. Give every page one reader task and one primary claim.
+5. Attach evidence to the page that uses it.
+6. Set a realistic text and object budget for each page.
+7. Choose a composition intent before coordinates or layout helpers. Name both
+   the dominant carrier and whether it comes from a user/template asset,
+   sourced/generated image, native chart/diagram/table, typography, vector, or
+   a deliberate mix.
+8. Write the plan, then compile it with existing Presentation primitives.
 
-Use [audience-facing text editing](references/audience-text-editing.md) for the
-fixed editorial sequence: evidence lock, audience rewrite, page-fit compression,
-then full-deck voice review.
+After rendering, run the editorial Skill's page-fit pass before deck-wide voice
+review. For imported decks, it preserves the existing voice and only changes
+declared pages unless the user explicitly requests a global rewrite.
+
+For a self-directed deck longer than four pages, calibrate the opening page, an
+evidence page, and the densest or highest-risk page before expanding the rest.
+Use the complete deck when it has four pages or fewer. Render the spread, repair
+the grammar in the same plan revision chain, then continue; do not create a
+second design state or silently switch routes.
 
 ## Compile with existing primitives
 

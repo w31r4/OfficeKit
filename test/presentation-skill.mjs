@@ -21,6 +21,7 @@ import { editImportedObjectAccessibility } from "../skills/presentations/skills/
 const fixtureDir = path.join("test", "skill-harness", "presentations", "fixtures");
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const presentationSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentations");
+const editorialSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentation-editorial-trim");
 const packagedSlideRenderer = path.join(presentationSkillDir, "container_tools", "render_slides.py");
 const packagedRasterHelper = path.join(presentationSkillDir, "container_tools", "ensure_raster_image.py");
 const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkillEntrySource, advancedImportedSource] = await Promise.all([
@@ -34,6 +35,10 @@ const templateFollowingSource = await fs.readFile(path.join(presentationSkillDir
 const templateConditionedSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-conditioned-generation.md"), "utf8");
 const designMechanismsSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-mechanisms.md"), "utf8");
 const audienceTextSource = await fs.readFile(path.join(presentationSkillDir, "references", "audience-text-editing.md"), "utf8");
+const [editorialSkillSource, editorialPatternsSource] = await Promise.all([
+  fs.readFile(path.join(editorialSkillDir, "SKILL.md"), "utf8"),
+  fs.readFile(path.join(editorialSkillDir, "references", "patterns.md"), "utf8"),
+]);
 const designReviewSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-review.md"), "utf8");
 const authoringPlanSource = await fs.readFile(path.join(presentationSkillDir, "references", "authoring-plan.md"), "utf8");
 const doctrineSource = await fs.readFile(path.join(presentationSkillDir, "references", "presentation-doctrine.md"), "utf8");
@@ -60,14 +65,20 @@ for (const name of taskNames) assert.match(presentationSkillEntrySource, new Reg
 for (const sourceMode of ["self-directed", "design-system", "template", "style-transfer"]) assert.match(presentationSkillEntrySource, new RegExp(`\\b${sourceMode}\\b`, "u"));
 for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technical-architecture", "visual-narrative", "academic-research", "brand-launch"]) assert.match(designMechanismsSource, new RegExp(`\\b${mechanism}\\b`, "u"));
 assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\.sha256 \}\)/u);
-assert.match(audienceTextSource, /Lock facts and sources[\s\S]*Rewrite for the audience[\s\S]*Compress against the real page[\s\S]*Review the deck voice/u);
+assert.match(audienceTextSource, /single editorial authority[\s\S]*presentation-editorial-trim/u);
+assert.match(editorialSkillSource, /Titles and claims[\s\S]*Visible support[\s\S]*Labels and sources[\s\S]*Speaker notes[\s\S]*Pass 1[\s\S]*Pass 2[\s\S]*Live:[\s\S]*Reader:[\s\S]*Hybrid:/u);
+assert.match(editorialPatternsSource, /not a mechanical replacement list[\s\S]*False contrast[\s\S]*Throat clearing[\s\S]*Repeated triads[\s\S]*Unsupported superlatives/u);
 assert.match(designReviewSource, /bounded signals[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*warning-free report as proof of good\s+design/u);
 assert.match(doctrineSource, /communication event[\s\S]*editable deck[\s\S]*live or self-guided sequence[\s\S]*native artifact/u);
 assert.match(taskSources.create, /presentation doctrine[\s\S]*shared visual floor[\s\S]*scenario policy[\s\S]*selected primary scenario guide/u);
+assert.match(taskSources.create, /opening or visual-direction page[\s\S]*evidence or data page[\s\S]*densest or highest-risk page[\s\S]*expectedSha256[\s\S]*sidecar design state/u);
+assert.match(taskSources.create, /dominant visual[\s\S]*carrier[\s\S]*source strategy[\s\S]*native chart\/diagram\/table/u);
+assert.match(designReviewSource, /Separate rationale from evidence[\s\S]*Claim and evidence[\s\S]*Carrier[\s\S]*Composition and hierarchy[\s\S]*Style and motif[\s\S]*Motion/u);
 for (const scenario of scenarioNames) assert.match(scenarioPolicySource, new RegExp(`\\b${scenario}\\b`, "u"));
 for (const sourceMode of ["self-directed", "design-system", "template", "style-transfer"]) assert.match(scenarioPolicySource, new RegExp(`\\b${sourceMode}\\b`, "u"));
 for (const source of scenarioSources) {
   assert.match(source, /## Audience task[\s\S]*## Narrative[\s\S]*## Density and rhythm[\s\S]*## Visual carriers and archetypes[\s\S]*## Visual grammar[\s\S]*## Avoid[\s\S]*## Review questions/u);
+  assert.match(source, /(?:evidence|proof|example)[\s\S]*(?:chart|diagram|image)[\s\S]*(?:typography|line)/iu);
 }
 assert.match(styleFloorSource, /palette roles and surface hierarchy[\s\S]*geometry language[\s\S]*line semantics[\s\S]*dominant visual carrier/u);
 assert.doesNotMatch(`${presentationSkillEntrySource}\n${doctrineSource}\n${scenarioPolicySource}\n${scenarioSources.join("\n")}`, /Kimi|presentation-artifact-tool|office-artifact-tool\/kimi|\/Users\/zfang/iu);

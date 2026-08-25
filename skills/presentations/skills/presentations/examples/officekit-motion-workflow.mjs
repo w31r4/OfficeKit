@@ -21,7 +21,7 @@ dataSlide.animations.add(chart, {
 const causalSlide = deck.slides.add({ name: "Causal Reveal" });
 const cause = causalSlide.shapes.add({ name: "cause", geometry: "roundRect", position: { left: 100, top: 260, width: 260, height: 120 }, fill: "#DBEAFE", text: "Liquidity improves" });
 const effect = causalSlide.shapes.add({ name: "effect", geometry: "roundRect", position: { left: 920, top: 260, width: 260, height: 120 }, fill: "#FEF3C7", text: "Risk assets reprice" });
-const link = causalSlide.shapes.connect(cause, effect, { name: "causal-link", fromSide: "right", toSide: "left", line: { fill: "#2563EB", width: 3 }, head: { type: "arrow" } });
+const link = causalSlide.shapes.connect(cause, effect, { name: "causal-link", fromSide: "right", toSide: "left", line: { fill: "#2563EB", width: 3 }, tail: { type: "arrow" } });
 causalSlide.animations.add(cause, { effect: "fade", start: "onClick" });
 causalSlide.animations.add(link, { effect: "wipe", direction: "right", start: "afterPrevious" });
 causalSlide.animations.add(effect, { effect: "fade", start: "afterPrevious" });

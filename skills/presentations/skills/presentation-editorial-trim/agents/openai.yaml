@@ -1,0 +1,9 @@
+interface:
+  display_name: "Presentation Editorial Trim"
+  short_description: "Polish slide copy without changing facts"
+  icon_small: "./assets/file-presentation.png"
+  icon_large: "./assets/file-presentation.png"
+  brand_color: "#C43E1C"
+  default_prompt: "Use $presentation-editorial-trim to make this presentation copy concise, natural, and audience-facing while preserving every fact and source."
+policy:
+  allow_implicit_invocation: true

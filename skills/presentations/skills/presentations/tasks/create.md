@@ -9,8 +9,10 @@ Infer audience, purpose, outcome, duration, language, and evidence from the
 request and available files. Ask at most three questions only when an answer
 changes the audience, conclusion, evidence, or design authority.
 
-Lock facts before rewriting. Read
-[audience-facing text editing](../references/audience-text-editing.md).
+Lock facts before rewriting. Load the sibling
+[`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
+Skill. Run its pre-composition pass before page budgets and its page-fit pass
+after the first render.
 
 Then read, in order:
 
@@ -51,7 +53,10 @@ const planDescriptor = await ctx.plan(plan);
 ```
 
 Give every page one reader task, claim, evidence set, content budget, and
-composition intent. Select zero to two mechanism packs and write the actual
+composition intent. Each composition intent must name both the dominant visual
+carrier and its source strategy: user asset, template/reference asset, sourced
+or generated image, native chart/diagram/table, typography, native vector, or
+a deliberate mix. Select zero to two mechanism packs and write the actual
 palette roles and surface hierarchy, typography roles and size rhythm,
 geometry and corner rules, line semantics, spacing, density rhythm, dominant
 visual carriers, image/SVG/chart/diagram treatment, allowed motifs, strict
@@ -100,7 +105,31 @@ API. In a packed or portable run, do not install optional renderers or invoke
 Playwright/Chromium; use the available public render/verify path and report
 `visualReview: unavailable` when no visual capability is present.
 
-## 4. Compile a complete working draft
+## 4. Calibrate before expanding the deck
+
+For a self-directed deck longer than four pages, compose three representative
+pages first:
+
+1. the opening or visual-direction page;
+2. one evidence or data page;
+3. the densest or highest-risk page.
+
+For a deck of four pages or fewer, calibrate the complete deck. Render the
+calibration spread and inspect it as one sequence. Verify that the chosen
+grammar works for sparse and dense pages, that each planned carrier is actually
+present, and that text, charts, images, diagrams, surfaces, lines, and motifs
+belong to one authored system.
+
+If the evidence requires a grammar correction, update the same durable plan
+with its current `expectedSha256` and record the calibration page IDs and
+decision. Do not create a sidecar design state. A fresh session resumes from
+the revised plan and the latest reviewed artifact.
+
+Only after calibration should the Agent expand the remaining pages. A failed
+calibration is repaired in place; it must not silently switch to Grid or a
+different design source.
+
+## 5. Compile a complete working draft
 
 Use Presentation Help by intent, then compose with the golden primitives:
 
@@ -136,9 +165,11 @@ Build the complete working draft before asking the user to choose internal
 layouts. The first response should offer the checked deck and a short summary
 of its story, not a design questionnaire.
 
-## 5. Review and commit
+## 6. Review and commit
 
-Follow [Review and deliver](review-deliver.md). Pass `authoringPlan` to
+Run the editorial Skill's post-render pass without changing locked facts,
+sources, or the selected visual direction. Then follow
+[Review and deliver](review-deliver.md). Pass `authoringPlan` to
 `reviewArtifact`, commit the reviewed candidate, then let the user continue by
 conversation or accept delivery. For a self-directed deck, the final review
 must be independent of any earlier draft: do not pass a source `baseline` to

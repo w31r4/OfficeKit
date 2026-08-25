@@ -7,11 +7,12 @@ This installable Skill bundle is distributed with `office-kit`.
 ## Included Skills
 
 - `Presentations`: create, edit, render, verify, and export editable PowerPoint and Google Slides presentation decks.
+- `Presentation Editorial Trim`: shape slide titles, visible support, labels, sources, and notes without changing facts or unrelated pages.
 - `PowerPoint Live Control`: operate a presentation already open in desktop PowerPoint through the local typed OfficeKit bridge.
 
 ## Discoverability
 
-Use this plugin for presentation-oriented terms from the file-type naming model: slides, deck, PowerPoint, Google Slides, presentation, presentations, PPT, and `.pptx`. Choose the Live Skill only when the user explicitly refers to the currently open desktop deck.
+Use this plugin for presentation-oriented terms from the file-type naming model: slides, deck, PowerPoint, Google Slides, presentation, presentations, PPT, and `.pptx`. Choose the Live Skill only when the user explicitly refers to the currently open desktop deck. Use Presentation Editorial Trim directly for copy-only work; the Presentations Skill also invokes it during creation and bounded edits.
 
 ## Source
 

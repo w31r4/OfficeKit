@@ -2829,6 +2829,7 @@ const PRESENTATION_GOLDEN_NAMES = new Set([
   "slide.compose",
   "slide.autoLayout",
   "slide.shapes.add",
+  "slide.shapes.connect",
   "slide.images.add",
   "slide.tables.add",
   "slide.charts.add",
@@ -2882,6 +2883,21 @@ const PRESENTATION_RECIPE_PATHS = Object.freeze({
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
 const PRESENTATION_MOTION_EXAMPLE_PATH = "skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs";
+const PRESENTATION_DESIGN_EXAMPLE_PATH = "skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs";
+const PRESENTATION_DESIGN_EXAMPLE_NAMES = new Set([
+  "slide.compose",
+  "slide.shapes.add",
+  "slide.shapes.connect",
+  "slide.images.add",
+  "slide.charts.add",
+]);
+const PRESENTATION_DESIGN_INTENTS = Object.freeze({
+  "slide.compose": "Use free composition for an asymmetric editorial page or restrained recurring motif instead of a universal container grid.",
+  "slide.shapes.add": "Use editable native geometry and typography when their spatial relationship is the visual carrier.",
+  "slide.shapes.connect": "Use a relationship diagram whose connectors encode direction, causality, dependency, or handoff.",
+  "slide.images.add": "Use an image-led composition when a supplied, referenced, sourced, or generated image carries the page's context or emotion.",
+  "slide.charts.add": "Use a de-defaulted evidence chart when comparison, change, distribution, or contribution is the page's primary claim.",
+});
 
 function presentationRecipeFor(name) {
   if (/animation|Morph/.test(name)) return `${PRESENTATION_RECIPE_PATHS.motion}#typed-surface`;
@@ -2917,6 +2933,8 @@ function presentationAdoptionFor(item) {
     : adoptionTier === "compatibility"
       ? ["A package-level or legacy interoperability operation is explicitly required.", "The caller can provide source-bound evidence and perform a second import."]
       : ["A specific advanced PresentationML capability is requested after its capability record has been inspected.", "The task can tolerate a narrower edit surface than the golden authoring routes."];
+  const designIntent = PRESENTATION_DESIGN_INTENTS[name];
+  if (designIntent) useWhen.unshift(designIntent);
   const avoidWhen = adoptionTier === "compatibility"
     ? ["Do not use as the default authoring route; use the typed Presentation facade first.", "Do not infer that an opaque or unsupported object became editable."]
     : adoptionTier === "advanced"
@@ -2935,7 +2953,11 @@ function presentationAdoptionFor(item) {
     requires,
     review,
     recipes: [presentationRecipeFor(name)],
-    examplePaths: [/animation|Morph/.test(name) ? PRESENTATION_MOTION_EXAMPLE_PATH : PRESENTATION_EXAMPLE_PATH],
+    examplePaths: [/animation|Morph/.test(name)
+      ? PRESENTATION_MOTION_EXAMPLE_PATH
+      : PRESENTATION_DESIGN_EXAMPLE_NAMES.has(name)
+        ? PRESENTATION_DESIGN_EXAMPLE_PATH
+        : PRESENTATION_EXAMPLE_PATH],
   };
 }
 

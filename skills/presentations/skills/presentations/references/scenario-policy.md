@@ -18,6 +18,25 @@ Record one primary scenario and at most one secondary scenario. Use a secondary
 only when it changes a meaningful section; do not stack labels to avoid making a
 choice. Read the selected guide before drawing.
 
+## Guide loading contract
+
+Load exactly one primary guide. Load one secondary guide only when the plan
+names the section whose audience task genuinely changes. A secondary guide may
+modify that section's narrative, evidence, or carrier choice; it does not create
+a second visual system.
+
+Every scenario guide applies the same decision structure:
+
+1. audience job and evidence contract;
+2. narrative order and density rhythm;
+3. page archetypes and dominant carriers;
+4. chart, table, diagram, image, and source treatment;
+5. geometry, line, surface, typography, and spacing behavior;
+6. failure signals and repair questions.
+
+The guide supplies judgment, not a palette or template. Do not copy a guide's
+example page sequence into the deliverable.
+
 ## Choose the design source
 
 Use exactly one source mode:
@@ -30,6 +49,12 @@ Use exactly one source mode:
 
 User templates and brand rules override scenario defaults. A scenario guide
 fills only what the authority leaves unspecified.
+
+Every page `compositionIntent` names both the dominant carrier and where that
+carrier comes from. Source strategies are: user asset, template/reference
+asset, sourced image, generated image, native chart, native diagram, native
+table, typography, native vector, or a deliberate mix. “Clean layout” and
+“three columns” are not sufficient composition intents.
 
 For self-directed work, generate two or three materially different directions
 internally. Name each direction by its visual argument, not by a vague mood.
