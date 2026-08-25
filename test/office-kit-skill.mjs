@@ -25,7 +25,7 @@ const [plugin, skillText, agentText, routingText, templateSelectionText, reviewT
 ]);
 
 assert.equal(plugin.name, "office-kit");
-assert.equal(plugin.version, "0.8.0");
+assert.equal(plugin.version, "0.9.0");
 assert.equal(plugin.license, "AGPL-3.0-or-later");
 assert.equal(plugin.skills, "./skills/");
 assert.match(plugin.description, /cross-format Office and PDF/i);

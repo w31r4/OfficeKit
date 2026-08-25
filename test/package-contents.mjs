@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "0.8.0");
+assert.equal(packageMetadata.version, "0.9.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.dependencies["@firecrawl/anydoc"], "0.1.3");
@@ -166,7 +166,7 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. The 0.8.0 global CLI deliberately ships the twenty audited
+// and hosted gates. The 0.9.0 global CLI deliberately ships the twenty audited
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
 // cross-platform headroom over the measured 36,499,596-byte archive.
 const maxPackedBytes = 37_500_000;
@@ -175,7 +175,7 @@ const maxPackedBytes = 37_500_000;
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
 // Keep measured headroom for bounded codec/Skill growth without concealing
 // specialist binaries, generated evidence, or provider binaries in the
-// tarball. The current 0.8.0 runtime payload measures 54,434,283 bytes after
+// tarball. The current 0.9.0 runtime payload measures 54,434,283 bytes before
 // the bounded mixed-edit fix; keep only a 5,600-byte growth budget.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
