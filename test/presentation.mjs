@@ -6846,6 +6846,7 @@ assert.deepEqual(motionImported.slides.getItem(0).animations.items.map(({ effect
   { effect: "fly", start: "afterPrevious", durationMs: 450, textBuild: undefined, direction: "left", staggerMs: undefined },
   { effect: "pulse", start: "withPrevious", durationMs: 500, textBuild: undefined, direction: undefined, staggerMs: undefined },
 ]);
+assert.match(motionImported.inspect({ kind: "animation", maxChars: 8_000 }).ndjson, /"kind":"animation".*"targetName":"motion-target"/);
 
 const motionChartDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const motionChartSlide = motionChartDeck.slides.add({ name: "Motion chart" });
@@ -6887,5 +6888,6 @@ assert.deepEqual(motionMorphImported.slides.getItem(1).morph.value, {
   durationMs: 800,
   pairs: [{ key: "hero", fromId: motionMorphImported.slides.getItem(0).shapes.items[0].id, toId: motionMorphImported.slides.getItem(1).shapes.items[0].id }],
 });
+assert.match(motionMorphImported.inspect({ kind: "morph", maxChars: 8_000 }).ndjson, /"pairKey":"hero".*"compatible":true/);
 
 console.log("presentation smoke ok");

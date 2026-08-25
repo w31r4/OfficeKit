@@ -253,6 +253,31 @@ export class SlideAnimations {
   getItem(id) { const found = this._items.find((item) => item.id === id); return clone(found); }
   toJSON() { return this.items; }
   inspectRecord() { return { kind: "animations", id: `${this.slide.id}/animations`, slide: this.slide.index + 1, items: this.items, capability: this.capability }; }
+  inspectRecords() {
+    return this._items.map((item, index) => {
+      const target = this.slide.resolve(item.targetId);
+      return {
+        kind: "animation",
+        id: item.id,
+        slide: this.slide.index + 1,
+        order: index + 1,
+        targetId: item.targetId,
+        targetName: target?.name || undefined,
+        targetKind: item.targetKind,
+        phase: item.phase,
+        effect: item.effect,
+        start: item.start,
+        durationMs: item.durationMs,
+        delayMs: item.delayMs || 0,
+        direction: item.direction,
+        textBuild: item.textBuild,
+        chartBuild: item.chartBuild,
+        staggerMs: item.staggerMs || 0,
+        animateChartBackground: item.animateChartBackground,
+        capability: this.capability,
+      };
+    });
+  }
 }
 
 export class SlideMorph {
@@ -272,4 +297,28 @@ export class SlideMorph {
   clear() { return this.set(undefined); }
   toJSON() { return this.value; }
   inspectRecord() { return { kind: "morph", id: this.id, slide: this.slide.index + 1, value: this.value, capability: this.capability }; }
+  inspectRecords() {
+    if (!this._value) return [];
+    const sourceSlide = this.slide.presentation.slides.items.find((candidate) => candidate.id === this._value.fromSlideId);
+    return this._value.pairs.map((pair, index) => {
+      const from = sourceSlide?.resolve(pair.fromId);
+      const to = this.slide.resolve(pair.toId);
+      return {
+        kind: "morph",
+        id: `${this.id}/${pair.key}`,
+        slide: this.slide.index + 1,
+        order: index + 1,
+        sourceSlideId: this._value.fromSlideId,
+        destinationSlideId: this.slide.id,
+        pairKey: pair.key,
+        fromId: pair.fromId,
+        fromName: from?.name || undefined,
+        toId: pair.toId,
+        toName: to?.name || undefined,
+        durationMs: this._value.durationMs,
+        compatible: Boolean(from && to && morphKind(from) === morphKind(to) && morphKind(to) !== "chart"),
+        capability: this.capability,
+      };
+    });
+  }
 }

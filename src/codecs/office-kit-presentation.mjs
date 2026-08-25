@@ -5005,6 +5005,7 @@ export async function presentationFromEnvelope(envelope) {
         present: Boolean(sourceSlide.source?.timingPresent),
         editable: Boolean(sourceSlide.source?.timingEditable),
         addable: Boolean(sourceSlide.source?.timingAddable),
+        ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
       }),
     });
     Object.defineProperty(slide.morph, PRESENTATION_MORPH_CAPABILITY, {
@@ -5012,6 +5013,7 @@ export async function presentationFromEnvelope(envelope) {
         sourceBound: true,
         editable: Boolean(sourceSlide.source?.timingEditable && sourceSlide.morph),
         addable: Boolean(sourceSlide.source?.timingAddable && !sourceSlide.morph),
+        ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
       }),
     });
     const entries = [];

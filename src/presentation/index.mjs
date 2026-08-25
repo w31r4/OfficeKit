@@ -1641,8 +1641,9 @@ export class Slide {
     if (kinds.has("comment") || kinds.has("thread")) records.push(...this.comments.items.map((comment) => comment.inspectRecord()));
     if (kinds.has("notes")) records.push({ kind: "notes", id: `${this.id}/notes`, slide: this.index + 1, text: this.speakerNotes.text, textPreview: this.speakerNotes.text.slice(0, 300), textChars: this.speakerNotes.text.length, capability: this.speakerNotes.capability });
     if (kinds.has("transition")) records.push(this.transition.inspectRecord());
-    if (kinds.has("animations") || kinds.has("animation")) records.push(this.animations.inspectRecord());
-    if (kinds.has("morph")) records.push(this.morph.inspectRecord());
+    if (kinds.has("animations")) records.push(this.animations.inspectRecord());
+    if (kinds.has("animation")) records.push(...this.animations.inspectRecords());
+    if (kinds.has("morph")) records.push(...this.morph.inspectRecords());
     return records;
   }
 
