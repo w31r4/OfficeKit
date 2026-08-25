@@ -81,13 +81,13 @@ const standaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.sh"),
   "utf8",
 );
-assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.6\.0/);
+assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.8\.0/);
 assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
 const windowsStandaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.ps1"),
   "utf8",
 );
-assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.6\.0"/);
+assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.8\.0"/);
 assert.match(windowsStandaloneInstaller, /win32-x64/);
 assert.doesNotMatch(windowsStandaloneInstaller, /RELEASE_(?:SHA256|SIZE)/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
