@@ -63,6 +63,15 @@ non-blocking `cardWallPattern` warning, so it is directional quality evidence,
 not a claim that the full blind threshold has been met. Details are recorded in
 `evals/presentation-authoring-compiler/postfix-c.v5.json`.
 
+The C-route body-floor holdout then moved the declared readability floor into the
+independent review: ordinary text uses body 22, explicitly caption-like text uses
+caption 20, and title placeholders remain outside both floors. Two fresh packed C
+contexts passed with zero retries and no policy findings; median elapsed time was
+520323.5 ms and median observed usage was 3095828 tokens. Both retained bounded
+`cardWallPattern` warnings. This is completion/readability evidence only; it does
+not replace the frozen blind study or switch the shipped Grid default. Evidence is
+recorded in `evals/presentation-authoring-compiler/postfix-c.v6.json`.
+
 A later pre-fix C-only packed matrix completed `19/20` runs; the sole failure
 was an Agent policy violation caused by reading package internals and trying an
 optional Playwright renderer, while the task, output, and review checks passed.

@@ -1,0 +1,68 @@
+{
+  "schema": "office-kit/presentation-authoring-compiler-body-floor-evidence/v1",
+  "sourceCommit": "d566c882",
+  "purpose": "Holdout check for enforcing the C-route declared body typography floor in the independent review without task-specific selectors or prompt-only evidence.",
+  "package": {
+    "version": "0.6.0",
+    "tarballSha256": "6f44a649d94229cfa55f198515a53408be5e1e60bc797e232e33074c2c674ad4",
+    "packedBytes": 36525496,
+    "unpackedBytes": 54286071,
+    "files": 761
+  },
+  "runs": [
+    {
+      "runId": "technical-architecture-02/C/1",
+      "taskId": "technical-architecture-02",
+      "scenario": "technical-architecture",
+      "trial": 1,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 563288,
+      "totalTokens": 3151655,
+      "retryCount": 0,
+      "slides": 7,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern", "cardWallPattern", "cardWallPattern"],
+      "policy": "passed",
+      "commits": 2,
+      "publications": 1
+    },
+    {
+      "runId": "analytical-reporting-02/C/1",
+      "taskId": "analytical-reporting-02",
+      "scenario": "analytical-reporting",
+      "trial": 1,
+      "status": "passed",
+      "freshContext": true,
+      "packedCleanInstall": true,
+      "elapsedMs": 477359,
+      "totalTokens": 3040001,
+      "retryCount": 0,
+      "slides": 8,
+      "reviewVerdict": "passed-with-limitations",
+      "visualReview": "unavailable",
+      "designWarnings": ["cardWallPattern", "cardWallPattern"],
+      "policy": "passed",
+      "commits": 2,
+      "publications": 1
+    }
+  ],
+  "summary": {
+    "machineRuns": 2,
+    "machinePasses": 2,
+    "retryCount": 0,
+    "medianElapsedMs": 520323.5,
+    "medianTotalTokens": 3095828,
+    "bodyFloorEnforcedByReview": true,
+    "interpretation": "The generic review contract preserved C completion on two fresh packed scenarios after adding the body floor. Both outputs still carried non-blocking cardWallPattern warnings, so this evidence is a completion/readability holdout, not a claim of warning-free design or default-route readiness."
+  },
+  "guardrails": {
+    "taskSpecificSelectorsAdded": false,
+    "aOrBRouteChanged": false,
+    "frozenPilotEvidenceUnchanged": true,
+    "defaultRouteChanged": false,
+    "visualReviewClaimed": false
+  }
+}
