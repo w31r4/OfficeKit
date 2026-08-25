@@ -1,5 +1,40 @@
 # Release
 
+## Unreleased: Presentation motion compiler (target 0.8.0)
+
+OfficeKit 0.8.0 completes the typed Presentation motion surface without adding
+a second authoring language. `slide.animations` supports bounded fade, wipe,
+fly, zoom, and pulse effects; click/with/after ordering; paragraph and native
+chart builds; deterministic delay and stagger; and chart-background control.
+Adjacent source-free or OfficeKit-derived slides can use explicit one-to-one
+Morph pairs, which preserve a shared native object identity through `!!` names.
+Unsupported imported timing remains opaque rather than being flattened.
+
+The C authoring route now carries delivery mode and motion intent in the
+durable authoring plan, selects motion only after the page has a real visual
+carrier, and documents six runnable recipes: Data Rise, Causal Reveal,
+Comparison Beat, Focus Pulse, Calm Continuity, and Morph Continuity. Inspection
+and review expose targets, order, timing, builds, Morph pairs, plan consistency,
+and the distinction between structural, Keynote, and PowerPoint playback
+evidence.
+
+Three real artifacts were generated once through the public API. The complete
+14-slide black/gold Bitcoin deck contains 37 object/chart animations and one
+Morph; the architecture slide contains seven ordered Causal Reveal animations;
+and the two-slide brand example contains one paired Morph. All three passed
+author-time and second-import verification with zero errors or warnings. Their
+recorded SHA-256 values are respectively
+`cc5915ac8585b2f2d0b47c488105730da529e952ff198a0153eeb52ee1cb6a2e`,
+`45209908ed1d91375d5fd5a8f40e7f9047caa09b536a74a308c08b94b40aceed`,
+and `3aa74719381d390547f8ba6bd4987712114828621ddf9181e3326af0ae031d39`.
+
+Keynote imported all three artifacts. It recognized the ordinary fade as a
+click-driven transition and mapped the paired Morph to native Magic Move with
+the authored 1.2-second duration. Keynote did not expose the imported
+object-level timing in its Build In inspector, so that portion remains
+structural evidence rather than a playback claim. Windows PowerPoint playback
+is unverified and is not presented as completed host acceptance.
+
 ## Unreleased: Presentation authoring compiler pilot evidence (target 0.7.0)
 
 The Presentation authoring compiler change adds a bounded `ctx.plan()` revision
