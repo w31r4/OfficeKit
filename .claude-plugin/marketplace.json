@@ -9,13 +9,13 @@
   },
   "metadata": {
     "description": "OfficeKit Skills for Word, Excel, PowerPoint, PDF, templates, and local Office Live control.",
-    "version": "0.9.0"
+    "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "office-kit",
       "displayName": "OfficeKit",
-      "version": "0.9.0",
+      "version": "1.0.0",
       "description": "Coordinate local Office and PDF artifact work and route each output to its owning Skill.",
       "source": "./skills/office-kit",
       "strict": false,

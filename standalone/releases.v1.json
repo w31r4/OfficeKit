@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "officeKitVersion": "0.9.0",
+  "officeKitVersion": "1.0.0",
   "assets": {
     "darwin-arm64": {
-      "asset": "office-kit-0.9.0-darwin-arm64.tar.gz",
-      "sha256": "1ffa07ae61ec46632e2e7e472d7a7f234a07d206c38dcbadb28a49e6dc7fdb48",
-      "size": 88605002
+      "asset": "office-kit-1.0.0-darwin-arm64.tar.gz",
+      "sha256": "4424a0bc2dcb177dcb61453d84209b212c91c75ddb1d24a679f4c56c808a7c24",
+      "size": 88917137
     },
     "linux-x64": {
-      "asset": "office-kit-0.9.0-linux-x64.tar.gz",
-      "sha256": "b071ea660175c689bf736c2e6f7703d5684edd8c6ba616dc816ff33208b8c787",
-      "size": 93730351
+      "asset": "office-kit-1.0.0-linux-x64.tar.gz",
+      "sha256": "6ca676495245607cc0523cc3eb23f4e363c4a77e1399e3b59c8e5e1cadf3cc0d",
+      "size": 94026785
     },
     "win32-x64": {
-      "asset": "office-kit-0.9.0-win32-x64.zip",
-      "sha256": "f3030959d58cb4ff0d3b6da23e65ffb5d877fb812c595ca439a22a3a807b52c4",
-      "size": 85507988
+      "asset": "office-kit-1.0.0-win32-x64.zip",
+      "sha256": "915463e73b3689abed6a343de6bfe0c5992752594dfb1131a6085de03ee6898a",
+      "size": 85814760
     }
   }
 }

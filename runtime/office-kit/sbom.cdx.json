@@ -6,8 +6,8 @@
     "component": {
       "type": "application",
       "name": "OfficeKit.Runtime",
-      "version": "0.9.0",
-      "purl": "pkg:npm/office-kit@0.9.0"
+      "version": "1.0.0",
+      "purl": "pkg:npm/office-kit@1.0.0"
     }
   },
   "components": [

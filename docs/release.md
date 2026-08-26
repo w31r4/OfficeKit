@@ -1,6 +1,44 @@
 # Release
 
-## Unreleased: OfficeKit 0.9.0 Presentation strategy compiler
+## OfficeKit 1.0.0
+
+OfficeKit 1.0.0 is the first stable release of the local, Agent-facing Office
+and PDF toolkit. It ships one `officekit` command, the JavaScript API, the
+OfficeKit Codec WASM runtime, MuPDF, nine workflow Skills, twenty-one default
+templates, the Excel and PowerPoint Live host adapters, license evidence, and
+a CycloneDX SBOM under GNU AGPL-3.0-or-later.
+
+The stable Presentation workflow uses the communication-first C route: a short
+task router loads one scenario guide, derives a deck-specific design grammar,
+composes freely, applies motion only after the static communication design is
+complete, and performs structural, layout, motion, and delivery review. The
+Grid Layout Library remains available as an explicit schema-v2 template; it is
+not a default visual system. Self-authored pages reject card-wall shortcuts,
+while user templates, brand systems, imported files, product UI, real tables,
+charts, and image frames retain their intended structure.
+
+DOCX, XLSX, and PPTX use the canonical OfficeKit C#/.NET WASM codec. PDF keeps
+its independent MuPDF path and explicit managed capability packs. Unsupported
+or unproven imported topology is preserved or rejected instead of flattened,
+and specialist providers remain lazy and policy controlled.
+
+The npm-format payload contains 783 files and measures 36,886,004 bytes
+compressed and 54,783,882 bytes unpacked. The self-contained releases embed
+the same package with Node 24.18.0 and are pinned as follows:
+
+- `darwin-arm64`: 88,917,137 bytes, SHA-256
+  `4424a0bc2dcb177dcb61453d84209b212c91c75ddb1d24a679f4c56c808a7c24`;
+- `linux-x64`: 94,026,785 bytes, SHA-256
+  `6ca676495245607cc0523cc3eb23f4e363c4a77e1399e3b59c8e5e1cadf3cc0d`;
+- `win32-x64`: 85,814,760 bytes, SHA-256
+  `915463e73b3689abed6a343de6bfe0c5992752594dfb1131a6085de03ee6898a`.
+
+Windows PowerPoint playback and broad desktop-host acceptance remain distinct
+from package correctness and are not overstated by this release. Complex
+third-party OOXML remains capability-bound, and npm registry publication is
+separate from the primary self-contained GitHub distribution.
+
+## OfficeKit 0.9.0 Presentation strategy compiler
 
 OfficeKit 0.9.0 makes communication strategy a durable part of Presentation
 authoring. The public doctrine defines a deck as a communication activity,

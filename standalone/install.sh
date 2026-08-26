@@ -3,7 +3,7 @@
 set -eu
 umask 077
 
-OFFICE_KIT_VERSION=0.9.0
+OFFICE_KIT_VERSION=1.0.0
 OFFICE_KIT_REPOSITORY=w31r4/OfficeKit
 
 fail() {
@@ -146,12 +146,12 @@ else
 fi
 case "$target" in
   darwin-arm64)
-    expected_sha256=1ffa07ae61ec46632e2e7e472d7a7f234a07d206c38dcbadb28a49e6dc7fdb48
-    expected_size=88605002
+    expected_sha256=4424a0bc2dcb177dcb61453d84209b212c91c75ddb1d24a679f4c56c808a7c24
+    expected_size=88917137
     ;;
   linux-x64)
-    expected_sha256=b071ea660175c689bf736c2e6f7703d5684edd8c6ba616dc816ff33208b8c787
-    expected_size=93730351
+    expected_sha256=6ca676495245607cc0523cc3eb23f4e363c4a77e1399e3b59c8e5e1cadf3cc0d
+    expected_size=94026785
     ;;
   *) fail "unsupported target $target." ;;
 esac

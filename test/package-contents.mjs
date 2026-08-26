@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "0.9.0");
+assert.equal(packageMetadata.version, "1.0.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.dependencies["@firecrawl/anydoc"], "0.1.3");
@@ -81,13 +81,13 @@ const standaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.sh"),
   "utf8",
 );
-assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=0\.9\.0/);
+assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=1\.0\.0/);
 assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
 const windowsStandaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.ps1"),
   "utf8",
 );
-assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "0\.9\.0"/);
+assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "1\.0\.0"/);
 assert.match(windowsStandaloneInstaller, /win32-x64/);
 assert.doesNotMatch(windowsStandaloneInstaller, /RELEASE_(?:SHA256|SIZE)/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
@@ -166,7 +166,7 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. The 0.9.0 global CLI deliberately ships the twenty audited
+// and hosted gates. The 1.0.0 global CLI deliberately ships the twenty-one audited
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
 // cross-platform headroom over the measured 36,592,843-byte archive.
 const maxPackedBytes = 37_500_000;
