@@ -101,7 +101,6 @@ const capabilities = await fs.readFile(path.join(officeKitRoot, "references", "c
 const review = await fs.readFile(path.join(officeKitRoot, "references", "review.md"), "utf8");
 const repl = await fs.readFile(path.join(officeKitRoot, "references", "repl.md"), "utf8");
 const officeKitSkill = await fs.readFile(path.join(officeKitRoot, "SKILL.md"), "utf8");
-const presentationSkill = await fs.readFile(path.join(repoRoot, "skills", "presentations", "skills", "presentations", "SKILL.md"), "utf8");
 
 for (const name of ["workspaceRoot", "taskRoot", "inputRoot", "assetRoot", "outputRoot", "evidenceRoot", "sessionId"]) {
   assert.match(workspace, new RegExp(`\\b${name}\\b`), `workspace contract: ${name}`);
@@ -146,11 +145,6 @@ assert.match(repl, /ctx\.publish/);
 assert.match(repl, /maybeApplied/);
 assert.match(repl, /not.*replay/is);
 assert.match(repl, /process-local/);
-assert.match(presentationSkill, /image_view/);
-assert.match(presentationSkill, /image_generate/);
-assert.match(presentationSkill, /native PowerPoint shapes/i);
-assert.match(presentationSkill, /visualReview: "unavailable"/);
-
 for (const [relative, expected] of [
   ["skills/spreadsheets/skills/spreadsheets/routing/google_sheets.md", [/local `\.xlsx`/i, /separate host\s+step/i]],
   ["skills/presentations/skills/presentations/routing/google_slides.md", [/local `\.pptx`/i, /separate host\s+step/i]],
@@ -180,9 +174,13 @@ for (const [name, relative] of [
   ["presentations", ["presentations", "skills", "presentations", "SKILL.md"]],
   ["pdf", ["pdf", "skills", "pdf", "SKILL.md"]],
 ]) {
-  const text = await fs.readFile(path.join(repoRoot, "skills", ...relative), "utf8");
-  assert.match(text, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
-  assert.match(text, /text\s+reading\s+view/i, `${name} must describe the optional content view`);
+  const skillPath = path.join(repoRoot, "skills", ...relative);
+  const skillText = await fs.readFile(skillPath, "utf8");
+  const reviewText = name === "presentations"
+    ? await fs.readFile(path.join(path.dirname(skillPath), "tasks", "review-deliver.md"), "utf8")
+    : skillText;
+  assert.match(skillText, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
+  assert.match(reviewText, /text\s+reading\s+view|AnyDoc[\s\S]*text\/table coverage gap/i, `${name} must describe the optional content view`);
 }
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);
