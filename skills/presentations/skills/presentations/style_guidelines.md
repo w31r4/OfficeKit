@@ -1,118 +1,67 @@
 # Shared visual floor
 
-Apply these fundamentals to every deck. They are a floor, not a house style.
-The selected scenario, design source, and deck-specific grammar decide the
-actual look. Explicit user instructions and supplied references override these
-defaults.
+This is a cross-scenario quality floor, not a house style. The selected scenario,
+design authority, and deck-specific Design Grammar decide palette, typography,
+theme, density, geometry, imagery, and page silhouettes. User templates and
+brand rules take precedence.
 
-## Define the Communication Job
+## Communication and evidence
 
-Before selecting slides, layouts, or visuals, infer:
+- Give every page one audience task and one primary conclusion. A page may use
+  several facts only when they jointly prove that conclusion.
+- Make the reading order and information hierarchy evident at a glance.
+- Let charts, images, geometry, text, and negative space serve the current
+  argument. Decoration is not a substitute for evidence.
+- Never invent facts, data, quotes, cases, people, outcomes, or sources.
+- Match the medium: `live` favors staged comprehension, `reader` preserves
+  self-contained evidence, and `hybrid` must work both spoken and unattended.
+- Keep titles minimal and specific. Make executive summaries scan through
+  hierarchy and light dividers. A closing page resolves the opening and adds no
+  new evidence.
 
-- The intended audience; do not assume the audience is the user.
-- The deck's job: educate, persuade, sell, recommend, facilitate, or enable a decision.
-- The audience outcome: what they should understand, believe, choose, approve, discuss, or do.
-- The central takeaway and the essential claims or evidence needed to support it.
-- Every content requirement and source constraint in the user's request.
+## Composition and fit
 
-Express the communication job in one sentence:
+- Make titles, body copy, labels, and sources readable in the rendered deck.
+  Shorten or recompose before shrinking type.
+- Keep all content inside the slide with no unintended overlap, clipping, or
+  wrapping. A one-line title must remain one line.
+- Make negative space intentional: it should focus attention, separate ideas,
+  or control pacing. A large unused region with no such role is a composition
+  defect, not sophistication.
+- Give each evidence page a dominant carrier. Let a chart, image, diagram,
+  table, typographic statement, or native-vector composition own the field.
+- For data, choose a chart whose form matches the relationship, direct-label
+  important values when practical, and use color to direct attention rather
+  than decorate every series.
+- Use icons only when they encode structure or meaning, and keep one coherent
+  icon language within a deck.
+- Preserve native editability and render every changed page before delivery.
 
-> By the end, **[audience]** should **[outcome]** because **[central takeaway]**.
+## Card-based composition is forbidden by default
 
-For an exploratory, reference, or neutral deck, define the questions or understanding the audience should leave with instead of forcing a recommendation.
+On an ordinary OfficeKit self-directed page without an authoritative template
+or brand requirement, do not use:
 
-## Choose an Appropriate Narrative Arc
+- repeated rectangles or rounded rectangles as a card wall;
+- cards to perform ordinary alignment, hierarchy, or whitespace;
+- colored-side-strip cards or equal-width, equal-height panel grids;
+- pills, badges, tabs, or button-like text boxes as decoration;
+- a generic `box()`, `card()`, or `metricPanel()` as the page's main language;
+- `roundRect + outline + shadow` as a default component.
 
-Choose a structure that fits the communication job, such as:
+Express parallel content through scale, position, baseline, light rules,
+numbering, connectors, charts, tables, images, and negative space.
 
-- Context -> stakes -> evidence -> implications -> action.
-- Question -> analysis -> answer.
-- Problem -> causes or options -> recommendation.
-- Current state -> change -> future state.
-- Chronology, process, learning progression, or claim -> evidence -> consequence.
+The prohibition does not apply when the card treatment is authoritative or
+structural: a user-supplied card template or brand system, preserved imported
+cards, a real product UI screenshot, table cells, a chart plot area, an image
+crop, one page-scale background field or frame, or an explicitly requested
+dashboard reproduction.
 
-An agenda is not a narrative. Make the sequence cumulative so each section creates the need for the next. Do not force a persuasive or emotional arc onto a technical or reference deck; build those through logic, causality, chronology, learning progression, or decision flow.
+## Final judgment
 
-## Make Every Slide Advance the Story
-
-- Give each slide one narrative job and one primary claim.
-- Prefer takeaway-style titles that communicate the point instead of merely naming the topic.
-- Order slides so each answers a question raised by the prior slide or introduces one the next slide resolves; add a transition when the logic would otherwise jump.
-- Integrate requested topics into the throughline and remove repeated beats, redundant summaries, and content that does not advance it.
-- Use supplied visual references as constraints without copying irrelevant structure or weakening the narrative.
-
-## Turn Evidence into Meaning
-
-Do not present facts, metrics, charts, examples, or visuals as an inventory. For each important piece of evidence, show what it means, why it matters to this audience, and how it changes the conclusion, decision, discussion, or next step.
-
-Charts and visuals must reinforce the current claim. Use grounded examples, scenarios, case studies, or human impact only when they materially improve understanding. Never invent people, quotes, facts, data, or outcomes.
-
-## Open and Close Deliberately
-
-Open with the context, purpose, stakes, question, or tension that makes the deck worth attention. Close by resolving that opening with the appropriate outcome: a recommendation or decision, an explicit action, a synthesis or application, or implications and productive questions. Do not end abruptly on a detail, technical artifact, unframed summary, or generic "Thank you" slide.
-
-## Write Natural, Audience-Facing Copy
-
-Visible copy must serve the intended audience. Do not expose model instructions, planning notes, timing scaffolds, talk tracks, or implementation details unless the user explicitly requests them.
-
-Use a requested duration to set scope and pacing. Show timings only when explicitly requested or audience-facing; otherwise keep them in speaker notes. Remove anything the user marks irrelevant or out of scope. State exclusions only when the audience needs them or the user asks.
-
-Write titles and body copy in direct, specific, natural language:
-
-- Prefer concrete claims, active verbs, and plain language over vague slogans, jargon, abstract noun clusters, or inflated phrasing.
-- Avoid formulaic constructions such as repeated "From X to Y" titles, punctuation patterns, parallel structures, or advertising-style fragments.
-- Remove duplicated qualifiers and concepts, and vary sentence structure naturally.
-
-A title should communicate a point a human presenter would plausibly say aloud. If it sounds like a prompt, production note, slogan generator, or mechanical template, rewrite it.
-
-## Compose the Slides
-
-- Use a coherent visual system across the deck while varying slide silhouettes to fit the content.
-- Keep the title slide minimal and simple.
-- Prefer lower-density slides with high-value content. Shorten copy or change the layout before shrinking type.
-- Keep layouts clean and balanced. Avoid both crowding and excessive empty space; use equal left and right margins by default.
-- Use one composition instead of a collection of UI panels. Avoid card grids, pills, badges, button-like text boxes, tabs, navigation patterns, dense dashboard layouts, and other component-library styling that implies interactivity.
-- Use stylized text boxes sparingly and favor a flat structure on the canvas.
-- Keep palette, typography, spacing, alignment, and visual treatment consistent unless the content calls for a deliberate change.
-
-## Make the Design Grammar Concrete
-
-Before drawing, define the actual grammar for this deck:
-
-- palette roles and surface hierarchy;
-- typography roles and the size rhythm between deck title, page claim, section
-  marker, body, data, and source;
-- geometry language, corner scale, and line semantics;
-- density rhythm and the intended range of page silhouettes;
-- the dominant visual carriers for evidence, causality, comparison, sequence,
-  or emotion;
-- image crop, SVG, chart, diagram, icon, and native-vector rules;
-- one or two repeatable motifs and the contexts where they are allowed;
-- explicit anti-patterns for this deck.
-
-Do not use one universal `box()` helper or `roundRect + outline + shadow` as the
-default answer to every page. Use ordinary rectangles, lines, bands, axes,
-connectors, image crops, text blocks, and negative space when they express the
-relationship more directly. Rounded containers are appropriate only when their
-grouping role is clear.
-
-Integrate text with its composition. Align headings to the visual structure,
-use rules or baselines when they clarify hierarchy, and make padding follow one
-spacing scale. A label floating inside an unrelated large container is not a
-resolved composition.
-
-Every page needs a dominant carrier. That carrier may be a chart, image,
-diagram, typographic statement, table, native vector composition, or deliberate
-mix. Supporting decoration cannot become the largest or highest-contrast object
-unless the plan explicitly makes it the message.
-
-## Typography and Fit
-
-When the user does not provide explicit style guidance, use at least:
-
-- 50 pt for deck titles.
-- 35 pt for slide titles.
-- 24 pt for subheadings, callout headers, and text-box titles.
-- 16 pt for body text.
-
-Inspect for unexpected wrapping. Never allow a one-line title or banner to wrap to two lines. Ensure narrative copy fits the chosen layout; shorten it or change the layout instead of adding density or shrinking type below the minimums.
+Do not prescribe a universal color, font, corner radius, shadow, image count,
+information density, or page outline here. Record those choices in the current
+Design Grammar and judge them against the communication task. Structured checks
+may locate risks; only an understood render or human review can support an
+aesthetic conclusion.

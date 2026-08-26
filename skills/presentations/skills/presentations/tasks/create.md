@@ -1,181 +1,123 @@
 # Create a new presentation
 
-Use this route when the user wants a new deck and has not supplied an
-authoritative template.
+Use this route for a new deck without an authoritative template. If the user
+supplies a template, brand system, or source deck that the output must follow,
+switch to [Create from template](create-from-template.md).
 
 ## 1. Define the communication task
 
-Infer audience, purpose, outcome, duration, language, and evidence from the
-request and available files. Ask at most three questions only when an answer
-changes the audience, conclusion, evidence, or design authority.
+Infer the audience, communication job, expected audience change, language,
+duration, after-use, constraints, and evidence from the request and available
+files. Ask at most three questions, and only when an answer changes the
+conclusion, evidence, or design authority.
 
-Lock facts before rewriting. Load the sibling
+Lock facts, sources, quotes, and user wording before rewriting. Load the sibling
 [`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
-Skill. Run its pre-composition pass before page budgets and its page-fit pass
-after the first render.
+Skill. Use its pre-composition pass now and its page-fit pass after rendering.
 
-Then read, in order:
+Read, in this order:
 
-1. [presentation doctrine](../references/presentation-doctrine.md);
-2. [the shared visual floor](../style_guidelines.md);
+1. [Presentation doctrine](../references/presentation-doctrine.md);
+2. [shared visual floor](../style_guidelines.md);
 3. [scenario policy](../references/scenario-policy.md);
-4. the one selected primary scenario guide.
+4. exactly one primary scenario guide, plus one secondary guide only when a
+   named section truly serves a different audience task.
 
-Record one `brief.primaryJob`, any `supportingJobs`, the concrete
-`expectedOutcome`, `mediumFit`, `mediumFitNote` when weak, and `afterUse`.
-Choose one primary scenario and at most one meaningful secondary scenario.
-When slides are a weak fit, state the limitation and a practical mitigation,
-then continue.
+Record `primaryJob`, `expectedOutcome`, `mediumFit`, `afterUse`, and the selected
+scenario. If slides are a weak fit, record the limitation and mitigation, then
+continue rather than pretending the medium has no boundary.
 
-## 2. Choose the visual direction and authoring route
+## 2. Choose the design source
 
-This route uses `self-directed`. Form two or three genuinely different design
-directions internally—for example, a figure-led analytical direction and an
-annotated editorial direction—not minor palette variations. Select one and
-record `design.direction.name` and its audience/content/delivery rationale.
+Choose one source:
 
-- Shipped route C: use `authoring-compiler-v1`, read [design mechanisms](../references/design-mechanisms.md),
-  and create a deck-specific grammar before drawing. This is the default for
-  an unspecified self-directed deck.
-- Use the Grid scaffold explicitly when the user or plan requests the Grid
-  library, or when a known compatibility fallback is required. Do not let a
-  Grid choice silently replace a supplied template or design system.
+- `self-directed`: invent a visual language for this deck;
+- `design-system`: apply supplied brand rules;
+- `template`: distill and extend an authoritative PPTX;
+- `style-transfer`: use a reference as visual evidence while producing editable
+  Office content.
 
-Do not switch routes after a failure. Repair the selected route or report the
-blocking evidence.
+User authority wins. This route normally uses `self-directed`; the other three
+sources should move to the template route when their authority is material.
 
-## 3. Write the durable plan
+For self-directed work, read
+[design mechanisms](../references/design-mechanisms.md), form two or three
+materially different directions internally, choose one, and record why it fits
+the audience, evidence, delivery mode, and after-use. Use zero to two mechanism
+packs. They guide composition but do not supply a palette or template.
 
-For route C, follow [the authoring-plan contract](../references/authoring-plan.md):
+The C authoring route is the default. Write one deck-specific Design Grammar
+covering palette roles, type roles, geometry and line behavior, density rhythm,
+visual carriers, asset treatment, motifs, invariants, and forbidden patterns.
+Grid is neither a default nor a fallback; it can enter only as a selected
+template through the standard template workflow.
 
-```js
-const planDescriptor = await ctx.plan(plan);
-```
+Ordinary self-directed pages must obey the hard card ban in the shared visual
+floor. Resolve parallel information with scale, position, baseline, light
+rules, numbering, connectors, charts, tables, imagery, and intentional negative
+space instead of container grids.
 
-Give every page one reader task, claim, evidence set, content budget, and
-composition intent. Each composition intent must name both the dominant visual
-carrier and its source strategy: user asset, template/reference asset, sourced
-or generated image, native chart/diagram/table, typography, native vector, or
-a deliberate mix. Select zero to two mechanism packs and write the actual
-palette roles and surface hierarchy, typography roles and size rhythm,
-geometry and corner rules, line semantics, spacing, density rhythm, dominant
-visual carriers, image/SVG/chart/diagram treatment, allowed motifs, strict
-invariants, and forbidden patterns into `designGrammar`.
+## 3. Plan the deck
 
-Set `brief.deliveryMode` to `live`, `reader`, or `hybrid`, and
-`design.motionPolicy` to `adaptive`, `none`, or `explicit`. For every page,
-make `compositionIntent` name the visual carrier that does the explanatory
-work: an image, chart, diagram, typographic composition, native vector, or a
-deliberate mix. Add `motionIntent` only after that static composition is
-complete. Use [the motion recipes](../references/motion.md) when sequence,
-causality, comparison, emphasis, or continuity is part of the communication
-job.
+For durable work, write the existing
+[authoring plan](../references/authoring-plan.md). Give every page:
 
-For self-directed work, keep `palette.strict: false` unless the user supplied a
-closed brand palette. Strict palettes are for authoritative design systems and
-must enumerate every emitted color, including theme defaults. Do not turn an
-inferred preference into a closed palette.
+- one reader task and one primary claim;
+- evidence and source constraints;
+- a realistic content budget;
+- one dominant visual carrier and its asset/source strategy;
+- a page silhouette that contributes to the deck-wide rhythm.
 
-For a self-directed compiler route, include a readability floor in the grammar,
-for example `minimumBodyFontSize: 22` and `minimumCaptionFontSize: 20` in the
-model's font-size units. Never shrink text to rescue an overfull page; shorten,
-split, or change the composition. When the deck has six or more pages,
-deliberately use at least four different silhouettes and repair repeated
-composition, density-jump, or card-wall warnings unless the plan records why
-the repetition is intentional.
+Use a quantitative relationship as a chart, axis, direct label, spatial
+comparison, or diagram rather than an inventory of numbers. Title pages should
+be minimal; executive summaries should scan quickly through hierarchy and
+light dividers; closing pages resolve the opening and add no new claim.
 
-At page level, give each slide one dominant reading anchor. A quantitative
-claim should be encoded as a meaningful relationship—chart, axis, connector,
-direct label, or spatial comparison—not as a decorative list of values. Choose
-foreground/background pairs with clear contrast and inspect the rendered page
-at contact-sheet scale; do not rely on a `muted` token to make small text safe.
-Favor fewer, stronger elements: use plain text mainly for thesis or section
-pages; turn comparisons, causality, timelines, and quantities into a diagram,
-chart, or spatial relationship, and omit supporting labels that are not readable
-at contact-sheet scale.
-Before committing, rerun the plan-bound review and leave no unrecorded
-`repeatedComposition`, `densityRhythmJump`, or `cardWallPattern` warning. If a
-warning is intentional, add a `designGrammar.intentionalWarnings` entry with
-its exact `type`, affected `pageIds`, and a concrete `reason`; a prose note in
-an invariant does not count as an auditable exception.
+Set a readability floor appropriate to the delivery. For the ordinary
+self-directed route, start with `minimumBodyFontSize: 22` and
+`minimumCaptionFontSize: 20`; shorten, split, or recompose before shrinking.
+When there are six or more pages, plan at least four meaningful silhouettes.
 
-Use the public Help index and shipped examples to discover API shapes. Do not
-inspect `node_modules/office-kit/src` or other package internals to infer an
-API. In a packed or portable run, do not install optional renderers or invoke
-Playwright/Chromium; use the available public render/verify path and report
-`visualReview: unavailable` when no visual capability is present.
+Set `deliveryMode` to `live`, `reader`, or `hybrid`. Read
+[Motion](../references/motion.md) only for `live`, `hybrid`, or an explicit
+animation request, and only after the static composition is complete.
 
-## 4. Calibrate before expanding the deck
+## 4. Calibrate before expanding
 
-For a self-directed deck longer than four pages, compose three representative
-pages first:
+For a deck longer than four pages, first build:
 
 1. the opening or visual-direction page;
 2. one evidence or data page;
 3. the densest or highest-risk page.
 
-For a deck of four pages or fewer, calibrate the complete deck. Render the
-calibration spread and inspect it as one sequence. Verify that the chosen
-grammar works for sparse and dense pages, that each planned carrier is actually
-present, and that text, charts, images, diagrams, surfaces, lines, and motifs
-belong to one authored system.
+For four pages or fewer, build the complete deck. Render the calibration spread
+and inspect it as one sequence. Confirm that the grammar works across sparse and
+dense pages, each planned carrier actually owns its page, negative space has a
+clear purpose, and text and visuals belong to one system.
 
-If the evidence requires a grammar correction, update the same durable plan
-with its current `expectedSha256` and record the calibration page IDs and
-decision. Do not create a sidecar design state. A fresh session resumes from
-the revised plan and the latest reviewed artifact.
+Repair the same direction and update the same plan revision. Do not switch to
+Grid, another template, or a second design state after a failed calibration.
 
-Only after calibration should the Agent expand the remaining pages. A failed
-calibration is repaired in place; it must not silently switch to Grid or a
-different design source.
+## 5. Compose and review
 
-## 5. Compile a complete working draft
+Search Presentation Help by intent and use public OfficeKit primitives. Examples
+show API and file workflows, not a house style; do not copy their palettes,
+generic container helpers, or page silhouettes.
 
-Use Presentation Help by intent, then compose with the golden primitives:
-
-```js
-const { Presentation, PresentationFile, reviewArtifact } = await ctx.import("office-kit");
-const deck = Presentation.create();
-deck.help("compose a planned presentation page");
-```
-
-Create theme/Master/Layout assets only when they improve reuse. Use
-`slide.compose`, `slide.autoLayout`, native objects, and free coordinates as
-the page intent requires. Keep page helpers reusable inside the task.
-
-Compile in this order:
+Compose in this order:
 
 ```text
-communication job -> scenario -> chosen direction -> design grammar
-                  -> narrative -> page archetype -> visual carrier
-                  -> composition -> motion units -> review
+communication job → scenario → direction → design grammar
+                  → page archetype → visual carrier → composition → motion
 ```
 
-The page must work as a static contact-sheet image before motion is added.
-Motion strengthens the reading order; it is not a substitute for visual
-hierarchy, data graphics, imagery, or spatial relationships.
+The static page must work before motion. Enlarge, crop, align, or recompose the
+evidence carrier when the canvas feels hollow; do not fill accidental emptiness
+with panels. Run `presentation.validateLayout()` before export, reopen the PPTX,
+and then follow [Review and deliver](review-deliver.md).
 
-Before exporting a candidate, run `presentation.validateLayout()` on the
-in-memory deck and resolve every reported overflow, overlap, or off-canvas
-issue without lowering the declared readability floor. Reimport the exported
-bytes and run the independent review afterward; the preflight is a repair aid,
-not delivery evidence.
-
-Build the complete working draft before asking the user to choose internal
-layouts. The first response should offer the checked deck and a short summary
-of its story, not a design questionnaire.
-
-## 6. Review and commit
-
-Run the editorial Skill's post-render pass without changing locked facts,
-sources, or the selected visual direction. Then follow
-[Review and deliver](review-deliver.md). Pass `authoringPlan` to
-`reviewArtifact`, commit the reviewed candidate, then let the user continue by
-conversation or accept delivery. For a self-directed deck, the final review
-must be independent of any earlier draft: do not pass a source `baseline` to
-hide errors created by the same task. Resolve semantic/layout errors such as
-text overflow and unexpected overlap before committing; a baseline is for
-source-bound local edits whose unchanged findings are already evidenced.
-Filled, text-free containers and thin tracks may sit behind their child
-objects when the children stay within their bounds; crossing those bounds is
-still an error.
+Run the editorial page-fit and deck-voice passes without changing locked facts
+or the selected visual direction. Resolve overflow, unintended overlap,
+off-canvas content, weak contrast, and unrecorded design warnings before commit.
+Offer the reviewed working deck and a concise story summary; do not ask the user
+to select internal layouts before a complete draft exists.

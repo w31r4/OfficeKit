@@ -1,153 +1,27 @@
 # Advanced imported Presentation editing
 
-Use this skill as reference material when creating or editing presentation slide decks.
+Load this reference only after [Edit existing](../tasks/edit-existing.md) routes
+a local PPTX to a specific advanced object or source-bound operation. It is not
+a creation guide, design system, template workflow, or delivery checklist.
 
-If the user explicitly targets a presentation already open in desktop PowerPoint,
-use the sibling `powerpoint-live-control` Skill instead. It operates the live,
-possibly unsaved deck through typed Office.js operations and never switches to a
-closed-file edit behind the user's back. This Skill remains the route for local
-PPTX files and for creating a new deck.
+The imported deck is the visual and structural authority. Keep the input
+immutable, inspect the exact target and its capability, bind every edit to the
+current source revision, and write to a distinct output. Unknown or irregular
+native topology remains opaque; an unsupported target fails closed without
+flattening, rebuilding, or silently changing engines.
 
-## Run the deck workflow in one task
+Use the public `office-kit` package through `officekit run`. Never use
+`@oai/artifact-tool`, raw OOXML patches, XPath, arbitrary part paths, or
+fabricated native leaf IDs. Read the relevant reference under
+`artifact_tool/api/references/` before calling a specialized capability.
+Reimport after each source-bound export because locators and hashes are
+revision-bound.
 
-For a multi-step deck task, use `officekit repl` and the portable contract in
-`../office-kit/references/repl.md`. Import the public API with
-`await ctx.import("office-kit")`, keep the deck and reusable layout helpers in
-`ctx.state`, and follow inspect → compose/edit → render → structural or visual
-review → verify. For net-new or broadly redesigned decks, follow
-[the conversational workflow](conversation-workflow.md), revise a
-checked working draft, and call `ctx.publish` only after acceptance; narrow
-edits stay direct. Register QA evidence with `ctx.recordEvidence`. Use the
-image capability matrix below when generation or inspection is unavailable.
-After reopening the accepted final PPTX, follow
-`../office-kit/references/review.md` and report its path, SHA-256, and
-`visualReview` status.
-
-When a task asks to preserve or tune PowerPoint's shrink-to-fit state, use the
-typed `shape.text.bodyProperties.normalAutoFit` profile documented in
-`artifact_tool/api/references/rich-text.spec.md`. Do not estimate fitted values
-from rendered pixels or patch `a:normAutofit` XML directly; inspect the imported
-canonical values, apply the requested bounded percentages, export, reimport,
-and render/verify. Noncanonical AutoFit markup must fail closed.
-
-## Important Instructions
-
-- [HARD REQUIREMENT] Use the public `office-kit` package for presentation
-  artifact work. Never import or use `@oai/artifact-tool`: it is a different
-  host-bundled runtime, not an OfficeKit alias or fallback, and its output must
-  never be attributed to OfficeKit.
-- [HARD REQUIREMENT] Content quality and storytelling: before planning the deck, read and follow [Content Quality and Narrative Rules](content-rules.md) and [Presentation Style Guidelines](../style_guidelines.md). Ensure the deck covers everything the user requested and forms a coherent, audience-appropriate narrative rather than a collection of disconnected facts.
-- [HARD REQUIREMENT] Audience-facing copy: visible slide content must be written for the intended audience, not for the person or model producing the deck. Do not expose planning notes, timing scaffolds, talk tracks, content-selection commentary, or other internal process language unless the user explicitly requests it.
-
-- Info density: avoid cramming low-value details onto a single slide. Prefer lower-density slides with high-value content.
-  - Title slide: keep the title slide minimal and simple. Avoid cramming in too much information.
-- Layout: keep things clean and simple. Avoid low-quality visuals, but also avoid excessive white space. By default, use equal left and right margins on each slide.
-- [HARD REQUIREMENT] Overlap: always pay attention to programmatic overlap warnings. Do not assume that overlapping elements in diagrams are intentional, and do not ignore overlap warnings without inspecting them. You MUST fix all unintended overlap errors before delivering the slides. This is critical.
-- [HARD REQUIREMENT] Font size: when a template is provided, match its font sizes. When no template or style guidance is given, you MUST use at least 50pt for deck titles, 35pt for slide titles, 24pt for mid-level text such as subheadings, callout headers, and text-box titles, and 16pt for body text.
-- [HARD REQUIREMENT] Object accessibility: give meaningful ordinary shapes, connectors, groups, images, tables, and charts a concise non-visible `accessibility.title` and, when needed, `accessibility.description`; classify purely decorative objects with `{ accessibility: { decorative: true } }` and no title/description. Presence matters: `decorative: false` is an explicit meaningful-object classification, while omission is unclassified. `image.alt` is only a compatibility alias for `image.accessibility.description`, not a second metadata field. For imported objects, check `object.accessibilityCapability.editable` before calling `object.setAccessibilityMetadata(...)`; change classification and clear/add alternative text in one transaction, and preserve or reject irregular native metadata instead of rebuilding it. Chart metadata is distinct from its visible chart title. This does not establish reading order or make the whole deck accessible by itself.
-- [HARD REQUIREMENT] Before delivering a deck, run `presentation.auditAccessibility()`. Resolve every machine issue, then review each returned `manualChecks` record. Reading order and opaque native objects require native-host or source review; never reinterpret `machineCheckPassed: true` as whole-deck conformance. For a read-only imported-file report with immutable-source/hash/no-overwrite evidence, use `examples/officekit-accessibility-audit-workflow.mjs`. For one imported shape, connector, group, image, table, or chart, pass the complete audit locator and prior metadata to `examples/officekit-object-accessibility-edit-workflow.mjs`; it fails closed unless exactly the selected SlidePart changes and the result survives reimport, verify, and visual-stability checks. Read `artifact_tool/api/references/accessibility.spec.md` for both contracts.
-- Text layout: when there is too much text, shorten it before shrinking the font size. Inspect visually for unexpected text wrapping. NEVER allow a title/banner text box intended for one line to wrap to two lines.
-- Narrative copy must fit the chosen layout: shorten it or change layouts rather than adding density or shrinking type.
-- Visual assets:
-  - Read `../office-kit/references/capabilities.md` and determine whether the
-    active agent has `image_view` and/or `image_generate`.
-  - Use user and template assets first, then native PowerPoint shapes,
-    connectors, charts, tables, and typography. Generated images are optional
-    and must be marked for human review when they cannot be inspected.
-  - Minimize diagrams unless they clarify the request. Use native shapes for
-    simple diagrams and Graphviz for complex relational diagrams. Create
-    connectors before entity nodes when connector layering matters.
-  - If no visual input is available, run structural QA for dimensions, image
-    placement/crop, text overflow, overlap, contrast, and slide geometry, and
-    report `visualReview: "unavailable"` rather than an aesthetic judgement.
-  - By default, DO NOT reuse the same image more than once (unless it's a background).
-  - Prepare visuals for both the main concept and decorative support.
-- Default styling: use one composition instead of a collection of UI panels. UI-like styling typically includes card grids, pills, badges, button-like text boxes, tab or navigation patterns, repeated modular panels, dense dashboard-style layouts, and other component-library aesthetics that imply interactivity. Use stylized text boxes sparingly, favoring a flat structure on the canvas.
-
-## Skill Folder Contents
-
-Contents of the `slides/` skill folder:
-
-- `container_tools/`: Standalone python scripts for slides and relevant asset manipulation.
-- `references/`: Additional workflow references for specialized presentation tasks.
-- `style_guidelines.md`: Narrative, copy, layout, typography, and visual-consistency defaults.
-- `routing/`: Native Google Slides routing guidance.
-- `template_following_scripts/`: Helper scripts for exact source-deck/template following.
-- `artifact_tool/`: API documentation and coding examples for the artifact tool library.
-- `builtin_templates_support/`: Checked-in guidance, manifests, prompts, and reusable scripts for built-in templates. Each template owns its `ARTIFACT.md`; shared runners live once under `builtin_templates_support/scripts/`.
-- `assets/builtin_templates/grid-layout-library/`: Blob-managed static assets for the built-in Grid Layout template, including 26 rendered previews, a model-facing registry, structured content tokens, and 26 exact plain-JavaScript artifact-tool Compose reconstructions with no JSX. This directory contains no Markdown, prompts, or reusable runners.
-
-## Container Tools
-
-The following helper scripts are located in the `container_tools/` directory:
-
-- `ensure_raster_image.py`: Ensure images are rasterized; convert to PNG if needed; quick usage `--input_files <img_path1> ...`. PDF input uses the runtime-resolved `pdftoppm` directly, with no undeclared Python wrapper.
-- `render_slides.py`: Render a PowerPoint file into a folder of PNG slides using default sizing; quick usage: `<input.pptx>`. Output files are named `slide-1.png`, `slide-2.png`, ... in a directory with the same name as the input file. PDF input uses runtime-resolved `pdfinfo`/`pdftoppm` directly.
-- `create_montage.py`: Build a tiled montage from images in a directory (for viewing multiple image assets or rendered slides at once); quick usage: `--input_dir <imgs_dir> --output_file <montage.png>`. It supports most image formats with auto conversion under the hood.
-- `slides_test.py`: Detect content overflowing the original slide canvas; usage: `<input.pptx>`.
-
-## Grid Layout Artifact-Tool Compose Layout Reference
-
-This skill variant does not include the Office template file. Use the distilled layout library as initial design and composition guidance when the user has not supplied a stronger template or brand system.
-
-Before planning slides:
-
-1. Read `builtin_templates_support/grid-layout-library/ARTIFACT.md`, `assets/builtin_templates/grid-layout-library/design_tokens.json`, and `assets/builtin_templates/grid-layout-library/artifact-tool-compose/template-registry.json`.
-2. Inspect `assets/builtin_templates/grid-layout-library/assets/previews/layout-library.png`, then shortlist layouts by `templateUse`, `layoutFamily`, `slots`, `densityBudget`, and `typographyBudget`. Do not open all 26 implementation modules by default.
-3. For each selected layout, inspect its generated preview and exact `assets/builtin_templates/grid-layout-library/artifact-tool-compose/slide-XX.mjs` reconstruction.
-4. Use the selected module's `layers(...)`, `text(...)`, `shape(...)`, `image(...)`, and `table(...)` helper calls as the implementation reference. Keep the output as plain `.mjs` and use `slide.compose(...)`; do not introduce JSX or a transpilation step.
-5. Preserve the selected layout's content ownership, spacing, hierarchy, and media frames while replacing instructional sample text with the user's content. Vary silhouettes across the deck instead of repeating one pattern.
-
-The shared `builtin_templates_support/scripts/create-presentation.mjs` runner can materialize any compatible built-in template for validation when passed that template's static asset root. It is not a request to emit every layout in the user's deck. User-provided templates, explicit brand guidance, and exact source evidence always override this default template.
-
-## Workspace
-
-Read `../office-kit/references/workspace.md` before authoring. Use the shared
-`workspaceRoot`, `taskRoot`, `inputRoot`, `assetRoot`, `outputRoot`, and
-`evidenceRoot` names. An explicit user destination always wins; otherwise put
-the final deck under `workspaceRoot/outputs` and keep temporary slide sources,
-previews, layout notes, and QA under `taskRoot` or `evidenceRoot`. Use
-`SKILL_DIR` only to locate bundled files. Keep `sessionId` local to OfficeKit,
-never derived from a chat or thread.
-
-## Route the Request Before Authoring
-
-Choose the output path first:
-
-1. **Existing native Google Slides deck**: obtain a local export or reference
-   from the user/host, then preserve it as an input. OfficeKit does not operate
-   a cloud deck directly.
-2. **Net-new native Google Slides deck**: build and verify a local PPTX with
-   this skill; a user or host may import it after delivery.
-3. **PowerPoint or local deck**: build or edit the PPTX with this skill.
-
-For every deck built with this skill, choose exactly one visual route. The first
-matching route wins:
-
-1. **User reference or template skill**: if the user supplies a reference deck,
-   asks to follow an existing deck, or invokes a template skill, use only that
-   file as the visual source. An existing PPTX being edited also counts as the
-   reference. Do not mix in Grid Layout or another template.
-2. **Explicit custom formatting**: if there is no reference and the user asks
-   for a theme, brand treatment, visual style, mood, or custom formatting,
-   create the deck from scratch. Do not use Grid Layout.
-3. **No visual direction**: use the bundled Grid Layout Artifact.md layout
-   library as the composition reference. Select and adapt layouts using the
-   Grid Layout instructions above; do not run PPTX template-following mode.
-
-User-provided references and explicit visual direction always take precedence
-over Grid Layout.
-
-For net-new or broad redesign work, ask at most three questions only when
-uncertainty materially changes narrative, evidence, or visuals; otherwise
-create the guided draft. Skip the loop for read-only, narrow-edit, and explicit
-one-pass-final requests.
-
-## Google Slides-Targeted Output
-
-For a Google Slides-targeted request, first read `routing/google_slides.md`,
-then create and verify a local `.pptx`. Return the verified local artifact and
-state that any cloud import is a separate host step; do not claim a cloud link.
+For every accepted edit, prove the declared mutation footprint, preserve
+unrelated OPC parts and relationships, compare the changed page with the
+immutable source, and render unchanged comparison pages when the operation
+requires it. The shared [Review and deliver](../tasks/review-deliver.md) route
+owns review order and final evidence.
 
 ## Implementation
 
@@ -938,136 +812,15 @@ substitute `fallbackUsed`); `savePolicy.strategy` must be the string `none`;
 contain exactly three entries with `executed: false`. Missing any of these
 fields is an invalid refusal, even when the prose explanation is correct.
 
-## Template Following
 
-Use template-following mode only when a user-provided source PPTX supplies the
-layout, style, or template. Read `references/template-following.md`, use
-`$TMP_DIR` from the Workspace section, and set
-`TEMPLATE_PPTX="<absolute path to the user-provided PPTX>"`.
+## Related workflows
 
-If the user asks for new pages or a new deck in the same visual system, read
-`references/template-conditioned-generation.md` as well. Import the source,
-derive its bounded `designProfile`, call `presentation.planTemplateGeneration`
-for a source-bound multi-page frame map, select source archetypes with a
-supported clone capability, and edit only inherited bounded leaves. This is a
-source-conditioned generation path, not a generic preset and not permission to
-rebuild or flatten the source deck.
+- For new content under a source template, leave this reference and use
+  [Create from template](../tasks/create-from-template.md) plus
+  [Template following](template-following.md).
+- For task recovery, use [Continue](../tasks/continue.md).
+- For review, AnyDoc conditions, commit, and delivery evidence, use
+  [Review and deliver](../tasks/review-deliver.md).
 
-The checked-in starter command executes a validated multi-slide frame map. It
-duplicates exactly one supported source slide per export/reimport boundary, so
-the same source slide may be reused safely, then preflights and removes all
-original slides as one source-bound ownership transaction. It renders and
-verifies the result before publishing a no-overwrite starter PPTX, preview/layout
-evidence, and a manifest that translates every inspected source element ID to
-the corresponding final starter ID. If any clone, deletion, locator translation,
-render, or verification boundary is unsupported, the command fails closed and
-publishes none of those artifacts. Do not rebuild slides or share mutable parts
-to bypass that refusal.
-
-Preserve the source deck's typography, palette, spacing, layout, placeholders,
-footers, page markers, and brand chrome unless the user explicitly asks to
-restyle. Do not use template-following mode for a deck created from scratch.
-
-Create:
-
-- `$TMP_DIR/template-audit.txt`
-- `$TMP_DIR/template-frame-map.json`
-- `$TMP_DIR/deviation-log.txt`
-
-Keep `$TMP_DIR/source-notes.txt` for content and asset provenance.
-
-Inspect the complete source deck:
-
-```bash
-officekit run "$SKILL_DIR/template_following_scripts/inspect_template_deck.mjs" \
-  --workspace "$TMP_DIR" \
-  --pptx "$TEMPLATE_PPTX"
-```
-
-Map each output slide to an inherited source slide and identify element-level
-`editTargets`. Then validate the map and build the immutable starter:
-
-```bash
-officekit run "$SKILL_DIR/template_following_scripts/validate_template_plan.mjs" \
-  --workspace "$TMP_DIR" \
-  --map "$TMP_DIR/template-frame-map.json"
-
-officekit run "$SKILL_DIR/template_following_scripts/prepare_template_starter_deck.mjs" \
-  --workspace "$TMP_DIR" \
-  --pptx "$TEMPLATE_PPTX" \
-  --map "$TMP_DIR/template-frame-map.json" \
-  --out "$TMP_DIR/template-starter.pptx" \
-  --preview-dir "$TMP_DIR/template-starter-preview" \
-  --layout-dir "$TMP_DIR/template-starter-layout" \
-  --contact-sheet "$TMP_DIR/template-starter-contact-sheet.png"
-```
-
-Create `$TMP_DIR/template-edit-plan.json` against the starter manifest. It must
-bind the exact starter and manifest SHA-256 values and cover every mapped target
-exactly once. Use only the typed operations documented in
-`references/template-following.md`; each operation carries its old-value or
-asset-hash precondition. Then apply the plan as one transaction:
-
-```bash
-officekit run "$SKILL_DIR/template_following_scripts/apply_template_edit_plan.mjs" \
-  --workspace "$TMP_DIR" \
-  --starter "$TMP_DIR/template-starter.pptx" \
-  --manifest "$TMP_DIR/template-starter.manifest.json" \
-  --plan "$TMP_DIR/template-edit-plan.json" \
-  --out "$FINAL_PPTX" \
-  --audit "$TMP_DIR/template-final.audit.json" \
-  --preview-dir "$TMP_DIR/template-final-preview" \
-  --layout-dir "$TMP_DIR/template-final-layout" \
-  --contact-sheet "$TMP_DIR/template-final-contact-sheet.png"
-```
-
-The command resolves only the manifest's final `starterElementIds`, applies
-bounded text/frame/table/chart/image edits plus capability-proven top-level
-shape/picture/connector/table/chart/group deletion, exports and imports again, verifies, renders, rechecks
-every input hash, and publishes with no overwrite. Source
-inspection IDs remain provenance, not persistent identities. Unsupported
-deletion/add/topology work, stale values, ambiguous targets,
-unsupported run boundaries, or any render/round-trip failure publishes nothing.
-If a source
-slide cannot support the requested content or cannot be removed after cloning,
-report the blocker and the closest viable source-slide options.
-
-## Draft and final QA
-
-Before showing a working draft, reopen it, inspect semantics/structure, render
-every slide, and fix deterministic layout failures. Return its path, SHA-256,
-and honest visual status without claiming delivery or calling `ctx.publish`.
-
-Before delivery, rerun the complete review against the accepted draft. Inspect
-each rendered slide at full size when visual input is available. Use a contact
-sheet only for deck-level flow. Without visual input, run structured checks for
-every slide and mark image-led or design-sensitive results
-`visualReview: "requires-human"`. Request `contentView: "anydoc"` only when it
-can close an identified slide-text or table content-coverage gap. The text
-reading view cannot resolve layout, image, formula, metadata-provenance, or
-visual-design gaps. Fix
-unintended overlap, clipping, wrapping, broken connectors, unresolved
-placeholders, inconsistent footers/page markers, and chart/data mismatches
-before exporting. Verify that researched claims and sourced assets are
-traceable, and cite sources if research was used.
-
-## Final Response
-
-For a working draft, return one-screen goal/structure/confirmation guidance,
-suggested natural-language revisions, and its path. Do not dump slides or
-expose Skill, CLI, parser, object-ID, or QA-log internals.
-
-After explicit acceptance, return a short user-visible summary of the completed
-deck. Mention the sources cited or used if research informed the deck. Do not
-attach scratch plans, previews, layout JSON, or temporary assets unless the
-user asks for them.
-
-## Result and evidence
-
-Return the final PPTX as an absolute path with `kind: "presentation"` and its
-SHA-256. Include slide numbers and inspected object IDs only when they are
-stable, plus render/inspect/verify evidence paths when available. Report
-`visualReview: "complete"` only after the rendered slides were understood;
-use `"unavailable"` or `"requires-human"` when the capability matrix requires
-it. Do not emit a host-specific citation directive or cite temporary previews,
-builders, or QA files as the deliverable.
+Do not repeat those workflows here. This file remains an object-capability
+reference for advanced imported edits only.
