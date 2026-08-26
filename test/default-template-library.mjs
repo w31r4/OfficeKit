@@ -630,7 +630,7 @@ try {
 
   const editedPresentations = [];
   for (const { id, kind, output } of materialized.filter((item) =>
-    item.kind === "presentation" && id !== "artifact-template-grid-layout-library")) {
+    item.kind === "presentation" && item.id !== "artifact-template-grid-layout-library")) {
     console.error(`[default-template-library] edit presentation ${id}`);
     const exported = await assertPublicPresentationPlaceholderTextEdit(output);
     const editedOutput = path.join(temporary, `${id}-placeholder-edit.pptx`);
