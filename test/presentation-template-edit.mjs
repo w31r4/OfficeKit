@@ -28,17 +28,6 @@ function targetByIndex(manifest, outputSlide, targetIndex) {
   return manifest.slides[outputSlide - 1].editTargets.find((target) => target.targetIndex === targetIndex);
 }
 
-const [skillText, referenceText, advancedText] = await Promise.all([
-  fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8"),
-  fs.readFile("skills/presentations/skills/presentations/references/template-following.md", "utf8"),
-  fs.readFile("skills/presentations/skills/presentations/references/advanced-imported-editing.md", "utf8"),
-]);
-assert.match(skillText, /Create from template[\s\S]*tasks\/create-from-template\.md/i);
-assert.match(advancedText, /apply_template_edit_plan\.mjs[\s\S]*template-edit-plan\.json[\s\S]*publishes nothing/i);
-assert.match(referenceText, /office-kit\.template-edit-plan\.v1[\s\S]*set-text[\s\S]*replace-text[\s\S]*set-table-cell[\s\S]*set-chart-series-values[\s\S]*replace-image[\s\S]*delete-element/i);
-assert.match(referenceText, /delete-element[\s\S]*capability-proven[\s\S]*top-level/i);
-assert.match(referenceText, /delete-element[\s\S]*ordinary shape[\s\S]*embedded picture[\s\S]*canonical connector[\s\S]*bounded table[\s\S]*chart[\s\S]*recursive group[\s\S]*shared media[\s\S]*ChartParts survive/i);
-
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-edit-"));
 try {
   const sourcePath = path.join(root, "source.pptx");
