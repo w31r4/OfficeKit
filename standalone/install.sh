@@ -150,8 +150,8 @@ case "$target" in
     expected_size=88917137
     ;;
   linux-x64)
-    expected_sha256=6ca676495245607cc0523cc3eb23f4e363c4a77e1399e3b59c8e5e1cadf3cc0d
-    expected_size=94026785
+    expected_sha256=8a7c27e04333ecef10646a9e4d49456139c88629d8dde2b2b35de90edbae8f61
+    expected_size=94443102
     ;;
   *) fail "unsupported target $target." ;;
 esac

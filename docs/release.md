@@ -22,16 +22,16 @@ its independent MuPDF path and explicit managed capability packs. Unsupported
 or unproven imported topology is preserved or rejected instead of flattened,
 and specialist providers remain lazy and policy controlled.
 
-The npm-format payload contains 783 files and measures 36,886,004 bytes
+The Linux release-lane npm-format payload contains 783 files and measures 37,008,348 bytes
 compressed and 54,783,882 bytes unpacked. The self-contained releases embed
 the same package with Node 24.18.0 and are pinned as follows:
 
 - `darwin-arm64`: 88,917,137 bytes, SHA-256
   `4424a0bc2dcb177dcb61453d84209b212c91c75ddb1d24a679f4c56c808a7c24`;
-- `linux-x64`: 94,026,785 bytes, SHA-256
-  `6ca676495245607cc0523cc3eb23f4e363c4a77e1399e3b59c8e5e1cadf3cc0d`;
-- `win32-x64`: 85,814,760 bytes, SHA-256
-  `915463e73b3689abed6a343de6bfe0c5992752594dfb1131a6085de03ee6898a`.
+- `linux-x64`: 94,443,102 bytes, SHA-256
+  `8a7c27e04333ecef10646a9e4d49456139c88629d8dde2b2b35de90edbae8f61`;
+- `win32-x64`: 86,140,802 bytes, SHA-256
+  `6a2a36c292046cbf37358a3ea0257d0f5d766dc076b94d5b242755923143fab3`.
 
 Windows PowerPoint playback and broad desktop-host acceptance remain distinct
 from package correctness and are not overstated by this release. Complex
