@@ -173,13 +173,12 @@ const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
 // and offline consumer guidance. Repository-generated evidence such as the API
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
-// Keep measured headroom for bounded codec/Skill growth without concealing
-// specialist binaries, generated evidence, or provider binaries in the
-// tarball. The current 0.9.0 runtime payload measures 54,493,577 bytes; keep
-// only a narrow 6,423-byte growth budget.
+// Keep measured headroom for bounded codec/Skill growth and the compact Grid
+// Layout reference without concealing specialist binaries, generated evidence,
+// or provider binaries in the tarball.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
-const maxUnpackedBytes = 54_600_000;
+const maxUnpackedBytes = 55_000_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -490,6 +489,10 @@ for (const required of [
   "skills/default-template-library/skills/artifact-template-business-review/artifact-template.json",
   "skills/default-template-library/skills/artifact-template-business-review/assets/reference.pptx",
   "skills/default-template-library/skills/artifact-template-business-review/assets/preview.png",
+  "skills/default-template-library/skills/artifact-template-grid-layout-library/SKILL.md",
+  "skills/default-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
+  "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/reference.pptx",
+  "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -575,8 +578,8 @@ const packagedTemplateSidecars = files.filter((file) =>
 );
 assert.equal(
   packagedTemplateSidecars.length,
-  20,
-  "npm package must ship exactly the 20 audited default templates",
+  21,
+  "npm package must ship exactly the 21 audited default templates",
 );
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(

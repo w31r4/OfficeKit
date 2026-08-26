@@ -316,7 +316,7 @@ try {
   assert.ok(sbom.components.some((component) => component.name === anydocNativePackage));
   await fs.access(path.join(activeRoot, "licenses", "OFFICEKIT-LICENSE.txt"));
   await fs.access(path.join(activeRoot, "licenses", "NODE-LICENSE.txt"));
-  assert.equal(await countTemplateCards(installedPackage), 20);
+  assert.equal(await countTemplateCards(installedPackage), 21);
 
   const project = path.join(temporary, "empty-project");
   await fs.mkdir(project);
@@ -342,7 +342,7 @@ try {
   for (const [kind, expected] of [
     ["document", 7],
     ["spreadsheet", 6],
-    ["presentation", 7],
+    ["presentation", 8],
   ]) {
     const searchProbe = runOfficeKit(
       ["template", "search", "--kind", kind, "--max", "20", "--json"],
@@ -361,7 +361,7 @@ try {
     );
     templateCount += search.candidates.length;
   }
-  assert.equal(templateCount, 20);
+  assert.equal(templateCount, 21);
   assert.equal(
     await fs
       .access(path.join(project, ".open-office-artifact-tool", "providers"))

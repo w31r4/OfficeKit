@@ -21,6 +21,19 @@ function referenceFor(templateId) {
   return record;
 }
 
+async function provenanceFor(templateId) {
+  const metadataPath = path.join(libraryRoot, "skills", templateId, "artifact-template.json");
+  const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+  if (metadata.id !== templateId || !metadata.provenance?.license || !metadata.provenance?.source) {
+    throw new Error(`Template provenance is invalid for ${templateId}.`);
+  }
+  return {
+    license: metadata.provenance.license,
+    source: metadata.provenance.source,
+    sourceCommit: metadata.provenance.source.match(/\/commit\/([a-f0-9]{40})(?:$|\/)/u)?.[1] ?? null,
+  };
+}
+
 async function assertNewFile(target, label) {
   try {
     await fs.lstat(target);
@@ -42,6 +55,7 @@ function normalizedOutputPath(value, reference) {
 export async function materializeTemplate({ templateId, outputPath, auditPath } = {}) {
   const id = requiredText(templateId, "templateId");
   const reference = referenceFor(id);
+  const provenance = await provenanceFor(id);
   const output = normalizedOutputPath(outputPath, reference);
   const audit = path.resolve(auditPath ? requiredText(auditPath, "auditPath") : `${output}.audit.json`);
   if (audit === output) throw new Error("auditPath must be distinct from outputPath.");
@@ -65,7 +79,7 @@ export async function materializeTemplate({ templateId, outputPath, auditPath } 
       schema: "office-kit.default-template-library.v1",
       status: "succeeded",
       operation: "materialize-retained-reference",
-      template: { id, sourceCommit: integrity.source.commit, license: integrity.source.license },
+      template: { id, ...provenance },
       source: { path: reference.path, bytes: sourceBytes.length, sha256: reference.sha256 },
       output: { path: output, bytes: outputBytes.length, sha256: sha256(outputBytes) },
       savePolicy: { strategy: "create-new", overwrite: false },

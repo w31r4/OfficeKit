@@ -636,6 +636,10 @@ function assessCandidate(candidate, intent, tags, bm25) {
     ...intent.purposes,
     ...intent.audiences,
     ...intent.contentShapes,
+    ...intent.visualTraits.tone,
+    ...(intent.visualTraits.density == null ? [] : [intent.visualTraits.density]),
+    ...(intent.visualTraits.colorMode == null ? [] : [intent.visualTraits.colorMode]),
+    ...intent.visualTraits.structure,
     ...tags,
   ];
   const conflicts = [];

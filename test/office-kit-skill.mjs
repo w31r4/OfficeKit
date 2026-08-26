@@ -90,7 +90,7 @@ assert.match(templateSelectionText, /templates bundled with OfficeKit/i);
 
 const expectedCounts = new Map([
   ["document", 7],
-  ["presentation", 7],
+  ["presentation", 8],
   ["spreadsheet", 6],
 ]);
 for (const [kind, expectedCount] of expectedCounts) {
@@ -132,6 +132,42 @@ assert.deepEqual(ranked.candidates[0].matchedTags, ["executive", "quarterly"]);
 assert.equal(ranked.candidates.length, 3);
 assert.equal(ranked.ranking.algorithm, "bm25f");
 assert.ok(ranked.candidates[0].match.bm25 > ranked.candidates[1].match.bm25);
+
+const gridById = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  id: "artifact-template-grid-layout-library",
+});
+assert.equal(gridById.candidates[0].editProfile.level, "composable");
+assert.deepEqual(gridById.candidates[0].editProfile.verifiedOperations, ["source-slide-reuse"]);
+
+const gridByIntent = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  intent: {
+    purposes: ["monochrome editorial presentation"],
+    visualTraits: { colorMode: "light", structure: ["grid"] },
+    requiredOperations: ["source-slide-reuse"],
+  },
+});
+assert.equal(gridByIntent.candidates[0].id, "artifact-template-grid-layout-library");
+
+for (const conflictingPurpose of [
+  "dark visual direction",
+  "brand creative presentation",
+  "image-led cinematic storytelling",
+]) {
+  const conflict = await queryTemplates({
+    kind: "presentation",
+    roots: [templateRoot],
+    intent: { purposes: [conflictingPurpose] },
+  });
+  assert.ok(
+    conflict.rejected.find((entry) =>
+      entry.id === "artifact-template-grid-layout-library" && entry.reasons.includes("avoid-when-conflict")),
+    `Grid must reject ${conflictingPurpose}`,
+  );
+}
 
 const structuredRanked = await queryTemplates({
   kind: "presentation",

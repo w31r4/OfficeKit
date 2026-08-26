@@ -31,6 +31,7 @@ const TEMPLATES = [
   ["artifact-template-strategy-memorandum", "Strategy Memorandum", "document", ".docx"],
   ["artifact-template-system-design", "System Design", "document", ".docx"],
   ["artifact-template-business-review", "Business Review", "presentation", ".pptx"],
+  ["artifact-template-grid-layout-library", "Grid Layout Library", "presentation", ".pptx", "composable"],
   ["artifact-template-market-trends-report", "Market Trends Report", "presentation", ".pptx"],
   ["artifact-template-operating-review", "Operating Review", "presentation", ".pptx"],
   ["artifact-template-project-kickoff", "Project Kickoff", "presentation", ".pptx"],
@@ -58,9 +59,9 @@ const templateShardRanges = Object.freeze({
   "documents-a": Object.freeze({ start: 0, end: 4 }),
   "documents-b": Object.freeze({ start: 4, end: 7 }),
   "presentations-a": Object.freeze({ start: 7, end: 11 }),
-  "presentations-b": Object.freeze({ start: 11, end: 14 }),
-  "spreadsheets-a": Object.freeze({ start: 14, end: 17 }),
-  "spreadsheets-b": Object.freeze({ start: 17, end: 20 }),
+  "presentations-b": Object.freeze({ start: 11, end: 15 }),
+  "spreadsheets-a": Object.freeze({ start: 15, end: 18 }),
+  "spreadsheets-b": Object.freeze({ start: 18, end: 21 }),
 });
 const shardTemplateIds = Object.values(templateShardRanges)
   .flatMap(({ start, end }) => TEMPLATES.slice(start, end).map(([id]) => id));
@@ -532,7 +533,7 @@ const expectedFiles = new Set([
 ]);
 const aggregate = crypto.createHash("sha256");
 let totalBytes = 0;
-for (const [id, displayName, kind, extension] of [...TEMPLATES].sort((left, right) => left[0].localeCompare(right[0]))) {
+for (const [id, displayName, kind, extension, editLevel = "bounded-edit"] of [...TEMPLATES].sort((left, right) => left[0].localeCompare(right[0]))) {
   const skillRoot = path.join(libraryRoot, "skills", id);
   const referencePath = `assets/reference${extension}`;
   for (const relativePath of ["SKILL.md", "artifact-template.json", "agents/agent.yaml", "assets/preview.png", referencePath]) {
@@ -560,7 +561,7 @@ for (const [id, displayName, kind, extension] of [...TEMPLATES].sort((left, righ
   assert.ok(Array.isArray(sidecar.audiences), `${id} sidecar audiences`);
   assert.ok(Array.isArray(sidecar.contentShapes), `${id} sidecar contentShapes`);
   assert.ok(["neutral", "opinionated"].includes(sidecar.visualCommitment), `${id} sidecar visual commitment`);
-  assert.equal(sidecar.editProfile.level, "bounded-edit", `${id} edit profile`);
+  assert.equal(sidecar.editProfile.level, editLevel, `${id} edit profile`);
   assert.ok(sidecar.editProfile.verifiedOperations.length > 0, `${id} verified edit operations`);
   assert.equal(sidecar.provenance.license, "MIT", `${id} template license`);
   assert.equal(hasValidPngStructure(previewBytes), true, `${id} preview PNG structure`);
@@ -591,7 +592,7 @@ assert.deepEqual(actualFiles, [...expectedFiles].sort(), "template library canon
 // instead of assuming that an unrelated reference checkout is byte-identical.
 const sourceRoot = process.env.OFFICE_TEMPLATE_SOURCE_ROOT;
 if (sourceRoot) {
-  for (const asset of integrity.assets) {
+  for (const asset of integrity.assets.filter((item) => item.templateId !== "artifact-template-grid-layout-library")) {
     const [sourceBytes, targetBytes] = await Promise.all([fs.readFile(path.join(sourceRoot, asset.path)), fs.readFile(path.join(libraryRoot, asset.path))]);
     assert.equal(
       sha256(targetBytes),
@@ -628,7 +629,8 @@ try {
   }
 
   const editedPresentations = [];
-  for (const { id, kind, output } of materialized.filter((item) => item.kind === "presentation")) {
+  for (const { id, kind, output } of materialized.filter((item) =>
+    item.kind === "presentation" && id !== "artifact-template-grid-layout-library")) {
     console.error(`[default-template-library] edit presentation ${id}`);
     const exported = await assertPublicPresentationPlaceholderTextEdit(output);
     const editedOutput = path.join(temporary, `${id}-placeholder-edit.pptx`);
