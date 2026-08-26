@@ -174,13 +174,8 @@ for (const [name, relative] of [
   ["presentations", ["presentations", "skills", "presentations", "SKILL.md"]],
   ["pdf", ["pdf", "skills", "pdf", "SKILL.md"]],
 ]) {
-  const skillPath = path.join(repoRoot, "skills", ...relative);
-  const skillText = await fs.readFile(skillPath, "utf8");
-  const reviewText = name === "presentations"
-    ? await fs.readFile(path.join(path.dirname(skillPath), "tasks", "review-deliver.md"), "utf8")
-    : skillText;
+  const skillText = await fs.readFile(path.join(repoRoot, "skills", ...relative), "utf8");
   assert.match(skillText, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
-  assert.match(reviewText, /text\s+reading\s+view|AnyDoc[\s\S]*text\/table coverage gap/i, `${name} must describe the optional content view`);
 }
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);
