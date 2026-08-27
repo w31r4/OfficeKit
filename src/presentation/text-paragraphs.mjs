@@ -62,8 +62,14 @@ function normalizeRunStyle(style = {}) {
     ...(style.underline == null ? {} : { underline: String(style.underline) }),
     ...(fontSize == null ? {} : { fontSize }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
+    ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),
   };
+}
+
+function svgFontFamily(style = {}) {
+  const families = [style.fontFamily, style.fontFamilyEastAsia].filter(Boolean);
+  return families.length ? families.join(", ") : "Arial";
 }
 
 function generatedFieldId() {
@@ -400,7 +406,7 @@ export function presentationParagraphsSvg(paragraphs, frame, defaultStyle = {}, 
       return text.split("\t").map((segment, segmentIndex) => {
         if (segmentIndex) x = tabX(segment, style);
         const width = segment.length * (style.fontSize || fontSize) * 0.55;
-        const result = segment ? `<text x="${x}" y="${y + fontSize + lineIndex * lineHeight}" font-family="${attrEscape(style.fontFamily || "Arial")}" font-size="${style.fontSize || fontSize}" font-weight="${style.bold ? 700 : 400}" font-style="${style.italic ? "italic" : "normal"}"${style.underline || run.link ? ' text-decoration="underline"' : ""} fill="${attrEscape(style.color || (run.link ? "#2563eb" : paragraphStyle.color || "#0f172a"))}"${hyperlink ? ` data-hyperlink="${attrEscape(hyperlink)}"` : ""}${run.field ? ` data-field-type="${attrEscape(run.field.type)}" data-field-id="${attrEscape(run.field.id)}"` : ""}>${escape(segment)}</text>` : "";
+        const result = segment ? `<text x="${x}" y="${y + fontSize + lineIndex * lineHeight}" font-family="${attrEscape(svgFontFamily(style))}" font-size="${style.fontSize || fontSize}" font-weight="${style.bold ? 700 : 400}" font-style="${style.italic ? "italic" : "normal"}"${style.underline || run.link ? ' text-decoration="underline"' : ""} fill="${attrEscape(style.color || (run.link ? "#2563eb" : paragraphStyle.color || "#0f172a"))}"${hyperlink ? ` data-hyperlink="${attrEscape(hyperlink)}"` : ""}${run.field ? ` data-field-type="${attrEscape(run.field.type)}" data-field-id="${attrEscape(run.field.id)}"` : ""}>${escape(segment)}</text>` : "";
         x += width;
         return result;
       }).join("");

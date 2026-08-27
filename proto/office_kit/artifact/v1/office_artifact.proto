@@ -2395,6 +2395,11 @@ message PresentationTextStyle {
     // source-bound rather than being flattened.
     string color_scheme = 6;
   }
+  // Direct DrawingML a:ea typeface. New East Asian text inherits
+  // font_family when this field is omitted; the explicit field permits a
+  // Latin display face and a separate CJK fallback without relying on host
+  // substitution.
+  optional string font_family_east_asia = 7;
 }
 
 message PresentationTextParagraph {
@@ -2509,6 +2514,9 @@ message PresentationTextRun {
     bool no_hyperlink = 7;
     PresentationRunHyperlink run_hyperlink = 8;
   }
+  // Direct DrawingML a:ea typeface. The JavaScript authoring layer supplies
+  // font_family for East Asian text when no explicit override is present.
+  optional string font_family_east_asia = 11;
 }
 
 message PresentationTextField {

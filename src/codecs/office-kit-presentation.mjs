@@ -73,7 +73,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "fontSize", "fontFamily", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "fontSize", "fontFamily", "fontFamilyEastAsia", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -834,6 +834,19 @@ function unsupportedStyleFields(style = {}) {
   return Object.keys(style).filter((key) => !RUN_STYLE_KEYS.has(key));
 }
 
+function presentationFontFamily(value, label) {
+  if (value == null) return undefined;
+  const family = String(value);
+  if (!family.trim() || family.length > 255) {
+    throw new OfficeKitCodecError(`${label} uses an invalid font family.`, [], { code: "invalid_presentation_text" });
+  }
+  return family;
+}
+
+function containsEastAsianText(value) {
+  return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}]/u.test(String(value ?? ""));
+}
+
 function wireTextStyle(style = {}, shapeId) {
   const unsupported = unsupportedStyleFields(style);
   if (unsupported.length) throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses unsupported paragraph text style fields: ${unsupported.join(", ")}.`, [], { code: "unsupported_presentation_features" });
@@ -841,10 +854,8 @@ function wireTextStyle(style = {}, shapeId) {
   if (fontSize !== undefined && (!Number.isFinite(fontSize) || fontSize <= 0 || fontSize > MAX_FONT_SIZE_PIXELS)) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font size outside the supported 0-${MAX_FONT_SIZE_PIXELS} pixel range.`, [], { code: "invalid_presentation_text" });
   }
-  const fontFamily = style.fontFamily == null ? undefined : String(style.fontFamily);
-  if (fontFamily !== undefined && (!fontFamily.trim() || fontFamily.length > 255)) {
-    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses an invalid paragraph font family.`, [], { code: "invalid_presentation_text" });
-  }
+  const fontFamily = presentationFontFamily(style.fontFamily, `Presentation shape ${shapeId} paragraph`);
+  const fontFamilyEastAsia = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} paragraph East Asian`);
   let color;
   if (style.color != null) {
     const token = String(style.color).trim();
@@ -858,6 +869,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
+    ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
     ...(color ? { color } : {}),
   };
 }
@@ -914,10 +926,10 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   if (fontSize !== undefined && (!Number.isFinite(fontSize) || fontSize <= 0 || fontSize > MAX_FONT_SIZE_PIXELS)) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font size outside the supported 0-${MAX_FONT_SIZE_PIXELS} pixel range.`, [], { code: "invalid_presentation_text" });
   }
-  const fontFamily = style.fontFamily == null ? undefined : String(style.fontFamily);
-  if (fontFamily !== undefined && (!fontFamily.trim() || fontFamily.length > 255)) {
-    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses an invalid font family.`, [], { code: "invalid_presentation_text" });
-  }
+  const fontFamily = presentationFontFamily(style.fontFamily, `Presentation shape ${shapeId}`);
+  const runText = run.field?.text ?? run.text ?? "";
+  const explicitEastAsianFamily = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} East Asian`);
+  const fontFamilyEastAsia = explicitEastAsianFamily ?? (fontFamily && containsEastAsianText(runText) ? fontFamily : undefined);
   const colorRgb = style.color == null ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
   if (colorRgb === "") {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
@@ -933,6 +945,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
+    ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
     ...(hyperlink ? { hyperlink } : {}),
   };
@@ -4337,6 +4350,7 @@ function modelRun(run, customShowLinks) {
       ...(run.italic === undefined ? {} : { italic: run.italic }),
       ...(run.fontSizePoints === undefined ? {} : { fontSize: run.fontSizePoints / POINTS_PER_PIXEL }),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
+      ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
       ...(run.colorRgb === undefined ? {} : { color: `#${run.colorRgb}` }),
     },
     ...(hyperlink ? { link: hyperlink } : {}),
@@ -4418,6 +4432,7 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.italic === undefined ? {} : { italic: style.italic }),
     ...(style.fontSizePoints === undefined ? {} : { fontSize: style.fontSizePoints / POINTS_PER_PIXEL }),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
+    ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
     ...(style.color?.case === "colorRgb" ? { color: `#${style.color.value}` } : {}),
     ...(style.color?.case === "colorScheme" ? { color: style.color.value } : {}),
   };

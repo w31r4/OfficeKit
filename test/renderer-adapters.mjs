@@ -65,8 +65,9 @@ import path from 'node:path';
 const outDir = process.argv[process.argv.indexOf('--outdir') + 1];
 const inputPath = process.argv.at(-1);
 const base = path.basename(inputPath, path.extname(inputPath));
+const fontConfig = process.env.FONTCONFIG_FILE ? await fs.readFile(process.env.FONTCONFIG_FILE, 'utf8') : '';
 await fs.mkdir(outDir, { recursive: true });
-await fs.writeFile(path.join(outDir, base + '.pdf'), new TextEncoder().encode('%PDF-libreoffice-mock'));
+await fs.writeFile(path.join(outDir, base + '.pdf'), new TextEncoder().encode('%PDF-libreoffice-mock\\n' + fontConfig));
 `, "utf8");
 const libreOfficeRenderer = createLibreOfficeRenderer({ command: process.execPath, args: [mockLibreOffice], timeoutMs: 10_000 });
 const docxInput = new FileBlob(new Uint8Array([1, 2, 3]), { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
@@ -75,6 +76,13 @@ assert.equal(officePdf.type, "application/pdf");
 assert.equal(officePdf.metadata.renderer, "libreoffice");
 assert.equal(officePdf.metadata.inputType, docxInput.type);
 assert.match(await officePdf.text(), /%PDF-libreoffice-mock/);
+if (process.platform === "darwin") {
+  const fontConfig = await officePdf.text();
+  assert.match(fontConfig, /System\/Library\/Fonts/);
+  if (await fs.stat("/System/Library/AssetsV2/com_apple_MobileAsset_Font7").then(() => true, () => false)) {
+    assert.match(fontConfig, /MobileAsset_Font7/);
+  }
+}
 
 function fakeCanvasLib({ width = 120, height = 80 } = {}) {
   return {

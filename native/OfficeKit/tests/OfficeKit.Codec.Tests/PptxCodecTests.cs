@@ -8724,6 +8724,7 @@ public sealed class PptxCodecTests
         Assert.True(shape.TextBody.Paragraphs[0].Runs[0].Bold);
         Assert.Equal(27, shape.TextBody.Paragraphs[0].Runs[0].FontSizePoints);
         Assert.Equal("Aptos Display", shape.TextBody.Paragraphs[0].Runs[0].FontFamily);
+        Assert.Equal("Noto Sans CJK SC", shape.TextBody.Paragraphs[0].Runs[0].FontFamilyEastAsia);
         Assert.Equal("0F172A", shape.TextBody.Paragraphs[0].Runs[0].ColorRgb);
         Assert.True(shape.TextBody.Paragraphs[0].Runs[1].Italic);
         Assert.Equal(PresentationTextParagraph.BulletOneofCase.BulletCharacter, shape.TextBody.Paragraphs[0].BulletCase);
@@ -8968,6 +8969,7 @@ public sealed class PptxCodecTests
             Italic = false,
             FontSizePoints = 21,
             FontFamily = "Aptos",
+            FontFamilyEastAsia = "Noto Sans CJK SC",
             ColorScheme = "accent1",
         };
         var authored = Invoke(request);
@@ -8981,6 +8983,7 @@ public sealed class PptxCodecTests
             Assert.False(style.Italic!.Value);
             Assert.Equal(2_100, style.FontSize!.Value);
             Assert.Equal("Aptos", style.GetFirstChild<A.LatinFont>()!.Typeface!.Value);
+            Assert.Equal("Noto Sans CJK SC", style.GetFirstChild<A.EastAsianFont>()!.Typeface!.Value);
             Assert.Equal(A.SchemeColorValues.Accent1, style.GetFirstChild<A.SolidFill>()!.GetFirstChild<A.SchemeColor>()!.Val!.Value);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
         }
@@ -8994,6 +8997,7 @@ public sealed class PptxCodecTests
         Assert.False(paragraph.DefaultRunProperties.Italic);
         Assert.Equal(21, paragraph.DefaultRunProperties.FontSizePoints);
         Assert.Equal("Aptos", paragraph.DefaultRunProperties.FontFamily);
+        Assert.Equal("Noto Sans CJK SC", paragraph.DefaultRunProperties.FontFamilyEastAsia);
         Assert.Equal("accent1", paragraph.DefaultRunProperties.ColorScheme);
 
         paragraph.DefaultRunProperties = new PresentationTextStyle
@@ -9002,6 +9006,7 @@ public sealed class PptxCodecTests
             Italic = true,
             FontSizePoints = 24,
             FontFamily = "Georgia",
+            FontFamilyEastAsia = "Source Han Sans SC",
             ColorRgb = "2563EB",
         };
         var edited = Export(imported.Artifact);
@@ -9014,9 +9019,10 @@ public sealed class PptxCodecTests
             Assert.True(style.Italic!.Value);
             Assert.Equal(2_400, style.FontSize!.Value);
             Assert.Equal("Georgia", style.GetFirstChild<A.LatinFont>()!.Typeface!.Value);
+            Assert.Equal("Source Han Sans SC", style.GetFirstChild<A.EastAsianFont>()!.Typeface!.Value);
             Assert.Equal("2563EB", style.GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!.Val!.Value);
             Assert.Equal(A.TextUnderlineValues.Single, style.Underline!.Value);
-            Assert.Equal("Noto Sans CJK SC", style.GetFirstChild<A.EastAsianFont>()!.Typeface!.Value);
+            Assert.Equal("Noto Sans Arabic", style.GetFirstChild<A.ComplexScriptFont>()!.Typeface!.Value);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
         }
 
@@ -9033,9 +9039,10 @@ public sealed class PptxCodecTests
             Assert.Null(style.Italic);
             Assert.Null(style.FontSize);
             Assert.Null(style.GetFirstChild<A.LatinFont>());
+            Assert.Null(style.GetFirstChild<A.EastAsianFont>());
             Assert.Null(style.GetFirstChild<A.SolidFill>());
             Assert.Equal(A.TextUnderlineValues.Single, style.Underline!.Value);
-            Assert.Equal("Noto Sans CJK SC", style.GetFirstChild<A.EastAsianFont>()!.Typeface!.Value);
+            Assert.Equal("Noto Sans Arabic", style.GetFirstChild<A.ComplexScriptFont>()!.Typeface!.Value);
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
         }
 
@@ -10948,7 +10955,7 @@ public sealed class PptxCodecTests
             var style = presentation.PresentationPart!.SlideParts.Single().Slide!.Descendants<A.Paragraph>().First()
                 .ParagraphProperties!.GetFirstChild<A.DefaultRunProperties>()!;
             style.Underline = A.TextUnderlineValues.Single;
-            style.AddChild(new A.EastAsianFont { Typeface = "Noto Sans CJK SC" }, true);
+            style.AddChild(new A.ComplexScriptFont { Typeface = "Noto Sans Arabic" }, true);
         }
         return stream.ToArray();
     }

@@ -48,6 +48,7 @@ const fastSteps = [
   nodeStep("test/spreadsheet-range-compat.mjs"),
   nodeStep("test/spreadsheet-sparkline.mjs"),
   nodeStep("test/presentation.mjs"),
+  nodeStep("test/presentation-cjk-layout.mjs"),
   nodeStep("test/presentation-svg-leaves.mjs"),
   nodeStep("test/pptx-svg-leaf-benchmark.mjs"),
   nodeStep("test/pptx-lossless-benchmark.mjs"),

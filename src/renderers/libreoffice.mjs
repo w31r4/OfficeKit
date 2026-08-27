@@ -93,6 +93,49 @@ function expectedOutputPath(outDir, inputPath, format) {
   return path.join(outDir, `${base}.${extension}`);
 }
 
+function xmlText(value) {
+  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
+async function libreOfficeEnvironment(command, tempDir, options) {
+  const environment = { ...(options.env || {}) };
+  if (process.platform !== "darwin" || options.systemFonts === false ||
+      environment.FONTCONFIG_FILE || process.env.FONTCONFIG_FILE) return environment;
+
+  const fontDirectories = [
+    "/System/Library/Fonts",
+    "/System/Library/Fonts/Supplemental",
+    "/Library/Fonts",
+    path.join(os.homedir(), "Library", "Fonts"),
+    "/System/Library/AssetsV2/com_apple_MobileAsset_Font7",
+    "/System/Library/Assets/com_apple_MobileAsset_Font3",
+    "/System/Library/Assets/com_apple_MobileAsset_Font4",
+  ];
+  if (path.isAbsolute(command) && command.includes(`${path.sep}Contents${path.sep}MacOS${path.sep}`)) {
+    fontDirectories.push(path.resolve(path.dirname(command), "..", "Resources", "fonts", "truetype"));
+  }
+  const existingDirectories = [];
+  for (const directory of fontDirectories) {
+    const descriptor = await fs.stat(directory).catch(() => null);
+    if (descriptor?.isDirectory()) existingDirectories.push(directory);
+  }
+  const cacheDirectory = path.join(tempDir, "fontconfig-cache");
+  const configPath = path.join(tempDir, "fonts.conf");
+  await fs.mkdir(cacheDirectory, { recursive: true });
+  const directories = [...new Set(existingDirectories)]
+    .map((directory) => `  <dir>${xmlText(directory)}</dir>`)
+    .join("\n");
+  await fs.writeFile(configPath, [
+    '<?xml version="1.0"?>',
+    "<fontconfig>",
+    directories,
+    `  <cachedir>${xmlText(cacheDirectory)}</cachedir>`,
+    "</fontconfig>",
+    "",
+  ].join("\n"), "utf8");
+  return { ...environment, FONTCONFIG_FILE: configPath };
+}
+
 export async function renderWithLibreOffice(request = {}, defaultOptions = {}) {
   const input = request.input || request.source;
   if (!input) throw new Error("LibreOffice renderer requires request.input or request.source.");
@@ -126,7 +169,7 @@ export async function renderWithLibreOffice(request = {}, defaultOptions = {}) {
         outDir,
         inputPath,
       ];
-    await runCommand(command, args, options);
+    await runCommand(command, args, { ...options, env: await libreOfficeEnvironment(command, tempDir, options) });
     let bytes;
     try {
       bytes = await fs.readFile(outputPath);

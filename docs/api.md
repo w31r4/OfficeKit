@@ -1905,7 +1905,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.slideSize` | api | Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly. |
 | `presentation.textRange` | api | Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames. |
 | `presentation.theme` | api | Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only. |
-| `presentation.validateLayout` | api | Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow. |
+| `presentation.validateLayout` | api | Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow. Explicit text-free accessibility.decorative objects are excluded from overlap and partial-bleed errors; confirm their crop in the rendered slide. |
 | `presentation.verify` | api | Return QA issues for layout validation, missing master/layout references, placeholder fidelity, chart/data consistency, table shape, image data, and dangling comments. |
 | `presentation.view` | api | Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and guides. Visibility is local model state; a separately capability-gated fixed-topology source-bound edit profile may change only already-present grid/snap values and guide positions in viewProps.xml. |
 | `presentation.view.capability` | api | Return defensive sourceBound, partPresent, editable, existing-field, and guide-count evidence for the imported PPTX view-properties part. It is preflight evidence only; export re-proves hashes, topology, and the non-editable XML residual. |
@@ -5564,7 +5564,7 @@ Inspect the model theme and theme inheritance. Custom source-free themes are not
 
 #### `presentation.validateLayout`
 
-Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow.
+Detect layout QA issues across slides, including off-canvas elements, geometry overlaps, and basic text overflow. Explicit text-free accessibility.decorative objects are excluded from overlap and partial-bleed errors; confirm their crop in the rendered slide.
 
 **Adoption tier:** `golden`
 
@@ -5605,7 +5605,7 @@ Detect layout QA issues across slides, including off-canvas elements, geometry o
 
 **Schema returns:**
 
-- `report` (object) — Layout QA result with ok, issues, ndjson, and truncated.
+- `report` (object) — Layout QA result with ok, issues, ndjson, and truncated. Text-free objects explicitly marked accessibility.decorative are excluded from overlap and partial-bleed errors; a fully invisible or meaningful object remains an offCanvas error.
 
 #### `presentation.verify`
 
@@ -7508,7 +7508,7 @@ Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector 
 - `position` (object) — Pixel left/top/width/height frame. For geometry line, left/top is the start point and width/height is the non-negative endpoint delta; one extent may be zero, but both zero fail closed.
 - `transform` (object) — Optional { rotationDegrees, flipHorizontal, flipVertical } center transform. Rotation is bounded to -360 through 360 degrees and flip booleans retain explicit false. OfficeKit authors/imports this direct DrawingML transform on supported shapes; complex or unknown native transform graphs remain read-only.
 - `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension. Maps to the native p:cNvPr of an ordinary p:sp or exact-site p:cxnSp connector and remains independent of visible text/name; irregular imports stay source-bound.
-- `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks.
+- `text` (string|string[]|object|object[]) — Plain text or structured paragraphs accepted by shape.text.set, including ordered text/field/line-break inlines, paragraph tab stops, styles, and relationship-backed hyperlinks. Run and paragraph styles accept fontFamilyEastAsia; when East Asian text has fontFamily but no explicit override, OfficeKit writes the same direct a:ea typeface so LibreOffice and PowerPoint do not rely on host font inference.
 - `textBodyProperties` (object) — DrawingML text-frame layout: pixel insets; anchor/wrap/AutoFit; optional normalAutoFit { fontScale, lineSpacingReduction } percentages only with shrinkText; -360..360 degree rotation; horizontal/vertical/vertical270 text; horizontal/vertical overflow; 1-16 columns with pixel spacing and RTL flow; and upright text. Percentages retain at most three decimal places; noncanonical imported AutoFit markup remains source-bound.
 - `fill` (string|object) — Shape fill.
 - `line` (object) — For ordinary shapes and free lines: { style: solid|dashed|dotted|dash-dot|dash-dot-dot|none, fill, width, head?, tail?, cap?, join? }. Line ends use triangle|stealth|diamond|oval|arrow with optional sm|med|lg width/length; only geometry line accepts ends. dash/dot/dashDot/longDashDotDot and non-conflicting startArrow*/endArrow* aliases normalize canonically.

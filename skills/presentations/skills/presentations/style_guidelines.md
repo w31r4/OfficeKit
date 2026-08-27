@@ -25,6 +25,10 @@ brand rules take precedence.
   Shorten or recompose before shrinking type.
 - Keep all content inside the slide with no unintended overlap, clipping, or
   wrapping. A one-line title must remain one line.
+- Mark text-free background ornaments that intentionally overlap content or
+  bleed past the canvas as `accessibility: { decorative: true }`. Their crop
+  remains a visual-review obligation; the declaration only prevents a known
+  decorative overlap from being mistaken for a semantic layout collision.
 - Make negative space intentional: it should focus attention, separate ideas,
   or control pacing. A large unused region with no such role is a composition
   defect, not sophistication.

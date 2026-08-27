@@ -20,6 +20,8 @@ internal static class PptxDefaultRunStyleCodec
         if (properties.FontSize is not null) style.FontSizePoints = properties.FontSize.Value / 100d;
         var latin = properties.Elements<A.LatinFont>().SingleOrDefault();
         if (latin is not null && ModeledLatinFont(latin)) style.FontFamily = latin.Typeface!.Value!;
+        var eastAsianFonts = properties.Elements<A.EastAsianFont>().Take(2).ToArray();
+        if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) style.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
         var colors = ColorChoices(properties).ToArray();
         if (colors.Length == 1 && ModeledColor(colors[0]))
         {
@@ -96,6 +98,8 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid($"Presentation default-run font size must be finite and between 0 and {MaxFontSizePoints} points.");
         if (style.HasFontFamily && (string.IsNullOrWhiteSpace(style.FontFamily) || style.FontFamily.Length > 255))
             throw Invalid("Presentation default-run font family must contain 1 through 255 characters.");
+        if (style.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(style.FontFamilyEastAsia) || style.FontFamilyEastAsia.Length > 255))
+            throw Invalid("Presentation default-run East Asian font family must contain 1 through 255 characters.");
         switch (style.ColorCase)
         {
             case PresentationTextStyle.ColorOneofCase.None:
@@ -112,7 +116,7 @@ internal static class PptxDefaultRunStyleCodec
     }
 
     private static bool HasFields(PresentationTextStyle style) =>
-        style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily ||
+        style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
         style.ColorCase != PresentationTextStyle.ColorOneofCase.None;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
@@ -128,7 +132,24 @@ internal static class PptxDefaultRunStyleCodec
         target.Italic = source.HasItalic ? source.Italic : null;
         target.FontSize = source.HasFontSizePoints ? checked((int)Math.Round(source.FontSizePoints * 100)) : null;
         ApplyLatinFont(target, source);
+        ApplyEastAsianFont(target, source);
         ApplyColor(target, source);
+    }
+
+    private static void ApplyEastAsianFont(A.DefaultRunProperties target, PresentationTextStyle source)
+    {
+        var fonts = target.Elements<A.EastAsianFont>().ToArray();
+        if (source.HasFontFamilyEastAsia)
+        {
+            if (fonts.Length > 1 || fonts.Any(font => !ModeledEastAsianFont(font)))
+                throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run East Asian font properties.");
+            foreach (var font in fonts) font.Remove();
+            target.AddChild(new A.EastAsianFont { Typeface = source.FontFamilyEastAsia }, true);
+        }
+        else if (fonts.Length == 1 && ModeledEastAsianFont(fonts[0]))
+        {
+            fonts[0].Remove();
+        }
     }
 
     private static void ApplyLatinFont(A.DefaultRunProperties target, PresentationTextStyle source)
@@ -172,6 +193,8 @@ internal static class PptxDefaultRunStyleCodec
         target.FontSize = null;
         var fonts = target.Elements<A.LatinFont>().ToArray();
         if (fonts.Length == 1 && ModeledLatinFont(fonts[0])) fonts[0].Remove();
+        var eastAsianFonts = target.Elements<A.EastAsianFont>().ToArray();
+        if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
         var colors = ColorChoices(target).ToArray();
         if (colors.Length == 1 && ModeledColor(colors[0])) colors[0].Remove();
     }
@@ -189,6 +212,9 @@ internal static class PptxDefaultRunStyleCodec
     };
 
     private static bool ModeledLatinFont(A.LatinFont source) =>
+        SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
+
+    private static bool ModeledEastAsianFont(A.EastAsianFont source) =>
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
 
     private static bool SimpleValue(OpenXmlElement source, string name)

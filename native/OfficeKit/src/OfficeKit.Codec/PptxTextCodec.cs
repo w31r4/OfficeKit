@@ -108,6 +108,8 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", $"Presentation run font size must be finite and between 0 and {MaxFontSizePoints} points.");
                 if (run.HasFontFamily && (string.IsNullOrWhiteSpace(run.FontFamily) || run.FontFamily.Length > 255))
                     throw new CodecException("invalid_presentation_text", "Presentation run font family must contain 1 through 255 characters.");
+                if (run.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(run.FontFamilyEastAsia) || run.FontFamilyEastAsia.Length > 255))
+                    throw new CodecException("invalid_presentation_text", "Presentation run East Asian font family must contain 1 through 255 characters.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
                 PptxHyperlinkCodec.Validate(run);
             }
@@ -260,6 +262,8 @@ internal static class PptxTextCodec
         if (properties?.Italic is not null) run.Italic = properties.Italic.Value;
         if (properties?.FontSize is not null) run.FontSizePoints = properties.FontSize.Value / 100d;
         if (properties?.GetFirstChild<A.LatinFont>()?.Typeface?.Value is { Length: > 0 } typeface) run.FontFamily = typeface;
+        var eastAsianFonts = properties?.Elements<A.EastAsianFont>().Take(2).ToArray() ?? [];
+        if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) run.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
         if (PptxColor.SolidRgb(properties?.GetFirstChild<A.SolidFill>()) is { Length: > 0 } rgb) run.ColorRgb = rgb;
         PptxHyperlinkCodec.Read(run, properties, slideContext);
         return run;
@@ -482,7 +486,7 @@ internal static class PptxTextCodec
     };
 
     private static bool HasStyle(PresentationTextRun run) =>
-        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasColorRgb;
+        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasColorRgb;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
     {
@@ -500,6 +504,18 @@ internal static class PptxTextCodec
             latin.Typeface = requested.FontFamily;
         }
         else latin?.Remove();
+        var eastAsianFonts = properties.Elements<A.EastAsianFont>().ToArray();
+        if (requested.HasFontFamilyEastAsia)
+        {
+            if (eastAsianFonts.Length > 1 || eastAsianFonts.Any(font => !ModeledEastAsianFont(font)))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace unmodeled East Asian font properties.");
+            foreach (var font in eastAsianFonts) font.Remove();
+            properties.AddChild(new A.EastAsianFont { Typeface = requested.FontFamilyEastAsia }, true);
+        }
+        else if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0]))
+        {
+            eastAsianFonts[0].Remove();
+        }
         var fill = properties.GetFirstChild<A.SolidFill>();
         if (requested.HasColorRgb)
         {
@@ -516,9 +532,18 @@ internal static class PptxTextCodec
         properties.Italic = null;
         properties.FontSize = null;
         properties.GetFirstChild<A.LatinFont>()?.Remove();
+        var eastAsianFonts = properties.Elements<A.EastAsianFont>().ToArray();
+        if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
         var fill = properties.GetFirstChild<A.SolidFill>();
         if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
         PptxHyperlinkCodec.Scrub(properties, slideContext);
+    }
+
+    private static bool ModeledEastAsianFont(A.EastAsianFont source)
+    {
+        var attributes = source.GetAttributes();
+        return source.ChildElements.Count == 0 && attributes.Count == 1 && attributes[0].LocalName == "typeface" &&
+               !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
     }
 
 }
