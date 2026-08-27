@@ -4279,9 +4279,7 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     left.shapeTreePath.join("/").localeCompare(right.shapeTreePath.join("/"), undefined, { numeric: true }) ||
     left.leafKind.localeCompare(right.leafKind) ||
     (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0));
-  const sourceArtifact = state.sourceArtifactBytes instanceof Uint8Array
-    ? fromBinary(PresentationArtifactSchema, state.sourceArtifactBytes)
-    : undefined;
+  const sourceArtifact = state.sourceArtifact;
   if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
   const requestedAssetIds = new Set(operations
     .filter((operation) => operation.leafKind === "imageAsset")
@@ -5440,7 +5438,7 @@ export async function presentationFromEnvelope(envelope) {
     source: envelope.source,
     opaqueOpc: envelope.opaqueOpc,
     diagnostics: envelope.diagnostics,
-    sourceArtifactBytes: presentationWireBytes(PresentationArtifactSchema, source),
+    sourceArtifact: source,
     name: source.name,
     slideWidthEmu: source.slideWidthEmu,
     slideHeightEmu: source.slideHeightEmu,
