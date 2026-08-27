@@ -22,6 +22,11 @@ Read:
 The new process has no prior JavaScript heap. Reimport the latest reviewed PPTX
 and rebuild all node/capability indexes with `inspect()`.
 
+When the plan references sourced imagery, run
+`officekit image list --task <task-id> --json` in the task workspace. Reuse the
+recorded local asset path and receipt; do not repeat a search or recover a
+download URL from an old conversation.
+
 ## 3. Continue from the reviewed revision
 
 Follow the plan's `recipe` and `nextAction`. If intent or design changes, write

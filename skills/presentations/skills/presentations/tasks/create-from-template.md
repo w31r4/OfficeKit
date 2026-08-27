@@ -61,6 +61,11 @@ strategy, such as a cloned source slide, reusable template component, supplied
 image, source SVG, or newly authored native chart/diagram/table. “Follow the
 template” is not a sufficient composition intent.
 
+Template images and reusable source assets remain the first choice. Load
+[image sourcing](../references/image-sourcing.md) only when the plan names a
+media role that the authoritative source cannot fill. Record the registered
+asset and provenance without presenting the external image as a template fact.
+
 ## 4. Generate new content
 
 Use source-slide and source-component reuse where capabilities support it.

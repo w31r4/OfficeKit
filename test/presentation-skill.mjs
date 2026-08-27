@@ -40,6 +40,7 @@ const [editorialSkillSource, editorialPatternsSource] = await Promise.all([
   fs.readFile(path.join(editorialSkillDir, "references", "patterns.md"), "utf8"),
 ]);
 const designReviewSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-review.md"), "utf8");
+const imageSourcingSource = await fs.readFile(path.join(presentationSkillDir, "references", "image-sourcing.md"), "utf8");
 const authoringPlanSource = await fs.readFile(path.join(presentationSkillDir, "references", "authoring-plan.md"), "utf8");
 const doctrineSource = await fs.readFile(path.join(presentationSkillDir, "references", "presentation-doctrine.md"), "utf8");
 const scenarioPolicySource = await fs.readFile(path.join(presentationSkillDir, "references", "scenario-policy.md"), "utf8");
@@ -67,6 +68,7 @@ assert.match(presentationSkillEntrySource, /define → plan → design → compo
 assert.match(presentationSkillEntrySource, /C authoring[\s\S]*Grid is not a default or fallback/u);
 assert.match(presentationSkillEntrySource, /card-based composition is forbidden[\s\S]*authoritative card-based template/u);
 assert.match(presentationSkillEntrySource, /Load detail only when needed[\s\S]*Progressive loading/u);
+assert.match(presentationSkillEntrySource, /image sourcing[\s\S]*declared media role[\s\S]*cannot fill/iu);
 for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technical-architecture", "visual-narrative", "academic-research", "brand-launch"]) assert.match(designMechanismsSource, new RegExp(`\\b${mechanism}\\b`, "u"));
 assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\.sha256 \}\)/u);
 assert.match(audienceTextSource, /single editorial authority[\s\S]*presentation-editorial-trim/u);
@@ -94,6 +96,14 @@ assert.match(taskSources.create, /C authoring route is the default[\s\S]*Grid is
 assert.doesNotMatch(taskSources.create, /compatibility fallback|Grid scaffold explicitly|silently switch to Grid/iu);
 assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*22[\s\S]*minimumCaptionFontSize[\s\S]*20[\s\S]*four meaningful silhouettes/u);
 assert.match(taskSources.create, /one dominant visual carrier[\s\S]*quantitative relationship[\s\S]*chart, axis, direct label/u);
+assert.match(taskSources.create, /image or icon[\s\S]*evidence,[\s\S]*identity,[\s\S]*explanation,[\s\S]*atmosphere[\s\S]*short English/u);
+assert.match(taskSources["create-from-template"], /Template images[\s\S]*media role[\s\S]*cannot fill[\s\S]*provenance/u);
+assert.match(taskSources["edit-existing"], /image replacement[\s\S]*source-bound image replacement[\s\S]*opaque picture/u);
+assert.match(taskSources.continue, /officekit image list[\s\S]*recorded local asset[\s\S]*do not repeat a search/u);
+assert.match(taskSources["review-deliver"], /crop preserves the subject[\s\S]*alt text[\s\S]*CC BY[\s\S]*officekit image audit[\s\S]*sources sidecar/u);
+assert.match(imageSourcingSource, /user-provided and template assets[\s\S]*Lucide[\s\S]*Openverse or Wikimedia[\s\S]*selectionMade: false[\s\S]*three to six/u);
+assert.match(imageSourcingSource, /FileBlob\.load[\s\S]*officekit image list[\s\S]*used, unused, and[\s\S]*unregistered/u);
+assert.doesNotMatch(imageSourcingSource, /\bmcp__|\bimage_gen\b|CODEX_THREAD_ID|google-drive@/iu);
 assert.match(taskSources.create, /presentation\.validateLayout\(\)[\s\S]*reopen the PPTX[\s\S]*Review and deliver/u);
 assert.match(designReviewSource, /six or more same-sized boxes[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*reason/u);
 assert.match(taskSources["edit-existing"], /changedPageIds[\s\S]*undeclared page change/u);

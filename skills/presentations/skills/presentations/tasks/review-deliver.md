@@ -32,6 +32,32 @@ complete the structural review and report `visualReview: "unavailable"`.
 Read [design review](../references/design-review.md) for invariant and warning
 semantics.
 
+## Review image use and rights
+
+For every changed page containing images, verify:
+
+- the image has an information role and is not repeated as generic filler;
+- the crop preserves the subject, the rendered resolution is adequate, and
+  foreground text remains legible against it;
+- meaningful images have concise alt text and decorative images are marked as
+  decorative;
+- evidence images show their source on the page when required;
+- CC BY credit lines are visible, either on the relevant page or on a dedicated
+  credits page appropriate to the deck;
+- visual review is reported as unavailable when the Agent could not understand
+  the rendered crop.
+
+After export, run:
+
+```bash
+officekit image audit candidate.pptx --task <task-id> \
+  --sources-output candidate.pptx.sources.json --json
+```
+
+Resolve every unregistered media part. Review unused task assets without
+pretending they were embedded. The sources sidecar is machine evidence; it does
+not replace visible attribution required by the license.
+
 ## Bind the plan and local scope
 
 ```js

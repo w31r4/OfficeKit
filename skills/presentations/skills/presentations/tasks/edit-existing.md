@@ -32,6 +32,12 @@ Prefer typed APIs. Use `editNativeLeaf` only with inspect-issued IDs and the
 current expected hash. Use source component/slide reuse only with its inspected
 capability. Avoid raw XML, XPath, relationship IDs, and whole-package rebuilds.
 
+For an image replacement, read
+[image sourcing](../references/image-sourcing.md), register the replacement in
+the current task, and then use the existing source-bound image replacement
+capability. Preserve the target's crop and geometry unless the requested scope
+changes them. Registration does not authorize flattening an opaque picture.
+
 Export after a source-bound edit. Reimport and reinspect before the next edit;
 capability IDs do not survive revision changes.
 

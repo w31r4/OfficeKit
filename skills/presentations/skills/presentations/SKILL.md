@@ -64,6 +64,8 @@ the outcome, evidence, or design authority.
 budget, and a dominant visual carrier. Durable work records this in the existing
 presentation authoring plan; its schema lives in
 [authoring plan](references/authoring-plan.md).
+When that carrier needs an external image or icon, load
+[image sourcing](references/image-sourcing.md) before composition.
 
 `design` starts from authority. User templates, brand systems, and supplied
 references outrank OfficeKit guidance. With no authority, use the C authoring
@@ -102,6 +104,8 @@ steps are in [Continue](tasks/continue.md).
   workflow.
 - Imported editing loads advanced guidance only for the targeted native object.
 - Motion loads only for a speaking or explicit animation requirement.
+- Image sourcing loads only for a declared media role that supplied or template
+  assets cannot fill.
 - Review and continuation each have one authoritative task document; do not
   copy their mechanics into another route.
 

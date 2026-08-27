@@ -68,6 +68,13 @@ For durable work, write the existing
 - one dominant visual carrier and its asset/source strategy;
 - a page silhouette that contributes to the deck-wide rhythm.
 
+When a page's dominant carrier is an image or icon, name its job: evidence,
+identity, explanation, or atmosphere. First inspect supplied and template
+assets. If the role remains unfilled, read
+[image sourcing](../references/image-sourcing.md), search with a short English
+query, inspect several compliant candidates, and register the selected asset
+before composition. A page does not need an image merely because space exists.
+
 Use a quantitative relationship as a chart, axis, direct label, spatial
 comparison, or diagram rather than an inventory of numbers. Title pages should
 be minimal; executive summaries should scan quickly through hierarchy and
