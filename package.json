@@ -32,9 +32,9 @@
     "node": ">=22.15.0"
   },
   "optionalDependencies": {
-    "office-kit-codec-darwin-arm64": "0.6.0",
-    "office-kit-codec-linux-x64": "0.6.0",
-    "office-kit-codec-win32-x64": "0.6.0"
+    "office-kit-codec-darwin-arm64": "1.0.0",
+    "office-kit-codec-linux-x64": "1.0.0",
+    "office-kit-codec-win32-x64": "1.0.0"
   },
   "exports": {
     ".": "./src/index.mjs",

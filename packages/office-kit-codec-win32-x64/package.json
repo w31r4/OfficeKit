@@ -1,6 +1,6 @@
 {
   "name": "office-kit-codec-win32-x64",
-  "version": "0.6.0",
+  "version": "1.0.0",
   "description": "OfficeKit NativeAOT codec for Windows x64.",
   "license": "AGPL-3.0-or-later",
   "os": ["win32"],
