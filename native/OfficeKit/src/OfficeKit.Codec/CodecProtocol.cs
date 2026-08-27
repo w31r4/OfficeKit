@@ -11,6 +11,11 @@ public static class CodecProtocol
 
     public static byte[] Invoke(byte[] requestBytes)
     {
+        return Invoke(ref requestBytes);
+    }
+
+    public static byte[] Invoke(ref byte[] requestBytes)
+    {
         var response = new CodecResponse { ProtocolVersion = ProtocolVersion };
         try
         {
@@ -20,6 +25,7 @@ public static class CodecProtocol
                 throw new CodecException("request_budget_exceeded", $"Codec request exceeds the absolute {AbsoluteRequestLimit}-byte wire budget.");
 
             var request = CodecRequest.Parser.ParseFrom(requestBytes);
+            requestBytes = [];
             ValidateRequest(request);
             var limits = EffectiveCodecLimits.From(request.Limits);
             switch (request.Operation)

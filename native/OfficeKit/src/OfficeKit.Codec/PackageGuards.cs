@@ -200,7 +200,9 @@ internal static class PackageGuards
                 var packageHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
                 opaque.SourcePackage = new SourcePackageSnapshot
                 {
-                    Data = Google.Protobuf.ByteString.CopyFrom(bytes),
+                    // Import owns this request buffer until the response has
+                    // been serialized, and the codec never mutates it.
+                    Data = Google.Protobuf.UnsafeByteOperations.UnsafeWrap(bytes),
                     Sha256 = packageHash,
                 };
             }

@@ -54,14 +54,14 @@ while (true)
         return 65;
     }
 
-    var response = CodecProtocol.Invoke(request);
+    var response = CodecProtocol.Invoke(ref request);
     if (response.Length > AbsoluteFrameLimit)
     {
         response = TransportFailure(
             "response_budget_exceeded",
             $"Codec response exceeds the absolute {AbsoluteFrameLimit}-byte native transport budget.");
     }
-    var largeExchange = (long)request.Length + response.Length >= LargeExchangeCollectionThreshold;
+    var largeExchange = (long)requestLength + response.Length >= LargeExchangeCollectionThreshold;
     if (largeExchange)
     {
         // CodecProtocol has already serialized the response. Release the input
