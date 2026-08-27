@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -13,6 +13,14 @@ import {
   taskDetail,
 } from "../src/cli/task-store.mjs";
 import { formatTaskList } from "../src/cli/tasks.mjs";
+import {
+  addTaskImageAsset,
+  listTaskImageAssets,
+  listTaskImageSearches,
+  recordTaskImageSearch,
+  resolveTaskImageCandidate,
+} from "../src/images/task-assets.mjs";
+import { normalizeImageRights } from "../src/images/rights.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-tasks-"));
 const workspace = path.join(root, "workspace");
@@ -58,6 +66,49 @@ assert.equal(detail.task.goal, "Task 4");
 assert.equal(detail.task.state, "new");
 assert.equal(detail.task.head, null);
 assert.deepEqual(detail.task.inputs, []);
+
+const imageBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+const registeredImage = await addTaskImageAsset(created[3], {
+  bytes: imageBytes,
+  mimeType: "image/png",
+  rights: "user-provided",
+  source: { kind: "file", name: "evidence.png" },
+  now: new Date("2026-08-13T09:00:00.000Z"),
+});
+const repeatedImage = await addTaskImageAsset(created[3], {
+  bytes: imageBytes,
+  mimeType: "image/png",
+  rights: "user-provided",
+  source: { kind: "file", name: "evidence.png" },
+  now: new Date("2026-08-13T10:00:00.000Z"),
+});
+assert.equal(repeatedImage.sha256, registeredImage.sha256);
+assert.equal((await listTaskImageAssets(created[3])).length, 1);
+if (process.platform !== "win32") assert.equal((await stat(registeredImage.path)).mode & 0o777, 0o400);
+const imageSearch = await recordTaskImageSearch(created[3], {
+  query: "market trend",
+  kind: "icon",
+  purpose: "context",
+  orientation: "square",
+  candidates: [{
+    provider: "lucide",
+    kind: "icon",
+    title: "chart-no-axes-combined",
+    acquisitionUrl: "lucide:chart-no-axes-combined",
+    rights: normalizeImageRights("lucide-isc", { provider: "lucide", evidence: "package-license" }),
+  }],
+  now: new Date("2026-08-13T09:05:00.000Z"),
+});
+assert.equal(imageSearch.selectionMade, false);
+assert.equal(Object.hasOwn(imageSearch.candidates[0], "acquisitionUrl"), false);
+assert.equal((await resolveTaskImageCandidate(created[3], imageSearch.candidates[0].candidateRef)).acquisitionUrl, "lucide:chart-no-axes-combined");
+const reopenedImageTask = await openTask({ workspaceRoot: workspace, taskId: selectedId });
+assert.equal((await listTaskImageAssets(reopenedImageTask)).length, 1);
+assert.equal((await listTaskImageSearches(reopenedImageTask))[0].candidates[0].candidateRef, imageSearch.candidates[0].candidateRef);
+await assert.rejects(
+  resolveTaskImageCandidate(foreign, imageSearch.candidates[0].candidateRef),
+  (error) => error.code === "image-candidate-not-found",
+);
 
 await assert.rejects(
   openTask({ workspaceRoot: workspace, taskId: "defense-deck" }),
