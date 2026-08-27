@@ -203,7 +203,12 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       Object.defineProperty(this, "editable", { enumerable: true, value: false, writable: false });
       this.relationshipReferences = (config.relationshipReferences || []).map((reference) => ({ ...reference }));
       this.rootRelationships = (config.rootRelationships || []).map((relationship) => ({ ...relationship }));
-      this.parts = (config.parts || []).map((part) => ({ ...part, bytes: new Uint8Array(part.bytes), relationships: (part.relationships || []).map((relationship) => ({ ...relationship })) }));
+      const shareImportedPartBytes = config._officeKitSharePartBytes === true;
+      this.parts = (config.parts || []).map((part) => ({
+        ...part,
+        bytes: shareImportedPartBytes ? part.bytes : new Uint8Array(part.bytes),
+        relationships: (part.relationships || []).map((relationship) => ({ ...relationship })),
+      }));
       const oleWorkbook = config.oleWorkbook ? Object.freeze({
         partPath: String(config.oleWorkbook.partPath || ""),
         contentType: String(config.oleWorkbook.contentType || ""),

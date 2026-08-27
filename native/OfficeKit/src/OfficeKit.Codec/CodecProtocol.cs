@@ -1,5 +1,6 @@
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
+using System.Runtime.InteropServices;
 
 namespace OfficeKit.Codec;
 
@@ -25,7 +26,7 @@ public static class CodecProtocol
             {
                 case CodecOperation.ImportXlsx:
                 {
-                    var result = XlsxCodec.Import(request.File.ToByteArray(), limits);
+                    var result = XlsxCodec.Import(RequestFileBytes(request.File), limits);
                     response.Artifact = result.Artifact;
                     response.Diagnostics.Add(result.Diagnostics);
                     break;
@@ -39,7 +40,7 @@ public static class CodecProtocol
                 }
                 case CodecOperation.ImportDocx:
                 {
-                    var result = DocxCodec.Import(request.File.ToByteArray(), limits);
+                    var result = DocxCodec.Import(RequestFileBytes(request.File), limits);
                     response.Artifact = result.Artifact;
                     response.Diagnostics.Add(result.Diagnostics);
                     break;
@@ -54,7 +55,7 @@ public static class CodecProtocol
                 case CodecOperation.FinalizeDocxRevisions:
                 {
                     var result = DocxRevisionFinalizationCodec.Finalize(
-                        request.File.ToByteArray(),
+                        RequestFileBytes(request.File),
                         request.RevisionFinalization,
                         limits);
                     response.File = ByteString.CopyFrom(result.File);
@@ -65,7 +66,7 @@ public static class CodecProtocol
                 case CodecOperation.AddDocxTrackedReplacement:
                 {
                     var result = DocxTrackedReplacementCodec.Add(
-                        request.File.ToByteArray(),
+                        RequestFileBytes(request.File),
                         request.TrackedReplacement,
                         limits);
                     response.File = ByteString.CopyFrom(result.File);
@@ -75,7 +76,7 @@ public static class CodecProtocol
                 }
                 case CodecOperation.ImportPptx:
                 {
-                    var result = PptxCodec.Import(request.File.ToByteArray(), limits);
+                    var result = PptxCodec.Import(RequestFileBytes(request.File), limits);
                     response.Artifact = result.Artifact;
                     response.Diagnostics.Add(result.Diagnostics);
                     break;
@@ -90,7 +91,7 @@ public static class CodecProtocol
                 case CodecOperation.ApplyPptxEditPlan:
                 {
                     var result = PptxEditPlanCodec.Apply(
-                        request.File.ToByteArray(),
+                        RequestFileBytes(request.File),
                         request.PresentationEditPlan,
                         limits);
                     response.File = ByteString.CopyFrom(result.File);
@@ -116,6 +117,14 @@ public static class CodecProtocol
             response.Diagnostics.Add(Error("codec_failure", "OpenXML codec failed while processing the request."));
         }
         return response.ToByteArray();
+    }
+
+    private static byte[] RequestFileBytes(ByteString file)
+    {
+        if (MemoryMarshal.TryGetArray(file.Memory, out var segment) && segment.Array is not null &&
+            segment.Offset == 0 && segment.Count == segment.Array.Length)
+            return segment.Array;
+        return file.ToByteArray();
     }
 
     private static void ValidateRequest(CodecRequest request)

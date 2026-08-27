@@ -55,14 +55,18 @@ export function codecLimits(limits = {}) {
 }
 
 function bytesFrom(value) {
-  if (value instanceof Uint8Array) return value;
+  if (value instanceof Uint8Array) {
+    return value.constructor === Uint8Array
+      ? value
+      : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
   throw new TypeError("Expected FileBlob, Uint8Array, ArrayBuffer, or ArrayBuffer view.");
 }
 
 export async function inputBytes(value) {
-  if (value instanceof FileBlob) return new Uint8Array(await value.arrayBuffer());
+  if (value instanceof FileBlob) return bytesFrom(value.bytes);
   return bytesFrom(value);
 }
 
