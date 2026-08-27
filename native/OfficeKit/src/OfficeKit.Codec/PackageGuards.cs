@@ -160,19 +160,33 @@ internal static class PackageGuards
             {
                 if (entry.FullName.EndsWith("/", StringComparison.Ordinal) ||
                     entry.FullName.Equals("[Content_Types].xml", StringComparison.OrdinalIgnoreCase)) continue;
-                using var partStream = entry.Open();
-                using var copy = new MemoryStream();
-                partStream.CopyTo(copy);
-                var data = copy.ToArray();
-                if (entry.FullName.EndsWith(".rels", StringComparison.OrdinalIgnoreCase))
-                    CollectOpaqueRelationships(entry.FullName, data, opaque, profile);
+                var isRelationshipPart = entry.FullName.EndsWith(".rels", StringComparison.OrdinalIgnoreCase);
+                byte[]? relationshipData = null;
+                if (isRelationshipPart)
+                {
+                    using var relationshipStream = entry.Open();
+                    using var copy = new MemoryStream();
+                    relationshipStream.CopyTo(copy);
+                    relationshipData = copy.ToArray();
+                    CollectOpaqueRelationships(entry.FullName, relationshipData, opaque, profile);
+                }
                 var contentType = contentTypes.ForPart(entry.FullName, profile);
                 if (profile.OwnsPath(entry.FullName)) continue;
+                byte[] digest;
+                if (relationshipData is not null)
+                {
+                    digest = SHA256.HashData(relationshipData);
+                }
+                else
+                {
+                    using var partStream = entry.Open();
+                    digest = SHA256.HashData(partStream);
+                }
                 opaque.Parts.Add(new OpaqueOpcPart
                 {
                     Path = entry.FullName,
                     ContentType = contentType,
-                    Sha256 = Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant(),
+                    Sha256 = Convert.ToHexString(digest).ToLowerInvariant(),
                 });
             }
             var partByPath = opaque.Parts.ToDictionary(part => part.Path, StringComparer.OrdinalIgnoreCase);

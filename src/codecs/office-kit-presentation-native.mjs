@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
-import { loadOoxmlZipWithinBudget } from "../ooxml/package.mjs";
 
 function fail(code, message) {
   throw new OfficeKitCodecError(message, [], { code });
@@ -62,6 +61,7 @@ export async function materializePresentationNativeGraphs(envelope, options = {}
   if ([...requestedPaths].some((partPath) => !(partsByPath.get(partPath)?.data?.length))) {
     if (!sourceBytes?.length) fail("missing_source_package", "OfficeKit native-object graph cannot be materialized because its source package snapshot is missing.");
     try {
+      const { loadOoxmlZipWithinBudget } = await import("../ooxml/package.mjs");
       zip = await loadOoxmlZipWithinBudget(sourceBytes, options, "PPTX");
     } catch (error) {
       fail("invalid_opc_package", `OfficeKit source package snapshot is not a readable ZIP package: ${error.message}`);

@@ -3496,6 +3496,17 @@ function createPresentationNativeLeafCapability(presentation, state) {
   if (!/^[0-9a-f]{64}$/u.test(revisionSha256)) return undefined;
   const registry = new Map();
   const records = [];
+  const snapshotDataUrlHashes = new Map();
+  const snapshotModel = (model) => presentationNativeLeafModelSnapshot(model, snapshotDataUrlHashes);
+  const rootSourceSnapshots = new WeakMap();
+  const rootSourceSnapshot = (rootEntry) => {
+    let snapshot = rootSourceSnapshots.get(rootEntry);
+    if (snapshot === undefined) {
+      snapshot = snapshotModel(rootEntry.model);
+      rootSourceSnapshots.set(rootEntry, snapshot);
+    }
+    return snapshot;
+  };
   const connectedTargetIds = new Set();
   const collectConnectedTargets = (wire) => {
     if (wire.content.case === "connector") {
@@ -3532,7 +3543,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       slideState,
       shapeTreePath: [...shapeTreePath],
       rootEntry,
-      rootSourceSnapshot: presentationNativeLeafModelSnapshot(rootEntry.model),
+      rootSourceSnapshot: rootSourceSnapshot(rootEntry),
       compilerBinding,
       normalize,
       isNoop,
@@ -3819,7 +3830,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
         throw presentationNativeLeafError("presentation_native_leaf_noop", "Presentation native-leaf edit must change its source value.");
       }
       const authorizedBefore = state.authorizedNativeLeafSnapshots?.get(leaf.rootEntry.wire.id) ?? leaf.rootSourceSnapshot;
-      if (presentationNativeLeafModelSnapshot(leaf.rootEntry.model) !== authorizedBefore) {
+      if (snapshotModel(leaf.rootEntry.model) !== authorizedBefore) {
         throw presentationNativeLeafError("presentation_native_leaf_concurrent_change", "Presentation native-leaf editing requires the target ownership tree to remain unchanged outside previously authorized native leaves.");
       }
       return { leaf, normalized };
@@ -3827,7 +3838,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
   const applyPrepared = ({ leaf, normalized }) => {
       leaf.apply(normalized.raw);
       state.authorizedNativeLeafSnapshots ??= new Map();
-      state.authorizedNativeLeafSnapshots.set(leaf.rootEntry.wire.id, presentationNativeLeafModelSnapshot(leaf.rootEntry.model));
+      state.authorizedNativeLeafSnapshots.set(leaf.rootEntry.wire.id, snapshotModel(leaf.rootEntry.model));
       state.pendingNativeLeafEdits ??= new Map();
       state.pendingNativeLeafEdits.set(leaf.leafId, Object.freeze({ leaf, value: normalized.raw }));
       return Object.freeze({
@@ -3871,12 +3882,34 @@ function createPresentationNativeLeafCapability(presentation, state) {
   });
 }
 
-function presentationNativeLeafModelSnapshot(model) {
+function compactPresentationSnapshotDataUrls(value, hashes) {
+  if (Array.isArray(value)) {
+    for (const item of value) compactPresentationSnapshotDataUrls(item, hashes);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "dataUrl" && typeof child === "string") {
+      let identity = hashes?.get(child);
+      if (identity === undefined) {
+        identity = `sha256:${createHash("sha256").update(child).digest("hex")}:${child.length}`;
+        hashes?.set(child, identity);
+      }
+      value[key] = identity;
+    } else {
+      compactPresentationSnapshotDataUrls(child, hashes);
+    }
+  }
+}
+
+function presentationNativeLeafModelSnapshot(model, dataUrlHashes) {
+  const layout = model.layoutJson();
+  compactPresentationSnapshotDataUrls(layout, dataUrlHashes);
   return JSON.stringify({
     id: model.id,
     nativeId: model.nativeId,
     creationId: model.creationId,
-    layout: model.layoutJson(),
+    layout,
   });
 }
 
@@ -4879,7 +4912,7 @@ export async function presentationFromEnvelope(envelope) {
     customShowLinks.set(show.id, show.name);
   }
   const nativeGraph = await materializePresentationNativeGraphs(envelope);
-  const assetCatalog = createPresentationAssetCatalog(envelope.assets || []);
+  const assetCatalog = createPresentationAssetCatalog(envelope.assets || [], { shareBytes: true });
   const presentation = Presentation.create({
     slideSize: { width: Number(source.slideWidthEmu) / EMU_PER_PIXEL, height: Number(source.slideHeightEmu) / EMU_PER_PIXEL },
   });
@@ -5166,6 +5199,7 @@ export async function presentationFromEnvelope(envelope) {
         model = slide.nativeObjects.add({
           id: element.id,
           name: element.name,
+          _officeKitSharePartBytes: true,
           nativeKind: opaque.nativeKind || presentationNativeKind(opaque.elementName),
           position: {
             left: Number(opaque.leftEmu) / EMU_PER_PIXEL,
@@ -5430,19 +5464,25 @@ export async function presentationFromEnvelope(envelope) {
     configurable: true,
     value: (slide) => duplicateImportedPresentationSlide(presentation, presentationState, slide),
   });
-  const nativeLeafCapability = createPresentationNativeLeafCapability(presentation, presentationState);
-  if (nativeLeafCapability) {
-    Object.defineProperty(presentation, PRESENTATION_NATIVE_LEAF_CAPABILITY, {
-      configurable: true,
-      value: nativeLeafCapability,
-    });
-  }
-  const componentCapability = createPresentationComponentCapability(presentation, presentationState);
-  if (componentCapability) {
-    Object.defineProperty(presentation, PRESENTATION_COMPONENT_CAPABILITY, {
-      configurable: true,
-      value: componentCapability,
-    });
+  const revisionSha256 = String(presentationState.opaqueOpc?.sourcePackage?.sha256 || presentationState.source?.packageSha256 || "").toLowerCase();
+  if (/^[0-9a-f]{64}$/u.test(revisionSha256)) {
+    const defineLazyCapability = (symbol, create) => {
+      Object.defineProperty(presentation, symbol, {
+        configurable: true,
+        get() {
+          const capability = create();
+          Object.defineProperty(presentation, symbol, {
+            configurable: true,
+            value: capability,
+          });
+          return capability;
+        },
+      });
+    };
+    defineLazyCapability(PRESENTATION_NATIVE_LEAF_CAPABILITY, () =>
+      createPresentationNativeLeafCapability(presentation, presentationState));
+    defineLazyCapability(PRESENTATION_COMPONENT_CAPABILITY, () =>
+      createPresentationComponentCapability(presentation, presentationState));
   }
   return presentation;
 }

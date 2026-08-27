@@ -67,14 +67,17 @@ function parseDataUrl(value) {
   return { bytes, contentType, extension: format.extension };
 }
 
-function validateAsset(asset) {
+function validateAsset(asset, shareBytes = false) {
   const id = String(asset?.id || "");
   const isPicture = new RegExp(`^${PICTURE_ASSET_PREFIX}[0-9a-f]{64}$`).test(id);
   const isOleWorkbook = new RegExp(`^${OLE_WORKBOOK_ASSET_PREFIX}[0-9a-f]{64}$`).test(id);
   const isOleOfficePackage = new RegExp(`^${OLE_OFFICE_PACKAGE_ASSET_PREFIX}[0-9a-f]{64}$`).test(id);
   if (!isPicture && !isOleWorkbook && !isOleOfficePackage) fail(`Presentation asset ID ${id || "(missing)"} is invalid.`);
   const contentType = normalizeContentType(asset.contentType);
-  const bytes = Buffer.from(asset.data || []);
+  const rawBytes = asset.data || [];
+  const bytes = shareBytes && ArrayBuffer.isView(rawBytes)
+    ? Buffer.from(rawBytes.buffer, rawBytes.byteOffset, rawBytes.byteLength)
+    : Buffer.from(rawBytes);
   const format = isPicture
     ? validateImage(contentType, bytes, `Presentation asset ${id}`)
     : isOleWorkbook
@@ -112,11 +115,12 @@ function validateOleOfficePackage(contentType, bytes, label) {
   return { extension: "docx", kind: "docx" };
 }
 
-export function createPresentationAssetCatalog(initialAssets = []) {
+export function createPresentationAssetCatalog(initialAssets = [], options = {}) {
   if (initialAssets.length > MAX_ASSET_COUNT) fail(`Presentation exceeds the ${MAX_ASSET_COUNT}-asset budget.`, "presentation_asset_budget_exceeded");
   const byId = new Map();
+  const dataUrls = new Map();
   for (const raw of initialAssets) {
-    const asset = validateAsset(raw);
+    const asset = validateAsset(raw, options.shareBytes === true);
     if (byId.has(asset.id)) fail(`Presentation contains duplicate asset ID ${asset.id}.`);
     byId.set(asset.id, asset);
   }
@@ -138,9 +142,15 @@ export function createPresentationAssetCatalog(initialAssets = []) {
       return id;
     },
     dataUrl(id) {
-      const asset = byId.get(String(id));
+      const key = String(id);
+      const asset = byId.get(key);
       if (!asset || !asset.id.startsWith(PICTURE_ASSET_PREFIX)) fail(`Presentation picture bullet references missing asset ${id || "(missing)"}.`);
-      return `data:${asset.contentType};base64,${asset.data.toString("base64")}`;
+      let value = dataUrls.get(key);
+      if (value === undefined) {
+        value = `data:${asset.contentType};base64,${asset.data.toString("base64")}`;
+        dataUrls.set(key, value);
+      }
+      return value;
     },
     addOleWorkbook(data) {
       const bytes = Buffer.from(data || []);
