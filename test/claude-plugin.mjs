@@ -9,19 +9,19 @@ const marketplace = JSON.parse(await fs.readFile(marketplacePath, "utf8"));
 assert.equal(marketplace.name, "officekit");
 assert.match(marketplace.description, /Office and PDF/i);
 assert.equal(marketplace.owner.name, "w31r4");
-assert.equal(marketplace.metadata.version, "1.0.0");
+assert.equal(marketplace.metadata.version, "1.1.0");
 assert.ok(Array.isArray(marketplace.plugins));
 
 const expected = new Map([
-  ["office-kit", { version: "1.0.0", license: "AGPL-3.0-or-later" }],
+  ["office-kit", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["documents", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
   ["spreadsheets", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
-  ["presentations", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
+  ["presentations", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["pdf", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
-  ["template-creator", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
+  ["template-creator", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["presentation-template-creator", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["presentation-template-library", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
-  ["default-template-library", { version: "0.2.0", license: "MIT" }],
+  ["default-template-library", { version: "1.1.0", license: "MIT" }],
 ]);
 assert.deepEqual(
   marketplace.plugins.map((plugin) => plugin.name),

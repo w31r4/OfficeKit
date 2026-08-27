@@ -456,7 +456,7 @@ console.log(JSON.stringify({ candidateCount: records.length, status: candidate.s
     path.join(dependencyRoot, "package.json"),
     `${JSON.stringify({
       name: "local-probe",
-      version: "1.0.0",
+      version: "1.1.0",
       type: "module",
       exports: "./index.mjs",
     })}\n`,

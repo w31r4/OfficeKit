@@ -1,6 +1,6 @@
 {
   "name": "office-kit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "OfficeKit: agent-native Office and PDF Skills plus JavaScript APIs for creating, inspecting, editing, rendering, and verifying artifacts.",
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -32,9 +32,9 @@
     "node": ">=22.15.0"
   },
   "optionalDependencies": {
-    "office-kit-codec-darwin-arm64": "0.6.0",
-    "office-kit-codec-linux-x64": "0.6.0",
-    "office-kit-codec-win32-x64": "0.6.0"
+    "office-kit-codec-darwin-arm64": "1.1.0",
+    "office-kit-codec-linux-x64": "1.1.0",
+    "office-kit-codec-win32-x64": "1.1.0"
   },
   "exports": {
     ".": "./src/index.mjs",

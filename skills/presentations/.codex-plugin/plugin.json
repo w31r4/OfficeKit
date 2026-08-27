@@ -1,6 +1,6 @@
 {
   "name": "presentations",
-  "version": "0.2.0",
+  "version": "1.1.0",
   "description": "Create, edit, render, verify, and export presentation slide decks for agent workflows, including PowerPoint, Google Slides, PPT, PPTX, .ppt, and .pptx files.",
   "author": {
     "name": "w31r4",

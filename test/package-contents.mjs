@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "1.0.0");
+assert.equal(packageMetadata.version, "1.1.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.dependencies["@firecrawl/anydoc"], "0.1.3");
@@ -24,9 +24,9 @@ assert.deepEqual(packageMetadata.bin, {
 });
 assert.equal(packageMetadata.engines.node, ">=22.15.0");
 assert.deepEqual(packageMetadata.optionalDependencies, {
-  "office-kit-codec-darwin-arm64": "0.6.0",
-  "office-kit-codec-linux-x64": "0.6.0",
-  "office-kit-codec-win32-x64": "0.6.0",
+  "office-kit-codec-darwin-arm64": "1.1.0",
+  "office-kit-codec-linux-x64": "1.1.0",
+  "office-kit-codec-win32-x64": "1.1.0",
 });
 assert.equal(
   packageMetadata.scripts["build:standalone"],
@@ -171,16 +171,16 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. The 1.0.0 global CLI deliberately ships the twenty-one audited
-// default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
-// cross-platform headroom over the measured 36,592,843-byte archive.
+// and hosted gates. The 1.1.0 global CLI ships 13 source-backed DOCX/XLSX
+// templates plus eight presentation style Skills once inside the package. Keep
+// narrow cross-platform headroom over the measured release archive.
 const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
 // and offline consumer guidance. Repository-generated evidence such as the API
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
-// Keep measured headroom for bounded codec/Skill growth and the compact Grid
-// Layout reference without concealing specialist binaries, generated evidence,
-// or provider binaries in the tarball.
+// Keep measured headroom for bounded codec/Skill growth and presentation
+// calibration images without concealing specialist binaries, generated
+// evidence, or provider binaries in the tarball.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
 const maxUnpackedBytes = 55_000_000;

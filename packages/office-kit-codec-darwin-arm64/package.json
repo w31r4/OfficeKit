@@ -1,6 +1,6 @@
 {
   "name": "office-kit-codec-darwin-arm64",
-  "version": "0.6.0",
+  "version": "1.1.0",
   "description": "OfficeKit NativeAOT codec for macOS Apple Silicon.",
   "license": "AGPL-3.0-or-later",
   "os": ["darwin"],

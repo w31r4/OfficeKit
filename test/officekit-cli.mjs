@@ -24,7 +24,7 @@ try {
   assert.match(help.stdout, /officekit excel <command>/);
   assert.match(help.stdout, /officekit live <command> --app <excel\|powerpoint>/);
   assert.match(help.stdout, /Choose Agent targets and install the OfficeKit Skills/);
-  assert.equal(run(["--version"]).stdout.trim(), "1.0.0");
+  assert.equal(run(["--version"]).stdout.trim(), "1.1.0");
   const excelHelp = run(["excel", "--help"]);
   assert.match(excelHelp.stdout, /officekit excel install/);
   assert.match(excelHelp.stdout, /officekit excel execute <request\.json>/);
@@ -107,7 +107,7 @@ try {
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
   assert.equal(manifest.installations.length, 20);
   assert.equal(manifest.package.name, "office-kit");
-  assert.equal(manifest.package.version, "1.0.0");
+  assert.equal(manifest.package.version, "1.1.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);
@@ -257,7 +257,7 @@ try {
     path.join(dependencyRoot, "package.json"),
     `${JSON.stringify({
       name: "local-probe",
-      version: "1.0.0",
+      version: "1.1.0",
       type: "module",
       exports: "./index.mjs",
     })}\n`,

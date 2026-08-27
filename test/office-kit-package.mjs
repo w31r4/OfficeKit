@@ -805,7 +805,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
     shell: process.platform === "win32",
   });
   assert.equal(launcherVersion.status, 0, `global officekit launcher failed\nSTDERR:\n${launcherVersion.stderr}`);
-  assert.equal(launcherVersion.stdout.trim(), "1.0.0");
+  assert.equal(launcherVersion.stdout.trim(), "1.1.0");
   // A Windows .cmd launcher is intended for an interactive command shell. Node's
   // `shell: true` flattens argv before it reaches that launcher, which changes
   // values containing spaces. Check that the launcher exists, then exercise the
@@ -829,7 +829,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
 
   const project = path.join(temporary, "global-empty-project");
   fs.mkdirSync(project, { recursive: true });
-  assert.equal(expectSuccess(["--version"], project).stdout.trim(), "1.0.0");
+  assert.equal(expectSuccess(["--version"], project).stdout.trim(), "1.1.0");
   const initialized = JSON.parse(expectSuccess([
     "init", ".", "--tools", "agents", "--json",
   ], project).stdout);
@@ -947,7 +947,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
     path.join(dependencyRoot, "package.json"),
     `${JSON.stringify({
       name: "local-probe",
-      version: "1.0.0",
+      version: "1.1.0",
       type: "module",
       exports: "./index.mjs",
     })}\n`,

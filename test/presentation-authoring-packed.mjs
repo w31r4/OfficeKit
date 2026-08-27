@@ -38,7 +38,7 @@ try {
   const cli = path.join(installedPackageRoot, "bin", "officekit.mjs");
   const packageMetadata = JSON.parse(await readFile(path.join(installedPackageRoot, "package.json"), "utf8"));
   assert.equal(packageMetadata.name, "office-kit");
-  assert.equal(packageMetadata.version, "1.0.0");
+  assert.equal(packageMetadata.version, "1.1.0");
   assert.equal(await exists(path.join(workspace, "node_modules")), false, "task workspace must not have a local OfficeKit dependency");
 
   const init = run(process.execPath, [cli, "init", workspace, "--tools", "agents", "--json"], { cwd: workspace });

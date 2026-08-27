@@ -102,10 +102,13 @@ for (const pluginName of pluginNames) {
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, pluginName);
   const expectedVersion = new Set([
+    "office-kit",
     "default-template-library",
     "presentation-template-creator",
     "presentation-template-library",
-  ]).has(pluginName) ? "1.1.0" : pluginName === "office-kit" ? "1.0.0" : "0.2.0";
+    "presentations",
+    "template-creator",
+  ]).has(pluginName) ? "1.1.0" : "0.2.0";
   assert.equal(manifest.version, expectedVersion);
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");
