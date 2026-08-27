@@ -1,7 +1,7 @@
 ## 1. Template contract
 
-- [ ] 1.1 Add schema-v3 presentation metadata validation and style-evidence search results while retaining schema-v2 DOCX/XLSX behavior.
-- [ ] 1.2 Reject source-backed presentation metadata and prohibited template assets with a specialist-creator migration error.
+- [x] 1.1 Add schema-v3 presentation metadata validation and style-evidence search results while retaining schema-v2 DOCX/XLSX behavior.
+- [x] 1.2 Reject source-backed presentation metadata and prohibited template assets with a specialist-creator migration error.
 - [ ] 1.3 Update the existing template search contract tests with one v3 candidate and one v2 rejection.
 
 ## 2. Presentation Template Creator

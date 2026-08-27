@@ -1,0 +1,31 @@
+{
+  "name": "presentation-template-library",
+  "version": "1.1.0",
+  "description": "Original OfficeKit presentation style Skills with visual calibration examples.",
+  "author": {
+    "name": "w31r4",
+    "email": "w31r4@users.noreply.github.com",
+    "url": "https://github.com/w31r4/OfficeKit"
+  },
+  "homepage": "https://github.com/w31r4/OfficeKit",
+  "repository": "https://github.com/w31r4/OfficeKit",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["office", "powerpoint", "templates", "design"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Presentation Template Library",
+    "shortDescription": "Original presentation style Skills",
+    "longDescription": "Eight original OfficeKit presentation styles expressed as concise guidance plus visual calibration examples for free composition.",
+    "developerName": "w31r4",
+    "category": "Productivity",
+    "capabilities": ["Interactive"],
+    "websiteURL": "https://github.com/w31r4/OfficeKit",
+    "privacyPolicyURL": "https://github.com/w31r4/OfficeKit#readme",
+    "termsOfServiceURL": "https://github.com/w31r4/OfficeKit#readme",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "defaultPrompt": ["Create a presentation using a selected OfficeKit style"],
+    "brandColor": "#D44A32",
+    "screenshots": []
+  }
+}

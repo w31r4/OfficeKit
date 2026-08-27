@@ -14,6 +14,8 @@ const TEMPLATE_NAME_PATTERN = /^artifact-template-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const HASH_PATTERN = /^[a-f0-9]{64}$/u;
 const MAX_SIDECAR_BYTES = 128 * 1024;
 const MAX_SKILL_BYTES = 256 * 1024;
+const MIN_PRESENTATION_EXAMPLES = 4;
+const MAX_PRESENTATION_EXAMPLES = 6;
 const DEFAULT_MAX_CANDIDATES = 5;
 const MAX_CANDIDATES = 20;
 const MAX_INTENT_VALUES = 20;
@@ -31,6 +33,16 @@ const VALID_DENSITIES = new Set(["sparse", "medium", "dense", "mixed"]);
 const VALID_COLOR_MODES = new Set(["light", "dark", "neutral", "mixed"]);
 const VALID_COMMITMENTS = new Set(["neutral", "opinionated"]);
 const VALID_EDIT_LEVELS = new Set(["copy-only", "bounded-edit", "composable"]);
+const VALID_PRESENTATION_EXAMPLE_ROLES = new Set([
+  "cover",
+  "section",
+  "analysis",
+  "data",
+  "process",
+  "comparison",
+  "closing",
+  "mixed",
+]);
 const BM25_FIELD_WEIGHTS = Object.freeze({
   identity: 1.5,
   useWhen: 4,
@@ -239,6 +251,10 @@ async function defaultRoots(projectPath) {
     ...await projectTemplateRoots(projectPath),
     { path: path.join(officeKitHome, "skills"), source: "local-user" },
     {
+      path: path.join(PACKAGE_ROOT, "skills/presentation-template-library/skills"),
+      source: "package-default",
+    },
+    {
       path: path.join(PACKAGE_ROOT, "skills/default-template-library/skills"),
       source: "package-default",
     },
@@ -307,12 +323,9 @@ async function readTemplate({ expectedId, root, templatePath }) {
   }
   validateMetadata(metadata, expectedId);
 
-  const skillPath = await resolveTemplateSkill(templatePath);
-  const referencePath = await resolveAsset(
+  const skillPath = await resolveTemplateSkill(
     templatePath,
-    metadata.reference,
-    metadata.provenance.referenceSha256,
-    "reference",
+    metadata.kind === "presentation" ? metadata.provenance.guideSha256 : null,
   );
   const previewPath = await resolveAsset(
     templatePath,
@@ -321,7 +334,8 @@ async function readTemplate({ expectedId, root, templatePath }) {
     "preview",
   );
 
-  return {
+  const shared = {
+    templateSchemaVersion: metadata.schemaVersion,
     id: metadata.id,
     displayName: metadata.displayName,
     kind: metadata.kind,
@@ -331,18 +345,45 @@ async function readTemplate({ expectedId, root, templatePath }) {
     contentShapes: metadata.contentShapes,
     visualTraits: metadata.visualTraits,
     visualCommitment: metadata.visualCommitment,
-    editProfile: metadata.editProfile,
-    provenance: {
-      license: metadata.provenance.license,
-      source: metadata.provenance.source,
-      referenceSha256: metadata.provenance.referenceSha256,
-      previewSha256: metadata.provenance.previewSha256,
-    },
+    provenance: { ...metadata.provenance },
     catalogSource: root.source,
     templateRoot: await fs.realpath(templatePath),
     skillPath,
-    referencePath,
     previewPath,
+  };
+  if (metadata.kind === "presentation") {
+    await assertPresentationTemplateSurface(templatePath, metadata);
+    const examplePaths = await Promise.all(
+      metadata.examples.map((example, index) =>
+        resolveAsset(
+          templatePath,
+          example.path,
+          example.sha256,
+          `examples[${index}]`,
+        )),
+    );
+    return {
+      ...shared,
+      examples: metadata.examples.map((example, index) => ({
+        role: example.role,
+        path: example.path,
+        sha256: example.sha256,
+        absolutePath: examplePaths[index],
+      })),
+      examplePaths,
+    };
+  }
+
+  const referencePath = await resolveAsset(
+    templatePath,
+    metadata.reference,
+    metadata.provenance.referenceSha256,
+    "reference",
+  );
+  return {
+    ...shared,
+    editProfile: metadata.editProfile,
+    referencePath,
   };
 }
 
@@ -350,6 +391,22 @@ function validateMetadata(value, expectedId) {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("metadata must be an object");
   }
+  if (value.schemaVersion === 2 && value.kind === "presentation") {
+    throw new Error(
+      "presentation schema v2 is unsupported; rebuild it with presentation-template-creator",
+    );
+  }
+  if (value.schemaVersion === 3) {
+    validatePresentationMetadata(value, expectedId);
+    return;
+  }
+  if (value.schemaVersion !== 2) {
+    throw new Error("schemaVersion must be 2 for document/spreadsheet or 3 for presentation");
+  }
+  validateSourceTemplateMetadata(value, expectedId);
+}
+
+function validateSourceTemplateMetadata(value, expectedId) {
   assertObjectKeys(
     value,
     "metadata",
@@ -370,15 +427,17 @@ function validateMetadata(value, expectedId) {
       "provenance",
     ],
   );
-  if (value.schemaVersion !== 2) {
-    throw new Error("schemaVersion must be 2");
-  }
   assertTemplateId(value.id, "id");
   if (value.id !== expectedId) {
     throw new Error(`id must match directory name ${expectedId}`);
   }
   assertShortString(value.displayName, "displayName", 80);
   assertKind(value.kind);
+  if (value.kind === "presentation") {
+    throw new Error(
+      "presentation schema v2 is unsupported; rebuild it with presentation-template-creator",
+    );
+  }
   assertEnglishSearchArray(value.useWhen, "useWhen", { min: 1, max: 20 });
   assertEnglishSearchArray(value.avoidWhen, "avoidWhen", { min: 0, max: 20 });
   assertEnglishSearchArray(value.audiences, "audiences", { min: 0, max: 20 });
@@ -437,6 +496,95 @@ function validateMetadata(value, expectedId) {
   assertHash(value.provenance.previewSha256, "provenance.previewSha256");
 }
 
+function validatePresentationMetadata(value, expectedId) {
+  assertObjectKeys(
+    value,
+    "metadata",
+    [
+      "schemaVersion",
+      "id",
+      "displayName",
+      "kind",
+      "preview",
+      "examples",
+      "useWhen",
+      "avoidWhen",
+      "audiences",
+      "contentShapes",
+      "visualTraits",
+      "visualCommitment",
+      "provenance",
+    ],
+  );
+  if (value.kind !== "presentation") {
+    throw new Error("schemaVersion 3 is reserved for presentation templates");
+  }
+  assertTemplateId(value.id, "id");
+  if (value.id !== expectedId) {
+    throw new Error(`id must match directory name ${expectedId}`);
+  }
+  assertShortString(value.displayName, "displayName", 80);
+  assertEnglishSearchArray(value.useWhen, "useWhen", { min: 1, max: 20 });
+  assertEnglishSearchArray(value.avoidWhen, "avoidWhen", { min: 0, max: 20 });
+  assertEnglishSearchArray(value.audiences, "audiences", { min: 0, max: 20 });
+  assertEnglishSearchArray(value.contentShapes, "contentShapes", { min: 0, max: 20 });
+  validateVisualMetadata(value);
+  assertRelativePngPath(value.preview, "preview");
+  if (!Array.isArray(value.examples) ||
+      value.examples.length < MIN_PRESENTATION_EXAMPLES ||
+      value.examples.length > MAX_PRESENTATION_EXAMPLES) {
+    throw new Error(
+      `examples must contain ${MIN_PRESENTATION_EXAMPLES}-${MAX_PRESENTATION_EXAMPLES} entries`,
+    );
+  }
+  const paths = new Set();
+  const roles = new Set();
+  for (const [index, example] of value.examples.entries()) {
+    if (example == null || typeof example !== "object" || Array.isArray(example)) {
+      throw new Error(`examples[${index}] must be an object`);
+    }
+    assertObjectKeys(example, `examples[${index}]`, ["path", "role", "sha256"]);
+    assertRelativePngPath(example.path, `examples[${index}].path`);
+    if (!example.path.startsWith("assets/examples/")) {
+      throw new Error(`examples[${index}].path must be under assets/examples/`);
+    }
+    assertEnum(example.role, `examples[${index}].role`, VALID_PRESENTATION_EXAMPLE_ROLES);
+    assertHash(example.sha256, `examples[${index}].sha256`);
+    if (paths.has(example.path)) throw new Error("examples must use unique paths");
+    paths.add(example.path);
+    roles.add(example.role);
+  }
+  if (roles.size < 3) throw new Error("examples must cover at least 3 distinct roles");
+  if (value.provenance == null || typeof value.provenance !== "object" || Array.isArray(value.provenance)) {
+    throw new Error("provenance must be an object");
+  }
+  assertObjectKeys(
+    value.provenance,
+    "provenance",
+    ["license", "source", "guideSha256", "previewSha256"],
+  );
+  assertShortString(value.provenance.license, "provenance.license", 120);
+  assertShortString(value.provenance.source, "provenance.source", 500);
+  assertHash(value.provenance.guideSha256, "provenance.guideSha256");
+  assertHash(value.provenance.previewSha256, "provenance.previewSha256");
+}
+
+function validateVisualMetadata(value) {
+  if (value.visualTraits == null || typeof value.visualTraits !== "object" || Array.isArray(value.visualTraits)) {
+    throw new Error("visualTraits must be an object");
+  }
+  assertObjectKeys(
+    value.visualTraits,
+    "visualTraits",
+    ["tone", "density", "colorMode", "structure"],
+  );
+  assertEnglishSearchArray(value.visualTraits.tone, "visualTraits.tone", { min: 0, max: 12 });
+  assertEnum(value.visualTraits.density, "visualTraits.density", VALID_DENSITIES);
+  assertEnum(value.visualTraits.colorMode, "visualTraits.colorMode", VALID_COLOR_MODES);
+  assertEnglishSearchArray(value.visualTraits.structure, "visualTraits.structure", { min: 0, max: 12 });
+  assertEnum(value.visualCommitment, "visualCommitment", VALID_COMMITMENTS);
+}
+
 async function resolveAsset(templatePath, relativePath, expectedHash, label) {
   const resolved = path.resolve(templatePath, relativePath);
   const canonicalTemplatePath = await fs.realpath(templatePath);
@@ -455,7 +603,7 @@ async function resolveAsset(templatePath, relativePath, expectedHash, label) {
   return canonicalAssetPath;
 }
 
-async function resolveTemplateSkill(templatePath) {
+async function resolveTemplateSkill(templatePath, expectedHash = null) {
   const candidate = path.join(templatePath, "SKILL.md");
   const stat = await fs.lstat(candidate);
   if (!stat.isFile() || stat.isSymbolicLink()) {
@@ -471,7 +619,48 @@ async function resolveTemplateSkill(templatePath) {
   if (!isInside(canonicalTemplatePath, canonicalSkillPath)) {
     throw new Error("SKILL.md escapes the template directory");
   }
+  if (expectedHash != null) {
+    const actualHash = await sha256File(canonicalSkillPath);
+    if (actualHash !== expectedHash) throw new Error("SKILL.md SHA-256 mismatch");
+  }
   return canonicalSkillPath;
+}
+
+async function assertPresentationTemplateSurface(templatePath, metadata) {
+  const allowedRoot = new Set(["SKILL.md", SIDECAR_NAME, "agents", "assets"]);
+  const rootEntries = await fs.readdir(templatePath, { withFileTypes: true });
+  for (const entry of rootEntries) {
+    if (!allowedRoot.has(entry.name) || entry.isSymbolicLink()) {
+      throw new Error(`presentation template contains unsupported entry: ${entry.name}`);
+    }
+  }
+  for (const required of allowedRoot) {
+    if (!rootEntries.some((entry) => entry.name === required)) {
+      throw new Error(`presentation template is missing ${required}`);
+    }
+  }
+  const agentsPath = path.join(templatePath, "agents");
+  const agentEntries = await fs.readdir(agentsPath, { withFileTypes: true });
+  if (agentEntries.length !== 1 || agentEntries[0].name !== "agent.yaml" ||
+      !agentEntries[0].isFile() || agentEntries[0].isSymbolicLink()) {
+    throw new Error("presentation template agents must contain only agent.yaml");
+  }
+  const assetsPath = path.join(templatePath, "assets");
+  const assetEntries = await fs.readdir(assetsPath, { withFileTypes: true });
+  if (assetEntries.length !== 2 ||
+      !assetEntries.some((entry) => entry.name === "preview.png" && entry.isFile()) ||
+      !assetEntries.some((entry) => entry.name === "examples" && entry.isDirectory()) ||
+      assetEntries.some((entry) => entry.isSymbolicLink())) {
+    throw new Error("presentation template assets must contain only preview.png and examples/");
+  }
+  const examplesPath = path.join(assetsPath, "examples");
+  const exampleEntries = await fs.readdir(examplesPath, { withFileTypes: true });
+  const expectedFiles = new Set(metadata.examples.map((example) => path.posix.basename(example.path)));
+  if (exampleEntries.length !== expectedFiles.size ||
+      exampleEntries.some((entry) =>
+        !entry.isFile() || entry.isSymbolicLink() || !expectedFiles.has(entry.name))) {
+    throw new Error("presentation template examples/ must match metadata exactly");
+  }
 }
 
 function createBm25Context(candidates, intent, tags) {
@@ -655,7 +844,7 @@ function assessCandidate(candidate, intent, tags, bm25) {
   }
 
   const verifiedOperations = new Set(
-    candidate.editProfile.verifiedOperations.map(normalizeTag),
+    (candidate.editProfile?.verifiedOperations ?? []).map(normalizeTag),
   );
   const missingOperations = intent.requiredOperations.filter(
     (operation) => !verifiedOperations.has(operation),
@@ -944,6 +1133,13 @@ function assertRelativeAssetPath(value, label) {
     value.split("/").some((segment) => segment === "" || segment === "." || segment === "..")
   ) {
     throw new Error(`${label} must be a safe relative path`);
+  }
+}
+
+function assertRelativePngPath(value, label) {
+  assertRelativeAssetPath(value, label);
+  if (path.posix.extname(value).toLowerCase() !== ".png") {
+    throw new Error(`${label} must use a .png file`);
   }
 }
 
