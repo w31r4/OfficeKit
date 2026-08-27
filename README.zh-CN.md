@@ -178,6 +178,27 @@ Presentation Editorial Trim 会在构图前和首轮渲染后分别整理文案�
 完整方法见 [OfficeKit 所说的演示文稿是什么](docs/what-is-a-presentation.zh-CN.md)，
 其中说明了沟通任务、生命周期、六层质量模型和原生产物边界。
 
+## 为演示文稿找图并保留来源
+
+页面需要图片时，OfficeKit 可以搜索 Openverse、Wikimedia 或离线 Lucide 图标，
+由 Agent 从候选中选择，再把图片字节和权利凭证保存到当前任务。用户素材和模板素材
+仍然优先。
+
+```sh
+officekit image search "institutional bitcoin trading" \
+  --task <task-id> --kind photo --purpose evidence \
+  --orientation landscape --max 5 --json
+
+officekit image add --task <task-id> --candidate <candidate-ref> --json
+officekit image audit deck.pptx --task <task-id> \
+  --sources-output deck.pptx.sources.json --json
+```
+
+搜索命令只返回候选，选择由 Agent 完成。登记后的图片按内容寻址，`tasks → resume`
+后可以继续使用。审计命令会按 SHA-256 核对 PPTX 中实际嵌入的媒体，并列出可见署名
+义务。Openverse 元数据标记为 provider-declared；Wikimedia 机器元数据与 Lucide ISC
+包许可证分别保留自己的证据类型。
+
 ## 一个总入口，也保留直接入口
 
 普通任务直接使用 OfficeKit。它会检查输入、确定输出格式、判断是否需要模板，

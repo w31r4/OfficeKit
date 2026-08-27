@@ -9,6 +9,8 @@ assert.equal(packageMetadata.version, "1.0.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.dependencies["@firecrawl/anydoc"], "0.1.3");
+assert.equal(packageMetadata.dependencies["webfetch-core"], "0.1.5");
+assert.equal(packageMetadata.dependencies["@iconify-json/lucide"], "1.2.126");
 assert.equal(packageMetadata.dependencies.selfsigned, "^5.5.0");
 assert.equal(packageMetadata.exports["./pdf/mupdf"], "./src/pdf/mupdf.mjs");
 assert.equal(packageMetadata.exports["./pdf/providers"], "./src/pdf/providers/index.mjs");
@@ -102,6 +104,7 @@ const officeKitCliSource = await fs.readFile(path.join(repoRoot, "src", "cli", "
 assert.doesNotMatch(officeKitCliSource, /node:child_process|https?:\/\/|\bfetch\s*\(/, "officekit init must remain a local Skill installer");
 assert.doesNotMatch(officeKitCliSource, /pdf\/providers|from\s+["']mupdf["']/, "officekit init must not initialize PDF runtimes or capability packs");
 assert.match(officeKitCliSource, /await import\("\.\.\/excel-live\/cli\.mjs"\)/, "Excel Live Control must load only for the excel subcommand");
+assert.match(officeKitCliSource, /await import\("\.\.\/images\/cli\.mjs"\)/, "image sourcing must load only for the image subcommand");
 assert.match(officeKitCliSource, /await import\("\.\/repl\.mjs"\)/, "REPL must load only for the repl subcommand");
 assert.doesNotMatch(officeKitCliSource, /from\s+["']\.\.\/excel-live\//, "root CLI import must not start the Excel bridge");
 const templateSearchSource = await fs.readFile(path.join(repoRoot, "src", "templates", "search.mjs"), "utf8");
@@ -251,6 +254,10 @@ for (const required of [
   "src/pdf/mupdf.mjs",
   "src/pdf/mupdf-outlines.mjs",
   "src/review/index.mjs",
+  "src/images/cli.mjs",
+  "src/images/download.mjs",
+  "src/images/providers.mjs",
+  "src/images/task-assets.mjs",
   "skills/office-kit/skills/office-kit/references/review.md",
   "src/pdf/providers/catalog.mjs",
   "src/pdf/providers/index.mjs",
@@ -410,6 +417,7 @@ for (const required of [
   "skills/presentations/manifest.json",
   "skills/presentations/README.md",
   "skills/presentations/skills/presentations/SKILL.md",
+  "skills/presentations/skills/presentations/references/image-sourcing.md",
   "skills/presentations/skills/presentations/agents/openai.yaml",
   "skills/presentations/skills/presentations/agents/agent.yaml",
   "skills/presentations/skills/presentations/references/conversation-workflow.md",

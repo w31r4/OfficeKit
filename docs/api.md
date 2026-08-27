@@ -1940,7 +1940,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.duplicate` | api | Clone one original imported PPTX slide after slide.cloneCapability proves a bounded ownership graph. The JavaScript model copies the unchanged semantic element tree and resolves connector targets to fresh clone-local identities; the OfficeKit Codec then creates a distinct SlidePart, recursively byte-copies every uniquely owned OpenXmlPart and DataPart with exact local relationship IDs and external links, and rebinds only proven shared layout, NotesMaster, image, slide-jump, and other identity resources. Custom-show membership is unchanged. The pending clone cannot be edited, cloned twice, or lose its origin before export/reimport. Source-free slides, sections, modern comments, outside-owned unknown nodes, removed slide-jump targets, unresolved semantic elements/connectors, pending native payload replacements, and over-budget graphs fail closed. |
 | `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only. |
 | `slide.hide` | api | Hide this slide from the ordinary slide show through the same source-bound p:sld/@show primitive as slide.setHidden(true). |
-| `slide.images.add` | api | Add an embedded image with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect. |
+| `slide.images.add` | api | Add an embedded image from a data URL or FileBlob with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Task-sourced images can stay as content-addressed files until placement. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect. |
 | `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
 | `slide.placeholders.getItem` | api | Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound. |
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
@@ -7099,7 +7099,7 @@ Hide this slide from the ordinary slide show through the same source-bound p:sld
 
 #### `slide.images.add`
 
-Add an embedded image with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect.
+Add an embedded image from a data URL or FileBlob with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Task-sourced images can stay as content-addressed files until placement. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect.
 
 **Adoption tier:** `golden`
 
@@ -7127,7 +7127,7 @@ Add an embedded image with accessibility metadata, fit/crop, frame, rotation/fli
 
 **Recipes:**
 
-- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+- skills/presentations/skills/presentations/references/image-sourcing.md#register-before-use
 
 **Example paths:**
 
@@ -7136,6 +7136,7 @@ Add an embedded image with accessibility metadata, fit/crop, frame, rotation/fli
 **Schema parameters:**
 
 - `dataUrl` (string) — Embedded image data URL.
+- `blob` (FileBlob) — Embedded PNG, JPEG, GIF, or safe-SVG bytes. FileBlob is mutually exclusive with dataUrl and is converted to the same canonical embedded-image representation.
 - `uri` (string) — External image URI metadata.
 - `prompt` (string) — Generation/source prompt metadata.
 - `alt` (string) — Compatibility alias for accessibility.description. Reading or writing alt reads or writes the same state; an empty string clears description.

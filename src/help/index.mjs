@@ -395,7 +395,7 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "chart.setAccessibilityMetadata", summary: "Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "chart.deletionCapability", summary: "Report whether one imported top-level chart frame owns one uniquely used internal ChartPart relationship. Export re-proves relationship use and the exclusively owned descendant closure; shared ChartParts survive." },
   { artifactKind: "presentation", kind: "api", name: "chart.delete", summary: "Explicitly remove a source-free chart or one capability-proven imported chart frame. The source-bound transaction removes its exact relationship and only ChartPart descendants without another package parent; external, repeated, nested, or identity-sensitive graphs fail closed." },
-  { artifactKind: "presentation", kind: "api", name: "slide.images.add", summary: "Add an embedded image with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect." },
+  { artifactKind: "presentation", kind: "api", name: "slide.images.add", summary: "Add an embedded image from a data URL or FileBlob with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Task-sourced images can stay as content-addressed files until placement. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect." },
   { artifactKind: "presentation", kind: "api", name: "image.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile." },
   { artifactKind: "presentation", kind: "api", name: "image.svgTextCapability", summary: "Report bounded direct SVG text/tspan leaves for a base64 SVG image, including the image-byte SHA-256 and exact replacement hashes. Active content, external references, oversized SVGs, and nested/non-text leaves remain unsupported." },
   { artifactKind: "presentation", kind: "api", name: "image.getSvgTextNodes", summary: "Return defensive source-issued SVG text/tspan leaves for an image. Each leaf has a stable image-local ID, text, tag, and expectedHash; the returned records cannot mutate the image." },
@@ -2119,6 +2119,7 @@ const PRESENTATION_HELP_SCHEMAS = {
   "chart.delete": helpSchema({}, "chart", "ChartElement", "The removed ChartElement facade. Imported deletion requires chart.deletionCapability.supported and records explicit intent; export removes the exact p:graphicFrame and SlidePart relationship, garbage-collects only ChartPart descendants without outside package parents, preserves shared ChartParts, validates native-ID absence, and rejects external/repeated/nested/identity-sensitive graphs or direct array splicing."),
   "slide.images.add": helpSchema({
     dataUrl: { type: "string", description: "Embedded image data URL." },
+    blob: { type: "FileBlob", description: "Embedded PNG, JPEG, GIF, or safe-SVG bytes. FileBlob is mutually exclusive with dataUrl and is converted to the same canonical embedded-image representation." },
     uri: { type: "string", description: "External image URI metadata." },
     prompt: { type: "string", description: "Generation/source prompt metadata." },
     alt: { type: "string", description: "Compatibility alias for accessibility.description. Reading or writing alt reads or writes the same state; an empty string clears description." },
@@ -2879,6 +2880,7 @@ const PRESENTATION_RECIPE_PATHS = Object.freeze({
   continue: "skills/presentations/skills/presentations/tasks/continue.md",
   review: "skills/presentations/skills/presentations/tasks/review-deliver.md",
   motion: "skills/presentations/skills/presentations/references/motion.md",
+  image: "skills/presentations/skills/presentations/references/image-sourcing.md",
 });
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
@@ -2901,6 +2903,7 @@ const PRESENTATION_DESIGN_INTENTS = Object.freeze({
 
 function presentationRecipeFor(name) {
   if (/animation|Morph/.test(name)) return `${PRESENTATION_RECIPE_PATHS.motion}#typed-surface`;
+  if (name === "slide.images.add") return `${PRESENTATION_RECIPE_PATHS.image}#register-before-use`;
   if (/designProfile|planTemplateGeneration|master|layout|placeholder|reuseSource|resolveComponent/.test(name)) {
     return `${PRESENTATION_RECIPE_PATHS.template}#distill-and-reuse`;
   }
