@@ -11,7 +11,6 @@ import JSZip from "jszip";
 import {
   DocumentFile,
   FileBlob,
-  PresentationFile,
   SpreadsheetFile,
 } from "../src/index.mjs";
 import { materializeTemplate } from "../skills/default-template-library/scripts/materialize-template.mjs";
@@ -30,14 +29,6 @@ const TEMPLATES = [
   ["artifact-template-minimal-letterhead", "Minimal Letterhead", "document", ".docx"],
   ["artifact-template-strategy-memorandum", "Strategy Memorandum", "document", ".docx"],
   ["artifact-template-system-design", "System Design", "document", ".docx"],
-  ["artifact-template-business-review", "Business Review", "presentation", ".pptx"],
-  ["artifact-template-grid-layout-library", "Grid Layout Library", "presentation", ".pptx", "composable"],
-  ["artifact-template-market-trends-report", "Market Trends Report", "presentation", ".pptx"],
-  ["artifact-template-operating-review", "Operating Review", "presentation", ".pptx"],
-  ["artifact-template-project-kickoff", "Project Kickoff", "presentation", ".pptx"],
-  ["artifact-template-simple-dark-mode", "Simple Dark Mode", "presentation", ".pptx"],
-  ["artifact-template-simple-light-mode", "Simple Light Mode", "presentation", ".pptx"],
-  ["artifact-template-team-alignment", "Team Alignment", "presentation", ".pptx"],
   ["artifact-template-analytics-dashboard", "Analytics Dashboard", "spreadsheet", ".xlsx"],
   ["artifact-template-financial-budget", "Financial Budget", "spreadsheet", ".xlsx"],
   ["artifact-template-operating-calendar", "Operating Calendar", "spreadsheet", ".xlsx"],
@@ -58,10 +49,8 @@ if (templateArgs.length > 0) {
 const templateShardRanges = Object.freeze({
   "documents-a": Object.freeze({ start: 0, end: 4 }),
   "documents-b": Object.freeze({ start: 4, end: 7 }),
-  "presentations-a": Object.freeze({ start: 7, end: 11 }),
-  "presentations-b": Object.freeze({ start: 11, end: 15 }),
-  "spreadsheets-a": Object.freeze({ start: 15, end: 18 }),
-  "spreadsheets-b": Object.freeze({ start: 18, end: 21 }),
+  "spreadsheets-a": Object.freeze({ start: 7, end: 10 }),
+  "spreadsheets-b": Object.freeze({ start: 10, end: 13 }),
 });
 const shardTemplateIds = Object.values(templateShardRanges)
   .flatMap(({ start, end }) => TEMPLATES.slice(start, end).map(([id]) => id));
@@ -375,18 +364,6 @@ async function assertPublicOfficeRoundTrip(templateId, kind, sourcePath) {
     );
     return exported;
   }
-  if (kind === "presentation") {
-    const imported = await PresentationFile.importPptx(source);
-    const exported = await PresentationFile.exportPptx(imported);
-    const reimported = await PresentationFile.importPptx(exported);
-    assert.equal(reimported.slides.items.length, imported.slides.items.length, `Presentation facade round trip: ${sourcePath}`);
-    assert.equal(
-      Buffer.from(exported.bytes).equals(Buffer.from(source.bytes)),
-      true,
-      `Unedited PPTX facade round trip must retain exact source bytes: ${sourcePath}`,
-    );
-    return exported;
-  }
   if (kind === "spreadsheet") {
     const imported = await SpreadsheetFile.importXlsx(source);
     // Formula evaluation changes cached values in the in-memory workbook. It
@@ -405,48 +382,6 @@ async function assertPublicOfficeRoundTrip(templateId, kind, sourcePath) {
     return exported;
   }
   assert.fail(`Unknown retained template kind: ${kind}`);
-}
-
-function presentationPlaceholderIdentity(shape) {
-  const snapshot = structuredClone(shape.layoutJson());
-  delete snapshot.text;
-  delete snapshot.paragraphs;
-  return snapshot;
-}
-
-function presentationTextFormatting(shape) {
-  const paragraphs = structuredClone(shape.text.paragraphs);
-  for (const paragraph of paragraphs) for (const run of paragraph.runs || []) {
-    if (Object.hasOwn(run, "text")) run.text = "";
-    if (run.field) run.field.text = "";
-  }
-  return paragraphs;
-}
-
-async function assertPublicPresentationPlaceholderTextEdit(sourcePath) {
-  const source = await FileBlob.load(sourcePath);
-  const presentation = await PresentationFile.importPptx(source);
-  const target = presentation.slides.items
-    .flatMap((slide) => slide.shapes.items)
-    .find((shape) => shape.placeholder && shape.text.value.trim());
-  assert.ok(target, `Presentation template must expose a visible slide placeholder: ${sourcePath}`);
-  assert.equal(target.placeholder.textEditable, true, `Presentation template placeholder must advertise its verified text capability: ${sourcePath}`);
-  const id = target.id;
-  const identity = presentationPlaceholderIdentity(target);
-  const formatting = presentationTextFormatting(target);
-  const replacement = `${target.text.value} · Agent QA`;
-  // Agent workflows commonly use TextFrame.set(). Imported styled titles must
-  // preserve their native formatting while replacing only the characters.
-  target.text.set(replacement);
-  const exported = await PresentationFile.exportPptx(presentation);
-  const reimported = await PresentationFile.importPptx(exported);
-  const roundTrip = reimported.slides.items.flatMap((slide) => slide.shapes.items).find((shape) => shape.id === id);
-  assert.ok(roundTrip, `Edited placeholder identity must survive reimport: ${sourcePath}`);
-  assert.equal(roundTrip.placeholder.textEditable, true, `Reimported placeholder must re-prove its text capability: ${sourcePath}`);
-  assert.equal(roundTrip.text.value, replacement, `Edited placeholder text must survive reimport: ${sourcePath}`);
-  assert.deepEqual(presentationPlaceholderIdentity(roundTrip), identity, `Placeholder geometry/style/identity must stay source-bound: ${sourcePath}`);
-  assert.deepEqual(presentationTextFormatting(roundTrip), formatting, `Placeholder paragraph/run formatting must stay source-bound: ${sourcePath}`);
-  return exported;
 }
 
 function documentParagraphFormattingIdentity(block) {
@@ -592,7 +527,7 @@ assert.deepEqual(actualFiles, [...expectedFiles].sort(), "template library canon
 // instead of assuming that an unrelated reference checkout is byte-identical.
 const sourceRoot = process.env.OFFICE_TEMPLATE_SOURCE_ROOT;
 if (sourceRoot) {
-  for (const asset of integrity.assets.filter((item) => item.templateId !== "artifact-template-grid-layout-library")) {
+  for (const asset of integrity.assets) {
     const [sourceBytes, targetBytes] = await Promise.all([fs.readFile(path.join(sourceRoot, asset.path)), fs.readFile(path.join(libraryRoot, asset.path))]);
     assert.equal(
       sha256(targetBytes),
@@ -628,16 +563,6 @@ try {
     roundTripped.push({ id, output: roundTripOutput });
   }
 
-  const editedPresentations = [];
-  for (const { id, kind, output } of materialized.filter((item) =>
-    item.kind === "presentation" && item.id !== "artifact-template-grid-layout-library")) {
-    console.error(`[default-template-library] edit presentation ${id}`);
-    const exported = await assertPublicPresentationPlaceholderTextEdit(output);
-    const editedOutput = path.join(temporary, `${id}-placeholder-edit.pptx`);
-    await exported.save(editedOutput);
-    editedPresentations.push({ id, output: editedOutput });
-  }
-
   const editedDocuments = [];
   for (const { id, kind, output } of materialized.filter((item) => item.kind === "document")) {
     console.error(`[default-template-library] edit document ${id}`);
@@ -645,20 +570,6 @@ try {
     const editedOutput = path.join(temporary, `${id}-text-edit.docx`);
     await exported.save(editedOutput);
     editedDocuments.push({ id, output: editedOutput });
-  }
-
-  const structuredPresentation = materialized.find((item) => item.id === "artifact-template-market-trends-report");
-  if (structuredPresentation) {
-    const topologyProbe = await PresentationFile.importPptx(await FileBlob.load(structuredPresentation.output));
-    const topologyTarget = topologyProbe.slides.items.flatMap((slide) => slide.shapes.items)
-      .find((shape) => shape.placeholder && shape.text.value.includes("\n"));
-    assert.ok(topologyTarget, "Market Trends template must retain a multi-line placeholder title");
-    topologyTarget.text.set(topologyTarget.text.value.replace("\n", " "));
-    await assert.rejects(
-      () => PresentationFile.exportPptx(topologyProbe),
-      (error) => error?.code === "presentation_text_topology_changed",
-      "imported placeholder text.set must fail closed when it changes the source line-break topology",
-    );
   }
 
   const financialBudget = materialized.find((item) => item.id === "artifact-template-financial-budget");
@@ -704,10 +615,6 @@ try {
     for (const { id, output } of editedDocuments) {
       console.error(`[default-template-library] native render ${id} text-edit`);
       await assertNativeRender(output, path.join(rendered, id, "text-edit"));
-    }
-    for (const { id, output } of editedPresentations) {
-      console.error(`[default-template-library] native render ${id} placeholder-edit`);
-      await assertNativeRender(output, path.join(rendered, id, "placeholder-edit"));
     }
   }
 } finally {

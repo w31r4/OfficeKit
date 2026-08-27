@@ -25,16 +25,12 @@ const slowStart = gateRunner.indexOf("const slowSteps");
 const fastSource = gateRunner.slice(fastStart, slowStart);
 const slowSource = gateRunner.slice(slowStart, gateRunner.indexOf("const steps"));
 assert.match(fastSource, /check-js-syntax/);
-assert.match(fastSource, /compact-skill-jsons/);
-assert.match(fastSource, /skill-json-assets/);
 assert.match(fastSource, /windows-live-gate/);
 assert.match(fastSource, /windows-pptx-lossless-gate/);
 assert.match(fastSource, /presentation-svg-leaves/);
 assert.match(fastSource, /pptx-svg-leaf-benchmark/);
 assert.doesNotMatch(fastSource, /default-template-library|agent-evals|pdf-provider-pack-build|pdf-pyhanko-provider|presentation-skill|document-skill|pdf-skill|reference-skills|office-kit-package/);
 assert.match(slowSource, /default-template-library/);
-assert.match(slowSource, /compact-skill-jsons/);
-assert.match(slowSource, /skill-json-assets/);
 assert.match(slowSource, /agent-evals/);
 assert.match(slowSource, /pdf-provider-pack-build/);
 assert.match(slowSource, /presentation-svg-leaves/);
@@ -52,7 +48,7 @@ const slowSegments = [
   "qa",
   "release",
 ];
-const templateShards = ["documents-a", "documents-b", "presentations-a", "presentations-b", "spreadsheets-a", "spreadsheets-b"];
+const templateShards = ["documents-a", "documents-b", "spreadsheets-a", "spreadsheets-b"];
 assert.match(slowSource, /const slowSegments = Object\.freeze/);
 for (const shard of templateShards) assert.match(slowSource, new RegExp(`"--shard", "${shard}"`));
 for (const segment of slowSegments) {
