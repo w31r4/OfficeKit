@@ -1,5 +1,42 @@
 # Release
 
+## OfficeKit 1.1.0
+
+OfficeKit 1.1.0 replaces the two-track presentation template surface with one
+style-Skill protocol. A presentation template now contains one guide, English
+search metadata, Agent metadata, one preview, and four to six original visual
+examples. It contains no source PPTX, fixed Layout, page code, DSL, SVG page
+skeleton, or cloneable component. The Presentations Skill reads zero or one
+selected style, derives the current deck's Design Grammar, composes every page
+freely, renders, and reviews. A user design system remains the stronger
+authority; selecting no template remains valid.
+
+The default source-backed catalog now retains only 13 MIT-licensed DOCX/XLSX
+templates. Eight OfficeKit-original presentation style Skills replace the seven
+former PPTX references and the executable Grid library. The old reference
+PPTX files, previews, 29 Grid modules, 26 fixed layouts, registries, screenshots,
+materialization paths, fallback guidance, and template-specific round-trip
+gates are removed from the current tree and package.
+
+`presentation-template-creator` is installed by default and produces the one
+schema-v3 surface from a distilled guide plus four to six original calibration
+images. Source decks, analysis evidence, temporary artifacts, and page code
+remain task-local. The generic Template Creator now owns DOCX/XLSX only and
+routes PPTX input to the specialist. Search validates schema-specific hashes,
+rejects legacy presentation schema v2, and returns `selectionMade: false`.
+
+The release also consumes the platform-specific NativeAOT codec packages
+introduced on main. The JavaScript API, Office wire protocol 2, lazy root
+imports, PDF providers, Live adapters, and DOCX/XLSX template formats are
+unchanged. A four-page unrelated-topic dogfood selected Simple Dark Mode,
+created four distinct compositions, exported, reimported, and completed
+structural and visual review. A separate fresh Agent attempt was rejected by
+Enter with HTTP 403 before execution and is not reported as passed.
+
+Standalone archive sizes and SHA-256 values are pinned after one real build on
+each supported host. Windows PowerPoint playback and broad desktop-host
+acceptance remain separate evidence.
+
 ## OfficeKit 1.0.0
 
 OfficeKit 1.0.0 is the first stable release of the local, Agent-facing Office
