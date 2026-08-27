@@ -19,6 +19,8 @@ const expected = new Map([
   ["presentations", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
   ["pdf", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
   ["template-creator", { version: "0.2.0", license: "AGPL-3.0-or-later" }],
+  ["presentation-template-creator", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
+  ["presentation-template-library", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["default-template-library", { version: "0.2.0", license: "MIT" }],
 ]);
 assert.deepEqual(

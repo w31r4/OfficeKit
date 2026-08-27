@@ -459,9 +459,6 @@ for (const required of [
   "skills/presentations/skills/presentations/artifact_tool/api/references/embedded-video-clone.spec.md",
   "skills/presentations/skills/presentations/container_tools/artifact_tool_utils.mjs",
   "skills/presentations/skills/presentations/container_tools/slides_test.py",
-  "skills/presentations/skills/presentations/builtin_templates_support/scripts/create-presentation.mjs",
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/index.mjs",
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/assets/previews/layout-library.png",
   "skills/office-kit/.codex-plugin/plugin.json",
   "skills/office-kit/README.md",
   "skills/office-kit/skills/office-kit/SKILL.md",
@@ -479,18 +476,28 @@ for (const required of [
   "skills/template-creator/skills/template-creator/assets/icon.svg",
   "skills/template-creator/skills/template-creator/manifest.txt",
   "skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs",
+  "skills/presentation-template-creator/.codex-plugin/plugin.json",
+  "skills/presentation-template-creator/README.md",
+  "skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md",
+  "skills/presentation-template-creator/skills/presentation-template-creator/agents/agent.yaml",
+  "skills/presentation-template-creator/skills/presentation-template-creator/references/template-format.md",
+  "skills/presentation-template-creator/skills/presentation-template-creator/scripts/package-presentation-template.mjs",
   "skills/default-template-library/LICENSE.md",
   "skills/default-template-library/README.md",
   "skills/default-template-library/manifest.json",
   "skills/default-template-library/integrity.json",
-  "skills/default-template-library/skills/artifact-template-business-review/SKILL.md",
-  "skills/default-template-library/skills/artifact-template-business-review/artifact-template.json",
-  "skills/default-template-library/skills/artifact-template-business-review/assets/reference.pptx",
-  "skills/default-template-library/skills/artifact-template-business-review/assets/preview.png",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/SKILL.md",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/reference.pptx",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
+  "skills/presentation-template-library/.codex-plugin/plugin.json",
+  "skills/presentation-template-library/README.md",
+  "skills/presentation-template-library/manifest.json",
+  "skills/presentation-template-library/skills/artifact-template-business-review/SKILL.md",
+  "skills/presentation-template-library/skills/artifact-template-business-review/agents/agent.yaml",
+  "skills/presentation-template-library/skills/artifact-template-business-review/artifact-template.json",
+  "skills/presentation-template-library/skills/artifact-template-business-review/assets/preview.png",
+  "skills/presentation-template-library/skills/artifact-template-business-review/assets/examples/01-cover.png",
+  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/SKILL.md",
+  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
+  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
+  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/assets/examples/04-closing.png",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -571,14 +578,27 @@ for (const file of packagedPresentationGuidance) {
     `packaged Presentation guidance must not contain extracted-product paths: ${file}`);
 }
 assert.ok(!files.includes("native/OfficeBridge/OfficeBridge.sln"), "npm package must not publish a solution whose test project is repository-only");
-const packagedTemplateSidecars = files.filter((file) =>
+const packagedDocumentAndSpreadsheetSidecars = files.filter((file) =>
   /^skills\/default-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
 );
 assert.equal(
-  packagedTemplateSidecars.length,
-  21,
-  "npm package must ship exactly the 21 audited default templates",
+  packagedDocumentAndSpreadsheetSidecars.length,
+  13,
+  "npm package must ship exactly the 13 schema-v2 document and spreadsheet templates",
 );
+const packagedPresentationSidecars = files.filter((file) =>
+  /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
+);
+assert.equal(packagedPresentationSidecars.length, 8, "npm package must ship exactly eight schema-v3 presentation style Skills");
+assert.ok(
+  files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|mjs|js|svg)$/u.test(file)
+    || file.endsWith("/assets/icon.svg")),
+  "presentation templates must not ship source decks, code, page DSL, or SVG page skeletons",
+);
+const packagedPresentationCalibrationPngs = files.filter((file) =>
+  /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
+);
+assert.equal(packagedPresentationCalibrationPngs.length, 40, "each presentation style must ship one preview and four calibration examples");
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(
@@ -596,7 +616,7 @@ assert.ok(
 );
 const skillPngs = report.files.filter(({ path: filename }) => /^skills\/(?:documents|spreadsheets|presentations|pdf)\/.*\.png$/.test(filename));
 const skillPngBytes = skillPngs.reduce((total, { size }) => total + size, 0);
-assert.equal(skillPngs.length, 41, "npm package must retain all 41 public Skill PNG assets");
+assert.equal(skillPngs.length, 14, "npm package must retain the remaining public file-Skill PNG assets");
 assert.ok(skillPngBytes < maxSkillPngBytes, `public Skill PNG payload unexpectedly large: ${skillPngBytes} (limit ${maxSkillPngBytes})`);
 assert.ok(report.size < maxPackedBytes, `npm package archive unexpectedly large: ${report.size} (limit ${maxPackedBytes})`);
 assert.ok(report.unpackedSize < maxUnpackedBytes, `npm package unpacked size unexpectedly large: ${report.unpackedSize} (limit ${maxUnpackedBytes})`);

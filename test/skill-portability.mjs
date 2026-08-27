@@ -12,6 +12,7 @@ const skillRoots = [
   "presentations",
   "pdf",
   "template-creator",
+  "presentation-template-creator",
 ].map((name) => path.join(repoRoot, "skills", name));
 
 const ignoredDirectories = new Set([".codex-plugin", "agents", "__pycache__", "reference"]);
@@ -82,6 +83,7 @@ try {
     "powerpoint-live-control",
     "pdf",
     "template-creator",
+    "presentation-template-creator",
   ]);
   for (const skillId of installResult.skills) {
     const skillPath = path.join(installRoot, ".agents", "skills", skillId, "SKILL.md");
@@ -89,7 +91,9 @@ try {
     for (const [pattern, label] of forbidden) {
       assert.doesNotMatch(text, pattern, `installed ${label}: ${skillId}`);
     }
-    assert.match(text, /officekit repl|references\/repl\.md/i, `installed REPL guidance: ${skillId}`);
+    if (!skillId.endsWith("template-creator")) {
+      assert.match(text, /officekit repl|references\/repl\.md/i, `installed REPL guidance: ${skillId}`);
+    }
   }
 } finally {
   await fs.rm(installRoot, { recursive: true, force: true });
@@ -160,7 +164,6 @@ for (const [name, relative] of [
   ["excel-live-control", ["spreadsheets", "skills", "excel-live-control", "SKILL.md"]],
   ["presentations", ["presentations", "skills", "presentations", "SKILL.md"]],
   ["pdf", ["pdf", "skills", "pdf", "SKILL.md"]],
-  ["template-creator", ["template-creator", "skills", "template-creator", "SKILL.md"]],
 ]) {
   const skillPath = path.join(repoRoot, "skills", ...relative);
   const text = await fs.readFile(skillPath, "utf8");

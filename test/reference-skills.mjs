@@ -16,29 +16,41 @@ import {
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const skillsRoot = path.join(repoRoot, "skills");
-const pluginNames = ["documents", "spreadsheets", "presentations", "pdf", "office-kit", "template-creator", "default-template-library"];
+const pluginNames = [
+  "documents",
+  "spreadsheets",
+  "presentations",
+  "pdf",
+  "office-kit",
+  "template-creator",
+  "presentation-template-creator",
+  "default-template-library",
+  "presentation-template-library",
+];
 const defaultTemplateSkills = [
   "artifact-template-analytics-dashboard",
-  "artifact-template-business-review",
   "artifact-template-design-report",
   "artifact-template-experiment-analysis",
   "artifact-template-financial-budget",
-  "artifact-template-grid-layout-library",
   "artifact-template-investment-committee-memo",
   "artifact-template-legal-memorandum",
-  "artifact-template-market-trends-report",
   "artifact-template-minimal-letterhead",
   "artifact-template-operating-calendar",
-  "artifact-template-operating-review",
-  "artifact-template-project-kickoff",
   "artifact-template-project-tracker",
   "artifact-template-sales-pipeline",
-  "artifact-template-simple-dark-mode",
-  "artifact-template-simple-light-mode",
   "artifact-template-strategy-memorandum",
   "artifact-template-system-design",
-  "artifact-template-team-alignment",
   "artifact-template-three-statement-forecast",
+];
+const presentationTemplateSkills = [
+  "artifact-template-business-review",
+  "artifact-template-grid-layout-library",
+  "artifact-template-market-trends-report",
+  "artifact-template-operating-review",
+  "artifact-template-project-kickoff",
+  "artifact-template-simple-dark-mode",
+  "artifact-template-simple-light-mode",
+  "artifact-template-team-alignment",
 ];
 const expectedSkills = new Map([
   ["documents", ["documents"]],
@@ -47,7 +59,9 @@ const expectedSkills = new Map([
   ["pdf", ["pdf"]],
   ["office-kit", ["office-kit"]],
   ["template-creator", ["template-creator"]],
+  ["presentation-template-creator", ["presentation-template-creator"]],
   ["default-template-library", defaultTemplateSkills],
+  ["presentation-template-library", presentationTemplateSkills],
 ]);
 const expectedDeclaredSkillNames = new Map([
   ["documents", "documents"],
@@ -59,8 +73,10 @@ const expectedDeclaredSkillNames = new Map([
   ["pdf", "pdf"],
   ["office-kit", "office-kit"],
   ["template-creator", "template-creator"],
+  ["presentation-template-creator", "presentation-template-creator"],
 ]);
 for (const skillName of defaultTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
+for (const skillName of presentationTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
 
 async function exists(file) {
   return fs.access(file).then(() => true, () => false);
@@ -85,7 +101,12 @@ for (const pluginName of pluginNames) {
   const manifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   assert.equal(manifest.name, pluginName);
-  assert.equal(manifest.version, pluginName === "office-kit" ? "1.0.0" : "0.2.0");
+  const expectedVersion = new Set([
+    "default-template-library",
+    "presentation-template-creator",
+    "presentation-template-library",
+  ]).has(pluginName) ? "1.1.0" : pluginName === "office-kit" ? "1.0.0" : "0.2.0";
+  assert.equal(manifest.version, expectedVersion);
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");
   assert.equal(manifest.repository, "https://github.com/w31r4/OfficeKit");
@@ -130,10 +151,10 @@ for (const pluginName of pluginNames) {
     const frontmatter = skillText.match(/^---\n([\s\S]*?)\n---/);
     assert.ok(frontmatter, `${pluginName}/${skillName} is missing YAML frontmatter`);
     assert.equal(yamlValue(frontmatter[1], "name"), expectedDeclaredSkillNames.get(skillName));
-    const retainedTemplateSkill = pluginName === "default-template-library";
-    const agentFilename = skillName === "template-creator" || retainedTemplateSkill ? "agent.yaml" : "openai.yaml";
+    const templateSkill = ["default-template-library", "presentation-template-library"].includes(pluginName);
+    const agentFilename = skillName.endsWith("template-creator") || templateSkill ? "agent.yaml" : "openai.yaml";
     const agentText = await fs.readFile(path.join(skillRoot, "agents", agentFilename), "utf8");
-    for (const iconKey of pluginName === "office-kit" ? [] : retainedTemplateSkill ? ["icon_large"] : ["icon_small", "icon_large"]) {
+    for (const iconKey of pluginName === "office-kit" ? [] : templateSkill ? ["icon_large"] : ["icon_small", "icon_large"]) {
       const icon = yamlValue(agentText, iconKey);
       assert.ok(icon, `${pluginName}/${skillName} is missing ${iconKey}`);
       assert.ok(await exists(path.resolve(skillRoot, icon)), `${pluginName}/${skillName} ${iconKey} does not resolve`);
@@ -149,11 +170,10 @@ assert.match(officeKitSkillText, /exactly one owning Skill to each output/i);
 assert.match(officeKitSkillText, /selected.*ask.*none/s);
 assert.match(officeKitSkillText, /Do not use the Office template catalog for a PDF-only task/i);
 assert.match(officeKitRoutingText, /One output has one owner/i);
-assert.match(officeKitTemplateText, /none.*successful design decision|Choose `none`/i);
-assert.match(officeKitTemplateText, /Classify the current task, not the user/i);
-assert.match(officeKitTemplateText, /task-scoped user reference/i);
-assert.match(officeKitTemplateText, /field-weighted BM25F index/i);
-assert.match(officeKitTemplateText, /does not call a model, build a vector/i);
+assert.match(officeKitTemplateText, /`none` is a successful result/i);
+assert.match(officeKitTemplateText, /original file stays in the task/i);
+assert.match(officeKitTemplateText, /Search is local BM25F/i);
+assert.match(officeKitTemplateText, /does not call a\s+model, build a vector/i);
 assert.equal(
   await exists(path.join(officeKitRoot, "scripts", "query-templates.mjs")),
   false,
@@ -163,6 +183,9 @@ assert.ok(await exists(path.join(repoRoot, "src", "templates", "search.mjs")));
 const templateCreatorManifest = JSON.parse(await fs.readFile(path.join(skillsRoot, "template-creator", "manifest.json"), "utf8"));
 assert.equal(templateCreatorManifest.schemaVersion, 1);
 assert.deepEqual(templateCreatorManifest.skills, ["skills/template-creator"]);
+const presentationTemplateCreatorManifest = JSON.parse(await fs.readFile(path.join(skillsRoot, "presentation-template-creator", "manifest.json"), "utf8"));
+assert.equal(presentationTemplateCreatorManifest.schemaVersion, 1);
+assert.deepEqual(presentationTemplateCreatorManifest.skills, ["skills/presentation-template-creator"]);
 const defaultTemplateManifest = JSON.parse(await fs.readFile(path.join(skillsRoot, "default-template-library", "manifest.json"), "utf8"));
 assert.equal(defaultTemplateManifest.schemaVersion, 1);
 assert.deepEqual(defaultTemplateManifest.skills, [
@@ -173,14 +196,6 @@ assert.deepEqual(defaultTemplateManifest.skills, [
   "skills/artifact-template-minimal-letterhead",
   "skills/artifact-template-strategy-memorandum",
   "skills/artifact-template-system-design",
-  "skills/artifact-template-business-review",
-  "skills/artifact-template-grid-layout-library",
-  "skills/artifact-template-market-trends-report",
-  "skills/artifact-template-operating-review",
-  "skills/artifact-template-project-kickoff",
-  "skills/artifact-template-simple-dark-mode",
-  "skills/artifact-template-simple-light-mode",
-  "skills/artifact-template-team-alignment",
   "skills/artifact-template-analytics-dashboard",
   "skills/artifact-template-financial-budget",
   "skills/artifact-template-operating-calendar",
@@ -188,6 +203,12 @@ assert.deepEqual(defaultTemplateManifest.skills, [
   "skills/artifact-template-sales-pipeline",
   "skills/artifact-template-three-statement-forecast",
 ]);
+const presentationTemplateManifest = JSON.parse(await fs.readFile(path.join(skillsRoot, "presentation-template-library", "manifest.json"), "utf8"));
+assert.equal(presentationTemplateManifest.schemaVersion, 1);
+assert.deepEqual(
+  [...presentationTemplateManifest.skills].sort(),
+  presentationTemplateSkills.map((skillName) => `skills/${skillName}`),
+);
 assert.equal(await exists(path.join(skillsRoot, "default-template-library", "LICENSE.md")), true);
 assert.equal(await exists(path.join(skillsRoot, "default-template-library", "integrity.json")), true);
 assert.equal(await exists(path.join(skillsRoot, "default-template-library", "catalog.json")), false);
@@ -498,44 +519,6 @@ try {
   );
   const importedPackage = await importArtifactTool(workspace);
   assert.equal(importedPackage.PresentationFile, PresentationFile);
-
-  const layoutRoot = path.join(
-    skillsRoot,
-    "presentations",
-    "skills",
-    "presentations",
-    "assets",
-    "builtin_templates",
-    "grid-layout-library",
-  );
-  const { buildPresentation, exportPresentation } = await import(
-    "../skills/presentations/skills/presentations/builtin_templates_support/scripts/create-presentation.mjs"
-  );
-  const authoredPresentation = await buildPresentation(layoutRoot);
-  assert.equal(authoredPresentation.slides.items.length, 26);
-  const pptxPath = path.join(tempRoot, "reference-grid-layout-library.pptx");
-  await exportPresentation(layoutRoot, pptxPath);
-  const presentation = await PresentationFile.importPptx(await FileBlob.load(pptxPath));
-  assert.equal(presentation.slides.items.length, 26);
-  const allSlides = presentation.slides.items;
-  const allShapes = allSlides.flatMap((slide) => slide.shapes.items);
-  assert.equal(allShapes.filter((shape) => shape.geometry === "custom").length, 11);
-  assert.equal(allSlides.flatMap((slide) => slide.images.items).length, 1);
-  assert.equal(allSlides.flatMap((slide) => slide.connectors.items).length, 2);
-  const firstText = allShapes.find((shape) => String(shape.text?.value || "").includes("Your presentation"));
-  assert.ok(firstText, "the reference template headline must survive OfficeKit export/import");
-  assert.equal(firstText.text.value, "Your presentation \nheadline goes here");
-  assert.ok(Math.abs(firstText.position.left - 41.33) < 0.02);
-  assert.ok(Math.abs(firstText.position.top - 182.55) < 0.02);
-  assert.equal(firstText.text.paragraphs[0].runs[0].style.fontSize, 80);
-  assert.equal(firstText.text.paragraphs[0].runs[0].style.fontFamily, "Helvetica Neue");
-  const pptxZip = await JSZip.loadAsync(await fs.readFile(pptxPath));
-  const slideXml = await Promise.all(
-    Object.keys(pptxZip.files)
-      .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
-      .map((name) => pptxZip.file(name).async("text")),
-  );
-  assert.equal(slideXml.reduce((count, xml) => count + (xml.match(/<a:custGeom\b/g)?.length || 0), 0), 11);
 
   const workbook = Workbook.create();
   const sheet = workbook.worksheets.add("Summary");
