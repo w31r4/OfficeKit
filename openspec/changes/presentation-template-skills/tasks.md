@@ -26,7 +26,7 @@
 - [x] 4.5 Rebuild Simple Dark Mode as a schema-v3 style Skill with original guide and calibration images.
 - [x] 4.6 Rebuild Simple Light Mode as a schema-v3 style Skill with original guide and calibration images.
 - [x] 4.7 Rebuild Team Alignment as a schema-v3 style Skill with original guide and calibration images.
-- [ ] 4.8 Rebuild Grid Layout Library as a schema-v3 style Skill without layout code or skeletons.
+- [x] 4.8 Rebuild Grid Layout Library as a schema-v3 style Skill without layout code or skeletons.
 
 ## 5. Remove the old representation
 
