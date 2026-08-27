@@ -8,6 +8,7 @@ import {
   DocumentFile,
   DocumentModel,
   FileBlob,
+  image as composeImage,
   paragraph,
   Presentation,
   PresentationFile,
@@ -170,6 +171,31 @@ assert.deepEqual(effectivePresentationImageCrop({
   frame: { width: 200, height: 200 },
 }), { left: 0.25, top: 0, right: 0.25, bottom: 0 });
 assert.throws(() => effectivePresentationImageCrop({ fit: "cover", dataUrl: "data:image/png;base64,AA==", frame: { width: 100, height: 100 } }), /intrinsic dimensions/);
+
+const imageBlobBytes = Buffer.from(PNG.split(",", 2)[1], "base64");
+const imageBlob = new FileBlob(imageBlobBytes, { type: "image/png" });
+const imageBlobDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const imageBlobSlide = imageBlobDeck.slides.add({ name: "FileBlob image input" });
+const imageBlobElement = imageBlobSlide.images.add({
+  blob: imageBlob,
+  position: { left: 24, top: 24, width: 120, height: 90 },
+  fit: "cover",
+  accessibility: { description: "Registered evidence image" },
+});
+assert.equal(imageBlobElement.dataUrl, PNG);
+assert.equal(imageBlobElement.contentType, "image/png");
+assert.throws(() => imageBlobSlide.images.add({ blob: imageBlob, dataUrl: PNG }), /either blob or dataUrl/);
+assert.throws(() => imageBlobSlide.images.add({ blob: { bytes: imageBlobBytes, type: "image/png" } }), /must be a FileBlob/);
+const [composedImageBlob] = imageBlobSlide.compose(
+  composeImage({ blob: imageBlob, name: "compose-file-blob", accessibility: { description: "Compose image asset" } }),
+  { frame: { left: 180, top: 24, width: 120, height: 90 } },
+);
+assert.equal(composedImageBlob.dataUrl, PNG);
+const imageBlobPptx = await PresentationFile.exportPptx(imageBlobDeck);
+const imageBlobZip = await JSZip.loadAsync(imageBlobPptx.bytes);
+const imageBlobMedia = Object.keys(imageBlobZip.files).filter((name) => /^ppt\/media\/[^/]+\.png$/u.test(name));
+assert.equal(imageBlobMedia.length, 1, "identical FileBlob images must share one media part");
+assert.deepEqual(Buffer.from(await imageBlobZip.file(imageBlobMedia[0]).async("uint8array")), imageBlobBytes);
 
 // Imported SVG artwork can expose only direct text/tspan leaves. The edit is
 // source-bound and replaces the text token without opening a raw XML escape

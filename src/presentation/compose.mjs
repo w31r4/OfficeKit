@@ -369,7 +369,7 @@ export function materializeComposeNode(slide, composeNode, frame) {
     return [slide.images.add({
       ...props,
       position: frame,
-      alt: props.alt || textFromComposeChildren(children) || props.name,
+      alt: (props.alt ?? props.accessibility?.description ?? textFromComposeChildren(children)) || props.name,
       ...(placeholderDataUrl ? { dataUrl: placeholderDataUrl, fit: "stretch", geometry: "rect", borderRadius: undefined } : {}),
     })];
   }

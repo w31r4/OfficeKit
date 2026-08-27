@@ -6,6 +6,7 @@ import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { aid } from "../shared/ids.mjs";
 import { imageDataFromDataUrl } from "../shared/images.mjs";
+import { imageDataUrlFromBytes, inspectImageBytes, normalizeImageMimeType } from "../shared/image-bytes.mjs";
 import { filterInspectRecords, inspectRecordMatchesTarget, inspectTargetTokens, ndjson, normalizeKinds, verificationIssue, verificationResult } from "../shared/inspection.mjs";
 import { LAYOUT_MIME } from "../shared/render-output.mjs";
 import { attrEscape, xmlEscape } from "../shared/xml.mjs";
@@ -2548,8 +2549,21 @@ export class ImageElement {
     );
     this.prompt = config.prompt;
     this.uri = config.uri;
-    this.dataUrl = config.dataUrl;
-    this.contentType = config.contentType;
+    if (config.blob != null && config.dataUrl != null) {
+      throw new TypeError(`Presentation image ${this.id} accepts either blob or dataUrl, not both.`);
+    }
+    if (config.blob != null && !(config.blob instanceof FileBlob)) {
+      throw new TypeError(`Presentation image ${this.id} blob must be a FileBlob.`);
+    }
+    if (config.blob != null) {
+      const contentType = normalizeImageMimeType(config.blob.type);
+      inspectImageBytes(config.blob.bytes, { declaredMimeType: contentType, label: `Presentation image ${this.id} blob` });
+      this.dataUrl = imageDataUrlFromBytes(config.blob.bytes, contentType);
+      this.contentType = contentType;
+    } else {
+      this.dataUrl = config.dataUrl;
+      this.contentType = config.contentType;
+    }
     this.fit = config.fit || "contain";
     this.crop = config.crop;
     this.geometry = config.geometry || "rect";

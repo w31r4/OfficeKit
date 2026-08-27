@@ -5,8 +5,8 @@
 
 ## 2. Image model and task assets
 
-- [ ] 2.1 Add shared bounded PNG/JPEG/GIF/SVG byte inspection needed by placement, acquisition, and audit.
-- [ ] 2.2 Add `FileBlob` support to direct Presentation and Compose image placement without changing serialization or wire format.
+- [x] 2.1 Add shared bounded PNG/JPEG/GIF/SVG byte inspection needed by placement, acquisition, and audit.
+- [x] 2.2 Add `FileBlob` support to direct Presentation and Compose image placement without changing serialization or wire format.
 - [ ] 2.3 Implement content-addressed task image assets, private receipts, list/resume behavior, and atomic idempotent writes.
 
 ## 3. Discovery and secure acquisition
