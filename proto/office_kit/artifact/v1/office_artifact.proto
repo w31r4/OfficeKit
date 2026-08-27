@@ -104,6 +104,11 @@ message CodecRequest {
   DocumentRevisionFinalizationRequest revision_finalization = 8;
   DocumentTrackedReplacementRequest tracked_replacement = 9;
   PresentationEditPlanRequest presentation_edit_plan = 10;
+  // Private transport optimization for the JavaScript PPTX facade. The codec
+  // keeps hashes and asset payloads but omits the duplicate source package
+  // bytes; the caller must restore them from the exact request file and
+  // verify its SHA-256 before exposing the artifact.
+  bool thin_presentation_import_response = 11;
 }
 
 message CodecResponse {

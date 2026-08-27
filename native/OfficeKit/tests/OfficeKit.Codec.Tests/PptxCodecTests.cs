@@ -67,6 +67,39 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ThinImportOmitsOnlyHashBoundSourcePayloadBytes()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        var thin = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ImportPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            ThinPresentationImportResponse = true,
+        });
+
+        Assert.True(thin.Ok, Diagnostics(thin));
+        Assert.Empty(thin.Artifact.OpaqueOpc.SourcePackage.Data);
+        var asset = Assert.Single(thin.Artifact.Assets);
+        Assert.NotEmpty(asset.Data);
+        Assert.Equal(asset.Sha256, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(asset.Data.Span)).ToLowerInvariant());
+
+        var full = Import(sourceBytes);
+        Assert.True(full.Ok, Diagnostics(full));
+        Assert.NotEmpty(full.Artifact.OpaqueOpc.SourcePackage.Data);
+        Assert.NotEmpty(Assert.Single(full.Artifact.Assets).Data);
+
+        var invalid = ExportRequest();
+        invalid.ThinPresentationImportResponse = true;
+        var rejected = Invoke(invalid);
+        Assert.False(rejected.Ok);
+        Assert.Equal("invalid_request", Assert.Single(rejected.Diagnostics).Code);
+    }
+
+    [Fact]
     public void EditPlanChangesOnlyOneBoundTextLeafWithoutReserializingTheSlide()
     {
         var authored = Invoke(ExportRequest());

@@ -84,6 +84,8 @@ public static class CodecProtocol
                 {
                     var result = PptxCodec.Import(RequestFileBytes(request.File), limits);
                     response.Artifact = result.Artifact;
+                    if (request.ThinPresentationImportResponse)
+                        ThinPresentationImportResponse(response.Artifact);
                     response.Diagnostics.Add(result.Diagnostics);
                     break;
                 }
@@ -165,6 +167,16 @@ public static class CodecProtocol
             throw new CodecException("missing_tracked_replacement", "DOCX tracked replacement requires tracked_replacement options.");
         if (request.Operation == CodecOperation.ApplyPptxEditPlan && request.PresentationEditPlan is null)
             throw new CodecException("missing_presentation_edit_plan", "PPTX edit plan requires presentation_edit_plan options.");
+        if (request.ThinPresentationImportResponse && request.Operation != CodecOperation.ImportPptx)
+            throw new CodecException("invalid_request", "thin_presentation_import_response is valid only for PPTX import.");
+    }
+
+    private static void ThinPresentationImportResponse(ArtifactEnvelope artifact)
+    {
+        var snapshot = artifact.OpaqueOpc?.SourcePackage;
+        if (snapshot is not { Data.IsEmpty: false })
+            throw new CodecException("missing_source_package", "Thin PPTX import requires a validated source package snapshot.");
+        snapshot.Data = ByteString.Empty;
     }
 
     internal static Diagnostic Error(string code, string message, string? sourcePath = null) => new()

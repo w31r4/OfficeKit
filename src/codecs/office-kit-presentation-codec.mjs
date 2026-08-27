@@ -22,6 +22,18 @@ const PPTX_IMAGE_EXTENSIONS_BY_CONTENT_TYPE = new Map([
   ["image/svg+xml", new Set(["svg"])],
 ]);
 
+function restoreThinPresentationImport(artifact, sourceBytes) {
+  const snapshot = artifact?.opaqueOpc?.sourcePackage;
+  if (snapshot?.data?.length) return undefined;
+  const sourceHash = createHash("sha256").update(sourceBytes).digest("hex");
+  const snapshotHash = String(snapshot?.sha256 || "").toLowerCase();
+  const identityHash = String(artifact?.source?.packageSha256 || "").toLowerCase();
+  if (!snapshot || snapshotHash !== sourceHash || identityHash !== sourceHash) {
+    throw new OfficeKitCodecError("OfficeKit thin PPTX response does not match the exact request source package.", [], { code: "source_package_hash_mismatch" });
+  }
+  snapshot.data = sourceBytes;
+}
+
 function presentationSlideRelationshipPartPath(slidePartPath) {
   const match = String(slidePartPath).match(/^ppt\/slides\/(slide[1-9][0-9]*[.]xml)$/u);
   return match ? `ppt/slides/_rels/${match[1]}.rels` : undefined;
@@ -216,12 +228,15 @@ export async function exportPptxWithOfficeKit(presentation, options = {}) {
 
 export async function importPptxWithOfficeKit(input, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "importPptxWithOfficeKit");
+  const sourceBytes = Uint8Array.from(await inputBytes(input));
   const response = await invokeOfficeKit({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.IMPORT_PPTX,
     family: ArtifactFamily.PRESENTATION,
-    file: await inputBytes(input),
+    file: sourceBytes,
     limits: codecLimits(options.limits),
+    thinPresentationImportResponse: true,
   });
+  restoreThinPresentationImport(response.artifact, sourceBytes);
   return presentationFromEnvelope(response.artifact);
 }
