@@ -6,8 +6,8 @@ OfficeKit 把“开发反馈速度”和“发布可信度”分开。小改动�
 
 | 层 | 本地入口 | Hosted 入口 | 触发 | 包含 |
 | --- | --- | --- | --- | --- |
-| Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件路径同步/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行完整域 Skill 或 reference Skill render/matrix、PromptBench、clean-install 或 20 套默认模板的全量原生回归。 |
-| Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 每日定时或人工冻结 milestone；不随普通 push/PR 自动触发 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、默认模板全量 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit NativeAOT。Hosted workflow 将同一条步骤表按十个职责段顺序执行，避免单个长命令被 runner 取消。 |
+| Fast | `npm test`（等同 `npm run test:fast`） | `.github/workflows/ci.yml` | 每次 push/PR | JS syntax/import、核心四格式模型、OfficeKit 路由/参考插件路径同步/可移植性 validator、Help、包内容 smoke。不会下载 Python/PyMuPDF/qpdf/OCR/veraPDF，不运行完整域 Skill 或 reference Skill render/matrix、PromptBench、clean-install 或 13 套源文件模板的全量原生回归。 |
+| Slow | `npm run test:slow` | `.github/workflows/ci-slow.yml` | 每日定时或人工冻结 milestone；不随普通 push/PR 自动触发 | 原完整测试链、provider/pack、Playwright/LibreOffice/Poppler、PromptBench candidate/reference、DOCX/XLSX 源文件模板 import/export/recalc/render、examples、release/package、OfficeBridge 与 OfficeKit NativeAOT。Presentation schema-v3 模板只做元数据、图片与包面校验，不重复运行固定页面矩阵。Hosted workflow 将同一条步骤表按十个职责段顺序执行，避免单个长命令被 runner 取消。 |
 | Windows Office live | 见下文 | `.github/workflows/windows-office-live.yml` | 手动排队；Live host 变更或 release candidate | 真实 Windows + Microsoft Office 人工观察证据。GitHub-hosted Windows、macOS mock、Add-in build smoke 和 CLI/package smoke 都不能替代这条证据。 |
 | Windows PPTX lossless | 见下文 | `.github/workflows/windows-pptx-lossless.yml` | 三份复杂 PPTX 的无损 Goal 验收 | 真实 Windows PowerPoint 对三份冻结样本执行打开、浏览、局部编辑、保存副本、重新打开、非目标页像素比较和不支持能力拒绝；只接受人工证据，不把 Live Add-in 或 macOS 结果代替它。 |
 
@@ -17,7 +17,7 @@ Hosted `ci-slow` 和手动 release workflow 使用同一 runner 入口的十个�
 
 1. `foundation`：基础模型、路由、公式与 sparkline
 2. `presentation`：Presentation 模型、JSX 和 Presentation Skill
-3. `templates`：模板库完整性、六个默认模板 shard
+3. `templates`：模板库完整性、四个 DOCX/XLSX 源模板 shard
 4. `officekit`：Template Creator、OfficeKit Skill、CLI 和 REPL
 5. `documents`：Live smoke 与 Documents 工作流
 6. `pdf-packs`：PDF provider pack 构建与 managed-release
@@ -29,8 +29,8 @@ Hosted `ci-slow` 和手动 release workflow 使用同一 runner 入口的十个�
 这些段只改变 hosted 调度，不改变覆盖范围或步骤顺序；本地完整
 `npm run test:slow` 仍是单一串行入口。每段都可用
 `npm run test:slow -- --segment <name>` 单独复跑，未知段名会 fail closed。
-其中 `templates` 内的默认模板矩阵按
-`documents-a/b`、`presentations-a/b`、`spreadsheets-a/b` 六个模板 shard
+其中 `templates` 内的源文件模板矩阵按
+`documents-a/b`、`spreadsheets-a/b` 四个模板 shard
 顺序执行；`node test/default-template-library.mjs --shard <name>` 可单独
 复跑一个 shard，未指定 shard 时仍运行完整本地矩阵。
 
