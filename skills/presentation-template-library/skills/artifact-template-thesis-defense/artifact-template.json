@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-thesis-defense",
+  "displayName": "Thesis Defense",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "16563f347b200f608dbcc1d2cae9b465e6afba544f4d8b789fb1f034dc9f2c74"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "c0811d047f631f9df88c20f48e3c3cbe2aa4f2746b42091a97010582a4dd2903"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "631bfb1fb1d5f16679b3d4cc2fc250b62a3341cc7ff10369a2588a8130144e6d"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "7f940c5d50eb99313f65953fa9aa64682b5195a5f6a0d9c585e1865a2835e57a"
+    }
+  ],
+  "useWhen": [
+    "doctoral defense",
+    "research proposal defense",
+    "academic committee briefing"
+  ],
+  "avoidWhen": [
+    "sales pitch",
+    "casual workshop"
+  ],
+  "audiences": [
+    "academic committees",
+    "research peers",
+    "students"
+  ],
+  "contentShapes": [
+    "research question",
+    "method",
+    "finding",
+    "contribution"
+  ],
+  "visualTraits": {
+    "tone": [
+      "formal defense narrative",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "defense",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "0ff52e55fcaa957efa46f91f6c8bc08c7bc56b7046061cc52b4e947c2297783b",
+    "previewSha256": "c5d5595d97b18b617aaf84125d4eb2526b6f825236362c2a7686acc47e25f838"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-incident-field-notes",
+  "displayName": "Incident Field Notes",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "222ed18abbaa980ddb6850297c856658f3a71930db7c785c82048819029ea7b8"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "8893cc7dfa69ac36b2c5353b30af62ab2dd68f9a94ae14784eb3cf18ce436d9b"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "4596349770e49c5ccd6007a046d6dbb4d3a4884275823f681e0e6a34acabcd30"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "49f77bb9300d6394aadbbc0b4b636094ff803f01e7b2875c5d1f8236749c10eb"
+    }
+  ],
+  "useWhen": [
+    "incident retrospective",
+    "reliability review",
+    "root cause briefing"
+  ],
+  "avoidWhen": [
+    "optimistic product reveal",
+    "evergreen training"
+  ],
+  "audiences": [
+    "engineering teams",
+    "operations leaders",
+    "risk owners"
+  ],
+  "contentShapes": [
+    "timeline",
+    "causal chain",
+    "corrective action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "forensic incident record",
+      "purposeful",
+      "original"
+    ],
+    "density": "dense",
+    "colorMode": "dark",
+    "structure": [
+      "incident",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "569106e0eb101d26d92fbe8917be6e3430256d45d8e65ab241999f95e19e3a82",
+    "previewSha256": "f0d9b0626209f3755a6c8a046a7ab6a98338b533bb29c5c3017474ce1ca15913"
+  }
+}

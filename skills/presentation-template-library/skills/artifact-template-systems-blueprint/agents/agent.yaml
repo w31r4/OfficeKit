@@ -1,0 +1,5 @@
+interface:
+  display_name: "Systems Blueprint"
+  short_description: "Use the Systems Blueprint presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-systems-blueprint as the visual style for this presentation."
