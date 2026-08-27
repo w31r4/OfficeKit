@@ -54,32 +54,33 @@ while (true)
         return 65;
     }
 
-    var response = CodecProtocol.Invoke(ref request);
-    if (response.Length > AbsoluteFrameLimit)
+    CodecResponse? response = CodecProtocol.InvokeResponse(ref request);
+    var responseLength = response.CalculateSize();
+    if (responseLength > AbsoluteFrameLimit)
     {
         response = TransportFailure(
             "response_budget_exceeded",
             $"Codec response exceeds the absolute {AbsoluteFrameLimit}-byte native transport budget.");
+        responseLength = response.CalculateSize();
     }
-    var largeExchange = (long)requestLength + response.Length >= LargeExchangeCollectionThreshold;
+    var largeExchange = (long)requestLength + responseLength >= LargeExchangeCollectionThreshold;
     if (largeExchange)
     {
-        // CodecProtocol has already serialized the response. Release the input
-        // and its transient Open XML/protobuf graph before JavaScript expands
-        // that response into the public object model.
+        // Release the input and transient Open XML/protobuf request graph
+        // before JavaScript expands the response into its public object model.
         request = [];
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
     }
-    BinaryPrimitives.WriteInt32BigEndian(prefix, response.Length);
+    BinaryPrimitives.WriteInt32BigEndian(prefix, responseLength);
     await output.WriteAsync(prefix);
-    await output.WriteAsync(response);
+    response.WriteTo(output);
     await output.FlushAsync();
 
     if (largeExchange)
     {
         // The pipe owns its copy now; do not retain the serialized payload in
         // the idle codec process either.
-        response = [];
+        response = null;
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
     }
 }
@@ -96,7 +97,7 @@ static async ValueTask<int> ReadExactlyOrEofAsync(Stream stream, Memory<byte> bu
     return total;
 }
 
-static byte[] TransportFailure(string code, string message)
+static CodecResponse TransportFailure(string code, string message)
 {
     var response = new CodecResponse
     {
@@ -109,5 +110,5 @@ static byte[] TransportFailure(string code, string message)
         Code = code,
         Message = message,
     });
-    return response.ToByteArray();
+    return response;
 }

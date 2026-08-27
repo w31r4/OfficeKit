@@ -16,6 +16,11 @@ public static class CodecProtocol
 
     public static byte[] Invoke(ref byte[] requestBytes)
     {
+        return InvokeResponse(ref requestBytes).ToByteArray();
+    }
+
+    public static CodecResponse InvokeResponse(ref byte[] requestBytes)
+    {
         var response = new CodecResponse { ProtocolVersion = ProtocolVersion };
         try
         {
@@ -124,7 +129,7 @@ public static class CodecProtocol
         {
             response.Diagnostics.Add(Error("codec_failure", "OpenXML codec failed while processing the request."));
         }
-        return response.ToByteArray();
+        return response;
     }
 
     private static byte[] RequestFileBytes(ByteString file)
