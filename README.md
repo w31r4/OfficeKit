@@ -258,8 +258,9 @@ Template Creator saves it when the user explicitly wants future reuse.
 read the source → create or change → export → reopen → render pages → check the result
 ```
 
-- DOCX, XLSX, and PPTX use OfficeKit C#/.NET WASM. Import, editing, export, and
-  second-pass verification follow the same path.
+- DOCX, XLSX, and PPTX use the platform OfficeKit C# NativeAOT codec. Import,
+  editing, export, and second-pass verification follow the same path while the
+  JavaScript API and REPL remain in Node.
 - OfficeKit identifies the editable scope of complex Office content, applies
   supported changes, preserves the rest, and reports the exact boundary.
 - PDF uses MuPDF.js for normal reading, editing, inspection, and rendering.

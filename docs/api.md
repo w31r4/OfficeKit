@@ -1098,7 +1098,7 @@ Export bounded DocumentModel paragraphs/runs, fields, tables, bookmarks, notes, 
 
 **Schema returns:**
 
-- `blob` (FileBlob) — DOCX bytes produced by the bundled Open XML SDK WebAssembly codec, with codec diagnostics in metadata.
+- `blob` (FileBlob) — DOCX bytes produced by the bundled Open XML SDK NativeAOT codec, with codec diagnostics in metadata.
 
 #### `importDocxWithOfficeKit`
 
@@ -3065,7 +3065,7 @@ Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse sha
 
 **Schema returns:**
 
-- `blob` (FileBlob) — PPTX bytes produced by the bundled Open XML SDK WebAssembly codec, including bounded embedded-picture, fixed-grid plain-text-table, and recursive native-group profiles, with codec diagnostics in metadata.
+- `blob` (FileBlob) — PPTX bytes produced by the bundled Open XML SDK NativeAOT codec, including bounded embedded-picture, fixed-grid plain-text-table, and recursive native-group profiles, with codec diagnostics in metadata.
 
 #### `group.accessibilityCapability`
 
@@ -8523,7 +8523,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 
 | Name | Kind | Summary |
 | --- | --- | --- |
-| `exportXlsxWithOfficeKit` | api | Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembly codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, canonical one-variable or two-variable What-If data tables, native PivotTables with exact item or absolute whole-day date filters, and one source-free XLDAPR dynamic-array metadata profile. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; imported dynamic-array topology, commands, fields, sorts, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed. |
+| `exportXlsxWithOfficeKit` | api | Export the bounded Workbook model through the bundled C# Open XML SDK NativeAOT codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, canonical one-variable or two-variable What-If data tables, native PivotTables with exact item or absolute whole-day date filters, and one source-free XLDAPR dynamic-array metadata profile. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; imported dynamic-array topology, commands, fields, sorts, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed. |
 | `fx.ABS` | formula | Return the absolute value of a number. |
 | `fx.ACOS` | formula | Return the inverse cosine for a finite input in the closed interval [-1,1]; other inputs fail as #NUM!. |
 | `fx.ACOSH` | formula | Return the inverse hyperbolic cosine for finite inputs at least one; smaller inputs fail as #NUM!. |
@@ -8733,7 +8733,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.YEAR` | formula | Return the year component of a serial in the workbook's 1900 or 1904 date system. |
 | `importXlsxWithOfficeKit` | api | Import XLSX bytes through OfficeKit with editable core cells, formulas, styles, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, and recognized PivotTables with exact item or absolute whole-day date filters. Imported data-table and dynamic-array topology is source-bound and read-only. A recognized source-bound QueryTable can only disable automatic refresh through table.setQueryRefreshPolicy; a recognized connection can only disable an explicit on-load refresh through workbook.disableConnectionRefreshOnLoad; a recognized uniquely owned Pivot cache can only disable an explicit on-load refresh through pivot.disableRefreshOnLoad; commands, fields, sorts, topology, non-marker scatter styles, noncanonical bubble profiles, nested/branched replies, mentions, other Pivot configuration/data/output, non-reversible sparkline graphs, and other advanced package content remain source-bound and read-only. |
 | `invokeOfficeKit` | api | Advanced experimental byte-boundary API for invoking the public OfficeKit codec protocol with generated wire-message objects. |
-| `officeKitStatus` | api | Lazily initialize the bundled OfficeKit WebAssembly runtime and report its protocol, assembly, and integrity manifest. |
+| `officeKitStatus` | api | Lazily initialize the bundled OfficeKit NativeAOT codec and report its backend, target, transport, protocol, assembly, and integrity manifest. |
 | `pivot.disableRefreshOnLoad` | api | On one recognized imported PivotTable with a uniquely owned cache and explicit refreshOnLoad=true, set only that cache root switch to false while preserving the complete Pivot graph and every other cache attribute. |
 | `pivot.sourceCapabilities` | api | Inspect whether a PivotTable is source-bound and whether its uniquely owned imported cache can receive the one-way refreshOnLoad hardening operation. |
 | `range.clear` | api | Clear range contents, formats, or both without silently changing validations, dimensions, or other package graphs. |
@@ -8831,7 +8831,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 
 #### `exportXlsxWithOfficeKit`
 
-Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembly codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, canonical one-variable or two-variable What-If data tables, native PivotTables with exact item or absolute whole-day date filters, and one source-free XLDAPR dynamic-array metadata profile. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; imported dynamic-array topology, commands, fields, sorts, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed.
+Export the bounded Workbook model through the bundled C# Open XML SDK NativeAOT codec: cells, formulas, styles, merges, dimensions, freezes, ordinary tables, PNG/JPEG pictures, validation, conditional formatting, threaded-comment roots with direct replies, bar/line/pie/area/doughnut charts, marker-only numeric-X/Y scatter charts, bounded numeric-X/Y/positive-Size bubble charts, standard Office 2010 line/column/stacked sparklines, canonical one-variable or two-variable What-If data tables, native PivotTables with exact item or absolute whole-day date filters, and one source-free XLDAPR dynamic-array metadata profile. Imported QueryTables permit only source-bound one-way refresh hardening through table.setQueryRefreshPolicy; an imported connection may only change explicit refreshOnLoad=true to false through workbook.disableConnectionRefreshOnLoad; a uniquely owned imported Pivot cache may make that same one-way change through pivot.disableRefreshOnLoad; imported dynamic-array topology, commands, fields, sorts, other Pivot configuration/data/output, and unsupported extension graphs are preservation-only or fail closed.
 
 **Schema parameters:**
 
@@ -8841,7 +8841,7 @@ Export the bounded Workbook model through the bundled C# Open XML SDK WebAssembl
 
 **Schema returns:**
 
-- `blob` (FileBlob) — XLSX bytes produced by the bundled Open XML SDK WebAssembly codec, with codec diagnostics in metadata.
+- `blob` (FileBlob) — XLSX bytes produced by the bundled Open XML SDK NativeAOT codec, with codec diagnostics in metadata.
 
 #### `fx.ABS`
 
@@ -12488,11 +12488,11 @@ Advanced experimental byte-boundary API for invoking the public OfficeKit codec 
 
 #### `officeKitStatus`
 
-Lazily initialize the bundled OfficeKit WebAssembly runtime and report its protocol, assembly, and integrity manifest.
+Lazily initialize the bundled OfficeKit NativeAOT codec and report its backend, target, transport, protocol, assembly, and integrity manifest.
 
 **Schema returns:**
 
-- `status` (object) — Bundled OfficeKit runtime status with protocolVersion, assemblyName, and integrity manifest.
+- `status` (object) — Bundled OfficeKit NativeAOT codec status with backend, target, transportVersion, protocolVersion, assemblyName, and integrity manifest.
 
 #### `pivot.disableRefreshOnLoad`
 

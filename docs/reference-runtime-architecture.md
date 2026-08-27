@@ -2,7 +2,7 @@
 
 ## Decision
 
-OfficeKit Codec is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and compiled into the bundled .NET WebAssembly runtime. PDF remains an independent implementation.
+OfficeKit Codec is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and published as a platform-specific NativeAOT executable. PDF remains an independent implementation.
 
 OfficeKit retains the single-codec boundary: no Office codec registry,
 selector, alternate runtime shim, or fallback path.
@@ -11,7 +11,7 @@ selector, alternate runtime shim, or fallback path.
 flowchart LR
   A["JavaScript artifact model"] --> B["Office facade"]
   B --> C["OfficeKit wire adapter"]
-  C --> D["OfficeKit Codec (.NET WASM)"]
+  C --> D["OfficeKit Codec (NativeAOT sidecar)"]
   D --> E["XLSX / DOCX / PPTX package"]
   E --> D
   D --> C
@@ -162,7 +162,7 @@ The six Office methods are:
 
 Each method dynamically imports the OfficeKit codec leaf, then invokes the corresponding typed helper. This avoids the model/adapter static-import cycle while keeping one runtime identity.
 
-Passing `codec`, `allowLossy`, `preferNative`, `relativeDateAsOf`, or any other unknown option throws before codec execution. A missing or invalid WASM runtime also throws; no alternate implementation is tried.
+Passing `codec`, `allowLossy`, `preferNative`, `relativeDateAsOf`, or any other unknown option throws before codec execution. A missing, incompatible, or integrity-invalid platform codec package also throws; no alternate implementation is tried.
 
 `office-kit/codec` is the sole public advanced codec boundary, and
 `office-kit/codec/wire` exposes generated messages. The unreleased project does
@@ -206,7 +206,7 @@ Explicit OOXML inspect/patch functions are a separate low-level operation. They 
 
 ## Runtime loading and package layout
 
-The adapter initializes one retry-safe cached WASM runtime. It checks the bundled manifest, protocol version, assembly identity, and runtime assets before invoking the codec.
+The adapter verifies and lazily starts one retry-safe cached NativeAOT child process. A private transport-v1 handshake binds Office wire protocol 2; requests and responses are sequential 4-byte big-endian length-prefixed protobuf frames. The adapter verifies the target package manifest, executable size and SHA-256 before spawning by absolute path, captures bounded stderr, rejects truncated or oversized frames, and never consults `PATH` or a WASM fallback. The child is ref-counted only while requests are pending, so JavaScript tasks and the REPL can reuse it without preventing normal process exit.
 
 The source repository contains:
 
@@ -219,7 +219,7 @@ The npm package contains:
 
 - public JavaScript APIs and adapters;
 - the proto and generated JavaScript wire binding;
-- `runtime/office-kit` WASM/runtime assets;
+- the exact-version optional platform package for `darwin-arm64`, `linux-x64`, or `win32-x64`;
 - integrity manifest, SBOM, and license notices;
 - the optional `native/OfficeBridge/src` project, without its repository-only solution or tests;
 - seven npm-distributed native plugin bundles: six provide the eight initialized
@@ -261,4 +261,4 @@ The shared OOXML package phase moved JSZip loading, decompression limits, safe p
 5. Semantic inspect/verify and render/visual QA.
 6. Open XML SDK package validation plus optional LibreOffice/native Office checks.
 7. Clean-install probes with `dotnet` absent from `PATH`.
-8. Deterministic WASM rebuild, package-content, SBOM, release, and hosted Linux gates.
+8. Native-platform NativeAOT build, package-content, SBOM, release, and hosted platform gates.

@@ -11,7 +11,7 @@ codec, compatibility bridge, selector, or fallback.
 ## Projects
 
 - `OfficeKit.Codec` implements package validation and the XLSX/DOCX/PPTX codecs.
-- `OfficeKit.Runtime` exposes the byte-in/byte-out WebAssembly entry point.
+- `OfficeKit.NativeHost` exposes the byte-in/byte-out NativeAOT framed-stdio entry point.
 - `OfficeKit.Codec.Tests` covers supported creation/import/edit/export profiles, opaque preservation, and fail-closed cases.
 
 `OpenXmlChartSpaceCodec` is the package-agnostic DrawingML ChartSpace core used
@@ -20,12 +20,11 @@ format-specific relationship, source-binding, and edit policies around that one
 semantic reader/writer/patcher instead of maintaining divergent chart XML
 implementations.
 
-`OfficeKit.Runtime` keeps its one `byte[] -> byte[]` JavaScript entry point
-as a small explicit registration shim in `OfficeKitJavaScriptInterop.cs`. This avoids
-the .NET 8 `[JSExport]` generator's process-random wrapper-name hash while
-retaining the same public WASM ABI. The paired clean-build gate verifies the
-generated runtime file inventory and hashes rather than merely trusting an
-incremental build.
+`OfficeKit.NativeHost` keeps one sequential `byte[] -> byte[]` codec boundary
+over a private transport-v1 protocol. It writes a fixed handshake, then reads
+and writes 4-byte big-endian length-prefixed protobuf frames. It never writes
+logs to stdout; bounded diagnostics use stderr. The same `CodecProtocol.Invoke`
+implementation remains the only semantic Office codec.
 
 Protocol version 2 removes `allow_lossy`; the removed field name and number are reserved. Opaque content can be exported only from a validated, hash-bound source package. Unsupported edits, source-evidence mismatch, unsafe OPC paths, invalid relationships/content types, and missing runtime data return structured failures.
 
@@ -170,4 +169,7 @@ npm run build:office-kit
 npm run verify:office-kit-build
 ```
 
-The bundled consumer runtime is written to `runtime/office-kit`. The npm package includes that runtime, manifest, SBOM, and license notices, but excludes this C# source tree and build output. Installed consumers therefore do not need a local .NET SDK.
+The build writes one package under `packages/office-kit-codec-<target>` with a
+NativeAOT executable, integrity manifest, SBOM, and license notices. The root
+npm package selects the exact-version platform package through optional
+dependencies; installed consumers do not need a local .NET SDK.

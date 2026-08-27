@@ -193,5 +193,5 @@ request lacks a terminal record, the new task is `attention` and reports
 mutation.
 
 Template search, provider installation, Live Add-in setup, and rendering tools
-remain explicit. Listing or opening a task does not initialize Office WASM,
+remain explicit. Listing or opening a task does not initialize the Office codec,
 MuPDF, providers, templates, or a Live bridge.

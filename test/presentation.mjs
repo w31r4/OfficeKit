@@ -3541,7 +3541,7 @@ assert.deepEqual(incompleteAccessibilityAudit.summary, {
 assert.match(incompleteAccessibilityAudit.ndjson, /shape-tree order would also change visual z-order/u);
 assert.throws(() => incompleteAccessibilityDeck.auditAccessibility([]), /options must be an object/i);
 
-// The canonical file facade always crosses the OfficeKit C# WASM layer.
+// The canonical file facade always crosses the OfficeKit C# NativeAOT layer.
 const deck = Presentation.create({ slideSize: { width: 1280, height: 720 } });
 const coreSlide = deck.slides.add({ name: "Core objects", background: { fill: "#F1F5F9", mode: "solid" } });
 coreSlide.addNotes("Lead with the customer outcome.\nThen explain the operating model.");

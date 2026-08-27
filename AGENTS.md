@@ -1,18 +1,18 @@
 # OfficeKit repository guide
 
 OfficeKit is a local, agent-facing Office and PDF toolkit. It contains the
-JavaScript object model and CLI, the OfficeKit Codec C# codec and WASM runtime,
+JavaScript object model and CLI, the OfficeKit Codec C# source and NativeAOT hosts,
 the Excel Live Add-in, and the portable Skill packages that teach an Agent how
 to use those capabilities.
 
 ## Source-of-truth boundaries
 
 - `src/` is the public JavaScript runtime and CLI. Keep imports leaf-oriented;
-  the root entry must not eagerly initialize Office WASM, MuPDF, providers, or
+  the root entry must not eagerly initialize the Office codec, MuPDF, providers, or
   the Excel bridge.
-- `native/OfficeKit/` is the C# codec source. `runtime/office-kit/` is audited
-  generated WASM output; rebuild it with the checked-in build commands instead
-  of editing generated files by hand.
+- `native/OfficeKit/` is the C# codec and NativeAOT host source.
+  `packages/office-kit-codec-*/` contains target package metadata; generate
+  executables, manifests, notices, and SBOMs with the checked-in build command.
 - `proto/` is the versioned wire contract. Run `npm run proto:check` after a
   protocol change and do not change the Office wire version for a Skill-only
   change.
@@ -44,7 +44,7 @@ to use those capabilities.
    or large specialist runtime belongs in a root import or ordinary smoke test.
 6. Add a test, update the relevant Skill/docs/coverage entry, and run the
    narrowest affected gates before a full `npm test`.
-7. Generated API docs, protobuf bindings, WASM, manifests, SBOMs, and package
+7. Generated API docs, protobuf bindings, NativeAOT manifests, SBOMs, and package
    inventories are release evidence. Regenerate them with their scripts and
    review the resulting diff.
 

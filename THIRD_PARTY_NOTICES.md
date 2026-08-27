@@ -16,9 +16,9 @@ The npm package declares or optionally integrates the following public libraries
 | Playwright | Optional deterministic browser rendering | Apache-2.0 |
 | sharp | Optional raster conversion and JPEG/WebP pixel decoding | Apache-2.0 |
 | node-canvas (`canvas`) | Optional canvas raster adapter | MIT |
-| Microsoft Open XML SDK (`DocumentFormat.OpenXml`) | OOXML package codec compiled from source into the bundled WebAssembly runtime | MIT |
-| Google Protobuf for .NET | Public protobuf wire-schema runtime compiled from source into the bundled WebAssembly runtime | BSD-3-Clause |
-| .NET 8 WebAssembly runtime | Bundled execution runtime for the OfficeKit codec | MIT plus the upstream third-party notices shipped under `runtime/office-kit/` |
+| Microsoft Open XML SDK (`DocumentFormat.OpenXml`) | OOXML package codec compiled from source into each platform NativeAOT codec package | MIT |
+| Google Protobuf for .NET | Public protobuf wire-schema runtime compiled from source into each platform NativeAOT codec package | BSD-3-Clause |
+| .NET 8 NativeAOT runtime and compiler libraries | Self-contained execution runtime for the OfficeKit codec | MIT plus the upstream license and third-party notices shipped in each `office-kit-codec-*` package |
 | Reference file-type Skill bundles | Agent workflow text, helper scripts, and visual assets adapted for the public package | Retained upstream MIT notices for original material; project modifications and combined distribution are AGPL-3.0-or-later |
 
 ## Repository-only Default Template Library
@@ -44,7 +44,7 @@ The PDF Skill also ships thin Python scripts that can call the following separat
 
 The official `mupdf` npm package is a required direct dependency. A normal npm installation resolves it alongside this package, although its bytes remain in its own dependency tarball rather than being copied into this project's `.tgz`; the WASM runtime initializes lazily on the first PDF operation. There is no lifecycle hook or standalone downloader. Optional Python providers remain separately installed tools. Downstream installation, network deployment, modification, and redistribution must comply with the applicable GNU AGPL v3-or-later obligations. This notice is not a substitute for the upstream license text or legal advice.
 
-Buf CLI, `protoc-gen-es`, `Grpc.Tools`, and the .NET SDK/WebAssembly workload are build-only tools. Their generated protocol bindings or compiled outputs are shipped, but the tools themselves are not included in the npm tarball.
+Buf CLI, `protoc-gen-es`, `Grpc.Tools`, and the .NET SDK/NativeAOT compiler are build-only tools. Their generated protocol bindings or compiled outputs are shipped, but the tools themselves are not included in the npm tarball.
 
 Sharp may install platform-specific libvips binary packages under LGPL-3.0-or-later, sometimes combined with Apache-2.0/MIT components. These are optional dynamically linked runtime dependencies and are not copied into this repository or npm tarball. Downstream distributors remain responsible for the corresponding LGPL notices and relinking/source obligations when redistributing those binaries.
 

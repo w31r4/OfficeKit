@@ -16,7 +16,8 @@ that changes a public contract or spans multiple layers.
 
 The public runtime is in `src/`; the C# OfficeKit Codec source is in
 `native/OfficeKit/`; wire contracts are in `proto/`; generated runtime assets
-are in `runtime/office-kit/`; and canonical Agent Skills are in `skills/`.
+are staged into target-specific `packages/office-kit-codec-*/`; and canonical
+Agent Skills are in `skills/`.
 The root `.claude-plugin/marketplace.json` and each plugin's
 `.codex-plugin/plugin.json` are distribution metadata, not alternative Skill
 implementations.
@@ -42,7 +43,7 @@ providers remain explicit capability packs with their own licensing and
 runtime requirements. Imported content that cannot be represented safely must
 be preserved as opaque data or rejected before mutation.
 
-For changes that cross JavaScript, protobuf, C#, and WASM, update the model,
+For changes that cross JavaScript, protobuf, C#, and NativeAOT, update the model,
 wire contract, native codec, generated runtime, public API/help, Skill, and
 tests together. Keep source-bound edits immutable, atomic, and auditable.
 

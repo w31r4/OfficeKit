@@ -234,8 +234,9 @@ officekit template search \
 读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
 ```
 
-- DOCX、XLSX 和 PPTX 统一通过 OfficeKit C#/.NET WASM 读写；导入、编辑、
-  导出和二次校验沿用同一条路径。
+- DOCX、XLSX 和 PPTX 统一通过对应平台的 OfficeKit C# NativeAOT codec
+  读写；导入、编辑、导出和二次校验沿用同一条路径，JavaScript API 和
+  REPL 仍运行在 Node 中。
 - OfficeKit 先确定复杂 Office 内容的可编辑范围，再修改受支持的部分；其余内容
   保持原样并报告具体限制。
 - PDF 默认通过 MuPDF.js 读取、编辑、检查和渲染。qpdf、OCR、严格清理、
