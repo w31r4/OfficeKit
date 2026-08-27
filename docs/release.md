@@ -47,6 +47,12 @@ with Node 24.18.0 and are pinned as follows:
 - `win32-x64`: 86,033,390 bytes, SHA-256
   `ad76f29befab5ef0387999c6944df12666282ea841bb085c34d3a7eabc1f9d4c`.
 
+The 48-step fast gate passed. All ten named slow-gate segments passed in the
+same tree, as did generated API documentation, package smoke, OfficeBridge,
+and the OfficeKit .NET suite. The offline release metadata and third-party
+license audit report the tree as publish-ready; npm authentication and registry
+publication remain separate operator actions.
+
 ## OfficeKit 1.0.0
 
 OfficeKit 1.0.0 is the first stable release of the local, Agent-facing Office

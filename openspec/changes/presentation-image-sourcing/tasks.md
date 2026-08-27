@@ -32,5 +32,5 @@
 
 - [x] 6.1 Extend existing tests with one offline provider/rights contract and one secure download boundary sample.
 - [x] 6.2 Extend existing task/CLI/Presentation tests with add-list-resume-audit and FileBlob/Compose round trips.
-- [ ] 6.3 Run the Skill portability/reference/package smoke and make one real single-slide image dogfood with render, audit, and second import evidence.
-- [ ] 6.4 Run the final npm, package contents, and release gates once; commit each functional slice atomically and push the branch normally.
+- [x] 6.3 Run the Skill portability/reference/package smoke and make one real single-slide image dogfood with render, audit, and second import evidence.
+- [x] 6.4 Run the final npm, package contents, and release gates once; commit each functional slice atomically and push the branch normally.

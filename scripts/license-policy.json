@@ -16,12 +16,14 @@
   "declaredPackages": {
     "@bufbuild/protobuf": "(Apache-2.0 AND BSD-3-Clause)",
     "@firecrawl/anydoc": "MIT",
+    "@iconify-json/lucide": "ISC",
     "jszip": "(MIT OR GPL-3.0-or-later)",
     "mupdf": "AGPL-3.0-or-later",
     "selfsigned": "MIT",
     "pdfjs-dist": "Apache-2.0",
     "playwright": "Apache-2.0",
     "sharp": "Apache-2.0",
-    "canvas": "MIT"
+    "canvas": "MIT",
+    "webfetch-core": "MIT"
   }
 }
