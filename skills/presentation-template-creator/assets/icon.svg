@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Presentation Template Creator">
+  <rect x="7" y="12" width="50" height="36" rx="4" fill="#fff7ed" stroke="#1f2937" stroke-width="3"/>
+  <path d="M16 22h22M16 30h15M16 38h10" fill="none" stroke="#1f2937" stroke-linecap="round" stroke-width="3"/>
+  <circle cx="47" cy="34" r="7" fill="#f59e0b"/>
+  <path d="M42 53h12" stroke="#1f2937" stroke-linecap="round" stroke-width="3"/>
+</svg>

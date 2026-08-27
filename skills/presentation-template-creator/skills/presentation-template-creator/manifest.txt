@@ -1,0 +1,5 @@
+SKILL.md
+agents/agent.yaml
+assets/icon.svg
+references/template-format.md
+scripts/package-presentation-template.mjs

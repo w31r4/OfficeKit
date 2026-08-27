@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "presentation-template-creator",
+  "description": "Create and update reusable PowerPoint style Skills.",
+  "owner": "w31r4",
+  "skills": ["skills/presentation-template-creator"],
+  "assets": { "icon": "assets/icon.svg" },
+  "interface": {
+    "displayName": "Presentation Template Creator",
+    "shortDescription": "Create reusable PowerPoint style Skills"
+  }
+}

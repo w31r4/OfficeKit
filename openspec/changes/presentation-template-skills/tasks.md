@@ -6,8 +6,8 @@
 
 ## 2. Presentation Template Creator
 
-- [ ] 2.1 Add the `presentation-template-creator` plugin, concise Skill, format reference, Agent metadata, manifest, and deterministic packaging script.
-- [ ] 2.2 Implement safe create/update, PNG validation, montage generation, content hashes, provenance, and fixed-surface checks.
+- [x] 2.1 Add the `presentation-template-creator` plugin, concise Skill, format reference, Agent metadata, manifest, and deterministic packaging script.
+- [x] 2.2 Implement safe create/update, PNG validation, montage generation, content hashes, provenance, and fixed-surface checks.
 - [ ] 2.3 Install and route the specialist by default; limit the generic creator to DOCX/XLSX.
 - [ ] 2.4 Add one creator create/update contract flow to the existing template tests.
 

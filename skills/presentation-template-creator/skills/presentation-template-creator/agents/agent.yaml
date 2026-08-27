@@ -1,0 +1,6 @@
+interface:
+  display_name: "Presentation Template Creator"
+  short_description: "Create reusable PowerPoint style Skills"
+  icon_small: "./assets/icon.svg"
+  icon_large: "./assets/icon.svg"
+  default_prompt: "Use $presentation-template-creator to save this presentation's visual style as a reusable OfficeKit template."

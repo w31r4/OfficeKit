@@ -1,0 +1,31 @@
+{
+  "name": "presentation-template-creator",
+  "version": "1.0.0",
+  "description": "Create reusable PowerPoint style Skills from references without retaining source decks or fixed layouts.",
+  "author": {
+    "name": "w31r4",
+    "email": "w31r4@users.noreply.github.com",
+    "url": "https://github.com/w31r4/OfficeKit"
+  },
+  "homepage": "https://github.com/w31r4/OfficeKit",
+  "repository": "https://github.com/w31r4/OfficeKit",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["office", "powerpoint", "presentation", "template", "style"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Presentation Template Creator",
+    "shortDescription": "Turn presentation references into reusable style Skills",
+    "longDescription": "Distill a presentation's reusable visual grammar, build original calibration examples, and package the result as OfficeKit's single PowerPoint template form.",
+    "developerName": "w31r4",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/w31r4/OfficeKit",
+    "privacyPolicyURL": "https://github.com/w31r4/OfficeKit#readme",
+    "termsOfServiceURL": "https://github.com/w31r4/OfficeKit#readme",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "defaultPrompt": ["Save this presentation's visual style as an OfficeKit template"],
+    "brandColor": "#D97706",
+    "screenshots": []
+  }
+}
