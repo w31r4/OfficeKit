@@ -1,5 +1,0 @@
-interface:
-  display_name: "Grid Layout Library"
-  short_description: "Create editorial presentations from a 26-layout grid library"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Create a presentation from the Grid Layout Library."

@@ -6,7 +6,7 @@
     "license": "MIT",
     "copyright": "Copyright (c) 2026 w31r4"
   },
-  "assetAggregateSha256": "c1a27005a218de0af313244e88e4a8ce14592c52bfe8400fbe359f9efcd8b11e",
+  "assetAggregateSha256": "55cdcee202559b6e64173de07143c807f051047b0ca1c6440b5c5c2f5e3b4239",
   "assets": [
     {
       "templateId": "artifact-template-analytics-dashboard",
@@ -21,20 +21,6 @@
       "path": "skills/artifact-template-analytics-dashboard/assets/reference.xlsx",
       "bytes": 26606,
       "sha256": "ab655c867ea1c9eed617ec0eeec643946c1e49e9d5227e9db740c95daba26e46"
-    },
-    {
-      "templateId": "artifact-template-business-review",
-      "role": "preview",
-      "path": "skills/artifact-template-business-review/assets/preview.png",
-      "bytes": 30573,
-      "sha256": "af6b092987472013920bb251e0e9d60b97fdb02cc1fd3109abf2b0951bc6aa3c"
-    },
-    {
-      "templateId": "artifact-template-business-review",
-      "role": "reference",
-      "path": "skills/artifact-template-business-review/assets/reference.pptx",
-      "bytes": 2035231,
-      "sha256": "595b9a314c7e8e9b5f22180e7c7db167afba2437c8623d57e3f9dbc20af392c1"
     },
     {
       "templateId": "artifact-template-design-report",
@@ -79,20 +65,6 @@
       "sha256": "b15aecd03ee94fc3e29fb5c6de33c6090b75287845ab337afe0376cc0330e052"
     },
     {
-      "templateId": "artifact-template-grid-layout-library",
-      "role": "preview",
-      "path": "skills/artifact-template-grid-layout-library/assets/preview.png",
-      "bytes": 265771,
-      "sha256": "7cf1f1e77d278a91c39305bb49629e7bb9422da13a0ebab59edf7648a5ec3298"
-    },
-    {
-      "templateId": "artifact-template-grid-layout-library",
-      "role": "reference",
-      "path": "skills/artifact-template-grid-layout-library/assets/reference.pptx",
-      "bytes": 56428,
-      "sha256": "3e9f8f2fc673e91a74227603ee8aa4abe67b0974ea4541a44db76abc97b55712"
-    },
-    {
       "templateId": "artifact-template-investment-committee-memo",
       "role": "preview",
       "path": "skills/artifact-template-investment-committee-memo/assets/preview.png",
@@ -119,20 +91,6 @@
       "path": "skills/artifact-template-legal-memorandum/assets/reference.docx",
       "bytes": 593894,
       "sha256": "d3006f9074e46823d103fe283be19901f55f75c19811558455d7a16c61797355"
-    },
-    {
-      "templateId": "artifact-template-market-trends-report",
-      "role": "preview",
-      "path": "skills/artifact-template-market-trends-report/assets/preview.png",
-      "bytes": 19232,
-      "sha256": "a27d80525678a8b0b4e2242dd13aca95f7920ac790b1a66e96d8b39cc4a74e8f"
-    },
-    {
-      "templateId": "artifact-template-market-trends-report",
-      "role": "reference",
-      "path": "skills/artifact-template-market-trends-report/assets/reference.pptx",
-      "bytes": 1972113,
-      "sha256": "52396c3a70dc11d35989bb4e3f9a96d2c728c5eba8a1aad96920cfe24cff59fa"
     },
     {
       "templateId": "artifact-template-minimal-letterhead",
@@ -163,34 +121,6 @@
       "sha256": "fef758154889db179aa701a3916d6e6d30c61935b92ad259dd603322888e7f5f"
     },
     {
-      "templateId": "artifact-template-operating-review",
-      "role": "preview",
-      "path": "skills/artifact-template-operating-review/assets/preview.png",
-      "bytes": 37218,
-      "sha256": "e8f1dd91d1258c3bb06d2b1d0c52a49fce454e6682732e2e8f43b37c494e3c19"
-    },
-    {
-      "templateId": "artifact-template-operating-review",
-      "role": "reference",
-      "path": "skills/artifact-template-operating-review/assets/reference.pptx",
-      "bytes": 306716,
-      "sha256": "ec2084d143a4d52857cc06c24129abbb45c45d04b90cca06e319ac26d3cadd4f"
-    },
-    {
-      "templateId": "artifact-template-project-kickoff",
-      "role": "preview",
-      "path": "skills/artifact-template-project-kickoff/assets/preview.png",
-      "bytes": 25166,
-      "sha256": "02823427c2552cc894d333fb96fd2fb3e3ac04503904ab6f73643ca877362df5"
-    },
-    {
-      "templateId": "artifact-template-project-kickoff",
-      "role": "reference",
-      "path": "skills/artifact-template-project-kickoff/assets/reference.pptx",
-      "bytes": 2082300,
-      "sha256": "b1b15cb0c23ad524f9832749ec31b775719bae2bdba897de9c9d8556ca00a44c"
-    },
-    {
       "templateId": "artifact-template-project-tracker",
       "role": "preview",
       "path": "skills/artifact-template-project-tracker/assets/preview.png",
@@ -219,34 +149,6 @@
       "sha256": "a6ac1045a0602cbb4d90878949c2970d0e815dd9f98fe34d0ff92b69ebbb4db3"
     },
     {
-      "templateId": "artifact-template-simple-dark-mode",
-      "role": "preview",
-      "path": "skills/artifact-template-simple-dark-mode/assets/preview.png",
-      "bytes": 115324,
-      "sha256": "2082897b4e30c9a2ed137e51fa32503b1e85afb53c8555521ba374b75df622ec"
-    },
-    {
-      "templateId": "artifact-template-simple-dark-mode",
-      "role": "reference",
-      "path": "skills/artifact-template-simple-dark-mode/assets/reference.pptx",
-      "bytes": 3244996,
-      "sha256": "042ef2fcb8726524a1e773e3c73bf8b8c10b98f67ae675eb01c4501b9365a897"
-    },
-    {
-      "templateId": "artifact-template-simple-light-mode",
-      "role": "preview",
-      "path": "skills/artifact-template-simple-light-mode/assets/preview.png",
-      "bytes": 28676,
-      "sha256": "9c12751105bbdea9e74df059b0b86c6eef22b3af34ba38c090edb7e2e4acf3ac"
-    },
-    {
-      "templateId": "artifact-template-simple-light-mode",
-      "role": "reference",
-      "path": "skills/artifact-template-simple-light-mode/assets/reference.pptx",
-      "bytes": 1519451,
-      "sha256": "2ae8105571f68403f438458cd51e6ad14f0d989c7af64239e280437a4ac2a633"
-    },
-    {
       "templateId": "artifact-template-strategy-memorandum",
       "role": "preview",
       "path": "skills/artifact-template-strategy-memorandum/assets/preview.png",
@@ -273,20 +175,6 @@
       "path": "skills/artifact-template-system-design/assets/reference.docx",
       "bytes": 501311,
       "sha256": "13504f6c221a42c1726460a9e865e563355539ff97d702d6c9b2267b4b261d76"
-    },
-    {
-      "templateId": "artifact-template-team-alignment",
-      "role": "preview",
-      "path": "skills/artifact-template-team-alignment/assets/preview.png",
-      "bytes": 66065,
-      "sha256": "8b91c66156be4dec9eca517ca330c246ca8e863ee9b97b3b93cc159eee362c2d"
-    },
-    {
-      "templateId": "artifact-template-team-alignment",
-      "role": "reference",
-      "path": "skills/artifact-template-team-alignment/assets/reference.pptx",
-      "bytes": 7330920,
-      "sha256": "72b9f23a07bfd679cde36757acb11ec99900b4be0f5d393a5b4e8c6fdce4286d"
     },
     {
       "templateId": "artifact-template-three-statement-forecast",

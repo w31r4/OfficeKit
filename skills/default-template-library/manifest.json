@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "default-template-library",
-  "description": "Curated reference-backed Office templates.",
+  "description": "Curated reference-backed document and spreadsheet templates.",
   "owner": "w31r4",
   "skills": [
     "skills/artifact-template-design-report",
@@ -11,14 +11,6 @@
     "skills/artifact-template-minimal-letterhead",
     "skills/artifact-template-strategy-memorandum",
     "skills/artifact-template-system-design",
-    "skills/artifact-template-business-review",
-    "skills/artifact-template-grid-layout-library",
-    "skills/artifact-template-market-trends-report",
-    "skills/artifact-template-operating-review",
-    "skills/artifact-template-project-kickoff",
-    "skills/artifact-template-simple-dark-mode",
-    "skills/artifact-template-simple-light-mode",
-    "skills/artifact-template-team-alignment",
     "skills/artifact-template-analytics-dashboard",
     "skills/artifact-template-financial-budget",
     "skills/artifact-template-operating-calendar",
@@ -31,6 +23,6 @@
   },
   "interface": {
     "displayName": "Default Template Library",
-    "shortDescription": "Reference-backed templates for Office artifacts"
+    "shortDescription": "Reference-backed DOCX and XLSX templates"
   }
 }
