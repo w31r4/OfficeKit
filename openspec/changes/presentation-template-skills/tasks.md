@@ -44,4 +44,4 @@
 ## 7. Delivery
 
 - [x] 7.1 Commit OpenSpec, contracts, creator, routing, each rebuilt style, cleanup, and release evidence as focused atomic commits.
-- [ ] 7.2 Push the feature branch normally and integrate main only after verifying current origin ancestry and a clean worktree.
+- [x] 7.2 Push the feature branch normally and integrate main only after verifying current origin ancestry and a clean worktree.
