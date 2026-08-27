@@ -109,7 +109,7 @@ const slowSteps = [
   nodeStep("test/pptx-template-generation-agent-multipage.mjs"),
   nodeStep("test/presentation-custom-geometry-render.mjs"),
   nodeStep("test/presentation-jsx.mjs"),
-  npmStep("test:skill:presentations"),
+  npmStep("test:presentation:workflows"),
   nodeStep("test/default-template-library.mjs", "--shard", "documents-a"),
   nodeStep("test/default-template-library.mjs", "--shard", "documents-b"),
   nodeStep("test/default-template-library.mjs", "--shard", "spreadsheets-a"),

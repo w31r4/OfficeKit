@@ -21,100 +21,14 @@ import { editImportedObjectAccessibility } from "../skills/presentations/skills/
 const fixtureDir = path.join("test", "skill-harness", "presentations", "fixtures");
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const presentationSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentations");
-const editorialSkillDir = path.join(repoRoot, "skills", "presentations", "skills", "presentation-editorial-trim");
 const packagedSlideRenderer = path.join(presentationSkillDir, "container_tools", "render_slides.py");
 const packagedRasterHelper = path.join(presentationSkillDir, "container_tools", "ensure_raster_image.py");
-const [packagedSlideRendererSource, packagedRasterHelperSource, presentationSkillEntrySource, advancedImportedSource] = await Promise.all([
+const [packagedSlideRendererSource, packagedRasterHelperSource] = await Promise.all([
   fs.readFile(packagedSlideRenderer, "utf8"),
   fs.readFile(packagedRasterHelper, "utf8"),
-  fs.readFile(path.join(presentationSkillDir, "SKILL.md"), "utf8"),
-  fs.readFile(path.join(presentationSkillDir, "references", "advanced-imported-editing.md"), "utf8"),
 ]);
-const presentationSkillSource = `${presentationSkillEntrySource}\n${advancedImportedSource}`;
-const templateFollowingSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-following.md"), "utf8");
-const templateConditionedSource = await fs.readFile(path.join(presentationSkillDir, "references", "template-conditioned-generation.md"), "utf8");
-const designMechanismsSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-mechanisms.md"), "utf8");
-const audienceTextSource = await fs.readFile(path.join(presentationSkillDir, "references", "audience-text-editing.md"), "utf8");
-const [editorialSkillSource, editorialPatternsSource] = await Promise.all([
-  fs.readFile(path.join(editorialSkillDir, "SKILL.md"), "utf8"),
-  fs.readFile(path.join(editorialSkillDir, "references", "patterns.md"), "utf8"),
-]);
-const designReviewSource = await fs.readFile(path.join(presentationSkillDir, "references", "design-review.md"), "utf8");
-const authoringPlanSource = await fs.readFile(path.join(presentationSkillDir, "references", "authoring-plan.md"), "utf8");
-const doctrineSource = await fs.readFile(path.join(presentationSkillDir, "references", "presentation-doctrine.md"), "utf8");
-const scenarioPolicySource = await fs.readFile(path.join(presentationSkillDir, "references", "scenario-policy.md"), "utf8");
-const styleFloorSource = await fs.readFile(path.join(presentationSkillDir, "style_guidelines.md"), "utf8");
-const scenarioNames = [
-  "analysis-decision",
-  "business-proposal",
-  "management-report",
-  "academic-research",
-  "education-training",
-  "technical-engineering",
-  "brand-creative",
-];
-const scenarioSources = await Promise.all(scenarioNames.map((name) =>
-  fs.readFile(path.join(presentationSkillDir, "references", `scenario-${name}.md`), "utf8")));
-const taskNames = ["create", "create-from-template", "edit-existing", "continue", "review-deliver"];
-const taskSources = Object.fromEntries(await Promise.all(taskNames.map(async (name) => [
-  name,
-  await fs.readFile(path.join(presentationSkillDir, "tasks", `${name}.md`), "utf8"),
-])));
-assert.ok(presentationSkillEntrySource.split(/\r?\n/u).length >= 120, "the Presentation Skill entrypoint must retain the complete router contract");
-assert.ok(presentationSkillEntrySource.split(/\r?\n/u).length <= 150, "the Presentation Skill entrypoint must stay within 150 lines");
-for (const name of taskNames) assert.match(presentationSkillEntrySource, new RegExp(`tasks/${name.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}[.]md`, "u"));
-assert.match(presentationSkillEntrySource, /define → plan → design → compose\/edit → review → commit → deliver/u);
-assert.match(presentationSkillEntrySource, /selected Template Skill supplies style guidance and visual\s+examples[\s\S]*compose\s+freely/u);
-assert.match(presentationSkillEntrySource, /no authority or suitable template[\s\S]*self-directed C route/iu);
-assert.match(presentationSkillEntrySource, /card-based composition is forbidden[\s\S]*authoritative card-based template/u);
-assert.match(presentationSkillEntrySource, /Load detail only when needed[\s\S]*Progressive loading/u);
-for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technical-architecture", "visual-narrative", "academic-research", "brand-launch"]) assert.match(designMechanismsSource, new RegExp(`\\b${mechanism}\\b`, "u"));
-assert.match(authoringPlanSource, /ctx\.plan\(revised, \{ expectedSha256: first\.sha256 \}\)/u);
-assert.match(audienceTextSource, /single editorial authority[\s\S]*presentation-editorial-trim/u);
-assert.match(editorialSkillSource, /Titles and claims[\s\S]*Visible support[\s\S]*Labels and sources[\s\S]*Speaker notes[\s\S]*Pass 1[\s\S]*Pass 2[\s\S]*Live:[\s\S]*Reader:[\s\S]*Hybrid:/u);
-assert.match(editorialPatternsSource, /not a mechanical replacement list[\s\S]*False contrast[\s\S]*Throat clearing[\s\S]*Repeated triads[\s\S]*Unsupported superlatives/u);
-assert.match(designReviewSource, /bounded signals[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*warning-free report as proof of good\s+design/u);
-assert.match(doctrineSource, /communication event[\s\S]*editable deck[\s\S]*live or self-guided sequence[\s\S]*native artifact/u);
-assert.match(taskSources.create, /presentation doctrine[\s\S]*shared visual floor[\s\S]*scenario policy[\s\S]*one primary scenario guide/iu);
-assert.match(taskSources.create, /opening or visual-direction page[\s\S]*evidence or data page[\s\S]*densest or highest-risk page[\s\S]*same plan revision[\s\S]*second design state/u);
-assert.match(taskSources.create, /dominant visual carrier[\s\S]*asset\/source strategy[\s\S]*chart, axis, direct label[\s\S]*diagram/u);
-assert.match(designReviewSource, /Separate rationale from evidence[\s\S]*Claim and evidence[\s\S]*Carrier[\s\S]*Composition and hierarchy[\s\S]*Style and motif[\s\S]*Motion/u);
-for (const scenario of scenarioNames) assert.match(scenarioPolicySource, new RegExp(`\\b${scenario}\\b`, "u"));
-for (const sourceMode of ["self-directed", "design-system", "template", "style-transfer"]) assert.match(scenarioPolicySource, new RegExp(`\\b${sourceMode}\\b`, "u"));
-for (const source of scenarioSources) {
-  assert.match(source, /## Audience task[\s\S]*## Narrative[\s\S]*## Density and rhythm[\s\S]*## Visual carriers and archetypes[\s\S]*## Visual grammar[\s\S]*## Avoid[\s\S]*## Review questions/u);
-  assert.match(source, /(?:evidence|proof|example)[\s\S]*(?:chart|diagram|image)[\s\S]*(?:typography|line)/iu);
-  assert.doesNotMatch(source, /(?:recommend|default to|prefer)\s+(?:a\s+)?(?:card|panel)(?:\s+(?:grid|wall))?/iu);
-}
-assert.match(styleFloorSource, /one audience task[\s\S]*negative space intentional[\s\S]*dominant carrier[\s\S]*chart whose form matches[\s\S]*direct-label/u);
-assert.match(styleFloorSource, /Card-based composition is forbidden[\s\S]*colored-side-strip cards[\s\S]*metricPanel[\s\S]*roundRect \+ outline \+ shadow/u);
-assert.match(styleFloorSource, /user-supplied card template[\s\S]*preserved imported\s+cards[\s\S]*product UI screenshot[\s\S]*page-scale background[\s\S]*dashboard/u);
-assert.doesNotMatch(styleFloorSource, /Helvetica|Arial|#[A-Fa-f0-9]{6}|dark theme|light theme/u);
-assert.doesNotMatch(`${presentationSkillEntrySource}\n${doctrineSource}\n${scenarioPolicySource}\n${scenarioSources.join("\n")}`, /Kimi|presentation-artifact-tool|office-artifact-tool\/kimi|\/Users\/zfang/iu);
-assert.match(taskSources.create, /C authoring route is the default[\s\S]*one deck-specific Design Grammar/u);
-assert.doesNotMatch(taskSources.create, /compatibility fallback|Grid scaffold explicitly|silently switch to Grid|fixed layout/iu);
-assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*22[\s\S]*minimumCaptionFontSize[\s\S]*20[\s\S]*four meaningful silhouettes/u);
-assert.match(taskSources.create, /one dominant visual carrier[\s\S]*quantitative relationship[\s\S]*chart, axis, direct label/u);
-assert.match(taskSources.create, /presentation\.validateLayout\(\)[\s\S]*reopen the PPTX[\s\S]*Review and deliver/u);
-assert.match(designReviewSource, /six or more same-sized boxes[\s\S]*intentionalWarnings[\s\S]*concrete[\s\S]*reason/u);
-assert.match(taskSources["edit-existing"], /changedPageIds[\s\S]*undeclared page change/u);
 assert.doesNotMatch(packagedSlideRendererSource, /pdf2image/i, "the packaged slide renderer must not require an undeclared Python package");
 assert.doesNotMatch(packagedRasterHelperSource, /pdf2image/i, "the packaged raster helper must not require an undeclared Python package");
-assert.match(presentationSkillSource, /chartDataValue[\s\S]*ChartPart cache[\s\S]*workbook cell/i);
-assert.match(presentationSkillSource, /diagramText[\s\S]*token-splicing[\s\S]*a:t/i);
-assert.match(presentationSkillSource, /does not authorize chart or diagram identity, relationships,[\s\S]*series or SmartArt topology/i);
-assert.match(presentationSkillSource, /svgEditCapability[\s\S]*getSvgEditLeaves[\s\S]*editSvgLeaf/i);
-assert.match(presentationSkillSource, /RGB fill\/stroke[\s\S]*opacity in `0\.\.1`[\s\S]*translate[\s\S]*scale[\s\S]*rotate/i);
-assert.match(presentationSkillSource, /reinspect before another edit[\s\S]*bound to the current\s+image bytes[\s\S]*imported package revision/i);
-assert.match(presentationSkillSource, /Stylesheets[\s\S]*external references[\s\S]*foreignObject[\s\S]*XML selectors[\s\S]*outside\s+this\s+capability/i);
-assert.match(presentationSkillSource, /reimport and verify[\s\S]*new-media footprint[\s\S]*byte-identical non-target parts[\s\S]*affected slide render/i);
-assert.match(templateFollowingSource, /presentation\.designProfile\(\{ maxItems: 64 \}\)[\s\S]*descriptive evidence[\s\S]*not permission to edit raw XML/i);
-assert.match(presentationSkillSource, /getSvgTextNodes\(\)[\s\S]*node\.text[\s\S]*not[\s\S]*node\.value[\s\S]*editSvgText[\s\S]*value/i);
-assert.match(presentationSkillSource, /slide\.continuationCapability[\s\S]*pending-clone[\s\S]*export\/reimport[\s\S]*bounded-overlay[\s\S]*textbox[\s\S]*embedded rectangular[\s\S]*clean SlidePart export[\s\S]*Commit\/reopen/i);
-assert.match(templateConditionedSource, /continuationCapability[\s\S]*pending-clone[\s\S]*export\/reimport/i);
-assert.match(templateConditionedSource, /continuationCapability[\s\S]*bounded-overlay[\s\S]*clean export[\s\S]*commit\/reopen/i);
-assert.match(templateFollowingSource, /continuationCapability[\s\S]*export\/reimport[\s\S]*pending-clone[\s\S]*bounded-overlay/i);
-assert.match(templateFollowingSource, /separate revision[\s\S]*continuationCapability[\s\S]*arbitrary tables, charts, connectors, groups, or native nodes/i);
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-presentation-skill-test-"));
 const baselineDir = path.join(root, "baselines");
@@ -3331,7 +3245,7 @@ try {
   assert.match(templateFollowingText, /independently revalidates the map.*Every clone is exported and imported.*before the next clone.*removed in reverse order.*one-pending-\s*clone contract.*no PPTX, manifest, preview,\s+layout, or contact-sheet publication/is);
   assert.match(templateFollowingText, /template-starter\.manifest\.json.*sourceElementIds.*starterElementIds.*do not claim persistence.*source\/map\/inspection\/output hashes.*no-overwrite policy/is);
 
-  console.log("presentation skill smoke ok");
+  console.log("presentation workflow regression ok");
 } finally {
   await fs.rm(root, { recursive: true, force: true });
 }

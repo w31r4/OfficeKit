@@ -119,7 +119,7 @@
     "test:pptx-source-derived-companion": "node test/pptx-source-derived-companion.mjs",
     "test:pptx-source-agent-continuation": "node test/pptx-source-agent-continuation.mjs",
     "test:presentation-jsx": "node test/presentation-jsx.mjs",
-    "test:skill:presentations": "node test/presentation-skill.mjs && node test/presentation-template-edit.mjs",
+    "test:presentation:workflows": "node test/presentation-skill.mjs && node test/presentation-template-edit.mjs",
     "test:default-template-library": "node test/default-template-library.mjs",
     "test:template-creator": "node test/template-creator.mjs",
     "test:skill:office-kit": "node test/office-kit-skill.mjs",
