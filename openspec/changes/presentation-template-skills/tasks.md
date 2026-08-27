@@ -19,7 +19,7 @@
 
 ## 4. Original bundled style Skills
 
-- [ ] 4.1 Rebuild Business Review as a schema-v3 style Skill with original guide and calibration images.
+- [x] 4.1 Rebuild Business Review as a schema-v3 style Skill with original guide and calibration images.
 - [ ] 4.2 Rebuild Market Trends Report as a schema-v3 style Skill with original guide and calibration images.
 - [ ] 4.3 Rebuild Operating Review as a schema-v3 style Skill with original guide and calibration images.
 - [ ] 4.4 Rebuild Project Kickoff as a schema-v3 style Skill with original guide and calibration images.
