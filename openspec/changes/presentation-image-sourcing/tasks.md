@@ -11,16 +11,16 @@
 
 ## 3. Discovery and secure acquisition
 
-- [ ] 3.1 Implement license normalization, allowlist enforcement, attribution requirements, and task-bound candidate evidence.
-- [ ] 3.2 Implement offline deterministic Lucide search and SVG materialization.
-- [ ] 3.3 Implement explicit Openverse and Wikimedia provider search through `webfetch-core` with stable candidate ranking and visible provider reports.
-- [ ] 3.4 Implement HTTPS-only DNS-pinned downloading with redirect, byte, MIME, magic, pixel, and dimension limits.
+- [x] 3.1 Implement license normalization, allowlist enforcement, attribution requirements, and task-bound candidate evidence.
+- [x] 3.2 Implement offline deterministic Lucide search and SVG materialization.
+- [x] 3.3 Implement explicit Openverse and Wikimedia provider search through `webfetch-core` with stable candidate ranking and visible provider reports.
+- [x] 3.4 Implement HTTPS-only DNS-pinned downloading with redirect, byte, MIME, magic, pixel, and dimension limits.
 
 ## 4. CLI and audit
 
-- [ ] 4.1 Add lazy `officekit image search|add|list|audit` parsing, help, JSON results, and error contracts.
-- [ ] 4.2 Implement candidate/local/URL acquisition routes and source-protecting output behavior.
-- [ ] 4.3 Implement PPTX media hash audit, attribution obligations, and optional deterministic sources sidecar.
+- [x] 4.1 Add lazy `officekit image search|add|list|audit` parsing, help, JSON results, and error contracts.
+- [x] 4.2 Implement candidate/local/URL acquisition routes and source-protecting output behavior.
+- [x] 4.3 Implement PPTX media hash audit, attribution obligations, and optional deterministic sources sidecar.
 
 ## 5. Presentation workflow and documentation
 
@@ -30,7 +30,7 @@
 
 ## 6. Lean verification and delivery
 
-- [ ] 6.1 Extend existing tests with one offline provider/rights contract and one secure download boundary sample.
-- [ ] 6.2 Extend existing task/CLI/Presentation tests with add-list-resume-audit and FileBlob/Compose round trips.
+- [x] 6.1 Extend existing tests with one offline provider/rights contract and one secure download boundary sample.
+- [x] 6.2 Extend existing task/CLI/Presentation tests with add-list-resume-audit and FileBlob/Compose round trips.
 - [ ] 6.3 Run the Skill portability/reference/package smoke and make one real single-slide image dogfood with render, audit, and second import evidence.
 - [ ] 6.4 Run the final npm, package contents, and release gates once; commit each functional slice atomically and push the branch normally.

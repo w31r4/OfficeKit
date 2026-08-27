@@ -343,3 +343,15 @@ export async function imageTaskState({ workspaceRoot, taskId }) {
   const [assets, searches] = await Promise.all([listTaskImageAssets(task), listTaskImageSearches(task)]);
   return { task, assets, searches };
 }
+
+export async function writeTaskImageAuditEvidence(task, report) {
+  const directories = await ensureImageDirectories(task);
+  const bytes = Buffer.from(`${JSON.stringify(report, null, 2)}\n`);
+  const digest = sha256(bytes);
+  const presentationSha256 = SHA256_PATTERN.test(String(report?.presentation?.sha256 || ""))
+    ? report.presentation.sha256
+    : "unknown";
+  const target = path.join(directories.audits, `${presentationSha256}-${digest}.json`);
+  await publishImmutable(target, bytes, 0o600);
+  return Object.freeze({ path: target, sha256: digest, byteLength: bytes.length });
+}

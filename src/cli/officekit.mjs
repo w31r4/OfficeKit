@@ -120,6 +120,11 @@ export async function runOfficeKitCli(
     await runTemplateCommand(commandArguments, { output });
     return;
   }
+  if (command === "image") {
+    const { runImageCommand } = await import("../images/cli.mjs");
+    await runImageCommand(commandArguments, { output });
+    return;
+  }
   if (command === "excel") {
     const { runExcelCommand } = await import("../excel-live/cli.mjs");
     await runExcelCommand(commandArguments, { input, output });
@@ -719,6 +724,7 @@ Usage:
   officekit repl --new <goal> [--workspace <path>]
   officekit repl <task-id> [--workspace <path>]
   officekit template search [search options] [--json]
+  officekit image <search|add|list|audit> [options]
   officekit excel <command> [options]
   officekit live <command> --app <excel|powerpoint> [options]
   officekit --version
@@ -730,6 +736,7 @@ Commands:
   repl       Run a persistent JSONL JavaScript task session
   tasks      List or inspect durable OfficeKit tasks in this workspace
   template   Search the bundled and project template catalogs
+  image      Find, register, and audit task-bound Presentation images
   excel      Connect an open Microsoft Excel workbook to local OfficeKit control
   live       Connect a supported open Office document to local OfficeKit control
 
@@ -752,6 +759,7 @@ Examples:
   officekit tasks
   officekit repl --new "Create a quarterly business review"
   officekit template search --kind presentation --purpose "quarterly business review"
+  officekit image search "financial market" --task <task-id> --kind photo --purpose evidence --orientation landscape --json
   officekit excel install
   officekit excel sessions --json
   officekit live install --app powerpoint

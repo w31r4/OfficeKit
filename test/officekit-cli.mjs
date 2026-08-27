@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+
+import JSZip from "jszip";
+
+import { runImageCommand } from "../src/images/cli.mjs";
+import { downloadRemoteImage } from "../src/images/download.mjs";
+import { searchImageCandidates } from "../src/images/providers.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const cli = path.join(repoRoot, "bin", "officekit.mjs");
@@ -21,6 +29,7 @@ try {
   assert.match(help.stdout, /officekit repl <task-id>/);
   assert.match(run(["repl", "--help"]).stdout, /--file <cell[.]mjs>/);
   assert.match(help.stdout, /officekit template search/);
+  assert.match(help.stdout, /officekit image <search\|add\|list\|audit>/);
   assert.match(help.stdout, /officekit excel <command>/);
   assert.match(help.stdout, /officekit live <command> --app <excel\|powerpoint>/);
   assert.match(help.stdout, /Choose Agent targets and install the OfficeKit Skills/);
@@ -31,6 +40,7 @@ try {
   const liveHelp = run(["live", "--help"]);
   assert.match(liveHelp.stdout, /officekit live install --app powerpoint/);
   assert.match(liveHelp.stdout, /officekit live execute <request\.json>/);
+  assert.match(run(["image", "--help"]).stdout, /selectionMade is always false/);
 
   const lazyProject = path.join(temporary, "lazy-excel-project");
   const lazyEnvironment = { OFFICEKIT_EXCEL_HOME: lazyExcelHome, OFFICEKIT_POWERPOINT_HOME: lazyPowerPointHome };
@@ -43,6 +53,90 @@ try {
   assert.equal(tasks.tasks[0].id, ready.task.id);
   const taskDetail = parseJson(run(["tasks", ready.task.id, "--workspace", lazyProject, "--json"], { environment: lazyEnvironment }).stdout);
   assert.equal(taskDetail.task.goal, "CLI discovery task");
+
+  let directSearchOutput = "";
+  const directSearch = await runImageCommand([
+    "search", "market evidence", "--task", ready.task.id, "--workspace", lazyProject,
+    "--kind", "photo", "--purpose", "evidence", "--orientation", "landscape", "--max", "2", "--json",
+  ], {
+    output: { write(chunk) { directSearchOutput += chunk; } },
+    searcher: (input) => searchImageCandidates(input, {
+      providerImplementations: {
+        openverse: { search: async () => [
+          { url: "https://images.example.com/market.png", sourcePageUrl: "https://example.com/market", title: "Market evidence", author: "Example Author", license: "CC_BY", licenseUrl: "https://creativecommons.org/licenses/by/4.0/", width: 1600, height: 900, mime: "image/png" },
+          { url: "https://images.example.com/blocked.png", sourcePageUrl: "https://example.com/blocked", title: "Blocked", author: "Example Author", license: "CC_BY_SA", width: 1600, height: 900, mime: "image/png" },
+        ] },
+        wikimedia: { search: async () => [] },
+      },
+    }),
+  });
+  assert.equal(directSearch.selectionMade, false);
+  assert.equal(directSearch.candidates.length, 1);
+  assert.equal(directSearch.candidates[0].rights, "cc-by");
+  assert.equal(directSearch.rejected[0].reason, "image-rights-blocked");
+  assert.equal(parseJson(directSearchOutput).selectionMade, false);
+
+  const iconSearch = parseJson(run([
+    "image", "search", "market chart", "--task", ready.task.id, "--workspace", lazyProject,
+    "--kind", "icon", "--purpose", "context", "--orientation", "square", "--max", "1", "--json",
+  ]).stdout);
+  assert.equal(iconSearch.selectionMade, false);
+  assert.equal(iconSearch.candidates.length, 1);
+  const iconAsset = parseJson(run([
+    "image", "add", "--task", ready.task.id, "--workspace", lazyProject,
+    "--candidate", iconSearch.candidates[0].candidateRef, "--json",
+  ]).stdout).asset;
+  assert.equal(iconAsset.rights, "lucide-isc");
+
+  const pngBytes = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  const localImage = path.join(lazyProject, "evidence.png");
+  fs.writeFileSync(localImage, pngBytes);
+  const localAsset = parseJson(run([
+    "image", "add", "--task", ready.task.id, "--workspace", lazyProject,
+    "--file", localImage, "--rights", "user-provided", "--json",
+  ]).stdout).asset;
+  assert.equal(localAsset.mimeType, "image/png");
+  assert.equal(parseJson(run(["image", "list", "--task", ready.task.id, "--workspace", lazyProject, "--json"]).stdout).assets.length, 2);
+
+  const pptxZip = new JSZip();
+  pptxZip.file("ppt/media/image1.png", pngBytes);
+  const auditPptx = path.join(lazyProject, "image-audit.pptx");
+  fs.writeFileSync(auditPptx, await pptxZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
+  const sourcesOutput = `${auditPptx}.sources.json`;
+  const imageAudit = parseJson(run([
+    "image", "audit", auditPptx, "--task", ready.task.id, "--workspace", lazyProject,
+    "--sources-output", sourcesOutput, "--json",
+  ]).stdout);
+  assert.equal(imageAudit.audit.ok, true);
+  assert.equal(imageAudit.audit.used[0].sha256, localAsset.sha256);
+  assert.equal(imageAudit.audit.unused[0].sha256, iconAsset.sha256);
+  assert.equal(fs.existsSync(sourcesOutput), true);
+  assert.match(run([
+    "image", "audit", auditPptx, "--task", ready.task.id, "--workspace", lazyProject,
+    "--sources-output", sourcesOutput, "--json",
+  ], { expectFailure: true }).stderr, /image-output-exists/);
+
+  const publicResolver = async () => [{ address: "93.184.216.34", family: 4 }];
+  const redirected = await downloadRemoteImage("https://images.example.com/start", {
+    resolver: publicResolver,
+    requestFactory: queuedRequestFactory([
+      response(302, { location: "https://cdn.example.com/final.png" }),
+      response(200, { "content-type": "image/png", "content-length": String(pngBytes.length) }, [pngBytes]),
+    ]),
+  });
+  assert.equal(redirected.redirects.length, 1);
+  await assert.rejects(
+    downloadRemoteImage("https://images.example.com/private.png", { resolver: async () => [{ address: "127.0.0.1", family: 4 }] }),
+    (error) => error.code === "unsafe-image-destination",
+  );
+  await assert.rejects(
+    downloadRemoteImage("https://images.example.com/large.png", { resolver: publicResolver, requestFactory: queuedRequestFactory([response(200, { "content-type": "image/png", "content-length": String(21 * 1024 * 1024) })]) }),
+    (error) => error.code === "image-download-too-large",
+  );
+  await assert.rejects(
+    downloadRemoteImage("https://images.example.com/wrong.png", { resolver: publicResolver, requestFactory: queuedRequestFactory([response(200, { "content-type": "image/png" }, [Buffer.from("not a png")])]) }),
+    /PNG|image/i,
+  );
   parseJson(run([
     "template",
     "search",
@@ -420,4 +514,18 @@ function parseJson(source) {
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
+}
+
+function response(statusCode, headers, chunks = []) {
+  return Object.assign(Readable.from(chunks), { statusCode, headers });
+}
+
+function queuedRequestFactory(responses) {
+  return (_url, _options, callback) => {
+    const request = new EventEmitter();
+    request.setTimeout = () => request;
+    request.destroy = (error) => queueMicrotask(() => request.emit("error", error));
+    request.end = () => queueMicrotask(() => callback(responses.shift()));
+    return request;
+  };
 }

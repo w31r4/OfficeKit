@@ -7,9 +7,11 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   if (process.argv.includes("--json")) {
-    const failure = error?.code
+    const failure = error?.code && process.argv[2] !== "image"
       ? (await import("../src/excel-live/protocol.mjs")).createExcelFailure(error)
-      : { ok: false, error: message };
+      : error?.code
+        ? { ok: false, error: { code: error.code, message } }
+        : { ok: false, error: message };
     process.stderr.write(`${JSON.stringify(failure)}\n`);
   } else if (error?.officeKitShowStack && error instanceof Error) {
     process.stderr.write(`${error.stack ?? error.message}\n`);
