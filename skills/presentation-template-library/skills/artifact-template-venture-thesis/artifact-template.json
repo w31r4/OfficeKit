@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-venture-thesis",
+  "displayName": "Venture Thesis",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "c7f9621725aabb923302b9504580d11e769508aee255005664314939d1f4ac1d"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "012a12a83539aad383b8e65de5a9dfac2b40dccb95ab715d58f03c7f8918aa8c"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "be6301bc20e501e31b2bee940b7e16dbeb5190ee2a8c9a4ed97c69b04e640c60"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "7e3d29d63c92d2366276ffb3cd9cf6bc5050788b48bc79e2cce5c775a8aae0c4"
+    }
+  ],
+  "useWhen": [
+    "startup fundraising narrative",
+    "new venture thesis",
+    "growth opportunity pitch"
+  ],
+  "avoidWhen": [
+    "regulated audit report",
+    "dense technical manual"
+  ],
+  "audiences": [
+    "investors",
+    "founders",
+    "innovation teams"
+  ],
+  "contentShapes": [
+    "problem",
+    "market opening",
+    "business model",
+    "ask"
+  ],
+  "visualTraits": {
+    "tone": [
+      "optimistic investment narrative",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "mixed",
+    "structure": [
+      "venture",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "58b90d2fa2b851630b5d0e374c2c65cd6721d83a4ac02fa925bffb01dbbcedc1",
+    "previewSha256": "7d986e4554f07fec15371d33b5284627a568f6d4963562df4741220bd7f95d7d"
+  }
+}

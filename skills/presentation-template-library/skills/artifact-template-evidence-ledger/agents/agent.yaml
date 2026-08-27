@@ -1,0 +1,5 @@
+interface:
+  display_name: "Evidence Ledger"
+  short_description: "Use the Evidence Ledger presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-evidence-ledger as the visual style for this presentation."

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-decision-brief",
+  "displayName": "Decision Brief",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "55c9da3d2cb39aa7e5048eda660abce258b0229d3d99465b7409f4564b6fe20c"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "0e4ec3d1fd4bfc7d8a4024fdf24188629493ca608f5d13f3af368524969f4e3c"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "d578d4056c9ed41adca5545a870a394b55c2f344507f9ec3896b9af5a296a542"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "cacf437e41578704e5b99bbe44a9ce1606123185cf7240fcac906cf09c344cb6"
+    }
+  ],
+  "useWhen": [
+    "executive decision memo",
+    "go no go recommendation",
+    "strategy choice"
+  ],
+  "avoidWhen": [
+    "immersive brand film",
+    "photo album"
+  ],
+  "audiences": [
+    "executives",
+    "steering committees",
+    "product leaders"
+  ],
+  "contentShapes": [
+    "recommendation",
+    "tradeoff",
+    "decision criteria"
+  ],
+  "visualTraits": {
+    "tone": [
+      "sharp editorial brief",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "editorial",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "9fe0978ebb4c561ece1628c5cec2dac67ef5be6958bada8e63e35c691da4b0a8",
+    "previewSha256": "3ec239c43cf0d436fb6f1634638b7cadacb64781b3da953101ea1c4e30d13145"
+  }
+}

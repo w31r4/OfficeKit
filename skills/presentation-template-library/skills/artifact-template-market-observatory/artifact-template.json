@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-market-observatory",
+  "displayName": "Market Observatory",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "8c8b1a07b4e324edbbe338cb13029eeab1a541bd7a315ff2710b62043c3afd85"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "d0a1079ed3139315a5395bd595339392056d9a5ae8e0039237fffad68baef7e7"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "1cf1801ce8d0289783a421264e17cb3aa2f3c502a63d45a57425e7a8a56989c0"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "1bd87cca3deac2970a94ea869cfe5d039a77cf73c87defd3e8b75c67ef375803"
+    }
+  ],
+  "useWhen": [
+    "industry landscape report",
+    "market structure analysis",
+    "competitive intelligence"
+  ],
+  "avoidWhen": [
+    "minimal ceremonial keynote",
+    "playful internal culture"
+  ],
+  "audiences": [
+    "strategists",
+    "investors",
+    "research teams"
+  ],
+  "contentShapes": [
+    "market map",
+    "trend comparison",
+    "competitive movement"
+  ],
+  "visualTraits": {
+    "tone": [
+      "analytical observatory that",
+      "purposeful",
+      "original"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "observatory",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "dc316ae17d90ef5000544edb04b407f5c7f91bce578a5357d6baa4ee2ebe600b",
+    "previewSha256": "70b00a0501107725d8ec96135057be03d95021257aea8c3445cf73a6f819c143"
+  }
+}

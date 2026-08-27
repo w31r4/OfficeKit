@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-evidence-ledger",
+  "displayName": "Evidence Ledger",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "2b1e11b18d5922c4120c52b75899dc85000cb36f4a5e30d6ecfdf26304684037"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "e0713bbfe01f22a17ef76d9b0a2dac49409a8fb0587e180a6206132090f8888d"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "1e5f3266df9c135db6df7fb59e0c636b5f5f01a44ea5d9b9b3e04cf92932cec1"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "bdc67a9f1133716022e5adc430bc9d7db6cf61372a50fecac8f68d5d0ddfc52e"
+    }
+  ],
+  "useWhen": [
+    "evidence based decision deck",
+    "audit trail analysis",
+    "policy option comparison"
+  ],
+  "avoidWhen": [
+    "consumer entertainment launch",
+    "celebratory photo story"
+  ],
+  "audiences": [
+    "executives",
+    "analysts",
+    "policy teams"
+  ],
+  "contentShapes": [
+    "finding",
+    "evidence chain",
+    "decision record"
+  ],
+  "visualTraits": {
+    "tone": [
+      "restrained evidence book",
+      "purposeful",
+      "original"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "ledger",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "dc4abe9bb56cabc3719766fd931b8ed879d0d444db26654927d3d1a6a8e82cde",
+    "previewSha256": "db1a522e7d739e22673e9592397ea5a05b60ec497b09d911c3e846d68d6deeac"
+  }
+}
