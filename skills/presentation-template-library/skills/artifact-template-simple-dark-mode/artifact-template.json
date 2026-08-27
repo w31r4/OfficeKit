@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-simple-dark-mode",
+  "displayName": "Simple Dark Mode",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "b844abb195b621d6b2471c3569584b39200eeec6742ae4b54ed5a191aacd6933"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "0c936a8b848cf3c2314d520e3971d7a4568339378d0d74c4fe0dac7f222fcf34"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "d72114ad4c386a7c0b9842b3af2da7571ef750e58a2b2f403a54f8789984c168"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "ce490c170e3aec58c5714cab26e509958a03d75c00169b7f3d780b94ccf2f4cf"
+    }
+  ],
+  "useWhen": [
+    "minimal dark presentation",
+    "live executive keynote",
+    "focused technology narrative"
+  ],
+  "avoidWhen": [
+    "dense leave behind report",
+    "warm community workshop"
+  ],
+  "audiences": [
+    "live audiences",
+    "technical leaders",
+    "executives"
+  ],
+  "contentShapes": [
+    "single argument",
+    "large metric",
+    "focused diagram"
+  ],
+  "visualTraits": {
+    "tone": [
+      "minimal",
+      "confident",
+      "technical"
+    ],
+    "density": "sparse",
+    "colorMode": "dark",
+    "structure": [
+      "type led",
+      "single focus",
+      "high contrast"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original calibration deck for version 1.1.0",
+    "guideSha256": "b08901d684c12f93f9eb1740f84261180a2ef8fd90e5292ca5cc4032f877e508",
+    "previewSha256": "0af8f2617ca758ee1de35d7d9bfbc12505ca7baa0de88ae3b9b84175e6644b1f"
+  }
+}

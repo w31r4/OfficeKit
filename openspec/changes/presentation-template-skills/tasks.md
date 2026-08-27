@@ -23,7 +23,7 @@
 - [x] 4.2 Rebuild Market Trends Report as a schema-v3 style Skill with original guide and calibration images.
 - [x] 4.3 Rebuild Operating Review as a schema-v3 style Skill with original guide and calibration images.
 - [x] 4.4 Rebuild Project Kickoff as a schema-v3 style Skill with original guide and calibration images.
-- [ ] 4.5 Rebuild Simple Dark Mode as a schema-v3 style Skill with original guide and calibration images.
+- [x] 4.5 Rebuild Simple Dark Mode as a schema-v3 style Skill with original guide and calibration images.
 - [ ] 4.6 Rebuild Simple Light Mode as a schema-v3 style Skill with original guide and calibration images.
 - [ ] 4.7 Rebuild Team Alignment as a schema-v3 style Skill with original guide and calibration images.
 - [ ] 4.8 Rebuild Grid Layout Library as a schema-v3 style Skill without layout code or skeletons.
