@@ -1,7 +1,7 @@
 ## 1. Planning and dependencies
 
-- [ ] 1.1 Validate the OpenSpec proposal, design, and three capability specifications.
-- [ ] 1.2 Pin `webfetch-core@0.1.5` and `@iconify-json/lucide@1.2.126` and record their licenses.
+- [x] 1.1 Validate the OpenSpec proposal, design, and three capability specifications.
+- [x] 1.2 Pin `webfetch-core@0.1.5` and `@iconify-json/lucide@1.2.126` and record their licenses.
 
 ## 2. Image model and task assets
 
