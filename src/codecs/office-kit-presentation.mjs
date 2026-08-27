@@ -4909,8 +4909,9 @@ export async function presentationFromEnvelope(envelope) {
     }
     customShowLinks.set(show.id, show.name);
   }
-  const nativeGraph = await materializePresentationNativeGraphs(envelope);
   const assetCatalog = createPresentationAssetCatalog(envelope.assets || [], { shareBytes: true });
+  const assetBytesBySha256 = new Map((envelope.assets || []).map((asset) => [String(asset.sha256 || "").toLowerCase(), asset.data]));
+  const nativeGraph = await materializePresentationNativeGraphs(envelope, { assetBytesBySha256 });
   const presentation = Presentation.create({
     slideSize: { width: Number(source.slideWidthEmu) / EMU_PER_PIXEL, height: Number(source.slideHeightEmu) / EMU_PER_PIXEL },
   });

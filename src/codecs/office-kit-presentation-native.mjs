@@ -40,6 +40,9 @@ function sha256(bytes) {
 // read-only native object until its next canonical OfficeKit export.
 export async function materializePresentationNativeGraphs(envelope, options = {}) {
   const opaqueOpc = envelope.opaqueOpc;
+  const assetBytesBySha256 = options.assetBytesBySha256 instanceof Map
+    ? options.assetBytesBySha256
+    : new Map();
   const opaqueElements = envelope.payload?.case === "presentation"
     ? envelope.payload.value.slides.flatMap((slide) => slide.elements
       .filter((element) => element.content?.case === "opaque")
@@ -71,7 +74,12 @@ export async function materializePresentationNativeGraphs(envelope, options = {}
   const materializedParts = new Map();
   await Promise.all([...requestedPaths].map(async (partPath) => {
     const metadata = partsByPath.get(partPath);
-    let bytes = metadata.data?.length ? new Uint8Array(metadata.data) : undefined;
+    const sharedAssetBytes = assetBytesBySha256.get(String(metadata.sha256 || "").toLowerCase());
+    let bytes = metadata.data?.length
+      ? new Uint8Array(metadata.data)
+      : sharedAssetBytes?.length
+        ? new Uint8Array(sharedAssetBytes.buffer, sharedAssetBytes.byteOffset, sharedAssetBytes.byteLength)
+        : undefined;
     if (!bytes) {
       const entry = zip.file(partPath);
       if (!entry) fail("missing_presentation_native_part", `OfficeKit source package snapshot is missing native-object part ${partPath}.`);
