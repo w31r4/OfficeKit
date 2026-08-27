@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-simple-light-mode",
+  "displayName": "Simple Light Mode",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0fac087b891e862675409e30ee04210ef30d7f712e17517dfc154dcdf409f23f"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "d8381b11af1f6fc729d4058a2d2ec0d3f929fe6b2fda3ff67246a5478ee9a60d"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "ee96906d8438eb463115610d7ffef3282ffbfe5a8abbbd425599f2ce05e92caa"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "eb2b4287c3c9d65899816b5c8a7a2c60c10b4d807c2a5228cf10c37997fb6667"
+    }
+  ],
+  "useWhen": [
+    "minimal light presentation",
+    "editorial analysis deck",
+    "strategy narrative handoff"
+  ],
+  "avoidWhen": [
+    "neon gaming launch",
+    "dark stage spectacle"
+  ],
+  "audiences": [
+    "professional readers",
+    "strategy teams",
+    "general business"
+  ],
+  "contentShapes": [
+    "argument sequence",
+    "annotated chart",
+    "decision summary"
+  ],
+  "visualTraits": {
+    "tone": [
+      "editorial",
+      "clear",
+      "restrained"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "baseline aligned",
+      "annotated",
+      "typographic"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original calibration deck for version 1.1.0",
+    "guideSha256": "61e12b3f59b3b63246130d4e5213f2c6c34c078dc17bdbe90b0cd239fedf19c5",
+    "previewSha256": "567680701bdb9f61f1be3426f4788ca90244e1c9ed069027550450cbb940c769"
+  }
+}
