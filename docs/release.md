@@ -1,5 +1,27 @@
 # Release
 
+## Unreleased
+
+Presentation text now carries an explicit DrawingML East Asian typeface while
+authoring CJK runs, and source-bound import/edit preserves that `a:ea` value.
+On macOS, the LibreOffice renderer supplies a private per-run Fontconfig file
+covering current system, supplemental, user, and downloaded Apple font roots;
+it does not modify the user's Fontconfig configuration. A real Chinese PPTX
+export, second import, and LibreOffice-to-PDF render embedded PingFang SC and
+kept both Chinese lines visible.
+
+`validateLayout()` now treats a text-free object explicitly marked
+`accessibility.decorative: true` as decoration: intentional overlap and partial
+off-canvas cropping no longer become layout errors. Fully invisible decoration
+and every meaningful object retain the existing checks, and visual review is
+still required for the crop.
+
+The bundled Presentation Template Library grows from eight to 32 original
+schema-v3 style Skills. The 24 additions use independently written guidance
+and original calibration images across analytical, operational, technical,
+research, education, editorial, and brand directions. No third-party prose,
+palette, screenshot, deck, code, or page geometry is retained.
+
 ## OfficeKit 1.1.0
 
 OfficeKit 1.1.0 replaces the two-track presentation template surface with one

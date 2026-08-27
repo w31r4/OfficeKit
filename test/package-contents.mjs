@@ -589,7 +589,7 @@ assert.equal(
 const packagedPresentationSidecars = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
 );
-assert.equal(packagedPresentationSidecars.length, 8, "npm package must ship exactly eight schema-v3 presentation style Skills");
+assert.equal(packagedPresentationSidecars.length, 32, "npm package must ship exactly 32 schema-v3 presentation style Skills");
 assert.ok(
   files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|mjs|js|svg)$/u.test(file)
     || file.endsWith("/assets/icon.svg")),
@@ -598,7 +598,7 @@ assert.ok(
 const packagedPresentationCalibrationPngs = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
 );
-assert.equal(packagedPresentationCalibrationPngs.length, 40, "each presentation style must ship one preview and four calibration examples");
+assert.equal(packagedPresentationCalibrationPngs.length, 160, "each presentation style must ship one preview and four calibration examples");
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(

@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Presentation Template Library",
     "shortDescription": "Original presentation style Skills",
-    "longDescription": "Eight original OfficeKit presentation styles expressed as concise guidance plus visual calibration examples for free composition.",
+    "longDescription": "Thirty-two original OfficeKit presentation styles expressed as concise guidance plus visual calibration examples for free composition.",
     "developerName": "w31r4",
     "category": "Productivity",
     "capabilities": ["Interactive"],
