@@ -302,7 +302,7 @@ try {
   );
   assert.ok(
     manifest.files.some(
-      (entry) => entry.path === "app/node_modules/office-kit/runtime/office-kit/manifest.json",
+      (entry) => entry.path === `app/node_modules/office-kit-codec-${target}/manifest.json`,
     ),
   );
   const sbom = JSON.parse(

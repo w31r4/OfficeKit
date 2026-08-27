@@ -6,7 +6,7 @@ on:
   pull_request:
 
 # This workflow is deliberately the fast developer gate. Provider downloads,
-# native template round trips, PromptBench, and full WASM/release validation
+# native template round trips, PromptBench, and cross-platform NativeAOT/release validation
 # live in ci-slow.yml so a small source or Skill change gets prompt feedback.
 jobs:
   fast:
@@ -20,5 +20,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.128
       - run: npm ci --ignore-scripts
+      - run: npm run build:office-kit -- --target linux-x64
       - run: npm test

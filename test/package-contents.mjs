@@ -23,6 +23,11 @@ assert.deepEqual(packageMetadata.bin, {
   officekit: "./bin/officekit.mjs",
 });
 assert.equal(packageMetadata.engines.node, ">=22.15.0");
+assert.deepEqual(packageMetadata.optionalDependencies, {
+  "office-kit-codec-darwin-arm64": "0.6.0",
+  "office-kit-codec-linux-x64": "0.6.0",
+  "office-kit-codec-win32-x64": "0.6.0",
+});
 assert.equal(
   packageMetadata.scripts["build:standalone"],
   "node scripts/build-standalone.mjs",
@@ -210,6 +215,7 @@ for (const required of [
   "src/codecs/office-kit.mjs",
   "src/codecs/office-kit-document-codec.mjs",
   "src/codecs/office-kit-error.mjs",
+  "src/codecs/office-kit-native-client.mjs",
   "src/codecs/office-kit-runtime.mjs",
   "src/codecs/office-kit-source-state.mjs",
   "src/codecs/office-kit-assets.mjs",

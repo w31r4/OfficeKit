@@ -436,6 +436,28 @@ async function installProductionDependencies({
   );
 }
 
+async function installNativeCodecPackage({ target, appNodeModules, repositoryRoot, officeKitVersion }) {
+  const name = `office-kit-codec-${target}`;
+  const source = path.join(repositoryRoot, "packages", name);
+  const metadata = JSON.parse(await readFile(path.join(source, "package.json"), "utf8"));
+  const manifest = JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"));
+  if (metadata.name !== name || metadata.version !== officeKitVersion || manifest.target !== target ||
+      manifest.packageVersion !== officeKitVersion || manifest.backend !== "native-aot") {
+    fail(`native codec package ${name} is missing or does not match OfficeKit ${officeKitVersion}.`);
+  }
+  const executable = target === "win32-x64" ? "officekit-codec.exe" : "officekit-codec";
+  await regularFile(path.join(source, "bin", executable), `${target} native codec`);
+  const destination = path.join(appNodeModules, name);
+  await copyPackageWithoutNestedModules(source, destination);
+  return {
+    name,
+    version: metadata.version,
+    license: metadata.license ?? "NOASSERTION",
+    source,
+    relative: name,
+  };
+}
+
 async function packOfficeKit({ repositoryRoot, destination }) {
   const packDirectory = path.join(destination, "npm-pack");
   await mkdir(packDirectory);
@@ -829,6 +851,13 @@ async function writeBundle({
     appNodeModules,
     repositoryRoot,
   });
+  dependencies.push(await installNativeCodecPackage({
+    target,
+    appNodeModules,
+    repositoryRoot,
+    officeKitVersion: packageMetadata.version,
+  }));
+  dependencies.sort((left, right) => lexicalCompare(`${left.name}@${left.version}`, `${right.name}@${right.version}`));
   const binRoot = path.join(bundleRoot, "bin");
   const libRoot = path.join(bundleRoot, "lib");
   await mkdir(binRoot, { recursive: true });

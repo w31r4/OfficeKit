@@ -6,12 +6,19 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "office-kit-pack-"));
+const nativeTarget = `${process.platform}-${process.arch}`;
+const nativePackageName = `office-kit-codec-${nativeTarget}`;
 
 try {
   const packed = run("npm", ["pack", repoRoot, "--json", "--ignore-scripts", "--pack-destination", temporary], repoRoot);
   const report = JSON.parse(packed.stdout)[0];
   const tarball = path.join(temporary, report.filename);
   assert.ok(fs.existsSync(tarball), `npm pack did not create ${tarball}`);
+  const nativeRoot = path.join(repoRoot, "packages", nativePackageName);
+  const nativePacked = run("npm", ["pack", nativeRoot, "--json", "--ignore-scripts", "--pack-destination", temporary], repoRoot);
+  const nativeReport = JSON.parse(nativePacked.stdout)[0];
+  const nativeTarball = path.join(temporary, nativeReport.filename);
+  assert.ok(fs.existsSync(nativeTarball), `npm pack did not create ${nativeTarball}`);
   // Use a consumer lockfile that pins this just-packed candidate and the exact
   // production closure already present in the repository lock. `npm ci` can
   // then install it from its tarball cache without resolving semver ranges
@@ -23,8 +30,8 @@ try {
   //
   // Optional renderer peers are intentionally outside this core OfficeKit/PDF
   // probe and remain covered by package metadata tests.
-  installLockedCandidate({ tarball, temporary });
-  testGlobalCli({ temporary });
+  installLockedCandidate({ tarball, nativeTarball, nativePackageName, nativeRoot, temporary });
+  testGlobalCli({ temporary, nativePackageName });
 
   const probe = String.raw`
     import { spawnSync } from "node:child_process";
@@ -715,15 +722,18 @@ function run(command, args, cwd, environment = {}) {
   return result;
 }
 
-function installLockedCandidate({ tarball, temporary }) {
+function installLockedCandidate({ tarball, nativeTarball, nativePackageName, nativeRoot, temporary }) {
   const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8"));
   const filename = path.basename(tarball);
+  const nativeFilename = path.basename(nativeTarball);
   const candidateSpec = `file:${filename}`;
+  const nativeSpec = `file:${nativeFilename}`;
+  const nativeMetadata = JSON.parse(fs.readFileSync(path.join(nativeRoot, "package.json"), "utf8"));
   const consumer = {
     name: "office-kit-clean-install-smoke",
     private: true,
     version: "0.0.0",
-    dependencies: { "office-kit": candidateSpec },
+    dependencies: { "office-kit": candidateSpec, [nativePackageName]: nativeSpec },
   };
   const consumerLock = {
     name: consumer.name,
@@ -740,6 +750,14 @@ function installLockedCandidate({ tarball, temporary }) {
         ...lock.packages[""],
         resolved: candidateSpec,
       },
+      [`node_modules/${nativePackageName}`]: {
+        version: nativeMetadata.version,
+        resolved: nativeSpec,
+        license: nativeMetadata.license,
+        os: nativeMetadata.os,
+        cpu: nativeMetadata.cpu,
+        engines: nativeMetadata.engines,
+      },
     },
   };
   for (const [location, metadata] of Object.entries(lock.packages || {})) {
@@ -753,7 +771,7 @@ function installLockedCandidate({ tarball, temporary }) {
   ], temporary);
 }
 
-function testGlobalCli({ temporary }) {
+function testGlobalCli({ temporary, nativePackageName }) {
   const globalPrefix = path.join(temporary, "global-prefix");
   // The packed candidate above is installed through the generated lockfile.
   // A directory global install then creates npm's normal global launcher for
@@ -774,6 +792,11 @@ function testGlobalCli({ temporary }) {
   const globalModules = process.platform === "win32"
     ? path.join(globalPrefix, "node_modules")
     : path.join(globalPrefix, "lib", "node_modules");
+  fs.cpSync(
+    path.join(temporary, "node_modules", nativePackageName),
+    path.join(globalModules, nativePackageName),
+    { recursive: true },
+  );
   const officekitModule = path.join(globalModules, "office-kit", "bin", "officekit.mjs");
   assert.ok(fs.existsSync(officekitModule), "global-prefix install must retain the OfficeKit CLI module");
   const launcherVersion = spawnSync(officekit, ["--version"], {

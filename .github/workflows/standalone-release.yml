@@ -39,7 +39,12 @@ jobs:
         with:
           node-version: 24.18.0
           cache: npm
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.128
       - run: npm ci
+      - name: Build the target NativeAOT codec package
+        run: npm run build:office-kit -- --target ${{ matrix.target }}
       - name: Build and verify the bundled Excel Add-in
         run: npm run test:excel-live
       - name: Verify local standalone contracts
