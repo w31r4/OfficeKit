@@ -55,6 +55,7 @@ const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presenta
 const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
+const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -2047,14 +2048,24 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
 
 function presentationImage(image, original, assetCatalog) {
   const position = image.position || {};
-  if (!image.dataUrl) {
+  const importedDataUrl = image[PRESENTATION_IMAGE_DATA_URL_SOURCE];
+  const dataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "dataUrl");
+  const unchangedImportedAsset = importedDataUrl && importedDataUrl.modified !== true &&
+    dataUrlDescriptor?.get === importedDataUrl.get && dataUrlDescriptor?.set === importedDataUrl.set;
+  const dataUrl = unchangedImportedAsset ? undefined : image.dataUrl;
+  if (!unchangedImportedAsset && !dataUrl) {
     throw new OfficeKitCodecError(`Presentation image ${image.id} requires an embedded dataUrl.`, [], { code: "invalid_presentation_image" });
   }
   if (image.uri || image.geometry !== "rect" || image.borderRadius != null) {
     throw new OfficeKitCodecError(`Presentation image ${image.id} uses external, geometry, or mask semantics outside the bounded PPTX image slice.`, [], { code: "unsupported_presentation_features" });
   }
   const accessibility = normalizePresentationAccessibility(image.accessibility, `Presentation image ${image.id}`);
-  const crop = effectivePresentationImageCrop({ crop: image.crop, fit: image.fit, dataUrl: image.dataUrl, frame: position });
+  const crop = effectivePresentationImageCrop({
+    crop: image.crop,
+    fit: image.fit,
+    dataUrl: image.fit === "stretch" ? dataUrl : image.dataUrl,
+    frame: position,
+  });
   return {
     id: original?.id || image.id,
     name: image.name || original?.name || "",
@@ -2062,7 +2073,9 @@ function presentationImage(image, original, assetCatalog) {
     content: {
       case: "image",
       value: {
-        assetId: assetCatalog.addDataUrl(image.dataUrl),
+        assetId: unchangedImportedAsset
+          ? assetCatalog.addAsset(importedDataUrl.source.asset)
+          : assetCatalog.addDataUrl(dataUrl),
         altText: accessibility?.description ?? (accessibility ? "" : image.prompt || ""),
         leftEmu: sourceBoundFrameEmuFromPixels(position.left, `${image.id}.position.left`, original),
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
@@ -4809,7 +4822,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       },
       ...modelPresentationImageAccessibility(image),
       _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
-      dataUrl: assetCatalog.dataUrl(image.assetId),
+      _officeKitDataUrlSource: assetCatalog.dataUrlSource(image.assetId),
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
       geometry: "rect",
@@ -5123,7 +5136,7 @@ export async function presentationFromEnvelope(envelope) {
           },
           ...modelPresentationImageAccessibility(image),
           _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
-          dataUrl: assetCatalog.dataUrl(image.assetId),
+          _officeKitDataUrlSource: assetCatalog.dataUrlSource(image.assetId),
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
           geometry: "rect",

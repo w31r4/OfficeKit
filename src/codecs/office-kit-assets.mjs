@@ -119,12 +119,21 @@ export function createPresentationAssetCatalog(initialAssets = [], options = {})
   if (initialAssets.length > MAX_ASSET_COUNT) fail(`Presentation exceeds the ${MAX_ASSET_COUNT}-asset budget.`, "presentation_asset_budget_exceeded");
   const byId = new Map();
   const dataUrls = new Map();
+  const dataUrlSources = new Map();
   for (const raw of initialAssets) {
     const asset = validateAsset(raw, options.shareBytes === true);
     if (byId.has(asset.id)) fail(`Presentation contains duplicate asset ID ${asset.id}.`);
     byId.set(asset.id, asset);
   }
   return {
+    addAsset(raw) {
+      const asset = validateAsset(raw, true);
+      const existing = byId.get(asset.id);
+      if (existing) return existing.id;
+      if (byId.size >= MAX_ASSET_COUNT) fail(`Presentation exceeds the ${MAX_ASSET_COUNT}-asset budget.`, "presentation_asset_budget_exceeded");
+      byId.set(asset.id, asset);
+      return asset.id;
+    },
     addDataUrl(dataUrl) {
       const decoded = parseDataUrl(dataUrl);
       const digest = sha256(decoded.bytes);
@@ -151,6 +160,17 @@ export function createPresentationAssetCatalog(initialAssets = [], options = {})
         dataUrls.set(key, value);
       }
       return value;
+    },
+    dataUrlSource(id) {
+      const key = String(id);
+      const asset = byId.get(key);
+      if (!asset || !asset.id.startsWith(PICTURE_ASSET_PREFIX)) fail(`Presentation picture bullet references missing asset ${id || "(missing)"}.`);
+      let source = dataUrlSources.get(key);
+      if (!source) {
+        source = Object.freeze({ asset, resolve: () => this.dataUrl(key) });
+        dataUrlSources.set(key, source);
+      }
+      return source;
     },
     addOleWorkbook(data) {
       const bytes = Buffer.from(data || []);

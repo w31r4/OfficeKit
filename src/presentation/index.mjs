@@ -53,6 +53,7 @@ const PRESENTATION_SLIDE_CONTINUATION_CAPABILITY = Symbol.for("office-kit.slide-
 const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
+const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
 
 export { SlideTransition, SlideAnimations, SlideMorph };
 
@@ -2548,7 +2549,36 @@ export class ImageElement {
     );
     this.prompt = config.prompt;
     this.uri = config.uri;
-    this.dataUrl = config.dataUrl;
+    const importedDataUrlSource = config._officeKitDataUrlSource;
+    if (importedDataUrlSource) {
+      if (typeof importedDataUrlSource.resolve !== "function" || !importedDataUrlSource.asset) {
+        throw new TypeError(`Presentation image ${this.id} received an invalid imported dataUrl source.`);
+      }
+      const binding = { source: importedDataUrlSource, modified: false };
+      let resolved = false;
+      let value;
+      binding.get = function getImportedDataUrl() {
+        if (!resolved) {
+          value = binding.source.resolve();
+          resolved = true;
+        }
+        return value;
+      };
+      binding.set = function setImportedDataUrl(next) {
+        value = next;
+        resolved = true;
+        binding.modified = true;
+      };
+      Object.defineProperty(this, PRESENTATION_IMAGE_DATA_URL_SOURCE, { value: binding });
+      Object.defineProperty(this, "dataUrl", {
+        configurable: true,
+        enumerable: true,
+        get: binding.get,
+        set: binding.set,
+      });
+    } else {
+      this.dataUrl = config.dataUrl;
+    }
     this.contentType = config.contentType;
     this.fit = config.fit || "contain";
     this.crop = config.crop;
