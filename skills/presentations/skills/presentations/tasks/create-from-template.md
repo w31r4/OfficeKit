@@ -1,86 +1,74 @@
-# Create from a template or brand reference
+# Create with a template, design system, or reference deck
 
-Use this route when a PPTX template, brand system, or visual reference is the
-authoritative design source.
+Use this route when one design authority or style source exists. Before drawing,
+read the doctrine, shared visual floor, scenario policy, selected scenario guide,
+and editorial trim Skill.
 
-Before inspecting the source, read [presentation doctrine](../references/presentation-doctrine.md),
-[the shared visual floor](../style_guidelines.md), [scenario policy](../references/scenario-policy.md),
-and the selected primary scenario guide. Record the communication job, expected
-audience change, delivery mode, after-use, and medium fit. A weak medium fit is
-documented and mitigated; it does not silently change the requested deliverable.
+## 1. Classify the source
 
-Load the sibling
-[`presentation-editorial-trim`](../../presentation-editorial-trim/SKILL.md)
-Skill. Use its pre-composition pass after locking source wording and its
-post-render pass after the template composition is visible. Template wording,
-terminology, and factual qualifiers remain authoritative unless the requested
-scope changes them.
+Choose exactly one primary source:
 
-## 1. Stage and identify authority
+- `template`: one schema-v3 Presentation Template Skill;
+- `design-system`: user or brand rules that are authoritative;
+- `style-transfer`: a reference deck used only as visual evidence;
+- `source-continuation`: an existing PPTX whose native pages/components remain
+  the actual starting state.
 
-Copy the source with `ctx.input`. Record its artifact ID and SHA-256 in
-`artifactRefs`; never rely on an absolute template path inside the authoring
-plan. Keep the source read-only.
+Do not call all four “templates.” A design system overrides a conflicting style
+Skill. Do not mix multiple Template Skills. Keep every uploaded file read-only
+and task-bound by SHA-256.
 
-If several references exist, assign each one a role. Do not combine unrelated
-design languages without an explicit user request.
+## 2. Gather only the relevant evidence
 
-## 2. Distill evidence
+For `template`, read its `SKILL.md`, preview, and four-to-six role-labelled
+examples. Extract hierarchy, palette roles, typography rhythm, geometry and
+line behavior, density, visual carriers, imagery, chart language, motifs, and
+anti-patterns. Do not look for a PPTX, Layout ID, MJS module, or edit profile;
+they are not part of the template protocol.
 
-Import the PPTX, then use:
+For `design-system`, record exact supplied rules and unresolved gaps. For
+`style-transfer`, render and inspect the reference deck but do not copy its
+wording, exact page geometry, or protected assets. For `source-continuation`,
+import and inspect the package, then read
+[reference-deck conditioned generation](../references/template-conditioned-generation.md)
+and capability guidance before cloning or editing anything.
 
-```js
-const profile = presentation.designProfile({ maxItems: 64 });
-const generation = presentation.planTemplateGeneration({ /* content needs */ });
-```
+## 3. Write the current deck's plan
 
-Record evidenced palette, typography, spacing, density, archetypes, reusable
-components, image/SVG assets, and unresolved decisions. The profile describes
-the source; capability inspection decides what may be reused or edited.
+Use authoring mode `create-from-template`. Record the communication job,
+scenario, selected source, evidence hashes, and one chosen direction. Write a
+new Design Grammar for this deck:
 
-Read [template-conditioned generation](../references/template-conditioned-generation.md)
-for source-derived clone and continuation boundaries.
+- palette and surface roles;
+- type hierarchy and rhythm;
+- geometry and line rules;
+- page-density rhythm and visual carriers;
+- image, SVG, chart, diagram, and table treatment;
+- allowed motifs and explicit anti-patterns.
 
-## 3. Write the plan
+Every page gets a claim, evidence, content budget, dominant carrier, and source
+strategy. “Follow the template” is not a composition intent. Unknown source
+facts remain unresolved.
 
-Use mode `create-from-template` and source mode `template`, `design-system`, or
-`style-transfer` according to the actual authority. A user-supplied template or
-brand system overrides scenario defaults; the scenario guide fills only
-undefined decisions.
-Link the authoritative source through `artifactRef`. The deck-specific grammar
-may narrow or name source roles; it must not invent unsupported template facts.
+## 4. Compose or continue
 
-Record one selected direction that explains how this deck will use the source
-for its audience and content. Complete the grammar with palette/surface roles,
-type rhythm, geometry and line rules, density rhythm, visual carriers,
-image/SVG/chart/diagram treatment, allowed motifs, and anti-patterns. Mark
-unresolved source facts instead of guessing them.
+For `template`, `design-system`, and `style-transfer`, compose every page freely
+with editable native objects. Use examples to understand relationships, not to
+trace a calibration page. The selected style saves design reasoning; it never
+pins page geometry.
 
-Every page `compositionIntent` must name its dominant carrier and source
-strategy, such as a cloned source slide, reusable template component, supplied
-image, source SVG, or newly authored native chart/diagram/table. “Follow the
-template” is not a sufficient composition intent.
+For `source-continuation`, use inspected source-slide/component capabilities.
+Export/reimport pending clones before another bounded edit. Preserve opaque
+graphs and stop at an unsupported target instead of rebuilding the deck.
 
-## 4. Generate new content
+For decks longer than four pages, first render the opening, one evidence page,
+and the densest/highest-risk page. Repair the same direction before expansion.
 
-Use source-slide and source-component reuse where capabilities support it.
-Export/reimport a pending source-derived slide before adding supported overlays
-or making another bounded edit. Use native Layout placeholders when they match
-the content job. Compose new editable objects when the source has no suitable
-archetype.
+## 5. Review
 
-Before expanding a deck longer than four pages, render an opening page, one
-evidence page, and the densest or highest-risk page. Compare that spread with
-the source's evidenced grammar. For four pages or fewer, inspect the complete
-deck. If the grammar or reuse strategy changes, update the same authoring plan
-with `expectedSha256`; do not create a second design state.
-
-Do not flatten opaque source content, rebuild the package, or substitute Grid
-for a failed template operation.
-
-## 5. Review fidelity and delivery
-
-Review the generated deck against the staged source and active plan. Verify
-source protection, template facts, package integrity, page design, and visual
-continuity. Run the editorial page-fit pass without erasing template voice or
-source qualifiers. Commit the result before any follow-up edit or publication.
+Review communication, narrative, density, visual continuity, factual sources,
+layout, native editability, and delivery. For a style Skill, compare the result
+with its principles and relationships, not pixel similarity to examples. For a
+reference deck, separate visual observation from source-preservation evidence.
+Run editorial page-fit after the actual composition is visible, then commit the
+reviewed candidate before follow-up edits or publication.

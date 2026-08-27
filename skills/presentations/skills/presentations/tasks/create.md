@@ -1,8 +1,8 @@
 # Create a new presentation
 
-Use this route for a new deck without an authoritative template. If the user
-supplies a template, brand system, or source deck that the output must follow,
-switch to [Create from template](create-from-template.md).
+Use this route for a self-directed new deck. If template search selected a style
+Skill, or the user supplies a design system or reference deck, switch to
+[Create from template](create-from-template.md).
 
 ## 1. Define the communication task
 
@@ -33,12 +33,14 @@ Choose one source:
 
 - `self-directed`: invent a visual language for this deck;
 - `design-system`: apply supplied brand rules;
-- `template`: distill and extend an authoritative PPTX;
-- `style-transfer`: use a reference as visual evidence while producing editable
-  Office content.
+- `template`: use one schema-v3 Template Skill and its visual examples;
+- `style-transfer`: use a reference deck as visual evidence while producing
+  new editable Office content.
 
 User authority wins. This route normally uses `self-directed`; the other three
-sources should move to the template route when their authority is material.
+sources move to the template route when their authority is material. A
+reference deck that must remain the actual source uses source continuation,
+not `template`.
 
 For self-directed work, read
 [design mechanisms](../references/design-mechanisms.md), form two or three
@@ -49,8 +51,6 @@ packs. They guide composition but do not supply a palette or template.
 The C authoring route is the default. Write one deck-specific Design Grammar
 covering palette roles, type roles, geometry and line behavior, density rhythm,
 visual carriers, asset treatment, motifs, invariants, and forbidden patterns.
-Grid is neither a default nor a fallback; it can enter only as a selected
-template through the standard template workflow.
 
 Ordinary self-directed pages must obey the hard card ban in the shared visual
 floor. Resolve parallel information with scale, position, baseline, light
@@ -95,8 +95,8 @@ and inspect it as one sequence. Confirm that the grammar works across sparse and
 dense pages, each planned carrier actually owns its page, negative space has a
 clear purpose, and text and visuals belong to one system.
 
-Repair the same direction and update the same plan revision. Do not switch to
-Grid, another template, or a second design state after a failed calibration.
+Repair the same direction and update the same plan revision. Do not switch to a
+different template or a second design state after a failed calibration.
 
 ## 5. Compose and review
 

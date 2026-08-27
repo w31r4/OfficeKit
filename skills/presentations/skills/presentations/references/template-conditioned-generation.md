@@ -1,9 +1,9 @@
-# Template-Conditioned Generation
+# Reference-Deck Conditioned Generation
 
 Use this mode when a user supplies an existing PPTX and asks for new content,
-new pages, or a new deck in the same visual system. It is different from
-template-following: template-following fills a declared frame map, while this
-mode uses the imported deck as a bounded source of page patterns and assets.
+new pages, or a new deck in the same visual system. The PPTX is a reference deck
+and source graph, not a catalog Template Skill. This mode uses it as a bounded
+source of page patterns and assets.
 
 ## Workflow
 
@@ -17,7 +17,7 @@ mode uses the imported deck as a bounded source of page patterns and assets.
    evidence, not as mutation permission. Record the canvas, type scale, palette,
    density, layout families, slide archetypes, component candidates, opaque
    objects, and unresolved/blocked items.
-3. Choose zero or one source design system. The plan selects source slides by
+3. Choose one source deck. The plan selects source slides by
    narrative role, content density, preferred visual kinds, and
    `cloneCapability.supported`; prefer distinct archetypes before reusing a
    source slide. Keep the frame map with source ordinal, target role, content,
@@ -50,8 +50,8 @@ mode uses the imported deck as a bounded source of page patterns and assets.
 
 ## Boundaries
 
-- A template contributes a proven visual grammar; it does not guarantee that
-  arbitrary new content will fit every frame.
+- A reference deck contributes visual and structural evidence; it does not
+  guarantee that arbitrary new content will fit every frame.
 - Unsupported SmartArt, animation, OLE, modern comments, shared relationships,
   custom geometry, and other opaque graphs stay intact or make the particular
   clone/edit fail closed.

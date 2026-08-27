@@ -135,7 +135,8 @@ design file or restored JavaScript heap.
 
 Each page `compositionIntent` must name the visual carrier and its source
 strategy. It should distinguish, for example, a native chart from measured task
-data, a supplied image, a template-derived component, or an authored diagram.
+data, a supplied image, a style-guided free composition, a source-derived
+component from a reference deck, or an authored diagram.
 Coordinates, columns, and “clean layout” are implementation details, not
 sufficient intent.
 
@@ -145,9 +146,9 @@ Declare a managed artifact once:
 
 ```js
 artifactRefs: [{
-  artifactId: "brand-template",
+  artifactId: "brand-reference-deck",
   sha256: "<64 lowercase hex characters>",
-  role: "authoritative-template",
+  role: "authoritative-reference-deck",
 }]
 ```
 

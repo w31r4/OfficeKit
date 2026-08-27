@@ -23,7 +23,7 @@ Load only the route that matches the request:
 | Request | Route |
 |---|---|
 | Create a new deck from a goal or outline | [Create](tasks/create.md) |
-| Create new content under a supplied template or brand reference | [Create from template](tasks/create-from-template.md) |
+| Create with a selected style Skill, design system, or reference deck | [Create from template](tasks/create-from-template.md) |
 | Modify an existing local PPTX | [Edit existing](tasks/edit-existing.md) |
 | Continue a saved OfficeKit task | [Continue](tasks/continue.md) |
 | Review, finalize, or deliver a candidate | [Review and deliver](tasks/review-deliver.md) |
@@ -65,11 +65,11 @@ budget, and a dominant visual carrier. Durable work records this in the existing
 presentation authoring plan; its schema lives in
 [authoring plan](references/authoring-plan.md).
 
-`design` starts from authority. User templates, brand systems, and supplied
-references outrank OfficeKit guidance. With no authority, use the C authoring
-route: select one scenario, choose a deck-specific direction, write a concrete
-Design Grammar, and compose freely. Grid is not a default or fallback; it is an
-ordinary template available only when template search selects it.
+`design` starts from authority. A design system outranks a conflicting Template
+Skill. A reference deck supplies observation or source-bound continuation, not
+catalog identity. A selected Template Skill supplies style guidance and visual
+examples; use them to write a new deck-specific Design Grammar and compose
+freely. With no authority or suitable template, use the self-directed C route.
 
 For ordinary self-directed pages, card-based composition is forbidden. Do not
 build card walls, equal panel grids, colored-side cards, decorative pills or
@@ -98,8 +98,9 @@ steps are in [Continue](tasks/continue.md).
 
 - Creation loads the doctrine, visual floor, scenario policy, and one selected
   scenario guide.
-- Template creation loads only the selected template Skill and template
-  workflow.
+- Catalog-style creation loads only the selected Template Skill, its examples,
+  and the creation workflow. Reference-deck continuation loads its source-bound
+  workflow instead.
 - Imported editing loads advanced guidance only for the targeted native object.
 - Motion loads only for a speaking or explicit animation requirement.
 - Review and continuation each have one authoritative task document; do not

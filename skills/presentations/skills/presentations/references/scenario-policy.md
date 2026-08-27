@@ -31,14 +31,16 @@ Use one source mode:
 
 - `self-directed`: derive a new visual language from the communication task;
 - `design-system`: apply supplied brand tokens and rules;
-- `template`: distill and extend an authoritative PPTX;
-- `style-transfer`: use a reference as visual evidence while producing new,
-  editable Office content.
+- `template`: use one schema-v3 style Skill and its visual examples;
+- `style-transfer`: use a reference deck as visual evidence while producing
+  new editable Office content.
 
-User templates and brand rules override scenario guidance. A guide fills only
-what the authority leaves unspecified. For self-directed work, form two or
-three materially different directions internally, choose one, and record why
-it fits the audience, evidence, delivery mode, and after-use.
+A supplied design system overrides conflicting template guidance. A reference
+deck is observation or source continuation, not a catalog template. A scenario
+guide fills only what the chosen authority leaves unspecified. For
+self-directed work, form two or three materially different directions
+internally, choose one, and record why it fits the audience, evidence, delivery
+mode, and after-use.
 
 If slides are a weak medium for the job, record the limitation and mitigation,
 such as notes, an appendix, a workbook, or a companion document, then continue.

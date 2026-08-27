@@ -46,8 +46,10 @@ chronology, learning progression, or decision flow.
   jump.
 - Integrate requested topics into the throughline, and remove repeated beats,
   redundant summaries, and content that does not advance it.
-- When following a template, preserve its title and layout conventions; strengthen
-  the narrative through sequencing and copy rather than breaking the template.
+- When using a style Skill, preserve its hierarchy and visual relationships but
+  compose new pages for the actual content. When continuing a reference deck,
+  preserve its evidenced title and layout conventions unless the requested
+  scope changes them.
 
 ## Turn evidence into meaning
 

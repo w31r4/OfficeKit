@@ -13,8 +13,8 @@
 
 ## 3. Presentation consumption
 
-- [ ] 3.1 Converge OfficeKit and Presentations routing on zero-or-one style Skill selection, deck-specific Design Grammar, free Compose, and rendered review.
-- [ ] 3.2 Separate templates from design systems, reference decks, and source-bound continuation in all shipped guidance.
+- [x] 3.1 Converge OfficeKit and Presentations routing on zero-or-one style Skill selection, deck-specific Design Grammar, free Compose, and rendered review.
+- [x] 3.2 Separate templates from design systems, reference decks, and source-bound continuation in all shipped guidance.
 - [ ] 3.3 Remove Grid defaults, fixed-layout fallback, source materialization, and old template-edit instructions from the presentation path.
 
 ## 4. Original bundled style Skills
