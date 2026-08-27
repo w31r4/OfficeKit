@@ -21,9 +21,13 @@ const creatorPath = path.join(
   packageRoot,
   "skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs",
 );
+const presentationCreatorPath = path.join(
+  packageRoot,
+  "skills/presentation-template-creator/skills/presentation-template-creator/scripts/package-presentation-template.mjs",
+);
 
 try {
-  await fs.access(creatorPath);
+  await Promise.all([fs.access(creatorPath), fs.access(presentationCreatorPath)]);
 } catch (error) {
   if (error?.code === "ENOENT") {
     console.log("template creator smoke skipped: repository-only skills are not packaged");
@@ -38,9 +42,9 @@ const tempRoot = await fs.mkdtemp(
 const home = path.join(tempRoot, "neutral-home");
 const fixturesDirectory = path.join(tempRoot, "fixtures");
 
-function runCreator(args) {
+function runScript(scriptPath, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [creatorPath, ...args], {
+    const child = spawn(process.execPath, [scriptPath, ...args], {
       env: { ...process.env, OFFICE_KIT_HOME: home },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -61,6 +65,14 @@ function runCreator(args) {
   });
 }
 
+function runCreator(args) {
+  return runScript(creatorPath, args);
+}
+
+function runPresentationCreator(args) {
+  return runScript(presentationCreatorPath, args);
+}
+
 async function runSuccessfulCreator(args) {
   const result = await runCreator(args);
   if (result.code !== 0) {
@@ -71,6 +83,12 @@ async function runSuccessfulCreator(args) {
   } catch (error) {
     throw new Error(`Template creator did not return JSON: ${result.stdout}\n${error}`);
   }
+}
+
+async function runSuccessfulPresentationCreator(args) {
+  const result = await runPresentationCreator([...args, "--json"]);
+  assert.equal(result.code, 0, result.stderr);
+  return JSON.parse(result.stdout);
 }
 
 async function assertRejectedOfficeReference(referencePath, label) {
@@ -204,13 +222,13 @@ async function writePresentationFixture(filePath, slideCount) {
   await file.save(filePath);
 }
 
-async function writePngFixture(filePath) {
+async function writePngFixture(filePath, background = { r: 15, g: 118, b: 110, alpha: 1 }) {
   await sharp({
     create: {
       width: 320,
       height: 180,
       channels: 4,
-      background: { r: 15, g: 118, b: 110, alpha: 1 },
+      background,
     },
   }).png().toFile(filePath);
 }
@@ -235,11 +253,9 @@ async function writeSpreadsheetFixture(filePath) {
 try {
   await fs.mkdir(fixturesDirectory, { recursive: true });
   const pptxPath = path.join(fixturesDirectory, "reference.pptx");
-  const updatedPptxPath = path.join(fixturesDirectory, "updated-reference.pptx");
   const docxPath = path.join(fixturesDirectory, "reference.docx");
   const xlsxPath = path.join(fixturesDirectory, "reference.xlsx");
   const renamedDocxPath = path.join(fixturesDirectory, "renamed-not-office.docx");
-  const renamedPptxPath = path.join(fixturesDirectory, "renamed-not-office.pptx");
   const renamedXlsxPath = path.join(fixturesDirectory, "renamed-not-office.xlsx");
   const crossFamilyDocxPath = path.join(fixturesDirectory, "presentation-renamed.docx");
   const invalidRootRelationshipDocxPath = path.join(fixturesDirectory, "invalid-root-relationship.docx");
@@ -247,11 +263,9 @@ try {
 
   await Promise.all([
     writePresentationFixture(pptxPath, 1),
-    writePresentationFixture(updatedPptxPath, 2),
     writeSpreadsheetFixture(xlsxPath),
     writeDocumentFixture(docxPath),
     fs.writeFile(renamedDocxPath, "not an Office package\n", "utf8"),
-    fs.writeFile(renamedPptxPath, "not an Office package\n", "utf8"),
     fs.writeFile(renamedXlsxPath, "not an Office package\n", "utf8"),
     writePngFixture(previewPath),
     fs.mkdir(home, { recursive: true }),
@@ -275,7 +289,6 @@ try {
 
   for (const [referencePath, label] of [
     [renamedDocxPath, "renamed DOCX text"],
-    [renamedPptxPath, "renamed PPTX text"],
     [renamedXlsxPath, "renamed XLSX text"],
     [crossFamilyDocxPath, "PPTX bytes renamed as DOCX"],
     [invalidRootRelationshipDocxPath, "DOCX with invalid root relationship"],
@@ -293,82 +306,83 @@ try {
     "999999999\n",
   );
 
-  const pptxSelection = {
-    useWhen: ["quarterly project review"],
-    avoidWhen: ["legal memorandum"],
-    audiences: ["executive"],
-    contentShapes: ["status", "risks", "decisions"],
-    visualTraits: {
-      tone: ["formal"],
-      density: "medium",
-      colorMode: "light",
-      structure: ["sectioned"],
-    },
-    visualCommitment: "neutral",
-    editProfile: {
-      level: "bounded-edit",
-      verifiedOperations: ["recognized-placeholder-title-text-replace"],
-    },
-    provenance: {
-      license: "user-provided",
-      source: "local-test-reference",
-    },
-  };
-  const unsupportedSelection = structuredClone(pptxSelection);
-  unsupportedSelection.visualTraits.undocumentedTrait = true;
-  const unsupportedSelectionResult = await runCreator([
-    "--reference-path", pptxPath,
-    "--preview-path", previewPath,
-    "--display-name", "Unsupported selection fixture",
-    "--description", "This fixture must fail before writing a template.",
-    "--selection-json", JSON.stringify(unsupportedSelection),
-  ]);
-  assert.notEqual(unsupportedSelectionResult.code, 0);
-  assert.match(
-    unsupportedSelectionResult.stderr,
-    /visualTraits contains unsupported fields: undocumentedTrait/,
-  );
-  const nonEnglishSelection = structuredClone(pptxSelection);
-  nonEnglishSelection.useWhen = ["季度项目复盘"];
-  const nonEnglishSelectionResult = await runCreator([
-    "--reference-path", pptxPath,
-    "--preview-path", previewPath,
-    "--display-name", "Non-English selection fixture",
-    "--description", "This fixture must keep one English search representation.",
-    "--selection-json", JSON.stringify(nonEnglishSelection),
-  ]);
-  assert.notEqual(nonEnglishSelectionResult.code, 0);
-  assert.match(nonEnglishSelectionResult.stderr, /useWhen must use English search text/);
-
-  const pptxTemplate = await runSuccessfulCreator([
+  const genericPptx = await runCreator([
     "--reference-path", pptxPath,
     "--preview-path", previewPath,
     "--display-name", "Presentation fixture",
-    "--description", "Create presentations from the fixture layout.",
-    "--selection-json", JSON.stringify(pptxSelection),
+    "--description", "This input must route to the presentation specialist.",
   ]);
-  await assertGeneratedTemplate(pptxTemplate, {
-    kind: "presentation",
-    referencePath: pptxPath,
-    visualCommitment: "neutral",
-    editLevel: "bounded-edit",
-    provenanceSource: "local-test-reference",
-  });
-  const createdPptxMetadata = JSON.parse(
-    await fs.readFile(path.join(pptxTemplate.skillPath, "artifact-template.json"), "utf8"),
+  assert.notEqual(genericPptx.code, 0);
+  assert.match(genericPptx.stderr, /presentation-template-creator/);
+
+  const presentationInputRoot = path.join(fixturesDirectory, "presentation-style");
+  const presentationOutputRoot = path.join(home, "presentation-skills");
+  await fs.mkdir(presentationInputRoot, { recursive: true });
+  const examplePaths = Array.from({ length: 4 }, (_, index) =>
+    path.join(presentationInputRoot, `example-${index + 1}.png`));
+  await Promise.all(examplePaths.map((entry, index) => writePngFixture(entry, {
+    r: 30 + index * 35,
+    g: 70 + index * 20,
+    b: 120 + index * 15,
+    alpha: 1,
+  })));
+  const guidePath = path.join(presentationInputRoot, "guide.md");
+  await fs.writeFile(
+    guidePath,
+    "# Visual direction\n\nUse a disciplined editorial rhythm, a strong evidence hierarchy, restrained color roles, and varied page silhouettes. Build every slide freely for the current content. Treat the examples as visual evidence rather than geometry to trace.\n",
   );
-  for (const key of [
-    "useWhen",
-    "avoidWhen",
-    "audiences",
-    "contentShapes",
-    "visualTraits",
-    "visualCommitment",
-    "editProfile",
-  ]) {
-    assert.deepEqual(createdPptxMetadata[key], pptxSelection[key], `selection metadata ${key}`);
-  }
-  assert.equal(createdPptxMetadata.provenance.source, "local-test-reference");
+  const specPath = path.join(presentationInputRoot, "spec.json");
+  const presentationSpec = {
+    id: "artifact-template-presentation-fixture",
+    displayName: "Presentation Fixture",
+    description: "Use an original editorial presentation style with free composition.",
+    guidePath,
+    useWhen: ["editorial evidence presentation"],
+    avoidWhen: ["playful consumer launch"],
+    audiences: ["executives"],
+    contentShapes: ["evidence narrative"],
+    visualTraits: {
+      tone: ["disciplined", "editorial"],
+      density: "medium",
+      colorMode: "light",
+      structure: ["asymmetric", "claim led"],
+    },
+    visualCommitment: "opinionated",
+    examples: examplePaths.map((entry, index) => ({
+      path: entry,
+      role: ["cover", "analysis", "data", "closing"][index],
+    })),
+    provenance: {
+      license: "user-provided",
+      source: "unrelated calibration pages created for this smoke",
+    },
+  };
+  await fs.writeFile(specPath, `${JSON.stringify(presentationSpec, null, 2)}\n`);
+  const presentationTemplate = await runSuccessfulPresentationCreator([
+    "--spec", specPath,
+    "--output-root", presentationOutputRoot,
+  ]);
+  assert.equal(presentationTemplate.schemaVersion, 3);
+  assert.equal(presentationTemplate.updated, false);
+  assert.equal(presentationTemplate.examplePaths.length, 4);
+  const presentationMetadata = JSON.parse(
+    await fs.readFile(path.join(presentationTemplate.skillPath, "artifact-template.json"), "utf8"),
+  );
+  assert.equal(presentationMetadata.kind, "presentation");
+  assert.equal(presentationMetadata.schemaVersion, 3);
+  assert.equal(Object.hasOwn(presentationMetadata, "reference"), false);
+  assert.equal(Object.hasOwn(presentationMetadata, "editProfile"), false);
+  assert.deepEqual(
+    (await fs.readdir(presentationTemplate.skillPath)).sort(),
+    ["SKILL.md", "agents", "artifact-template.json", "assets"],
+  );
+  const updatedPresentationTemplate = await runSuccessfulPresentationCreator([
+    "--spec", specPath,
+    "--output-root", presentationOutputRoot,
+    "--expected-sha256", presentationTemplate.sidecarSha256,
+  ]);
+  assert.equal(updatedPresentationTemplate.updated, true);
+  assert.equal(updatedPresentationTemplate.sidecarSha256, presentationTemplate.sidecarSha256);
 
   const docxTemplate = await runSuccessfulCreator([
     "--reference-path", docxPath,
@@ -415,7 +429,7 @@ try {
   const kindChange = await runCreator([
     "--mode", "update",
     "--skill-name", docxTemplate.skillName,
-    "--reference-path", pptxPath,
+    "--reference-path", xlsxPath,
     "--preview-path", previewPath,
     "--display-name", "Document fixture",
     "--description", "Attempt to change the document fixture kind.",
@@ -425,49 +439,6 @@ try {
   }
   await assertGeneratedTemplate(docxTemplate, { kind: "document", referencePath: docxPath });
 
-  const interruptedBackupPath = `${pptxTemplate.skillPath}.backup-11111111-1111-4111-8111-111111111111`;
-  await fs.rename(pptxTemplate.skillPath, interruptedBackupPath);
-  const sentinelPath = path.join(interruptedBackupPath, "sentinel.txt");
-  await fs.writeFile(sentinelPath, "retain me\n");
-  const updatedPptxTemplate = await runSuccessfulCreator([
-    "--mode", "update",
-    "--skill-name", pptxTemplate.skillName,
-    "--reference-path", updatedPptxPath,
-    "--preview-path", previewPath,
-    "--display-name", "Updated presentation fixture",
-    "--description", "Create presentations from the updated fixture layout.",
-  ]);
-  if (updatedPptxTemplate.skillPath !== pptxTemplate.skillPath) {
-    throw new Error("Template update changed the template path.");
-  }
-  await assertGeneratedTemplate(updatedPptxTemplate, {
-    kind: "presentation",
-    referencePath: updatedPptxPath,
-    visualCommitment: "neutral",
-    editLevel: "bounded-edit",
-    provenanceSource: "local-test-reference",
-  });
-  const updatedPptxMetadata = JSON.parse(
-    await fs.readFile(path.join(updatedPptxTemplate.skillPath, "artifact-template.json"), "utf8"),
-  );
-  for (const key of [
-    "useWhen",
-    "avoidWhen",
-    "audiences",
-    "contentShapes",
-    "visualTraits",
-    "visualCommitment",
-    "editProfile",
-  ]) {
-    assert.deepEqual(updatedPptxMetadata[key], pptxSelection[key], `preserved selection metadata ${key}`);
-  }
-  const restoredSentinel = await fs.readFile(
-    path.join(updatedPptxTemplate.skillPath, "sentinel.txt"),
-    "utf8",
-  );
-  if (restoredSentinel !== "retain me\n") {
-    throw new Error("Template update did not preserve additional template-owned files.");
-  }
   await assertNoTransactionalResidue();
 
   const linkedTemplatePath = path.join(home, "skills", "artifact-template-linked");
@@ -511,9 +482,9 @@ try {
   const activeLockPath = path.join(home, ".artifact-template-write-lock");
   await fs.writeFile(activeLockPath, `${process.pid}\n`);
   const activeLock = await runCreator([
-    "--reference-path", pptxPath,
+    "--reference-path", docxPath,
     "--preview-path", previewPath,
-    "--display-name", "Blocked presentation fixture",
+    "--display-name", "Blocked document fixture",
     "--description", "Attempt to create while another writer owns the lock.",
   ]);
   if (activeLock.code === 0) {
