@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-market-trends-report",
+  "displayName": "Market Trends Report",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "833ea00b1824bdf7a454dd5f768edad2dfa68a123bd1eaa0c2e1afd8a64d520f"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "7316cac59ceef196a0b8439bb15c6338098329114ca4245c2cc20b7fc1489a51"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "0c76265714994806cdcea0f870cba4558d4f3c9a438aacab9f6f517caad10148"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "b95459b835449ae314cd10a3b9d128d8c67ea5f8a00facdcc25ecfa24c841ef1"
+    }
+  ],
+  "useWhen": [
+    "market trend report",
+    "competitive landscape shift",
+    "investment signal analysis"
+  ],
+  "avoidWhen": [
+    "formal legal memorandum",
+    "quiet internal policy handbook"
+  ],
+  "audiences": [
+    "investors",
+    "strategy teams",
+    "market analysts"
+  ],
+  "contentShapes": [
+    "time series",
+    "scenario range",
+    "market drivers"
+  ],
+  "visualTraits": {
+    "tone": [
+      "dynamic",
+      "analytical",
+      "forward looking"
+    ],
+    "density": "medium",
+    "colorMode": "dark",
+    "structure": [
+      "signal led",
+      "time based",
+      "layered"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original calibration deck for version 1.1.0",
+    "guideSha256": "12c05d1188ab6a2ff33379d90b0e6f53fe9f0dd2f5379f6b7a0cb47d0661a47a",
+    "previewSha256": "cee06a86499e1bb165fac1a24b4b810f671972d10f666c3f2f5f41e32b11ecf1"
+  }
+}
