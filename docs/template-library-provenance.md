@@ -1,44 +1,57 @@
-# Default Template Library provenance
+# Template library provenance
 
-## Source and license
+## Source-backed DOCX and XLSX templates
 
-`skills/default-template-library/` is a checked-in import of the 20 Office templates committed in [`office-artifact-tool` `256cb31bfe0a07b3cef0051b6b159342be381378`](https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378), **Add default Office template library**.
+`skills/default-template-library/` retains 13 templates from
+[`office-artifact-tool` `256cb31bfe0a07b3cef0051b6b159342be381378`](https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378):
+seven DOCX and six XLSX. The pinned
+[`reference/office-artifact-tool`](../reference/office-artifact-tool) submodule
+contains the authoritative source tree used by the byte-comparison gate.
 
-The checked-in [`reference/office-artifact-tool`](../reference/office-artifact-tool) submodule pins that exact commit, so a fresh recursive checkout contains the authoritative source tree used by the byte-comparison gate.
+The source repository declares MIT, Copyright (c) 2026 w31r4. The retained
+license is at
+[`skills/default-template-library/LICENSE.md`](../skills/default-template-library/LICENSE.md).
+Each template preserves its source Office file and preview, while local
+schema-v2 metadata adds evidence-backed search fields, exact hashes, provenance,
+and verified operations. `integrity.json` records individual and aggregate
+identity.
 
-That repository's root `LICENSE.md` is MIT, `Copyright (c) 2026 w31r4`. The full retained text lives beside the imported library at [`../skills/default-template-library/LICENSE.md`](../skills/default-template-library/LICENSE.md). This is a source/rights record, not legal advice.
+OfficeKit discovers these templates in place. Materialization verifies the
+source hash, creates a distinct working file plus audit, and refuses overwrite.
+Documents or Spreadsheets then owns the edit and review workflow.
 
-## What is preserved
+## Original presentation Template Skills
 
-- 20 template Skills: 7 DOCX, 7 PPTX, and 6 XLSX;
-- each original `reference.docx`, `reference.pptx`, or `reference.xlsx`;
-- each original `preview.png`;
-- source `SKILL.md`, `agents/agent.yaml`, manifest, and library icon;
-- individual byte length and SHA-256 values, plus the deterministic binary aggregate, in `skills/default-template-library/integrity.json`.
+`skills/presentation-template-library/` contains eight OfficeKit-original,
+AGPL-licensed presentation Template Skills. Presentation schema v3 has one
+public form:
 
-The local `artifact-template.json` files intentionally evolve the reference
-schema-v1 locator into schema v2: intended and avoid uses, audiences, content
-shapes, visual traits and commitment, verified edit profile, provenance, and
-exact Office/preview hashes. The original v1 metadata remains available in the
-pinned reference submodule. Other import changes are limited to the
-repository-level adapter surface needed here: plugin manifest,
-attribution/license record, integrity record, path policy, safety gates, and
-package discovery metadata. No retained Office or preview asset is regenerated,
-normalized, re-compressed, or rewritten.
+```text
+SKILL.md
+artifact-template.json
+agents/agent.yaml
+assets/preview.png
+assets/examples/*.png
+```
 
-## Delivery boundary
+The guide is the style authority; the images are visual calibration evidence.
+No presentation template ships a PPTX, MJS, DSL, SVG page skeleton, fixed
+Layout, or cloneable component. Existing IDs are retained only as catalog
+identity. The guidance and calibration pages were rewritten and rendered as
+OfficeKit-original work rather than copied from the removed source-backed PPTX
+templates.
 
-The library ships once inside the OfficeKit runtime. An installed OfficeKit can
-discover its compact validated metadata through `officekit template search`;
-`officekit init` leaves these assets in place instead of copying them into each
-project. A named template Skill uses the retained reference as a read-only
-starting point and writes a distinct output artifact.
-`scripts/materialize-template.mjs` first verifies the retained SHA-256, then
-atomically creates a byte-identical output plus a provenance audit and refuses
-to overwrite either destination.
-
-The source files may contain rich or source-bound Office topology. A requested operation must use the matching Documents, Presentations, or Spreadsheets workflow and preserve the source boundary; when the public model cannot safely import or modify a graph, it must explain the limitation and fail closed rather than flattening the template or silently replacing its layout.
+`presentation-template-creator` packages the same fixed surface from a distilled
+guide and four to six original calibration images. Reference decks, analysis,
+temporary PPTX files, and review evidence remain task-local.
 
 ## Verification
 
-`test/default-template-library.mjs` checks the canonical file inventory, secure relative paths, no symbolic links, schema-v2 JSON/YAML metadata, PNG structure, Office ZIP signatures, size budgets, every asset's SHA-256, and the source aggregate. `test/office-kit-skill.mjs` independently verifies all 20 sidecars, hash-bound discovery, root precedence, invalid-entry isolation, untrusted metadata rejection, and compact query results. The library test materializes all 20 templates, verifies overwrite refusal, runs every source through the public facade's import / unchanged export / second-import path, and, when LibreOffice plus Poppler are present, renders both source and processed files to non-empty native rasters. All seven PPTX templates additionally replace one visible SlidePart-placeholder title through `TextFrame.set()`, reimport it, prove placeholder identity/geometry plus paragraph/run formatting are unchanged, and render the edited output; a deliberate newline-topology change fails closed. It can additionally compare bytes against an explicitly supplied `OFFICE_TEMPLATE_SOURCE_ROOT` checkout. `DefaultTemplateLibraryCodecTests` adds native OfficeKit no-op and bounded-edit coverage: slide-name metadata and recognized owner-local placeholder text for each PPTX, `updateFields` for each DOCX, ordinary string-cell edits for each XLSX, and source-bound rejection for the Financial Budget partial shared-formula range. `test/package-contents.mjs` and the clean-install package probe verify the exact 20-template package inventory and installed CLI discovery path.
+`test/default-template-library.mjs` checks the 13 source-backed DOCX/XLSX
+templates, retained hashes, materialization, and bounded native workflows.
+`test/template-creator.mjs` checks deterministic presentation schema-v3
+creation/update and generic PPTX routing. `test/office-kit-skill.mjs` verifies
+schema-specific discovery, hash validation, old presentation schema rejection,
+and zero-or-one selection. Package checks require all eight presentation styles,
+40 calibration images, and reject PPTX, executable code, page DSL, and SVG page
+skeletons from their template directories.
