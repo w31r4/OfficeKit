@@ -26,7 +26,7 @@
 
 - [x] 5.1 Add a concise Presentations Skill route and one progressive `image-sourcing.md` reference.
 - [x] 5.2 Make review-deliver the authority for crop, clarity, repetition, alt text, visible attribution, and source sidecars.
-- [ ] 5.3 Update Help/API, coverage, release notes, third-party notices, package inventory, and version metadata for `1.1.0`.
+- [x] 5.3 Update Help/API, coverage, release notes, third-party notices, package inventory, and version metadata for `1.1.0`.
 
 ## 6. Lean verification and delivery
 

@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$OfficeKitVersion = "1.0.0"
+$OfficeKitVersion = "1.1.0"
 $OfficeKitRepository = "w31r4/OfficeKit"
 
 function Fail([string] $Message) {
@@ -251,8 +251,8 @@ if ($target -ne "win32-x64") {
   Fail "unsupported target $target."
 }
 
-$expectedSha256 = "6a2a36c292046cbf37358a3ea0257d0f5d766dc076b94d5b242755923143fab3"
-$expectedSize = 86140802
+$expectedSha256 = "ad76f29befab5ef0387999c6944df12666282ea841bb085c34d3a7eabc1f9d4c"
+$expectedSize = 86033390
 if ($env:OFFICE_KIT_INSTALL_TEST -eq "1") {
   if ([string]::IsNullOrWhiteSpace($env:OFFICE_KIT_TEST_ARCHIVE)) {
     Fail "OFFICE_KIT_TEST_ARCHIVE is required in test mode."

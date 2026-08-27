@@ -1,5 +1,52 @@
 # Release
 
+## OfficeKit 1.1.0 Presentation image sourcing
+
+OfficeKit 1.1.0 closes the Presentation media path from discovery to delivery.
+The lazy `officekit image` command searches Openverse and Wikimedia through the
+exact-pinned `webfetch-core@0.1.5` provider surface, searches Lucide offline
+through `@iconify-json/lucide@1.2.126`, and keeps candidate selection with the
+Agent. Selected bytes, source evidence, rights metadata, credit lines, and
+search records are stored as immutable content-addressed task assets. Local
+files and explicit HTTPS URLs use the same receipt and audit model.
+
+Remote acquisition accepts PNG, JPEG, and GIF only. It rejects credentials,
+localhost, private and link-local addresses, revalidates every redirect,
+pins the checked public address for the connection, and enforces 20 MiB,
+40-megapixel, and 16,384-pixel-side limits plus MIME, magic-byte, and dimension
+agreement. Openverse rights remain provider-declared rather than legal
+verification. Public Domain, CC0, CC BY, Lucide ISC, permission, user/generated
+assets, and official press-kit declarations are accepted; ShareAlike,
+NonCommercial, NoDerivatives, and unknown claims are rejected by default.
+
+`slide.images.add()` and Compose now accept a `FileBlob`, so an Agent can place
+a registered task asset without converting it to base64. `officekit image
+audit` hashes actual PPTX media parts, distinguishes used, unused, and
+unregistered media, reports visible attribution obligations, and can emit a
+deterministic non-overwriting `.sources.json` sidecar. Root import, `init`, and
+template search do not load the providers, Lucide data, Office WASM, or any
+network path.
+
+The real one-slide run selected the offline Lucide `chart-area` candidate,
+stored it under the task, embedded the same SVG bytes, exported and reimported
+the PPTX, rendered it through LibreOffice and Poppler, and matched the media
+SHA-256 with no unregistered parts. Model verification, layout validation,
+second-import verification, and image audit all passed. The final PPTX SHA-256
+is `9805c30af647ff38e9bde2e709160718096d240451f0352f74edfd2184d9591a`;
+the native-render PNG SHA-256 is
+`f347e7f9194b2cda4bd5341470ffa0d86de3fe514fb60c5995de561b458e3515`.
+
+The npm payload contains 793 files and measures 36,901,120 bytes compressed and
+54,855,768 bytes unpacked. The self-contained releases embed the same package
+with Node 24.18.0 and are pinned as follows:
+
+- `darwin-arm64`: 89,097,571 bytes, SHA-256
+  `bec099f3e8c4e5b98a988c36d0054dc2e890002d35a62c9ddfbe82039c8cf0ff`;
+- `linux-x64`: 94,223,216 bytes, SHA-256
+  `71dc7e6be2b58991953b1d863cfb42ee1f2fc3a1d55731292ae1c1bf67e9897d`;
+- `win32-x64`: 86,033,390 bytes, SHA-256
+  `ad76f29befab5ef0387999c6944df12666282ea841bb085c34d3a7eabc1f9d4c`.
+
 ## OfficeKit 1.0.0
 
 OfficeKit 1.0.0 is the first stable release of the local, Agent-facing Office
