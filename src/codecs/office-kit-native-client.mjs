@@ -113,7 +113,7 @@ class NativeCodecClient {
   static async start(descriptor, { spawnProcess = spawn } = {}) {
     const child = spawnProcess(descriptor.executablePath, ["--serve"], {
       cwd: descriptor.packageRoot,
-      env: process.env,
+      env: { ...process.env, DOTNET_GCConserveMemory: "9" },
       shell: false,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
