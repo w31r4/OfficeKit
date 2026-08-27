@@ -167,9 +167,9 @@ macOS 当前只跑构建、mock 和打包检查。
 
 创建新 deck 时，Presentations 路径会先判断受众看完后应发生什么变化、这份材料
 如何传递和会后使用、属于哪类演示场景，以及什么视觉方向最适合这个任务。随后再规划
-叙事、完成静态构图、只在有意义时加入动效，并在交付前复核结果。用户提供的模板、
-品牌规范或参考文件始终是设计权威；没有这些材料时，Agent 会为当前任务选择独立的
-视觉方向。Grid Layout 只是显式可选的脚手架，不是隐藏 fallback。
+叙事、完成静态构图、只在有意义时加入动效，并在交付前复核结果。用户提供的 Template
+Skill、品牌规范或参考文件始终是设计权威；没有这些材料时，Agent 会为当前任务选择
+独立的视觉方向。
 
 自定义设计会先制作开场页、证据页和最高风险页进行校准，再扩展整份演示文稿。
 Presentation Editorial Trim 会在构图前和首轮渲染后分别整理文案，保留事实、来源、
@@ -193,7 +193,8 @@ Presentation Editorial Trim 会在构图前和首轮渲染后分别整理文案�
 | [Presentation Editorial Trim](skills/presentations/skills/presentation-editorial-trim/SKILL.md) | 只优化演示文稿文案，同时保留事实、来源、设计和局部修改范围。 |
 | [PowerPoint Live Control](skills/presentations/skills/powerpoint-live-control/SKILL.md) | 操作桌面版 PowerPoint 中已经打开的演示文稿。 |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | 已确定要读取、创建、检查或处理 PDF。 |
-| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把自己的 DOCX、XLSX 或 PPTX 保存为可复用模板。 |
+| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | 把 DOCX 或 XLSX 保存为可复用的源文件模板。 |
+| [Presentation Template Creator](skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md) | 把演示参考资料提炼成可复用的风格指导和原创视觉示例。 |
 
 入口不同，底层文件能力和检查规则相同。直接使用领域 Skill 会跳过格式路由，
 并继续执行源文件保护、渲染和验证。
@@ -211,11 +212,16 @@ Presentation Editorial Trim 会在构图前和首轮渲染后分别整理文案�
 
 ## 模板按需使用
 
-[Office Template Library](skills/default-template-library/README.md) 提供 20 套
-MIT 授权模板，随已安装的 OfficeKit 保存一份。`officekit init` 只安装 Skill，模板继续
-留在包内。目标明确且模板未指定时，OfficeKit 把需求归一成英文检索词，
-再执行本地 BM25F 搜索；Agent 查看少量候选后选择一个、询问用户或明确
-不用模板。
+OfficeKit 用同一条搜索命令管理两类目录：
+[Default Template Library](skills/default-template-library/README.md) 保存 13 套
+MIT 授权的 DOCX/XLSX 源文件模板；
+[Presentation Template Library](skills/presentation-template-library/README.md)
+保存 8 套原创演示 Template Skill。演示模板只有风格指导、检索元数据和视觉校准图，
+不含源 PPTX、固定布局或页面代码。`officekit init` 安装工作流 Skill，两个目录继续留在包内。
+
+目标明确且模板未指定时，OfficeKit 把需求归一成英文检索词，再执行本地 BM25F
+搜索。Agent 选择 0 或 1 个结果；选中演示模板后，读取风格指导、查看示例，形成当前
+deck 的 Design Grammar，再自由构图。选择 `none` 也是正确结果。
 
 ```sh
 officekit template search \
@@ -225,8 +231,9 @@ officekit template search \
   --json
 ```
 
-用户上传的 DOCX、XLSX 或 PPTX 默认只用于当前任务。明确要求以后复用时，
-再交给 Template Creator 保存。
+用户上传的 DOCX、XLSX 或 PPTX 默认只用于当前任务。DOCX/XLSX 由 Template Creator
+保存；PPTX、图片、文字说明或已有 OfficeKit task 由 Presentation Template Creator
+提炼，源参考文件不会进入发布模板。
 
 ## 文件交付前会再检查一遍
 

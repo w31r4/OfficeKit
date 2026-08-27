@@ -185,10 +185,9 @@ For a new deck, the Presentations route turns a clear request into a working
 draft by deciding what must change for the audience, how the deck will be used,
 which presentation scenario applies, and what visual direction serves that
 job. It then plans the story, composes the pages, adds motion only when useful,
-and checks the result before delivery. A supplied template, brand guide, or
-reference deck remains the design authority; without one, the Agent chooses a
-task-specific direction. Grid Layout is an explicit scaffold, not a hidden
-fallback.
+and checks the result before delivery. A supplied Template Skill, brand guide,
+or reference deck remains the design authority; without one, the Agent chooses
+a task-specific direction.
 
 Read [What OfficeKit Means by a Presentation](docs/what-is-a-presentation.md)
 for the communication, lifecycle, quality, and native-artifact principles that
@@ -197,8 +196,7 @@ drive this workflow.
 The plan is stored with the task, so a later session can reopen the reviewed
 revision, see the pending decision, make a local change, and review it again.
 For self-directed decks, OfficeKit calibrates an opening page, an evidence page,
-and the densest page before expanding the full story. Route C is the default;
-Grid remains an explicit scaffold when the user or plan requests it.
+and the densest page before expanding the full story. Route C is the default.
 
 ## One front door, with direct routes when you want them
 
@@ -215,7 +213,8 @@ output route, considers templates, and hands each file to its owning Skill.
 | [Presentation Editorial Trim](skills/presentations/skills/presentation-editorial-trim/SKILL.md) | Polishing slide copy while preserving facts, sources, design, and local edit scope. |
 | [PowerPoint Live Control](skills/presentations/skills/powerpoint-live-control/SKILL.md) | Working with a presentation already open in desktop PowerPoint through the local OfficeKit bridge. |
 | [PDF](skills/pdf/skills/pdf/SKILL.md) | Reading, creating, inspecting, or processing a PDF. |
-| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving your own DOCX, XLSX, or PPTX reference as a reusable template. |
+| [Template Creator](skills/template-creator/skills/template-creator/SKILL.md) | Saving a DOCX or XLSX reference as a reusable source-backed template. |
+| [Presentation Template Creator](skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md) | Distilling presentation references into reusable style guidance and original visual examples. |
 
 Every route uses the same file capabilities and checks. Invoking a domain Skill
 directly skips format routing while retaining source protection, rendering, and
@@ -234,12 +233,20 @@ See [coverage](docs/coverage.md) for the complete supported boundary.
 
 ## Use templates when they fit
 
-The [Office Template Library](skills/default-template-library/README.md) provides
-20 MIT-licensed templates stored once in the installed OfficeKit runtime. `officekit init`
-installs Skills and leaves the template assets in place. When the goal is clear
-and no template has been specified, OfficeKit normalizes the intent into
-English search terms and runs local BM25F retrieval. After reviewing a small
-shortlist, the agent selects one, asks, or proceeds without a template.
+OfficeKit keeps two catalogs behind one search command. The
+[Default Template Library](skills/default-template-library/README.md) contains
+13 MIT-licensed, source-backed DOCX/XLSX templates. The
+[Presentation Template Library](skills/presentation-template-library/README.md)
+contains eight original presentation Template Skills: each is style guidance,
+search metadata, and visual calibration images—never a source PPTX, fixed
+layout, or page code. `officekit init` installs workflow Skills and leaves both
+catalogs in place.
+
+When the goal is clear and no template has been specified, OfficeKit normalizes
+the intent into English search terms and runs local BM25F retrieval. The Agent
+selects zero or one result. A selected presentation template is read and viewed,
+then translated into a new deck-specific Design Grammar for free composition;
+`none` remains a correct result.
 
 ```sh
 officekit template search \
@@ -250,7 +257,9 @@ officekit template search \
 ```
 
 An uploaded DOCX, XLSX, or PPTX stays scoped to the current task by default.
-Template Creator saves it when the user explicitly wants future reuse.
+Template Creator handles DOCX/XLSX. Presentation Template Creator distills a
+PPTX, images, written direction, or an OfficeKit task without publishing the
+source reference.
 
 ## Files are checked before handoff
 
