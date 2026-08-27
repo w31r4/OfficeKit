@@ -1,0 +1,20 @@
+{
+  "name": "office-kit-codec-linux-x64",
+  "version": "0.6.0",
+  "description": "OfficeKit NativeAOT codec for Linux x64.",
+  "license": "AGPL-3.0-or-later",
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "engines": { "node": ">=22.15.0" },
+  "files": [
+    "bin/**",
+    "manifest.json",
+    "sbom.cdx.json",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "DOTNET-LICENSE.TXT",
+    "DOTNET-THIRD-PARTY-NOTICES.TXT"
+  ],
+  "exports": { "./package.json": "./package.json" },
+  "publishConfig": { "access": "public" }
+}

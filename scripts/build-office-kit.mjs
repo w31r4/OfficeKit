@@ -4,101 +4,135 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { normalizeGeneratedTree } from "./normalize-generated.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const project = path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.Runtime", "OfficeKit.Runtime.csproj");
-const sourceMain = path.join(path.dirname(project), "main.mjs");
-const appBundle = path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.Runtime", "bin", "Release", "net8.0", "browser-wasm", "AppBundle");
-const destination = process.env.OFFICE_KIT_OUTPUT
-  ? path.resolve(process.env.OFFICE_KIT_OUTPUT)
-  : path.join(repoRoot, "runtime", "office-kit");
-
-// A publish after `dotnet test` can otherwise reuse a mixed incremental graph
-// whose WASM linker inputs differ from a subsequent publish. Release builds
-// must start from the same state regardless of which local gate ran first.
-const cleaned = spawnSync("dotnet", ["clean", project, "--configuration", "Release", "--verbosity", "quiet"], { cwd: repoRoot, encoding: "utf8", stdio: "inherit", shell: false });
-if (cleaned.status !== 0) process.exit(cleaned.status || 1);
-const restored = spawnSync("dotnet", ["restore", project, "--locked-mode"], { cwd: repoRoot, encoding: "utf8", stdio: "inherit", shell: false });
-if (restored.status !== 0) process.exit(restored.status || 1);
-const published = spawnSync("dotnet", ["publish", project, "--configuration", "Release", "--no-restore"], { cwd: repoRoot, encoding: "utf8", stdio: "inherit", shell: false });
-if (published.status !== 0) process.exit(published.status || 1);
-
-fs.rmSync(destination, { force: true, recursive: true });
-copyTree(appBundle, destination);
-fs.copyFileSync(sourceMain, path.join(destination, "main.mjs"));
-removeDebugResources();
-normalizeGeneratedTree(destination, { stripSourceMapComments: true });
-copyRuntimeNotices();
-writeSbom();
-
-const files = listFiles(destination).filter((file) => file !== "manifest.json").map((file) => {
-  const data = fs.readFileSync(path.join(destination, file));
-  return { path: file, bytes: data.byteLength, sha256: createHash("sha256").update(data).digest("hex") };
+const project = path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.NativeHost", "OfficeKit.NativeHost.csproj");
+const packageMetadata = readJson(path.join(repoRoot, "package.json"));
+const targets = Object.freeze({
+  "darwin-arm64": Object.freeze({ rid: "osx-arm64", executable: "officekit-codec" }),
+  "linux-x64": Object.freeze({ rid: "linux-x64", executable: "officekit-codec" }),
+  "win32-x64": Object.freeze({ rid: "win-x64", executable: "officekit-codec.exe" }),
 });
-const manifest = {
-  schemaVersion: 1,
-  protocolVersion: 2,
-  targetFramework: "net8.0",
-  runtimeIdentifier: "browser-wasm",
-  sdkVersion: runText("dotnet", ["--version"]),
-  sourceProject: "native/OfficeKit/src/OfficeKit.Runtime/OfficeKit.Runtime.csproj",
-  sourceDependencies: {
-    "DocumentFormat.OpenXml": "3.5.1",
-    "Google.Protobuf": "3.35.1",
-  },
-  files,
-  totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
-};
-fs.writeFileSync(path.join(destination, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`OfficeKit runtime: ${files.length} files, ${manifest.totalBytes} bytes`);
 
-function copyTree(source, target) {
-  fs.mkdirSync(target, { recursive: true });
-  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    if (entry.name === ".stamp" || entry.name.endsWith(".map") || entry.name.endsWith(".symbols") || entry.name.endsWith(".pdb")) continue;
-    const from = path.join(source, entry.name);
-    const to = path.join(target, entry.name);
-    if (entry.isDirectory()) copyTree(from, to);
-    else fs.copyFileSync(from, to);
+const options = parseArguments(process.argv.slice(2));
+const target = options.target ?? currentTarget();
+const targetConfig = targets[target];
+if (!targetConfig) fail(`unsupported target ${target}; expected ${Object.keys(targets).join(", ")}`);
+const platformPackageName = `office-kit-codec-${target}`;
+const sourcePackageRoot = path.join(repoRoot, "packages", platformPackageName);
+const platformPackage = readJson(path.join(sourcePackageRoot, "package.json"));
+if (platformPackage.name !== platformPackageName || platformPackage.version !== packageMetadata.version) {
+  fail(`${platformPackageName} metadata must match office-kit ${packageMetadata.version}`);
+}
+const destination = options.output ?? (process.env.OFFICE_KIT_OUTPUT ? path.resolve(process.env.OFFICE_KIT_OUTPUT) : sourcePackageRoot);
+const temporary = fs.mkdtempSync(path.join(os.tmpdir(), `office-kit-native-${target}-`));
+const publishDirectory = path.join(temporary, "publish");
+
+try {
+  run("dotnet", ["clean", project, "--configuration", "Release", "--runtime", targetConfig.rid, "--verbosity", "quiet"]);
+  run("dotnet", ["restore", project, "--locked-mode"]);
+  run("dotnet", [
+    "publish", project,
+    "--configuration", "Release",
+    "--runtime", targetConfig.rid,
+    "--self-contained", "true",
+    "--no-restore",
+    "--output", publishDirectory,
+  ]);
+
+  const stage = path.join(temporary, "package");
+  fs.mkdirSync(path.join(stage, "bin"), { recursive: true });
+  fs.copyFileSync(path.join(sourcePackageRoot, "package.json"), path.join(stage, "package.json"));
+  const executableDestination = path.join(stage, "bin", targetConfig.executable);
+  fs.copyFileSync(path.join(publishDirectory, targetConfig.executable), executableDestination);
+  if (target !== "win32-x64") fs.chmodSync(executableDestination, 0o755);
+  fs.copyFileSync(path.join(repoRoot, "LICENSE"), path.join(stage, "LICENSE"));
+  fs.copyFileSync(path.join(repoRoot, "THIRD_PARTY_NOTICES.md"), path.join(stage, "THIRD_PARTY_NOTICES.md"));
+  copyDotnetNotices(stage);
+  writeSbom(stage, platformPackageName, target, targetConfig.rid);
+
+  const files = listFiles(stage)
+    .filter((file) => file !== "manifest.json" && file !== "package.json")
+    .map((file) => fileRecord(stage, file));
+  const manifest = {
+    schemaVersion: 1,
+    packageVersion: packageMetadata.version,
+    backend: "native-aot",
+    transportVersion: 1,
+    protocolVersion: 2,
+    target,
+    runtimeIdentifier: targetConfig.rid,
+    targetFramework: "net8.0",
+    assemblyName: "officekit-codec",
+    sdkVersion: runText("dotnet", ["--version"]),
+    sourceProject: "native/OfficeKit/src/OfficeKit.NativeHost/OfficeKit.NativeHost.csproj",
+    sourceDependencies: {
+      "DocumentFormat.OpenXml": "3.5.1",
+      "Google.Protobuf": "3.35.1"
+    },
+    files,
+    totalBytes: files.reduce((sum, file) => sum + file.bytes, 0)
+  };
+  fs.writeFileSync(path.join(stage, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
+  publishStage(stage, destination);
+  console.log(`OfficeKit NativeAOT ${target}: ${files.length} files, ${manifest.totalBytes} bytes`);
+} finally {
+  fs.rmSync(temporary, { recursive: true, force: true });
+}
+
+function parseArguments(args) {
+  const parsed = {};
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument !== "--target" && argument !== "--output") fail(`unknown option ${argument}`);
+    const value = args[index + 1];
+    if (!value || value.startsWith("--")) fail(`${argument} requires a value`);
+    const key = argument.slice(2);
+    if (parsed[key]) fail(`${argument} may be supplied only once`);
+    parsed[key] = argument === "--output" ? path.resolve(value) : value;
+    index += 1;
+  }
+  return parsed;
+}
+
+function currentTarget() {
+  const target = `${process.platform}-${process.arch}`;
+  if (!targets[target]) fail(`current platform ${target} is unsupported`);
+  return target;
+}
+
+function publishStage(stage, output) {
+  fs.mkdirSync(output, { recursive: true });
+  const generated = [
+    "bin", "manifest.json", "sbom.cdx.json", "LICENSE", "THIRD_PARTY_NOTICES.md",
+    "DOTNET-LICENSE.TXT", "DOTNET-THIRD-PARTY-NOTICES.TXT"
+  ];
+  for (const entry of generated) fs.rmSync(path.join(output, entry), { recursive: true, force: true });
+  for (const entry of fs.readdirSync(stage)) {
+    if (entry === "package.json" && path.resolve(output) === path.resolve(sourcePackageRoot)) continue;
+    fs.cpSync(path.join(stage, entry), path.join(output, entry), { recursive: true });
   }
 }
 
-function removeDebugResources() {
-  const bootPath = path.join(destination, "_framework", "blazor.boot.json");
-  const boot = JSON.parse(fs.readFileSync(bootPath, "utf8"));
-  for (const resources of Object.values(boot.resources || {})) {
-    if (!resources || typeof resources !== "object") continue;
-    for (const name of Object.keys(resources)) if (name.endsWith(".symbols") || name.endsWith(".pdb")) delete resources[name];
-  }
-  fs.writeFileSync(bootPath, `${JSON.stringify(boot, null, 2)}\n`);
+function copyDotnetNotices(stage) {
+  const assets = readJson(path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.NativeHost", "obj", "project.assets.json"));
+  const ilCompiler = Object.keys(assets.libraries || {}).find((name) => name.startsWith("Microsoft.DotNet.ILCompiler/"));
+  if (!ilCompiler) fail("NativeAOT compiler package is absent from project assets");
+  const [packageName, version] = ilCompiler.split("/");
+  const globalPackages = runText("dotnet", ["nuget", "locals", "global-packages", "--list"]).replace(/^global-packages:\s*/u, "").trim();
+  const packageRoot = path.join(globalPackages, packageName.toLowerCase(), version);
+  fs.copyFileSync(path.join(packageRoot, "LICENSE.TXT"), path.join(stage, "DOTNET-LICENSE.TXT"));
+  fs.copyFileSync(path.join(packageRoot, "THIRD-PARTY-NOTICES.TXT"), path.join(stage, "DOTNET-THIRD-PARTY-NOTICES.TXT"));
 }
 
-function copyRuntimeNotices() {
-  const sdkList = runText("dotnet", ["--list-sdks"]);
-  const sdkDirectory = /\[([^\]]+)\]/.exec(sdkList)?.[1];
-  const roots = [
-    path.join(os.homedir(), ".dotnet", "packs"),
-    sdkDirectory ? path.join(path.dirname(sdkDirectory), "packs") : undefined,
-  ].filter(Boolean);
-  for (const fileName of ["LICENSE.TXT", "THIRD-PARTY-NOTICES.TXT"]) {
-    const source = roots.flatMap((root) => findFiles(root, fileName)).find((file) => file.includes("Microsoft.NETCore.App.Runtime.Mono.browser-wasm"));
-    if (!source) throw new Error(`Unable to locate bundled .NET WebAssembly ${fileName}.`);
-    fs.copyFileSync(source, path.join(destination, `DOTNET-${fileName}`));
-  }
-}
-
-function writeSbom() {
-  const packageMetadata = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
-  const runtimeConfig = JSON.parse(fs.readFileSync(path.join(destination, "OfficeKit.Runtime.runtimeconfig.json"), "utf8"));
-  const runtimeVersion = runtimeConfig.runtimeOptions?.includedFrameworks?.find((item) => item.name === "Microsoft.NETCore.App")?.version || "8.0.28";
-  const component = (name, version, license, purl) => ({
+function writeSbom(stage, name, target, rid) {
+  const component = (componentName, version, license, purl) => ({
     type: "library",
-    name,
+    name: componentName,
     version,
     scope: "required",
     licenses: [{ license: { id: license } }],
-    purl,
+    purl
   });
   const sbom = {
     bomFormat: "CycloneDX",
@@ -107,31 +141,21 @@ function writeSbom() {
     metadata: {
       component: {
         type: "application",
-        name: "OfficeKit.Runtime",
+        name,
         version: packageMetadata.version,
-        purl: `pkg:npm/${packageMetadata.name}@${packageMetadata.version}`,
-      },
+        purl: `pkg:npm/${name}@${packageMetadata.version}`,
+        properties: [{ name: "office-kit:target", value: target }]
+      }
     },
     components: [
-      component("Microsoft.NETCore.App browser-wasm runtime", runtimeVersion, "MIT", `pkg:generic/dotnet-runtime@${runtimeVersion}?rid=browser-wasm`),
+      component("Microsoft .NET NativeAOT", "8.0.28", "MIT", `pkg:nuget/Microsoft.DotNet.ILCompiler@8.0.28?rid=${rid}`),
       component("DocumentFormat.OpenXml", "3.5.1", "MIT", "pkg:nuget/DocumentFormat.OpenXml@3.5.1"),
       component("DocumentFormat.OpenXml.Framework", "3.5.1", "MIT", "pkg:nuget/DocumentFormat.OpenXml.Framework@3.5.1"),
       component("Google.Protobuf", "3.35.1", "BSD-3-Clause", "pkg:nuget/Google.Protobuf@3.35.1"),
-      component("System.IO.Packaging", "8.0.1", "MIT", "pkg:nuget/System.IO.Packaging@8.0.1"),
-    ],
+      component("System.IO.Packaging", "8.0.1", "MIT", "pkg:nuget/System.IO.Packaging@8.0.1")
+    ]
   };
-  fs.writeFileSync(path.join(destination, "sbom.cdx.json"), `${JSON.stringify(sbom, null, 2)}\n`);
-}
-
-function findFiles(root, fileName, depth = 0) {
-  if (depth > 5 || !fs.existsSync(root)) return [];
-  const matches = [];
-  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    const target = path.join(root, entry.name);
-    if (entry.isDirectory()) matches.push(...findFiles(target, fileName, depth + 1));
-    else if (entry.name.toUpperCase() === fileName) matches.push(target);
-  }
-  return matches;
+  fs.writeFileSync(path.join(stage, "sbom.cdx.json"), `${JSON.stringify(sbom, null, 2)}\n`);
 }
 
 function listFiles(root, base = root) {
@@ -141,8 +165,26 @@ function listFiles(root, base = root) {
   }).sort();
 }
 
+function fileRecord(root, file) {
+  const bytes = fs.readFileSync(path.join(root, file));
+  return { path: file, bytes: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function run(command, args) {
+  const result = spawnSync(command, args, { cwd: repoRoot, encoding: "utf8", stdio: "inherit", shell: false });
+  if (result.status !== 0) process.exit(result.status || 1);
+}
+
 function runText(command, args) {
   const result = spawnSync(command, args, { cwd: repoRoot, encoding: "utf8", shell: false });
-  if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed: ${result.stderr}`);
+  if (result.status !== 0) fail(`${command} ${args.join(" ")} failed: ${result.stderr}`);
   return String(result.stdout).trim();
+}
+
+function fail(message) {
+  throw new Error(`OfficeKit NativeAOT build: ${message}`);
 }

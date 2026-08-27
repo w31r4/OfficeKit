@@ -1004,7 +1004,7 @@ function directDocumentNumberingPlan(document, assets) {
 
   for (const block of document.blocks.filter((item) => item.kind === "listItem")) {
     if (block.numberingStyleId) {
-      throw new OfficeKitCodecError(`The DOCX WebAssembly vertical slice cannot directly author style-linked numbering for list item ${block.id}.`, [], { code: "unsupported_document_features" });
+      throw new OfficeKitCodecError(`The DOCX NativeAOT vertical slice cannot directly author style-linked numbering for list item ${block.id}.`, [], { code: "unsupported_document_features" });
     }
     const level = integer(block.level, `Document list item ${block.id} level`);
     if (level > 8) invalid(`Document list item ${block.id} level must be between 0 and 8.`);
@@ -2105,7 +2105,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
     const source = original?.content.case === "paragraph" ? original.content.value : undefined;
     if (!source?.numbering) {
       if (!directNumbering) {
-        throw new OfficeKitCodecError(`The DOCX WebAssembly vertical slice could not plan a numbering-definition graph for list item ${block.id}.`, [], { code: "invalid_document_numbering" });
+        throw new OfficeKitCodecError(`The DOCX NativeAOT vertical slice could not plan a numbering-definition graph for list item ${block.id}.`, [], { code: "invalid_document_numbering" });
       }
       const text = String(block.text ?? "");
       if (text.length > 1_000_000) throw new OfficeKitCodecError(`Document list item ${block.id} text exceeds 1,000,000 characters.`, [], { code: "invalid_document_numbering" });
@@ -2235,7 +2235,7 @@ function documentBlock(block, original, directNumbering, assets, contentControlN
       content: { case: "section", value: wireDocumentSection(block) },
     };
   }
-  throw new OfficeKitCodecError(`The DOCX WebAssembly vertical slice cannot author document block kind ${block.kind}.`, [], { code: "unsupported_document_features" });
+  throw new OfficeKitCodecError(`The DOCX NativeAOT vertical slice cannot author document block kind ${block.kind}.`, [], { code: "unsupported_document_features" });
 }
 
 function wireDocumentProtection(value) {

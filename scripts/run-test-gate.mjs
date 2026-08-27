@@ -39,6 +39,7 @@ const fastSteps = [
   nodeStep("test/skill-json-assets.mjs"),
   nodeStep("test/skill-portability.mjs"),
   nodeStep("test/office-kit.mjs"),
+  nodeStep("test/office-kit-native-transport.mjs"),
   nodeStep("test/officekit-identity.mjs"),
   nodeStep("test/font-metrics.mjs"),
   nodeStep("test/ooxml-source-reference.mjs"),

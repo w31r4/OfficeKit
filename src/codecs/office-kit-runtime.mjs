@@ -1,5 +1,4 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { readFile } from "node:fs/promises";
 
 import {
   CodecRequestSchema,
@@ -7,21 +6,22 @@ import {
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
+import {
+  OFFICE_KIT_NATIVE_TRANSPORT_VERSION,
+  startOfficeKitNativeClient,
+} from "./office-kit-native-client.mjs";
 
 export const OFFICE_KIT_PROTOCOL_VERSION = 2;
-
-const RUNTIME_URL = new URL("../../runtime/office-kit/main.mjs", import.meta.url);
-const MANIFEST_URL = new URL("../../runtime/office-kit/manifest.json", import.meta.url);
 
 let runtimePromise;
 
 async function runtime() {
   if (!runtimePromise) {
-    runtimePromise = import(RUNTIME_URL.href)
-      .then((module) => module.loadOfficeKit())
+    runtimePromise = startOfficeKitNativeClient()
       .catch((error) => {
         runtimePromise = undefined;
-        throw new OfficeKitCodecError("Bundled OfficeKit runtime could not be loaded.", [], { code: "runtime_unavailable", cause: error });
+        if (error instanceof OfficeKitCodecError) throw error;
+        throw new OfficeKitCodecError("Bundled OfficeKit NativeAOT Codec could not be loaded.", [], { code: "runtime_unavailable", cause: error });
       });
   }
   return runtimePromise;
@@ -78,9 +78,18 @@ export async function invokeOfficeKit(request) {
     throw new TypeError("invokeOfficeKit no longer accepts allowLossy/allow_lossy; opaque Office content without a validated source package always fails closed.");
   }
   const loaded = await runtime();
+  const loadedPromise = runtimePromise;
   const wireRequest = create(CodecRequestSchema, request);
-  const wireResponse = bytesFrom(loaded.invoke(toBinary(CodecRequestSchema, wireRequest)));
-  const response = fromBinary(CodecResponseSchema, wireResponse);
+  let response;
+  try {
+    const wireResponse = bytesFrom(await loaded.invoke(toBinary(CodecRequestSchema, wireRequest)));
+    response = fromBinary(CodecResponseSchema, wireResponse);
+  } catch (error) {
+    loaded.kill();
+    if (runtimePromise === loadedPromise) runtimePromise = undefined;
+    if (error instanceof OfficeKitCodecError) throw error;
+    throw new OfficeKitCodecError("OfficeKit native codec returned an invalid protobuf response.", [], { code: "runtime_protocol_mismatch", cause: error });
+  }
   if (!response.ok) throw responseFailure(response);
   return response;
 }
@@ -92,7 +101,14 @@ export function assertCodecOptions(options, allowed, apiName) {
 }
 
 export async function officeKitStatus() {
-  const [loaded, manifestText] = await Promise.all([runtime(), readFile(MANIFEST_URL, "utf8")]);
-  const manifest = JSON.parse(manifestText);
-  return { available: true, protocolVersion: OFFICE_KIT_PROTOCOL_VERSION, assemblyName: loaded.assemblyName, manifest };
+  const loaded = await runtime();
+  return {
+    available: true,
+    protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
+    assemblyName: loaded.descriptor.assemblyName,
+    backend: "native-aot",
+    target: loaded.descriptor.target,
+    transportVersion: OFFICE_KIT_NATIVE_TRANSPORT_VERSION,
+    manifest: loaded.descriptor.manifest,
+  };
 }

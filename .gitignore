@@ -10,3 +10,10 @@ native/OfficeBridge/**/bin/
 native/OfficeBridge/**/obj/
 native/OfficeKit/**/bin/
 native/OfficeKit/**/obj/
+packages/office-kit-codec-*/bin/
+packages/office-kit-codec-*/manifest.json
+packages/office-kit-codec-*/sbom.cdx.json
+packages/office-kit-codec-*/LICENSE
+packages/office-kit-codec-*/THIRD_PARTY_NOTICES.md
+packages/office-kit-codec-*/DOTNET-LICENSE.TXT
+packages/office-kit-codec-*/DOTNET-THIRD-PARTY-NOTICES.TXT

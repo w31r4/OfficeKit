@@ -46,7 +46,11 @@ assert.equal(importXlsxWithOfficeKit, importXlsxWithOfficeKitLeaf);
 const status = await officeKitStatus();
 assert.equal(status.available, true);
 assert.equal(status.protocolVersion, 2);
-assert.equal(status.assemblyName, "OfficeKit.Runtime.dll");
+assert.equal(status.assemblyName, "officekit-codec");
+assert.equal(status.backend, "native-aot");
+assert.equal(status.target, `${process.platform}-${process.arch}`);
+assert.equal(status.transportVersion, 1);
+assert.equal(status.manifest.backend, "native-aot");
 
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";
 const replacementPng = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";

@@ -6,7 +6,7 @@ namespace OfficeKit.Codec;
 public static class CodecProtocol
 {
     public const uint ProtocolVersion = 2;
-    private const int AbsoluteRequestLimit = 128 * 1024 * 1024;
+    public const int AbsoluteRequestLimit = 128 * 1024 * 1024;
 
     public static byte[] Invoke(byte[] requestBytes)
     {

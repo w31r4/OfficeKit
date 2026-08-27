@@ -850,7 +850,7 @@ function wireTextStyle(style = {}, shapeId) {
     color = PRESENTATION_SCHEME_COLORS.has(token)
       ? { case: "colorScheme", value: token }
       : { case: "colorRgb", value: presentationRgb(style.color, `${shapeId}.text.paragraphStyle.color`) };
-    if (!color.value) throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent paragraph color outside the PPTX WebAssembly text slice.`, [], { code: "unsupported_presentation_features" });
+    if (!color.value) throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent paragraph color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
   }
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
@@ -919,7 +919,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   }
   const colorRgb = style.color == null ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
   if (colorRgb === "") {
-    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX WebAssembly text slice.`, [], { code: "unsupported_presentation_features" });
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
   }
   const hyperlink = wireHyperlink(run.link, original, shapeId, customShowLinks);
   return {
@@ -995,7 +995,7 @@ function wireBulletColor(paragraph, original, shapeId) {
     const scheme = String(paragraph.bulletColor).trim();
     if (PRESENTATION_SCHEME_COLORS.has(scheme)) return { case: "bulletColorScheme", value: scheme };
     const rgb = presentationRgb(paragraph.bulletColor, `${shapeId}.text.bulletColor`);
-    if (!rgb) throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent bullet color outside the PPTX WebAssembly text slice.`, [], { code: "unsupported_presentation_features" });
+    if (!rgb) throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent bullet color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
     return { case: "bulletColorRgb", value: rgb };
   }
   if (paragraph.bulletColorFollowText === true || new Set(["bulletColorRgb", "bulletColorScheme", "bulletColorFollowText"]).has(original?.bulletColor?.case)) {
