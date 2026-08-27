@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-ink-register",
+  "displayName": "Ink Register",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "effc19d56db06b45bf8ad4fa1eb0e46dc91a1d2b3f732071568b63a86c9b5ece"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "f413ef763245668e79de9f24f0d73f059f3cf1a40f7c17b3ddd4ae92ef56017b"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "d4db4d406b27fcf271f774b961d7e4b45b6330eb26ddb00ae357e43cfdd26891"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "2e6010c44637a9861d668a3c975881c415f2ed630a1e9b48e421feec5695a55e"
+    }
+  ],
+  "useWhen": [
+    "independent editorial deck",
+    "cultural report",
+    "creative research"
+  ],
+  "avoidWhen": [
+    "clean software architecture",
+    "formal financial filing"
+  ],
+  "audiences": [
+    "editors",
+    "creative teams",
+    "cultural researchers"
+  ],
+  "contentShapes": [
+    "essay",
+    "image sequence",
+    "critical observation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "independent print editorial",
+      "purposeful",
+      "original"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "ink",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "0d96e14c0628e07ea1edcd4519bebe32e2e0f048f971b249e67f7452dcee5fe4",
+    "previewSha256": "0b09f8a701dbb96cb18fbfbf977ed9f4cb5e6fd64beaf2b43e08483dd89a1625"
+  }
+}

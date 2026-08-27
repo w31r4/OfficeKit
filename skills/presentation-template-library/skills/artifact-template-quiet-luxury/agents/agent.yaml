@@ -1,0 +1,5 @@
+interface:
+  display_name: "Quiet Luxury"
+  short_description: "Use the Quiet Luxury presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-quiet-luxury as the visual style for this presentation."

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Swiss Signal"
+  short_description: "Use the Swiss Signal presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-swiss-signal as the visual style for this presentation."

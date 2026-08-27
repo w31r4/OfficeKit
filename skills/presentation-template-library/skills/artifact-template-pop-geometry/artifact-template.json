@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-pop-geometry",
+  "displayName": "Pop Geometry",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "e0e9b2e934b9696c93f0079356f4bc1d9de736ddc2a210196712ab4c72498ddb"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "e564d5551a40b732ea3a190c0279f48baccea480cac83c7c120c439e0a81a1ba"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "f72c7bc8f7100516857c2c1c2c7f386447f0df649a0903c0b84fc3906f4feb1c"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "c7b5352c2eae8442852b2759a05e770a0e007265b152510aafe2a80b70687c42"
+    }
+  ],
+  "useWhen": [
+    "youthful campaign deck",
+    "creative education",
+    "community event"
+  ],
+  "avoidWhen": [
+    "earnings filing",
+    "safety incident review"
+  ],
+  "audiences": [
+    "consumer audiences",
+    "students",
+    "community teams"
+  ],
+  "contentShapes": [
+    "campaign idea",
+    "program",
+    "participation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "playful geometric language",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "mixed",
+    "structure": [
+      "pop",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "1faa1a0f401988c48adda508bd7921741d256635caccc1d14d779b0a63685dce",
+    "previewSha256": "d8d0a35e2484b411275f75b1183efc4a1680d4880f8d33f059090c61e8fd611c"
+  }
+}

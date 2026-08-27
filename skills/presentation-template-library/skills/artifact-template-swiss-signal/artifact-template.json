@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-swiss-signal",
+  "displayName": "Swiss Signal",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "be0e65494142291851dc10bd273559d8a8f90b10ee456b72d57378bc55517c89"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "6ceccaca86565a096581c1acf11c1d8e025a40b1e934663b6154ac6cb85d364e"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "b91ea7306c7e3d4b3a5af05f44257a59e1fca2717086e8b15af4172d59b61a4a"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "ac088c0a33b5c19a7a7671f7328b529c752df46d9797dab99b6f89293ef9f3c6"
+    }
+  ],
+  "useWhen": [
+    "modernist brand presentation",
+    "design portfolio",
+    "cultural program"
+  ],
+  "avoidWhen": [
+    "ornate luxury history",
+    "dense compliance report"
+  ],
+  "audiences": [
+    "creative leaders",
+    "design teams",
+    "cultural audiences"
+  ],
+  "contentShapes": [
+    "manifesto",
+    "program",
+    "visual system"
+  ],
+  "visualTraits": {
+    "tone": [
+      "modernist signal system",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "swiss",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "e61b814545a29a0a7d7ed54b1cc0a46145ef5aab12880268d3f536e8eef8e7a2",
+    "previewSha256": "7766cf887d9e3f27aa283b3d4e19c7767545197ac8f1bb873d273aaebf4e8306"
+  }
+}

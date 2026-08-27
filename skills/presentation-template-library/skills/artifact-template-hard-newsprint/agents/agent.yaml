@@ -1,0 +1,5 @@
+interface:
+  display_name: "Hard Newsprint"
+  short_description: "Use the Hard Newsprint presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-hard-newsprint as the visual style for this presentation."

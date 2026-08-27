@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-quiet-luxury",
+  "displayName": "Quiet Luxury",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "cc685837f4ad5b0b18b5a2f9f6d6616730940785aa668f2b5f64c63af0a7cd27"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "d9e031c6d5f54da23e5651a46180be6b210194831b105d47e8ecfd2eac5f7710"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "4e7a07df08837fb6b2cb50d3e9acf54d7f40d3eff43217a55f002ce25ae4829d"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "9678ba09fae8155c924944b99c3aae05d19014d687bf6678787877ec6d6fb6f5"
+    }
+  ],
+  "useWhen": [
+    "premium brand presentation",
+    "heritage product story",
+    "architecture portfolio"
+  ],
+  "avoidWhen": [
+    "incident response",
+    "dense operational review"
+  ],
+  "audiences": [
+    "brand leaders",
+    "clients",
+    "design audiences"
+  ],
+  "contentShapes": [
+    "heritage",
+    "craft",
+    "product detail",
+    "reveal"
+  ],
+  "visualTraits": {
+    "tone": [
+      "restrained premium language",
+      "purposeful",
+      "original"
+    ],
+    "density": "sparse",
+    "colorMode": "neutral",
+    "structure": [
+      "luxury",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "7886cc8cc6c618dcf4c154c899499a53f07651c97688e776852863415469123a",
+    "previewSha256": "99175fa15b56d43cc083cbf92ca59f071790b7330ee1032823ae62ff0af788a0"
+  }
+}

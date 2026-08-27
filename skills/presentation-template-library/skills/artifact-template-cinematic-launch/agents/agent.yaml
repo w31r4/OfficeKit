@@ -1,0 +1,5 @@
+interface:
+  display_name: "Cinematic Launch"
+  short_description: "Use the Cinematic Launch presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-cinematic-launch as the visual style for this presentation."

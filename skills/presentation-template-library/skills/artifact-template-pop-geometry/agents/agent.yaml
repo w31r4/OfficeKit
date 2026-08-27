@@ -1,0 +1,5 @@
+interface:
+  display_name: "Pop Geometry"
+  short_description: "Use the Pop Geometry presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-pop-geometry as the visual style for this presentation."

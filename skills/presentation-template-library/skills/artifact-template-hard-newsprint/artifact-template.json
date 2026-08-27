@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-hard-newsprint",
+  "displayName": "Hard Newsprint",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "992582451668d6645f0256b59651e9d714dc114c12bcbc3b8998c82d83e1fa5d"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "15b4639cfb68a387ecd7a27def03fc5bea9e2d00d176673b350b05e81f89cab4"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "34ab3dabb94863529c03f9daeec3ff5f5d457b2733e5c24e933237c569c818b0"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "a3783653422f40e951bb93fd8395b9105b648eb16e3696a43c0a0a1d9a69cc5b"
+    }
+  ],
+  "useWhen": [
+    "urgent issue briefing",
+    "investigative narrative",
+    "public interest report"
+  ],
+  "avoidWhen": [
+    "gentle onboarding",
+    "premium lifestyle launch"
+  ],
+  "audiences": [
+    "public audiences",
+    "journalists",
+    "advocacy teams"
+  ],
+  "contentShapes": [
+    "headline",
+    "timeline",
+    "evidence",
+    "call to action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "forceful newsprint language",
+      "purposeful",
+      "original"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "news",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "e8c4f79540eec0ecd078acf351a3d3ddcd273c716c81b96554813d6db0a92c1e",
+    "previewSha256": "dee0bc3626d9fec5b09db09ae276db736479a4dd2c184e5f39465c8a5fc611a9"
+  }
+}

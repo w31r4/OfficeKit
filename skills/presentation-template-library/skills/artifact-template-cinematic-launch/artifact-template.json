@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-cinematic-launch",
+  "displayName": "Cinematic Launch",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "45dfd6e9cef64d6f1f11c1120e2160f48742ff355376a8fe938fe4fc124ebe99"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "77d41b4f720f7d3cbfe0b9a2b0ef14f4d036e9f70d4ba39836b608548140fb02"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "c4124de9264ab5b3a406d4aea8114a858ec19820dae07c39dc85fa160ec07051"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "7fb2d98987f7fa441355b1d029da5e6cac9666d3c49e69b856545a354db1ec43"
+    }
+  ],
+  "useWhen": [
+    "product keynote",
+    "brand reveal",
+    "live stage presentation"
+  ],
+  "avoidWhen": [
+    "email attachment report",
+    "dense research appendix"
+  ],
+  "audiences": [
+    "customers",
+    "press",
+    "event audiences"
+  ],
+  "contentShapes": [
+    "reveal",
+    "benefit",
+    "demo",
+    "call to action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "stage-first launch language",
+      "purposeful",
+      "original"
+    ],
+    "density": "sparse",
+    "colorMode": "dark",
+    "structure": [
+      "cinematic",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "ece4353f1abe3f4915061d8c03cff7ddc1485c851a9a155d72c14c3eff980b82",
+    "previewSha256": "1c680d8ddeb537fea1cf2c7088c13a2fc8b2687f35a92f0295b1651bd22ef4f9"
+  }
+}

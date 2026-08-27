@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-dynamic-collage",
+  "displayName": "Dynamic Collage",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0f27b5b740816f48142517d04701b90bb5634fe419674e808ece12e07dc6750e"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "64a4ac0e5ffdf695d5cb185279748be4d9800fc9f8ae52cc65720000d99f2819"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "477f54e6a3131438acf27027771d34e12580a2b6c2a6bd41122ae1bc17564788"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "e60ddb193ef6ab1f7f54910aebb51332ef61e9efc730fbb9048070c52891187c"
+    }
+  ],
+  "useWhen": [
+    "cultural launch",
+    "creative strategy",
+    "youth brand story"
+  ],
+  "avoidWhen": [
+    "regulated financial report",
+    "technical standard"
+  ],
+  "audiences": [
+    "creative audiences",
+    "brand teams",
+    "communities"
+  ],
+  "contentShapes": [
+    "identity",
+    "scene",
+    "voice",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "contemporary collage language",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "mixed",
+    "structure": [
+      "collage",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "4c34e53360b78f6e87e4ae0bea2c3c98440b9a1d4fa36412692151b6ed2cc02d",
+    "previewSha256": "9a654c330c746d82ac67b435ff2eee0f09de904e4740c2c9f42dc7211807dfc1"
+  }
+}
