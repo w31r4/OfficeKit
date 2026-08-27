@@ -18,6 +18,7 @@ Check these locations in order:
    - `../powerpoint-live-control/SKILL.md`
    - `../pdf/SKILL.md`
    - `../template-creator/SKILL.md`
+   - `../presentation-template-creator/SKILL.md`
 2. Repository plugin layout:
    - `../../../documents/skills/documents/SKILL.md`
    - `../../../spreadsheets/skills/spreadsheets/SKILL.md`
@@ -26,6 +27,7 @@ Check these locations in order:
    - `../../../presentations/skills/powerpoint-live-control/SKILL.md`
    - `../../../pdf/skills/pdf/SKILL.md`
    - `../../../template-creator/skills/template-creator/SKILL.md`
+   - `../../../presentation-template-creator/skills/presentation-template-creator/SKILL.md`
 
 Resolve paths from the OfficeKit Skill directory, not the process working
 directory. If the selected Skill is absent, stop with a broken-install message
@@ -41,7 +43,8 @@ that names the missing Skill. Do not call raw package APIs as a replacement.
 | Read, create, or edit PPTX | Presentations | It also owns Google Slides handoff guidance. |
 | Operate an already-open PowerPoint presentation | PowerPoint Live Control | Never substitute closed-file PPTX editing. |
 | Read, create, edit, sign, redact, repair, OCR, or verify PDF | PDF | Provider routing stays inside this Skill. |
-| Register a reusable DOCX/XLSX/PPTX reference | Template Creator | This creates template metadata and retained assets, not the final business artifact. |
+| Register a reusable DOCX/XLSX reference | Template Creator | This retains the verified source and preview for later import. |
+| Save or rebuild a reusable presentation style | Presentation Template Creator | This creates a style Skill and original calibration images, never a retained PPTX. |
 
 One output has one owner. A later owner may consume a completed artifact from
 an earlier step, but it must not reopen that earlier file for unrelated edits.

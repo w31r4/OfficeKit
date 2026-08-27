@@ -29,6 +29,7 @@ const SKILLS = Object.freeze([
   ["powerpoint-live-control", "skills/presentations/skills/powerpoint-live-control"],
   ["pdf", "skills/pdf/skills/pdf"],
   ["template-creator", "skills/template-creator/skills/template-creator"],
+  ["presentation-template-creator", "skills/presentation-template-creator/skills/presentation-template-creator"],
 ].map(([id, source]) => Object.freeze({ id, source })));
 
 // These project-local Skill roots follow the same cross-agent layout used by
@@ -353,7 +354,7 @@ async function promptForTools({ detected, input, output }) {
   output.write(
     detected.length > 0
       ? `Detected Agent tools: ${detected.join(", ")}\n`
-      : "Choose where OfficeKit should install its nine project Skills.\n",
+      : `Choose where OfficeKit should install its ${SKILLS.length} project Skills.\n`,
   );
   output.write(`Available: ${TOOLS.map((tool) => tool.id).join(", ")}\n`);
   const prompt = createInterface({ input, output });

@@ -1,98 +1,65 @@
 ---
 name: template-creator
-description: Create or update a reusable local Office artifact template from a Word document, PowerPoint presentation, or Excel workbook. Use when the user asks to make a reusable template from a `.docx`, `.pptx`, or `.xlsx` reference, or explicitly asks to update an existing artifact-template skill. Do not use for one-off artifact creation from an existing template.
+description: Create or update a reusable local document or spreadsheet template from one DOCX or XLSX reference. Use when the user asks to retain a Word or Excel reference for later reuse. Route every PPTX or presentation-style request to the installed presentation-template-creator Skill.
 ---
 
 # Template Creator
 
-Create or update a reference-backed local template. The source Office file stays in the template so later work can clone or import it faithfully.
-
-## Run template creation in one task
-
-For preview, metadata, and packaging steps that span several commands, use
-`officekit repl` and `../office-kit/references/repl.md`. Keep the reference
-path, preview path, and schema-v2 metadata in `ctx.state`; do not publish the
-template until the reference and preview hashes, ZIP structure, and selection
-card have been checked. Use `ctx.recordEvidence` for preview or validation
-reports and return the created Skill directory as an absolute path. The
-creator's deterministic helper command remains explicit; a REPL cell does not
-silently download or install a template provider.
-
-Use `workspaceRoot`, `taskRoot`, `inputRoot`, and `assetRoot` from
-`../office-kit/references/workspace.md`. Keep the uploaded reference read-only, put
-previews and temporary renders under `taskRoot`, and report the created Skill
-directory as an absolute path.
+Create source-backed DOCX and XLSX templates. Keep the verified Office reference
+and representative PNG byte-for-byte so future work can import or clone it
+faithfully. PowerPoint uses a different template form and must be routed to
+`presentation-template-creator`.
 
 ## Routing
 
-- Manage only direct-child template skills below `${OFFICE_KIT_HOME:-~/.office-kit}/skills`.
-- Create a new template by default. Use a numbered name instead of overwriting an existing template.
-- Update only when the user explicitly identifies exactly one existing `artifact-template-*` skill.
-- Keep template creation local. Do not fetch remote templates or modify installed caches.
+- Accept `.docx` and `.xlsx` only.
+- For `.pptx`, presentation screenshots, presentation style descriptions, or
+  OfficeKit presentation tasks, load `../presentation-template-creator/SKILL.md`.
+  In repository plugin layout use
+  `../../../presentation-template-creator/skills/presentation-template-creator/SKILL.md`.
+- Manage only direct-child template Skills below
+  `${OFFICE_KIT_HOME:-~/.office-kit}/skills`.
+- Create a new numbered name by default. Update only when the user explicitly
+  identifies exactly one existing template.
 
-## Create workflow
+## Create
 
-1. Require exactly one `.docx`, `.pptx`, or `.xlsx` reference unless the user explicitly requests a batch. For a batch, complete this workflow separately for every file. An extension alone is not evidence: the creator must accept the reference as a bounded Office OPC package before retaining it.
-2. Infer a concise display name, intended-use description, and artifact kind
-   from the reference and request. Always prepare schema-v2 selection metadata.
-   Write `useWhen`, `avoidWhen`, audiences, content shapes, tone, and structure
-   as concise English search text, regardless of the user's language. Include
-   at least one evidence-backed `useWhen`; keep unknown arrays empty and
-   density or color mode as `mixed`.
-3. Create `preview.png` before packaging:
-   - DOCX: render the reference and use a representative page PNG.
-   - PPTX: render the reference and use a representative slide PNG.
-   - XLSX: render the used range of the first visible non-empty sheet.
-4. Inspect the PNG. Stop if it is blank, clipped, corrupted, or not representative of the reference.
-5. Set `SKILL_DIR` to this skill directory and pass shell-escaped values directly to the creator:
+1. Keep the source file read-only and verify it as a bounded DOCX or XLSX OPC
+   package. An extension alone is not evidence.
+2. Render one representative PNG and inspect it for clipping, corruption, or a
+   misleading crop.
+3. Write one English canonical search profile: `useWhen`, `avoidWhen`, audience,
+   content shape, tone, structure, density, and color mode. Unknown evidence
+   remains empty or `mixed`.
+4. Run:
 
 ```bash
-officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
+officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" -- \
   --reference-path "/absolute/path/reference.docx" \
   --preview-path "/absolute/path/preview.png" \
   --display-name "Standup" \
-  --description "Run a structured daily standup with updates, blockers, and owners."
+  --description "Run a structured daily standup with updates, blockers, and owners." \
+  --selection-json '<complete-schema-v2-selection-json>'
 ```
 
-Pass the complete selection metadata as one shell-escaped JSON value:
+5. Verify `SKILL.md`, schema-v2 `artifact-template.json`,
+   `agents/agent.yaml`, `assets/reference.<ext>`, and `assets/preview.png`,
+   including both recorded hashes.
+
+The script validates ZIP CRCs, the family-specific primary part, content type,
+and exactly one root `officeDocument` relationship before acquiring its write
+lock. A renamed text file, cross-family package, corrupted archive, or broken
+primary relationship fails without changing a template.
+
+## Update
+
+Resolve the exact local template, preserve its kind and unrelated owned files,
+edit a temporary source copy through the matching Documents or Spreadsheets
+workflow, render a new preview when visuals change, then rerun with:
 
 ```bash
-officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
-  --reference-path "/absolute/path/reference.pptx" \
-  --preview-path "/absolute/path/preview.png" \
-  --display-name "Quarterly Review" \
-  --description "Review quarterly performance, decisions, risks, and outlook." \
-  --selection-json '{"useWhen":["quarterly business review"],"avoidWhen":["project kickoff"],"audiences":["executive"],"contentShapes":["KPIs","decisions","risks"],"visualTraits":{"tone":["formal"],"density":"medium","colorMode":"light","structure":["sectioned"]},"visualCommitment":"neutral","editProfile":{"level":"copy-only","verifiedOperations":[]},"provenance":{"license":"user-provided","source":"local-user-reference"}}'
-```
-
-Do not invent metadata just to fill a field. Do not claim a verified edit
-operation from visual inspection. Keep
-`editProfile.level` as `copy-only` until a real import/edit/export/reimport test
-proves a narrower or broader profile. The script permits a minimal default only
-when the English intended-use description itself is enough for `useWhen`; the
-normal Skill workflow should pass the explicit evidence-backed profile.
-
-6. Read the JSON result. Verify that the generated directory contains `SKILL.md`, schema-v2 `artifact-template.json`, `agents/agent.yaml`, the retained `assets/reference.<ext>`, and `assets/preview.png`. Verify the recorded reference and preview hashes.
-
-The creator verifies ZIP CRCs, the required family-specific primary part and
-content type, and exactly one root `officeDocument` relationship before it
-acquires its write lock. A renamed text file, cross-family package, corrupted
-archive, or broken primary relationship must fail closed without creating or
-changing a template.
-
-## Update workflow
-
-1. Resolve the exact passed template and read its `SKILL.md`, `artifact-template.json`, `agents/agent.yaml`, retained reference, and preview. Stop if it is not a direct child of the local skills directory or if more than one target was passed.
-2. Preserve the template folder name and every file or behavior the user did not ask to change.
-3. For reference or visual changes, edit a temporary copy of the retained reference using the matching Office artifact workflow, render a new preview, and inspect it. For display-name or intended-use changes, retain the existing reference and preview unless they also change.
-4. Pass every current or changed required value to the creator explicitly.
-   Existing schema-v2 selection metadata is preserved when `--selection-json`
-   is omitted; pass a complete English replacement value when that metadata
-   must change:
-
-```bash
-officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
-  --mode "update" \
+officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" -- \
+  --mode update \
   --skill-name "artifact-template-standup" \
   --reference-path "/absolute/path/updated-reference.docx" \
   --preview-path "/absolute/path/updated-preview.png" \
@@ -100,21 +67,13 @@ officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
   --description "Run a structured daily standup with updates, blockers, and owners."
 ```
 
-5. The script accepts schema-v1 templates for migration, validates the existing template kind, preserves additional template-owned files, emits schema v2, and replaces the template atomically without changing its skill name.
-6. Verify every requested change and confirm that no staging or backup directories remain.
+Existing schema-v2 selection metadata is preserved when selection JSON is
+omitted. A changed profile must be supplied in full. Confirm no staging,
+backup, or lock residue remains.
 
-## Response
+## Evidence and response
 
-Report the created or updated template's display name, artifact kind, absolute
-path, and reference/preview hashes. State that the reference and preview remain
-with the template, and briefly describe how to invoke the returned template
-Skill. Do not emit host-specific cards, links, or sharing directives.
-
-## Constraints
-
-- Do not create an intermediary request file; pass creator inputs through command-line flags, including optional selection JSON.
-- Do not delete or sanitize the retained reference; fidelity depends on retaining it verbatim.
-- Do not change the artifact kind during an update.
-- Do not mark a template `bounded-edit` or `composable` without repeatable capability evidence.
-- Do not create translated metadata copies or a `searchLanguage` field.
-- Do not modify global skill metadata or protocol files.
+Report the display name, artifact kind, absolute Skill path, reference hash,
+and preview hash. Do not claim `bounded-edit` or `composable` without a real
+import/edit/export/reimport proof. Do not create translated metadata copies,
+fetch remote templates, or change global protocol files.

@@ -1,85 +1,22 @@
 # Template Creator
 
-Create or update reusable local Office templates from a reference `.docx`, `.pptx`, or `.xlsx` file and one representative PNG preview.
+Create or update source-backed local templates from a `.docx` or `.xlsx`
+reference and one representative PNG preview. The creator validates the Office
+package, preserves the reference bytes, records hashes, and publishes the Skill
+atomically below `${OFFICE_KIT_HOME:-~/.office-kit}/skills`.
 
-## Location and ownership
-
-The creator writes user templates below:
-
-```text
-${OFFICE_KIT_HOME:-~/.office-kit}/skills/
-```
-
-Set `OFFICE_KIT_HOME` to choose another local root. Each template keeps a verbatim copy of its Office reference and its PNG preview; choose an appropriate local storage location before creating one.
-
-## Create
-
-Provide one supported Office reference, a valid PNG preview, a concise display name, and an intended-use description:
+PowerPoint templates use the separate `presentation-template-creator`. A PPT
+template is style guidance plus original visual examples; it does not retain a
+PPTX or fixed page layout.
 
 ```sh
-officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
-  --reference-path /absolute/path/reference.pptx \
+officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs -- \
+  --reference-path /absolute/path/reference.docx \
   --preview-path /absolute/path/preview.png \
-  --display-name "Quarterly business review" \
-  --description "Create a quarterly business review from the saved deck layout."
+  --display-name "Decision memo" \
+  --description "Draft a concise decision memorandum with evidence and recommendations."
 ```
 
-The command returns JSON containing the created template name, artifact kind, and local path. It selects a numbered name rather than overwriting an existing template.
-
-Before it acquires a write lock or retains any bytes, the creator checks the
-reference through the same bounded Office package inspector used by the public
-facades. The extension must match a DOCX/PPTX/XLSX OPC package with its required
-primary part, declared main content type, and exactly one root
-`officeDocument` relationship; ZIP entry CRCs are also verified. A renamed text
-file, a cross-family Office package, a broken root relationship, or a corrupt
-archive fails closed and creates no template tree.
-
-The generated `artifact-template.json` uses schema version 2. Its searchable
-fields use one English canonical form: `useWhen`, `avoidWhen`, audiences,
-content shapes, tone, and structure. Unknown evidence stays empty or `mixed`;
-there are no translated metadata copies. The sidecar also records SHA-256
-values for the retained Office file and PNG. Without explicit selection
-metadata, the English description becomes the sole `useWhen`; new templates
-remain `copy-only` and visually `opinionated`.
-
-Optional `--selection-json` accepts the complete selection profile in one JSON
-value. Verified edit operations must come from a real
-import/edit/export/reimport test, not visual inspection.
-
-## Update
-
-Updates require the exact template name and preserve other skill-owned files:
-
-```sh
-officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
-  --mode update \
-  --skill-name artifact-template-quarterly-business-review \
-  --reference-path /absolute/path/updated-reference.pptx \
-  --preview-path /absolute/path/updated-preview.png \
-  --display-name "Quarterly business review" \
-  --description "Create a quarterly business review from the updated deck layout."
-```
-
-The creator validates artifact kind consistency, stages changes beside the
-final directory, and replaces an updated template atomically with rollback if
-placement fails. A per-home write lock prevents concurrent template writes.
-Schema-v1 templates are migrated on update. Existing schema-v2 selection
-metadata is preserved unless a complete `--selection-json` replacement is
-provided.
-
-## Generated template layout
-
-```text
-$OFFICE_KIT_HOME/skills/artifact-template-<slug>/
-├── SKILL.md
-├── artifact-template.json
-├── agents/agent.yaml
-└── assets/
-    ├── reference.docx | reference.pptx | reference.xlsx
-    └── preview.png
-```
-
-`artifact-template.json` records the supported kind, paths, selection evidence,
-edit profile, provenance, and retained-asset hashes. The creator validates PNG
-chunk structure and CRCs before copying the preview, and applies the same
-fail-closed Office-package admission check on every create or update.
+The generated DOCX/XLSX template uses schema v2 and contains `SKILL.md`,
+`artifact-template.json`, `agents/agent.yaml`, a retained
+`assets/reference.<ext>`, and `assets/preview.png`.

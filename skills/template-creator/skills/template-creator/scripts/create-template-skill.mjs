@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 import { crc32 } from "node:zlib";
 import {
   DocumentFile,
-  PresentationFile,
   SpreadsheetFile,
 } from "office-kit";
 
@@ -40,16 +39,6 @@ const artifactKinds = new Map([
       workflow: "Documents",
       preservation:
         "Preserve page setup, sections, styles, lists, tables, headers, footers, and recurring page elements.",
-    },
-  ],
-  [
-    ".pptx",
-    {
-      kind: "presentation",
-      inspect: (input, options) => PresentationFile.inspectPptx(input, options),
-      workflow: "Presentations",
-      preservation:
-        "Preserve source slides, layouts, masters, typography, geometry, images, charts, tables, and recurring slide chrome.",
     },
   ],
   [
@@ -141,8 +130,13 @@ async function validateRequest(rawRequest) {
     getRequiredString(rawRequest, "previewPath", "--preview-path"),
   );
   const extension = path.extname(referencePath).toLowerCase();
+  if (extension === ".pptx") {
+    throw new Error(
+      "PowerPoint references must use the presentation-template-creator Skill; the generic creator only retains DOCX and XLSX references.",
+    );
+  }
   if (!artifactKinds.has(extension)) {
-    throw new Error("--reference-path must end in .docx, .pptx, or .xlsx.");
+    throw new Error("--reference-path must end in .docx or .xlsx.");
   }
   await Promise.all([
     assertRegularFile(referencePath, "--reference-path", MAX_REFERENCE_BYTES),

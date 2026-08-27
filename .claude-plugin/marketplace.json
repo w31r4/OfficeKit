@@ -76,24 +76,48 @@
       "name": "template-creator",
       "displayName": "Template Creator",
       "version": "0.2.0",
-      "description": "Create or update reusable local Office templates from verified DOCX, XLSX, or PPTX references.",
+      "description": "Create or update source-backed local templates from verified DOCX or XLSX references.",
       "source": "./skills/template-creator",
       "strict": false,
       "skills": "./skills/",
       "license": "AGPL-3.0-or-later",
       "category": "productivity",
-      "tags": ["office", "templates", "docx", "xlsx", "pptx"]
+      "tags": ["office", "templates", "docx", "xlsx"]
+    },
+    {
+      "name": "presentation-template-creator",
+      "displayName": "Presentation Template Creator",
+      "version": "1.1.0",
+      "description": "Distill PowerPoint references into reusable style Skills with original visual examples.",
+      "source": "./skills/presentation-template-creator",
+      "strict": false,
+      "skills": "./skills/",
+      "license": "AGPL-3.0-or-later",
+      "category": "productivity",
+      "tags": ["powerpoint", "templates", "style", "creator"]
+    },
+    {
+      "name": "presentation-template-library",
+      "displayName": "Presentation Template Library",
+      "version": "1.1.0",
+      "description": "Eight original presentation style Skills with visual calibration examples.",
+      "source": "./skills/presentation-template-library",
+      "strict": false,
+      "skills": "./skills/",
+      "license": "AGPL-3.0-or-later",
+      "category": "templates",
+      "tags": ["powerpoint", "templates", "design", "slides"]
     },
     {
       "name": "default-template-library",
       "displayName": "Default Template Library",
       "version": "0.2.0",
-      "description": "Optional MIT-licensed local Office template references with retained assets and previews.",
+      "description": "Optional MIT-licensed DOCX and XLSX template references with retained assets and previews.",
       "source": "./skills/default-template-library",
       "strict": false,
       "skills": "./skills/",
       "category": "templates",
-      "tags": ["office", "templates", "docx", "xlsx", "pptx"],
+      "tags": ["office", "templates", "docx", "xlsx"],
       "license": "MIT"
     }
   ]

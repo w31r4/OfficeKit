@@ -1,7 +1,7 @@
 {
   "name": "template-creator",
   "version": "0.2.0",
-  "description": "Create and update reusable local Office artifact templates from DOCX, PPTX, or XLSX references.",
+  "description": "Create and update reusable local document and spreadsheet templates from DOCX or XLSX references.",
   "author": {
     "name": "w31r4",
     "email": "w31r4@users.noreply.github.com",
@@ -14,14 +14,13 @@
     "office",
     "template",
     "docx",
-    "pptx",
     "xlsx"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Template Creator",
     "shortDescription": "Create reusable Office templates",
-    "longDescription": "Create or explicitly update a local reusable Office artifact template from one DOCX, PPTX, or XLSX reference and a verified PNG preview. References stay local and are retained byte-for-byte.",
+    "longDescription": "Create or explicitly update a local reusable Office artifact template from one DOCX or XLSX reference and a verified PNG preview. PowerPoint styles use the separate Presentation Template Creator.",
     "developerName": "w31r4",
     "category": "Productivity",
     "capabilities": [

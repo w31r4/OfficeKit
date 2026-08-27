@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "template-creator",
-  "description": "Create and update reusable local Office artifact templates.",
+  "description": "Create and update reusable DOCX and XLSX templates.",
   "owner": "w31r4",
   "skills": [
     "skills/template-creator"
@@ -11,6 +11,6 @@
   },
   "interface": {
     "displayName": "Template Creator",
-    "shortDescription": "Create or update reusable Office templates"
+    "shortDescription": "Create or update DOCX and XLSX templates"
   }
 }
