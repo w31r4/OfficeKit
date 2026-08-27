@@ -226,14 +226,6 @@ for (const required of [
   "src/codecs/office-kit-spreadsheet-formula-syntax.mjs",
   "src/codecs/office-kit-spreadsheet-let-syntax.mjs",
   "src/codecs/office-kit-spreadsheet-pivots.mjs",
-  "runtime/office-kit/main.mjs",
-  "runtime/office-kit/manifest.json",
-  "runtime/office-kit/sbom.cdx.json",
-  "runtime/office-kit/DOTNET-LICENSE.TXT",
-  "runtime/office-kit/DOTNET-THIRD-PARTY-NOTICES.TXT",
-  "runtime/office-kit/_framework/dotnet.native.wasm",
-  "runtime/office-kit/_framework/OfficeKit.Codec.wasm",
-  "runtime/office-kit/_framework/OfficeKit.Runtime.wasm",
   "src/ooxml/docx-comments.mjs",
   "src/ooxml/docx-bibliography.mjs",
   "src/ooxml/package.mjs",
@@ -588,6 +580,7 @@ assert.equal(
   "npm package must ship exactly the 21 audited default templates",
 );
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
+assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(
   files.every((file) => !file.startsWith("standalone/")),
   "npm runtime package must not contain platform-specific standalone release assets",
