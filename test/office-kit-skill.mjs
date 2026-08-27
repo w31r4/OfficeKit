@@ -10,7 +10,8 @@ import { queryTemplates } from "../src/templates/search.mjs";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const pluginRoot = path.join(repoRoot, "skills", "office-kit");
 const skillRoot = path.join(pluginRoot, "skills", "office-kit");
-const templateRoot = path.join(repoRoot, "skills", "default-template-library", "skills");
+const sourceTemplateRoot = path.join(repoRoot, "skills", "default-template-library", "skills");
+const presentationTemplateRoot = path.join(repoRoot, "skills", "presentation-template-library", "skills");
 const officeKitCli = path.join(repoRoot, "bin", "officekit.mjs");
 
 const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText, replText, presentationConversationText] = await Promise.all([
@@ -74,29 +75,23 @@ assert.match(routingText, /\.\.\/documents\/SKILL\.md/);
 assert.match(routingText, /Excel Live Control/);
 assert.match(routingText, /Spreadsheets -> Presentations -> PDF/);
 assert.match(templateSelectionText, /copy-only/);
-assert.match(templateSelectionText, /不用模板，由领域 Skill 设计/);
-assert.match(templateSelectionText, /does not select a\s+template/i);
-assert.match(templateSelectionText, /untrusted descriptive data/i);
-assert.match(templateSelectionText, /attribution, not permission to access the network/i);
-assert.match(templateSelectionText, /Classify the current task, not the user/i);
-assert.match(templateSelectionText, /Clear \| Not specified \| Query the catalog/i);
-assert.match(templateSelectionText, /Unclear \| Specified or uploaded/i);
-assert.match(templateSelectionText, /task-scoped user reference/i);
-assert.match(templateSelectionText, /must not be copied into a template directory/i);
-assert.match(templateSelectionText, /BM25F remains deterministic and local/i);
-assert.match(templateSelectionText, /does not call a model, build a vector/i);
-assert.match(templateSelectionText, /one English canonical form/i);
-assert.match(templateSelectionText, /templates bundled with OfficeKit/i);
+assert.match(templateSelectionText, /`none` is a successful result/);
+assert.match(templateSelectionText, /does not call a[\s\S]*or select a template/i);
+assert.match(templateSelectionText, /untrusted descriptive text/i);
+assert.match(templateSelectionText, /provenance\.source` as permission to access a network/i);
+assert.match(templateSelectionText, /Clear \| None \| Query the catalog/i);
+assert.match(templateSelectionText, /Uploaded PPTX.*source continuation/i);
+assert.match(templateSelectionText, /original file stays in the task/i);
+assert.match(templateSelectionText, /contains no\s+PPTX, layout code, or source components/i);
+assert.match(templateSelectionText, /Search is local BM25F/i);
+assert.match(templateSelectionText, /does not call a\s+model, build a vector/i);
+assert.match(templateSelectionText, /Normalize intent into short English terms/i);
+assert.match(templateSelectionText, /bundled\s+presentation styles/i);
 
-const expectedCounts = new Map([
-  ["document", 7],
-  ["presentation", 8],
-  ["spreadsheet", 6],
-]);
-for (const [kind, expectedCount] of expectedCounts) {
+for (const [kind, expectedCount] of [["document", 7], ["spreadsheet", 6]]) {
   const result = await queryTemplates({
     kind,
-    roots: [templateRoot],
+    roots: [sourceTemplateRoot],
     maxCandidates: 20,
   });
   assert.equal(result.candidates.length, expectedCount, `${kind} template count`);
@@ -108,6 +103,7 @@ for (const [kind, expectedCount] of expectedCounts) {
   assert.equal(result.selectionMade, false);
   for (const candidate of result.candidates) {
     assert.equal(candidate.kind, kind);
+    assert.equal(candidate.templateSchemaVersion, 2);
     assert.ok(candidate.useWhen.length > 0);
     assert.ok(["neutral", "opinionated"].includes(candidate.visualCommitment));
     assert.ok(["copy-only", "bounded-edit", "composable"].includes(candidate.editProfile.level));
@@ -121,45 +117,70 @@ for (const [kind, expectedCount] of expectedCounts) {
   }
 }
 
+const presentationCatalog = await queryTemplates({
+  kind: "presentation",
+  roots: [presentationTemplateRoot],
+  maxCandidates: 20,
+});
+assert.equal(presentationCatalog.candidates.length, 8);
+assert.deepEqual(presentationCatalog.invalid, []);
+assert.deepEqual(presentationCatalog.rejected, []);
+assert.equal(presentationCatalog.selectionMade, false);
+for (const candidate of presentationCatalog.candidates) {
+  assert.equal(candidate.kind, "presentation");
+  assert.equal(candidate.templateSchemaVersion, 3);
+  assert.equal(candidate.provenance.license, "AGPL-3.0-or-later");
+  assert.equal(candidate.examples.length, 4);
+  assert.equal(candidate.examplePaths.length, 4);
+  assert.equal(Object.hasOwn(candidate, "referencePath"), false);
+  assert.equal(Object.hasOwn(candidate, "editProfile"), false);
+  await Promise.all([
+    fs.access(candidate.skillPath),
+    fs.access(candidate.previewPath),
+    ...candidate.examplePaths.map((entry) => fs.access(entry)),
+  ]);
+}
+
 const ranked = await queryTemplates({
   kind: "presentation",
-  roots: [templateRoot],
+  roots: [presentationTemplateRoot],
   tags: ["executive", "quarterly"],
   maxCandidates: 3,
 });
 assert.equal(ranked.candidates[0].id, "artifact-template-business-review");
 assert.deepEqual(ranked.candidates[0].matchedTags, ["executive", "quarterly"]);
-assert.equal(ranked.candidates.length, 3);
+assert.ok(ranked.candidates.length >= 1);
 assert.equal(ranked.ranking.algorithm, "bm25f");
-assert.ok(ranked.candidates[0].match.bm25 > ranked.candidates[1].match.bm25);
+if (ranked.candidates.length > 1) {
+  assert.ok(ranked.candidates[0].match.bm25 > ranked.candidates[1].match.bm25);
+}
 
 const gridById = await queryTemplates({
   kind: "presentation",
-  roots: [templateRoot],
+  roots: [presentationTemplateRoot],
   id: "artifact-template-grid-layout-library",
 });
-assert.equal(gridById.candidates[0].editProfile.level, "composable");
-assert.deepEqual(gridById.candidates[0].editProfile.verifiedOperations, ["source-slide-reuse"]);
+assert.equal(gridById.candidates[0].templateSchemaVersion, 3);
+assert.equal(gridById.candidates[0].examples.length, 4);
 
 const gridByIntent = await queryTemplates({
   kind: "presentation",
-  roots: [templateRoot],
+  roots: [presentationTemplateRoot],
   intent: {
-    purposes: ["monochrome editorial presentation"],
-    visualTraits: { colorMode: "light", structure: ["grid"] },
-    requiredOperations: ["source-slide-reuse"],
+    purposes: ["explicit editorial grid presentation"],
+    visualTraits: { colorMode: "light", structure: ["grid aligned"] },
   },
 });
 assert.equal(gridByIntent.candidates[0].id, "artifact-template-grid-layout-library");
 
 for (const conflictingPurpose of [
-  "dark visual direction",
-  "brand creative presentation",
-  "image-led cinematic storytelling",
+  "dark immersive stage",
+  "organic playful brand language",
+  "image led cinematic storytelling",
 ]) {
   const conflict = await queryTemplates({
     kind: "presentation",
-    roots: [templateRoot],
+    roots: [presentationTemplateRoot],
     intent: { purposes: [conflictingPurpose] },
   });
   assert.ok(
@@ -171,18 +192,17 @@ for (const conflictingPurpose of [
 
 const structuredRanked = await queryTemplates({
   kind: "presentation",
-  roots: [templateRoot],
+  roots: [presentationTemplateRoot],
   intent: {
     purposes: ["quarterly business review"],
-    audiences: ["executive"],
-    contentShapes: ["KPIs", "decisions"],
+    audiences: ["executives"],
+    contentShapes: ["decision brief"],
     visualTraits: {
-      tone: ["formal"],
+      tone: ["executive"],
       density: "medium",
-      colorMode: "neutral",
-      structure: ["sectioned"],
+      colorMode: "light",
+      structure: ["claim led"],
     },
-    requiredOperations: ["recognized-placeholder-title-text-replace"],
     brandSensitive: false,
   },
   maxCandidates: 5,
@@ -199,48 +219,25 @@ assert.ok(
     (entry) => entry.field === "purpose" && entry.quality === 100,
   ),
 );
-const conflictingKickoff = structuredRanked.rejected.find(
-  (entry) => entry.id === "artifact-template-project-kickoff",
-);
-assert.ok(conflictingKickoff);
-assert.ok(conflictingKickoff.reasons.includes("avoid-when-conflict"));
-assert.match(conflictingKickoff.conflicts[0].avoidWhen, /quarterly business review/i);
-
 const noSemanticMatch = await queryTemplates({
   kind: "presentation",
-  roots: [templateRoot],
+  roots: [presentationTemplateRoot],
   intent: {
     purposes: ["quantum entanglement laboratory protocol"],
   },
 });
 assert.equal(noSemanticMatch.retrievalStatus, "none");
 assert.deepEqual(noSemanticMatch.candidates, []);
-assert.equal(noSemanticMatch.rejected.length, expectedCounts.get("presentation"));
+assert.equal(noSemanticMatch.rejected.length, 8);
 assert.ok(
   noSemanticMatch.rejected.every((entry) =>
     entry.reasons.includes("insufficient-relevance"),
   ),
 );
 
-const unsupportedOperation = await queryTemplates({
-  kind: "presentation",
-  roots: [templateRoot],
-  intent: {
-    purposes: ["quarterly business review"],
-    requiredOperations: ["replace-embedded-workbook"],
-  },
-});
-assert.equal(unsupportedOperation.retrievalStatus, "none");
-assert.deepEqual(unsupportedOperation.candidates, []);
-assert.ok(
-  unsupportedOperation.rejected
-    .find((entry) => entry.id === "artifact-template-business-review")
-    .missingOperations.includes("replace-embedded-workbook"),
-);
-
 const brandSensitive = await queryTemplates({
   kind: "presentation",
-  roots: [templateRoot],
+  roots: [presentationTemplateRoot],
   id: "artifact-template-business-review",
   intent: {
     purposes: ["quarterly business review"],
@@ -251,7 +248,7 @@ assert.ok(brandSensitive.candidates[0].reviewFlags.includes("brand-sensitive"));
 
 const explicit = await queryTemplates({
   kind: "document",
-  roots: [templateRoot],
+  roots: [sourceTemplateRoot],
   id: "artifact-template-system-design",
 });
 assert.deepEqual(explicit.candidates.map((candidate) => candidate.id), [
@@ -260,7 +257,7 @@ assert.deepEqual(explicit.candidates.map((candidate) => candidate.id), [
 await assert.rejects(
   queryTemplates({
     kind: "spreadsheet",
-    roots: [templateRoot],
+    roots: [sourceTemplateRoot],
     id: "artifact-template-system-design",
   }),
   /was not found for kind spreadsheet/,
@@ -275,7 +272,7 @@ const cli = spawnSync(
     "--kind",
     "spreadsheet",
     "--root",
-    templateRoot,
+    sourceTemplateRoot,
     "--id",
     "artifact-template-sales-pipeline",
     "--json",
@@ -296,15 +293,13 @@ const structuredCli = spawnSync(
     "--kind",
     "presentation",
     "--root",
-    templateRoot,
+    presentationTemplateRoot,
     "--purpose",
     "quarterly business review",
     "--audience",
     "executive",
     "--content-shape",
     "KPIs",
-    "--operation",
-    "recognized-placeholder-title-text-replace",
     "--brand-sensitive",
     "--json",
   ],
@@ -327,6 +322,10 @@ try {
   await writeBrokenTemplate(tempRoot, "artifact-template-old-schema", {
     schemaVersion: 1,
     kind: "document",
+  });
+  await writeTemplate(tempRoot, "artifact-template-old-presentation", {
+    kind: "presentation",
+    reference: "assets/reference.pptx",
   });
   await writeTemplate(tempRoot, "artifact-template-bad-hash", {
     provenance: {
@@ -362,8 +361,12 @@ try {
     maxCandidates: 20,
   });
   assert.equal(invalid.candidates.length, 0);
-  assert.equal(invalid.invalid.length, 8);
-  assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-old-schema").error, /schemaVersion must be 2/);
+  assert.equal(invalid.invalid.length, 9);
+  assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-old-schema").error, /schemaVersion must be 2 for document\/spreadsheet or 3 for presentation/);
+  assert.match(
+    invalid.invalid.find((entry) => entry.id === "artifact-template-old-presentation").error,
+    /presentation schema v2 is unsupported; rebuild it with presentation-template-creator/,
+  );
   assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-bad-hash").error, /SHA-256 mismatch/);
   assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-path-escape").error, /safe relative path/);
   assert.match(

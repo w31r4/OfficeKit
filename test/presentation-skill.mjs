@@ -64,7 +64,8 @@ assert.ok(presentationSkillEntrySource.split(/\r?\n/u).length >= 120, "the Prese
 assert.ok(presentationSkillEntrySource.split(/\r?\n/u).length <= 150, "the Presentation Skill entrypoint must stay within 150 lines");
 for (const name of taskNames) assert.match(presentationSkillEntrySource, new RegExp(`tasks/${name.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}[.]md`, "u"));
 assert.match(presentationSkillEntrySource, /define → plan → design → compose\/edit → review → commit → deliver/u);
-assert.match(presentationSkillEntrySource, /C authoring[\s\S]*Grid is not a default or fallback/u);
+assert.match(presentationSkillEntrySource, /selected Template Skill supplies style guidance and visual\s+examples[\s\S]*compose\s+freely/u);
+assert.match(presentationSkillEntrySource, /no authority or suitable template[\s\S]*self-directed C route/iu);
 assert.match(presentationSkillEntrySource, /card-based composition is forbidden[\s\S]*authoritative card-based template/u);
 assert.match(presentationSkillEntrySource, /Load detail only when needed[\s\S]*Progressive loading/u);
 for (const mechanism of ["editorial-minimal", "enterprise-data-review", "technical-architecture", "visual-narrative", "academic-research", "brand-launch"]) assert.match(designMechanismsSource, new RegExp(`\\b${mechanism}\\b`, "u"));
@@ -90,8 +91,8 @@ assert.match(styleFloorSource, /Card-based composition is forbidden[\s\S]*colore
 assert.match(styleFloorSource, /user-supplied card template[\s\S]*preserved imported\s+cards[\s\S]*product UI screenshot[\s\S]*page-scale background[\s\S]*dashboard/u);
 assert.doesNotMatch(styleFloorSource, /Helvetica|Arial|#[A-Fa-f0-9]{6}|dark theme|light theme/u);
 assert.doesNotMatch(`${presentationSkillEntrySource}\n${doctrineSource}\n${scenarioPolicySource}\n${scenarioSources.join("\n")}`, /Kimi|presentation-artifact-tool|office-artifact-tool\/kimi|\/Users\/zfang/iu);
-assert.match(taskSources.create, /C authoring route is the default[\s\S]*Grid is neither a default nor a fallback[\s\S]*standard template workflow/u);
-assert.doesNotMatch(taskSources.create, /compatibility fallback|Grid scaffold explicitly|silently switch to Grid/iu);
+assert.match(taskSources.create, /C authoring route is the default[\s\S]*one deck-specific Design Grammar/u);
+assert.doesNotMatch(taskSources.create, /compatibility fallback|Grid scaffold explicitly|silently switch to Grid|fixed layout/iu);
 assert.match(taskSources.create, /minimumBodyFontSize[\s\S]*22[\s\S]*minimumCaptionFontSize[\s\S]*20[\s\S]*four meaningful silhouettes/u);
 assert.match(taskSources.create, /one dominant visual carrier[\s\S]*quantitative relationship[\s\S]*chart, axis, direct label/u);
 assert.match(taskSources.create, /presentation\.validateLayout\(\)[\s\S]*reopen the PPTX[\s\S]*Review and deliver/u);
