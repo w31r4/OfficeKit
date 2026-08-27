@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-data-lesson",
+  "displayName": "Data Lesson",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "4a96eaa05987ff6529ee6484fe1bc3985ba166f477aa68634963830b1fca029b"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "14771d00669138a0f3e13bfc2ad6b540068874e9e8a7f8c8bf2b74f9115ec032"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "db45c491f809b8cc4a86aeb70c772256ece1056fad8c49e28a038c5bc5ad2c35"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "94d8115106c8f861a5cd1af449ed93af01bbc99403247712ebbbd6a88827c346"
+    }
+  ],
+  "useWhen": [
+    "data literacy lesson",
+    "analytics training",
+    "metric interpretation"
+  ],
+  "avoidWhen": [
+    "poetic brand story",
+    "legal filing"
+  ],
+  "audiences": [
+    "analysts",
+    "business learners",
+    "students"
+  ],
+  "contentShapes": [
+    "chart reading",
+    "metric definition",
+    "worked comparison"
+  ],
+  "visualTraits": {
+    "tone": [
+      "data teaching style",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "dataLesson",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "de2612f329e2bbd5e1124343aef501f73859be43aeb235472696c9275a6753fe",
+    "previewSha256": "8c43f868f3fb7f8d112caee1ca071dd8bf7c1fab39f0c9c534e5e8cf3ea5f478"
+  }
+}

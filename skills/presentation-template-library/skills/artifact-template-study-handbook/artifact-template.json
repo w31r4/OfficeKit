@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-study-handbook",
+  "displayName": "Study Handbook",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "30f0111d0ddcfda6d5612a7cdd575f776643baa7aa83a41e8137f043df61b2ff"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "463445222dd8b0e65666def43abe20e9f285a15196176d4004e93b0ab30a780e"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "978c21e886786b4856a2bf48498e6b05abb5074bc6f4bcd4989f194ffb8a045a"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "690651893178ead84d7743a0608431ed99aa9cb7abf2595db2c2da32a0b1fd54"
+    }
+  ],
+  "useWhen": [
+    "course lesson deck",
+    "concept explainer",
+    "self study handout"
+  ],
+  "avoidWhen": [
+    "board earnings review",
+    "luxury launch"
+  ],
+  "audiences": [
+    "students",
+    "teachers",
+    "self learners"
+  ],
+  "contentShapes": [
+    "concept",
+    "worked example",
+    "practice",
+    "recap"
+  ],
+  "visualTraits": {
+    "tone": [
+      "clear learning handbook",
+      "purposeful",
+      "original"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "handbook",
+      "free composition",
+      "claim led"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work",
+    "guideSha256": "a4b710b8a906eb8dff3cb197747b0fc4188b75925d484a3419e1f561050228e1",
+    "previewSha256": "7864762f25b03a7f6484d5546dc714429675257a724cf015c9e138c95859f3b5"
+  }
+}

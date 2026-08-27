@@ -1,0 +1,5 @@
+interface:
+  display_name: "Workshop Canvas"
+  short_description: "Use the Workshop Canvas presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-workshop-canvas as the visual style for this presentation."

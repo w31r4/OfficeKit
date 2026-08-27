@@ -1,0 +1,5 @@
+interface:
+  display_name: "Procedure Map"
+  short_description: "Use the Procedure Map presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-procedure-map as the visual style for this presentation."

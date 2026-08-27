@@ -1,0 +1,5 @@
+interface:
+  display_name: "Data Lesson"
+  short_description: "Use the Data Lesson presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-data-lesson as the visual style for this presentation."
