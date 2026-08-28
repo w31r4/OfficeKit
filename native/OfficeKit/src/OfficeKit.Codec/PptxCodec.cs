@@ -1288,7 +1288,10 @@ internal static class PptxCodec
                 HeightEmu = frame.Height,
             };
             nativeObjects?.Populate(element.Opaque, source, slideContext.Owner);
-            editable = PptxNativeObjectCatalog.SupportsPlacementEditing(source);
+            var nativeKind = string.IsNullOrEmpty(element.Opaque.NativeKind)
+                ? PptxNativeObjectCatalog.Classify(source)
+                : element.Opaque.NativeKind;
+            editable = PptxNativeObjectCatalog.SupportsPlacementEditing(source, nativeKind);
         }
         element.Source = new PresentationElementSourceBinding
         {

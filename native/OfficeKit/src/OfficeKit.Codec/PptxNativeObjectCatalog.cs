@@ -281,7 +281,7 @@ internal sealed class PptxNativeObjectCatalog
     {
         part = null!;
         relationshipId = string.Empty;
-        if (target.NativeKind != "oleObject" || source is not P.GraphicFrame || !SupportsPlacementEditing(source)) return false;
+        if (target.NativeKind != "oleObject" || source is not P.GraphicFrame || !SupportsPlacementEditing(source, target.NativeKind)) return false;
         var oleObjects = Elements(source)
             .Where(element => element.LocalName == "oleObj" && PresentationNamespaces.Contains(element.NamespaceUri))
             .ToArray();
@@ -311,9 +311,11 @@ internal sealed class PptxNativeObjectCatalog
     // attribute remains source-bound. A picture may be opaque when its
     // payload/effects fall outside the semantic image reader, but its direct
     // frame is still an independently provable geometry leaf.
-    internal static bool SupportsPlacementEditing(OpenXmlElement source)
+    internal static bool SupportsPlacementEditing(OpenXmlElement source) =>
+        SupportsPlacementEditing(source, Classify(source));
+
+    internal static bool SupportsPlacementEditing(OpenXmlElement source, string kind)
     {
-        var kind = Classify(source);
         if (kind == "picture" && source is P.Picture picture)
         {
             var properties = picture.ShapeProperties;
@@ -411,20 +413,25 @@ internal sealed class PptxNativeObjectCatalog
 
     internal static string Classify(OpenXmlElement source)
     {
-        var descendants = Elements(source).ToArray();
-        if (source is P.Picture && IsMediaPicture(source))
-            return "media";
-        if (descendants.Any(element =>
-                element.LocalName == "oleObj" && PresentationNamespaces.Contains(element.NamespaceUri)))
-            return "oleObject";
-        if (descendants.Any(element =>
-                (element.LocalName == "relIds" && DiagramNamespaces.Contains(element.NamespaceUri)) ||
-                (element.LocalName == "graphicData" && element.GetAttributes().Any(attribute =>
-                    attribute.LocalName == "uri" && attribute.Value is { } value && DiagramNamespaces.Contains(value)))))
-            return "diagram";
-        if (descendants.Any(element =>
-                element.LocalName == "contentPart" && PresentationNamespaces.Contains(element.NamespaceUri)))
-            return "contentPart";
+        var media = false;
+        var oleObject = false;
+        var diagram = false;
+        var contentPart = false;
+        foreach (var element in Elements(source))
+        {
+            media |= source is P.Picture &&
+                     ((element.LocalName is "videoFile" or "audioFile" && DrawingNamespaces.Contains(element.NamespaceUri)) ||
+                      (element.LocalName == "media" && element.NamespaceUri == PowerPoint2010Namespace));
+            oleObject |= element.LocalName == "oleObj" && PresentationNamespaces.Contains(element.NamespaceUri);
+            diagram |= (element.LocalName == "relIds" && DiagramNamespaces.Contains(element.NamespaceUri)) ||
+                       (element.LocalName == "graphicData" && element.GetAttributes().Any(attribute =>
+                           attribute.LocalName == "uri" && attribute.Value is { } value && DiagramNamespaces.Contains(value)));
+            contentPart |= element.LocalName == "contentPart" && PresentationNamespaces.Contains(element.NamespaceUri);
+        }
+        if (media) return "media";
+        if (oleObject) return "oleObject";
+        if (diagram) return "diagram";
+        if (contentPart) return "contentPart";
         return source.LocalName switch
         {
             "pic" => "picture",
