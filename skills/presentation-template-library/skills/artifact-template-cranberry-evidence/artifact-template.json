@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-cranberry-evidence",
+  "displayName": "Cranberry Evidence",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0c3a6bdc0eb652d2a533526f7d5d38eae1c940d08e2dcecb234415432d1e9926"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "9f6d46afd0420d59484b23176a801f054dbc8b9178cad4a1a1f37f7a31f6a543"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "e099ce55b023039a628fb8a8ce5c9f7ca57d51eaf7cca9dac65698f20777df4f"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "baa35c1803bb587f655af817c44d0ff3b8fda4190402fd44d5f64915ddd09f9e"
+    }
+  ],
+  "useWhen": [
+    "experimental report",
+    "academic presentation"
+  ],
+  "avoidWhen": [
+    "playful workshop"
+  ],
+  "audiences": [
+    "researchers",
+    "students",
+    "technical reviewers"
+  ],
+  "contentShapes": [
+    "claim",
+    "method",
+    "evidence"
+  ],
+  "visualTraits": {
+    "tone": [
+      "academic",
+      "Wine-red chapter marks focus attention like an analytical lens.",
+      "lens"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "lens",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "8c5e7af88cd3d432e29883ca1c975143b01a68034bd94b6bdc296d506e9aae91",
+    "previewSha256": "346f74b70f45c0660d06bf0e978a08bf2047da977bcd9919ff58af9a134b98a9"
+  }
+}

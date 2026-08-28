@@ -1,0 +1,5 @@
+interface:
+  display_name: "Soft Proof"
+  short_description: "Use the Soft Proof presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-soft-proof as the visual style for this presentation."

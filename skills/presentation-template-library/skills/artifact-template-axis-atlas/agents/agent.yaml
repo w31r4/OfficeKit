@@ -1,0 +1,5 @@
+interface:
+  display_name: "Axis Atlas"
+  short_description: "Use the Axis Atlas presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-axis-atlas as the visual style for this presentation."

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-tidal-research",
+  "displayName": "Tidal Research",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "218c610e3f8f9a94bfa30bc61756423265875b2c0ab8986395bb09e69a35700a"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "895344f7d9bad5bd175c4aa54260de2425d26caad7de6b458c044e8cd58a812f"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "dabab12dc035884ace935c0bd7fc6bad9fccf2629558e58ef45fd92c59fc6898"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "31b8cab0cd94a57fdfbb9b930593bc722a4d526779e72cc6759e576e1f6afca0"
+    }
+  ],
+  "useWhen": [
+    "field study",
+    "academic presentation"
+  ],
+  "avoidWhen": [
+    "consumer launch"
+  ],
+  "audiences": [
+    "researchers",
+    "students",
+    "technical reviewers"
+  ],
+  "contentShapes": [
+    "claim",
+    "method",
+    "evidence"
+  ],
+  "visualTraits": {
+    "tone": [
+      "academic",
+      "Field evidence is organized by tidal lines and observation windows.",
+      "tide"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "tide",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "7be76e618af06cc327b72fc4a80c0e34e9627a865c7cd64dfc9bf7b81ade9487",
+    "previewSha256": "8f7a62c1832a48ed66b307976c2c4ad0e7345f5243519d280db08dee825cdc8e"
+  }
+}

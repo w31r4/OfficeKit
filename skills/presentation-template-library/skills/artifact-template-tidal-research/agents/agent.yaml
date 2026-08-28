@@ -1,0 +1,5 @@
+interface:
+  display_name: "Tidal Research"
+  short_description: "Use the Tidal Research presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-tidal-research as the visual style for this presentation."

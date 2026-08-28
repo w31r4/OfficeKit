@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-paper-seminar",
+  "displayName": "Paper Seminar",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "2f7215be0062802822b560a986963d312fedfc3cee99dc8651e763e769ebebfa"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "6349c270a6beb0276ee9fe78ea9e809b0b9c0b998353f07da852e4fb846caa6d"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "eef0b1c94b10b42413baa75e14fe9752406a8edba8fc98a2d75186fd439d1ff5"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "7d0cf682a6de9e8c52498bc9fb80ec3c6e1b33f6b25e4181b0732ec6596fc9bd"
+    }
+  ],
+  "useWhen": [
+    "seminar lecture",
+    "academic presentation"
+  ],
+  "avoidWhen": [
+    "night operations"
+  ],
+  "audiences": [
+    "researchers",
+    "students",
+    "technical reviewers"
+  ],
+  "contentShapes": [
+    "claim",
+    "method",
+    "evidence"
+  ],
+  "visualTraits": {
+    "tone": [
+      "academic",
+      "Warm paper and restrained botanical geometry support long-form teaching.",
+      "paper"
+    ],
+    "density": "medium",
+    "colorMode": "neutral",
+    "structure": [
+      "paper",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "d398e439fb7363b8500247f1eef419a4447076a4a0b26dc1cd3914ffe1ecba85",
+    "previewSha256": "ec6535bd587e82941c0efa9cf150eb951bb500d75c894b464ccc7841ed41173d"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-soft-proof",
+  "displayName": "Soft Proof",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "b303834835b87fe186a9d6a450f77b018b656c6db0a6348d81a9d70bf81aac8e"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "87ee45ae04c7a03ba221ebad111c58763a1c5002dd1525b97bd2f3371885505f"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "c52b99f19eaba9d0672b6d0f9fa84f84910eea608f1154e480b39eee627e00e8"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "f7a68be2f695965416b975aadff8cc2cc42024756394fc4dfdbb28098bde5cbf"
+    }
+  ],
+  "useWhen": [
+    "mathematical derivation",
+    "academic presentation"
+  ],
+  "avoidWhen": [
+    "dense board report"
+  ],
+  "audiences": [
+    "researchers",
+    "students",
+    "technical reviewers"
+  ],
+  "contentShapes": [
+    "claim",
+    "method",
+    "evidence"
+  ],
+  "visualTraits": {
+    "tone": [
+      "academic",
+      "A patient proof-board where color has mathematical meaning.",
+      "contour"
+    ],
+    "density": "sparse",
+    "colorMode": "light",
+    "structure": [
+      "contour",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "4ee7cb2da52517b03f71b7afa7cdae0a9ed6fff388f4bdf1424843323d3b35ab",
+    "previewSha256": "5e2fb735ec0fd33f9e4235e62c2510548109191af143aa223d036503d6bf46f0"
+  }
+}

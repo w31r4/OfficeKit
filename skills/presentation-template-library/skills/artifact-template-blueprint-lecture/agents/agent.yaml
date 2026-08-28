@@ -1,0 +1,5 @@
+interface:
+  display_name: "Blueprint Lecture"
+  short_description: "Use the Blueprint Lecture presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-blueprint-lecture as the visual style for this presentation."

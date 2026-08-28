@@ -1,0 +1,5 @@
+interface:
+  display_name: "Paper Seminar"
+  short_description: "Use the Paper Seminar presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-paper-seminar as the visual style for this presentation."

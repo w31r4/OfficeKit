@@ -1,0 +1,5 @@
+interface:
+  display_name: "Cranberry Evidence"
+  short_description: "Use the Cranberry Evidence presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-cranberry-evidence as the visual style for this presentation."

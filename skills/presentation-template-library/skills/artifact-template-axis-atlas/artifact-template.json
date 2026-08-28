@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-axis-atlas",
+  "displayName": "Axis Atlas",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "90b069c09bfd9a7e970b1463409c405ab420772044714c8927289bd1790797ca"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "eb26b507bb65c60f076ed392510c9072d88a8aa4bfaa4e33eda25aa1d6fdf355"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "84e704750912da3b218377c7dd098cfd979389771db597b66d8f8e3b41f8186d"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "27ad3e78fb466ba52cdc8d3241425387aabd298ffbd15ebca490561719bbf1ba"
+    }
+  ],
+  "useWhen": [
+    "systems research",
+    "academic presentation"
+  ],
+  "avoidWhen": [
+    "soft lifestyle story"
+  ],
+  "audiences": [
+    "researchers",
+    "students",
+    "technical reviewers"
+  ],
+  "contentShapes": [
+    "claim",
+    "method",
+    "evidence"
+  ],
+  "visualTraits": {
+    "tone": [
+      "academic",
+      "Large indexes and orthogonal routes turn research structure into a map.",
+      "route"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "route",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "0e0a69dcad2d9a2b8659dd5ddccdf3ee1a9f71cfc7e2fb08bd26c0ce61e59359",
+    "previewSha256": "99f4054d25c10532ff5f4e4f7b614d17826a84d8c0d1a7134bc3f73888e638e7"
+  }
+}
