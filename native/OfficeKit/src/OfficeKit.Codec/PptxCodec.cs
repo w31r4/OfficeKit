@@ -1443,6 +1443,7 @@ internal static class PptxCodec
         var placeholder = PptxPlaceholderCodec.ReadIdentity(shape);
         var transform = properties?.Transform2D;
         var geometry = Geometry(shape);
+        var solidFill = properties?.GetFirstChild<A.SolidFill>();
         var result = new PresentationShape
         {
             Geometry = geometry,
@@ -1452,7 +1453,7 @@ internal static class PptxCodec
             HeightEmu = frame.Height,
             Text = PptxTextCodec.Flatten(textBody),
             TextBody = textBody,
-            FillRgb = PptxColor.SolidRgb(properties?.GetFirstChild<A.SolidFill>()),
+            FillRgb = PptxColor.SolidRgb(solidFill),
             Placeholder = placeholder,
             DirectFrame = placeholder is null ? null : PptxPlaceholderCodec.ReadDirectFrame(shape),
             Transform = placeholder is null && PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")
@@ -1460,6 +1461,8 @@ internal static class PptxCodec
                 : null,
             Shadow = ReadShadow(properties),
         };
+        if (ReadFillOpacity(solidFill) is { } fillOpacity)
+            result.FillOpacityThousandthPercent = fillOpacity;
         PptxLineStyleCodec.ReadForProjection(properties?.GetFirstChild<A.Outline>(), result);
         if (!string.Equals(geometry, "line", StringComparison.Ordinal))
         {
@@ -1507,7 +1510,16 @@ internal static class PptxCodec
         if (fills.Length > 1) return false;
         if (fills.Length == 0 || fills[0] is A.NoFill) return true;
         var solid = (A.SolidFill)fills[0];
-        return solid.ChildElements.Count == 1 && solid.FirstChild is A.RgbColorModelHex;
+        if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color || !HasOnlyAttributes(color, "val")) return false;
+        var alphas = color.Elements<A.Alpha>().ToArray();
+        return color.ChildElements.Count == alphas.Length && alphas.Length <= 1 &&
+               (alphas.Length == 0 || alphas[0].Val?.Value is >= 0 and <= 100_000 && HasOnlyAttributes(alphas[0], "val"));
+    }
+
+    private static uint? ReadFillOpacity(A.SolidFill? solid)
+    {
+        var alpha = solid?.GetFirstChild<A.RgbColorModelHex>()?.GetFirstChild<A.Alpha>();
+        return alpha?.Val?.Value is { } value ? checked((uint)value) : null;
     }
 
     private static PresentationShadow? ReadShadow(P.ShapeProperties? properties)
@@ -1583,7 +1595,8 @@ internal static class PptxCodec
         PptxNonVisualAccessibilityCodec.ApplyBound(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, semantic.Accessibility);
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
-        if (!FillMatches(properties, semantic.FillRgb)) ReplaceFill(properties, semantic.FillRgb);
+        var fillOpacity = semantic.HasFillOpacityThousandthPercent ? semantic.FillOpacityThousandthPercent : (uint?)null;
+        if (!FillMatches(properties, semantic.FillRgb, fillOpacity)) ReplaceFill(properties, semantic.FillRgb, fillOpacity);
         PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
@@ -1684,24 +1697,32 @@ internal static class PptxCodec
         transform.Extents.Cy = frame.HeightEmu;
     }
 
-    private static void ReplaceFill(OpenXmlCompositeElement parent, string rgb)
+    private static OpenXmlElement BuildFill(string rgb, uint? opacity)
+    {
+        if (string.IsNullOrWhiteSpace(rgb)) return new A.NoFill();
+        var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(rgb) };
+        if (opacity.HasValue) color.Append(new A.Alpha { Val = checked((int)opacity.Value) });
+        return new A.SolidFill(color);
+    }
+
+    private static void ReplaceFill(OpenXmlCompositeElement parent, string rgb, uint? opacity)
     {
         foreach (var child in parent.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray()) child.Remove();
-        OpenXmlElement fill = string.IsNullOrWhiteSpace(rgb)
-            ? new A.NoFill()
-            : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(rgb) });
+        var fill = BuildFill(rgb, opacity);
         var reference = parent.ChildElements.FirstOrDefault(child => child is A.Outline || child.LocalName is "effectLst" or "effectDag" or "scene3d" or "sp3d");
         if (reference is null) parent.Append(fill);
         else parent.InsertBefore(fill, reference);
     }
 
-    private static bool FillMatches(OpenXmlCompositeElement parent, string rgb)
+    private static bool FillMatches(OpenXmlCompositeElement parent, string rgb, uint? opacity)
     {
         var requested = string.IsNullOrWhiteSpace(rgb) ? string.Empty : PptxColor.Normalize(rgb);
-        if (parent.GetFirstChild<A.NoFill>() is not null) return requested.Length == 0;
-        var solid = PptxColor.SolidRgb(parent.GetFirstChild<A.SolidFill>());
-        if (solid.Length > 0) return requested.Equals(solid, StringComparison.OrdinalIgnoreCase);
-        return requested.Length == 0 && !parent.ChildElements.Any(child => child.LocalName.EndsWith("Fill", StringComparison.Ordinal));
+        if (parent.GetFirstChild<A.NoFill>() is not null) return requested.Length == 0 && opacity is null;
+        var solidFill = parent.GetFirstChild<A.SolidFill>();
+        var solid = PptxColor.SolidRgb(solidFill);
+        if (solid.Length > 0)
+            return requested.Equals(solid, StringComparison.OrdinalIgnoreCase) && ReadFillOpacity(solidFill) == opacity;
+        return requested.Length == 0 && opacity is null && !parent.ChildElements.Any(child => child.LocalName.EndsWith("Fill", StringComparison.Ordinal));
     }
 
     private static void BuildPresentation(PresentationDocument package, PresentationArtifact artifact, PptxAssetCatalog assetCatalog)
@@ -2036,9 +2057,9 @@ internal static class PptxCodec
         }
         var properties = new P.ShapeProperties(transform);
         PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
-        properties.Append(string.IsNullOrWhiteSpace(semantic.FillRgb)
-            ? new A.NoFill()
-            : new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(semantic.FillRgb) }));
+        properties.Append(BuildFill(
+            semantic.FillRgb,
+            semantic.HasFillOpacityThousandthPercent ? semantic.FillOpacityThousandthPercent : (uint?)null));
         properties.Append(PptxLineStyleCodec.Build(semantic));
         ApplyShadow(properties, semantic.Shadow);
         var applicationProperties = new P.ApplicationNonVisualDrawingProperties();
@@ -2516,6 +2537,9 @@ internal static class PptxCodec
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation free line {element.Id} cannot be a placeholder.");
             PptxCustomGeometryCodec.Validate(element.Shape, element.Id);
             if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb)) PptxColor.Normalize(element.Shape.FillRgb);
+            if (element.Shape.HasFillOpacityThousandthPercent &&
+                (string.IsNullOrWhiteSpace(element.Shape.FillRgb) || element.Shape.FillOpacityThousandthPercent > 100_000))
+                throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} has invalid solid-fill opacity.");
             PptxLineStyleCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
             ValidateShadow(element.Shape.Shadow, element.Id);

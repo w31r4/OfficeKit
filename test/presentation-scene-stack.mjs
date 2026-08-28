@@ -17,7 +17,7 @@ const scrim = slide.shapes.add({
   name: "scrim",
   geometry: "rect",
   position: { left: 0, top: 0, width: 640, height: 360 },
-  fill: "#000000",
+  fill: { color: "#000000", opacity: 0.48 },
 });
 const background = slide.setBackgroundImage({
   name: "photo",
@@ -34,13 +34,14 @@ assert.deepEqual(slide.inspectRecords(new Set(["layer"])).map(({ stackIndex }) =
 assert.throws(() => title.moveBefore({}), /ordered slide or group scene stack/);
 scrim.delete();
 assert.deepEqual(slide.elements.items.map((element) => element.name), ["photo", "title"]);
-slide.shapes.add({ name: "scrim", geometry: "rect", position: { left: 0, top: 0, width: 640, height: 360 }, fill: "#000000" }).moveAfter(background);
+slide.shapes.add({ name: "scrim", geometry: "rect", position: { left: 0, top: 0, width: 640, height: 360 }, fill: { color: "#000000", opacity: 0.48 } }).moveAfter(background);
 title.bringToFront();
 
 const output = await PresentationFile.exportPptx(deck);
 const reimported = await PresentationFile.importPptx(output);
 const reopened = reimported.slides.items[0];
 assert.deepEqual(reopened.elements.items.map((element) => element.name), ["photo", "scrim", "title"]);
+assert.deepEqual(reopened.elements.getItem("scrim").fill, { color: "#000000", opacity: 0.48 });
 assert.throws(() => reopened.elements.getItem("photo").bringToFront(), /cannot be safely changed/);
 
 console.log("presentation scene stack smoke ok");

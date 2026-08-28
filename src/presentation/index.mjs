@@ -1874,6 +1874,18 @@ class TextFrame {
   toString() { return this.value; }
 }
 
+function normalizePresentationShapeFill(fill, label) {
+  if (typeof fill === "string") return fill;
+  if (!fill || typeof fill !== "object" || Array.isArray(fill)) throw new TypeError(`${label} must be a color string or fill object.`);
+  const color = fill.color ?? fill.fill;
+  if (typeof color !== "string" || color.length === 0) throw new TypeError(`${label}.color must be a non-empty color string.`);
+  if (fill.opacity != null) {
+    const opacity = Number(fill.opacity);
+    if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) throw new RangeError(`${label}.opacity must be from 0 through 1.`);
+  }
+  return { ...fill, color };
+}
+
 export class Shape {
   constructor(slide, config = {}) {
     this.slide = slide;
@@ -1899,7 +1911,7 @@ export class Shape {
       throw new TypeError("Presentation customPaths, customConnectionSites, customAdjustmentHandles, customAdjustments, customGuides, and textRectangle are available only for custom geometry shapes.");
     }
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation shape ${this.name || this.id} transform`);
-    this.fill = config.fill || "transparent";
+    this.fill = normalizePresentationShapeFill(config.fill || "transparent", `Presentation shape ${this.name || this.id} fill`);
     this.line = config.line || (this.geometry === "textbox"
       ? { fill: "transparent", width: 0 }
       : { fill: "#334155", width: 1 });
@@ -1984,16 +1996,18 @@ export class Shape {
     const fill = this.useBackgroundFill === true
       ? resolvePresentationBackgroundColor(this.slide.effectiveBackground(), this.slide.effectiveTheme())
       : typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent";
+    const fillOpacity = typeof this.fill === "object" && this.fill.opacity != null ? Number(this.fill.opacity) : 1;
+    const fillOpacityAttribute = fillOpacity === 1 ? "" : ` fill-opacity="${fillOpacity}"`;
     const outline = this.geometry === "line"
       ? ""
       : presentationShapeLineSvgAttributes(this.line, `Presentation shape ${this.name || this.id} line`);
     const visual = this.geometry === "custom"
-      ? `<g fill="${xmlEscape(fill)}" ${outline}>${presentationCustomPathsSvg(custom.paths, p, { escape: xmlEscape, adjustments: custom.adjustments, guides: custom.guides, sourceFrame: this.position })}</g>`
+      ? `<g fill="${xmlEscape(fill)}"${fillOpacityAttribute} ${outline}>${presentationCustomPathsSvg(custom.paths, p, { escape: xmlEscape, adjustments: custom.adjustments, guides: custom.guides, sourceFrame: this.position })}</g>`
       : this.geometry === "line"
       ? presentationFreeLineSvg(this.line, p, `Presentation shape ${this.name || this.id}`, this.id)
       : this.geometry === "ellipse"
-      ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}" ${outline}/>`
-      : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}" ${outline}/>`;
+      ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}"${fillOpacityAttribute} ${outline}/>`
+      : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}"${fillOpacityAttribute} ${outline}/>`;
     const text = this.text.value ? presentationParagraphsSvg(this.text.effectiveParagraphs(), textFrame, this.text.style, { escape: xmlEscape }) : "";
     if (!this.transform) return visual + text;
     const cx = p.left + p.width / 2;

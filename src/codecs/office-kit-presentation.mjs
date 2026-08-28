@@ -812,6 +812,25 @@ function presentationRgb(value, name) {
   return match[1].toUpperCase();
 }
 
+function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
+  if (typeof value === "string" || value?.opacity == null) return undefined;
+  const opacity = Number(value.opacity);
+  if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
+    throw new OfficeKitCodecError(`${name}.opacity must be a finite number from 0 through 1.`, [], { code: "invalid_presentation_fill" });
+  }
+  if (!fillRgb) {
+    throw new OfficeKitCodecError(`${name}.opacity requires a solid RGB fill.`, [], { code: "invalid_presentation_fill" });
+  }
+  return Math.round(opacity * 100_000);
+}
+
+function modelPresentationShapeFill(shape) {
+  const color = shape.fillRgb ? `#${shape.fillRgb}` : "transparent";
+  return shape.fillOpacityThousandthPercent === undefined
+    ? color
+    : { color, opacity: Number(shape.fillOpacityThousandthPercent) / 100_000 };
+}
+
 function presentationChart(chart, original) {
   const result = presentationChartToWire(chart, original, {
     emuFromPixels,
@@ -2018,6 +2037,8 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
+  const fillRgb = presentationRgb(shape.fill, `${shape.id}.fill`);
+  const fillOpacityThousandthPercent = presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
   return {
     id: original?.id || shape.id,
     name: shape.name || original?.name || "",
@@ -2032,7 +2053,8 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         heightEmu,
         text: shape.text?.value || "",
         textBody,
-        fillRgb: presentationRgb(shape.fill, `${shape.id}.fill`),
+        fillRgb,
+        ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
         lineStyle,
@@ -4804,7 +4826,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
         height: Number(shape.heightEmu) / EMU_PER_PIXEL,
       },
       ...(shape.transform ? { transform: modelPresentationTransform(shape.transform) } : {}),
-      fill: shape.fillRgb ? `#${shape.fillRgb}` : "transparent",
+      fill: modelPresentationShapeFill(shape),
       line: modelPresentationShapeLine(shape),
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
@@ -5118,7 +5140,7 @@ export async function presentationFromEnvelope(envelope) {
             geometrySource,
             textEditable: element.source?.textEditable === true,
           } } : {}),
-          fill: shape.fillRgb ? `#${shape.fillRgb}` : "transparent",
+          fill: modelPresentationShapeFill(shape),
           line: modelPresentationShapeLine(shape),
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
