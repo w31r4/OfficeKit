@@ -78,7 +78,7 @@
         "layoutFamilies": 22,
         "slideArchetypes": 13,
         "reusableComponents": 5,
-        "componentCandidates": 0,
+        "componentCandidates": 8,
         "svgAssets": 0,
         "nativeOpaque": 18
       }
@@ -152,7 +152,7 @@
         "layoutFamilies": 25,
         "slideArchetypes": 21,
         "reusableComponents": 10,
-        "componentCandidates": 0,
+        "componentCandidates": 31,
         "svgAssets": 0,
         "nativeOpaque": 46
       }
@@ -226,7 +226,7 @@
         "layoutFamilies": 36,
         "slideArchetypes": 25,
         "reusableComponents": 17,
-        "componentCandidates": 0,
+        "componentCandidates": 28,
         "svgAssets": 0,
         "nativeOpaque": 154
       }
@@ -300,7 +300,7 @@
         "layoutFamilies": 49,
         "slideArchetypes": 39,
         "reusableComponents": 0,
-        "componentCandidates": 0,
+        "componentCandidates": 27,
         "svgAssets": 0,
         "nativeOpaque": 175
       }
@@ -373,7 +373,7 @@
         "layoutFamilies": 49,
         "slideArchetypes": 39,
         "reusableComponents": 0,
-        "componentCandidates": 0,
+        "componentCandidates": 29,
         "svgAssets": 0,
         "nativeOpaque": 180
       }
@@ -442,7 +442,7 @@
         "layoutFamilies": 25,
         "slideArchetypes": 20,
         "reusableComponents": 0,
-        "componentCandidates": 0,
+        "componentCandidates": 20,
         "svgAssets": 0,
         "nativeOpaque": 10
       }
