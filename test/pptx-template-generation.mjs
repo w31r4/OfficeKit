@@ -19,6 +19,7 @@ for (let index = 0; index < 4; index += 1) {
     text: [{ runs: [{ text: `Source title ${index + 1}`, style: { bold: true, fontSize: 26, fontFamily: "Arial" } }] }],
   });
 }
+fixture.slides.items[0].setNativeBackgroundImage({ dataUrl: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" });
 const source = await PresentationFile.exportPptx(fixture);
 await mkdir(assetsDir, { recursive: true });
 await writeFile(sourcePath, source.bytes);
@@ -26,6 +27,8 @@ const sourceBytes = await readFile(sourcePath);
 const sourceSha256 = crypto.createHash("sha256").update(sourceBytes).digest("hex");
 const outputDir = path.join(workspace, "output");
 const importedFixture = await PresentationFile.importPptx(new FileBlob(sourceBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation", name: "fixture.pptx" }));
+const montage = await importedFixture.export({ format: "montage", scale: 0.4 });
+assert.equal((await montage.text()).match(/viewBox="0 0 640 360"/gu)?.length, 4);
 const templatePlan = importedFixture.planTemplateGeneration({
   slides: [
     { role: "title", title: "New opening", body: "Context" },

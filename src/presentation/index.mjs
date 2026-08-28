@@ -663,7 +663,12 @@ function presentationMontageSvg(presentation, options = {}) {
     const row = Math.floor(index / columns);
     const x = gap + col * (thumbW + gap);
     const y = gap + row * (thumbH + labelH + gap);
-    return `<g data-slide="${index + 1}"><rect x="${x - 1}" y="${y - 1}" width="${thumbW + 2}" height="${thumbH + 2}" fill="#ffffff" stroke="#94a3b8"/><g transform="translate(${x},${y}) scale(${scale})">${svgInner(slide.toSvg())}</g><text x="${x}" y="${y + thumbH + 15}" font-family="Arial" font-size="12" fill="#475569">Slide ${index + 1}${slide.title() ? ` — ${xmlEscape(slide.title()).slice(0, 80)}` : ""}</text></g>`;
+    // Use a nested SVG viewport instead of a transformed group. Percentage
+    // sized content (most importantly native background images) resolves
+    // against the containing SVG when placed in a <g>, which can crop a
+    // full-slide image to a narrow strip in the montage. A nested viewport
+    // keeps each thumbnail's 0..slideW/0..slideH coordinate system intact.
+    return `<g data-slide="${index + 1}"><rect x="${x - 1}" y="${y - 1}" width="${thumbW + 2}" height="${thumbH + 2}" fill="#ffffff" stroke="#94a3b8"/><svg x="${x}" y="${y}" width="${thumbW}" height="${thumbH}" viewBox="0 0 ${slideW} ${slideH}" preserveAspectRatio="none" overflow="hidden">${svgInner(slide.toSvg())}</svg><text x="${x}" y="${y + thumbH + 15}" font-family="Arial" font-size="12" fill="#475569">Slide ${index + 1}${slide.title() ? ` — ${xmlEscape(slide.title()).slice(0, 80)}` : ""}</text></g>`;
   }).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#f8fafc"/>${thumbs}</svg>`;
 }
