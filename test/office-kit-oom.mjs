@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import JSZip from "jszip";
 
 import {
   boundedInputBytes,
@@ -8,7 +9,7 @@ import {
   invokeOfficeKitLazy,
   ownedInputBytes,
 } from "../src/codecs/office-kit-runtime.mjs";
-import { materializePresentationNativeGraphs } from "../src/codecs/office-kit-presentation-native.mjs";
+import { materializePresentationNativeGraphs, presentationNativeGraphSnapshot } from "../src/codecs/office-kit-presentation-native.mjs";
 
 const source = Uint8Array.from({ length: 4096 }, (_, index) => index & 0xff);
 const strictLimits = codecLimits({ maxInputBytes: 2048 });
@@ -60,6 +61,43 @@ assert.deepEqual(
   [...nativeGraph({ preservedPartPaths: [partPath], relationshipReferences: [] }, "ppt/slides/slide1.xml").parts[0].bytes],
   [...partBytes],
   "sequential native-part materialization must preserve exact bytes",
+);
+
+const compressedPartPath = "ppt/media/native.png";
+const compressedPartBytes = Uint8Array.from({ length: 64 * 1024 }, (_, index) => (index * 31) & 0xff);
+const compressedPartSha256 = createHash("sha256").update(compressedPartBytes).digest("hex");
+const compressedZip = new JSZip();
+compressedZip.file(compressedPartPath, compressedPartBytes);
+const compressedSource = await compressedZip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+const compressedGraph = await materializePresentationNativeGraphs({
+  opaqueOpc: {
+    parts: [{ path: compressedPartPath, contentType: "image/png", sha256: compressedPartSha256, relationships: [] }],
+    packageRelationships: [],
+    sourcePackage: { data: compressedSource },
+  },
+  payload: {
+    case: "presentation",
+    value: {
+      slides: [{ elements: [{ content: { case: "opaque", value: { preservedPartPaths: [compressedPartPath] } } }] }],
+    },
+  },
+});
+const compressedPart = compressedGraph(
+  { preservedPartPaths: [compressedPartPath], relationshipReferences: [] },
+  "ppt/slides/slide1.xml",
+).parts[0];
+assert.equal(typeof Object.getOwnPropertyDescriptor(compressedPart, "bytes")?.get, "function", "source-bound native bytes must remain lazy before public access");
+assert.equal(
+  presentationNativeGraphSnapshot({ relationshipReferences: [], rootRelationships: [], parts: [compressedPart] }).parts[0].sha256,
+  compressedPartSha256,
+  "an untouched lazy part must use its codec-validated source digest",
+);
+assert.deepEqual([...compressedPart.bytes], [...compressedPartBytes], "lazy native bytes must inflate exactly on first access");
+compressedPart.bytes[0] ^= 0xff;
+assert.notEqual(
+  presentationNativeGraphSnapshot({ relationshipReferences: [], rootRelationships: [], parts: [compressedPart] }).parts[0].sha256,
+  compressedPartSha256,
+  "accessed native bytes must retain mutation detection",
 );
 
 console.log("OfficeKit JavaScript OOM guards ok");

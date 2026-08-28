@@ -77,6 +77,7 @@ internal static class PptxCodec
         if ((uint)slideIds.Length > limits.MaxSheets)
             throw new CodecException("slide_budget_exceeded", $"PPTX presentation has {slideIds.Length} slides and exceeds max_sheets ({limits.MaxSheets}).", "ppt/presentation.xml");
         var slideParts = ResolveSlideParts(presentationPart, slideIds);
+        var slidePartSet = slideParts.ToHashSet();
         var publicSlideIds = slideIds.Select((_, index) => $"presentation/slide/{index + 1}").ToArray();
         var publicSlideIdByRelationshipId = BuildCustomShowSlideIdMap(slideIds
             .Select((slideId, index) => (
@@ -226,9 +227,15 @@ internal static class PptxCodec
                 previousSlideRoot,
                 previousElementIdsByNativeId,
                 previousSlideArtifactId);
+            // Morph inspection is the only consumer of the preceding slide
+            // root. Release it before the current slide's comments, native
+            // graphs, and protobuf projection grow the response high-water
+            // mark; the source package remains open and authoritative.
+            if (slideIndex > 0)
+                slideParts[slideIndex - 1].UnloadRootElement();
             var sourceEntry = new PptxSourceSlideEntry(slideIndex, slideId, relationshipId, slidePart);
             var deletionPlan = PptxSlideDeletionCodec.Analyze(presentationPart, sourceEntry, opaque);
-            var clonePlan = PptxSlideCloneCodec.Analyze(presentationPart, sourceEntry, slideParts.ToHashSet());
+            var clonePlan = PptxSlideCloneCodec.Analyze(presentationPart, sourceEntry, slidePartSet);
             var target = new PresentationSlide
             {
                 Id = slideArtifactId,
@@ -314,8 +321,6 @@ internal static class PptxCodec
                 target.Elements.Add(importedElement);
             }
             artifact.Slides.Add(target);
-            if (slideIndex > 0)
-                slideParts[slideIndex - 1].UnloadRootElement();
         }
         if (slideParts.Length > 0)
             slideParts[^1].UnloadRootElement();

@@ -8,6 +8,7 @@ import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import { compilePresentationEditPlan, presentationEnvelope, presentationFromEnvelope, presentationRequiresNativeLeafEditPlan } from "./office-kit-presentation.mjs";
 import {
   assertCodecOptions,
+  boundedInputBytes,
   codecLimits,
   invokeOfficeKit,
   invokeOfficeKitLazy,
@@ -230,17 +231,25 @@ export async function exportPptxWithOfficeKit(presentation, options = {}) {
 export async function importPptxWithOfficeKit(input, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "importPptxWithOfficeKit");
   const limits = codecLimits(options.limits);
-  const sourceBytes = await ownedInputBytes(input, limits, "PPTX");
+  // Keep the caller's bytes borrowed only while the native transport owns the
+  // request. The response SHA binds the exact bytes the codec received; make
+  // the durable source snapshot after that high-water phase so the caller and
+  // owned 24+ MiB buffers do not overlap native package decoding.
+  const requestSourceBytes = await boundedInputBytes(input, limits, "PPTX");
   return invokeOfficeKit({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.IMPORT_PPTX,
     family: ArtifactFamily.PRESENTATION,
-    file: sourceBytes,
+    file: requestSourceBytes,
     limits,
     thinPresentationImportResponse: true,
   }, {
     fileSidecar: true,
     consumeResponse: async (response) => {
+      // Let the native host complete its post-response compacting collection
+      // before allocating the durable source snapshot on Node's next turn.
+      await new Promise(setImmediate);
+      const sourceBytes = await ownedInputBytes(requestSourceBytes, limits, "PPTX");
       restoreThinPresentationImport(response.artifact, sourceBytes);
       return presentationFromEnvelope(response.artifact);
     },

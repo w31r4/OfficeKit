@@ -1,5 +1,4 @@
-import { inspectOoxmlPackage, ooxmlResolveRelationshipTarget, ooxmlSafePartPath, patchOoxmlPackage } from "../ooxml/package.mjs";
-import { validatePptxPackageSemantics } from "../ooxml/pptx-package-semantics.mjs";
+import { ooxmlResolveRelationshipTarget, ooxmlSafePartPath } from "../ooxml/paths.mjs";
 import { queryHelpRecords } from "../help/index.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
@@ -66,8 +65,19 @@ const PPTX_PACKAGE_CONFIG = {
     partPath: "ppt/presentation.xml",
   },
   counts: { slides: /^ppt\/slides\/slide\d+\.xml$/ },
-  semanticIssues: validatePptxPackageSemantics,
 };
+
+async function presentationPackageTools() {
+  const [{ inspectOoxmlPackage, patchOoxmlPackage }, { validatePptxPackageSemantics }] = await Promise.all([
+    import("../ooxml/package.mjs"),
+    import("../ooxml/pptx-package-semantics.mjs"),
+  ]);
+  return {
+    inspectOoxmlPackage,
+    patchOoxmlPackage,
+    config: { ...PPTX_PACKAGE_CONFIG, semanticIssues: validatePptxPackageSemantics },
+  };
+}
 
 class SlideCollection {
   constructor(presentation) {
@@ -2727,11 +2737,13 @@ export class ImageElement {
 
 export class PresentationFile {
   static async inspectPptx(blobOrBuffer, options = {}) {
-    return inspectOoxmlPackage(blobOrBuffer, options, PPTX_PACKAGE_CONFIG);
+    const { inspectOoxmlPackage, config } = await presentationPackageTools();
+    return inspectOoxmlPackage(blobOrBuffer, options, config);
   }
 
   static async patchPptx(blobOrBuffer, patches = [], options = {}) {
-    const patched = await patchOoxmlPackage(blobOrBuffer, patches, options, PPTX_PACKAGE_CONFIG);
+    const { patchOoxmlPackage, config } = await presentationPackageTools();
+    const patched = await patchOoxmlPackage(blobOrBuffer, patches, options, config);
     return new FileBlob(patched.bytes, { type: PPTX_MIME, metadata: { artifactKind: "presentation", patchedParts: patched.patchedParts, recipesApplied: patched.recipesApplied, contentTypesUpdated: patched.contentTypesUpdated, relationshipsUpdated: patched.relationshipsUpdated, sourceReferencesUpdated: patched.sourceReferencesUpdated, validated: patched.validated, validationIssues: patched.validationIssues } });
   }
 

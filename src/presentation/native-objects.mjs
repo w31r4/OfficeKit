@@ -11,6 +11,29 @@ const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
 
+// Codec imports may keep source-bound native parts compressed until callers
+// actually inspect their bytes. This symbol is deliberately internal and
+// non-enumerable on public part records; ordinary authored parts remain eager.
+export const PRESENTATION_PART_BYTES_SOURCE = Symbol("office-kit.presentation-part-bytes-source");
+
+function presentationNativePart(part, shareImportedPartBytes) {
+  const importedSource = shareImportedPartBytes ? part?.[PRESENTATION_PART_BYTES_SOURCE] : undefined;
+  if (importedSource?.install instanceof Function) {
+    const target = {};
+    for (const key of Object.keys(part)) {
+      if (key !== "bytes" && key !== "relationships") target[key] = part[key];
+    }
+    target.relationships = (part.relationships || []).map((relationship) => ({ ...relationship }));
+    importedSource.install(target);
+    return target;
+  }
+  return {
+    ...part,
+    bytes: shareImportedPartBytes ? part.bytes : new Uint8Array(part.bytes),
+    relationships: (part.relationships || []).map((relationship) => ({ ...relationship })),
+  };
+}
+
 function normalizeNativeChart(config) {
   if (!config) return undefined;
   const partPath = String(config.partPath || "");
@@ -204,11 +227,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       this.relationshipReferences = (config.relationshipReferences || []).map((reference) => ({ ...reference }));
       this.rootRelationships = (config.rootRelationships || []).map((relationship) => ({ ...relationship }));
       const shareImportedPartBytes = config._officeKitSharePartBytes === true;
-      this.parts = (config.parts || []).map((part) => ({
-        ...part,
-        bytes: shareImportedPartBytes ? part.bytes : new Uint8Array(part.bytes),
-        relationships: (part.relationships || []).map((relationship) => ({ ...relationship })),
-      }));
+      this.parts = (config.parts || []).map((part) => presentationNativePart(part, shareImportedPartBytes));
       const oleWorkbook = config.oleWorkbook ? Object.freeze({
         partPath: String(config.oleWorkbook.partPath || ""),
         contentType: String(config.oleWorkbook.contentType || ""),

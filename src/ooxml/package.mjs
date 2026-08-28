@@ -30,6 +30,9 @@ import { FileBlob } from "../shared/file-blob.mjs";
 import { imageContentTypeFromExtension } from "../shared/images.mjs";
 import { ndjson } from "../shared/inspection.mjs";
 import { attrEscape } from "../shared/xml.mjs";
+import { ooxmlResolveRelationshipTarget, ooxmlSafePartPath } from "./paths.mjs";
+
+export { ooxmlResolveRelationshipTarget, ooxmlSafePartPath } from "./paths.mjs";
 
 const OOXML_DEFAULT_MAX_INPUT_BYTES = 256 * 1024 * 1024;
 const OOXML_DEFAULT_MAX_PARTS = 5_000;
@@ -109,15 +112,6 @@ function decodeXml(value) {
     .replaceAll("&quot;", '"')
     .replaceAll("&apos;", "'")
     .replaceAll("&amp;", "&");
-}
-
-export function ooxmlSafePartPath(partPath, family = "OOXML") {
-  const raw = String(partPath || "").replaceAll("\\", "/").trim();
-  if (!raw || raw.startsWith("/") || raw.includes("\0")) throw new Error(`Unsafe ${family} part path: ${partPath}`);
-  const normalized = path.posix.normalize(raw).replace(/^\.\//, "");
-  if (!normalized || normalized === "." || normalized.startsWith("../") || normalized.includes("/../") || normalized === "..") throw new Error(`Unsafe ${family} part path: ${partPath}`);
-  if (normalized.length > 1024) throw new Error(`Unsafe ${family} part path: path exceeds 1024 characters`);
-  return normalized;
 }
 
 function ooxmlXmlAttributes(tag = "") {
@@ -293,13 +287,6 @@ function ooxmlRelationshipSource(partPath) {
   const match = /^(?:(.*)\/)?_rels\/([^/]+)\.rels$/.exec(partPath);
   if (!match) return undefined;
   return match[1] ? `${match[1]}/${match[2]}` : match[2];
-}
-
-export function ooxmlResolveRelationshipTarget(source, rawTarget) {
-  const target = String(rawTarget || "").split("#")[0];
-  if (target.startsWith("/")) return target.slice(1);
-  const sourceDir = source ? path.posix.dirname(source) : "";
-  return path.posix.normalize(path.posix.join(sourceDir === "." ? "" : sourceDir, target));
 }
 
 const OOXML_RELATIONSHIP_NAMESPACES = new Set([
