@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-soft-proof",
   "displayName": "Soft Proof",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "b303834835b87fe186a9d6a450f77b018b656c6db0a6348d81a9d70bf81aac8e"
+      "sha256": "9e10a29cf778cc84f2a41985c8cf9ac7de46c755363d60bc6a1139336eeee3e5"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "87ee45ae04c7a03ba221ebad111c58763a1c5002dd1525b97bd2f3371885505f"
+      "sha256": "942a386a1374059d418ba06cd2dff1b1537e4aab217fc6f6ade6d862db9ba757"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "c52b99f19eaba9d0672b6d0f9fa84f84910eea608f1154e480b39eee627e00e8"
+      "sha256": "214b23aad1cfe7ed00019a4e740fd612c8ecb09c148c150dbbef214651233bf2"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "f7a68be2f695965416b975aadff8cc2cc42024756394fc4dfdbb28098bde5cbf"
+      "sha256": "6198e07b989e2be885672bb71d575fc32396b6eb4b763a1a8988f1f02413f50d"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "2dc43a36db21937e824c3dec1366c9a46fdfef54082e11ef8148fe92b7e94791",
-    "previewSha256": "5e2fb735ec0fd33f9e4235e62c2510548109191af143aa223d036503d6bf46f0"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "7eaf3fbef4c1798b86c011f50132880ccf3f8f0f336adf8b3a19de24bd19a039",
+    "referenceSha256": "bf0bb0c2102e742be71df6d6043bb8720e7ad03557c30e58baf3293f88911990",
+    "previewSha256": "ffa16ae8e1f3d1848fa4c6dd5184dfbc83736e3ec381844287d56850c6adf41c"
   }
 }

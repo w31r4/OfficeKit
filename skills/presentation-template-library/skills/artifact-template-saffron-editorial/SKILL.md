@@ -1,6 +1,6 @@
 ---
 name: artifact-template-saffron-editorial
-description: "Saffron Editorial is an original OfficeKit presentation style for trend magazine, with margin-led composition and dense information density."
+description: "Saffron Editorial presentation style."
 ---
 
 # Saffron Editorial

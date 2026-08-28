@@ -1,6 +1,6 @@
 ---
 name: artifact-template-ebony-investment-review
-description: "Ebony Investment Review is an original OfficeKit presentation style for investment benchmark, with terracotta-led composition and dense information density."
+description: "Ebony Investment Review presentation style."
 ---
 
 # Ebony Investment Review

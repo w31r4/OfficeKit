@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "templateId": "artifact-template-moonlit-work-report",
+  "source": [
+    "work/moon-white-imagery/reference.jpg",
+    "work/moon-white-imagery/design.md",
+    "reference.jpg-sha256:b0e3108684e7dea8326107457e4f6fcda485e26a84a1068e2dc8faecc2388baa",
+    "design.md-sha256:30e29b39a01630a1fa91b915731a5529b559fcec42a32def2c071be3f0c9dfcd",
+    "image-only-clean-room-evidence"
+  ],
+  "reference": {
+    "path": "skills/presentation-template-library/skills/artifact-template-moonlit-work-report/assets/reference.pptx",
+    "sha256": "1364d880995b2072c5ed7c049cb75df8b587e2b0c5e97fb0e9aa355e22b8a73f"
+  },
+  "evidence": {
+    "source": [
+      "work/moon-white-imagery/reference.jpg",
+      "work/moon-white-imagery/design.md",
+      "reference.jpg-sha256:b0e3108684e7dea8326107457e4f6fcda485e26a84a1068e2dc8faecc2388baa",
+      "design.md-sha256:30e29b39a01630a1fa91b915731a5529b559fcec42a32def2c071be3f0c9dfcd",
+      "image-only-clean-room-evidence"
+    ],
+    "renders": [
+      "renders/01.png",
+      "renders/02.png",
+      "renders/03.png",
+      "renders/04.png",
+      "renders/05.png",
+      "renders/06.png",
+      "native-render:unverified"
+    ],
+    "inspect": [
+      "inspect.jsonl",
+      "records:256",
+      "kinds:slide,shape,table,chart,image,connector,layer"
+    ],
+    "edits": [
+      "edited-roundtrip.pptx",
+      "operation:cover-title-local-text-replacement"
+    ],
+    "reimport": [
+      "edited-roundtrip.pptx",
+      "assertion:cover-title-survives-second-import"
+    ],
+    "package": [
+      "assets/reference.pptx",
+      "reference-sha256:1364d880995b2072c5ed7c049cb75df8b587e2b0c5e97fb0e9aa355e22b8a73f"
+    ]
+  },
+  "visual": {
+    "silhouette": {
+      "score": 84,
+      "evidence": [
+        "source/reference.jpg",
+        "renders/01.png",
+        "renders/02.png",
+        "renders/05.png"
+      ]
+    },
+    "hierarchy": {
+      "score": 86,
+      "evidence": [
+        "source/design.md",
+        "renders/01.png",
+        "renders/03.png",
+        "renders/06.png"
+      ]
+    },
+    "paletteAndSurfaces": {
+      "score": 89,
+      "evidence": [
+        "source/design.md",
+        "renders/01.png",
+        "renders/02.png",
+        "renders/03.png",
+        "renders/05.png"
+      ]
+    },
+    "typography": {
+      "score": 95,
+      "evidence": [
+        "source/design.md",
+        "inspect.jsonl",
+        "renders/01.png"
+      ]
+    },
+    "densityAndRhythm": {
+      "score": 82,
+      "evidence": [
+        "source/reference.jpg",
+        "renders/02.png",
+        "renders/03.png",
+        "renders/04.png",
+        "renders/06.png"
+      ]
+    },
+    "visualCarriers": {
+      "score": 80,
+      "evidence": [
+        "source/design.md",
+        "renders/02.png",
+        "renders/03.png",
+        "renders/05.png"
+      ]
+    },
+    "layerRelationships": {
+      "score": 86,
+      "evidence": [
+        "inspect.jsonl",
+        "renders/01.png",
+        "renders/02.png",
+        "renders/05.png"
+      ]
+    },
+    "motifs": {
+      "score": 78,
+      "evidence": [
+        "source/reference.jpg",
+        "renders/01.png",
+        "renders/04.png",
+        "renders/05.png"
+      ]
+    },
+    "exampleCoverage": {
+      "score": 83,
+      "evidence": [
+        "renders/01.png",
+        "renders/02.png",
+        "renders/03.png",
+        "renders/04.png",
+        "renders/05.png",
+        "renders/06.png"
+      ]
+    }
+  },
+  "functional": {
+    "inspectDiscovery": {
+      "score": 98,
+      "evidence": [
+        "inspect.jsonl"
+      ]
+    },
+    "editableLeaves": {
+      "score": 96,
+      "evidence": [
+        "edited-roundtrip.pptx",
+        "inspect.jsonl"
+      ]
+    },
+    "reusableAssets": {
+      "score": 88,
+      "evidence": [
+        "reference.pptx",
+        "inspect.jsonl"
+      ]
+    },
+    "roundTripStability": {
+      "score": 96,
+      "evidence": [
+        "reference.pptx",
+        "edited-roundtrip.pptx"
+      ]
+    },
+    "nativeRendering": {
+      "score": 0,
+      "evidence": [
+        "native-render:unverified"
+      ]
+    },
+    "backgroundAndLayerFidelity": {
+      "score": 91,
+      "evidence": [
+        "inspect.jsonl",
+        "renders/01.png",
+        "renders/02.png"
+      ]
+    },
+    "opaquePreservation": {
+      "score": 94,
+      "evidence": [
+        "reference.pptx",
+        "edited-roundtrip.pptx"
+      ]
+    },
+    "safeRefusal": {
+      "score": 96,
+      "evidence": [
+        "inspect.jsonl",
+        "edited-roundtrip.pptx"
+      ]
+    }
+  },
+  "notes": [
+    "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
+    "The rendered pages are calibration evidence, not fixed layouts to clone.",
+    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 82.4); keep this template pending and iterate its style-specific carriers."
+  ],
+  "candidate": true,
+  "editedArtifact": "edited-roundtrip.pptx"
+}

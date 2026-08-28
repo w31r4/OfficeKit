@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-paper-seminar",
   "displayName": "Paper Seminar",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "2f7215be0062802822b560a986963d312fedfc3cee99dc8651e763e769ebebfa"
+      "sha256": "5f9e4260472b7670a333964e568f6bd5fc3bb9c91e74b9252b007668edd7b30d"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "6349c270a6beb0276ee9fe78ea9e809b0b9c0b998353f07da852e4fb846caa6d"
+      "sha256": "aa6774f102726b596a05fd56807b3c5ae4989d131c87ca8d75d09f62bb7bc688"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "eef0b1c94b10b42413baa75e14fe9752406a8edba8fc98a2d75186fd439d1ff5"
+      "sha256": "d57e72a94c33de9040a1e6579519c0206bce9dc92525db054190540d0d1b3f73"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "7d0cf682a6de9e8c52498bc9fb80ec3c6e1b33f6b25e4181b0732ec6596fc9bd"
+      "sha256": "1038581a74f7eebf15bb55b26164e9929f3e36413bf11314a769488f6a610b3e"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "13f5b7a978c7615f90b739cdf14aaa72fc9fa6b08830477c30acf80b86d1a74a",
-    "previewSha256": "ec6535bd587e82941c0efa9cf150eb951bb500d75c894b464ccc7841ed41173d"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "38ed429bc84233c63f5c1e5f06f54bb4a763a4eee52f833fd83f9deb47e1c94f",
+    "referenceSha256": "b49d0d6a9830de778d43d98204acc75d5356e2762a31c16a7036c96ce9e60137",
+    "previewSha256": "9b37257da4fb429fa298411c9a55432b9370344cc722798d4c533c410eec739f"
   }
 }

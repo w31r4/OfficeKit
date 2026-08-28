@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-coral-growth-brief",
   "displayName": "Coral Growth Brief",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "85acb79e6bd317f84fc7df28fbf14a4ce745c77b50234e3f6588a175bd7836fa"
+      "sha256": "0c2dcee7d3305eed377b45b639d694deaedcfd11ee881da4bc854306698d68d2"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "67df893fe0fde30724a50c8b41e48120640cf5371b2b0308a34afadf132bda5f"
+      "sha256": "a94aa2ce5e368abd6182ee6c9d90aed88fc658dc404cc245d1d1b886b8205416"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "c99d32fe272300bfba546a11113dd1bb5a036a72dea86fdbe6f69bd2cf45f5f6"
+      "sha256": "326fb1787469a5a6fc3c9ba67a6ddbaf12aaa60c829af16ed5191e2a6566a0b1"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "d6e22ec87e6f0faceb5c73d6c1aec610eaa2bfe38ef5e1dc5cbf056dc2084447"
+      "sha256": "c2a2d90cb610cf6d6f2d0c428ceb5865a59b80b6fa26d5da39893cf364d54640"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "ed46f9d262e35885c4e6e79e8e5064fbd977d051cbb29a585b555c5711f72d8f",
-    "previewSha256": "b0e214d8dbf0065478a5a457cf526548d07db66b770c6a6c746f2348dcb891fb"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "7c6f4364f0478594c2cff01cac2fa9d545227a89758aa53d9829f40af607e0ff",
+    "referenceSha256": "24340a8250e116e5e1fc7cd17703cff01263c4130de9e6a68d24aa9fc1f26842",
+    "previewSha256": "a644243157b0e2d41512eceed462f3a494b60c123c26366218d42212c651465f"
   }
 }

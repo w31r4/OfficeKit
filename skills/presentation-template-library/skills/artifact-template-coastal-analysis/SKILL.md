@@ -1,6 +1,6 @@
 ---
 name: artifact-template-coastal-analysis
-description: "Coastal Analysis is an original OfficeKit presentation style for industry research, with grid-led composition and dense information density."
+description: "Coastal Analysis presentation style."
 ---
 
 # Coastal Analysis

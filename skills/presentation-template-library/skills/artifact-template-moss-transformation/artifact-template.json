@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-moss-transformation",
   "displayName": "Moss Transformation",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "64493cd224c5c0a1f694c95f5333fe9793b23ec266a991674d06c17b142d3003"
+      "sha256": "78cec17fdb097d177a23b364f924c5c22bdab7311678c1977c04fa207f9f1991"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "e9ad9c9cc81c12e5929b6cf5fc70e68d7e28cfa894fce39f5f65e710ff407d16"
+      "sha256": "7ec5a66e10c4ace983a34d5b9964b13ef126e14e7ffce034e611774987d6bdb1"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "45d99016293c329ce9ff588bdfceecba39cfba59b6bf421e3b7701f2789d8c03"
+      "sha256": "eb675bea6ea88ef8e4f72c81cd53b8642c5baf84e8952177e4537826adbbcf94"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "3608746325b80da9bff9408f14541abcb73ddfaa288e918429e7ff0d71017d1e"
+      "sha256": "ddd9c963d87b304c1fedfff5902538528be41e70b5257a8e5d18de72f75b0bdb"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "389a8f11f78dcc07a6478e8e6493fa8af86a78adfa4ccaa327d4dfa50929c745",
-    "previewSha256": "e39df04809bea4cbdb7bccda2944941b879f444ffb8b6d8fb08408a0c31dd6a7"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "e2727562da8d79778abf8efa644721aa94d5c1bf853bd2c8606bf61af2c1ac95",
+    "referenceSha256": "6fd746a445f2ef37daff9c90e9c9077e6c0aa045d9734bc1794fd37447288641",
+    "previewSha256": "56eb0366dc707da583746a8a4867c7642a1169ddec91b0ca6db34a618082098d"
   }
 }

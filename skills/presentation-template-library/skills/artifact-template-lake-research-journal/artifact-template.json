@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-lake-research-journal",
   "displayName": "Lake Research Journal",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "d88196e515fb4993453dbec4c6ca7800526dd90d5df7fb7abd275989439c7a45"
+      "sha256": "57118aeedd7c27239cbf9b52fe24f1233b8151a8068faa465949dd7260e69e99"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "c8caccd261e879bf39a28939236978841e800c14cabca7e06861b45d2d91f4d7"
+      "sha256": "0e822a373030b2cf7501463869cd7357aaf9e153cab44dc8f834458a0a8ae516"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "60468ec6556d9ac3543497f26a7eb7418473d157f1457a6f91a3a87a8fe4dbe0"
+      "sha256": "e97fe5ccff5cfd9a02eda56d26bcfdb0ed755c6053672aa836d747efcee99ef6"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "bccfb97b90c6ae1c22a8edadc45d5673ad7fdee7bd305f82535526b46e0c5b9a"
+      "sha256": "e1b7ca0c503036225079a1b8c391f1f9f042f3465545582914a22373d3fbe593"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "b5326e4b1b8b2d777e924db77f92383f31c571ad108f2db781c2cd580d594f97",
-    "previewSha256": "79bf40d9554281675b9fdd8be435b285286702d34aaf59f501e9dc8b5f99d837"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "fa2fe4bd508e470cfe49c7f35d42b16b9b51b1a4a7d8de92b28d05e37def1bb6",
+    "referenceSha256": "bcc52c1c3042adf0911996a34bcc237f94506916a3cce2aa252f9fc05234dc6e",
+    "previewSha256": "aaaab5f3fc48d434610eb043c1575aadf6bb32974d0a1757d2b42ab95fa889d1"
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: artifact-template-violet-operations
-description: "Violet Operations is an original OfficeKit presentation style for business documentary, with slash-led composition and dense information density."
+description: "Violet Operations presentation style."
 ---
 
 # Violet Operations

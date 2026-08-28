@@ -1,6 +1,6 @@
 ---
 name: artifact-template-aqua-impact-story
-description: "Aqua Impact Story is an original OfficeKit presentation style for community impact report, with wave-led composition and medium information density."
+description: "Aqua Impact Story presentation style."
 ---
 
 # Aqua Impact Story

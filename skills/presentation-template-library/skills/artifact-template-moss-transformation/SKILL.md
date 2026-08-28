@@ -1,6 +1,6 @@
 ---
 name: artifact-template-moss-transformation
-description: "Moss Transformation is an original OfficeKit presentation style for transformation roadmap, with wedge-led composition and dense information density."
+description: "Moss Transformation presentation style."
 ---
 
 # Moss Transformation

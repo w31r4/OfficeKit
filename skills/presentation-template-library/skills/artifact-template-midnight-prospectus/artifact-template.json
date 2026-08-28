@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-midnight-prospectus",
   "displayName": "Midnight Prospectus",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "3866ff536034c0bd673468073e5b11cc136766309043b2bc75a54c0fdcacd5ab"
+      "sha256": "05b3686b86a6c0206589d9cdf83814b0dc4fe82f12f45d14c52c9b78cfb68cbf"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "4027273f2c46882b99eeabf0b06fd1c92f1532289616e452b21f4bf1a0f9320e"
+      "sha256": "8a7d5323b0ab2e8acbbafd037cffcbc0def513ac8507bb14ca20b9f8d43043e2"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "f4765c04c11f1aa2e81090bc8896c9770665488d985689135dd5e7624e852f6a"
+      "sha256": "498e08ed4703b7836d511e1a6eca1467383d8b01dcaed8c7979cfd890452efb0"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "ffecb03f5eae046a3da1f2f111933a9c76f454f259baaf2b2d757526877cb1c4"
+      "sha256": "cde22a98e3814ac77702c066b125acb61167c3cfd0109e0bee5b9861f801a4ea"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "7c38ecad50e3aa57650defbf07a20364e732bd989af06f5469a2fedc4dc0c887",
-    "previewSha256": "10271a998c23c5d77a398801c8cabc7ad1b803766e4eef935e06891b7ebd2fbf"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "03652a6e68446e63098d40a589ebd861c599f3a644370325465f4d337f28aebb",
+    "referenceSha256": "d5d2f353b28c92cebcbd003a2bfa319e0ab9fa8b44ac6e77844678420d9bef7e",
+    "previewSha256": "607e38575e6db059ff2e03c07214692b3ab3345284800789599692492791effe"
   }
 }

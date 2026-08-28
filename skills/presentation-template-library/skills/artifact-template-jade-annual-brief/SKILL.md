@@ -1,6 +1,6 @@
 ---
 name: artifact-template-jade-annual-brief
-description: "Jade Annual Brief is an original OfficeKit presentation style for annual operations report, with jade-led composition and dense information density."
+description: "Jade Annual Brief presentation style."
 ---
 
 # Jade Annual Brief

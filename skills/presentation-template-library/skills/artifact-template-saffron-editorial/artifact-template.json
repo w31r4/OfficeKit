@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-saffron-editorial",
   "displayName": "Saffron Editorial",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "883091b468ed881c396f059304c9eba2cf07122edbe8309e0f217792099e349f"
+      "sha256": "451756a1e95569ae6acad836fbcaa3033c83f01414826a7855c0a509a54a2ce8"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "34de94c2fcb1d2cdf97f327d818d8b582fbde9e8720f4ad203c3f3617ef11c88"
+      "sha256": "d1ed30f35be1cd3682f1439932ed0518201a64ee09c07b7459257e2b7d3c11b3"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "b4c7891396818c2708ad23158922650d04de3feca6cbdd17ca16f2c5cd5e4679"
+      "sha256": "9704cf5b7c4b1d5b114627cdbbaa77b4149b447f47214494fca3811e668f2566"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "e7cf976512a15a2fc3b99c5dc361c105d88a5e6fd533796bd44b14dd246fbc1c"
+      "sha256": "fbc77b6682cc7306416a867510ee98c609fe624a59fc57ca8158a062367528b5"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "907f8ec326a4faefe959ddd30d78ee2f2f7c09864e6a62661568a8be78348db5",
-    "previewSha256": "3f7fc63da1feed17c24b8955dfde684dd03f5a0015dcaa3fa70470eb1bf5df23"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "141f5e661f228f488ef533b98db2408ce749132d7b00115f9c7267872af52644",
+    "referenceSha256": "5a5235bd2649aad6df495ef25e08994b7da72aa4755ab4c12e426742de4bce3f",
+    "previewSha256": "426c186b5101ad05e112266f47d4364cb3f36b4d07009d2953b352ace0e3d548"
   }
 }

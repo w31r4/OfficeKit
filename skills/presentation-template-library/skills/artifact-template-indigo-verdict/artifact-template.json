@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-indigo-verdict",
   "displayName": "Indigo Verdict",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "d3d77ce38abc957ab8b74a99169079d3e81340a47c1d44e5a351a7e3504e52b7"
+      "sha256": "af1c5e0f348688725d7afe65ee5f46d26fddde2deebe2ad79c31c7c70bc292e2"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "82cb86137e388a346a10ff9ff2c14364361718bde559eed0a7703c965f99f1c5"
+      "sha256": "15bd89abaaa26d3241b643cba9c22c31846974c9127b2609afc6f9bced3099f1"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "7e49c1c909177c54ffcae8751dbf639b73448e604f8215dfc6d6e666472f56eb"
+      "sha256": "feddf2bae996e02c9ba46612d50bb764f868e67d13446bef86a2baeee27ef17b"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "3d80ed1fe002ca4f854e2e06559c3bbdb71ac80c0131d9c6b7602f6729d8a2cd"
+      "sha256": "afe41b606c79f4ac9fe8790feeada93b3a38aa10ded6a135fc127115076a2c6d"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "7e5d8a47c4f8333d88eea9d008af40fe7987d11f99be19665cc210e305013c73",
-    "previewSha256": "df66e09577e223ac5c9c173bbc9df6f9e43730dd23967f22c44e8ae8d06b9f5b"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "cb81f7d232559890fe194afb86229cd6f35234c6d708d127087573f0c5a4d7c2",
+    "referenceSha256": "c85ed27c2c1972459498201d6c64d02092dff67b11c3e01b3dd6dba2744630da",
+    "previewSha256": "0d54bf74f2f32ce23a2dc32d009301a20b795e8385e71d1ec7c52ef4ebf42ad3"
   }
 }

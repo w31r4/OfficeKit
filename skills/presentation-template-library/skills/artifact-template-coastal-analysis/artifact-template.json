@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-coastal-analysis",
   "displayName": "Coastal Analysis",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "656953cabb928058009b6b0498f26b570e6864e9e47945adb985453480736d36"
+      "sha256": "c2ecbda38c9c5c3deab9463821d3ab9ff43819e13cce91fe88dbdaf2782c9304"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "d5738cc241fb8a40992f40370455d694978aaece45c3bf90a15934e3c755f532"
+      "sha256": "7808ac68a3cb6184892341f75df38aea7635bb80414391163ee4fe0c9bf4c720"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "0f837ae5140c0a2290c4d81e08b4a610e7be49fd822a6318acc07eb8603ace4e"
+      "sha256": "3b2a604e9c6d5bcf853584647c34f6bb4011b9d1a10695b8b3e00f95e04d582e"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "96fe4a0bff92bb284221b1ad275b09e1d19605217ea5d6ab758577843c01353a"
+      "sha256": "2af0a31005ea3e8c10853ec4713f6e9a607adc1413ecc6958a0594faed17d630"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "e2f05872fb67182e0bef418b45bf276eaaeab2fff8bd1281d1574570944504ec",
-    "previewSha256": "4a18b6495c98c02b6ccfbb18059a7611a5a183735dc8effb74707a9d97a060d0"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "19619fc739b09861f32bf34e8c728a6ff169e8b56f89c66fdd58a55d8eb1573b",
+    "referenceSha256": "955f1679dbe6c986e4f30aa4a41cdc299c2d6ee64694d3b5c15e7b4ddb51ca98",
+    "previewSha256": "bdf31742d0a93c8c3cda631e1b958f6a3161b802a0a22ac8b92fa2c6b79e669b"
   }
 }

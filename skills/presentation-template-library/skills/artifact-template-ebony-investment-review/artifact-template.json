@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-ebony-investment-review",
   "displayName": "Ebony Investment Review",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "106932759a8eee18dbf5a7bc9e113afd38f668cf08c1c303d4a2601651420fd8"
+      "sha256": "91b4587b77545597a049e060be5245c1589b923da66449d3aa0d313b59ae6272"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "bcaa9fbcb5bbd14d55607c397d6d2f6fac5381c385370705550ff907c7f5fe74"
+      "sha256": "15cdfd59fc7578414f8ea109dc7107bf3a9f727dd0af2c81bb59b2c7cbcaae78"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "c2635a4582a7c9bc78562f50e38019fb20029981f2e38e68e88e8811583b0dd2"
+      "sha256": "60018f9e62d7df7e6a52baaac38d67279181156dc8f6727de42587c340e5bbf4"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "e24b1a583db45f83db6e6c939cf586b0db19ce52f8bd3475ae3488fa23ecc072"
+      "sha256": "230b8b4b6b6ba0d3f743602fd613747b3f3cac8858e7d3d9cd0514963518ce7e"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "820d6f5142db12fb0be79b1fcf4e9083174274c15819b45ac4b1801dfa523854",
-    "previewSha256": "4fae0d38f3991365a9eef385c18afffecf07ec89e9135974fe6ed9ed10434f07"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "791f717d8a3d8508885a45eca708fc654a83568eeb251cf56a8c32aa1aed2427",
+    "referenceSha256": "4a5eca29f6bda8ffac72492b95ed1d219507fe543b9f97b98e5aeff54f431f4d",
+    "previewSha256": "bbf8f7ed8a665793fc787d61edde6aa200dae1441d91d5a16e7348443cef5209"
   }
 }

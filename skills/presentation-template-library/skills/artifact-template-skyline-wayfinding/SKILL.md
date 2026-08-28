@@ -1,6 +1,6 @@
 ---
 name: artifact-template-skyline-wayfinding
-description: "Skyline Wayfinding is an original OfficeKit presentation style for service operations, with wayfinding-led composition and medium information density."
+description: "Skyline Wayfinding presentation style."
 ---
 
 # Skyline Wayfinding
