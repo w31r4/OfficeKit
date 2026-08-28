@@ -22,7 +22,7 @@ Documents or Spreadsheets then owns the edit and review workflow.
 
 ## Original presentation Template Skills
 
-`skills/presentation-template-library/` contains eight OfficeKit-original,
+`skills/presentation-template-library/` contains thirty-eight OfficeKit-original,
 AGPL-licensed presentation Template Skills. Presentation schema v3 has one
 public form:
 
@@ -37,9 +37,11 @@ assets/examples/*.png
 The guide is the style authority; the images are visual calibration evidence.
 No presentation template ships a PPTX, MJS, DSL, SVG page skeleton, fixed
 Layout, or cloneable component. Existing IDs are retained only as catalog
-identity. The guidance and calibration pages were rewritten and rendered as
-OfficeKit-original work rather than copied from the removed source-backed PPTX
-templates.
+identity. Thirty styles were rebuilt from high-level observations of the
+user-supplied visual reference pack. The eight earlier default styles were
+rewritten and re-rendered after native background-layer support was available;
+their guides now cover scene stacking, contrast, crop, and editable foreground
+content. No source deck, source wording, or page geometry is distributed.
 
 `presentation-template-creator` packages the same fixed surface from a distilled
 guide and four to six original calibration images. Reference decks, analysis,
@@ -52,6 +54,6 @@ templates, retained hashes, materialization, and bounded native workflows.
 `test/template-creator.mjs` checks deterministic presentation schema-v3
 creation/update and generic PPTX routing. `test/office-kit-skill.mjs` verifies
 schema-specific discovery, hash validation, old presentation schema rejection,
-and zero-or-one selection. Package checks require all eight presentation styles,
-40 calibration images, and reject PPTX, executable code, page DSL, and SVG page
-skeletons from their template directories.
+and zero-or-one selection. Package checks require all thirty-eight presentation
+styles, 190 calibration images, and reject PPTX, executable code, page DSL, and
+SVG page skeletons from their template directories.
