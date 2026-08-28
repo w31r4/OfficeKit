@@ -27,7 +27,11 @@ Thirty styles were independently rebuilt from high-level observations of a
 user-supplied visual reference set. The eight earlier default styles were
 recomposed after native background-layer support was available: their guides and
 calibration pages now teach scene stacking, contrast checks, and editable
-foreground content instead of preserving the old source-backed payload. The
-reference archive, source descriptions, page images, names, and geometry are not
-distributed. Each shipped guide and calibration page is an original OfficeKit
-work.
+foreground content instead of preserving the old source-backed payload. Two
+image-only styles have additionally passed the authored-reference pilot: Gilt
+Market Ledger and Blueprint Lecture ship a small native `reference.pptx` whose
+layers can be inspected and edited. The remaining styles stay clearly marked as
+legacy calibration entries until they pass the same visual and functional
+95/95 evidence bar. The reference archive, source descriptions, page images,
+names, and geometry are not distributed. Each shipped guide and calibration
+page is an original OfficeKit work.
