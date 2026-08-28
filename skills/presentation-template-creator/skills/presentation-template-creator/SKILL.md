@@ -6,21 +6,25 @@ description: Create or update a reusable PowerPoint style template from a refere
 # Presentation Template Creator
 
 Create OfficeKit's single PowerPoint template form: a complete, self-contained
-style Skill plus original visual examples. The main Presentations Skill is a
-short router; a template Skill is the durable mini design system an Agent reads
-after selection. Preserve the useful design evidence an Agent needs to work
-without the reference at hand. Do not turn it into a palette slogan, a short
-list of adjectives, or a compressed copy of the source. Never retain a
-reference PPTX, fixed layout, page skeleton, source component, or authoring
-script in the template.
+style Skill, an OfficeKit-authored reference PPTX, and original visual examples.
+The main Presentations Skill is a short router; a template Skill is the durable
+mini design system an Agent reads after selection. The reference PPTX is a
+native, inspectable calibration and asset source for cases where parsing and
+source-derived reuse improve fidelity. It is not a fixed layout registry or a
+page that every deck must clone. Preserve the useful design evidence an Agent
+needs to work without reopening the reference. Do not turn the guide into a
+palette slogan, a short list of adjectives, or a compressed copy of the source.
+Never copy an external reference deck into a published template: when a clean-
+room template needs a PPTX, author a new unrelated deck with OfficeKit and
+record its hash and provenance.
 
 Read [references/template-format.md](references/template-format.md) before
 packaging a template.
 
 ## Workflow
 
-1. Put all references in the current task as read-only inputs. A PPTX is a
-   reference deck, not a template artifact.
+1. Put all references in the current task as read-only inputs. An external PPTX
+   is evidence to inspect, not a file to copy into the published template.
 2. Render and inspect the references. Distill every reusable, evidence-backed
    decision: audience fit, communication jobs, narrative moves, palette and
    surfaces, typography rhythm, geometry and line language, density, imagery,
@@ -42,10 +46,13 @@ packaging a template.
    new content and geometry, cover at least three page roles, render every page,
    and review it visually. Recreate any design-defining overlap with real
    editable layers, then reopen the PPTX and verify its stack before describing
-   the relationship in the template Skill.
-5. Save only the guide body, calibration PNGs, and a packaging spec in the task.
-   Source files, intermediate PPTX files, extracted media, and QA evidence stay
-   outside the published Skill.
+   the relationship in the template Skill. The reviewed OfficeKit-authored
+   deck becomes `assets/reference.pptx`; its pages and native assets are a
+   reusable starting point, not mandatory coordinates.
+5. Save the complete guide body, the reviewed reference PPTX, calibration PNGs,
+   and a packaging spec in the task. External source files, extracted media,
+   superseded intermediate decks, and QA evidence stay outside the published
+   Skill.
 6. Package with:
 
    ```bash
@@ -66,7 +73,10 @@ packaging a template.
   Compose, motion, review, and delivery.
 - A user or brand design system remains authoritative. Do not blend conflicting
   templates or select more than one.
-- Existing OfficeKit bundled-template migration always uses recreated examples,
-  never old screenshots.
-- Do not add `STYLE.md`, a retained reference, executable code, SVG page
-  skeletons, or undocumented files to a generated template.
+- Existing OfficeKit bundled-template migration uses an OfficeKit-authored
+  reference PPTX plus recreated examples; it never republishes the source deck
+  or old screenshots.
+- Do not add `STYLE.md`, source-owned files, executable code, SVG page
+  skeletons, fixed-layout registries, or undocumented files to a generated
+  template. `assets/reference.pptx` is the one declared native reference asset
+  and must be hash-bound in the sidecar.

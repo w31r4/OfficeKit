@@ -8,13 +8,16 @@ artifact-template-<slug>/
 ├── artifact-template.json
 ├── agents/agent.yaml
 └── assets/
+    ├── reference.pptx
     ├── preview.png
     └── examples/
         ├── 01-<role>.png
         └── ...
 ```
 
-No other file is allowed.
+No other file is allowed. `assets/reference.pptx` is an OfficeKit-authored,
+hash-bound calibration/source deck; it is not the external reference that was
+used to derive the style.
 
 ## Guide body
 
@@ -34,6 +37,8 @@ guess the design system:
 - the preferred page archetypes and information density;
 - how the style treats photographs, SVG, charts, tables, diagrams, and
   editable foreground/background layers;
+- how an Agent may inspect or selectively reuse the packaged reference deck
+  without treating it as a fixed layout or cloning every page;
 - the final visual and structural checks that protect the style.
 
 Do not repeat the general Presentations workflow or prescribe fixed coordinates.
@@ -46,6 +51,7 @@ Do not repeat the general Presentations workflow or prescribe fixed coordinates.
   "displayName": "Example",
   "description": "Create presentations with an evidence-led editorial style. Use when the user selects Example.",
   "guidePath": "/absolute/task/guide.md",
+  "referencePath": "/absolute/task/reference.pptx",
   "useWhen": ["evidence led analysis"],
   "avoidWhen": ["playful consumer campaign"],
   "audiences": ["executive"],
@@ -74,6 +80,9 @@ Use English for search metadata. Example roles are `cover`, `section`,
 `analysis`, `data`, `process`, `comparison`, `closing`, or `mixed`. Provide four
 to six PNGs and at least three distinct roles.
 
-The resulting `artifact-template.json` is schema v3. Its hashes bind the guide,
-preview, and every example. The generated preview is a deterministic two-column
-montage; examples remain the full-resolution evidence the Agent should inspect.
+The resulting `artifact-template.json` is schema v4 for presentation templates.
+Its hashes bind the reference PPTX, guide, preview, and every example. The
+generated preview is a deterministic two-column montage; examples remain the
+full-resolution visual evidence the Agent should inspect. The reference deck is
+the native, editable calibration source, while the guide remains the authority
+for style decisions.
