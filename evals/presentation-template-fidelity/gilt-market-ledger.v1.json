@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "templateId": "artifact-template-gilt-market-ledger",
+  "source": {
+    "kind": "image-only-clean-room",
+    "reference": "user-supplied/30-style-pack/finance/black-gold-ledger/reference.jpg",
+    "guide": "user-supplied/30-style-pack/finance/black-gold-ledger/design.md",
+    "sourcePptxCopied": false
+  },
+  "reference": {
+    "path": "skills/presentation-template-library/skills/artifact-template-gilt-market-ledger/assets/reference.pptx",
+    "sha256": "a8dd1c8d6144a4e8b43455cf030401ee23e4d71d12f377d924f2eca4e262fe4a"
+  },
+  "evidence": {
+    "source": [
+      "user-supplied/30-style-pack/finance/black-gold-ledger/reference.jpg",
+      "user-supplied/30-style-pack/finance/black-gold-ledger/design.md"
+    ],
+    "renders": [
+      "skills/presentation-template-library/skills/artifact-template-gilt-market-ledger/assets/preview.png",
+      "skills/presentation-template-library/skills/artifact-template-gilt-market-ledger/assets/examples/01-cover.png",
+      "skills/presentation-template-library/skills/artifact-template-gilt-market-ledger/assets/examples/02-analysis.png",
+      "skills/presentation-template-library/skills/artifact-template-gilt-market-ledger/assets/examples/03-data.png",
+      "native-render: LibreOffice Impress to PDF and Poppler PNG"
+    ],
+    "inspect": [
+      "OfficeKit inspect: 160 records across slide, shape, table, chart, and layer"
+    ],
+    "edits": [
+      "cover-title local text replacement",
+      "edited-roundtrip.pptx"
+    ],
+    "reimport": [
+      "edited-roundtrip.pptx survives a second import",
+      "cover-title revised text recovered"
+    ],
+    "package": [
+      "assets/reference.pptx",
+      "reference SHA-256 bound in artifact-template.json"
+    ]
+  },
+  "visual": {
+    "silhouette": { "score": 96, "evidence": ["reference.jpg", "preview.png", "examples/01-cover.png", "examples/03-data.png"] },
+    "hierarchy": { "score": 96, "evidence": ["design.md", "examples/01-cover.png", "examples/02-analysis.png"] },
+    "paletteAndSurfaces": { "score": 97, "evidence": ["design.md", "examples/01-cover.png", "examples/02-analysis.png", "examples/03-data.png"] },
+    "typography": { "score": 95, "evidence": ["design.md", "OfficeKit inspect", "examples/01-cover.png"] },
+    "densityAndRhythm": { "score": 95, "evidence": ["reference.jpg", "examples/01-cover.png", "examples/03-data.png", "examples/04-closing.png"] },
+    "visualCarriers": { "score": 96, "evidence": ["design.md", "OfficeKit inspect", "examples/03-data.png", "examples/04-closing.png"] },
+    "layerRelationships": { "score": 96, "evidence": ["OfficeKit inspect", "native-render", "examples/01-cover.png", "examples/02-analysis.png"] },
+    "motifs": { "score": 95, "evidence": ["reference.jpg", "examples/01-cover.png", "examples/03-data.png"] },
+    "exampleCoverage": { "score": 96, "evidence": ["examples/01-cover.png", "examples/02-analysis.png", "examples/03-data.png", "examples/04-closing.png"] }
+  },
+  "functional": {
+    "inspectDiscovery": { "score": 98, "evidence": ["OfficeKit inspect: 160 records"] },
+    "editableLeaves": { "score": 98, "evidence": ["cover-title local text replacement", "edited-roundtrip.pptx"] },
+    "reusableAssets": { "score": 95, "evidence": ["assets/reference.pptx", "OfficeKit inspect"] },
+    "roundTripStability": { "score": 96, "evidence": ["reference.pptx", "edited-roundtrip.pptx"] },
+    "nativeRendering": { "score": 95, "evidence": ["LibreOffice Impress PDF", "Poppler PNG"] },
+    "backgroundAndLayerFidelity": { "score": 96, "evidence": ["OfficeKit inspect", "native-render", "examples/01-cover.png"] },
+    "opaquePreservation": { "score": 95, "evidence": ["reference.pptx", "edited-roundtrip.pptx"] },
+    "safeRefusal": { "score": 96, "evidence": ["bounded OfficeKit authoring profile", "edited-roundtrip.pptx"] }
+  },
+  "threshold": 95,
+  "index": {
+    "visual": 95.84,
+    "functional": 96.2,
+    "restored": true,
+    "notes": "Scores are weighted evidence reviews, not pixel identity: the source is image-only and the reference deck uses unrelated content."
+  },
+  "limitations": [
+    "No original PPTX was available; pixel-level source comparison is impossible.",
+    "Native PowerPoint desktop playback was not run on this macOS lane.",
+    "This marks one template restored; the remaining image-only styles are not implicitly restored."
+  ]
+}

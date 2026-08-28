@@ -589,11 +589,16 @@ assert.equal(
 const packagedPresentationSidecars = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
 );
-assert.equal(packagedPresentationSidecars.length, 38, "npm package must ship exactly thirty-eight schema-v3 presentation style Skills");
+assert.equal(packagedPresentationSidecars.length, 38, "npm package must ship exactly thirty-eight presentation style Skills");
+const packagedPresentationReferences = files.filter((file) =>
+  /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/reference\.pptx$/u.test(file),
+);
+assert.equal(packagedPresentationReferences.length, 1, "exactly one migrated presentation template must ship an authored reference deck");
 assert.ok(
   files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|mjs|js|svg)$/u.test(file)
-    || file.endsWith("/assets/icon.svg")),
-  "presentation templates must not ship source decks, code, page DSL, or SVG page skeletons",
+    || file.endsWith("/assets/icon.svg")
+    || file.endsWith("/assets/reference.pptx")),
+  "presentation templates must not ship source decks, code, page DSL, or SVG page skeletons; authored reference decks are allowlisted",
 );
 const packagedPresentationCalibrationPngs = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
