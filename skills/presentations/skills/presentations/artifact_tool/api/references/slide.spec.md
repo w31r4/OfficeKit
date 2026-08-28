@@ -32,15 +32,33 @@ slide.clearBackground();
 ```
 
 The canonical OfficeKit PPTX boundary owns only a direct `p:cSld/p:bg` with
-one six-digit RGB/theme color. `mode: "solid"` authors a direct solid fill;
-`mode: "reference"` authors a native background-style reference with an
-unsigned 32-bit `index`. Passing `background` to `presentation.slides.add(...)`
-uses the same shape.
+one six-digit RGB/theme color or one bounded embedded image. `mode: "solid"`
+authors a direct solid fill; `mode: "reference"` authors a native
+background-style reference with an unsigned 32-bit `index`. Passing
+`background` to `presentation.slides.add(...)` uses the same shape. For the
+embedded-image form, use `slide.setNativeBackgroundImage(...)` when the
+background must be a true native backdrop.
 
 `slide.background` is the direct slide override. `slide.effectiveBackground()`
 resolves that override or the preserved Layout/Master inheritance chain.
 `clearBackground()` removes only the direct override and never flattens the
 inherited color into the slide part.
+
+For an image that is semantically the slide background rather than a movable
+scene object, use:
+
+```ts
+slide.setNativeBackgroundImage({ blob: await FileBlob.load(path, { type: "image/jpeg" }) });
+slide.clearNativeBackgroundImage();
+```
+
+This authors one embedded stretch-only `p:bg/p:bgPr/a:blipFill` image beneath
+all slide content. It has no scene-stack index and cannot be reordered or
+animated. `dataUrl` or an existing content-addressed `assetId` may be used in
+place of `blob`. Crop, cover/contain, tile, effects, external links, and
+irregular imported background graphs remain unsupported and fail closed. Use
+`slide.setBackgroundImage()` for an ordinary editable picture layer when crop,
+z-order, or animation is part of the design.
 
 Recognized imported direct backgrounds are source/hash-bound and may be
 changed or removed. A slide with no direct background may gain one. Gradient,

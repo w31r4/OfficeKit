@@ -16,6 +16,23 @@ export function normalizePresentationBackground(value, fallback) {
   if (value == null) return fallback == null ? undefined : normalizePresentationBackground(fallback);
   const input = typeof value === "string" ? { fill: value } : value;
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("Presentation background must be a color string or object.");
+  if (input.image != null) {
+    if (input.fill != null || input.color != null || input.mode != null || input.type != null || input.index != null || input.idx != null) {
+      throw new TypeError("Presentation image background cannot be combined with a color or reference mode.");
+    }
+    const image = input.image;
+    if (!image || typeof image !== "object" || Array.isArray(image)) throw new TypeError("Presentation image background requires an image object.");
+    const assetId = image.assetId == null ? undefined : String(image.assetId).trim();
+    const dataUrl = image.dataUrl == null ? undefined : String(image.dataUrl);
+    if (!assetId && !dataUrl) throw new TypeError("Presentation image background requires assetId or dataUrl.");
+    if (dataUrl && !/^data:image\/(?:png|jpe?g|gif|svg\+xml);base64,/i.test(dataUrl)) {
+      throw new TypeError("Presentation image background dataUrl must be a base64 PNG, JPEG, GIF, or SVG image.");
+    }
+    if (image.fit != null && String(image.fit) !== "stretch") throw new TypeError("Presentation native image background only supports stretch fit.");
+    if (image.crop != null || image.transform != null || image.uri != null) throw new TypeError("Presentation native image background does not support crop, transform, or external links.");
+    if (image.alphaModulationFixed != null && typeof image.alphaModulationFixed !== "boolean") throw new TypeError("Presentation native image background alphaModulationFixed must be boolean.");
+    return { image: { ...(assetId ? { assetId } : {}), ...(dataUrl ? { dataUrl } : {}), fit: "stretch", ...(image.alphaModulationFixed ? { alphaModulationFixed: true } : {}) } };
+  }
   const fill = String(input.fill || input.color || "").trim();
   if (!fill) throw new TypeError("Presentation background requires fill.");
   if (!SCHEME_COLORS.has(fill)) colorValue(fill);

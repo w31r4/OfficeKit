@@ -150,7 +150,13 @@ instead of rebuilding them from visible caches.
 For slide backgrounds, use the typed `slide.setBackground(...)` and
 `slide.clearBackground()` primitives documented in
 `artifact_tool/api/references/slide.spec.md`. Direct solid/style-reference
-backgrounds cross the canonical OfficeKit PPTX path. Never flatten an
+backgrounds cross the canonical OfficeKit PPTX path. For a true full-bleed
+embedded picture, use `slide.setNativeBackgroundImage(...)` and
+`slide.clearNativeBackgroundImage()`; this is a direct native
+`p:bg/p:bgPr/a:blipFill` profile, not a reorderable picture element. It accepts
+one embedded stretch-only image and rejects crop, tile, effects, links, and
+irregular background graphs. Use `slide.setBackgroundImage(...)` when you need
+an ordinary picture layer with crop or z-order behavior. Never flatten an
 inherited Layout/Master background or silently replace an advanced imported
 background graph; preserve it unchanged or let the export fail closed.
 

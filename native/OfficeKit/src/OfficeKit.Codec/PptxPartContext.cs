@@ -13,6 +13,8 @@ internal sealed class PptxPartContext
     private const string ImageRelationshipType = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image";
     private readonly HashSet<string> _addedRelationshipIds = new(StringComparer.Ordinal);
     private readonly HashSet<string> _addedPartPaths = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _removedRelationshipIds = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _removedPartPaths = new(StringComparer.OrdinalIgnoreCase);
     private readonly Func<PartTypeInfo, string, ImagePart> _addImagePart;
 
     internal PptxPartContext(
@@ -64,9 +66,11 @@ internal sealed class PptxPartContext
     internal IReadOnlyDictionary<string, SlidePart> SlidePartById { get; }
     internal PptxAssetCatalog? Assets { get; }
     internal PptxCustomShowCatalog CustomShows { get; }
-    internal bool RelationshipsChanged => _addedRelationshipIds.Count > 0;
+    internal bool RelationshipsChanged => _addedRelationshipIds.Count > 0 || _removedRelationshipIds.Count > 0;
     internal IReadOnlyCollection<string> AddedRelationshipIds => _addedRelationshipIds;
     internal IReadOnlyCollection<string> AddedPartPaths => _addedPartPaths;
+    internal IReadOnlyCollection<string> RemovedRelationshipIds => _removedRelationshipIds;
+    internal IReadOnlyCollection<string> RemovedPartPaths => _removedPartPaths;
 
     internal string AddExternalHyperlink(string uri)
     {
@@ -192,6 +196,27 @@ internal sealed class PptxPartContext
         Assets.RegisterPart(assetId, part);
         _addedPartPaths.Add(part.Uri.OriginalString.TrimStart('/'));
         return Track(relationshipId);
+    }
+
+    // Removing a modeled image reference must not leave an orphaned source
+    // relationship or media part in the owner part. Keep the relationship when
+    // another blip in this owner still uses it; a shared image used by another
+    // owner remains managed by the package graph.
+    internal void RemoveIfUnreferenced(string relationshipId)
+    {
+        if (string.IsNullOrWhiteSpace(relationshipId) ||
+            Owner.RootElement is { } root &&
+            (root.GetAttributes().Any(attribute => attribute.Value == relationshipId) ||
+             root.Descendants().Any(element => element.GetAttributes().Any(attribute => attribute.Value == relationshipId))))
+            return;
+        var part = Owner.GetPartById(relationshipId);
+        if (part is null) return;
+        var partPath = part.Uri.OriginalString.TrimStart('/');
+        if (Owner.DeletePart(part))
+        {
+            _removedRelationshipIds.Add(relationshipId);
+            _removedPartPaths.Add(partPath);
+        }
     }
 
     private string AddExternalPicture(string value)
