@@ -90,7 +90,7 @@ assert.match(templateSelectionText, /templates bundled with OfficeKit/i);
 
 const expectedCounts = new Map([
   ["document", 7],
-  ["presentation", 8],
+  ["presentation", 9],
   ["spreadsheet", 6],
 ]);
 for (const [kind, expectedCount] of expectedCounts) {
@@ -113,13 +113,33 @@ for (const [kind, expectedCount] of expectedCounts) {
     assert.ok(["copy-only", "bounded-edit", "composable"].includes(candidate.editProfile.level));
     assert.equal(candidate.provenance.license, "MIT");
     assert.equal(path.basename(candidate.skillPath), "SKILL.md");
-    await Promise.all([
+    const assets = [
       fs.access(candidate.skillPath),
-      fs.access(candidate.referencePath),
       fs.access(candidate.previewPath),
-    ]);
+    ];
+    if (candidate.templateSchemaVersion === 3) {
+      assert.equal(candidate.kind, "presentation");
+      assert.equal(candidate.referencePath, undefined);
+      assert.ok(candidate.examples.length >= 1 && candidate.examples.length <= 8);
+      assets.push(...candidate.examples.map((example) => fs.access(example.absolutePath)));
+    } else {
+      assert.equal(candidate.templateSchemaVersion, 2);
+      assets.push(fs.access(candidate.referencePath));
+      assert.deepEqual(candidate.examples, []);
+    }
+    await Promise.all(assets);
   }
 }
+
+const cleanRoom = await queryTemplates({
+  kind: "presentation",
+  roots: [templateRoot],
+  id: "artifact-template-evidence-ledger",
+});
+assert.equal(cleanRoom.candidates.length, 1);
+assert.equal(cleanRoom.candidates[0].templateSchemaVersion, 3);
+assert.equal(cleanRoom.candidates[0].referencePath, undefined);
+assert.equal(cleanRoom.candidates[0].examples.length, 5);
 
 const ranked = await queryTemplates({
   kind: "presentation",

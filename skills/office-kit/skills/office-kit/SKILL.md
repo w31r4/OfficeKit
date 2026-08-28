@@ -116,6 +116,13 @@ XLSX, or PPTX.
    the requested edits fit both the template's verified edit profile and the
    domain Skill's source-bound capabilities.
 
+For a schema-v3 presentation candidate, the returned Skill, preview, and
+hashed example PNGs are the complete visual evidence. Read that guidance and
+compose new pages; do not look for a missing PPTX reference or treat an
+example as a cloneable slide. Native background images, cross-type layer order,
+and imported source preservation are capabilities of the Presentations Skill,
+not assumptions granted by template metadata.
+
 `none` means the owning Skill should compose the artifact from first
 principles. It is a successful design decision, not an error or fallback.
 

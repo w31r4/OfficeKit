@@ -71,6 +71,14 @@ route: select one scenario, choose a deck-specific direction, write a concrete
 Design Grammar, and compose freely. Grid is not a default or fallback; it is an
 ordinary template available only when template search selects it.
 
+A schema-v3 presentation template is a style guide plus a preview and example
+images. Read its `SKILL.md` and inspect those examples as visual evidence; do
+not treat them as fixed pages or import a missing reference deck. For static
+full-bleed art behind editable content, use
+`slide.setNativeBackgroundImage({ blob, fit: "stretch" })`: this writes native
+`p:bg` and stays behind the scene. Use `slide.setBackgroundImage(...)` only
+when the picture must remain a movable or animated scene element.
+
 For ordinary self-directed pages, card-based composition is forbidden. Do not
 build card walls, equal panel grids, colored-side cards, decorative pills or
 badges, or pages dominated by `box()`, `card()`, or `metricPanel()`. This rule
@@ -80,9 +88,14 @@ explicit dashboard request. The exact boundary is in the
 [shared visual floor](style_guidelines.md).
 
 `compose/edit` uses only public OfficeKit capabilities. Search Help by intent
-and load advanced references only for the object or workflow in use. API
-examples prove callability, not visual quality; do not copy their palette,
-helpers, or page silhouettes as a design source.
+and load advanced references only for the object or workflow in use. For an
+imported page, inspect `slide.elements` (or
+`presentation.inspect({ kind: "layer" })`) before changing order; source-bound
+order that lacks a codec-issued capability is preserved and fails closed. Keep
+background, overlay, chart, text, and foreground decision elements in an
+intentional stack so art never covers evidence. API examples prove callability,
+not visual quality; do not copy their palette, helpers, or page silhouettes as a
+design source.
 
 `review` follows [Review and deliver](tasks/review-deliver.md). Run semantic,
 structural, layout/render, design, optional reading-view, visual/human, and

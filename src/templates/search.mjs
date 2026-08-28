@@ -22,6 +22,7 @@ const AVOID_CONFLICT_MATCH = 0.72;
 const BM25_K1 = 1.2;
 const BM25_B = 0.75;
 const VALID_KINDS = new Set(["document", "presentation", "spreadsheet"]);
+const PRESENTATION_TEMPLATE_SCHEMA_VERSION = 3;
 const REFERENCE_EXTENSIONS = new Map([
   ["document", ".docx"],
   ["presentation", ".pptx"],
@@ -308,18 +309,28 @@ async function readTemplate({ expectedId, root, templatePath }) {
   validateMetadata(metadata, expectedId);
 
   const skillPath = await resolveTemplateSkill(templatePath);
-  const referencePath = await resolveAsset(
-    templatePath,
-    metadata.reference,
-    metadata.provenance.referenceSha256,
-    "reference",
-  );
   const previewPath = await resolveAsset(
     templatePath,
     metadata.preview,
     metadata.provenance.previewSha256,
     "preview",
   );
+  const referencePath = metadata.schemaVersion === PRESENTATION_TEMPLATE_SCHEMA_VERSION
+    ? undefined
+    : await resolveAsset(
+      templatePath,
+      metadata.reference,
+      metadata.provenance.referenceSha256,
+      "reference",
+    );
+  const examples = metadata.schemaVersion === PRESENTATION_TEMPLATE_SCHEMA_VERSION
+    ? await Promise.all(metadata.examples.map(async (example) => ({
+      path: example.path,
+      role: example.role,
+      sha256: example.sha256,
+      absolutePath: await resolveAsset(templatePath, example.path, example.sha256, `example ${example.path}`),
+    })))
+    : [];
 
   return {
     id: metadata.id,
@@ -332,6 +343,8 @@ async function readTemplate({ expectedId, root, templatePath }) {
     visualTraits: metadata.visualTraits,
     visualCommitment: metadata.visualCommitment,
     editProfile: metadata.editProfile,
+    templateSchemaVersion: metadata.schemaVersion,
+    examples,
     provenance: {
       license: metadata.provenance.license,
       source: metadata.provenance.source,
@@ -350,28 +363,12 @@ function validateMetadata(value, expectedId) {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("metadata must be an object");
   }
-  assertObjectKeys(
-    value,
-    "metadata",
-    [
-      "schemaVersion",
-      "id",
-      "displayName",
-      "kind",
-      "reference",
-      "preview",
-      "useWhen",
-      "avoidWhen",
-      "audiences",
-      "contentShapes",
-      "visualTraits",
-      "visualCommitment",
-      "editProfile",
-      "provenance",
-    ],
-  );
-  if (value.schemaVersion !== 2) {
-    throw new Error("schemaVersion must be 2");
+  const isCleanRoomPresentation = value.schemaVersion === PRESENTATION_TEMPLATE_SCHEMA_VERSION && value.kind === "presentation";
+  assertObjectKeys(value, "metadata", isCleanRoomPresentation
+    ? ["schemaVersion", "id", "displayName", "kind", "preview", "examples", "useWhen", "avoidWhen", "audiences", "contentShapes", "visualTraits", "visualCommitment", "editProfile", "provenance"]
+    : ["schemaVersion", "id", "displayName", "kind", "reference", "preview", "useWhen", "avoidWhen", "audiences", "contentShapes", "visualTraits", "visualCommitment", "editProfile", "provenance"]);
+  if (value.schemaVersion !== 2 && !isCleanRoomPresentation) {
+    throw new Error("schemaVersion must be 2 for legacy templates or 3 for clean-room presentations");
   }
   assertTemplateId(value.id, "id");
   if (value.id !== expectedId) {
@@ -383,13 +380,30 @@ function validateMetadata(value, expectedId) {
   assertEnglishSearchArray(value.avoidWhen, "avoidWhen", { min: 0, max: 20 });
   assertEnglishSearchArray(value.audiences, "audiences", { min: 0, max: 20 });
   assertEnglishSearchArray(value.contentShapes, "contentShapes", { min: 0, max: 20 });
-  assertRelativeAssetPath(value.reference, "reference");
   assertRelativeAssetPath(value.preview, "preview");
-  if (path.posix.extname(value.reference).toLowerCase() !== REFERENCE_EXTENSIONS.get(value.kind)) {
-    throw new Error(`${value.kind} templates must use a ${REFERENCE_EXTENSIONS.get(value.kind)} reference`);
-  }
   if (path.posix.extname(value.preview).toLowerCase() !== ".png") {
     throw new Error("preview must use a .png file");
+  }
+  if (isCleanRoomPresentation) {
+    if (!Array.isArray(value.examples) || value.examples.length < 1 || value.examples.length > 8) {
+      throw new Error("presentation schemaVersion 3 templates must declare 1-8 examples");
+    }
+    const paths = new Set();
+    for (const [index, example] of value.examples.entries()) {
+      if (example == null || typeof example !== "object" || Array.isArray(example)) throw new Error(`examples[${index}] must be an object`);
+      assertObjectKeys(example, `examples[${index}]`, ["path", "role", "sha256"]);
+      assertRelativeAssetPath(example.path, `examples[${index}].path`);
+      if (path.posix.extname(example.path).toLowerCase() !== ".png") throw new Error(`examples[${index}].path must use a .png file`);
+      assertShortString(example.role, `examples[${index}].role`, 80);
+      assertHash(example.sha256, `examples[${index}].sha256`);
+      if (paths.has(example.path)) throw new Error("examples must not repeat an asset path");
+      paths.add(example.path);
+    }
+  } else {
+    assertRelativeAssetPath(value.reference, "reference");
+    if (path.posix.extname(value.reference).toLowerCase() !== REFERENCE_EXTENSIONS.get(value.kind)) {
+      throw new Error(`${value.kind} templates must use a ${REFERENCE_EXTENSIONS.get(value.kind)} reference`);
+    }
   }
 
   if (value.visualTraits == null || typeof value.visualTraits !== "object" || Array.isArray(value.visualTraits)) {
@@ -426,14 +440,12 @@ function validateMetadata(value, expectedId) {
   if (value.provenance == null || typeof value.provenance !== "object" || Array.isArray(value.provenance)) {
     throw new Error("provenance must be an object");
   }
-  assertObjectKeys(
-    value.provenance,
-    "provenance",
-    ["license", "source", "referenceSha256", "previewSha256"],
-  );
+  assertObjectKeys(value.provenance, "provenance", isCleanRoomPresentation
+    ? ["license", "source", "previewSha256"]
+    : ["license", "source", "referenceSha256", "previewSha256"]);
   assertShortString(value.provenance.license, "provenance.license", 120);
   assertShortString(value.provenance.source, "provenance.source", 500);
-  assertHash(value.provenance.referenceSha256, "provenance.referenceSha256");
+  if (!isCleanRoomPresentation) assertHash(value.provenance.referenceSha256, "provenance.referenceSha256");
   assertHash(value.provenance.previewSha256, "provenance.previewSha256");
 }
 

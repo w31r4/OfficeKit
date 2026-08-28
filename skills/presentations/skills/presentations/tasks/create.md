@@ -111,6 +111,12 @@ communication job → scenario → direction → design grammar
                   → page archetype → visual carrier → composition → motion
 ```
 
+When a static image is the visual field behind editable content, add it with
+`slide.setNativeBackgroundImage({ blob, fit: "stretch" })`, not as a normal
+picture layer. Use `slide.setBackgroundImage(...)` only for a movable or
+animated image. Read `slide.elements` and preserve the intended back-to-front
+order; no background or overlay may cover a chart, line, label, or conclusion.
+
 The static page must work before motion. Enlarge, crop, align, or recompose the
 evidence carrier when the canvas feels hollow; do not fill accidental emptiness
 with panels. Run `presentation.validateLayout()` before export, reopen the PPTX,

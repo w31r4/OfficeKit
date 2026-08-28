@@ -25,6 +25,13 @@ plan. Keep the source read-only.
 If several references exist, assign each one a role. Do not combine unrelated
 design languages without an explicit user request.
 
+If the selected template's `artifact-template.json` has `schemaVersion: 3` and
+`kind: "presentation"`, it is a clean-room visual grammar: read its `SKILL.md`
+and inspect `assets/preview.png` plus `assets/examples/*.png`. There is no
+retained PPTX to import. Use those images as visual evidence and compose new
+pages; never invent a fixed-page clone from them. Schema-v2 presentation
+templates continue through the reference-backed path below.
+
 ## 2. Distill evidence
 
 Import the PPTX, then use:
@@ -68,6 +75,14 @@ Export/reimport a pending source-derived slide before adding supported overlays
 or making another bounded edit. Use native Layout placeholders when they match
 the content job. Compose new editable objects when the source has no suitable
 archetype.
+
+For static full-bleed art behind editable content, use
+`slide.setNativeBackgroundImage({ blob, fit: "stretch" })` so the image is
+written to native `p:bg` behind all slide content. Use
+`slide.setBackgroundImage(...)` for a movable or animated picture. On imported
+slides inspect `slide.elements` before any reorder; if the source-bound prefix
+cannot prove a safe insertion point, stop rather than covering text, charts, or
+connectors.
 
 Before expanding a deck longer than four pages, render an opening page, one
 evidence page, and the densest or highest-risk page. Compare that spread with
