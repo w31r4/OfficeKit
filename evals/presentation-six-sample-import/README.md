@@ -19,5 +19,9 @@ within the target slide XML.  `evidence.v1.json` contains hashes, counts,
 capabilities, and statuses only; it does not contain source bytes or extracted
 content.
 
+`render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
+the same six inputs and a bounded placement edit. It includes per-slide PNG
+hashes so non-target pages can be checked without storing the rendered images.
+
 This is structural/package evidence.  Windows desktop PowerPoint open/save and
 playback remain a separate, not-yet-run host validation.

@@ -1,0 +1,1061 @@
+{
+  "schema": "office-kit/pptx-six-sample-render-evidence/v1",
+  "sources": [
+    {
+      "id": "nasa-froste-thermal-design",
+      "sourceSha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "slideCount": 13,
+      "renderer": {
+        "office": "LibreOffice",
+        "raster": "Poppler",
+        "dpi": 96
+      },
+      "placementTarget": {
+        "id": "presentation/slide/2/element/5",
+        "slide": 2
+      },
+      "targetPageChanged": true,
+      "nonTargetPagesPixelIdentical": true,
+      "pages": [
+        {
+          "slide": 1,
+          "sourcePngSha256": "73d76c2db3415072a9c205a4f3ac6f669d1a78296963bb61cd4c84a869f0ce98",
+          "editedPngSha256": "73d76c2db3415072a9c205a4f3ac6f669d1a78296963bb61cd4c84a869f0ce98",
+          "changed": false
+        },
+        {
+          "slide": 2,
+          "sourcePngSha256": "338a1e2d157ed74fc2caed3506751bd6c90d77e6b7c6002c476b28241a93f6f8",
+          "editedPngSha256": "b326948f3159feb18c6fb3fc67d95f51d04d3160e60c0e7fceffd7c5f6f6607a",
+          "changed": true
+        },
+        {
+          "slide": 3,
+          "sourcePngSha256": "2b232870dbd729aaa510873bee83046057916aad7d443a16b9e7c5ebe56ca1bf",
+          "editedPngSha256": "2b232870dbd729aaa510873bee83046057916aad7d443a16b9e7c5ebe56ca1bf",
+          "changed": false
+        },
+        {
+          "slide": 4,
+          "sourcePngSha256": "62e607f784fddbe1ed6bda1c3abf214fb14d313acbf1bec65aa642df7791abf0",
+          "editedPngSha256": "62e607f784fddbe1ed6bda1c3abf214fb14d313acbf1bec65aa642df7791abf0",
+          "changed": false
+        },
+        {
+          "slide": 5,
+          "sourcePngSha256": "d42f485cc11a6a92acce7d6147090913e9024722056b8cbf763f1583e77db257",
+          "editedPngSha256": "d42f485cc11a6a92acce7d6147090913e9024722056b8cbf763f1583e77db257",
+          "changed": false
+        },
+        {
+          "slide": 6,
+          "sourcePngSha256": "78a515c847f0bb58ce7976be488821b4b9d63ad17c48c7fa90d150821e152ef4",
+          "editedPngSha256": "78a515c847f0bb58ce7976be488821b4b9d63ad17c48c7fa90d150821e152ef4",
+          "changed": false
+        },
+        {
+          "slide": 7,
+          "sourcePngSha256": "1e75e0f393d2fce6927260655bf93c1743a2e9cff9a19e4f78f21e1204a0a52f",
+          "editedPngSha256": "1e75e0f393d2fce6927260655bf93c1743a2e9cff9a19e4f78f21e1204a0a52f",
+          "changed": false
+        },
+        {
+          "slide": 8,
+          "sourcePngSha256": "ed6f4738d11fb14283ca3e9fba7e912174493dd647a324d691d3f6f3743bcbc9",
+          "editedPngSha256": "ed6f4738d11fb14283ca3e9fba7e912174493dd647a324d691d3f6f3743bcbc9",
+          "changed": false
+        },
+        {
+          "slide": 9,
+          "sourcePngSha256": "e7b297bad471dc7639ad030dccb2a5885841bea4eab32081209842814a0f4035",
+          "editedPngSha256": "e7b297bad471dc7639ad030dccb2a5885841bea4eab32081209842814a0f4035",
+          "changed": false
+        },
+        {
+          "slide": 10,
+          "sourcePngSha256": "aff34e51d547c70b80ab7d185b7544ef250bc7fed457faacba5323edb1035b56",
+          "editedPngSha256": "aff34e51d547c70b80ab7d185b7544ef250bc7fed457faacba5323edb1035b56",
+          "changed": false
+        },
+        {
+          "slide": 11,
+          "sourcePngSha256": "c8c91790c1224094c0e7731ec32fc54da624ebef737f758e2d915d0f33bc408c",
+          "editedPngSha256": "c8c91790c1224094c0e7731ec32fc54da624ebef737f758e2d915d0f33bc408c",
+          "changed": false
+        },
+        {
+          "slide": 12,
+          "sourcePngSha256": "557ebcdcc3489e1dd52a1b28ab2f0fc07eee26306e666d854cbb340a771c890a",
+          "editedPngSha256": "557ebcdcc3489e1dd52a1b28ab2f0fc07eee26306e666d854cbb340a771c890a",
+          "changed": false
+        },
+        {
+          "slide": 13,
+          "sourcePngSha256": "9d2da8933c3c72e1b2c96a4a7a307e2d15853eb65e998af554d067229d8b1cae",
+          "editedPngSha256": "9d2da8933c3c72e1b2c96a4a7a307e2d15853eb65e998af554d067229d8b1cae",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "nasa-mms-machine-learning",
+      "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "slideCount": 21,
+      "renderer": {
+        "office": "LibreOffice",
+        "raster": "Poppler",
+        "dpi": 96
+      },
+      "placementTarget": {
+        "id": "presentation/slide/3/element/5",
+        "slide": 3
+      },
+      "targetPageChanged": true,
+      "nonTargetPagesPixelIdentical": true,
+      "pages": [
+        {
+          "slide": 1,
+          "sourcePngSha256": "ec9695580226689fc1e8e522cc3484f0eceeed741a38972424f9d400cfe1078c",
+          "editedPngSha256": "ec9695580226689fc1e8e522cc3484f0eceeed741a38972424f9d400cfe1078c",
+          "changed": false
+        },
+        {
+          "slide": 2,
+          "sourcePngSha256": "2f5921834d75717b2e7b60a9ca8cecb6daefddefc3d0a045c40c6f9f3d9c5af3",
+          "editedPngSha256": "2f5921834d75717b2e7b60a9ca8cecb6daefddefc3d0a045c40c6f9f3d9c5af3",
+          "changed": false
+        },
+        {
+          "slide": 3,
+          "sourcePngSha256": "23fa28ea6de5d3d460438d9f43eed27ba5080f02116913428ddfc32b6fe2cb19",
+          "editedPngSha256": "cec9735252658c21c21adf22a43a1226c1401a333f95047d1812e184368d23b4",
+          "changed": true
+        },
+        {
+          "slide": 4,
+          "sourcePngSha256": "ddbeb525e3e375e4199a8b5e545a1725cebbd8e83e888c7e0d48f6a9b4e313f3",
+          "editedPngSha256": "ddbeb525e3e375e4199a8b5e545a1725cebbd8e83e888c7e0d48f6a9b4e313f3",
+          "changed": false
+        },
+        {
+          "slide": 5,
+          "sourcePngSha256": "4b56f15e6117e67e062219a878ddae6095c4018cbb52aedc0fb247ee5380ee8d",
+          "editedPngSha256": "4b56f15e6117e67e062219a878ddae6095c4018cbb52aedc0fb247ee5380ee8d",
+          "changed": false
+        },
+        {
+          "slide": 6,
+          "sourcePngSha256": "bc095ac905bca81ca6f831485305fbc4063070c226de3e072b69e8b6bfe48d63",
+          "editedPngSha256": "bc095ac905bca81ca6f831485305fbc4063070c226de3e072b69e8b6bfe48d63",
+          "changed": false
+        },
+        {
+          "slide": 7,
+          "sourcePngSha256": "5ce843a551cf089148cce16eb6f089b24dc741735d820767ba737655180c3e08",
+          "editedPngSha256": "5ce843a551cf089148cce16eb6f089b24dc741735d820767ba737655180c3e08",
+          "changed": false
+        },
+        {
+          "slide": 8,
+          "sourcePngSha256": "9cc7afeb4853e38c2ffdb4a1d5005c953b6fa0d0195cd534fff08c8923b2ed28",
+          "editedPngSha256": "9cc7afeb4853e38c2ffdb4a1d5005c953b6fa0d0195cd534fff08c8923b2ed28",
+          "changed": false
+        },
+        {
+          "slide": 9,
+          "sourcePngSha256": "3a989a747f3d067092145dba6957884f1c05bbf1a9a5441945d55df24757b5d9",
+          "editedPngSha256": "3a989a747f3d067092145dba6957884f1c05bbf1a9a5441945d55df24757b5d9",
+          "changed": false
+        },
+        {
+          "slide": 10,
+          "sourcePngSha256": "d7935e377da3c73d5ff6643549e36d16ef56eda8b1f726fa4f1931b677eabc21",
+          "editedPngSha256": "d7935e377da3c73d5ff6643549e36d16ef56eda8b1f726fa4f1931b677eabc21",
+          "changed": false
+        },
+        {
+          "slide": 11,
+          "sourcePngSha256": "46207d76bd7c37dbf1f62e798c9ce01de4ea6101bf41beee53e520c919e26bfd",
+          "editedPngSha256": "46207d76bd7c37dbf1f62e798c9ce01de4ea6101bf41beee53e520c919e26bfd",
+          "changed": false
+        },
+        {
+          "slide": 12,
+          "sourcePngSha256": "2f37185b68df0447fd7dfc8f3e1db0af4d03d12ad4578303347bcd4546c207a8",
+          "editedPngSha256": "2f37185b68df0447fd7dfc8f3e1db0af4d03d12ad4578303347bcd4546c207a8",
+          "changed": false
+        },
+        {
+          "slide": 13,
+          "sourcePngSha256": "2a0abd638c62024dc6b61e009d54e35cf95addd18a745acc66c1a394fa463d0c",
+          "editedPngSha256": "2a0abd638c62024dc6b61e009d54e35cf95addd18a745acc66c1a394fa463d0c",
+          "changed": false
+        },
+        {
+          "slide": 14,
+          "sourcePngSha256": "ee76e40c453642109cf97176720f19587a6e054b2b047abed08fce026afb6a8e",
+          "editedPngSha256": "ee76e40c453642109cf97176720f19587a6e054b2b047abed08fce026afb6a8e",
+          "changed": false
+        },
+        {
+          "slide": 15,
+          "sourcePngSha256": "59d05994dea030cce3cab5d2e1f7eb50c584a839daba842ff2bb8d0ead6f1117",
+          "editedPngSha256": "59d05994dea030cce3cab5d2e1f7eb50c584a839daba842ff2bb8d0ead6f1117",
+          "changed": false
+        },
+        {
+          "slide": 16,
+          "sourcePngSha256": "11199d11d287e579c455d15238fe1aa9122fc20b7b67d967fc4ccb906d1a7e4b",
+          "editedPngSha256": "11199d11d287e579c455d15238fe1aa9122fc20b7b67d967fc4ccb906d1a7e4b",
+          "changed": false
+        },
+        {
+          "slide": 17,
+          "sourcePngSha256": "3f581ce3fce7ed38e882c3f261adcec9472bba4e8f91653fa3f73e1d8103681a",
+          "editedPngSha256": "3f581ce3fce7ed38e882c3f261adcec9472bba4e8f91653fa3f73e1d8103681a",
+          "changed": false
+        },
+        {
+          "slide": 18,
+          "sourcePngSha256": "d45bd03e58dbf66324bb61f2047f050ac5bbec91f5be5ce83e5ad4937b4cdae6",
+          "editedPngSha256": "d45bd03e58dbf66324bb61f2047f050ac5bbec91f5be5ce83e5ad4937b4cdae6",
+          "changed": false
+        },
+        {
+          "slide": 19,
+          "sourcePngSha256": "0f365e796e086ff49b95ce5b6fa896aef0dad60ece6278f4bca42b06292b464b",
+          "editedPngSha256": "0f365e796e086ff49b95ce5b6fa896aef0dad60ece6278f4bca42b06292b464b",
+          "changed": false
+        },
+        {
+          "slide": 20,
+          "sourcePngSha256": "0465e356d5b6738aea17d2ce3d1cf113bcc253c711b3638ffa95d410bb3466c1",
+          "editedPngSha256": "0465e356d5b6738aea17d2ce3d1cf113bcc253c711b3638ffa95d410bb3466c1",
+          "changed": false
+        },
+        {
+          "slide": 21,
+          "sourcePngSha256": "5f31c9a587c5cda74e00af73f9d50c0b1281b88b754e4b72570275e578277ece",
+          "editedPngSha256": "5f31c9a587c5cda74e00af73f9d50c0b1281b88b754e4b72570275e578277ece",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "slidescarnival-business-infographic",
+      "sourceSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "slideCount": 25,
+      "renderer": {
+        "office": "LibreOffice",
+        "raster": "Poppler",
+        "dpi": 96
+      },
+      "placementTarget": {
+        "id": "presentation/slide/1/element/5",
+        "slide": 1
+      },
+      "targetPageChanged": true,
+      "nonTargetPagesPixelIdentical": true,
+      "pages": [
+        {
+          "slide": 1,
+          "sourcePngSha256": "01eb78da384eab2e887ab4e930dfd3eec43cd1ca187181f48e928f6811d9baff",
+          "editedPngSha256": "178ab21b90a0e9278591ea99ed17ae5ae0311fec8d5978d42835876abce144a7",
+          "changed": true
+        },
+        {
+          "slide": 2,
+          "sourcePngSha256": "ef799757ec7130ae2ea02cede50f05637f2cd1ab6ce29ddb25bcca8eafd25918",
+          "editedPngSha256": "ef799757ec7130ae2ea02cede50f05637f2cd1ab6ce29ddb25bcca8eafd25918",
+          "changed": false
+        },
+        {
+          "slide": 3,
+          "sourcePngSha256": "e3f45aafd3f3a2b509c4993ff3fe8505f28e6bab2d8f0416c8c6fd0711df731f",
+          "editedPngSha256": "e3f45aafd3f3a2b509c4993ff3fe8505f28e6bab2d8f0416c8c6fd0711df731f",
+          "changed": false
+        },
+        {
+          "slide": 4,
+          "sourcePngSha256": "cae0646ff7439775d179475b2ef86adba73a208e402f081bbb121357f84a86ff",
+          "editedPngSha256": "cae0646ff7439775d179475b2ef86adba73a208e402f081bbb121357f84a86ff",
+          "changed": false
+        },
+        {
+          "slide": 5,
+          "sourcePngSha256": "77ec7e2bc75561ce736fe0df0aad5735ffea6c31d09ea68344211220f7e55254",
+          "editedPngSha256": "77ec7e2bc75561ce736fe0df0aad5735ffea6c31d09ea68344211220f7e55254",
+          "changed": false
+        },
+        {
+          "slide": 6,
+          "sourcePngSha256": "29be6d70218919c0ed6b2cabc31804ed4dad30330d02796737bca28568822971",
+          "editedPngSha256": "29be6d70218919c0ed6b2cabc31804ed4dad30330d02796737bca28568822971",
+          "changed": false
+        },
+        {
+          "slide": 7,
+          "sourcePngSha256": "419c890c56d668f96bf22efb8f5941a7c476c6926886bc4ab991650b7d263dca",
+          "editedPngSha256": "419c890c56d668f96bf22efb8f5941a7c476c6926886bc4ab991650b7d263dca",
+          "changed": false
+        },
+        {
+          "slide": 8,
+          "sourcePngSha256": "a6d3af496dd1afeb8eb040725cc43c11a0ffc9c3353ade83f08c05fe00bad666",
+          "editedPngSha256": "a6d3af496dd1afeb8eb040725cc43c11a0ffc9c3353ade83f08c05fe00bad666",
+          "changed": false
+        },
+        {
+          "slide": 9,
+          "sourcePngSha256": "acc5da4d174583ae48208bddde6c2d8b3415814ffde16587e7d84d20f601822e",
+          "editedPngSha256": "acc5da4d174583ae48208bddde6c2d8b3415814ffde16587e7d84d20f601822e",
+          "changed": false
+        },
+        {
+          "slide": 10,
+          "sourcePngSha256": "a8fd00324adf6ecf81a0d230d231d325f78b3cf415957cc178dc64c102ea6e05",
+          "editedPngSha256": "a8fd00324adf6ecf81a0d230d231d325f78b3cf415957cc178dc64c102ea6e05",
+          "changed": false
+        },
+        {
+          "slide": 11,
+          "sourcePngSha256": "ac932688fc652344f1eb6d0dc64419b971b9ba99dd1c0492f52800275fa82608",
+          "editedPngSha256": "ac932688fc652344f1eb6d0dc64419b971b9ba99dd1c0492f52800275fa82608",
+          "changed": false
+        },
+        {
+          "slide": 12,
+          "sourcePngSha256": "fcde492281950a10d9dde94b89ba6307a031d789f1d1de99732fef89e065bb2a",
+          "editedPngSha256": "fcde492281950a10d9dde94b89ba6307a031d789f1d1de99732fef89e065bb2a",
+          "changed": false
+        },
+        {
+          "slide": 13,
+          "sourcePngSha256": "b64903e090af222ed524548877795abb2e18228cbcac1dd192c37cd7cca5577a",
+          "editedPngSha256": "b64903e090af222ed524548877795abb2e18228cbcac1dd192c37cd7cca5577a",
+          "changed": false
+        },
+        {
+          "slide": 14,
+          "sourcePngSha256": "2b674a2edfaaf71a263d30e9aaee19997e31cc7f02c47b3c8a593dabbe7a14ae",
+          "editedPngSha256": "2b674a2edfaaf71a263d30e9aaee19997e31cc7f02c47b3c8a593dabbe7a14ae",
+          "changed": false
+        },
+        {
+          "slide": 15,
+          "sourcePngSha256": "47dbdca5e2fcf0df3c87caeb20a791cc9fde38a4bc96859acfcebde244110cfd",
+          "editedPngSha256": "47dbdca5e2fcf0df3c87caeb20a791cc9fde38a4bc96859acfcebde244110cfd",
+          "changed": false
+        },
+        {
+          "slide": 16,
+          "sourcePngSha256": "e7c2588a58bb7a0419dc939c860a4fc1d2f1618d837ab3c8dd2ec2227449adb8",
+          "editedPngSha256": "e7c2588a58bb7a0419dc939c860a4fc1d2f1618d837ab3c8dd2ec2227449adb8",
+          "changed": false
+        },
+        {
+          "slide": 17,
+          "sourcePngSha256": "c681e2283c90a1af1e2c7ace8d2c8289d826c60a8bb90b7ee0629c2e0d58b6ed",
+          "editedPngSha256": "c681e2283c90a1af1e2c7ace8d2c8289d826c60a8bb90b7ee0629c2e0d58b6ed",
+          "changed": false
+        },
+        {
+          "slide": 18,
+          "sourcePngSha256": "6d13fc64321ee67350fb9cd126c6a804ec4dd99c2d6a6a4dfa397979ec8e9d78",
+          "editedPngSha256": "6d13fc64321ee67350fb9cd126c6a804ec4dd99c2d6a6a4dfa397979ec8e9d78",
+          "changed": false
+        },
+        {
+          "slide": 19,
+          "sourcePngSha256": "a7ed0352ec1bf1acabe8e6ebd77520e68074ec185be70e6d7b450d402a8d95f0",
+          "editedPngSha256": "a7ed0352ec1bf1acabe8e6ebd77520e68074ec185be70e6d7b450d402a8d95f0",
+          "changed": false
+        },
+        {
+          "slide": 20,
+          "sourcePngSha256": "53a0b500b5e6bd5300dc508cf4f5aa470b0be0a200baf3074965e74c9ee7e952",
+          "editedPngSha256": "53a0b500b5e6bd5300dc508cf4f5aa470b0be0a200baf3074965e74c9ee7e952",
+          "changed": false
+        },
+        {
+          "slide": 21,
+          "sourcePngSha256": "107ab54fc3439f57566f75dcbb31ecb9e8ce7bf2d186039ebbd85f6583309db7",
+          "editedPngSha256": "107ab54fc3439f57566f75dcbb31ecb9e8ce7bf2d186039ebbd85f6583309db7",
+          "changed": false
+        },
+        {
+          "slide": 22,
+          "sourcePngSha256": "6b3ec4d983726dff03d622bc66fc3210081fb4cdae74c7fadbdf4e6033772245",
+          "editedPngSha256": "6b3ec4d983726dff03d622bc66fc3210081fb4cdae74c7fadbdf4e6033772245",
+          "changed": false
+        },
+        {
+          "slide": 23,
+          "sourcePngSha256": "9b15b2f8365d2515ef0ff984075229c5a45647efc9a3a22e45201229df4cb286",
+          "editedPngSha256": "9b15b2f8365d2515ef0ff984075229c5a45647efc9a3a22e45201229df4cb286",
+          "changed": false
+        },
+        {
+          "slide": 24,
+          "sourcePngSha256": "087cd473a5484eeb4abf08834a1c564c8b91e06e3eace899d9556cb301794c28",
+          "editedPngSha256": "087cd473a5484eeb4abf08834a1c564c8b91e06e3eace899d9556cb301794c28",
+          "changed": false
+        },
+        {
+          "slide": 25,
+          "sourcePngSha256": "5d3dd92fce5e9e37d0035ec0b525c1066e483a2c569da60bd78491d5dac82472",
+          "editedPngSha256": "5d3dd92fce5e9e37d0035ec0b525c1066e483a2c569da60bd78491d5dac82472",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "slidescarnival-data-particles",
+      "sourceSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "slideCount": 39,
+      "renderer": {
+        "office": "LibreOffice",
+        "raster": "Poppler",
+        "dpi": 96
+      },
+      "placementTarget": {
+        "id": "presentation/slide/7/element/4",
+        "slide": 7
+      },
+      "targetPageChanged": true,
+      "nonTargetPagesPixelIdentical": true,
+      "pages": [
+        {
+          "slide": 1,
+          "sourcePngSha256": "d55011a94081830a1d3597ca3020773b3a0ce131677448158571071e4d7c2966",
+          "editedPngSha256": "d55011a94081830a1d3597ca3020773b3a0ce131677448158571071e4d7c2966",
+          "changed": false
+        },
+        {
+          "slide": 2,
+          "sourcePngSha256": "0ebdda744cdf9e6489c5e2184060b35478dfc951a5f78ad008ac8db940e20f18",
+          "editedPngSha256": "0ebdda744cdf9e6489c5e2184060b35478dfc951a5f78ad008ac8db940e20f18",
+          "changed": false
+        },
+        {
+          "slide": 3,
+          "sourcePngSha256": "7c675b5cc5506a838d857dfa402167478ecd2d6513730a6a07ed667e396f3df0",
+          "editedPngSha256": "7c675b5cc5506a838d857dfa402167478ecd2d6513730a6a07ed667e396f3df0",
+          "changed": false
+        },
+        {
+          "slide": 4,
+          "sourcePngSha256": "86e2f4e8002f25881ad714948b1ecd76c928239a70da4b09b4c1def843e1265b",
+          "editedPngSha256": "86e2f4e8002f25881ad714948b1ecd76c928239a70da4b09b4c1def843e1265b",
+          "changed": false
+        },
+        {
+          "slide": 5,
+          "sourcePngSha256": "6263acfaff8e158b120e257eae877caf1dc1d96ad7460a2f39268daf128a866e",
+          "editedPngSha256": "6263acfaff8e158b120e257eae877caf1dc1d96ad7460a2f39268daf128a866e",
+          "changed": false
+        },
+        {
+          "slide": 6,
+          "sourcePngSha256": "698eca0ea5d8fc3c5d7e4e61de91b5f5abdb333f42b52842487c22f59ba9bce4",
+          "editedPngSha256": "698eca0ea5d8fc3c5d7e4e61de91b5f5abdb333f42b52842487c22f59ba9bce4",
+          "changed": false
+        },
+        {
+          "slide": 7,
+          "sourcePngSha256": "2a4ee365d729cbc56b19c0a645e099b379e970c9d072c93bb231cfd028815f14",
+          "editedPngSha256": "1972249cdff0a6864c2a38e423c6c6579756d9b8aee425577d4d569639ab8c23",
+          "changed": true
+        },
+        {
+          "slide": 8,
+          "sourcePngSha256": "b45ae972039caca8c4f374b72662ec8d0868b162a4f2b839a2201e7dcd294407",
+          "editedPngSha256": "b45ae972039caca8c4f374b72662ec8d0868b162a4f2b839a2201e7dcd294407",
+          "changed": false
+        },
+        {
+          "slide": 9,
+          "sourcePngSha256": "0e039151298b67a9d565b44f2b91c22793796b3194476518334bce046589d62b",
+          "editedPngSha256": "0e039151298b67a9d565b44f2b91c22793796b3194476518334bce046589d62b",
+          "changed": false
+        },
+        {
+          "slide": 10,
+          "sourcePngSha256": "f6554486ea8def64b2279f980ba538a789d2a106d607bb974069c108fb5bd1f6",
+          "editedPngSha256": "f6554486ea8def64b2279f980ba538a789d2a106d607bb974069c108fb5bd1f6",
+          "changed": false
+        },
+        {
+          "slide": 11,
+          "sourcePngSha256": "75660e6eb12722a126d244f50a94b6ae62a0fc360b16b989b7f5826d224803a9",
+          "editedPngSha256": "75660e6eb12722a126d244f50a94b6ae62a0fc360b16b989b7f5826d224803a9",
+          "changed": false
+        },
+        {
+          "slide": 12,
+          "sourcePngSha256": "a1798f37f7f97eb2af6a0de6511393f9ea83221fdc89c77791d99db794e7e344",
+          "editedPngSha256": "a1798f37f7f97eb2af6a0de6511393f9ea83221fdc89c77791d99db794e7e344",
+          "changed": false
+        },
+        {
+          "slide": 13,
+          "sourcePngSha256": "4dbf4cd4d483d5a23921648cb3ac19c3de4dbfe0ba8cb2e0ae5ae67e346eb3c4",
+          "editedPngSha256": "4dbf4cd4d483d5a23921648cb3ac19c3de4dbfe0ba8cb2e0ae5ae67e346eb3c4",
+          "changed": false
+        },
+        {
+          "slide": 14,
+          "sourcePngSha256": "bf3527758a16d1a98f401280631b3f5e0ed01eb0b9d7bcd85632fe1520a11c4f",
+          "editedPngSha256": "bf3527758a16d1a98f401280631b3f5e0ed01eb0b9d7bcd85632fe1520a11c4f",
+          "changed": false
+        },
+        {
+          "slide": 15,
+          "sourcePngSha256": "942596e3dec0611dfd6585136b16436e6ecef5e9832fc677eaa9191fa172697e",
+          "editedPngSha256": "942596e3dec0611dfd6585136b16436e6ecef5e9832fc677eaa9191fa172697e",
+          "changed": false
+        },
+        {
+          "slide": 16,
+          "sourcePngSha256": "8c8fcec6bbce4e35cb8b7a0920ed524a1543cdda2bf877884f42afe74e94714b",
+          "editedPngSha256": "8c8fcec6bbce4e35cb8b7a0920ed524a1543cdda2bf877884f42afe74e94714b",
+          "changed": false
+        },
+        {
+          "slide": 17,
+          "sourcePngSha256": "01ba6a758461cb13a5e43a42c5963fc13a2e5e6334a4a7c1d572cd3b58d09bd8",
+          "editedPngSha256": "01ba6a758461cb13a5e43a42c5963fc13a2e5e6334a4a7c1d572cd3b58d09bd8",
+          "changed": false
+        },
+        {
+          "slide": 18,
+          "sourcePngSha256": "d1b02cb6a5d6cab9ecbfb6b8477a712193a4ba745114a6e9662070478a29ae64",
+          "editedPngSha256": "d1b02cb6a5d6cab9ecbfb6b8477a712193a4ba745114a6e9662070478a29ae64",
+          "changed": false
+        },
+        {
+          "slide": 19,
+          "sourcePngSha256": "77459cf4fb36c1c4fced5cd0ee1f1b66c8db458ab008f005042723a40262f06c",
+          "editedPngSha256": "77459cf4fb36c1c4fced5cd0ee1f1b66c8db458ab008f005042723a40262f06c",
+          "changed": false
+        },
+        {
+          "slide": 20,
+          "sourcePngSha256": "01f761df61743ab532fa0579448be5257fd9af9042b542af2bcfd662053d080a",
+          "editedPngSha256": "01f761df61743ab532fa0579448be5257fd9af9042b542af2bcfd662053d080a",
+          "changed": false
+        },
+        {
+          "slide": 21,
+          "sourcePngSha256": "6ef481e245b6066607942c91dc7025527b2f4774d53366ff49b45a9859c035dc",
+          "editedPngSha256": "6ef481e245b6066607942c91dc7025527b2f4774d53366ff49b45a9859c035dc",
+          "changed": false
+        },
+        {
+          "slide": 22,
+          "sourcePngSha256": "ebf5a0794eeccc9e5591e8a02502270ed9aeb4d9af0c9652624e8de2aaf335be",
+          "editedPngSha256": "ebf5a0794eeccc9e5591e8a02502270ed9aeb4d9af0c9652624e8de2aaf335be",
+          "changed": false
+        },
+        {
+          "slide": 23,
+          "sourcePngSha256": "2915cae668fb5bc5f79527ad38f15dacbd5284978bf85cb396ecd2c8734bdb01",
+          "editedPngSha256": "2915cae668fb5bc5f79527ad38f15dacbd5284978bf85cb396ecd2c8734bdb01",
+          "changed": false
+        },
+        {
+          "slide": 24,
+          "sourcePngSha256": "64b9a837eefcc7db3cf18587432d0b4576b4a4b13559ad589b79c78c97098dc7",
+          "editedPngSha256": "64b9a837eefcc7db3cf18587432d0b4576b4a4b13559ad589b79c78c97098dc7",
+          "changed": false
+        },
+        {
+          "slide": 25,
+          "sourcePngSha256": "ecc901c63f0172ce7d4df78e2e5bacf05c0d2837d0c621db3ffc662f1f55e7ac",
+          "editedPngSha256": "ecc901c63f0172ce7d4df78e2e5bacf05c0d2837d0c621db3ffc662f1f55e7ac",
+          "changed": false
+        },
+        {
+          "slide": 26,
+          "sourcePngSha256": "79186b039c616c91838264d1c8a6d0d576544619215e52fa93175743f6a379dd",
+          "editedPngSha256": "79186b039c616c91838264d1c8a6d0d576544619215e52fa93175743f6a379dd",
+          "changed": false
+        },
+        {
+          "slide": 27,
+          "sourcePngSha256": "a2a70de5d6e6ace490e0730556099b6031324196c67cc9b99709a8eeb2f3ef4e",
+          "editedPngSha256": "a2a70de5d6e6ace490e0730556099b6031324196c67cc9b99709a8eeb2f3ef4e",
+          "changed": false
+        },
+        {
+          "slide": 28,
+          "sourcePngSha256": "8890a6ef900cf6e7af8bfbc516f8d10b7e183a6860b9476345ba794183a7b156",
+          "editedPngSha256": "8890a6ef900cf6e7af8bfbc516f8d10b7e183a6860b9476345ba794183a7b156",
+          "changed": false
+        },
+        {
+          "slide": 29,
+          "sourcePngSha256": "070d838364b8ff3d6a0ebfb814e0759bfb68118f34daa3bb042a4d01d395e695",
+          "editedPngSha256": "070d838364b8ff3d6a0ebfb814e0759bfb68118f34daa3bb042a4d01d395e695",
+          "changed": false
+        },
+        {
+          "slide": 30,
+          "sourcePngSha256": "cc341244357e8a471e4df55381f3e50c15762b6a84201a53072c1eb84c8771a6",
+          "editedPngSha256": "cc341244357e8a471e4df55381f3e50c15762b6a84201a53072c1eb84c8771a6",
+          "changed": false
+        },
+        {
+          "slide": 31,
+          "sourcePngSha256": "73cbffa3e2de6c3ef263d04f0092889f1b39f69b55fe10e68a773558b900e848",
+          "editedPngSha256": "73cbffa3e2de6c3ef263d04f0092889f1b39f69b55fe10e68a773558b900e848",
+          "changed": false
+        },
+        {
+          "slide": 32,
+          "sourcePngSha256": "f900668da4b3633402692ddbbe91d1a8d155590ac1ac2bdfa16f1cde03e1593e",
+          "editedPngSha256": "f900668da4b3633402692ddbbe91d1a8d155590ac1ac2bdfa16f1cde03e1593e",
+          "changed": false
+        },
+        {
+          "slide": 33,
+          "sourcePngSha256": "14be55211f535c9f866ad45b7359c764b5f2289b17c536f7309c1a45a22ac962",
+          "editedPngSha256": "14be55211f535c9f866ad45b7359c764b5f2289b17c536f7309c1a45a22ac962",
+          "changed": false
+        },
+        {
+          "slide": 34,
+          "sourcePngSha256": "2b2f220962c68e24668fba1849f23ee2cda94ab0fefbc9da8c11ac0f0dfa8f3d",
+          "editedPngSha256": "2b2f220962c68e24668fba1849f23ee2cda94ab0fefbc9da8c11ac0f0dfa8f3d",
+          "changed": false
+        },
+        {
+          "slide": 35,
+          "sourcePngSha256": "62146eb7c395e1f84efa47d378a23b9a0ae3b78ebeb14e28b364c4e2bcd7a9a2",
+          "editedPngSha256": "62146eb7c395e1f84efa47d378a23b9a0ae3b78ebeb14e28b364c4e2bcd7a9a2",
+          "changed": false
+        },
+        {
+          "slide": 36,
+          "sourcePngSha256": "5001b2e4ac34a53ea1e5d62b0a08bbe4d667c3bf6dcf83940bd9acb3d988fe7a",
+          "editedPngSha256": "5001b2e4ac34a53ea1e5d62b0a08bbe4d667c3bf6dcf83940bd9acb3d988fe7a",
+          "changed": false
+        },
+        {
+          "slide": 37,
+          "sourcePngSha256": "4f145afa86d8121d1a398225ae458414a120a8dc9517dc4b91894ecc916971cf",
+          "editedPngSha256": "4f145afa86d8121d1a398225ae458414a120a8dc9517dc4b91894ecc916971cf",
+          "changed": false
+        },
+        {
+          "slide": 38,
+          "sourcePngSha256": "80859a37d63ccaadf86e206ccb463da37fbeee48946359336801432f69663fe3",
+          "editedPngSha256": "80859a37d63ccaadf86e206ccb463da37fbeee48946359336801432f69663fe3",
+          "changed": false
+        },
+        {
+          "slide": 39,
+          "sourcePngSha256": "16ec3c33750febb60591b5c9d3f0b8ad1585f7b0d74ffe053a13a5576ce8ac6b",
+          "editedPngSha256": "16ec3c33750febb60591b5c9d3f0b8ad1585f7b0d74ffe053a13a5576ce8ac6b",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "slidescarnival-minimal-business",
+      "sourceSha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "slideCount": 39,
+      "renderer": {
+        "office": "LibreOffice",
+        "raster": "Poppler",
+        "dpi": 96
+      },
+      "placementTarget": {
+        "id": "presentation/slide/7/element/4",
+        "slide": 7
+      },
+      "targetPageChanged": true,
+      "nonTargetPagesPixelIdentical": true,
+      "pages": [
+        {
+          "slide": 1,
+          "sourcePngSha256": "9c032ec8f49f6b37c5e49efe6afdafa895dbc61e92246c1dc0719cbaf281648a",
+          "editedPngSha256": "9c032ec8f49f6b37c5e49efe6afdafa895dbc61e92246c1dc0719cbaf281648a",
+          "changed": false
+        },
+        {
+          "slide": 2,
+          "sourcePngSha256": "a1fac1c6b91887ca12ee6a6b73bc666cf56c24950787e2fc797c5e78587d9ebe",
+          "editedPngSha256": "a1fac1c6b91887ca12ee6a6b73bc666cf56c24950787e2fc797c5e78587d9ebe",
+          "changed": false
+        },
+        {
+          "slide": 3,
+          "sourcePngSha256": "f62bb438a713769e90f9472b5f132aec4271142854dab0e58b7ab5c015c5ccac",
+          "editedPngSha256": "f62bb438a713769e90f9472b5f132aec4271142854dab0e58b7ab5c015c5ccac",
+          "changed": false
+        },
+        {
+          "slide": 4,
+          "sourcePngSha256": "5ab0dd1ed18b5dda22ec2ba63058d44f756d32d4282eb057825af354cc1f2135",
+          "editedPngSha256": "5ab0dd1ed18b5dda22ec2ba63058d44f756d32d4282eb057825af354cc1f2135",
+          "changed": false
+        },
+        {
+          "slide": 5,
+          "sourcePngSha256": "e7ff3cee190c2f6213fcec23198b6f99685a35f3e9c7462fefde8ec1c6d1a35b",
+          "editedPngSha256": "e7ff3cee190c2f6213fcec23198b6f99685a35f3e9c7462fefde8ec1c6d1a35b",
+          "changed": false
+        },
+        {
+          "slide": 6,
+          "sourcePngSha256": "307c4855eef796c5222e3e9a4018937d0e303243edc6f58f161f1d6f5442e309",
+          "editedPngSha256": "307c4855eef796c5222e3e9a4018937d0e303243edc6f58f161f1d6f5442e309",
+          "changed": false
+        },
+        {
+          "slide": 7,
+          "sourcePngSha256": "9197ede1e7131b1d5ec83b5cf3a1cdb80a31e10321ad3546c15a471978aa2a9c",
+          "editedPngSha256": "20051fe98f0670628e012a301eb6180103f329b2aab3c2835e570702adcd1989",
+          "changed": true
+        },
+        {
+          "slide": 8,
+          "sourcePngSha256": "4e8a5ad4891f9a7171ef4bc2dd52867e661d3bf5b67413920abe7b58d146c575",
+          "editedPngSha256": "4e8a5ad4891f9a7171ef4bc2dd52867e661d3bf5b67413920abe7b58d146c575",
+          "changed": false
+        },
+        {
+          "slide": 9,
+          "sourcePngSha256": "dfe2e1042de4ec96bacfd219a0fd314cc65d4faea92c8c68b26e8d97e092841b",
+          "editedPngSha256": "dfe2e1042de4ec96bacfd219a0fd314cc65d4faea92c8c68b26e8d97e092841b",
+          "changed": false
+        },
+        {
+          "slide": 10,
+          "sourcePngSha256": "1ebf953a8e5e81a9b37bfe6b4873e0d807b804828701465443f862651e34166a",
+          "editedPngSha256": "1ebf953a8e5e81a9b37bfe6b4873e0d807b804828701465443f862651e34166a",
+          "changed": false
+        },
+        {
+          "slide": 11,
+          "sourcePngSha256": "b2fd42bb081b56ee94c3c06850355fe87b6066bf674e256cc63edc699e784a9a",
+          "editedPngSha256": "b2fd42bb081b56ee94c3c06850355fe87b6066bf674e256cc63edc699e784a9a",
+          "changed": false
+        },
+        {
+          "slide": 12,
+          "sourcePngSha256": "efc54b57212e4cccef4038c322f2863b16db57f18b84b03e06df4f4780ca3ad5",
+          "editedPngSha256": "efc54b57212e4cccef4038c322f2863b16db57f18b84b03e06df4f4780ca3ad5",
+          "changed": false
+        },
+        {
+          "slide": 13,
+          "sourcePngSha256": "d9285ce6f29b652e056b8991d479dc88748e07c15809737c4384a37f371c5354",
+          "editedPngSha256": "d9285ce6f29b652e056b8991d479dc88748e07c15809737c4384a37f371c5354",
+          "changed": false
+        },
+        {
+          "slide": 14,
+          "sourcePngSha256": "7a96606d6ac22077892087e8f2b9d274948cd88ea2f08bff52363e55fdef6d55",
+          "editedPngSha256": "7a96606d6ac22077892087e8f2b9d274948cd88ea2f08bff52363e55fdef6d55",
+          "changed": false
+        },
+        {
+          "slide": 15,
+          "sourcePngSha256": "6c58b964d2e9866d619380d9426dbb6da88ccf9346bacf52a8342cc49eb6eff8",
+          "editedPngSha256": "6c58b964d2e9866d619380d9426dbb6da88ccf9346bacf52a8342cc49eb6eff8",
+          "changed": false
+        },
+        {
+          "slide": 16,
+          "sourcePngSha256": "4d36a11de52f60a53afe5956de01c1c36d3fddc12d36f2f2eb1189bd5a2b0e06",
+          "editedPngSha256": "4d36a11de52f60a53afe5956de01c1c36d3fddc12d36f2f2eb1189bd5a2b0e06",
+          "changed": false
+        },
+        {
+          "slide": 17,
+          "sourcePngSha256": "bdc27882e2c5b0f48a95630da00e7f6b79dc6d8e4a62556f06a94e3b2bee607b",
+          "editedPngSha256": "bdc27882e2c5b0f48a95630da00e7f6b79dc6d8e4a62556f06a94e3b2bee607b",
+          "changed": false
+        },
+        {
+          "slide": 18,
+          "sourcePngSha256": "65ee4e5cd5d56e701920caf1886d4d52c59de0741f3822617da3c87c3b6ff7e9",
+          "editedPngSha256": "65ee4e5cd5d56e701920caf1886d4d52c59de0741f3822617da3c87c3b6ff7e9",
+          "changed": false
+        },
+        {
+          "slide": 19,
+          "sourcePngSha256": "1f210e720162e29aa671def4846a9f3c76150415ac2388059a4c5591d88b3747",
+          "editedPngSha256": "1f210e720162e29aa671def4846a9f3c76150415ac2388059a4c5591d88b3747",
+          "changed": false
+        },
+        {
+          "slide": 20,
+          "sourcePngSha256": "fd723a407ced9414240c340fb2ee6dd56037812f32b9c2ca49a37a862f853a36",
+          "editedPngSha256": "fd723a407ced9414240c340fb2ee6dd56037812f32b9c2ca49a37a862f853a36",
+          "changed": false
+        },
+        {
+          "slide": 21,
+          "sourcePngSha256": "b6ab5e1b8f7ca6f987eff7e4c091d501008742ae4e1d648e7455916279d49ca0",
+          "editedPngSha256": "b6ab5e1b8f7ca6f987eff7e4c091d501008742ae4e1d648e7455916279d49ca0",
+          "changed": false
+        },
+        {
+          "slide": 22,
+          "sourcePngSha256": "f6e7683ad31337c0a204e593e77e9355d09de5b95a3ea54358b63511d056f157",
+          "editedPngSha256": "f6e7683ad31337c0a204e593e77e9355d09de5b95a3ea54358b63511d056f157",
+          "changed": false
+        },
+        {
+          "slide": 23,
+          "sourcePngSha256": "32c11a368b7b68ef92599c84ee1c41eb01b8c6b927d3253e72d9394d71b129f7",
+          "editedPngSha256": "32c11a368b7b68ef92599c84ee1c41eb01b8c6b927d3253e72d9394d71b129f7",
+          "changed": false
+        },
+        {
+          "slide": 24,
+          "sourcePngSha256": "5c114e958e45b3ba8cf999b932b5005f4c4c38c1fa9b4632f86c70e6891207a6",
+          "editedPngSha256": "5c114e958e45b3ba8cf999b932b5005f4c4c38c1fa9b4632f86c70e6891207a6",
+          "changed": false
+        },
+        {
+          "slide": 25,
+          "sourcePngSha256": "a2bf1ac8ed0d0bf059e6901319d865539be7c974d176adbe411330266bd28ff4",
+          "editedPngSha256": "a2bf1ac8ed0d0bf059e6901319d865539be7c974d176adbe411330266bd28ff4",
+          "changed": false
+        },
+        {
+          "slide": 26,
+          "sourcePngSha256": "169e0847bbfa7ca83efc01406f5e97fbb42d0f26d23b235562a3416bcba7f3b6",
+          "editedPngSha256": "169e0847bbfa7ca83efc01406f5e97fbb42d0f26d23b235562a3416bcba7f3b6",
+          "changed": false
+        },
+        {
+          "slide": 27,
+          "sourcePngSha256": "9169b4020749e1cf5ee9bbb8f7d7e033ca7731d170853d550a47b61f1b5901ee",
+          "editedPngSha256": "9169b4020749e1cf5ee9bbb8f7d7e033ca7731d170853d550a47b61f1b5901ee",
+          "changed": false
+        },
+        {
+          "slide": 28,
+          "sourcePngSha256": "92382970da8e0dc5c2bbf783489ca1dc9f92defa68c51286da13a76115f6ee98",
+          "editedPngSha256": "92382970da8e0dc5c2bbf783489ca1dc9f92defa68c51286da13a76115f6ee98",
+          "changed": false
+        },
+        {
+          "slide": 29,
+          "sourcePngSha256": "3058fd885d22297582cd9bbef39680f28f5769d912760b9c0c56576837666ba6",
+          "editedPngSha256": "3058fd885d22297582cd9bbef39680f28f5769d912760b9c0c56576837666ba6",
+          "changed": false
+        },
+        {
+          "slide": 30,
+          "sourcePngSha256": "d108b43ab8e869bfa46b2fa0133400aabbf5cb60f31b956406f2ff05dc17a043",
+          "editedPngSha256": "d108b43ab8e869bfa46b2fa0133400aabbf5cb60f31b956406f2ff05dc17a043",
+          "changed": false
+        },
+        {
+          "slide": 31,
+          "sourcePngSha256": "bd047ab0eedf212e0b760ab7c844299e02c98e66d183304c516b8981309b90c7",
+          "editedPngSha256": "bd047ab0eedf212e0b760ab7c844299e02c98e66d183304c516b8981309b90c7",
+          "changed": false
+        },
+        {
+          "slide": 32,
+          "sourcePngSha256": "24f3edd32cf57c33737ca5326b441e2b734614b9a7f1cc2851554a39b145aa23",
+          "editedPngSha256": "24f3edd32cf57c33737ca5326b441e2b734614b9a7f1cc2851554a39b145aa23",
+          "changed": false
+        },
+        {
+          "slide": 33,
+          "sourcePngSha256": "ce4171f808f728d9fc2690d03789fed1b2aafccf4c8eaa9340c121300a70865d",
+          "editedPngSha256": "ce4171f808f728d9fc2690d03789fed1b2aafccf4c8eaa9340c121300a70865d",
+          "changed": false
+        },
+        {
+          "slide": 34,
+          "sourcePngSha256": "f6375c07431396cc0c91e5ac2f6f2fbcb186705cd824109a77d014f2db3b27cd",
+          "editedPngSha256": "f6375c07431396cc0c91e5ac2f6f2fbcb186705cd824109a77d014f2db3b27cd",
+          "changed": false
+        },
+        {
+          "slide": 35,
+          "sourcePngSha256": "d25149005f38e0c7472d555f73c74d47c4adf27b0d464e84491c46b40db60b68",
+          "editedPngSha256": "d25149005f38e0c7472d555f73c74d47c4adf27b0d464e84491c46b40db60b68",
+          "changed": false
+        },
+        {
+          "slide": 36,
+          "sourcePngSha256": "cd89b37a71de1b99a010c5b9cd8a88f0a775705cf5e5aef9a0620053c60e69e2",
+          "editedPngSha256": "cd89b37a71de1b99a010c5b9cd8a88f0a775705cf5e5aef9a0620053c60e69e2",
+          "changed": false
+        },
+        {
+          "slide": 37,
+          "sourcePngSha256": "b0189f0545c3ffcabfd7a3b3426259103d62ae96fad9461269cff2c604d5507b",
+          "editedPngSha256": "b0189f0545c3ffcabfd7a3b3426259103d62ae96fad9461269cff2c604d5507b",
+          "changed": false
+        },
+        {
+          "slide": 38,
+          "sourcePngSha256": "6af7270ddccbcded4e0de9eb5e00b29445054311b1b73a872e1c6736d92f5497",
+          "editedPngSha256": "6af7270ddccbcded4e0de9eb5e00b29445054311b1b73a872e1c6736d92f5497",
+          "changed": false
+        },
+        {
+          "slide": 39,
+          "sourcePngSha256": "043c1be13949ec72ebc35d7be72e3798930ae92389e243f3332454efc44ff233",
+          "editedPngSha256": "043c1be13949ec72ebc35d7be72e3798930ae92389e243f3332454efc44ff233",
+          "changed": false
+        }
+      ]
+    },
+    {
+      "id": "slidescarnival-professional-minimalist",
+      "sourceSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "slideCount": 20,
+      "renderer": {
+        "office": "LibreOffice",
+        "raster": "Poppler",
+        "dpi": 96
+      },
+      "placementTarget": {
+        "id": "presentation/slide/19/element/1",
+        "slide": 19
+      },
+      "targetPageChanged": true,
+      "nonTargetPagesPixelIdentical": true,
+      "pages": [
+        {
+          "slide": 1,
+          "sourcePngSha256": "5d3ad5f8edaa6a9278b6780b5119bb261a83d6072482260b9feb613e8b81ff11",
+          "editedPngSha256": "5d3ad5f8edaa6a9278b6780b5119bb261a83d6072482260b9feb613e8b81ff11",
+          "changed": false
+        },
+        {
+          "slide": 2,
+          "sourcePngSha256": "3c592a4a0aab8b63bd8d6159f994f5df0c249d6413a7cb0dfb4a3c94bb0add50",
+          "editedPngSha256": "3c592a4a0aab8b63bd8d6159f994f5df0c249d6413a7cb0dfb4a3c94bb0add50",
+          "changed": false
+        },
+        {
+          "slide": 3,
+          "sourcePngSha256": "7f7b558ac6e4ce0a531d6c8fe0c3f3e13d6a7bd6fe8741ea0c3aac8b8d2e77f4",
+          "editedPngSha256": "7f7b558ac6e4ce0a531d6c8fe0c3f3e13d6a7bd6fe8741ea0c3aac8b8d2e77f4",
+          "changed": false
+        },
+        {
+          "slide": 4,
+          "sourcePngSha256": "b07099c2cff69613a1c41f641f3098d5ac7488f739554224775a712c4c4c85d3",
+          "editedPngSha256": "b07099c2cff69613a1c41f641f3098d5ac7488f739554224775a712c4c4c85d3",
+          "changed": false
+        },
+        {
+          "slide": 5,
+          "sourcePngSha256": "d4845773e0d24b8d6e6c65e2d254278f4cb8f9ed4c351d474aef2b69921fae0f",
+          "editedPngSha256": "d4845773e0d24b8d6e6c65e2d254278f4cb8f9ed4c351d474aef2b69921fae0f",
+          "changed": false
+        },
+        {
+          "slide": 6,
+          "sourcePngSha256": "9d63df01ac02c2bfc9c818188fda84ed3ee7afb979fbc2fbe2499ebdde07338b",
+          "editedPngSha256": "9d63df01ac02c2bfc9c818188fda84ed3ee7afb979fbc2fbe2499ebdde07338b",
+          "changed": false
+        },
+        {
+          "slide": 7,
+          "sourcePngSha256": "0693a8441c3d9184cbacd21dcd2272f325fdc396cebe6a06fccb54c31fb6549d",
+          "editedPngSha256": "0693a8441c3d9184cbacd21dcd2272f325fdc396cebe6a06fccb54c31fb6549d",
+          "changed": false
+        },
+        {
+          "slide": 8,
+          "sourcePngSha256": "0d132f07aa31bb42ce3cdbb915f2ba80d143ccc264347aff899e63ebfe478e4f",
+          "editedPngSha256": "0d132f07aa31bb42ce3cdbb915f2ba80d143ccc264347aff899e63ebfe478e4f",
+          "changed": false
+        },
+        {
+          "slide": 9,
+          "sourcePngSha256": "faeec51d542397353f3e20aa523142e9e69aa5d8ec2a3d4e68d82a9faff3a1e7",
+          "editedPngSha256": "faeec51d542397353f3e20aa523142e9e69aa5d8ec2a3d4e68d82a9faff3a1e7",
+          "changed": false
+        },
+        {
+          "slide": 10,
+          "sourcePngSha256": "a42869554fe7a73ea8f47bb685a48018927ed47209572b93527d81898600978d",
+          "editedPngSha256": "a42869554fe7a73ea8f47bb685a48018927ed47209572b93527d81898600978d",
+          "changed": false
+        },
+        {
+          "slide": 11,
+          "sourcePngSha256": "69e8f6d03598fb48cabe56aa7b7b9bbe683eba60230a90dd1c621723c9c2feeb",
+          "editedPngSha256": "69e8f6d03598fb48cabe56aa7b7b9bbe683eba60230a90dd1c621723c9c2feeb",
+          "changed": false
+        },
+        {
+          "slide": 12,
+          "sourcePngSha256": "a9affd4fa143ae21cef7dd0da7176d20c78c490f6a9b5064c143cdc58cba832f",
+          "editedPngSha256": "a9affd4fa143ae21cef7dd0da7176d20c78c490f6a9b5064c143cdc58cba832f",
+          "changed": false
+        },
+        {
+          "slide": 13,
+          "sourcePngSha256": "b64cf19c6cff383b1dddd8f0ed0a2618c8f6bd8e690b53a3024b065dd207012a",
+          "editedPngSha256": "b64cf19c6cff383b1dddd8f0ed0a2618c8f6bd8e690b53a3024b065dd207012a",
+          "changed": false
+        },
+        {
+          "slide": 14,
+          "sourcePngSha256": "0b4af36a84c0e656ab6cf33ca1e291dc2d66e7e3fd2bc8aeafb406580f7338c7",
+          "editedPngSha256": "0b4af36a84c0e656ab6cf33ca1e291dc2d66e7e3fd2bc8aeafb406580f7338c7",
+          "changed": false
+        },
+        {
+          "slide": 15,
+          "sourcePngSha256": "26f0097e5f127d6ddbac533f0915b6ba5809614bb3f3cb3248916030b394b220",
+          "editedPngSha256": "26f0097e5f127d6ddbac533f0915b6ba5809614bb3f3cb3248916030b394b220",
+          "changed": false
+        },
+        {
+          "slide": 16,
+          "sourcePngSha256": "1adc4084b971149882f7d7ba539c72d40fb4153a2261eb6f91eefff5fbbf7830",
+          "editedPngSha256": "1adc4084b971149882f7d7ba539c72d40fb4153a2261eb6f91eefff5fbbf7830",
+          "changed": false
+        },
+        {
+          "slide": 17,
+          "sourcePngSha256": "fad2cfea0c3d32f23afe4b9bc638c4fb41c30a256e6ca4eec9116c9cb05b78e0",
+          "editedPngSha256": "fad2cfea0c3d32f23afe4b9bc638c4fb41c30a256e6ca4eec9116c9cb05b78e0",
+          "changed": false
+        },
+        {
+          "slide": 18,
+          "sourcePngSha256": "f30fc5a089e00bc0a2bbd8dfe5ae2d061b35478be0cf89d99ae728176ee35385",
+          "editedPngSha256": "f30fc5a089e00bc0a2bbd8dfe5ae2d061b35478be0cf89d99ae728176ee35385",
+          "changed": false
+        },
+        {
+          "slide": 19,
+          "sourcePngSha256": "340c2eb01a9061945a85e13a54f37a9a1f5c6392c449f37e9a6b145436040515",
+          "editedPngSha256": "96de8ebbc974ae01002d5e0bbb14fa997d553e7b1701a3a40f838a8ba95b323a",
+          "changed": true
+        },
+        {
+          "slide": 20,
+          "sourcePngSha256": "dbb480f9834b54b5526825081cee31ef1ac18560c013e8e557ecc69d59df9b60",
+          "editedPngSha256": "dbb480f9834b54b5526825081cee31ef1ac18560c013e8e557ecc69d59df9b60",
+          "changed": false
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "sources": 6,
+    "slides": 157,
+    "nonTargetPagesPixelIdentical": true,
+    "targetPagesChanged": 6
+  }
+}
