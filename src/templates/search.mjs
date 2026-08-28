@@ -353,6 +353,14 @@ async function readTemplate({ expectedId, root, templatePath }) {
   };
   if (metadata.kind === "presentation") {
     await assertPresentationTemplateSurface(templatePath, metadata);
+    const referencePath = metadata.reference == null
+      ? null
+      : await resolveAsset(
+        templatePath,
+        metadata.reference,
+        metadata.provenance.referenceSha256,
+        "reference",
+      );
     const examplePaths = await Promise.all(
       metadata.examples.map((example, index) =>
         resolveAsset(
@@ -371,6 +379,7 @@ async function readTemplate({ expectedId, root, templatePath }) {
         absolutePath: examplePaths[index],
       })),
       examplePaths,
+      ...(referencePath == null ? {} : { referencePath }),
     };
   }
 
@@ -396,12 +405,16 @@ function validateMetadata(value, expectedId) {
       "presentation schema v2 is unsupported; rebuild it with presentation-template-creator",
     );
   }
+  if (value.schemaVersion === 4) {
+    validatePresentationMetadata(value, expectedId, { referenceRequired: true });
+    return;
+  }
   if (value.schemaVersion === 3) {
-    validatePresentationMetadata(value, expectedId);
+    validatePresentationMetadata(value, expectedId, { referenceRequired: false });
     return;
   }
   if (value.schemaVersion !== 2) {
-    throw new Error("schemaVersion must be 2 for document/spreadsheet or 3 for presentation");
+    throw new Error("schemaVersion must be 2 for document/spreadsheet or 3 for presentation (or 4 with an authored reference deck)");
   }
   validateSourceTemplateMetadata(value, expectedId);
 }
@@ -496,28 +509,30 @@ function validateSourceTemplateMetadata(value, expectedId) {
   assertHash(value.provenance.previewSha256, "provenance.previewSha256");
 }
 
-function validatePresentationMetadata(value, expectedId) {
+function validatePresentationMetadata(value, expectedId, { referenceRequired = false } = {}) {
+  const allowedKeys = [
+    "schemaVersion",
+    "id",
+    "displayName",
+    "kind",
+    "preview",
+    "examples",
+    "useWhen",
+    "avoidWhen",
+    "audiences",
+    "contentShapes",
+    "visualTraits",
+    "visualCommitment",
+    "provenance",
+  ];
+  if (referenceRequired) allowedKeys.splice(5, 0, "reference");
   assertObjectKeys(
     value,
     "metadata",
-    [
-      "schemaVersion",
-      "id",
-      "displayName",
-      "kind",
-      "preview",
-      "examples",
-      "useWhen",
-      "avoidWhen",
-      "audiences",
-      "contentShapes",
-      "visualTraits",
-      "visualCommitment",
-      "provenance",
-    ],
+    allowedKeys,
   );
   if (value.kind !== "presentation") {
-    throw new Error("schemaVersion 3 is reserved for presentation templates");
+    throw new Error(`schemaVersion ${value.schemaVersion} is reserved for presentation templates`);
   }
   assertTemplateId(value.id, "id");
   if (value.id !== expectedId) {
@@ -529,6 +544,12 @@ function validatePresentationMetadata(value, expectedId) {
   assertEnglishSearchArray(value.audiences, "audiences", { min: 0, max: 20 });
   assertEnglishSearchArray(value.contentShapes, "contentShapes", { min: 0, max: 20 });
   validateVisualMetadata(value);
+  if (referenceRequired) {
+    assertRelativeAssetPath(value.reference, "reference");
+    if (path.posix.extname(value.reference).toLowerCase() !== ".pptx") {
+      throw new Error("presentation templates must use a .pptx reference");
+    }
+  }
   assertRelativePngPath(value.preview, "preview");
   if (!Array.isArray(value.examples) ||
       value.examples.length < MIN_PRESENTATION_EXAMPLES ||
@@ -561,11 +582,14 @@ function validatePresentationMetadata(value, expectedId) {
   assertObjectKeys(
     value.provenance,
     "provenance",
-    ["license", "source", "guideSha256", "previewSha256"],
+    referenceRequired
+      ? ["license", "source", "guideSha256", "referenceSha256", "previewSha256"]
+      : ["license", "source", "guideSha256", "previewSha256"],
   );
   assertShortString(value.provenance.license, "provenance.license", 120);
   assertShortString(value.provenance.source, "provenance.source", 500);
   assertHash(value.provenance.guideSha256, "provenance.guideSha256");
+  if (referenceRequired) assertHash(value.provenance.referenceSha256, "provenance.referenceSha256");
   assertHash(value.provenance.previewSha256, "provenance.previewSha256");
 }
 
@@ -647,11 +671,16 @@ async function assertPresentationTemplateSurface(templatePath, metadata) {
   }
   const assetsPath = path.join(templatePath, "assets");
   const assetEntries = await fs.readdir(assetsPath, { withFileTypes: true });
-  if (assetEntries.length !== 2 ||
+  const hasReference = metadata.schemaVersion === 4;
+  if (assetEntries.length !== (hasReference ? 3 : 2) ||
       !assetEntries.some((entry) => entry.name === "preview.png" && entry.isFile()) ||
       !assetEntries.some((entry) => entry.name === "examples" && entry.isDirectory()) ||
+      (hasReference && !assetEntries.some((entry) => entry.name === "reference.pptx" && entry.isFile())) ||
+      (!hasReference && assetEntries.some((entry) => entry.name === "reference.pptx")) ||
       assetEntries.some((entry) => entry.isSymbolicLink())) {
-    throw new Error("presentation template assets must contain only preview.png and examples/");
+    throw new Error(hasReference
+      ? "presentation template assets must contain only preview.png, reference.pptx, and examples/"
+      : "presentation template assets must contain only preview.png and examples/");
   }
   const examplesPath = path.join(assetsPath, "examples");
   const exampleEntries = await fs.readdir(examplesPath, { withFileTypes: true });

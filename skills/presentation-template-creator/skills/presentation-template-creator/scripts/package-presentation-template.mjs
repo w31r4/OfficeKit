@@ -17,6 +17,7 @@ const VALID_ROLES = new Set([
 ]);
 const MAX_SPEC_BYTES = 256 * 1024;
 const MAX_GUIDE_BYTES = 256 * 1024;
+const MAX_REFERENCE_BYTES = 128 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 60 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
@@ -41,6 +42,8 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
   const guideBody = await readTextFile(spec.guidePath, MAX_GUIDE_BYTES, "guidePath");
   if (guideBody.trim().length < 120) throw new Error("guidePath must contain a substantive style guide");
   if (/^---\s*$/mu.test(guideBody)) throw new Error("guidePath must be a Markdown body without YAML frontmatter");
+  const referenceBytes = await readRegularFile(spec.referencePath, MAX_REFERENCE_BYTES, "referencePath");
+  await validateReferencePptx(referenceBytes);
 
   const examples = [];
   let totalImageBytes = 0;
@@ -112,16 +115,18 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
       "",
     ].join("\n");
     await Promise.all([
+      writeImmutable(path.join(stagedPath, "assets", "reference.pptx"), referenceBytes),
       writeImmutable(path.join(stagedPath, "SKILL.md"), skillText),
       writeImmutable(path.join(stagedPath, "agents", "agent.yaml"), agentText),
       writeImmutable(path.join(stagedPath, "assets", "preview.png"), previewBytes),
     ]);
 
     const sidecar = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: spec.id,
       displayName: spec.displayName,
       kind: "presentation",
+      reference: "assets/reference.pptx",
       preview: "assets/preview.png",
       examples: stagedExamples,
       useWhen: spec.useWhen,
@@ -134,6 +139,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
         license: spec.provenance.license,
         source: spec.provenance.source,
         guideSha256: sha256(skillText),
+        referenceSha256: sha256(referenceBytes),
         previewSha256: sha256(previewBytes),
       },
     };
@@ -143,11 +149,12 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     await publishAtomically({ targetPath, stagedPath, current });
     stagedExists = false;
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       skillName: spec.id,
       skillPath: targetPath,
       sidecarSha256: sha256(sidecarBytes),
       previewPath: path.join(targetPath, "assets", "preview.png"),
+      referencePath: path.join(targetPath, "assets", "reference.pptx"),
       examplePaths: stagedExamples.map((entry) => path.join(targetPath, entry.path)),
       updated: current != null,
     };
@@ -160,13 +167,17 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
 function validateSpec(spec) {
   if (spec == null || typeof spec !== "object" || Array.isArray(spec)) throw new Error("spec must be an object");
   assertKeys(spec, "spec", [
-    "id", "displayName", "description", "guidePath", "useWhen", "avoidWhen",
+    "id", "displayName", "description", "guidePath", "referencePath", "useWhen", "avoidWhen",
     "audiences", "contentShapes", "visualTraits", "visualCommitment", "examples", "provenance",
   ]);
   if (!TEMPLATE_ID.test(spec.id ?? "")) throw new Error("id must be an artifact-template-* identifier");
   assertLine(spec.displayName, "displayName", 80);
   assertLine(spec.description, "description", 320);
   assertAbsolutePath(spec.guidePath, "guidePath");
+  assertAbsolutePath(spec.referencePath, "referencePath");
+  if (path.extname(spec.referencePath).toLowerCase() !== ".pptx") {
+    throw new Error("referencePath must use a .pptx file");
+  }
   assertEnglishArray(spec.useWhen, "useWhen", 1, 20);
   assertEnglishArray(spec.avoidWhen, "avoidWhen", 0, 20);
   assertEnglishArray(spec.audiences, "audiences", 0, 20);
@@ -214,7 +225,7 @@ async function validateStagedSurface(root, sidecar) {
   const assetNames = (await fs.readdir(path.join(root, "assets"))).sort();
   const exampleNames = (await fs.readdir(path.join(root, "assets", "examples"))).sort();
   if (agentNames.length !== 1 || agentNames[0] !== "agent.yaml") throw new Error("generated agents surface is invalid");
-  if (JSON.stringify(assetNames) !== JSON.stringify(["examples", "preview.png"])) throw new Error("generated assets surface is invalid");
+  if (JSON.stringify(assetNames) !== JSON.stringify(["examples", "preview.png", "reference.pptx"].sort())) throw new Error("generated assets surface is invalid");
   if (JSON.stringify(exampleNames) !== JSON.stringify(sidecar.examples.map((entry) => path.basename(entry.path)).sort())) {
     throw new Error("generated example surface is invalid");
   }
@@ -268,6 +279,30 @@ async function readJsonFile(filePath, maxBytes, label) {
 
 async function readTextFile(filePath, maxBytes, label) {
   return (await readRegularFile(filePath, maxBytes, label)).toString("utf8");
+}
+
+async function validateReferencePptx(bytes) {
+  let inspection;
+  try {
+    const { PresentationFile } = await import("office-kit");
+    inspection = await PresentationFile.inspectPptx(bytes, {
+      maxInputBytes: MAX_REFERENCE_BYTES,
+      maxParts: 4_096,
+      maxPartBytes: 64 * 1024 * 1024,
+      maxTotalBytes: 256 * 1024 * 1024,
+      verifyCrc32: true,
+      includeText: false,
+      maxChars: 8_000,
+    });
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`referencePath must contain a structurally valid Office Open XML package: ${detail}`);
+  }
+  if (inspection?.ok === true) return;
+  const firstIssue = inspection?.issues?.find((issue) => issue?.severity === "error");
+  throw new Error(
+    `referencePath must contain a structurally valid Office Open XML package: ${firstIssue?.message || "package inspection reported an unknown structural error."}`,
+  );
 }
 
 async function readRegularFile(filePath, maxBytes, label) {
