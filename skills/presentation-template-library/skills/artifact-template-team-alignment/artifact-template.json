@@ -8,62 +8,64 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "68d50c639449f11d052c79e6771d9a05060f5a08b27a2272d2e74ee7f6c92ad8"
+      "sha256": "1e7d9b1491c7d21eeaa8c9d4a55c3d1c7cf76293a68be408bc4de58fa2c3e01f"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "b7a24bf51ae74da2fcb676fce706df53226af007e5f77cc5508ef1aff85250e1"
+      "sha256": "0840d8de07ba825a06f905b57c4f2c093448f1313eb20e5d3dcabb3891ea17eb"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "3bfba9062b81854089b4fe4bf16bc55c2938b551979c566960bd310fe69a6af6"
+      "sha256": "c2f456c0d4b8546bab5596a4db259bbc901c95c03d8a7c2e0ac38b493d7a0588"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "9829b8f4ed489b35043e68b18a4a4881d44dbd5d90466332c15835f69d182fcf"
+      "sha256": "40c6258d98e673c98be43b94a3bf7a33233b9ae2d4943a4637e83bf3b73b2599"
     }
   ],
   "useWhen": [
-    "team alignment workshop",
-    "leadership offsite",
-    "cross team commitment review"
+    "team alignment",
+    "planning offsite",
+    "cross-functional strategy"
   ],
   "avoidWhen": [
-    "formal financial disclosure",
-    "machine dense technical appendix"
+    "external investor presentation",
+    "formal legal review"
   ],
   "audiences": [
-    "teams",
-    "facilitators",
-    "people leaders"
+    "team",
+    "cross-functional",
+    "internal leadership"
   ],
   "contentShapes": [
-    "shared context",
-    "relationship map",
-    "commitment sequence"
+    "context",
+    "shared goal",
+    "priorities",
+    "dependencies",
+    "decisions"
   ],
   "visualTraits": {
     "tone": [
-      "human",
-      "constructive",
-      "candid"
+      "collaborative",
+      "optimistic",
+      "direct"
     ],
     "density": "medium",
-    "colorMode": "light",
+    "colorMode": "dark",
     "structure": [
-      "relational",
-      "conversational",
-      "commitment led"
+      "horizon",
+      "relationship map",
+      "commitment"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original calibration deck for version 1.1.0",
-    "guideSha256": "7586d4701213acacabb51da40850060a703ed07b0dfeb3d4402b93a1678b0d97",
-    "previewSha256": "902f07d639b441fac31cd37a749c8fc87e489da7f7589f108be1f87f9cbc5adf"
+    "source": "OfficeKit original clean-room visual grammar rebuilt after native background-layer support; no reference deck distributed.",
+    "guideSha256": "8a55997defd6cebedc5336d917bbf0b97254c151b5c96b3040844f28e899b7cf",
+    "previewSha256": "6b414ff290e7b14f23018b617cfc41b19fc5e79a5ff20841a158b4d8911b2ea1"
   }
 }

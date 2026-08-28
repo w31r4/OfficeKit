@@ -8,62 +8,65 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "833ea00b1824bdf7a454dd5f768edad2dfa68a123bd1eaa0c2e1afd8a64d520f"
+      "sha256": "4c0e49331edc173aaf799bd4acdd2592d7e25520a712b9ca3201f8773b317406"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "7316cac59ceef196a0b8439bb15c6338098329114ca4245c2cc20b7fc1489a51"
+      "sha256": "97c41fe62277d0ace3e0ac91d4aaf6705ac70fc990d119c2657cc7b98c9e8232"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "0c76265714994806cdcea0f870cba4558d4f3c9a438aacab9f6f517caad10148"
+      "sha256": "eb38859668088d263e4fcc012fd05881279e534cb3748a65fe104d8ba2eadbdd"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "b95459b835449ae314cd10a3b9d128d8c67ea5f8a00facdcc25ecfa24c841ef1"
+      "sha256": "2391118432898cb2a758c41f5a74c23d34135c254fd3102ad2252798d2b19f81"
     }
   ],
   "useWhen": [
-    "market trend report",
-    "competitive landscape shift",
-    "investment signal analysis"
+    "market trends report",
+    "industry outlook",
+    "competitive landscape",
+    "investment thesis"
   ],
   "avoidWhen": [
-    "formal legal memorandum",
-    "quiet internal policy handbook"
+    "internal operating scorecard",
+    "print-first handout"
   ],
   "audiences": [
-    "investors",
-    "strategy teams",
-    "market analysts"
+    "executive",
+    "client",
+    "strategy",
+    "investor"
   ],
   "contentShapes": [
-    "time series",
-    "scenario range",
-    "market drivers"
+    "trend line",
+    "market map",
+    "scenario",
+    "comparison"
   ],
   "visualTraits": {
     "tone": [
-      "dynamic",
-      "analytical",
-      "forward looking"
+      "insight-led",
+      "confident",
+      "analytical"
     ],
     "density": "medium",
     "colorMode": "dark",
     "structure": [
-      "signal led",
-      "time based",
-      "layered"
+      "atlas",
+      "signal path",
+      "scenario"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original calibration deck for version 1.1.0",
-    "guideSha256": "12c05d1188ab6a2ff33379d90b0e6f53fe9f0dd2f5379f6b7a0cb47d0661a47a",
-    "previewSha256": "cee06a86499e1bb165fac1a24b4b810f671972d10f666c3f2f5f41e32b11ecf1"
+    "source": "OfficeKit original clean-room visual grammar rebuilt after native background-layer support; no reference deck distributed.",
+    "guideSha256": "036ed72f5d48ee84c1e80faceba573fd212b3e90ded562393e82f5e0fd46ce75",
+    "previewSha256": "a8367ac25c4a47b4cab6c0b956fbbb998aeb1f665f4b318580582d81175fe1b3"
   }
 }
