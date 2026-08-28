@@ -92,6 +92,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const imageReplacement = await verifyImageReplacement(bytes);
     const imageCrop = await verifyImageCropEdit(bytes);
     const nativeFill = await verifyNativeFillEdit(bytes);
+    const nativeLine = await verifyNativeLineEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -124,6 +125,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       imageReplacement,
       imageCrop,
       nativeFill,
+      nativeLine,
       svgStyle,
       animatedText,
       tableCell,
@@ -155,6 +157,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       imageReplacements: results.filter((result) => result.imageReplacement.status === "passed").length,
       imageCropEdits: results.filter((result) => result.imageCrop.status === "passed").length,
       nativeFillEdits: results.filter((result) => result.nativeFill.status === "passed").length,
+      nativeLineEdits: results.filter((result) => result.nativeLine.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -275,6 +278,30 @@ async function verifyNativeFillEdit(bytes) {
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
     throw new Error(`Native fill edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value: value.toLowerCase(), changedParts };
+}
+
+async function verifyNativeLineEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "lineRgb" || record.leafKind === "lineScheme");
+  if (!target) return { status: "blocked", reason: "no bounded imported connector line-color leaf was discovered" };
+  const value = target.leafKind === "lineScheme"
+    ? (target.value.toLowerCase() === "accent1" ? "accent2" : "accent1")
+    : (target.value.toLowerCase() === "#aabbcc" ? "#C3B2A1" : "#AABBCC");
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind);
+  if (!rebound || rebound.value.toLowerCase() !== value.toLowerCase()) {
+    throw new Error(`Native connector line edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native connector line edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, oldValue: target.value, value: value.toLowerCase(), changedParts };
 }

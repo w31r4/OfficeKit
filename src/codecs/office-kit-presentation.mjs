@@ -63,6 +63,9 @@ const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
 ]);
+const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
+  [...PRESENTATION_SCHEME_COLORS].map((token) => [token.toLowerCase(), token]),
+));
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -3895,6 +3898,51 @@ function createPresentationNativeLeafCapability(presentation, state) {
             details: { textLeafIndex: index },
             normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
             apply(next) { model._setNativeTextLeaf(index, next); },
+          });
+        }
+        return;
+      }
+      const nativeLineBinding = model?._nativeLineSourceBinding?.();
+      const currentNativeLineLeaves = model?._nativeLineRecords?.();
+      if (Array.isArray(nativeLineBinding) || Array.isArray(currentNativeLineLeaves)) {
+        if (wire.content.value.nativeKind !== "connector" || !Array.isArray(nativeLineBinding) ||
+            !Array.isArray(currentNativeLineLeaves) || nativeLineBinding.length !== currentNativeLineLeaves.length) return;
+        for (let index = 0; index < nativeLineBinding.length; index += 1) {
+          const sourceLeaf = nativeLineBinding[index];
+          const currentLeaf = currentNativeLineLeaves[index];
+          const leafKind = sourceLeaf.leafKind || "lineRgb";
+          if (sourceLeaf.lineLeafIndex !== index || currentLeaf.lineLeafIndex !== index ||
+              (currentLeaf.leafKind || "lineRgb") !== leafKind ||
+              sourceLeaf.expectedValue !== currentLeaf.expectedValue) return;
+          registerLeaf({
+            wire,
+            model,
+            slideState,
+            shapeTreePath,
+            parentGroupId,
+            rootEntry,
+            leafKind,
+            expectedValue: sourceLeaf.expectedValue,
+            value: sourceLeaf.value,
+            details: { lineLeafIndex: index },
+            normalize(next) {
+              if (leafKind === "lineScheme") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_SCHEME_COLOR_CANONICAL[token.toLowerCase()];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineScheme native leaf requires a supported theme color token.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+              if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineRgb native leaf requires a six-digit RGB color.");
+              const normalized = match[1].toUpperCase();
+              return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+            },
+            isNoop(next) {
+              return leafKind === "lineScheme"
+                ? next === sourceLeaf.expectedValue
+                : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
+            },
+            apply(next) { model._setNativeLineLeaf(index, next); },
           });
         }
         return;

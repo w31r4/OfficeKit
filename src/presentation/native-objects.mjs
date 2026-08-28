@@ -19,6 +19,28 @@ const NATIVE_TEXT_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?t\b[^>]*?(?:\/\s*>|>(?<va
 const NATIVE_TEXT_RUN = /<(?<prefix>[A-Za-z_][\w.-]*:)?r\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?r\s*>/giu;
 const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?tc\s*>/giu;
 const NATIVE_TEXT_SHAPE = /<(?<prefix>[A-Za-z_][\w.-]*:)?sp\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?sp\s*>/giu;
+const NATIVE_SPPR_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?spPr\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?spPr\s*>/giu;
+const NATIVE_LINE_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?ln\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?ln\s*>/giu;
+const NATIVE_SOLID_FILL_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?solidFill\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?solidFill\s*>/giu;
+const NATIVE_COLOR_OPEN_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?(?<name>[A-Za-z_][\w.-]*Clr)\b(?<attributes>[^>]*)>/giu;
+const NATIVE_SCHEME_COLORS = Object.freeze({
+  bg1: "bg1",
+  tx1: "tx1",
+  bg2: "bg2",
+  tx2: "tx2",
+  accent1: "accent1",
+  accent2: "accent2",
+  accent3: "accent3",
+  accent4: "accent4",
+  accent5: "accent5",
+  accent6: "accent6",
+  hlink: "hlink",
+  folhlink: "folHlink",
+  dk1: "dk1",
+  lt1: "lt1",
+  dk2: "dk2",
+  lt2: "lt2",
+});
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -59,6 +81,61 @@ function nativeTextRecord(leaves) {
     text: leaf.text,
     expectedHash: sha256(leaf.text),
   }))) : undefined;
+}
+
+function nativeTagAttributes(tag) {
+  return [...String(tag || "").matchAll(/([A-Za-z_][\w:.-]*)\s*=\s*(["'])(.*?)\2/gu)]
+    .map((match) => ({ name: match[1], value: decodeXml(match[3]) }));
+}
+
+function nativeSchemeColorToken(value) {
+  return NATIVE_SCHEME_COLORS[String(value || "").trim().toLowerCase()];
+}
+
+function deriveNativeLineLeaves(rawXml, nativeKind) {
+  if (nativeKind !== "connector") return undefined;
+  const source = String(rawXml || "");
+  const spPrMatches = [...source.matchAll(NATIVE_SPPR_TAG)];
+  if (spPrMatches.length !== 1) return undefined;
+  const spPr = spPrMatches[0];
+  const lineMatches = [...(spPr.groups?.value || "").matchAll(NATIVE_LINE_TAG)];
+  if (lineMatches.length !== 1) return undefined;
+  const line = lineMatches[0];
+  const linePrefix = line.groups?.prefix || "";
+  const solidMatches = [...(line.groups?.value || "").matchAll(NATIVE_SOLID_FILL_TAG)]
+    .filter((match) => (match.groups?.prefix || "") === linePrefix);
+  if (solidMatches.length !== 1) return undefined;
+  const colors = [...(solidMatches[0].groups?.value || "").matchAll(NATIVE_COLOR_OPEN_TAG)];
+  if (colors.length !== 1 || (colors[0].groups?.prefix || "") !== linePrefix) return undefined;
+  const attributes = nativeTagAttributes(colors[0].groups?.attributes || "");
+  if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val" ||
+      !attributes[0].value) return undefined;
+  const colorName = colors[0].groups?.name?.toLowerCase();
+  if (colorName === "srgbclr") {
+    if (!/^[0-9a-f]{6}$/iu.test(attributes[0].value)) return undefined;
+    const value = attributes[0].value.toUpperCase();
+    return Object.freeze([{ lineLeafIndex: 0, leafKind: "lineRgb", value, expectedHash: sha256(value) }]);
+  }
+  if (colorName === "schemeclr") {
+    const value = nativeSchemeColorToken(attributes[0].value);
+    if (!value) return undefined;
+    return Object.freeze([{ lineLeafIndex: 0, leafKind: "lineScheme", value, expectedHash: sha256(value) }]);
+  }
+  return undefined;
+}
+
+function nativeLineRecord(leaves) {
+  return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
+    lineLeafIndex: leaf.lineLeafIndex,
+    leafKind: leaf.leafKind || "lineRgb",
+    value: leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+    expectedValue: leaf.value,
+    expectedHash: sha256(leaf.value),
+  }))) : undefined;
+}
+
+function nativeLineEditableFields(leaves) {
+  return leaves?.length ? [...new Set(leaves.map((leaf) => leaf.leafKind || "lineRgb"))] : [];
 }
 
 function normalizeNativeChart(config) {
@@ -368,6 +445,19 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         writable: false,
         value: nativeTextBinding ? nativeTextBinding.map((leaf) => ({ ...leaf })) : undefined,
       });
+      const nativeLineBinding = deriveNativeLineLeaves(this.rawXml, this.nativeKind);
+      Object.defineProperty(this, "_nativeLineBinding", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeLineBinding,
+      });
+      Object.defineProperty(this, "_nativeLineLeaves", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeLineBinding ? nativeLineBinding.map((leaf) => ({ ...leaf })) : undefined,
+      });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
         enumerable: true,
@@ -377,6 +467,11 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         configurable: false,
         enumerable: true,
         get: () => nativeTextRecord(this._nativeTextLeaves),
+      });
+      Object.defineProperty(this, "nativeLineLeaves", {
+        configurable: false,
+        enumerable: true,
+        get: () => nativeLineRecord(this._nativeLineLeaves),
       });
       Object.defineProperty(this, "_embeddedWorkbookReplacement", {
         configurable: false,
@@ -593,6 +688,32 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return nativeTextRecord(this._nativeTextLeaves);
     }
 
+    _nativeLineSourceBinding() {
+      return nativeLineRecord(this._nativeLineBinding);
+    }
+
+    _nativeLineRecords() {
+      return nativeLineRecord(this._nativeLineLeaves);
+    }
+
+    _setNativeLineLeaf(index, value) {
+      if (!this._nativeLineBinding || !this._nativeLineLeaves || !this._nativeLineLeaves[index]) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native line leaf ${index}.`);
+      }
+      const color = String(value ?? "").trim();
+      const leafKind = this._nativeLineBinding[index].leafKind || "lineRgb";
+      if (leafKind === "lineScheme") {
+        const token = nativeSchemeColorToken(color);
+        if (!token) throw new RangeError("Native line scheme color must be a supported theme token.");
+        this._nativeLineLeaves[index].value = token;
+        return;
+      }
+      if (!/^[0-9a-f]{6}$/iu.test(color)) {
+        throw new RangeError("Native line color must be a six-digit RGB value.");
+      }
+      this._nativeLineLeaves[index].value = color.toUpperCase();
+    }
+
     _setNativeTextLeaf(index, value) {
       if (!this._nativeTextBinding || !this._nativeTextLeaves || !this._nativeTextLeaves[index]) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native text leaf ${index}.`);
@@ -632,6 +753,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
         ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
         ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
+        ...nativeLineEditableFields(this._nativeLineLeaves),
         ...(this.placementCapability.supported ? ["position"] : []),
       ];
       return {
@@ -657,6 +779,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           dataPoints: this._nativeChartDataPoints.length,
         } : undefined,
         nativeTextLeaves: this._nativeTextRecords(),
+        nativeLineLeaves: this._nativeLineRecords(),
         ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
         deletionCapability: this.deletionCapability,
         placementCapability: this.placementCapability,
@@ -706,6 +829,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         diagramText: this.diagramText,
         nativeChart: this._nativeChartCurrentRecord(),
         nativeTextLeaves: this._nativeTextRecords(),
+        nativeLineLeaves: this._nativeLineRecords(),
         placementCapability: this.placementCapability,
         editable: false,
         editableFields: [
@@ -715,6 +839,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
           ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
           ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
+          ...nativeLineEditableFields(this._nativeLineLeaves),
           ...(this.placementCapability.supported ? ["position"] : []),
         ],
       };

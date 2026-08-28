@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fillRgb" or "lineRgb" or "lineScheme" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -246,6 +246,13 @@ internal static partial class PptxEditPlanCodec
             {
                 var expected = PptxColor.Normalize(operation.ExpectedValue);
                 var requested = PptxColor.Normalize(operation.Value);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its target color.");
+            }
+            if (leafKind == "lineScheme")
+            {
+                var expected = PptxColor.NormalizeScheme(operation.ExpectedValue);
+                var requested = PptxColor.NormalizeScheme(operation.Value);
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its target color.");
             }
@@ -406,6 +413,14 @@ internal static partial class PptxEditPlanCodec
             {
                 ProveLeafValue(element, operation);
             }
+            else if (element is P.ConnectionShape connector &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                     (LeafKind(operation) is "lineRgb" or "lineScheme") &&
+                     PptxNativeObjectCatalog.Classify(connector) == "connector" &&
+                     HasSafeNativeConnectorLine(connector, LeafKind(operation)))
+            {
+                ProveLeafValue(connector, operation);
+            }
             else if (element is P.Picture picture &&
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Opaque) &&
                      projectedElement.Source.Editable &&
@@ -475,8 +490,8 @@ internal static partial class PptxEditPlanCodec
                 patches.Add(new PptxXmlPatch(operation, range.Start, range.End, string.Empty, proof.SourceElementSha256, proof.MutationPartPath));
                 continue;
             }
-            if (range.LocalName is not ("sp" or "pic" or "graphicFrame" or "grpSp"))
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, p:graphicFrame, or p:grpSp.", operation.SlidePartPath);
+            if (range.LocalName is not ("sp" or "pic" or "graphicFrame" or "cxnSp" or "grpSp"))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, p:graphicFrame, p:cxnSp, or p:grpSp.", operation.SlidePartPath);
             if (leafKind is not ("text" or "tableCellText" or "nativeText"))
             {
                 if (leafKind is "imageAsset" or "imageSvgAsset")
@@ -698,6 +713,26 @@ internal static partial class PptxEditPlanCodec
                 operation.SlidePartPath);
     }
 
+    private static bool HasSafeNativeConnectorLine(P.ConnectionShape connector, string kind)
+    {
+        var outline = connector.ShapeProperties?.Elements<A.Outline>().ToArray();
+        if (outline is not { Length: 1 }) return false;
+        var solidFill = outline[0].Elements<A.SolidFill>().ToArray();
+        if (solidFill.Length != 1) return false;
+        if (solidFill[0].ChildElements.Count != 1) return false;
+        if (kind == "lineRgb")
+        {
+            var colors = solidFill[0].Elements<A.RgbColorModelHex>().ToArray();
+            return colors.Length == 1 && colors[0].Val?.Value is { Length: 6 } value && value.All(Uri.IsHexDigit);
+        }
+        if (kind == "lineScheme")
+        {
+            var colors = solidFill[0].Elements<A.SchemeColor>().ToArray();
+            return colors.Length == 1 && colors[0].Val?.Value is { } value && PptxColor.TrySchemeToken(value, out _);
+        }
+        return false;
+    }
+
     private static string ReadLeafValue(OpenXmlElement element, PresentationEditOperation operation)
     {
         var kind = LeafKind(operation);
@@ -729,6 +764,7 @@ internal static partial class PptxEditPlanCodec
         var properties = element switch
         {
             P.Shape shape => shape.ShapeProperties,
+            P.ConnectionShape connector when kind is "lineRgb" or "lineScheme" => connector.ShapeProperties,
             P.Picture picture when IsGeometryLeaf(kind) => picture.ShapeProperties,
             _ => null,
         } ??
@@ -738,6 +774,7 @@ internal static partial class PptxEditPlanCodec
         {
             "fillRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.SolidFill>()), operation),
             "lineRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>()), operation),
+            "lineScheme" => RequiredLeafValue(NativeSchemeToken(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>(), operation), operation),
             "leftEmu" => transform?.Offset?.X?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
             "topEmu" => transform?.Offset?.Y?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
             "widthEmu" => transform?.Extents?.Cx?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
@@ -748,6 +785,14 @@ internal static partial class PptxEditPlanCodec
 
     private static string RequiredLeafValue(string value, PresentationEditOperation operation) =>
         string.IsNullOrEmpty(value) ? MissingLeaf(operation) : value;
+
+    private static string NativeSchemeToken(A.SolidFill? fill, PresentationEditOperation operation)
+    {
+        var scheme = fill?.GetFirstChild<A.SchemeColor>()?.Val?.Value;
+        return scheme is { } value && PptxColor.TrySchemeToken(value, out var token)
+            ? token
+            : MissingLeaf(operation);
+    }
 
     private static string MissingLeaf(PresentationEditOperation operation) =>
         throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no {LeafKind(operation)} leaf.", operation.SlidePartPath);
@@ -767,9 +812,15 @@ internal static partial class PptxEditPlanCodec
                 attribute = "val";
                 break;
             case "lineRgb":
-                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} picture targets do not expose lineRgb.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineRgb.", operation.SlidePartPath);
                 var outline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, outline, "ln", "solidFill", operation), "solidFill", "srgbClr", operation);
+                attribute = "val";
+                break;
+            case "lineScheme":
+                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineScheme.", operation.SlidePartPath);
+                var schemeOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
+                leaf = DirectChildRange(xml, DirectChildRange(xml, schemeOutline, "ln", "solidFill", operation), "solidFill", "schemeClr", operation);
                 attribute = "val";
                 break;
             case "leftEmu":
@@ -926,7 +977,7 @@ internal static partial class PptxEditPlanCodec
                 VerifyImageReplacement(slidePart, element, operation, resultById[operation.OperationId]);
                 continue;
             }
-            if (element is not P.Shape && element is not P.Picture && element is not P.GraphicFrame && element is not P.GroupShape)
+            if (element is not P.Shape && element is not P.Picture && element is not P.GraphicFrame && element is not P.GroupShape && element is not P.ConnectionShape)
                 throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape, table, group, or picture.", operation.SlidePartPath);
             if (!LeafValuesEqual(ReadLeafValue(element, operation), operation.Value, LeafKind(operation)))
                 throw new CodecException("presentation_edit_verification_failed", $"PPTX edit operation {operation.OperationId} did not survive package reopen.", operation.SlidePartPath);
@@ -1181,6 +1232,8 @@ internal static partial class PptxEditPlanCodec
     private static bool LeafValuesEqual(string left, string right, string leafKind) =>
         leafKind is "fillRgb" or "lineRgb"
             ? PptxColor.Normalize(left) == PptxColor.Normalize(right)
+            : leafKind == "lineScheme"
+                ? PptxColor.NormalizeScheme(left) == PptxColor.NormalizeScheme(right)
             : left == right;
     private static string ShapeTreePathKey(PresentationEditOperation operation) => string.Join("/", ShapeTreePath(operation));
     private static PresentationElement ResolveProjectedElement(
