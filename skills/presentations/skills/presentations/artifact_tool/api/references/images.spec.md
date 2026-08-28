@@ -172,6 +172,18 @@ closed instead of flattening the picture. The JavaScript preview model may
 still display `ellipse` or `roundRect`, but do not use those fields in a
 canonical PPTX export workflow yet.
 
+Imported Office pictures may contain a raster primary relationship plus an
+Office SVG fallback. The imported image exposes that fallback through
+`image.svgDataUrl`, `image.svgEditCapability`, and
+`image.getSvgEditLeaves()`. Use the issued SVG leaf with
+`image.editSvgLeaf(leaf.id, { expectedHash: leaf.expectedHash, value })` to
+change a safe fill, stroke, opacity, or existing transform scalar while
+retaining the primary raster and its fallback relationship. This is a
+source-bound operation: reinspect after each edit, reimport the output, and
+verify the primary relationship and declared package footprint. An authored
+image cannot add or remove a fallback through the bounded builder; unsupported
+fallback topology remains opaque and fails closed rather than being dropped.
+
 ## Replace Source
 
 ```ts

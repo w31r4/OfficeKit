@@ -17,7 +17,10 @@ and performs one fresh text edit, placement edit, and source-slide reuse per
 sample.  It re-imports every result and requires the expected mutation to stay
 within the target slide XML.  `evidence.v1.json` contains hashes, counts,
 capabilities, and statuses only; it does not contain source bytes or extracted
-content.
+content.  Imported pictures that carry an Office SVG fallback are surfaced as
+one image with a separately bound SVG asset; safe SVG leaves can be edited
+without replacing the primary raster relationship.  Unsupported SVG topology
+remains preserved and reports no editable leaves.
 
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
 the same six inputs and a bounded placement edit. It includes per-slide PNG

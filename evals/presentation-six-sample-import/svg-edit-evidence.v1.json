@@ -1,0 +1,25 @@
+{
+  "schema": "office-kit/pptx-six-sample-svg-edit-evidence/v1",
+  "source": {
+    "id": "slidescarnival-business-infographic",
+    "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26"
+  },
+  "target": {
+    "slide": 3,
+    "imageId": "presentation/slide/3/element/2",
+    "leafKind": "svgFillRgb",
+    "oldValue": "#000000",
+    "newValue": "#123456",
+    "sourceSvgSha256": "01cb28fc5996a254f2d964e56b4dc8e5c322c3e7b891829d40fb04678aa249a2"
+  },
+  "output": {
+    "sha256": "8bacda02754de2b6b6215ae0d40e242bc0374fdba6111adfd24babf5982c3e2c",
+    "changedParts": [
+      "ppt/media/office-kit-bc5227cd44f811b97a6b43ef.svg",
+      "ppt/slides/_rels/slide3.xml.rels",
+      "ppt/slides/slide3.xml"
+    ],
+    "primaryRasterRelationshipPreserved": true,
+    "reimportedSvgValue": "#123456"
+  }
+}

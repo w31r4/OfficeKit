@@ -21,7 +21,7 @@ function edit(image, predicate, value) {
   return image.editSvgLeaf(current.id, { expectedHash: current.expectedHash, value });
 }
 
-const SAFE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><defs><linearGradient id="g"><stop offset="0" stop-color="#FFFFFF"/></linearGradient></defs><rect id="panel" fill="#abc" stroke="#123456" opacity="0.75" transform="translate(12,-4)"/><g transform="rotate(-90 220 280)"><path fill="url(#g)" transform="scale(1.5)"/></g><circle style="fill:#FFEEDD" cx="20" cy="20" r="10"/><use href="#panel"/></svg>';
+const SAFE_SVG = '<?xml version="1.0" encoding="UTF-8"?><!-- generator marker --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360"><defs><linearGradient id="g"><stop offset="0" stop-color="#FFFFFF"/></linearGradient></defs><rect id="panel" fill="#abc" stroke="#123456" opacity="0.75" transform="translate(12,-4)"/><g transform="rotate(-90 220 280)"><path fill="url(#g)" transform="scale(1.5)"/></g><circle style="fill:#FFEEDD" cx="20" cy="20" r="10"/><use href="#panel"/></svg>';
 const deck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 const slide = deck.slides.add({ name: "Safe SVG leaves" });
 const image = slide.images.add({
