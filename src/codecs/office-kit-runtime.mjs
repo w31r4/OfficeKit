@@ -7,6 +7,11 @@ import {
 import { FileBlob } from "../shared/file-blob.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import {
+  isJavaScriptMemoryAllocationError,
+  javaScriptMemoryBudgetError,
+  OFFICE_KIT_DEFAULT_MAX_INPUT_BYTES,
+} from "./office-kit-memory.mjs";
+import {
   OFFICE_KIT_NATIVE_TRANSPORT_VERSION,
   startOfficeKitNativeClient,
 } from "./office-kit-native-client.mjs";
@@ -14,6 +19,7 @@ import {
 export const OFFICE_KIT_PROTOCOL_VERSION = 2;
 
 let runtimePromise;
+let invocationTail = Promise.resolve();
 
 async function runtime() {
   while (true) {
@@ -75,6 +81,40 @@ export async function inputBytes(value) {
   return bytesFrom(value);
 }
 
+function effectiveMaxInputBytes(limits = {}) {
+  const normalized = codecLimits(limits);
+  return normalized.maxInputBytes > 0n ? normalized.maxInputBytes : OFFICE_KIT_DEFAULT_MAX_INPUT_BYTES;
+}
+
+export function assertOfficeKitInputBudget(value, limits = {}, family = "Office") {
+  const bytes = bytesFrom(value);
+  const maximum = effectiveMaxInputBytes(limits);
+  if (BigInt(bytes.byteLength) > maximum) {
+    throw new OfficeKitCodecError(
+      `${family} input has ${bytes.byteLength} bytes and exceeds max_input_bytes (${maximum}).`,
+      [],
+      { code: "input_budget_exceeded" },
+    );
+  }
+  return bytes;
+}
+
+export async function boundedInputBytes(value, limits = {}, family = "Office") {
+  return assertOfficeKitInputBudget(await inputBytes(value), limits, family);
+}
+
+export async function ownedInputBytes(value, limits = {}, family = "Office") {
+  const bytes = await boundedInputBytes(value, limits, family);
+  try {
+    return Uint8Array.from(bytes);
+  } catch (error) {
+    if (isJavaScriptMemoryAllocationError(error) || error instanceof RangeError) {
+      throw javaScriptMemoryBudgetError(`${family} source ownership`, error);
+    }
+    throw error;
+  }
+}
+
 function responseFailure(response) {
   const message = response.diagnostics.length
     ? response.diagnostics.map((item) => `${item.code}: ${item.message}`).join("\n")
@@ -82,30 +122,73 @@ function responseFailure(response) {
   return new OfficeKitCodecError(message, response.diagnostics);
 }
 
-export async function invokeOfficeKit(request, { fileSidecar = false } = {}) {
-  if (Object.hasOwn(request || {}, "allowLossy") || Object.hasOwn(request || {}, "allow_lossy")) {
-    throw new TypeError("invokeOfficeKit no longer accepts allowLossy/allow_lossy; opaque Office content without a validated source package always fails closed.");
-  }
+async function invokeOfficeKitExclusive(request, { fileSidecar = false, consumeResponse } = {}) {
+  if (request?.file?.byteLength) assertOfficeKitInputBudget(request.file, request.limits, "Office");
   const loaded = await runtime();
   const loadedPromise = runtimePromise;
   let response;
+  let stage = "request encoding";
   try {
     const wireRequest = create(CodecRequestSchema, request);
     const sidecar = fileSidecar && wireRequest.file?.byteLength ? bytesFrom(wireRequest.file) : undefined;
     if (sidecar) wireRequest.file = new Uint8Array();
     const wireRequestBytes = toBinary(CodecRequestSchema, wireRequest);
+    stage = "response decoding";
     const wireResponse = bytesFrom(await loaded.invoke(wireRequestBytes, sidecar));
     response = fromBinary(CodecResponseSchema, wireResponse);
   } catch (error) {
     loaded.kill();
     if (runtimePromise === loadedPromise) runtimePromise = undefined;
     if (error instanceof OfficeKitCodecError) throw error;
+    if (isJavaScriptMemoryAllocationError(error)) throw javaScriptMemoryBudgetError(stage, error);
     throw new OfficeKitCodecError("OfficeKit native codec returned an invalid protobuf response.", [], { code: "runtime_protocol_mismatch", cause: error });
   } finally {
     loaded.release();
   }
   if (!response.ok) throw responseFailure(response);
+  if (typeof consumeResponse === "function") {
+    try {
+      return await consumeResponse(response);
+    } catch (error) {
+      if (isJavaScriptMemoryAllocationError(error)) throw javaScriptMemoryBudgetError("artifact hydration", error);
+      throw error;
+    }
+  }
   return response;
+}
+
+function assertOfficeKitRequest(request) {
+  if (Object.hasOwn(request || {}, "allowLossy") || Object.hasOwn(request || {}, "allow_lossy")) {
+    throw new TypeError("invokeOfficeKit no longer accepts allowLossy/allow_lossy; opaque Office content without a validated source package always fails closed.");
+  }
+  if (request?.file?.byteLength) assertOfficeKitInputBudget(request.file, request.limits, "Office");
+}
+
+export async function invokeOfficeKitLazy(createRequest, options = {}) {
+  if (typeof createRequest !== "function") throw new TypeError("invokeOfficeKitLazy expects a request factory.");
+  const invokeCreatedRequest = () => {
+    let request;
+    try {
+      request = createRequest();
+    } catch (error) {
+      if (isJavaScriptMemoryAllocationError(error)) throw javaScriptMemoryBudgetError("request construction", error);
+      throw error;
+    }
+    assertOfficeKitRequest(request);
+    return invokeOfficeKitExclusive(request, options);
+  };
+  const operation = invocationTail.then(
+    invokeCreatedRequest,
+    invokeCreatedRequest,
+  );
+  // Never retain the most recent protobuf response through the queue tail.
+  invocationTail = operation.then(() => undefined, () => undefined);
+  return operation;
+}
+
+export async function invokeOfficeKit(request, options = {}) {
+  assertOfficeKitRequest(request);
+  return invokeOfficeKitLazy(() => request, options);
 }
 
 export function assertCodecOptions(options, allowed, apiName) {

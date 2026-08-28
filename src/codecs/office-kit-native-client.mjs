@@ -9,6 +9,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
+import { isJavaScriptMemoryAllocationError, javaScriptMemoryBudgetError } from "./office-kit-memory.mjs";
 
 export const OFFICE_KIT_NATIVE_TRANSPORT_VERSION = 2;
 export const OFFICE_KIT_NATIVE_MAX_FRAME_BYTES = 128 * 1024 * 1024;
@@ -196,7 +197,9 @@ class NativeCodecClient {
       () => this.invokeFrame(bytes, fileBytes),
       () => this.invokeFrame(bytes, fileBytes),
     );
-    this.queue = operation.catch(() => {});
+    // A successful Promise retains its fulfillment value. Store a void tail so
+    // an idle client cannot pin the most recent response frame indefinitely.
+    this.queue = operation.then(() => undefined, () => undefined);
     return operation.finally(() => {
       this.pendingRequests -= 1;
       if (this.pendingRequests === 0) {
@@ -249,6 +252,7 @@ class NativeCodecClient {
       ]);
     } catch (error) {
       if (error instanceof OfficeKitCodecError) throw error;
+      if (isJavaScriptMemoryAllocationError(error)) throw javaScriptMemoryBudgetError("native response buffering", error);
       throw nativeError(code, "OfficeKit native codec closed its response stream unexpectedly.", error);
     }
   }
@@ -333,6 +337,10 @@ class ExactReader {
       this.pending.copy(output, written, this.offset, this.offset + copied);
       written += copied;
       this.offset += copied;
+    }
+    if (this.pending && this.offset >= this.pending.length) {
+      this.pending = null;
+      this.offset = 0;
     }
     return output;
   }

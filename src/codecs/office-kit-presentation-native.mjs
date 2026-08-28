@@ -43,12 +43,18 @@ export async function materializePresentationNativeGraphs(envelope, options = {}
   const assetBytesBySha256 = options.assetBytesBySha256 instanceof Map
     ? options.assetBytesBySha256
     : new Map();
-  const opaqueElements = envelope.payload?.case === "presentation"
-    ? envelope.payload.value.slides.flatMap((slide) => slide.elements
-      .filter((element) => element.content?.case === "opaque")
-      .map((element) => element.content.value))
-    : [];
-  const requestedPaths = new Set(opaqueElements.flatMap((opaque) => opaque.preservedPartPaths || []).map(safePartPath));
+  const opaqueElements = [];
+  if (envelope.payload?.case === "presentation") {
+    for (const slide of envelope.payload.value.slides) {
+      for (const element of slide.elements) {
+        if (element.content?.case === "opaque") opaqueElements.push(element.content.value);
+      }
+    }
+  }
+  const requestedPaths = new Set();
+  for (const opaque of opaqueElements) {
+    for (const partPath of opaque.preservedPartPaths || []) requestedPaths.add(safePartPath(partPath));
+  }
   const partsByPath = new Map();
   for (const part of opaqueOpc?.parts || []) {
     const partPath = safePartPath(part.path);
@@ -72,7 +78,10 @@ export async function materializePresentationNativeGraphs(envelope, options = {}
   }
 
   const materializedParts = new Map();
-  await Promise.all([...requestedPaths].map(async (partPath) => {
+  // Inflate selected parts one at a time. The codec already bounds their total
+  // size, but parallel inflation could otherwise make that entire budget live
+  // at once in JSZip plus the hydrated presentation graph.
+  for (const partPath of requestedPaths) {
     const metadata = partsByPath.get(partPath);
     const sharedAssetBytes = assetBytesBySha256.get(String(metadata.sha256 || "").toLowerCase());
     let bytes = metadata.data?.length
@@ -95,7 +104,7 @@ export async function materializePresentationNativeGraphs(envelope, options = {}
       sourceSha256: (metadata.sha256 || sha256(bytes)).toLowerCase(),
       relationships: (metadata.relationships || []).map(modelRelationship),
     });
-  }));
+  }
 
   const relationships = new Map();
   for (const relationship of opaqueOpc?.packageRelationships || []) {

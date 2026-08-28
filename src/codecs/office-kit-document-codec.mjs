@@ -28,9 +28,10 @@ import {
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import {
   assertCodecOptions,
+  boundedInputBytes,
   codecLimits,
-  inputBytes,
   invokeOfficeKit,
+  invokeOfficeKitLazy,
   OFFICE_KIT_PROTOCOL_VERSION,
   uint32,
 } from "./office-kit-runtime.mjs";
@@ -2339,13 +2340,13 @@ function documentEnvelope(document) {
 
 export async function exportDocxWithOfficeKit(document, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "exportDocxWithOfficeKit");
-  const response = await invokeOfficeKit({
+  const response = await invokeOfficeKitLazy(() => ({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.EXPORT_DOCX,
     family: ArtifactFamily.DOCUMENT,
     artifact: documentEnvelope(document),
     limits: codecLimits(options.limits),
-  });
+  }));
   return new FileBlob(response.file, {
     type: DOCX_MIME,
     metadata: { artifactKind: "document", codec: "office-kit", diagnostics: response.diagnostics },
@@ -2368,7 +2369,8 @@ export async function finalizeDocxRevisionsWithOfficeKit(input, options = {}) {
   if (!/^[0-9a-f]{64}$/.test(expectedSourceSha256)) {
     throw new TypeError("finalizeDocxRevisionsWithOfficeKit expectedSourceSha256 must be a 64-character SHA-256 hex digest.");
   }
-  const file = await inputBytes(input);
+  const limits = codecLimits(options.limits);
+  const file = await boundedInputBytes(input, limits, "DOCX");
   const actualSourceSha256 = createHash("sha256").update(file).digest("hex");
   if (actualSourceSha256 !== expectedSourceSha256) {
     throw new OfficeKitCodecError("DOCX revision finalization source bytes do not match expectedSourceSha256.", [], { code: "document_source_hash_mismatch" });
@@ -2378,7 +2380,7 @@ export async function finalizeDocxRevisionsWithOfficeKit(input, options = {}) {
     operation: CodecOperation.FINALIZE_DOCX_REVISIONS,
     family: ArtifactFamily.DOCUMENT,
     file,
-    limits: codecLimits(options.limits),
+    limits,
     revisionFinalization: {
       mode: wireMode,
       keepTracking: options.keepTracking === true,
@@ -2446,7 +2448,8 @@ export async function addDocxTrackedReplacementWithOfficeKit(input, options = {}
   if (!/^[0-9a-f]{64}$/.test(expectedSourceSha256)) {
     throw new TypeError("addDocxTrackedReplacementWithOfficeKit expectedSourceSha256 must be a 64-character SHA-256 hex digest.");
   }
-  const file = await inputBytes(input);
+  const limits = codecLimits(options.limits);
+  const file = await boundedInputBytes(input, limits, "DOCX");
   const actualSourceSha256 = createHash("sha256").update(file).digest("hex");
   if (actualSourceSha256 !== expectedSourceSha256) {
     throw new OfficeKitCodecError("DOCX tracked replacement source bytes do not match expectedSourceSha256.", [], { code: "document_source_hash_mismatch" });
@@ -2456,7 +2459,7 @@ export async function addDocxTrackedReplacementWithOfficeKit(input, options = {}
     operation: CodecOperation.ADD_DOCX_TRACKED_REPLACEMENT,
     family: ArtifactFamily.DOCUMENT,
     file,
-    limits: codecLimits(options.limits),
+    limits,
     trackedReplacement: {
       expectedSourceSha256,
       targetBlockIndex: target.blockIndex,
@@ -2910,12 +2913,12 @@ function documentFromEnvelope(envelope) {
 
 export async function importDocxWithOfficeKit(input, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "importDocxWithOfficeKit");
-  const response = await invokeOfficeKit({
+  const limits = codecLimits(options.limits);
+  return invokeOfficeKit({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.IMPORT_DOCX,
     family: ArtifactFamily.DOCUMENT,
-    file: await inputBytes(input),
-    limits: codecLimits(options.limits),
-  });
-  return documentFromEnvelope(response.artifact);
+    file: await boundedInputBytes(input, limits, "DOCX"),
+    limits,
+  }, { consumeResponse: (response) => documentFromEnvelope(response.artifact) });
 }

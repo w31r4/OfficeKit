@@ -17,9 +17,10 @@ import { deterministicSpreadsheetGuid } from "../spreadsheet/ooxml-threaded-comm
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import {
   assertCodecOptions,
+  boundedInputBytes,
   codecLimits,
-  inputBytes,
   invokeOfficeKit,
+  invokeOfficeKitLazy,
   OFFICE_KIT_PROTOCOL_VERSION,
 } from "./office-kit-runtime.mjs";
 import { assertTrustedImportedState } from "./office-kit-source-state.mjs";
@@ -1459,13 +1460,13 @@ export async function exportXlsxWithOfficeKit(workbook, options = {}) {
   assertCodecOptions(options, new Set(["limits", "recalculate"]), "exportXlsxWithOfficeKit");
   if (!(workbook instanceof Workbook)) throw new TypeError("exportXlsxWithOfficeKit expects a Workbook instance.");
   if (options.recalculate !== false) workbook.recalculate();
-  const response = await invokeOfficeKit({
+  const response = await invokeOfficeKitLazy(() => ({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.EXPORT_XLSX,
     family: ArtifactFamily.WORKBOOK,
     artifact: workbookEnvelope(workbook),
     limits: codecLimits(options.limits),
-  });
+  }));
   return new FileBlob(response.file, {
     type: XLSX_MIME,
     metadata: { artifactKind: "workbook", codec: "office-kit", diagnostics: response.diagnostics },
@@ -1705,12 +1706,12 @@ function workbookFromEnvelope(envelope) {
 
 export async function importXlsxWithOfficeKit(input, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "importXlsxWithOfficeKit");
-  const response = await invokeOfficeKit({
+  const limits = codecLimits(options.limits);
+  return invokeOfficeKit({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.IMPORT_XLSX,
     family: ArtifactFamily.WORKBOOK,
-    file: await inputBytes(input),
-    limits: codecLimits(options.limits),
-  });
-  return workbookFromEnvelope(response.artifact);
+    file: await boundedInputBytes(input, limits, "XLSX"),
+    limits,
+  }, { consumeResponse: (response) => workbookFromEnvelope(response.artifact) });
 }

@@ -9,8 +9,9 @@ import { compilePresentationEditPlan, presentationEnvelope, presentationFromEnve
 import {
   assertCodecOptions,
   codecLimits,
-  inputBytes,
   invokeOfficeKit,
+  invokeOfficeKitLazy,
+  ownedInputBytes,
   OFFICE_KIT_PROTOCOL_VERSION,
 } from "./office-kit-runtime.mjs";
 
@@ -213,13 +214,13 @@ export async function exportPptxWithOfficeKit(presentation, options = {}) {
       },
     });
   }
-  const response = await invokeOfficeKit({
+  const response = await invokeOfficeKitLazy(() => ({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.EXPORT_PPTX,
     family: ArtifactFamily.PRESENTATION,
     artifact: presentationEnvelope(presentation, OFFICE_KIT_PROTOCOL_VERSION),
     limits: codecLimits(options.limits),
-  });
+  }));
   return new FileBlob(response.file, {
     type: PPTX_MIME,
     metadata: { artifactKind: "presentation", codec: "office-kit", diagnostics: response.diagnostics },
@@ -228,15 +229,20 @@ export async function exportPptxWithOfficeKit(presentation, options = {}) {
 
 export async function importPptxWithOfficeKit(input, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "importPptxWithOfficeKit");
-  const sourceBytes = Uint8Array.from(await inputBytes(input));
-  const response = await invokeOfficeKit({
+  const limits = codecLimits(options.limits);
+  const sourceBytes = await ownedInputBytes(input, limits, "PPTX");
+  return invokeOfficeKit({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.IMPORT_PPTX,
     family: ArtifactFamily.PRESENTATION,
     file: sourceBytes,
-    limits: codecLimits(options.limits),
+    limits,
     thinPresentationImportResponse: true,
-  }, { fileSidecar: true });
-  restoreThinPresentationImport(response.artifact, sourceBytes);
-  return presentationFromEnvelope(response.artifact);
+  }, {
+    fileSidecar: true,
+    consumeResponse: async (response) => {
+      restoreThinPresentationImport(response.artifact, sourceBytes);
+      return presentationFromEnvelope(response.artifact);
+    },
+  });
 }
