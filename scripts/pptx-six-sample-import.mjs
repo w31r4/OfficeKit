@@ -244,7 +244,7 @@ function profileSummary(profile) {
     layoutFamilies: profile.layoutFamilies?.length || 0,
     slideArchetypes: profile.slideArchetypes?.length || 0,
     reusableComponents: profile.reusableComponents?.length || 0,
-    componentCandidates: profile.componentCandidates?.length || 0,
+    componentCandidates: Number(profile.componentCandidates?.total || 0),
     svgAssets: profile.designLanguage?.vectorAssets?.assetCount || 0,
     nativeOpaque: profile.nativeOpaque?.count || profile.nativeOpaque?.length || 0,
   };
