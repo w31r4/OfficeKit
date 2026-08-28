@@ -1,0 +1,5 @@
+interface:
+  display_name: "Skyline Wayfinding"
+  short_description: "Use the Skyline Wayfinding presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-skyline-wayfinding as the visual style for this presentation."

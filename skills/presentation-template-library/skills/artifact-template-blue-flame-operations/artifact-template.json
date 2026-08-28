@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-blue-flame-operations",
+  "displayName": "Blue Flame Operations",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "9dd7c151127913fa75c0d2dc92a9cfbd4c6b84a481b157c4fb6874dfbe99e9dc"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "625963b6c5fec3fe13798941aabf4d9b1dc34c75a937ecaf1cd38d43ef34a7e6"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "cf82b36538bf2fa5e7635620657230ec3c5789d98415a18d8843a8c518c87fd9"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "753404245904ffcd5cba5c01f8f26ed7d278e50dc6e4d794f107ba32ddcda620"
+    }
+  ],
+  "useWhen": [
+    "operations review",
+    "work presentation"
+  ],
+  "avoidWhen": [
+    "heritage brand"
+  ],
+  "audiences": [
+    "operators",
+    "managers",
+    "cross-functional teams"
+  ],
+  "contentShapes": [
+    "status",
+    "cause",
+    "next action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "work",
+      "Cyan carries attainment while amber is reserved for exceptions.",
+      "glow"
+    ],
+    "density": "dense",
+    "colorMode": "dark",
+    "structure": [
+      "glow",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "04c7c405e5275e2d34bbb2e5fc583b0372a1c47c73cbe0c8057cf8d40da8b552",
+    "previewSha256": "16966fcebcc31d7eaefb7bfc5e82c6176f80a91677e3ee0a295dcfc0ce26aef5"
+  }
+}

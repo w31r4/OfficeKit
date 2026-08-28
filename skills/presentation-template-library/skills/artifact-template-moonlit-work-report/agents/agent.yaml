@@ -1,0 +1,5 @@
+interface:
+  display_name: "Moonlit Work Report"
+  short_description: "Use the Moonlit Work Report presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-moonlit-work-report as the visual style for this presentation."

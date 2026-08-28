@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-clay-craft-review",
+  "displayName": "Clay Craft Review",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0eaecc2127f1b4f183cbd3547b10718d94ea66f82c5e12f95a3e7155b8efc32c"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "6b887f114e71d44539cc11d1dd59f05533705ff516ef60ece94de3c90341129a"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "581d68fc67713f43e79e1da04b99d899d60c94b92c50e9ce5c21ca5318b9c2e1"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "6cbea541bb85c088c770c7e72fe70f5a78b75b4f22310876ea80dcc6712149ca"
+    }
+  ],
+  "useWhen": [
+    "place-based annual report",
+    "work presentation"
+  ],
+  "avoidWhen": [
+    "night incident"
+  ],
+  "audiences": [
+    "operators",
+    "managers",
+    "cross-functional teams"
+  ],
+  "contentShapes": [
+    "status",
+    "cause",
+    "next action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "work",
+      "Warm paper and clay accents give business evidence a humane cadence.",
+      "kiln"
+    ],
+    "density": "sparse",
+    "colorMode": "neutral",
+    "structure": [
+      "kiln",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "c2c5dd3d3050c4f79cfbefb59595761facaa01e71f66652e4b5260c8e6557723",
+    "previewSha256": "c86ba194fccbdcec02f7ccb5ffa3ab84be92592dbdd2ccdf2981d3546d585220"
+  }
+}

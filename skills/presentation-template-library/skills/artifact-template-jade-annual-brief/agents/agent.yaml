@@ -1,0 +1,5 @@
+interface:
+  display_name: "Jade Annual Brief"
+  short_description: "Use the Jade Annual Brief presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-jade-annual-brief as the visual style for this presentation."

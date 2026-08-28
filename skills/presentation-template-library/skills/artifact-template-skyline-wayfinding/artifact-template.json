@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-skyline-wayfinding",
+  "displayName": "Skyline Wayfinding",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "4c6662f0da04d2e7fe79900de42b197478b40e68117ffb3453d85d6c013e45ab"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "4a460b42ea49550c7ea8ee667d2231924437d8c2de026e2790e96c8d092b4178"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "1aebed8d7a3a081acd435ea7f20df91c4ab9abc59723b5117d09f0e7ece5244f"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "3db835386bfed7a226d0fe009499c50439e698e2f77c1ffc7915fab2cfc6d09b"
+    }
+  ],
+  "useWhen": [
+    "service operations",
+    "work presentation"
+  ],
+  "avoidWhen": [
+    "fashion story"
+  ],
+  "audiences": [
+    "operators",
+    "managers",
+    "cross-functional teams"
+  ],
+  "contentShapes": [
+    "status",
+    "cause",
+    "next action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "work",
+      "Sky-blue markers turn service operations into one visible journey.",
+      "wayfinding"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "wayfinding",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "8a6a1c86e51e89d3ba49501980bb4f1c57f12b3aa3d40742d1d261c9e4375726",
+    "previewSha256": "e2507bfd1fa167856c2c138a6cbc2c161572b61be2c9c9d9a5246d5df9711ea1"
+  }
+}

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Blue Flame Operations"
+  short_description: "Use the Blue Flame Operations presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-blue-flame-operations as the visual style for this presentation."

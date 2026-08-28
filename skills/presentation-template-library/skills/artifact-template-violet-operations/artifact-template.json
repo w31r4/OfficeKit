@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-violet-operations",
+  "displayName": "Violet Operations",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "03d3b97a4e40964e637161db8d4f419858bd1fb190c6fbf9d1ef3464f25fff12"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "347566619ecfcd8b7bd8192b2c8b3b95b4b0cb85c1b8f3a5871669e1387ac4ca"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "d9dfa6f258ecfed608eac81136aa08d35f8daf48264ea4c19f04e93d0681bfd5"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "c2a4ec6f1d5abdd11658d289351f97c1207ba69115aa1fe906771fba6d42a5ae"
+    }
+  ],
+  "useWhen": [
+    "business documentary",
+    "work presentation"
+  ],
+  "avoidWhen": [
+    "academic proof"
+  ],
+  "audiences": [
+    "operators",
+    "managers",
+    "cross-functional teams"
+  ],
+  "contentShapes": [
+    "status",
+    "cause",
+    "next action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "work",
+      "Electric violet punctuates authentic work and measurable progress.",
+      "slash"
+    ],
+    "density": "dense",
+    "colorMode": "mixed",
+    "structure": [
+      "slash",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "0a9d0e5a16d8fb6a9877de27f406bb190fbf37cf31a1ff670a9be18ba45247fc",
+    "previewSha256": "b23fc3b8c291878aac17db67c36a77f1d3c350a08c211f384d5d2de889d52dfc"
+  }
+}

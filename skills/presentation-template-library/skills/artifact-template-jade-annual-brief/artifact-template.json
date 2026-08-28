@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-jade-annual-brief",
+  "displayName": "Jade Annual Brief",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0f1be53863e8eab626918a3fdc107857b04efb6551e6acaaaf6411d3dc00a30e"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "d90e525aeaa4266df750d0daa20382d578124a2b043cda053a5372e53916ae7d"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "6a594e43ba0840856fcdcbe656d80a2b867e09408fe8a5f1767cd59816e762b3"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "db1a7caf54c753e3fb9e378aeaccf445c5b67a0c59d6505391fd7a0917596235"
+    }
+  ],
+  "useWhen": [
+    "annual operations report",
+    "work presentation"
+  ],
+  "avoidWhen": [
+    "youth campaign"
+  ],
+  "audiences": [
+    "operators",
+    "managers",
+    "cross-functional teams"
+  ],
+  "contentShapes": [
+    "status",
+    "cause",
+    "next action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "work",
+      "Warm ivory and jade structure guide a mature annual brief.",
+      "jade"
+    ],
+    "density": "dense",
+    "colorMode": "neutral",
+    "structure": [
+      "jade",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "6e88c46d272d4e0ea6f2f288c25ba828d655fc9139366b42c393b1fffeee3ef9",
+    "previewSha256": "c171505fdb28821715d5ddf54ddbc1b15471fd731fb847e305f55a4d364eb07c"
+  }
+}

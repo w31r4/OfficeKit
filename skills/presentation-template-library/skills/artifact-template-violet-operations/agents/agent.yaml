@@ -1,0 +1,5 @@
+interface:
+  display_name: "Violet Operations"
+  short_description: "Use the Violet Operations presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-violet-operations as the visual style for this presentation."

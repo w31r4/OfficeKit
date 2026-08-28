@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-moonlit-work-report",
+  "displayName": "Moonlit Work Report",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "2833fca1850522dfd791bc3cfb6ce498038aed85ae8b19f61275555f09612477"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "e3a0a1e2c142f1070b855be08746a3321299c1edf524df6d9d12e5ce2db923d6"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "775126fc274860a4cc554f562f51f2d2a87422468ea2dc9b49ae5aae654b0b68"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "14fed6c4dc3fe716f1145a5a773e92b75cba6268c23d955583aefaf118649862"
+    }
+  ],
+  "useWhen": [
+    "quarterly update",
+    "work presentation"
+  ],
+  "avoidWhen": [
+    "cinematic launch"
+  ],
+  "audiences": [
+    "operators",
+    "managers",
+    "cross-functional teams"
+  ],
+  "contentShapes": [
+    "status",
+    "cause",
+    "next action"
+  ],
+  "visualTraits": {
+    "tone": [
+      "work",
+      "Moon-white space and violet orientation keep management reporting bright.",
+      "moon"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "moon",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "02ac4a5b2df5201efb58b246a4ba1ab1aa267108f9289cd3d3eac6ef3b0ae5a4",
+    "previewSha256": "ac153757919c2581430024a0c861468af75d0b4147d3b81a02d2a9a93b03b009"
+  }
+}
