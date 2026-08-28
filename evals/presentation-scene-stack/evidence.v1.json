@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-28",
+  "officeKitCommit": "fa4cc9dbfabd677e9b661f18e7edff3313510d31",
+  "renderer": {
+    "name": "LibreOfficeDev",
+    "version": "26.8.0.0.alpha0",
+    "build": "2c87e51eeaa2b413ff4ae097b2705eea1995d8e5"
+  },
+  "authoredReference": {
+    "description": "Full-bleed photograph, translucent contrast scrim, editable typography, metric, and foreground decision field.",
+    "layers": 10,
+    "pptxBytes": 4263530,
+    "pptxSha256": "ec77c9d2af69f752ef17e01e5c31784b768aea6c8ad169eb820b983506dccc5d",
+    "secondExportSha256": "ec77c9d2af69f752ef17e01e5c31784b768aea6c8ad169eb820b983506dccc5d",
+    "secondExportExact": true,
+    "renderSha256": "9b26c45cd7cfa8af6502de790c21e187d5e54d3031d08b54844e44350fbe1ead",
+    "secondRenderSha256": "9b26c45cd7cfa8af6502de790c21e187d5e54d3031d08b54844e44350fbe1ead",
+    "secondRenderExact": true,
+    "visualReview": "complete"
+  },
+  "corpus": [
+    {
+      "id": "nasa-froste-thermal-design",
+      "source": "https://ntrs.nasa.gov/citations/20250007120",
+      "rights": "NASA NTRS record; preserve record and author credits",
+      "bytes": 8094554,
+      "sha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "slides": 13,
+      "layers": 112,
+      "reorderableSlides": 13,
+      "noOpExact": true
+    },
+    {
+      "id": "nasa-mms-machine-learning",
+      "source": "https://ntrs.nasa.gov/citations/20250000748",
+      "rights": "NASA NTRS record; preserve record and author credits",
+      "bytes": 4522864,
+      "sha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "slides": 21,
+      "layers": 230,
+      "reorderableSlides": 21,
+      "noOpExact": true
+    },
+    {
+      "id": "slidescarnival-business-infographic",
+      "source": "https://www.slidescarnival.com/template/business-infographic-presentation/19319",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 19436162,
+      "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "slides": 25,
+      "layers": 357,
+      "reorderableSlides": 25,
+      "noOpExact": true
+    },
+    {
+      "id": "slidescarnival-data-particles",
+      "source": "https://www.slidescarnival.com/template/joan-free-presentation-template/11687",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 3382810,
+      "sha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "slides": 39,
+      "layers": 432,
+      "reorderableSlides": 38,
+      "noOpExact": true
+    },
+    {
+      "id": "slidescarnival-minimal-business",
+      "source": "https://www.slidescarnival.com/template/eleanor-free-presentation-template/308",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 2076227,
+      "sha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "slides": 39,
+      "layers": 429,
+      "reorderableSlides": 38,
+      "noOpExact": true
+    },
+    {
+      "id": "slidescarnival-professional-minimalist",
+      "source": "https://www.slidescarnival.com/template/professional-minimalist-slides/237929",
+      "rights": "CC BY 4.0; attribution and publisher redistribution terms apply",
+      "bytes": 24114977,
+      "sha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "slides": 20,
+      "layers": 134,
+      "reorderableSlides": 20,
+      "noOpExact": true
+    }
+  ],
+  "reorders": [
+    {
+      "sourceId": "nasa-froste-thermal-design",
+      "slide": 9,
+      "targetName": "Picture 13",
+      "operation": "sendToBack",
+      "beforeIndex": 6,
+      "afterIndex": 0,
+      "outputSha256": "869e928447c08eedd6fadb59b59d55f91b7f10775a61bb3f0e9e50787d152e98",
+      "changedParts": ["ppt/slides/slide9.xml"],
+      "secondImport": true,
+      "targetSlideRenderMatchesSource": true
+    },
+    {
+      "sourceId": "nasa-mms-machine-learning",
+      "slide": 9,
+      "targetName": "Picture 35",
+      "operation": "sendToBack",
+      "beforeIndex": 18,
+      "afterIndex": 0,
+      "outputSha256": "706ce273456ba47c915f6106dcf3c0f8417984b7e9c441b6272b03c2693cdcc4",
+      "changedParts": ["ppt/slides/slide9.xml"],
+      "secondImport": true,
+      "targetSlideRenderMatchesSource": true
+    },
+    {
+      "sourceId": "slidescarnival-business-infographic",
+      "slide": 10,
+      "targetName": "TextBox 32",
+      "operation": "bringToFront",
+      "beforeIndex": 21,
+      "afterIndex": 25,
+      "outputSha256": "1ed24a3183b4dfe9617013fa5a3b3006366d8ef4e77b351925e17dfa6301d612",
+      "changedParts": ["ppt/slides/slide10.xml"],
+      "secondImport": true,
+      "targetSlideRenderMatchesSource": true
+    }
+  ],
+  "observedFixes": [
+    "Imported picture-bullet assets must survive a source-bound reorder export.",
+    "Element IDs are revision-local; second-import order is checked through native identity and name after reinspection."
+  ]
+}
