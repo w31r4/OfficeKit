@@ -1,0 +1,5 @@
+interface:
+  display_name: "River Handbook"
+  short_description: "Use the River Handbook presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-river-handbook as the visual style for this presentation."

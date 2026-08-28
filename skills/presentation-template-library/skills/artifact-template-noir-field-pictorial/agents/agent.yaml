@@ -1,0 +1,5 @@
+interface:
+  display_name: "Noir Field Pictorial"
+  short_description: "Use the Noir Field Pictorial presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-noir-field-pictorial as the visual style for this presentation."

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-cream-civic-collage",
+  "displayName": "Cream Civic Collage",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "984b0253640e580488838e2542734739a8957fa67c62b1b188b42785b6b41ba6"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "ccaf1cb261713bd52ada04426e64530d76d8f64f9bbb8b7d8896312d11331275"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "fe0e40647d15fb7eb89087f535f5fe4babb997bfcb78422424db0326d3a29011"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "93db2d0d378b975fe29f1319a83455654e1f4363322ad2416be90542f522aaac"
+    }
+  ],
+  "useWhen": [
+    "community campaign",
+    "promotion presentation"
+  ],
+  "avoidWhen": [
+    "audit report"
+  ],
+  "audiences": [
+    "public audiences",
+    "communities",
+    "brand teams"
+  ],
+  "contentShapes": [
+    "identity",
+    "story",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "promotion",
+      "Hard red and blue paper cuts turn information into invitation.",
+      "collage"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "collage",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "f2e478c7af3cacc6ed31f27aebba1af3c436e87b9e5e8d86cb172ddc2453bdf8",
+    "previewSha256": "354f241911375b5931107310af93354ce0954160b92bc5d37a0535ac4be802bf"
+  }
+}

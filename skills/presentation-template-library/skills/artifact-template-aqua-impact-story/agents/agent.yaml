@@ -1,0 +1,5 @@
+interface:
+  display_name: "Aqua Impact Story"
+  short_description: "Use the Aqua Impact Story presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-aqua-impact-story as the visual style for this presentation."

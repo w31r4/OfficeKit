@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-noir-field-pictorial",
+  "displayName": "Noir Field Pictorial",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0562a4621186cdb9868b3c4e4b8ac380566c058820d58759693bf1146fa7b1ad"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "537fb14ba55e4d290517865d245cf9637ae7c6d0c445cb5ede73e990076a17df"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "d720220ff567476bae926e81e472689a55aea3f67999ab429c5faf9710422f25"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "63b0c595998903a3a44a378f5341babdfd96a040323d62bd9529189e160b7f0d"
+    }
+  ],
+  "useWhen": [
+    "cultural pictorial",
+    "promotion presentation"
+  ],
+  "avoidWhen": [
+    "dense compliance"
+  ],
+  "audiences": [
+    "public audiences",
+    "communities",
+    "brand teams"
+  ],
+  "contentShapes": [
+    "identity",
+    "story",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "promotion",
+      "Full-scale documentary imagery carries the narrative; color appears as a pulse.",
+      "photo"
+    ],
+    "density": "medium",
+    "colorMode": "dark",
+    "structure": [
+      "photo",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "25eeb32759b92453bf6a7e8a31d97cbfc89aff696c2e6f543252a175ab44f7e0",
+    "previewSha256": "ba86d5cd47b28db9546dc888c2159cdd57222085af3b881a30c32d2393fdef4c"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-saffron-editorial",
+  "displayName": "Saffron Editorial",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "883091b468ed881c396f059304c9eba2cf07122edbe8309e0f217792099e349f"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "34de94c2fcb1d2cdf97f327d818d8b582fbde9e8720f4ad203c3f3617ef11c88"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "b4c7891396818c2708ad23158922650d04de3feca6cbdd17ca16f2c5cd5e4679"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "e7cf976512a15a2fc3b99c5dc361c105d88a5e6fd533796bd44b14dd246fbc1c"
+    }
+  ],
+  "useWhen": [
+    "trend magazine",
+    "promotion presentation"
+  ],
+  "avoidWhen": [
+    "technical protocol"
+  ],
+  "audiences": [
+    "public audiences",
+    "communities",
+    "brand teams"
+  ],
+  "contentShapes": [
+    "identity",
+    "story",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "promotion",
+      "Long-form argument and bold photography alternate around one saffron signal.",
+      "margin"
+    ],
+    "density": "dense",
+    "colorMode": "mixed",
+    "structure": [
+      "margin",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "bf0ab7eff73ba76ddcb91be3005e0d32744da53d8c49496eb68332b8d7225317",
+    "previewSha256": "3f7fc63da1feed17c24b8955dfde684dd03f5a0015dcaa3fa70470eb1bf5df23"
+  }
+}

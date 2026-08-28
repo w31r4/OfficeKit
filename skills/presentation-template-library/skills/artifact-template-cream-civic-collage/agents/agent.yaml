@@ -1,0 +1,5 @@
+interface:
+  display_name: "Cream Civic Collage"
+  short_description: "Use the Cream Civic Collage presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-cream-civic-collage as the visual style for this presentation."

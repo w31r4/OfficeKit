@@ -1,0 +1,5 @@
+interface:
+  display_name: "Silver Atelier"
+  short_description: "Use the Silver Atelier presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-silver-atelier as the visual style for this presentation."

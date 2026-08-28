@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-silver-atelier",
+  "displayName": "Silver Atelier",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "e9ee116e7b9554ca4570654d5ee753a96f5f57e15838359de97a351578aa9122"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "887cb8ed25b5a957b8491f546dc3b2105c4ec337ecdda314a9271932ca69973b"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "2bfb7ad6a38bb970631fd713d3a6108a157aa0de378b80bb3104c69b26751180"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "007707d8cd9d87442c527b8b56c1714869af18bd148d982097c0ce12313a6438"
+    }
+  ],
+  "useWhen": [
+    "premium portfolio",
+    "promotion presentation"
+  ],
+  "avoidWhen": [
+    "incident review"
+  ],
+  "audiences": [
+    "public audiences",
+    "communities",
+    "brand teams"
+  ],
+  "contentShapes": [
+    "identity",
+    "story",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "promotion",
+      "Documentary detail and narrow metallic accents create restrained value.",
+      "atelier"
+    ],
+    "density": "sparse",
+    "colorMode": "neutral",
+    "structure": [
+      "atelier",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "f6111db1662eef65ab91bdbde14af091849fce9c7f0b8b9621cd418d066709a5",
+    "previewSha256": "10c896fc663c2cb74e05cb6c6b4493f9e396dfa2795c20185fbca36b7e64d7e9"
+  }
+}

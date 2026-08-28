@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-river-handbook",
+  "displayName": "River Handbook",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "d7e643e6d9b6248402f049b87a278663378e68fcbe2e9fc59691869acf4405f4"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "69ba52086356303b0aa4f439b5a0f522d76b3a2b3858b8f24a30200572ddc12b"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "03cc7f63545672c041b4d3220b7eeeace721d11c70721fe13d8276d646190c04"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "d023b2fae0c7215380bde5d776eb24e848d1bbead235750d932fe803405e9646"
+    }
+  ],
+  "useWhen": [
+    "place handbook",
+    "promotion presentation"
+  ],
+  "avoidWhen": [
+    "investment diligence"
+  ],
+  "audiences": [
+    "public audiences",
+    "communities",
+    "brand teams"
+  ],
+  "contentShapes": [
+    "identity",
+    "story",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "promotion",
+      "River-blue routes alternate between narrative and practical guide spreads.",
+      "wayfinding"
+    ],
+    "density": "mixed",
+    "colorMode": "neutral",
+    "structure": [
+      "wayfinding",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "7f2e46e70e5f545a502d3754f4922f2310d9b3be18e9ae4ef0a02fa014003bd0",
+    "previewSha256": "5ad99a1023e063631856c012a8d52006f410e263551fb1cc95bcfaff9699c5f9"
+  }
+}

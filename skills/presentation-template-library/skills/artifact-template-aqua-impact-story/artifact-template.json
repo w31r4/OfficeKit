@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-aqua-impact-story",
+  "displayName": "Aqua Impact Story",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "38f5c82b29be9daa0c925e164c7407d01a264a16ef58d119615323749784535f"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "992616533f52b68a49ce58034f080dc110d900798b3a543e1e9213e36a3a652c"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "a810a523f7ce6b79e8fdcb668de42e474ecd8c7dbbd2393b5c226344239ad701"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "bc8585a1b53fade64f3f0475168ec8307e3ad9d4125a8076c1d9865f0e2a4cf0"
+    }
+  ],
+  "useWhen": [
+    "community impact report",
+    "promotion presentation"
+  ],
+  "avoidWhen": [
+    "technical architecture"
+  ],
+  "audiences": [
+    "public audiences",
+    "communities",
+    "brand teams"
+  ],
+  "contentShapes": [
+    "identity",
+    "story",
+    "activation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "promotion",
+      "Watery blue and documentary evidence make public impact tangible.",
+      "wave"
+    ],
+    "density": "medium",
+    "colorMode": "light",
+    "structure": [
+      "wave",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "f72a48969d2e3569f29f49e8fe689a24ac923530844da770b23989d0925b64ca",
+    "previewSha256": "eb3392e5405953e323131da756f4e17d19f044fd24acb3dd5b2cbcc28ec561b3"
+  }
+}

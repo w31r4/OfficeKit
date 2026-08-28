@@ -1,0 +1,5 @@
+interface:
+  display_name: "Saffron Editorial"
+  short_description: "Use the Saffron Editorial presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-saffron-editorial as the visual style for this presentation."
