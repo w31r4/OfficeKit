@@ -1252,29 +1252,44 @@ internal static class PptxCodec
             Name = ElementName(source, elementIndex),
         };
         var nativeMediaPicture = PptxNativeObjectCatalog.IsMediaPicture(source);
-        var editable = source switch
-        {
-            P.Shape shape => IsSimpleShape(shape),
-            P.Picture picture when !nativeMediaPicture => PptxPictureCodec.TryRead(picture, slideContext, out _),
-            P.GraphicFrame graphicFrame => PptxTableCodec.TryRead(graphicFrame, out _),
-            P.ConnectionShape connector => PptxConnectorCodec.TryRead(connector, elementIdsByNativeId, out _),
-            P.GroupShape group => TryReadGroup(group, element.Id, slideContext, elementIdsByNativeId, out _),
-            _ => false,
-        };
-        if (source is P.GraphicFrame chartFrame && PptxChartCodec.TryRead(chartFrame, slideContext, out _, out var chartEditable)) editable = chartEditable;
+        var editable = false;
+        var modeled = false;
         if (source is P.Shape sourceShape)
+        {
+            editable = IsSimpleShape(sourceShape);
             element.Shape = ReadShape(sourceShape, slideContext);
+            modeled = true;
+        }
         else if (source is P.Picture sourcePicture && !nativeMediaPicture && PptxPictureCodec.TryRead(sourcePicture, slideContext, out var image))
+        {
             element.Image = image;
-        else if (source is P.GraphicFrame sourceTable && PptxTableCodec.TryRead(sourceTable, out var table))
-            element.Table = table;
+            editable = true;
+            modeled = true;
+        }
+        else if (source is P.GraphicFrame sourceFrame)
+        {
+            var tableModeled = PptxTableCodec.TryRead(sourceFrame, out var table);
+            var chartModeled = PptxChartCodec.TryRead(sourceFrame, slideContext, out var chart, out var chartEditable);
+            editable = chartModeled ? chartEditable : tableModeled;
+            if (tableModeled)
+                element.Table = table;
+            else if (chartModeled)
+                element.Chart = chart;
+            modeled = tableModeled || chartModeled;
+        }
         else if (source is P.ConnectionShape sourceConnector && PptxConnectorCodec.TryRead(sourceConnector, elementIdsByNativeId, out var connector))
+        {
             element.Connector = connector;
-        else if (source is P.GraphicFrame sourceChart && PptxChartCodec.TryRead(sourceChart, slideContext, out var chart, out _))
-            element.Chart = chart;
+            editable = true;
+            modeled = true;
+        }
         else if (source is P.GroupShape sourceGroup && TryReadGroup(sourceGroup, element.Id, slideContext, elementIdsByNativeId, out var group))
+        {
             element.Group = group;
-        else
+            editable = true;
+            modeled = true;
+        }
+        if (!modeled)
         {
             var frame = ReadFrame(source);
             element.Opaque = new PresentationOpaqueElement
