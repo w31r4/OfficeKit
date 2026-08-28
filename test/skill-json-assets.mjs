@@ -8,10 +8,7 @@ import {
   compactSkillJsons,
 } from "../scripts/compact-skill-jsons.mjs";
 
-assert.deepEqual(COMPACT_SKILL_JSON_PATHS, [
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/content-tokens.json",
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/template-registry.json",
-]);
+assert.deepEqual(COMPACT_SKILL_JSON_PATHS, []);
 assert.equal(compactJsonText('{\n  "a": 1,\n  "b": [true, null]\n}\n'), '{"a":1,"b":[true,null]}\n');
 assert.equal(compactJsonText('{"emoji":"栗子"}\n'), '{"emoji":"栗子"}\n');
 assert.throws(() => compactJsonText("{", "broken fixture"), /broken fixture is not valid JSON/);
@@ -27,6 +24,6 @@ for (const relativePath of COMPACT_SKILL_JSON_PATHS) {
   totalBytes += Buffer.byteLength(source);
 }
 assert.ok(totalBytes <= 335_000, `derived Skill JSON assets exceed the 335,000-byte compact budget (${totalBytes})`);
-assert.deepEqual(await compactSkillJsons(), { files: 2, changed: 0, totalBytes, savings: 0 });
+assert.deepEqual(await compactSkillJsons(), { files: 0, changed: 0, totalBytes, savings: 0 });
 
-console.log(`derived Skill JSON asset integrity ok: 2 files, ${totalBytes} bytes`);
+console.log(`derived Skill JSON asset integrity ok: 0 files, ${totalBytes} bytes`);

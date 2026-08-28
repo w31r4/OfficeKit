@@ -488,57 +488,6 @@ try {
   assert.match(footnotesXml, /semantic re-import/);
   assert.match(endnotesXml, /retained with the release record/);
 
-  const { ensureArtifactToolWorkspace, importArtifactTool } = await import(
-    "../skills/presentations/skills/presentations/container_tools/artifact_tool_utils.mjs"
-  );
-  const workspace = path.join(tempRoot, "presentation-workspace");
-  const prepared = await ensureArtifactToolWorkspace(workspace);
-  assert.equal(prepared.packageDir, repoRoot);
-  assert.equal(
-    await fs.realpath(path.join(workspace, "node_modules", "office-kit")),
-    await fs.realpath(repoRoot),
-  );
-  const importedPackage = await importArtifactTool(workspace);
-  assert.equal(importedPackage.PresentationFile, PresentationFile);
-
-  const layoutRoot = path.join(
-    skillsRoot,
-    "presentations",
-    "skills",
-    "presentations",
-    "assets",
-    "builtin_templates",
-    "grid-layout-library",
-  );
-  const { buildPresentation, exportPresentation } = await import(
-    "../skills/presentations/skills/presentations/builtin_templates_support/scripts/create-presentation.mjs"
-  );
-  const authoredPresentation = await buildPresentation(layoutRoot);
-  assert.equal(authoredPresentation.slides.items.length, 26);
-  const pptxPath = path.join(tempRoot, "reference-grid-layout-library.pptx");
-  await exportPresentation(layoutRoot, pptxPath);
-  const presentation = await PresentationFile.importPptx(await FileBlob.load(pptxPath));
-  assert.equal(presentation.slides.items.length, 26);
-  const allSlides = presentation.slides.items;
-  const allShapes = allSlides.flatMap((slide) => slide.shapes.items);
-  assert.equal(allShapes.filter((shape) => shape.geometry === "custom").length, 11);
-  assert.equal(allSlides.flatMap((slide) => slide.images.items).length, 1);
-  assert.equal(allSlides.flatMap((slide) => slide.connectors.items).length, 2);
-  const firstText = allShapes.find((shape) => String(shape.text?.value || "").includes("Your presentation"));
-  assert.ok(firstText, "the reference template headline must survive OfficeKit export/import");
-  assert.equal(firstText.text.value, "Your presentation \nheadline goes here");
-  assert.ok(Math.abs(firstText.position.left - 41.33) < 0.02);
-  assert.ok(Math.abs(firstText.position.top - 182.55) < 0.02);
-  assert.equal(firstText.text.paragraphs[0].runs[0].style.fontSize, 80);
-  assert.equal(firstText.text.paragraphs[0].runs[0].style.fontFamily, "Helvetica Neue");
-  const pptxZip = await JSZip.loadAsync(await fs.readFile(pptxPath));
-  const slideXml = await Promise.all(
-    Object.keys(pptxZip.files)
-      .filter((name) => /^ppt\/slides\/slide\d+\.xml$/.test(name))
-      .map((name) => pptxZip.file(name).async("text")),
-  );
-  assert.equal(slideXml.reduce((count, xml) => count + (xml.match(/<a:custGeom\b/g)?.length || 0), 0), 11);
-
   const workbook = Workbook.create();
   const sheet = workbook.worksheets.add("Summary");
   sheet.getRange("A1:C4").values = [

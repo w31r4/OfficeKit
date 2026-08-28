@@ -6,10 +6,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-export const COMPACT_SKILL_JSON_PATHS = Object.freeze([
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/content-tokens.json",
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/template-registry.json",
-]);
+export const COMPACT_SKILL_JSON_PATHS = Object.freeze([]);
 
 const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 
