@@ -4,16 +4,22 @@
 
 OfficeKit 1.0.0 is the first stable release of the local, Agent-facing Office
 and PDF toolkit. It ships one `officekit` command, the JavaScript API, a
-target-specific OfficeKit NativeAOT codec, MuPDF, nine workflow Skills, twenty-one default
-templates, the Excel and PowerPoint Live host adapters, license evidence, and
+target-specific OfficeKit NativeAOT codec, MuPDF, nine workflow Skills, the
+default Office template library, the Excel and PowerPoint Live host adapters, license evidence, and
 a CycloneDX SBOM under GNU AGPL-3.0-or-later.
+
+The current presentation library is clean-room and visual-first: each
+presentation entry contains a style Skill, schema-v3 search metadata, a preview,
+and original calibration images. Retired PPTX references and the fixed Grid
+source tree are not shipped. DOCX/XLSX entries retain their reference files for
+their structure-preserving workflows.
 
 The stable Presentation workflow uses the communication-first C route: a short
 task router loads one scenario guide, derives a deck-specific design grammar,
 composes freely, applies motion only after the static communication design is
 complete, and performs structural, layout, motion, and delivery review. The
-Grid Layout Library remains available as an explicit schema-v2 template; it is
-not a default visual system. Self-authored pages reject card-wall shortcuts,
+Grid Layout Library identity remains available as a clean-room grammar selected
+like any other template; it is not a default visual system. Self-authored pages reject card-wall shortcuts,
 while user templates, brand systems, imported files, product UI, real tables,
 charts, and image frames retain their intended structure.
 

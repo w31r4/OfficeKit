@@ -1,44 +1,50 @@
 # Default Template Library provenance
 
-## Source and license
+The default library contains one copy of the OfficeKit templates shipped with
+the package. DOCX and XLSX entries remain reference-backed schema-v2 templates;
+presentation entries are schema-v3 clean-room style packages.
 
-`skills/default-template-library/` is a checked-in import of the 20 Office templates committed in [`office-artifact-tool` `256cb31bfe0a07b3cef0051b6b159342be381378`](https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378), **Add default Office template library**.
+## Presentation templates
 
-The checked-in [`reference/office-artifact-tool`](../reference/office-artifact-tool) submodule pins that exact commit, so a fresh recursive checkout contains the authoritative source tree used by the byte-comparison gate.
+The presentation entries are derived from public design guidance and observable
+visual references from Kimi Slides, the public artifact-tool reference package,
+and the project's independently licensed visual-reference research. The
+published assets are OfficeKit-authored style guides and original calibration
+images. They do not include the source decks, source code, MJS, DSL, fixed
+layouts, or cloneable pages.
 
-That repository's root `LICENSE.md` is MIT, `Copyright (c) 2026 w31r4`. The full retained text lives beside the imported library at [`../skills/default-template-library/LICENSE.md`](../skills/default-template-library/LICENSE.md). This is a source/rights record, not legal advice.
+Each presentation entry contains:
 
-## What is preserved
+- `SKILL.md` with the style grammar and anti-patterns;
+- `artifact-template.json` schema v3 with English search metadata;
+- `agents/agent.yaml`;
+- `assets/preview.png` and five hashed `assets/examples/*.png` files.
 
-- 20 template Skills: 7 DOCX, 7 PPTX, and 6 XLSX;
-- each original `reference.docx`, `reference.pptx`, or `reference.xlsx`;
-- each original `preview.png`;
-- source `SKILL.md`, `agents/agent.yaml`, manifest, and library icon;
-- individual byte length and SHA-256 values, plus the deterministic binary aggregate, in `skills/default-template-library/integrity.json`.
+The examples communicate hierarchy, surfaces, geometry, density, imagery, and
+composition. They are visual evidence for the Agent, not files to copy. A
+selected template is combined with the task's narrative and design grammar;
+the Agent composes each new page with OfficeKit's native objects. A user brand
+system or supplied reference takes precedence over a selected template, and
+`none` is a valid selection when no style is suitable.
 
-The local `artifact-template.json` files intentionally evolve the reference
-schema-v1 locator into schema v2: intended and avoid uses, audiences, content
-shapes, visual traits and commitment, verified edit profile, provenance, and
-exact Office/preview hashes. The original v1 metadata remains available in the
-pinned reference submodule. Other import changes are limited to the
-repository-level adapter surface needed here: plugin manifest,
-attribution/license record, integrity record, path policy, safety gates, and
-package discovery metadata. No retained Office or preview asset is regenerated,
-normalized, re-compressed, or rewritten.
+## Reference-backed templates
 
-## Delivery boundary
-
-The library ships once inside the OfficeKit runtime. An installed OfficeKit can
-discover its compact validated metadata through `officekit template search`;
-`officekit init` leaves these assets in place instead of copying them into each
-project. A named template Skill uses the retained reference as a read-only
-starting point and writes a distinct output artifact.
-`scripts/materialize-template.mjs` first verifies the retained SHA-256, then
-atomically creates a byte-identical output plus a provenance audit and refuses
-to overwrite either destination.
-
-The source files may contain rich or source-bound Office topology. A requested operation must use the matching Documents, Presentations, or Spreadsheets workflow and preserve the source boundary; when the public model cannot safely import or modify a graph, it must explain the limitation and fail closed rather than flattening the template or silently replacing its layout.
+DOCX/XLSX entries retain their user-facing reference file and preview because
+their workflow is defined by exact document or workbook structure. Their
+reference hashes and preview hashes are recorded in
+`skills/default-template-library/integrity.json`.
 
 ## Verification
 
-`test/default-template-library.mjs` checks the canonical file inventory, secure relative paths, no symbolic links, schema-v2 JSON/YAML metadata, PNG structure, Office ZIP signatures, size budgets, every asset's SHA-256, and the source aggregate. `test/office-kit-skill.mjs` independently verifies all 20 sidecars, hash-bound discovery, root precedence, invalid-entry isolation, untrusted metadata rejection, and compact query results. The library test materializes all 20 templates, verifies overwrite refusal, runs every source through the public facade's import / unchanged export / second-import path, and, when LibreOffice plus Poppler are present, renders both source and processed files to non-empty native rasters. All seven PPTX templates additionally replace one visible SlidePart-placeholder title through `TextFrame.set()`, reimport it, prove placeholder identity/geometry plus paragraph/run formatting are unchanged, and render the edited output; a deliberate newline-topology change fails closed. It can additionally compare bytes against an explicitly supplied `OFFICE_TEMPLATE_SOURCE_ROOT` checkout. `DefaultTemplateLibraryCodecTests` adds native OfficeKit no-op and bounded-edit coverage: slide-name metadata and recognized owner-local placeholder text for each PPTX, `updateFields` for each DOCX, ordinary string-cell edits for each XLSX, and source-bound rejection for the Financial Budget partial shared-formula range. `test/package-contents.mjs` and the clean-install package probe verify the exact 20-template package inventory and installed CLI discovery path.
+`test/default-template-library.mjs` checks the canonical inventory, safe paths,
+schema fields, PNG structure, every asset hash, and the aggregate hash.
+Presentation entries are explicitly checked for the absence of PPTX, MJS, DSL,
+and fixed-layout assets. `test/office-kit-skill.mjs` verifies hash-bound
+discovery and that search returns candidates without choosing on the Agent's
+behalf. `test/package-contents.mjs` checks the same inventory in the packed
+package.
+
+The former presentation reference decks and the fixed Grid Layout source tree
+were retired from the live library. Their historical source and comparison
+records remain available only in Git history or the read-only reference
+submodule; they are not distributed as OfficeKit templates.
