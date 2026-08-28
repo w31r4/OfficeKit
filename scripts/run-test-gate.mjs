@@ -190,7 +190,7 @@ const slowSegments = Object.freeze({
   "pdf-providers": Object.freeze({ start: 63, end: 72 }),
   "pdf-specialists": Object.freeze({ start: 72, end: 81 }),
   qa: Object.freeze({ start: 81, end: 88 }),
-  release: Object.freeze({ start: 88, end: 97 }),
+  release: Object.freeze({ start: 88, end: 93 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
