@@ -16,6 +16,7 @@ export const OFFICE_KIT_NATIVE_MAX_FRAME_BYTES = 128 * 1024 * 1024;
 const HANDSHAKE_BYTES = 12;
 const HANDSHAKE_MAGIC = Buffer.from("OKIT", "ascii");
 const REQUEST_PREFIX_BYTES = 8;
+const DEFAULT_IDLE_RETIRE_MS = 1_000;
 const STDERR_LIMIT = 16 * 1024;
 const require = createRequire(import.meta.url);
 const activeClients = new Set();
@@ -111,7 +112,7 @@ export async function startOfficeKitNativeClient(options = {}) {
 }
 
 class NativeCodecClient {
-  static async start(descriptor, { spawnProcess = spawn } = {}) {
+  static async start(descriptor, { spawnProcess = spawn, idleRetireMs = DEFAULT_IDLE_RETIRE_MS } = {}) {
     const child = spawnProcess(descriptor.executablePath, ["--serve"], {
       cwd: descriptor.packageRoot,
       env: { ...process.env, DOTNET_GCConserveMemory: "9" },
@@ -119,7 +120,7 @@ class NativeCodecClient {
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
-    const client = new NativeCodecClient(child, descriptor);
+    const client = new NativeCodecClient(child, descriptor, idleRetireMs);
     try {
       await client.initialize();
       activeClients.add(client);
@@ -131,12 +132,15 @@ class NativeCodecClient {
     }
   }
 
-  constructor(child, descriptor) {
+  constructor(child, descriptor, idleRetireMs) {
     this.child = child;
     this.descriptor = descriptor;
     this.reader = new ExactReader(child.stdout);
     this.queue = Promise.resolve();
     this.pendingRequests = 0;
+    this.idleRetireMs = idleRetireMs;
+    this.idleTimer = undefined;
+    this.retiring = false;
     this.stderr = Buffer.alloc(0);
     this.closed = false;
     this.terminated = new Promise((resolve) => {
@@ -173,6 +177,7 @@ class NativeCodecClient {
       );
     }
     this.unref();
+    this.release();
   }
 
   invoke(bytes, fileBytes = undefined) {
@@ -184,6 +189,7 @@ class NativeCodecClient {
     if (bytes.byteLength === 0 || bytes.byteLength + fileLength > OFFICE_KIT_NATIVE_MAX_FRAME_BYTES) {
       throw nativeError("request_budget_exceeded", `OfficeKit native codec request and file sidecar exceed the ${OFFICE_KIT_NATIVE_MAX_FRAME_BYTES}-byte transport budget.`);
     }
+    if (!this.tryAcquire()) throw this.terminationError();
     this.pendingRequests += 1;
     if (this.pendingRequests === 1) this.ref();
     const operation = this.queue.then(
@@ -193,7 +199,10 @@ class NativeCodecClient {
     this.queue = operation.catch(() => {});
     return operation.finally(() => {
       this.pendingRequests -= 1;
-      if (this.pendingRequests === 0) this.unref();
+      if (this.pendingRequests === 0) {
+        this.unref();
+        this.release();
+      }
     });
   }
 
@@ -255,7 +264,41 @@ class NativeCodecClient {
   }
 
   kill() {
+    this.retiring = true;
+    this.clearIdleRetirement();
     if (!this.child.killed) this.child.kill();
+  }
+
+  get idle() {
+    return this.pendingRequests === 0;
+  }
+
+  tryAcquire() {
+    if (this.closed || this.retiring) return false;
+    this.clearIdleRetirement();
+    return true;
+  }
+
+  release() {
+    if (!this.idle || this.closed || this.retiring || !(this.idleRetireMs >= 0)) return;
+    this.clearIdleRetirement();
+    this.idleTimer = setTimeout(() => {
+      this.idleTimer = undefined;
+      void this.retire().catch(() => {});
+    }, this.idleRetireMs);
+    this.idleTimer.unref?.();
+  }
+
+  clearIdleRetirement() {
+    if (this.idleTimer !== undefined) clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
+  }
+
+  async retire() {
+    if (this.closed) return;
+    this.ref();
+    this.kill();
+    await this.terminated;
   }
 }
 

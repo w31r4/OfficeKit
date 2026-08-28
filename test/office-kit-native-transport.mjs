@@ -91,8 +91,22 @@ process.stdin.on("data", (chunk) => {
     echo.invoke(Uint8Array.from([4, 5]), Uint8Array.from([6, 7])),
   ]);
   assert.deepEqual([...first], [1, 2, 3]);
-assert.deepEqual([...second], [4, 5, 6, 7]);
-  echo.kill();
+  assert.deepEqual([...second], [4, 5, 6, 7]);
+  assert.equal(echo.idle, true);
+  await echo.retire();
+  assert.equal(echo.closed, true);
+
+  const idle = await startOfficeKitNativeClient({
+    descriptor: fakeDescriptor,
+    spawnProcess: fakeSpawner("echo"),
+    idleRetireMs: 10,
+  });
+  assert.deepEqual([...await idle.invoke(Uint8Array.of(9))], [9]);
+  await Promise.race([
+    idle.terminated,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("idle codec did not retire")), 500)),
+  ]);
+  assert.equal(idle.closed, true);
 
   const truncated = await startOfficeKitNativeClient({ descriptor: fakeDescriptor, spawnProcess: fakeSpawner("truncated") });
   await assert.rejects(truncated.invoke(Uint8Array.of(1)), (error) => error?.code === "runtime_terminated");
