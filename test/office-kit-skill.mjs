@@ -13,6 +13,9 @@ const skillRoot = path.join(pluginRoot, "skills", "office-kit");
 const sourceTemplateRoot = path.join(repoRoot, "skills", "default-template-library", "skills");
 const presentationTemplateRoot = path.join(repoRoot, "skills", "presentation-template-library", "skills");
 const officeKitCli = path.join(repoRoot, "bin", "officekit.mjs");
+const presentationTemplateCount = (await fs.readdir(presentationTemplateRoot, { withFileTypes: true }))
+  .filter((entry) => entry.isDirectory())
+  .length;
 
 const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText, replText, presentationConversationText] = await Promise.all([
   readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json")),
@@ -122,7 +125,7 @@ const presentationCatalog = await queryTemplates({
   roots: [presentationTemplateRoot],
   maxCandidates: 20,
 });
-assert.equal(presentationCatalog.candidates.length, 8);
+assert.equal(presentationCatalog.candidates.length, Math.min(20, presentationTemplateCount));
 assert.deepEqual(presentationCatalog.invalid, []);
 assert.deepEqual(presentationCatalog.rejected, []);
 assert.equal(presentationCatalog.selectionMade, false);
@@ -228,7 +231,7 @@ const noSemanticMatch = await queryTemplates({
 });
 assert.equal(noSemanticMatch.retrievalStatus, "none");
 assert.deepEqual(noSemanticMatch.candidates, []);
-assert.equal(noSemanticMatch.rejected.length, 8);
+assert.equal(noSemanticMatch.rejected.length, presentationTemplateCount);
 assert.ok(
   noSemanticMatch.rejected.every((entry) =>
     entry.reasons.includes("insufficient-relevance"),
