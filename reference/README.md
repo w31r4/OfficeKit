@@ -19,15 +19,16 @@ Documents, Spreadsheets, Presentations, PDF, Template Creator, and Default
 Template Library trees in sync with the current public runtime payload.
 
 The MIT-licensed, repository-only Default Template Library introduced at
-`256cb31` remains unchanged in this revision: 20 retained Office template Skills
-containing 7 DOCX, 7 PPTX, and 6 XLSX references plus previews. This project
-retains those assets byte-for-byte under `skills/default-template-library`,
-records their original source hashes and license, and tests
-import/export/edit/render behavior independently. The neutral
-`grid-layout-library` naming and Template Creator workflow remain present and
-adapted into this project's public Skills. Pinning the exact remote commit keeps
-the current reference checkout reproducible without importing the reference
-runtime.
+`256cb31` remains available in this checkout as a reference source, but its
+seven PPTX entries are not part of the current OfficeKit package. The package
+retains only the 13 source-backed DOCX/XLSX templates under
+`skills/default-template-library`; presentation styles live in the separate
+AGPL-licensed `skills/presentation-template-library` and contain only clean-room
+guides and PNG calibration evidence. The old PPTX references, executable Grid
+layouts, and their materialization paths are retired from the published tree.
+Pinning the exact remote commit keeps the current reference checkout
+reproducible without importing the reference runtime or redistributing its
+presentation payloads.
 
 Do **not** vendor the reference package's runtime artifact, runtime module, runtime bindings, or implementation details into `office-kit`. Implement behavior independently using public standards, public libraries, OOXML/PDF specs, OpenXML SDK, Microsoft Office native automation, Playwright, LibreOffice, Poppler, PDF.js, sharp/canvas, and other legally usable technologies.
 

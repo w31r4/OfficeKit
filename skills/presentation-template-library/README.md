@@ -20,6 +20,10 @@ Presentations Skill still composes every page from the current content and
 reviews the rendered result. Selecting no template remains valid.
 
 Thirty styles were independently rebuilt from high-level observations of a
-user-supplied visual reference set. The reference archive, source descriptions,
-page images, names, and geometry are not distributed. Each shipped guide and
-calibration page is an original OfficeKit work.
+user-supplied visual reference set. The eight earlier default styles were
+recomposed after native background-layer support was available: their guides and
+calibration pages now teach scene stacking, contrast checks, and editable
+foreground content instead of preserving the old source-backed payload. The
+reference archive, source descriptions, page images, names, and geometry are not
+distributed. Each shipped guide and calibration page is an original OfficeKit
+work.
