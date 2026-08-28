@@ -427,7 +427,7 @@ try {
     }
     const initializedResult = JSON.parse(initialized.stdout);
     if (
-      initializedResult.created !== 9 ||
+      initializedResult.created !== 10 ||
       initializedResult.tools[0]?.id !== "agents" ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "office-kit", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "documents", "SKILL.md")) ||
@@ -437,6 +437,7 @@ try {
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-editorial-trim", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "pdf", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "template-creator", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-template-creator", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "powerpoint-live-control", "SKILL.md"))
     ) process.exit(61);
 
@@ -615,11 +616,19 @@ try {
       installedPackage,
       "skills", "default-template-library", "skills",
     );
+    const packagedPresentationTemplateRoot = path.join(
+      installedPackage,
+      "skills", "presentation-template-library", "skills",
+    );
     if (
       !fs.existsSync(packagedTemplateRoot) ||
       fs.readdirSync(packagedTemplateRoot).filter((name) =>
         name.startsWith("artifact-template-")
-      ).length !== 21
+      ).length !== 13 ||
+      !fs.existsSync(packagedPresentationTemplateRoot) ||
+      fs.readdirSync(packagedPresentationTemplateRoot).filter((name) =>
+        name.startsWith("artifact-template-")
+      ).length !== 38
     ) process.exit(55);
     if (
       fs.existsSync(path.join(
@@ -833,7 +842,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
   const initialized = JSON.parse(expectSuccess([
     "init", ".", "--tools", "agents", "--json",
   ], project).stdout);
-  assert.equal(initialized.created, 9);
+  assert.equal(initialized.created, 10);
   assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "office-kit", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "powerpoint-live-control", "SKILL.md")));
   assert.equal(
@@ -844,12 +853,12 @@ function testGlobalCli({ temporary, nativePackageName }) {
   const updated = JSON.parse(expectSuccess([
     "update", ".", "--json",
   ], project).stdout);
-  assert.equal(updated.unchanged, 9);
+  assert.equal(updated.unchanged, 10);
 
   const expectedTemplateCounts = new Map([
     ["document", 7],
     ["spreadsheet", 6],
-    ["presentation", 8],
+    ["presentation", 20],
   ]);
   for (const [kind, expectedCount] of expectedTemplateCounts) {
     const search = JSON.parse(expectSuccess([
