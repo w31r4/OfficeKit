@@ -5,8 +5,10 @@ import {
 import { createHash } from "node:crypto";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { assertPresentationElementIndexes } from "../presentation/element-order.mjs";
+import { setPresentationImportedThemeProfile } from "../presentation/index.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import { compilePresentationEditPlan, presentationEnvelope, presentationFromEnvelope, presentationRequiresNativeLeafEditPlan } from "./office-kit-presentation.mjs";
+import { parseImportedPresentationTheme } from "../presentation/imported-theme.mjs";
 import {
   assertCodecOptions,
   codecLimits,
@@ -247,7 +249,10 @@ export async function importPptxWithOfficeKit(input, options = {}) {
     fileSidecar: true,
     consumeResponse: async (response) => {
       restoreThinPresentationImport(response.artifact, sourceBytes);
-      return presentationFromEnvelope(response.artifact);
+      const presentation = await presentationFromEnvelope(response.artifact);
+      const importedTheme = await parseImportedPresentationTheme(sourceBytes, limits);
+      if (importedTheme) setPresentationImportedThemeProfile(presentation, importedTheme);
+      return presentation;
     },
   });
 }

@@ -623,6 +623,14 @@ function profileSummary(profile) {
     slideArchetypes: profile.slideArchetypes?.length || 0,
     reusableComponents: profile.reusableComponents?.length || 0,
     componentCandidates: Number(profile.componentCandidates?.total || 0),
+    sourceTheme: profile.designLanguage?.theme?.sourceBound === true
+      ? {
+        id: profile.designLanguage.theme.id,
+        name: profile.designLanguage.theme.name,
+        colorSchemeName: profile.designLanguage.theme.colorSchemeName,
+        xmlSha256: profile.designLanguage.theme.xmlSha256,
+      }
+      : null,
     svgAssets: profile.designLanguage?.vectorAssets?.assetCount || 0,
     nativeOpaque: profile.nativeOpaque?.count || profile.nativeOpaque?.length || 0,
   };

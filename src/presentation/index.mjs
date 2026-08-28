@@ -58,6 +58,23 @@ const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
 const PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-svg-data-url-source");
+export const PRESENTATION_IMPORTED_THEME_PROFILE = Symbol.for("office-kit.presentation-imported-theme-profile");
+
+// The imported theme is descriptive source evidence, not the mutable
+// authoring theme. Keeping it out of the wire model lets source-bound exports
+// preserve the original theme bytes while designProfile still reflects the
+// visual language of a third-party deck.
+export function setPresentationImportedThemeProfile(presentation, profile) {
+  if (!presentation || typeof presentation !== "object") throw new TypeError("Imported presentation theme requires a Presentation instance.");
+  if (profile !== undefined && (typeof profile !== "object" || profile.kind !== "theme")) {
+    throw new TypeError("Imported presentation theme profile must be a theme record.");
+  }
+  Object.defineProperty(presentation, PRESENTATION_IMPORTED_THEME_PROFILE, {
+    configurable: true,
+    value: profile,
+  });
+  return presentation;
+}
 
 export { SlideTransition, SlideAnimations, SlideMorph };
 
@@ -684,7 +701,7 @@ export class Presentation {
     const kinds = normalizeKinds(options.kind, ["deck", "slide", "textbox", "shape", "nativeObject", "layout"]);
     const records = [];
     if (kinds.has("deck")) records.push({ kind: "deck", id: this.id, slides: this.slides.count, customShows: this.customShows.count, sections: this.sections.count });
-    if (kinds.has("theme")) records.push(this.theme.inspectRecord());
+    if (kinds.has("theme")) records.push(this[PRESENTATION_IMPORTED_THEME_PROFILE] || this.theme.inspectRecord());
     if (kinds.has("slideMaster") || kinds.has("master")) records.push(...this.masters.items.map((master) => master.inspectRecord()));
     if (kinds.has("layout") || kinds.has("layoutTemplate")) records.push(...this.layouts.inspectRecords());
     if (kinds.has("customShow")) records.push(...this.customShows.items.map((show) => show.inspectRecord()));

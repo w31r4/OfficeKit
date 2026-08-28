@@ -42,6 +42,7 @@ export function buildPresentationDesignProfile(presentation, {
       aspectRatio: ratio(presentation.slideSize?.width, presentation.slideSize?.height),
     },
     designLanguage: {
+      theme: themeEvidence(theme),
       palette: paletteEvidence(theme, elements),
       typography: typographyEvidence(theme, elements),
       density: densityEvidence(slides, elements),
@@ -57,6 +58,19 @@ export function buildPresentationDesignProfile(presentation, {
 }
 
 const ELEMENT_KINDS = new Set(["shape", "textbox", "image", "table", "chart", "connector", "groupShape", "nativeObject"]);
+
+function themeEvidence(theme) {
+  return {
+    id: theme.id || undefined,
+    name: theme.name || undefined,
+    colorSchemeName: theme.colorSchemeName || undefined,
+    sourceBound: theme.source?.sourceBound === true,
+    editable: theme.source?.editable === true,
+    xmlSha256: /^[0-9a-f]{64}$/iu.test(String(theme.source?.xmlSha256 || ""))
+      ? String(theme.source.xmlSha256).toLowerCase()
+      : undefined,
+  };
+}
 
 function parseNdjson(value) {
   return String(value || "").split("\n").filter(Boolean).map((line) => JSON.parse(line));
