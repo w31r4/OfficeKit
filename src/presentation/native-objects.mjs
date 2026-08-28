@@ -18,6 +18,7 @@ const TABLE_GRAPHIC_DATA_URI_PATTERN = /\buri\s*=\s*["']http:\/\/schemas\.openxm
 const NATIVE_TEXT_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?t\b[^>]*>(?<value>[^<]*)<\/(?:[A-Za-z_][\w.-]*:)?t\s*>/giu;
 const NATIVE_TEXT_RUN = /<(?<prefix>[A-Za-z_][\w.-]*:)?r\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?r\s*>/giu;
 const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?tc\s*>/giu;
+const NATIVE_TEXT_SHAPE = /<(?<prefix>[A-Za-z_][\w.-]*:)?sp\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?sp\s*>/giu;
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -25,19 +26,25 @@ function sha256(value) {
 
 function deriveNativeTextLeaves(rawXml, nativeKind) {
   const source = String(rawXml || "");
-  if (nativeKind !== "graphicFrame" ||
-      !TABLE_GRAPHIC_DATA_URI_PATTERN.test(source)) return undefined;
-  const cells = [...source.matchAll(NATIVE_TEXT_CELL)];
+  const table = nativeKind === "graphicFrame" && TABLE_GRAPHIC_DATA_URI_PATTERN.test(source);
+  const group = nativeKind === "group";
+  if (!table && !group) return undefined;
+  const cells = table ? [...source.matchAll(NATIVE_TEXT_CELL)] : [];
+  const shapes = group ? [...source.matchAll(NATIVE_TEXT_SHAPE)] : [];
   const runs = [...source.matchAll(NATIVE_TEXT_RUN)];
   const texts = [...source.matchAll(NATIVE_TEXT_TAG)];
-  if (!cells.length || !texts.length || texts.length > 4_096) return undefined;
+  if ((!table && !shapes.length) || !texts.length || texts.length > 4_096) return undefined;
   const inRange = (match, container) => {
     const start = match.index ?? -1;
     const end = start + match[0].length;
     const containerStart = container.index ?? -1;
     return start >= containerStart && end <= containerStart + container[0].length;
   };
-  if (texts.some((text) => !runs.some((run) => inRange(text, run)) || !cells.some((cell) => inRange(text, cell)))) return undefined;
+  if (texts.some((text) => {
+    if (!runs.some((run) => inRange(text, run))) return true;
+    if (table) return !cells.some((cell) => inRange(text, cell));
+    return cells.some((cell) => inRange(text, cell)) || shapes.filter((shape) => inRange(text, shape)).length !== 1;
+  })) return undefined;
   const leaves = texts.map((match, index) => {
     const text = decodeXml(match.groups?.value || "");
     if (!validDiagramNodeText(text)) return undefined;

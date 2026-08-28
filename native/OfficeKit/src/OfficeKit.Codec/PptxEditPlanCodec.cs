@@ -65,11 +65,17 @@ internal static partial class PptxEditPlanCodec
     [GeneratedRegex("xmlns:(?<prefix>[A-Za-z_][\\w.-]*)\\s*=\\s*(?<quote>['\"])(?<uri>.*?)\\k<quote>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex NamespacePattern();
 
-    [GeneratedRegex("(?<open><(?<prefix>[A-Za-z_][\\w.-]*):t\\b[^>]*>)(?<value>.*?)(?<close></\\k<prefix>:t\\s*>)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    [GeneratedRegex("(?<open><(?<prefix>[A-Za-z_][\\w.-]*):t\\b(?![^>]*\\/\\s*>)[^>]*>)(?<value>.*?)(?<close></\\k<prefix>:t\\s*>)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex TextLeafPattern();
 
     [GeneratedRegex("<(?<prefix>[A-Za-z_][\\w.-]*):tc\\b[^>]*>.*?</\\k<prefix>:tc\\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex TableCellPattern();
+
+    [GeneratedRegex("<(?<prefix>[A-Za-z_][\\w.-]*):r\\b[^>]*>.*?</\\k<prefix>:r\\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex TextRunPattern();
+
+    [GeneratedRegex("<(?<prefix>[A-Za-z_][\\w.-]*):sp\\b[^>]*>.*?</\\k<prefix>:sp\\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    private static partial Regex ShapeTextPattern();
 
     [GeneratedRegex("(?<name>(?:[A-Za-z_][\\w.-]*:)?[A-Za-z_][\\w.-]*)\\s*=\\s*(?<quote>['\"])(?<value>.*?)\\k<quote>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex XmlAttributePattern();
@@ -392,12 +398,12 @@ internal static partial class PptxEditPlanCodec
             {
                 ProveLeafValue(table, operation);
             }
-            else if (element is P.GraphicFrame nativeTextFrame &&
+            else if ((element is P.GraphicFrame || element is P.GroupShape) &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
                      LeafKind(operation) == "nativeText" &&
-                     PptxNativeTextLeafCodec.TryResolve(nativeTextFrame, operation.TextLeafIndex, out _))
+                     PptxNativeTextLeafCodec.TryResolve(element, operation.TextLeafIndex, out _))
             {
-                ProveLeafValue(nativeTextFrame, operation);
+                ProveLeafValue(element, operation);
             }
             else if (element is P.Picture picture &&
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Opaque) &&
@@ -468,8 +474,8 @@ internal static partial class PptxEditPlanCodec
                 patches.Add(new PptxXmlPatch(operation, range.Start, range.End, string.Empty, proof.SourceElementSha256, proof.MutationPartPath));
                 continue;
             }
-            if (range.LocalName is not ("sp" or "pic" or "graphicFrame"))
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, or p:graphicFrame.", operation.SlidePartPath);
+            if (range.LocalName is not ("sp" or "pic" or "graphicFrame" or "grpSp"))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, p:graphicFrame, or p:grpSp.", operation.SlidePartPath);
             if (leafKind is not ("text" or "tableCellText" or "nativeText"))
             {
                 if (leafKind is "imageAsset" or "imageSvgAsset")
@@ -481,7 +487,8 @@ internal static partial class PptxEditPlanCodec
                 continue;
             }
             if ((leafKind == "text" && range.LocalName != "sp") ||
-                ((leafKind is "tableCellText" or "nativeText") && range.LocalName != "graphicFrame"))
+                (leafKind == "tableCellText" && range.LocalName != "graphicFrame") ||
+                (leafKind == "nativeText" && range.LocalName is not ("graphicFrame" or "grpSp")))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
             if (leafKind == "tableCellText")
             {
@@ -495,6 +502,7 @@ internal static partial class PptxEditPlanCodec
             }
             var elementXml = xml[range.Start..range.End];
             var leaves = TextLeafPattern().Matches(elementXml)
+                .Where(IsNonSelfClosingTextLeaf)
                 .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
                 .ToArray();
             if (operation.TextLeafIndex >= (uint)leaves.Length)
@@ -537,6 +545,7 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw table-cell index is out of range.", operation.SlidePartPath);
         var cell = cells[operation.TextLeafIndex];
         var leaves = TextLeafPattern().Matches(cell.Value)
+            .Where(IsNonSelfClosingTextLeaf)
             .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
             .ToArray();
         if (leaves.Length != 1)
@@ -566,9 +575,7 @@ internal static partial class PptxEditPlanCodec
     {
         var operation = proof.Operation;
         var elementXml = xml[elementRange.Start..elementRange.End];
-        var leaves = TextLeafPattern().Matches(elementXml)
-            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
-            .ToArray();
+        var leaves = NativeTextLeafMatches(elementXml, elementRange.LocalName, drawingPrefixes);
         if (operation.TextLeafIndex >= (uint)leaves.Length)
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw native text-leaf index is out of range.", operation.SlidePartPath);
         var leaf = leaves[operation.TextLeafIndex];
@@ -587,6 +594,35 @@ internal static partial class PptxEditPlanCodec
             proof.SourceElementSha256,
             proof.MutationPartPath);
     }
+
+    private static Match[] NativeTextLeafMatches(
+        string elementXml,
+        string elementLocalName,
+        IReadOnlySet<string> drawingPrefixes)
+    {
+        var texts = TextLeafPattern().Matches(elementXml)
+            .Where(IsNonSelfClosingTextLeaf)
+            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
+            .Where(match => elementLocalName != "grpSp" || match.Groups["value"].Value.Length > 0)
+            .ToArray();
+        if (elementLocalName != "grpSp") return texts;
+
+        var runs = TextRunPattern().Matches(elementXml).Cast<Match>().ToArray();
+        var shapes = ShapeTextPattern().Matches(elementXml).Cast<Match>().ToArray();
+        var cells = TableCellPattern().Matches(elementXml).Cast<Match>().ToArray();
+        return texts
+            .Where(text => runs.Any(run => Contains(run, text)))
+            .Where(text => !cells.Any(cell => Contains(cell, text)))
+            .Where(text => shapes.Count(shape => Contains(shape, text)) == 1)
+            .ToArray();
+    }
+
+    private static bool Contains(Match container, Match candidate) =>
+        candidate.Index >= container.Index &&
+        candidate.Index + candidate.Length <= container.Index + container.Length;
+
+    private static bool IsNonSelfClosingTextLeaf(Match match) =>
+        !match.Groups["open"].Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal);
 
     private static PptxXmlPatch[] CompileChartTitleXmlPatches(byte[] partBytes, IReadOnlyList<PptxEditPlanProof> proofs)
     {
@@ -610,6 +646,7 @@ internal static partial class PptxEditPlanCodec
         var rich = DirectChildRange(xml, tx, "tx", "rich", proofs[0].Operation);
         var richXml = xml[rich.Start..rich.End];
         var leaves = TextLeafPattern().Matches(richXml)
+            .Where(IsNonSelfClosingTextLeaf)
             .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
             .ToArray();
         var patches = new List<PptxXmlPatch>();
@@ -673,8 +710,9 @@ internal static partial class PptxEditPlanCodec
         }
         if (kind == "nativeText")
         {
-            if (element is not P.GraphicFrame frame || !PptxNativeTextLeafCodec.TryResolve(frame, operation.TextLeafIndex, out var leaf))
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} nativeText target is not a bounded DrawingML table leaf.", operation.SlidePartPath);
+            if ((element is not P.GraphicFrame && element is not P.GroupShape) ||
+                !PptxNativeTextLeafCodec.TryResolve(element, operation.TextLeafIndex, out var leaf))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} nativeText target is not a bounded DrawingML text leaf.", operation.SlidePartPath);
             return leaf.Text;
         }
         var properties = element switch
@@ -877,8 +915,8 @@ internal static partial class PptxEditPlanCodec
                 VerifyImageReplacement(slidePart, element, operation, resultById[operation.OperationId]);
                 continue;
             }
-            if (element is not P.Shape && element is not P.Picture && element is not P.GraphicFrame)
-                throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape, table, or picture.", operation.SlidePartPath);
+            if (element is not P.Shape && element is not P.Picture && element is not P.GraphicFrame && element is not P.GroupShape)
+                throw new CodecException("presentation_edit_verification_failed", "PPTX edited target is no longer a shape, table, group, or picture.", operation.SlidePartPath);
             if (!LeafValuesEqual(ReadLeafValue(element, operation), operation.Value, LeafKind(operation)))
                 throw new CodecException("presentation_edit_verification_failed", $"PPTX edit operation {operation.OperationId} did not survive package reopen.", operation.SlidePartPath);
             resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
