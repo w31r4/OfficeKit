@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { directPresentationChildren } from "./group-shapes.mjs";
+
 const SOURCE_HASH = /^[0-9a-f]{64}$/u;
 const CLASSIFICATIONS = new Set([
   "typed-editable",
@@ -145,6 +147,67 @@ function assertSourceBinding(entry, slideId) {
   return source;
 }
 
+function childEntries(entry) {
+  if (entry?.wire?.content?.case === "opaque" && String(entry.model?.nativeKind || "").toLowerCase() === "group") {
+    return opaqueGroupChildEntries(entry);
+  }
+  if (entry?.wire?.content?.case !== "group") return [];
+  const children = entry.wire.content.value?.children || [];
+  const resolver = entry.model && typeof entry.model.resolve === "function"
+    ? (id) => entry.model.resolve(id)
+    : undefined;
+  return children.map((wire) => {
+    const model = resolver?.(wire.id);
+    if (!model) {
+      throw importObjectError(
+        "presentation_import_object_binding_invalid",
+        `Imported group child ${wire?.id || "<unknown>"} has no matching semantic model.`,
+      );
+    }
+    return { wire, model };
+  });
+}
+
+function opaqueGroupChildEntries(entry) {
+  const children = directPresentationChildren(entry.model?.rawXml || "", "grpSp")
+    .filter((child) => !["nvGrpSpPr", "grpSpPr", "extLst"].includes(child.localName));
+  return children.map((child, index) => {
+    const sourceXml = String(child.xml || "");
+    const elementSha256 = createHash("sha256").update(sourceXml, "utf8").digest("hex");
+    const nativeId = /<(?:[A-Za-z_][\w.-]*:)?cNvPr\b[^>]*\bid=(?:"([^"]+)"|'([^']+)')/u.exec(sourceXml);
+    const name = /<(?:[A-Za-z_][\w.-]*:)?cNvPr\b[^>]*\bname=(?:"([^"]*)"|'([^']*)')/u.exec(sourceXml);
+    const nativeKind = {
+      sp: "shape",
+      pic: "picture",
+      cxnSp: "connector",
+      graphicFrame: "graphicFrame",
+      grpSp: "group",
+    }[child.localName] || child.localName || "opaque";
+    const targetId = `${entry.wire.id}/opaque/${index + 1}`;
+    const source = {
+      shapeTreeIndex: index,
+      elementSha256,
+      semanticSha256: elementSha256,
+      editable: false,
+      textEditable: false,
+      accessibilityEditable: false,
+    };
+    return {
+      wire: {
+        id: targetId,
+        content: { case: "opaque", value: { nativeKind, rawXml: sourceXml } },
+        source,
+      },
+      model: {
+        id: targetId,
+        name: name?.[1] ?? name?.[2] ?? (nativeId?.[1] ?? nativeId?.[2] ? `${nativeKind} ${nativeId[1] ?? nativeId[2]}` : undefined),
+        nativeKind,
+        rawXml: sourceXml,
+      },
+    };
+  });
+}
+
 export function classifyImportedPresentationObjects(state, options = {}) {
   const revisionSha256 = sourceRevision(state);
   const nativeLeafRecords = Array.isArray(options.nativeLeafRecords) ? options.nativeLeafRecords : [];
@@ -152,15 +215,16 @@ export function classifyImportedPresentationObjects(state, options = {}) {
   const records = [];
   const locators = new Set();
   const targetIds = new Set();
+  const includeNested = options.includeNested === true;
   for (const slideState of state.slides) {
     const slideId = String(slideState?.wire?.id || "");
     const slide = Number(slideState?.slide?.index) + 1;
     if (!slideId || !Number.isSafeInteger(slide) || slide < 1 || !Array.isArray(slideState?.entries)) {
       throw importObjectError("presentation_import_object_binding_invalid", "Imported slide state is incomplete.");
     }
-    for (const entry of slideState.entries) {
+    const classifyEntry = (entry, shapeTreePath, topLevel, parentTargetId) => {
       const source = assertSourceBinding(entry, slideId);
-      const locatorKey = `${slideId}:${source.shapeTreeIndex}`;
+      const locatorKey = `${slideId}:${shapeTreePath.join("/")}`;
       if (locators.has(locatorKey) || targetIds.has(entry.wire.id)) {
         throw importObjectError(
           "presentation_import_object_binding_invalid",
@@ -178,7 +242,7 @@ export function classifyImportedPresentationObjects(state, options = {}) {
       }
       const leafKinds = [...new Set(leaves.map((leaf) => leaf.leafKind))].sort();
       const id = `io_${createHash("sha256")
-        .update(`${revisionSha256}\0${slideId}\0${source.shapeTreeIndex}\0${source.elementSha256}`, "utf8")
+        .update(`${revisionSha256}\0${slideId}\0${shapeTreePath.join("/")}\0${source.elementSha256}`, "utf8")
         .digest("hex")
         .slice(0, 32)}`;
       records.push(Object.freeze({
@@ -189,13 +253,18 @@ export function classifyImportedPresentationObjects(state, options = {}) {
         objectKind: objectKind(entry),
         nativeKind: entry.wire.content?.case === "opaque" ? objectKind(entry) : undefined,
         name: entry.model.name || undefined,
-        topLevel: true,
+        topLevel,
+        ...(topLevel ? {} : {
+          depth: shapeTreePath.length - 1,
+          parentTargetId,
+        }),
         classification,
         reason: classificationReason(classification, operations, leaves, reuse, entry, componentRecords),
         sourceRevisionSha256: revisionSha256,
         sourceLocator: Object.freeze({
           slideId,
           shapeTreeIndex: Number(source.shapeTreeIndex),
+          shapeTreePath: Object.freeze(shapeTreePath.map((value) => Number(value))),
           expectedElementSha256: String(source.elementSha256).toLowerCase(),
           expectedSemanticSha256: String(source.semanticSha256).toLowerCase(),
         }),
@@ -205,6 +274,19 @@ export function classifyImportedPresentationObjects(state, options = {}) {
         reuse: Object.freeze(reuse.map((value) => Object.freeze({ ...value }))),
         dependencies: dependencySummary(entry, leaves, reuse),
       }));
+      if (includeNested) {
+        for (const child of childEntries(entry)) {
+          classifyEntry(
+            child,
+            [...shapeTreePath, Number(child.wire.source?.shapeTreeIndex)],
+            false,
+            entry.wire.id,
+          );
+        }
+      }
+    };
+    for (const entry of slideState.entries) {
+      classifyEntry(entry, [Number(entry.wire.source.shapeTreeIndex)], true, undefined);
     }
   }
   return Object.freeze(records);

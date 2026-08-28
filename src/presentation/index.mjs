@@ -708,6 +708,7 @@ export class Presentation {
       records.push(...classifyImportedPresentationObjects(state, {
         nativeLeafRecords: this[PRESENTATION_NATIVE_LEAF_CAPABILITY]?.inspect?.() || [],
         componentRecords: this[PRESENTATION_COMPONENT_CAPABILITY]?.inspect?.() || [],
+        includeNested: options.includeNested === true,
       }));
     }
     return ndjson(filterInspectRecords(records, options), options.maxChars ?? Infinity);

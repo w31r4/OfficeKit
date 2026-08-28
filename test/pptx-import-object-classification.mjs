@@ -64,6 +64,23 @@ assert.deepEqual(classified[1].nativeLeafKinds, ["leftEmu"]);
 assert.deepEqual(classified[2].reuse, [{ candidateId: "pc_reusable", targetId: "slide-1/reusable" }]);
 assert.match(classified[3].reason, /outside the controlled profile/u);
 
+const nestedState = nestedClassificationFixtureState();
+const topLevelOnly = classifyImportedPresentationObjects(nestedState);
+assert.equal(topLevelOnly.length, 1);
+const nested = classifyImportedPresentationObjects(nestedState, { includeNested: true });
+assert.equal(nested.length, 2);
+assert.equal(nested[1].topLevel, false);
+assert.equal(nested[1].parentTargetId, "slide-1/group");
+assert.deepEqual(nested[1].sourceLocator.shapeTreePath, [2, 0]);
+assert.equal(nested[1].classification, "typed-editable");
+
+const opaqueNested = classifyImportedPresentationObjects(opaqueNestedClassificationFixtureState(), { includeNested: true });
+assert.equal(opaqueNested.length, 3);
+assert.equal(opaqueNested.filter((record) => record.topLevel === false).every((record) => record.classification === "opaque-preserved"), true);
+assert.deepEqual(opaqueNested.slice(1).map((record) => record.sourceLocator.shapeTreePath), [[4, 0], [4, 1]]);
+assert.equal(opaqueNested[1].targetId, "slide-1/group/opaque/1");
+assert.equal(opaqueNested[2].objectKind, "picture");
+
 const duplicate = classificationFixtureState();
 duplicate.slides[0].entries[1].wire.source.shapeTreeIndex = 0;
 assert.throws(
@@ -110,6 +127,82 @@ function classificationFixtureState() {
           deletionCapability: { supported: false, blockedReason: "group topology is outside the controlled profile" },
         }),
       ],
+    }],
+  };
+}
+
+function nestedClassificationFixtureState() {
+  const revision = "b".repeat(64);
+  const child = {
+    wire: {
+      id: "slide-1/group/element/1",
+      content: { case: "shape", value: {} },
+      source: {
+        shapeTreeIndex: 0,
+        elementSha256: "c".repeat(64),
+        semanticSha256: "d".repeat(64),
+        editable: false,
+        textEditable: true,
+        accessibilityEditable: false,
+      },
+    },
+    model: { id: "slide-1/group/element/1", name: "nested text" },
+  };
+  const groupModel = {
+    id: "slide-1/group",
+    name: "group",
+    resolve(id) { return id === child.wire.id ? child.model : undefined; },
+  };
+  return {
+    source: { packageSha256: revision },
+    opaqueOpc: { sourcePackage: { sha256: revision } },
+    slides: [{
+      wire: { id: "slide-1" },
+      slide: { index: 0 },
+      entries: [{
+        wire: {
+          id: "slide-1/group",
+          content: { case: "group", value: { children: [child.wire] } },
+          source: {
+            shapeTreeIndex: 2,
+            elementSha256: "e".repeat(64),
+            semanticSha256: "f".repeat(64),
+            editable: false,
+            textEditable: false,
+            accessibilityEditable: false,
+          },
+        },
+        model: groupModel,
+      }],
+    }],
+  };
+}
+
+function opaqueNestedClassificationFixtureState() {
+  const revision = "c".repeat(64);
+  const rawXml = `<p:grpSp xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:nvGrpSpPr/><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="7" name="Nested shape"/></p:nvSpPr></p:sp><p:pic><p:nvPicPr><p:cNvPr id="8" name="Nested picture"/></p:nvPicPr></p:pic></p:grpSp>`;
+  const source = (index, hash) => ({
+    shapeTreeIndex: index,
+    elementSha256: hash.repeat(64).slice(0, 64),
+    semanticSha256: hash.repeat(64).slice(0, 64),
+    editable: true,
+    textEditable: false,
+    accessibilityEditable: false,
+  });
+  return {
+    source: { packageSha256: revision },
+    opaqueOpc: { sourcePackage: { sha256: revision } },
+    slides: [{
+      wire: { id: "slide-1" },
+      slide: { index: 0 },
+      entries: [{
+        wire: {
+          id: "slide-1/group",
+          content: { case: "opaque", value: { nativeKind: "group" } },
+          source: source(4, "e"),
+        },
+        model: { id: "slide-1/group", name: "opaque group", nativeKind: "group", rawXml },
+      }],
     }],
   };
 }
