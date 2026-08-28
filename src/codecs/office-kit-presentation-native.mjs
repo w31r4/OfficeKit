@@ -45,10 +45,14 @@ export async function materializePresentationNativeGraphs(envelope, options = {}
     : new Map();
   const opaqueElements = [];
   if (envelope.payload?.case === "presentation") {
-    for (const slide of envelope.payload.value.slides) {
-      for (const element of slide.elements) {
+    const collect = (elements) => {
+      for (const element of elements || []) {
         if (element.content?.case === "opaque") opaqueElements.push(element.content.value);
+        else if (element.content?.case === "group") collect(element.content.value?.children);
       }
+    };
+    for (const slide of envelope.payload.value.slides) {
+      collect(slide.elements);
     }
   }
   const requestedPaths = new Set();

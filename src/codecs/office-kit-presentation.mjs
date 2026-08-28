@@ -56,6 +56,7 @@ const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element
 const PRESENTATION_ELEMENT_ORDER_CAPABILITY = Symbol.for("office-kit.presentation-element-order-capability");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
+const PRESENTATION_IMPORTED_GROUP_CHILD = Symbol.for("office-kit.presentation-imported-group-child");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
 const PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-svg-data-url-source");
 const PRESENTATION_SCHEME_COLORS = new Set([
@@ -2304,7 +2305,43 @@ function presentationElement(element, original, assetCatalog, sourceIdByCloneId,
   if (element instanceof ChartElement) return presentationChart(element, original);
   if (element?.kind === "connector") return presentationConnector(element, original, sourceIdByCloneId);
   if (element instanceof Shape) return presentationShape(element, original, assetCatalog, customShowLinks);
+  if (element?.kind === "nativeObject") return presentationNestedOpaque(element, original);
   throw new OfficeKitCodecError(`Presentation element ${element?.id || "<unknown>"} has no supported OfficeKit wire projection.`, [], { code: "unsupported_presentation_element" });
+}
+
+function markPresentationImportedGroupSnapshots(group, source) {
+  const children = source?.content?.case === "group" ? source.content.value.children || [] : [];
+  for (let index = 0; index < group.children.length; index += 1) {
+    const child = group.children[index];
+    const wire = children[index];
+    if (!wire) continue;
+    Object.defineProperty(child, PRESENTATION_IMPORTED_GROUP_CHILD, {
+      configurable: false,
+      enumerable: false,
+      writable: false,
+      value: Object.freeze({ wire, snapshot: presentationCloneElementSnapshot(child) }),
+    });
+    if (child instanceof GroupShape && wire.content?.case === "group") markPresentationImportedGroupSnapshots(child, wire);
+  }
+}
+
+function presentationNestedOpaque(element, original) {
+  if (original?.content?.case !== "opaque") {
+    throw new OfficeKitCodecError(`Presentation native child ${element.id} has no source-bound opaque payload.`, [], { code: "unsupported_presentation_edit" });
+  }
+  const placementChanged = element._nativePlacementChanged?.() === true;
+  const replacementPending = presentationCloneHasPendingNativeReplacement(element);
+  if (!placementChanged && !replacementPending) return original;
+  if (!placementChanged || replacementPending || original.source?.editable !== true || element.placementCapability?.supported !== true) {
+    throw new OfficeKitCodecError(`Presentation native child ${element.id} changed outside its bounded placement-only profile.`, [], { code: "unsupported_presentation_edit" });
+  }
+  const frame = element.position;
+  const updated = clonePresentationWire(PresentationElementSchema, original);
+  updated.content.value.leftEmu = presentationNativePlacementEmu(frame.left, `${element.id}.left`);
+  updated.content.value.topEmu = presentationNativePlacementEmu(frame.top, `${element.id}.top`);
+  updated.content.value.widthEmu = presentationNativePlacementEmu(frame.width, `${element.id}.width`);
+  updated.content.value.heightEmu = presentationNativePlacementEmu(frame.height, `${element.id}.height`);
+  return updated;
 }
 
 function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, customShowLinks) {
@@ -2344,7 +2381,11 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
         childTopEmu: signedEmuFromPixels(childFrame.top, `${group.id}.childFrame.top`),
         childWidthEmu,
         childHeightEmu,
-        children: group.children.map((child, index) => presentationElement(child, originalGroup?.children[index], assetCatalog, sourceIdByCloneId, customShowLinks)),
+        children: group.children.map((child, index) => {
+          const imported = child[PRESENTATION_IMPORTED_GROUP_CHILD];
+          if (imported && presentationCloneElementSnapshot(child) === imported.snapshot) return imported.wire;
+          return presentationElement(child, originalGroup?.children[index], assetCatalog, sourceIdByCloneId, customShowLinks);
+        }),
         ...(accessibility ? { accessibility } : {}),
       },
     },
@@ -4939,7 +4980,86 @@ function modelPresentationShapeLine(shape) {
   };
 }
 
-function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
+function modelPresentationOpaqueElement(element, assetCatalog, nativeGraph, sourcePart) {
+  const opaque = element.content.value;
+  return {
+    kind: "nativeObject",
+    id: element.id,
+    name: element.name,
+    _officeKitSharePartBytes: true,
+    nativeKind: opaque.nativeKind || presentationNativeKind(opaque.elementName),
+    text: opaque.text,
+    position: {
+      left: Number(opaque.leftEmu) / EMU_PER_PIXEL,
+      top: Number(opaque.topEmu) / EMU_PER_PIXEL,
+      width: Number(opaque.widthEmu) / EMU_PER_PIXEL,
+      height: Number(opaque.heightEmu) / EMU_PER_PIXEL,
+    },
+    rawXml: opaque.rawXml,
+    sourcePart,
+    editable: false,
+    placementCapability: {
+      sourceBound: Boolean(element.source),
+      known: true,
+      supported: element.source?.editable === true && !["oleObject", "diagram"].includes(opaque.nativeKind),
+      blockedReason: element.source?.editable === true && opaque.nativeKind === "oleObject"
+        ? "embedded Office payload is editable only through its bounded replacement API"
+        : element.source?.editable === true && opaque.nativeKind === "diagram"
+          ? "diagram text is editable only through its bounded diagram-text API"
+          : element.source?.editable === true ? "" : "opaque native frame is not proven safe to edit",
+    },
+    ...(opaque.oleWorkbook ? { oleWorkbook: {
+      partPath: opaque.oleWorkbook.partPath,
+      contentType: opaque.oleWorkbook.contentType,
+      sourceSha256: opaque.oleWorkbook.sourceSha256,
+      relationshipId: opaque.oleWorkbook.relationshipId,
+    } } : {}),
+    ...(opaque.oleOfficePackage ? { oleOfficePackage: {
+      partPath: opaque.oleOfficePackage.partPath,
+      contentType: opaque.oleOfficePackage.contentType,
+      sourceSha256: opaque.oleOfficePackage.sourceSha256,
+      relationshipId: opaque.oleOfficePackage.relationshipId,
+      kind: opaque.oleOfficePackage.kind,
+    } } : {}),
+    ...(opaque.diagramText ? { diagramText: {
+      partPath: opaque.diagramText.partPath,
+      contentType: opaque.diagramText.contentType,
+      sourceSha256: opaque.diagramText.sourceSha256,
+      relationshipId: opaque.diagramText.relationshipId,
+      nodes: (opaque.diagramText.nodes || []).map((node) => ({
+        id: node.modelId,
+        text: node.text,
+        runs: node.runTexts?.length ? [...node.runTexts] : [node.text],
+      })),
+    } } : {}),
+    ...(opaque.nativeChart ? { nativeChart: {
+      partPath: opaque.nativeChart.partPath,
+      contentType: opaque.nativeChart.contentType,
+      sourceSha256: opaque.nativeChart.sourceSha256,
+      relationshipId: opaque.nativeChart.relationshipId,
+      titleLeaves: (opaque.nativeChart.titleLeaves || []).map((leaf) => ({
+        textLeafIndex: leaf.textLeafIndex,
+        text: leaf.text,
+      })),
+      embeddedPackagePartPath: opaque.nativeChart.embeddedPackagePartPath,
+      embeddedPackageSourceSha256: opaque.nativeChart.embeddedPackageSourceSha256,
+      embeddedPackageRelationshipId: opaque.nativeChart.embeddedPackageRelationshipId,
+      dataPoints: (opaque.nativeChart.dataPoints || []).map((point) => ({
+        seriesIndex: point.seriesIndex,
+        pointIndex: point.pointIndex,
+        value: point.value,
+        formula: point.formula,
+        worksheetPartPath: point.worksheetPartPath,
+        worksheetSourceSha256: point.worksheetSourceSha256,
+        worksheetName: point.worksheetName,
+        cellReference: point.cellReference,
+      })),
+    } } : {}),
+    ...nativeGraph(opaque, sourcePart),
+  };
+}
+
+function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nativeGraph, sourcePart) {
   const common = { id: element.id, name: element.name };
   if (element.content.case === "shape") {
     const shape = element.content.value;
@@ -5041,11 +5161,12 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
     };
   }
   if (element.content.case === "chart") return { kind: "chart", ...common, ...modelPresentationChart(element.content.value, element.source?.accessibilityEditable) };
-  if (element.content.case === "group") return { kind: "groupShape", ...modelPresentationGroup(element, assetCatalog, customShowLinks) };
+  if (element.content.case === "group") return { kind: "groupShape", ...modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGraph, sourcePart) };
+  if (element.content.case === "opaque") return modelPresentationOpaqueElement(element, assetCatalog, nativeGraph, sourcePart);
   throw new OfficeKitCodecError(`Presentation group child ${element.id} has unsupported wire content ${element.content.case || "none"}.`, [], { code: "invalid_presentation_group" });
 }
 
-function modelPresentationGroup(element, assetCatalog, customShowLinks) {
+function modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGraph, sourcePart) {
   const group = element.content.value;
   return {
     id: element.id,
@@ -5064,7 +5185,7 @@ function modelPresentationGroup(element, assetCatalog, customShowLinks) {
     },
     ...modelPresentationAccessibility(group.accessibility, "Imported Presentation group"),
     _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
-    children: group.children.map((child) => modelPresentationGroupChild(child, assetCatalog, customShowLinks)),
+    children: group.children.map((child) => modelPresentationGroupChild(child, assetCatalog, customShowLinks, nativeGraph, sourcePart)),
   };
 }
 
@@ -5225,6 +5346,7 @@ export async function presentationFromEnvelope(envelope) {
         ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
       }),
     });
+    const sourcePart = sourceSlide.source?.partPath;
     const entries = [];
     for (const element of sourceSlide.elements) {
       let model;
@@ -5370,10 +5492,10 @@ export async function presentationFromEnvelope(envelope) {
           ...chart,
         });
       } else if (element.content.case === "group") {
-        model = slide.groups.add(modelPresentationGroup(element, assetCatalog, customShowLinks));
+        model = slide.groups.add(modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGraph, sourcePart));
+        markPresentationImportedGroupSnapshots(model, element);
       } else if (element.content.case === "opaque") {
         const opaque = element.content.value;
-        const sourcePart = sourceSlide.source?.partPath;
         model = slide.nativeObjects.add({
           id: element.id,
           name: element.name,

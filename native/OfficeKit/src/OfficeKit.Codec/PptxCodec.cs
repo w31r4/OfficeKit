@@ -1494,7 +1494,14 @@ internal static class PptxCodec
         for (var index = 0; index < children.Length; index++)
         {
             var child = ReadElement(children[index], groupId, index, slideContext, elementIdsByNativeId: elementIdsByNativeId);
-            if (child.ContentCase is PresentationElement.ContentOneofCase.Opaque or PresentationElement.ContentOneofCase.None || child.Source?.Editable != true)
+            // Keep a valid group projected even when one child is outside the
+            // semantic model.  The child remains an opaque, source-bound leaf;
+            // only its own proven capability may be edited.  Rejecting the
+            // whole group here used to make an otherwise safe text/image edit
+            // impossible whenever a vendor extension shared the same group.
+            if (child.ContentCase is PresentationElement.ContentOneofCase.None ||
+                child.Source is null ||
+                child.ContentCase is not PresentationElement.ContentOneofCase.Opaque && child.Source.Editable != true)
                 return false;
             group.Children.Add(child);
         }
@@ -2261,8 +2268,38 @@ internal static class PptxCodec
         }
         else if (source is P.GroupShape group && requested.ContentCase == PresentationElement.ContentOneofCase.Group && original.ContentCase == PresentationElement.ContentOneofCase.Group && TryReadGroup(group, original.Id, slideContext, elementIdsByNativeId, out _))
             _ = ApplyGroup(group, original, requested, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, location);
+        else if (requested.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                 PptxNativeObjectCatalog.SupportsPlacementEditing(source))
+        {
+            // A nested opaque child may be moved or resized only through the
+            // same direct-frame proof as a top-level native object.  Do not
+            // silently drop an OLE/diagram replacement or any other semantic
+            // mutation because this path has no asset catalog for it.
+            ValidateNativePlacementRequest(original, requested);
+            if (NativePlacementChanged(original, requested))
+                ApplyNativePlacement(source, requested);
+        }
         else
             throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} changed outside the bounded group-child profile.", PartPath(slideContext.Owner));
+    }
+
+    private static void ValidateNativePlacementRequest(PresentationElement original, PresentationElement requested)
+    {
+        var allowed = original.Clone();
+        allowed.Name = requested.Name;
+        allowed.Opaque.LeftEmu = requested.Opaque.LeftEmu;
+        allowed.Opaque.TopEmu = requested.Opaque.TopEmu;
+        allowed.Opaque.WidthEmu = requested.Opaque.WidthEmu;
+        allowed.Opaque.HeightEmu = requested.Opaque.HeightEmu;
+        // Source binding is validated by ApplyGroup before this helper. Keep
+        // the comparison focused on the bounded native payload instead of
+        // rejecting an equivalent protobuf instance with a different object
+        // identity.
+        allowed.Source = requested.Source.Clone();
+        if (!allowed.Equals(requested))
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                $"Presentation native object {requested.Id} may edit only its name and outer frame inside an imported group.");
     }
 
     private static P.ShapeTree BasicShapeTree() => new(
@@ -2413,6 +2450,12 @@ internal static class PptxCodec
 
     private static void ClearElementIdentity(PresentationElement element)
     {
+        // A source-bound opaque leaf with a proven placement profile may
+        // change its native transform without changing its opaque payload.
+        // Groups use this recursive semantic hash, so scrub that leaf's raw
+        // XML before clearing identity just as the top-level hash does.
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Opaque && element.Source?.Editable == true)
+            element.Opaque.RawXml = string.Empty;
         element.Id = string.Empty;
         element.Source = null;
         if (element.ContentCase != PresentationElement.ContentOneofCase.Group) return;
@@ -2672,7 +2715,21 @@ internal static class PptxCodec
                 if (!childIds.Add(child.Id))
                     throw new CodecException("invalid_presentation_group", $"Presentation group {element.Id} contains duplicate child ID {child.Id}.");
                 if (child.ContentCase == PresentationElement.ContentOneofCase.Opaque)
-                    throw new CodecException("unsupported_presentation_features", $"Presentation group {element.Id} contains a source-free or semantically edited opaque child.");
+                {
+                    // An imported group may contain a vendor/native child that
+                    // is not projected semantically.  It is safe to retain
+                    // that child when the request carries its source binding;
+                    // ApplyGroup separately proves whether a direct frame edit
+                    // is allowed.  Source-free opaque children remain rejected
+                    // so authoring cannot smuggle an unowned XML subtree into a
+                    // group.
+                    if (!hasSourcePackage || child.Source is null || string.IsNullOrWhiteSpace(child.Source.ElementSha256))
+                        throw new CodecException("unsupported_presentation_features", $"Presentation group {element.Id} contains a source-free opaque child.");
+                    if (child.Source.Editable &&
+                        (child.Opaque.LeftEmu < 0 || child.Opaque.TopEmu < 0 || child.Opaque.WidthEmu <= 0 || child.Opaque.HeightEmu <= 0))
+                        throw new CodecException("invalid_presentation_frame", $"Presentation native child {child.Id} has an invalid frame.");
+                    continue;
+                }
                 ValidatePresentationElement(child, hasSourcePackage, assetCatalog, limits, ref items, depth + 1);
             }
         }
@@ -3331,6 +3388,21 @@ internal static class PptxCodec
                 if (beforeChildren[index] is not P.GraphicFrame beforeChart || afterChildren[index] is not P.GraphicFrame afterChart ||
                     !ChartFrameResidualHash(beforeChart).Equals(ChartFrameResidualHash(afterChart), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_chart_frame_changed", $"PPTX slide {slideIndex + 1} {location} child chart {index + 1} changed unmodeled frame content.", PartPath(outputContext.Owner));
+            }
+            else if (child.ContentCase == PresentationElement.ContentOneofCase.Opaque)
+            {
+                // Opaque children can have a separately proven direct-frame
+                // edit (for example a vendor group or content part).  Keep
+                // their descendants and relationships source-bound while
+                // checking only the frame/name that this bounded operation is
+                // allowed to change.
+                if (!NativeObjectResidualHash(beforeChildren[index]).Equals(NativeObjectResidualHash(afterChildren[index]), StringComparison.OrdinalIgnoreCase))
+                    throw new CodecException("presentation_unmodeled_native_content_changed", $"PPTX slide {slideIndex + 1} {location} child native object {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
+                var outputFrame = ReadFrame(afterChildren[index]);
+                if (!ElementName(afterChildren[index], index).Equals(child.Name, StringComparison.Ordinal) ||
+                    outputFrame.Left != child.Opaque.LeftEmu || outputFrame.Top != child.Opaque.TopEmu ||
+                    outputFrame.Width != child.Opaque.WidthEmu || outputFrame.Height != child.Opaque.HeightEmu)
+                    throw new CodecException("presentation_postwrite_semantics_mismatch", $"PPTX slide {slideIndex + 1} {location} child native object {index + 1} does not match requested name/frame.", PartPath(outputContext.Owner));
             }
             else
             {
