@@ -9,22 +9,22 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "5f9e4260472b7670a333964e568f6bd5fc3bb9c91e74b9252b007668edd7b30d"
+      "sha256": "e86709eeacba5a9dcf3c7c899204a8975faf1aae78160f9627f898af6c69346e"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "aa6774f102726b596a05fd56807b3c5ae4989d131c87ca8d75d09f62bb7bc688"
+      "sha256": "bb6342ce50896375b30162de92a4104fdebeabc0d362e8817edf52bf607b286f"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "d57e72a94c33de9040a1e6579519c0206bce9dc92525db054190540d0d1b3f73"
+      "sha256": "da5fd3c403e5a12795aa846cf96b5138052baa15b1f8f09808342eafb5997889"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "1038581a74f7eebf15bb55b26164e9929f3e36413bf11314a769488f6a610b3e"
+      "sha256": "a98b3a31d7fc4bc2edf12bd67e323e3ca3cd9c661368dd2649c3b7750df24ac3"
     }
   ],
   "useWhen": [
@@ -63,7 +63,7 @@
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
     "guideSha256": "38ed429bc84233c63f5c1e5f06f54bb4a763a4eee52f833fd83f9deb47e1c94f",
-    "referenceSha256": "b49d0d6a9830de778d43d98204acc75d5356e2762a31c16a7036c96ce9e60137",
-    "previewSha256": "9b37257da4fb429fa298411c9a55432b9370344cc722798d4c533c410eec739f"
+    "referenceSha256": "6860162bc2f4c74c17dd47ecf3bbd872da2efa2f98c3ccd2b13e7caaf6238180",
+    "previewSha256": "282c9fd10f35f431c8ed816dab9379e8af62491d48addb6e181a2b03cb26d3a8"
   }
 }

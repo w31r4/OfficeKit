@@ -33,12 +33,14 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "research-studio-calibration-v1.jpg" },
     { file: "wetland-instrument-calibration-v1.jpg" },
     { file: "library-quiet-study-calibration-v1.jpg" },
+    { file: "field-archive-calibration-v1.jpg" },
   ],
   consulting: [
     { file: "research-studio-calibration-v1.jpg" },
     { file: "operations-floor-calibration-v1.jpg" },
     { file: "operations-control-room-calibration-v1.jpg" },
     { file: "civic-courtyard-calibration-v1.jpg" },
+    { file: "stakeholder-room-calibration-v1.jpg" },
   ],
   finance: [
     { file: "brass-ledger-calibration-v1.jpg" },
@@ -52,6 +54,7 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "library-lounge-calibration-v1.jpg" },
     { file: "editorial-archive-calibration-v1.jpg" },
     { file: "noir-cinematic-calibration-v1.jpg", transform: { flipHorizontal: true } },
+    { file: "gallery-installation-calibration-v1.jpg" },
   ],
   work: [
     { file: "operations-floor-calibration-v1.jpg" },
@@ -59,6 +62,7 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "civic-courtyard-calibration-v1.jpg" },
     { file: "library-lounge-calibration-v1.jpg" },
     { file: "research-studio-calibration-v1.jpg" },
+    { file: "industrial-technician-calibration-v1.jpg" },
   ],
 });
 
@@ -177,10 +181,10 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const partBOffset = sourceGuide.search(/PART B\s*[—-]\s*Signature System/iu);
   const signatureGuide = partBOffset >= 0 ? sourceGuide.slice(partBOffset) : sourceGuide;
   const photoProhibition = /(?:\bno photos?\b|\bdo not add photos?\b|\bno body photography\b|\bnever use (?:body|content)[^\n]*photography|\b(?:body|content) (?:pages?|slides?)\s+(?:use|contain)\s+no\s+photos?\b)/iu;
-  const bodyImage = !photoProhibition.test(signatureGuide) && /(?:every body slide|all (?:body|narrative) slides?|photography is (?:a )?hard (?:requirement|constraint)\s+on\s+(?:narrative|body)|photography is (?:a )?hard (?:requirement|constraint):\s*(?:every|each)\s+(?:body|narrative)|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,220}(?:slides?\s+use|primary evidence across|at least half the slide)|full[- ]bleed photography\s+(?:on|across)\s+(?:body|narrative))/iu.test(signatureGuide);
+  const bodyImage = !photoProhibition.test(signatureGuide) && /(?:every body slide|all (?:body|narrative) slides?|photography is mandatory on (?:narrative|body|case[- ]study)|photography is (?:a )?hard (?:requirement|constraint)\s+on\s+(?:narrative|body)|photography is (?:a )?hard (?:requirement|constraint):\s*(?:every|each)\s+(?:body|narrative)|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,220}(?:slides?\s+use|primary evidence across|at least half the slide)|(?:narrative|case[- ]study) slides?[^.\n]{0,160}(?:photograph|photography)|full[- ]bleed photography\s+(?:on|across)\s+(?:body|narrative))/iu.test(signatureGuide);
   const coverImage = /(?:cover|section[- ]opening|section opener|chapter[- ]opening|article[- ]opening).{0,180}(?:photograph|photography|photo)|(?:photograph|photography|photo).{0,180}(?:cover|section[- ]opening|section opener|chapter[- ]opening|article[- ]opening)/iu.test(signatureGuide);
   const imageLead = bodyImage;
-  const photoBand = /(?:photo(?:graph|graphy)?[- ](?:band|header)|photo(?:graph|graphy)?[^\n]{0,90}(?:top|header)[^\n]{0,50}(?:band|strip)|darkened technology-photo title band)/iu.test(signatureGuide);
+  const photoBand = /(?:photo(?:graph|graphy)?[- ](?:band|header)|photo(?:graph|graphy)?[^\n]{0,120}(?:top|header|title band|header background)[^\n]{0,60}(?:band|strip|background)?|(?:title band|header background)[^\n]{0,120}(?:photo(?:graph|graphy)?|image)|darkened technology-photo title band)/iu.test(signatureGuide);
   const processLed = /(?:process(?: |-)?diagram|causal (?:chain|sequence)|decision tree|flow diagram|method choice|timeline|relationship diagram)/iu.test(signatureGuide);
   const noCharts = /(?:chart count is always 0|source deck contains no data charts|no data charts (?:are|appear) (?:in|throughout) (?:the )?(?:deck|source)|no charts (?:are|appear) (?:in|throughout) (?:the )?(?:deck|source))/iu.test(signatureGuide);
   const tableLed = /(?:tables? (?:are|as) the protagonist|financial model tables|financial pages center on)/iu.test(sourceGuide);
@@ -285,14 +289,21 @@ function imageProps(style, role) {
   const offset = Number.isInteger(style.imageOffset) ? style.imageOffset : 0;
   const roleName = String(role);
   const roleNumber = roleName.match(/(?:detail|image)-([0-9]+)$/u);
-  const roleOrder = roleNumber ? Number(roleNumber[1]) : {
-    cover: 0,
-    argument: 1,
-    evidence: 2,
-    visual: 1,
-    detail: 0,
-    close: 2,
-  }[roleName];
+  // Give each page role a different first-choice asset. The previous map
+  // intentionally reused argument/visual and cover/detail images, which made
+  // a photo-led reference deck look like it had one picture pasted six times.
+  // A role is still deterministic and bounded by the style's pool; it simply
+  // spends the available assets before wrapping around.
+  const roleOrder = roleNumber
+    ? 4 + Number(roleNumber[1])
+    : {
+      cover: 0,
+      argument: 1,
+      evidence: 2,
+      visual: 3,
+      detail: 4,
+      close: 5,
+    }[roleName];
   const source = sources[(offset + (Number.isFinite(roleOrder) ? roleOrder : stableIndex(roleName, sources.length))) % sources.length];
   return {
     blob: source.blob,
