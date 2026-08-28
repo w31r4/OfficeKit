@@ -1,5 +1,0 @@
-interface:
-  display_name: "Study Handbook"
-  short_description: "Use the Study Handbook presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-study-handbook as the visual style for this presentation."

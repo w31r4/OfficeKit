@@ -1,5 +1,0 @@
-interface:
-  display_name: "Venture Thesis"
-  short_description: "Use the Venture Thesis presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-venture-thesis as the visual style for this presentation."

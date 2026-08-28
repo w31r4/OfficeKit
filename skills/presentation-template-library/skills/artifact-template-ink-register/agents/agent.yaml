@@ -1,5 +1,0 @@
-interface:
-  display_name: "Ink Register"
-  short_description: "Use the Ink Register presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-ink-register as the visual style for this presentation."

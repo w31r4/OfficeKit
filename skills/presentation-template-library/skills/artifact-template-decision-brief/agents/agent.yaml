@@ -1,5 +1,0 @@
-interface:
-  display_name: "Decision Brief"
-  short_description: "Use the Decision Brief presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-decision-brief as the visual style for this presentation."

@@ -1,13 +1,9 @@
 # Presentation Template Library
 
-This plugin contains 32 original OfficeKit presentation style Skills. Each
+This plugin contains eight original OfficeKit presentation style Skills. Each
 template is guidance plus visual calibration evidence, not a retained deck or
 layout program. `officekit template search --kind presentation` discovers the
 styles in place; `officekit init` does not copy them into each project.
-
-The catalog is authored as clean-room OfficeKit material. It preserves broad,
-public design vocabulary while avoiding copied prose, palettes, page geometry,
-code, source decks, screenshots, or assets from third-party products.
 
 Every nested template has exactly this surface:
 

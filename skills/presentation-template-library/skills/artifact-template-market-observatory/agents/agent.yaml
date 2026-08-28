@@ -1,5 +1,0 @@
-interface:
-  display_name: "Market Observatory"
-  short_description: "Use the Market Observatory presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-market-observatory as the visual style for this presentation."

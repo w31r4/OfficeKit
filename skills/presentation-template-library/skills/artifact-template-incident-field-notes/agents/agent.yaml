@@ -1,5 +1,0 @@
-interface:
-  display_name: "Incident Field Notes"
-  short_description: "Use the Incident Field Notes presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-incident-field-notes as the visual style for this presentation."

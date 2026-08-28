@@ -1,5 +1,0 @@
-interface:
-  display_name: "Dynamic Collage"
-  short_description: "Use the Dynamic Collage presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-dynamic-collage as the visual style for this presentation."

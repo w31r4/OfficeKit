@@ -1,5 +1,0 @@
-interface:
-  display_name: "Capital Signal"
-  short_description: "Use the Capital Signal presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-capital-signal as the visual style for this presentation."

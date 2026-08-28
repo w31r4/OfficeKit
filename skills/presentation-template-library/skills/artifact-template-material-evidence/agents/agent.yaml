@@ -1,5 +1,0 @@
-interface:
-  display_name: "Material Evidence"
-  short_description: "Use the Material Evidence presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-material-evidence as the visual style for this presentation."

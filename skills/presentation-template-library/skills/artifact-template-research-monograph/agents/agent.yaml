@@ -1,5 +1,0 @@
-interface:
-  display_name: "Research Monograph"
-  short_description: "Use the Research Monograph presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-research-monograph as the visual style for this presentation."

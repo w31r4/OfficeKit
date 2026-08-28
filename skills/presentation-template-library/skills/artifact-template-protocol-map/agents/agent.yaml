@@ -1,5 +1,0 @@
-interface:
-  display_name: "Protocol Map"
-  short_description: "Use the Protocol Map presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-protocol-map as the visual style for this presentation."

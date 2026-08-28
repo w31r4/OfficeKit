@@ -1,5 +1,0 @@
-interface:
-  display_name: "Operating Rhythm"
-  short_description: "Use the Operating Rhythm presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-operating-rhythm as the visual style for this presentation."

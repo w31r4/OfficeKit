@@ -1,5 +1,0 @@
-interface:
-  display_name: "Thesis Defense"
-  short_description: "Use the Thesis Defense presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-thesis-defense as the visual style for this presentation."
