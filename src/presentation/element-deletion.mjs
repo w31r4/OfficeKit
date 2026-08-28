@@ -1,3 +1,5 @@
+import { removePresentationElementFromOrder } from "./element-order.mjs";
+
 const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
 
 export const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
@@ -19,14 +21,7 @@ export function presentationElementDeletionCapability(element, kind) {
 }
 
 function allSlideElements(slide) {
-  const direct = [
-    ...(slide?.shapes?.items || []),
-    ...(slide?.connectors?.items || []),
-    ...(slide?.tables?.items || []),
-    ...(slide?.charts?.items || []),
-    ...(slide?.images?.items || []),
-    ...(slide?.nativeObjects?.items || []),
-  ];
+  const direct = [...(slide?.elements?.items || [])];
   for (const group of slide?.groups?.items || []) direct.push(...group.allElements());
   return direct;
 }
@@ -72,9 +67,6 @@ export function deletePresentationElement(element, collection, kind, { ownedElem
   }
   if (capability.sourceBound) Object.defineProperty(element, PRESENTATION_ELEMENT_DELETED, { value: true });
   collection.items.splice(index, 1);
-  if (owner) {
-    const childIndex = owner.children.indexOf(element);
-    if (childIndex >= 0) owner.children.splice(childIndex, 1);
-  }
+  removePresentationElementFromOrder(element);
   return element;
 }

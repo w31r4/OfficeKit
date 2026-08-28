@@ -35,6 +35,7 @@ import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./l
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
+import { assertPresentationElementIndexes, installPresentationElementOrdering } from "./element-order.mjs";
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
 import { editSvgLeaf as replaceSvgLeaf, inspectSvgLeaves } from "./svg-leaves.mjs";
 import { buildPresentationDesignProfile } from "./design-profile.mjs";
@@ -1167,8 +1168,10 @@ class ShapeCollection {
     }
     const shape = new Shape(this.slide, config);
     shape.parentGroup = this.owner;
+    installPresentationElementOrdering(shape);
     this.items.push(shape);
-    this.owner?._rememberChild?.(shape);
+    if (this.owner) this.owner._rememberChild(shape);
+    else this.slide.elements._remember(shape);
     return shape;
   }
   connect(from, to, options = {}) {
@@ -1184,8 +1187,21 @@ class ShapeCollection {
 
 class ElementCollection {
   constructor(slide, ElementClass, owner) { this.slide = slide; this.ElementClass = ElementClass; this.owner = owner; this.items = []; }
-  add(...args) { const element = new this.ElementClass(this.slide, ...args); element.parentGroup = this.owner; this.items.push(element); this.owner?._rememberChild?.(element); return element; }
+  add(...args) { const element = new this.ElementClass(this.slide, ...args); element.parentGroup = this.owner; installPresentationElementOrdering(element); this.items.push(element); if (this.owner) this.owner._rememberChild(element); else this.slide.elements._remember(element); return element; }
   getItemAt(index) { return this.items[index]; }
+  [Symbol.iterator]() { return this.items[Symbol.iterator](); }
+}
+
+class SlideElementCollection {
+  constructor(slide) { this.slide = slide; this.items = []; }
+  _remember(element) {
+    if (element?.slide !== this.slide || element.parentGroup) throw new Error("Direct presentation element must belong to this slide scene stack.");
+    if (this.items.includes(element)) throw new Error(`Presentation element ${element.id} is already registered in the slide scene stack.`);
+    this.items.push(element);
+  }
+  getItem(idOrName) { return this.items.find((element) => element.id === idOrName || element.name === idOrName); }
+  getItemAt(index) { return this.items[index]; }
+  get count() { return this.items.length; }
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
 }
 
@@ -1484,18 +1500,8 @@ class SpeakerNotes {
 }
 
 function orderedSlideModelElements(slide) {
-  const backgroundConnectors = slide.connectors.items.filter((connector) => !connector.isForeground);
-  const foregroundConnectors = slide.connectors.items.filter((connector) => connector.isForeground);
-  return [
-    ...backgroundConnectors,
-    ...slide.shapes.items,
-    ...slide.tables.items,
-    ...slide.charts.items,
-    ...slide.images.items,
-    ...slide.groups.items,
-    ...slide.nativeObjects.items,
-    ...foregroundConnectors,
-  ];
+  assertPresentationElementIndexes(slide, slide.elements.items);
+  return [...slide.elements.items];
 }
 
 function presentationBackgroundHasImage(background) {
@@ -1515,6 +1521,7 @@ export class Slide {
     this.presentation = presentation;
     this.id = aid("sl");
     this.name = options.name || "";
+    this.elements = new SlideElementCollection(this);
     this.shapes = new ShapeCollection(this);
     this.images = new ElementCollection(this, ImageElement);
     this.tables = new ElementCollection(this, TableElement);
