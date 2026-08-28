@@ -29,6 +29,12 @@ SVG asset; safe SVG leaves can be edited without replacing the primary raster
 relationship.  Unsupported SVG topology remains preserved and reports no
 editable leaves.
 
+The current six-sample pass also exercises the newly proven imported-edit paths:
+two native fill-color edits, one SVG style edit, and one text edit on a slide with
+an existing animation graph. A `blocked` status means that the source sample
+does not contain a safe leaf of that kind; it is retained as evidence rather than
+treated as a skipped or successful edit.
+
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
 the same six inputs and a bounded placement edit. It includes per-slide PNG
 hashes so non-target pages can be checked without storing the rendered images.
