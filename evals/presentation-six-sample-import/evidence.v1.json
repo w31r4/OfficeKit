@@ -10,6 +10,9 @@
     "textEdits": 6,
     "nativeTextEdits": 5,
     "imageReplacements": 6,
+    "nativeFillEdits": 2,
+    "svgStyleEdits": 1,
+    "animatedTextEdits": 1,
     "tableCellEdits": 4,
     "sourceSlideReuse": 6
   },
@@ -81,6 +84,18 @@
           "ppt/slides/_rels/slide1.xml.rels",
           "ppt/slides/slide1.xml"
         ]
+      },
+      "nativeFill": {
+        "status": "blocked",
+        "reason": "no bounded fill color leaf was discovered"
+      },
+      "svgStyle": {
+        "status": "blocked",
+        "reason": "no safe SVG style leaf was discovered"
+      },
+      "animatedText": {
+        "status": "blocked",
+        "reason": "no animated text target with a writable run was discovered"
       },
       "tableCell": {
         "status": "blocked",
@@ -181,6 +196,23 @@
           "ppt/media/office-kit-c7ecc9f3547ab6aad4660e9a.png",
           "ppt/slides/_rels/slide3.xml.rels",
           "ppt/slides/slide3.xml"
+        ]
+      },
+      "nativeFill": {
+        "status": "blocked",
+        "reason": "no bounded fill color leaf was discovered"
+      },
+      "svgStyle": {
+        "status": "blocked",
+        "reason": "no safe SVG style leaf was discovered"
+      },
+      "animatedText": {
+        "status": "passed",
+        "targetId": "presentation/slide/9/element/11",
+        "animationId": "anim-build-63caf344",
+        "animationCount": 33,
+        "changedParts": [
+          "ppt/slides/slide9.xml"
         ]
       },
       "tableCell": {
@@ -288,6 +320,31 @@
           "ppt/slides/slide1.xml"
         ]
       },
+      "nativeFill": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/2/element/1",
+        "oldValue": "#ffffff",
+        "value": "#aabbcc",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "svgStyle": {
+        "status": "passed",
+        "targetId": "presentation/slide/3/element/2",
+        "leafKind": "svgFillRgb",
+        "oldValue": "#000000",
+        "value": "#aabbcc",
+        "changedParts": [
+          "ppt/media/office-kit-70084dce36f1cf90a9663325.svg",
+          "ppt/slides/_rels/slide3.xml.rels",
+          "ppt/slides/slide3.xml"
+        ]
+      },
+      "animatedText": {
+        "status": "blocked",
+        "reason": "no animated text target with a writable run was discovered"
+      },
       "tableCell": {
         "status": "passed",
         "targetId": "presentation/slide/19/element/1",
@@ -393,6 +450,23 @@
           "ppt/slides/slide3.xml"
         ]
       },
+      "nativeFill": {
+        "status": "passed",
+        "targetId": "presentation/slide/30/element/3",
+        "oldValue": "#0072d1",
+        "value": "#aabbcc",
+        "changedParts": [
+          "ppt/slides/slide30.xml"
+        ]
+      },
+      "svgStyle": {
+        "status": "blocked",
+        "reason": "no safe SVG style leaf was discovered"
+      },
+      "animatedText": {
+        "status": "blocked",
+        "reason": "no animated text target with a writable run was discovered"
+      },
       "tableCell": {
         "status": "passed",
         "targetId": "presentation/slide/13/element/2",
@@ -497,6 +571,18 @@
           "ppt/slides/slide3.xml"
         ]
       },
+      "nativeFill": {
+        "status": "blocked",
+        "reason": "no bounded fill color leaf was discovered"
+      },
+      "svgStyle": {
+        "status": "blocked",
+        "reason": "no safe SVG style leaf was discovered"
+      },
+      "animatedText": {
+        "status": "blocked",
+        "reason": "no animated text target with a writable run was discovered"
+      },
       "tableCell": {
         "status": "passed",
         "targetId": "presentation/slide/13/element/2",
@@ -591,6 +677,18 @@
           "ppt/slides/_rels/slide5.xml.rels",
           "ppt/slides/slide5.xml"
         ]
+      },
+      "nativeFill": {
+        "status": "blocked",
+        "reason": "no bounded fill color leaf was discovered"
+      },
+      "svgStyle": {
+        "status": "blocked",
+        "reason": "no safe SVG style leaf was discovered"
+      },
+      "animatedText": {
+        "status": "blocked",
+        "reason": "no animated text target with a writable run was discovered"
       },
       "tableCell": {
         "status": "blocked",
