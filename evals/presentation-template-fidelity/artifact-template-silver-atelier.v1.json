@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/reference.pptx",
-    "sha256": "6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a"
+    "sha256": "8100fa9346e4a9cad54333ae5a0fd3c56f42551774ef02419eb8a85722c3cd22"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:206",
+      "records:208",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a"
+      "reference-sha256:8100fa9346e4a9cad54333ae5a0fd3c56f42551774ef02419eb8a85722c3cd22"
     ]
   },
   "visual": {

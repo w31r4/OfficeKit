@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/reference.pptx",
-    "sha256": "415566c9e7efac1318dd24e3bc297e50082ea58a68b1885d0ee76387be1aa15f"
+    "sha256": "67d9f11f8d1cd4c701b298846dd30e4fc4ede1cc35b2c60d1776703baf4baa88"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:184",
+      "records:176",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:415566c9e7efac1318dd24e3bc297e50082ea58a68b1885d0ee76387be1aa15f"
+      "reference-sha256:67d9f11f8d1cd4c701b298846dd30e4fc4ede1cc35b2c60d1776703baf4baa88"
     ]
   },
   "visual": {

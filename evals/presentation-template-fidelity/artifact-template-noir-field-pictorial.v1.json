@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-noir-field-pictorial/assets/reference.pptx",
-    "sha256": "7fedfb117a79c9d7354de6fb21b856c5b912f13e058ebb45158a671da07f1a1a"
+    "sha256": "e3e563d8d37b0f9737d1f5007ff324f8c5770dd37ab755dac3c42a0e04e109b4"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:296",
+      "records:300",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:7fedfb117a79c9d7354de6fb21b856c5b912f13e058ebb45158a671da07f1a1a"
+      "reference-sha256:e3e563d8d37b0f9737d1f5007ff324f8c5770dd37ab755dac3c42a0e04e109b4"
     ]
   },
   "visual": {

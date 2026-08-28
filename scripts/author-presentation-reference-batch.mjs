@@ -24,6 +24,16 @@ const DEFAULT_OUTPUT = path.join(os.tmpdir(), "officekit-presentation-reference-
 const TEMPLATE_ROOT = path.join(REPO_ROOT, "skills/presentation-template-library/skills");
 const EVAL_ROOT = path.join(REPO_ROOT, "evals/presentation-template-fidelity");
 const GENERATED_ASSET_ROOT = path.join(REPO_ROOT, "assets/generated");
+// Template previews are read by agents and package consumers, not used as
+// source artwork. Palette PNGs keep photographic examples crisp at their
+// rendered 1600x900 size while avoiding several megabytes of redundant
+// lossless PNG payload in the global template package.
+const PREVIEW_PNG_OPTIONS = Object.freeze({
+  compressionLevel: 9,
+  adaptiveFiltering: true,
+  palette: true,
+  quality: 92,
+});
 const PHOTO_ASSET_POOLS = Object.freeze({
   // These are OfficeKit-authored clean-room calibration photographs. They
   // are intentionally grouped by visual job rather than by copied source
@@ -35,6 +45,9 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "library-quiet-study-calibration-v1.jpg" },
     { file: "field-archive-calibration-v1.jpg" },
     { file: "archival-research-table-calibration-v1.jpg" },
+    { file: "editorial-archive-calibration-v1.jpg" },
+    { file: "library-lounge-calibration-v1.jpg" },
+    { file: "civic-workshop-calibration-v1.jpg" },
   ],
   consulting: [
     { file: "research-studio-calibration-v1.jpg" },
@@ -43,12 +56,20 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "civic-courtyard-calibration-v1.jpg" },
     { file: "stakeholder-room-calibration-v1.jpg" },
     { file: "civic-workshop-calibration-v1.jpg" },
+    { file: "industrial-technician-calibration-v1.jpg" },
+    { file: "editorial-archive-calibration-v1.jpg" },
+    { file: "architectural-staircase-calibration-v1.jpg" },
+    { file: "field-archive-calibration-v1.jpg" },
   ],
   finance: [
     { file: "brass-ledger-calibration-v1.jpg" },
     { file: "operations-control-room-calibration-v1.jpg" },
     { file: "crafted-still-life-calibration-v1.jpg" },
     { file: "noir-cinematic-calibration-v1.jpg", transform: { flipHorizontal: true } },
+    { file: "archival-research-table-calibration-v1.jpg" },
+    { file: "editorial-archive-calibration-v1.jpg" },
+    { file: "industrial-control-room-calibration-v1.jpg" },
+    { file: "civic-courtyard-calibration-v1.jpg" },
   ],
   promotion: [
     { file: "crafted-still-life-calibration-v1.jpg" },
@@ -58,6 +79,11 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "noir-cinematic-calibration-v1.jpg", transform: { flipHorizontal: true } },
     { file: "gallery-installation-calibration-v1.jpg" },
     { file: "architectural-staircase-calibration-v1.jpg" },
+    { file: "research-studio-calibration-v1.jpg" },
+    { file: "field-archive-calibration-v1.jpg" },
+    { file: "wetland-instrument-calibration-v1.jpg" },
+    { file: "civic-workshop-calibration-v1.jpg" },
+    { file: "industrial-technician-calibration-v1.jpg" },
   ],
   work: [
     { file: "operations-floor-calibration-v1.jpg" },
@@ -67,6 +93,11 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "research-studio-calibration-v1.jpg" },
     { file: "industrial-technician-calibration-v1.jpg" },
     { file: "industrial-control-room-calibration-v1.jpg" },
+    { file: "editorial-archive-calibration-v1.jpg" },
+    { file: "field-archive-calibration-v1.jpg" },
+    { file: "architectural-staircase-calibration-v1.jpg" },
+    { file: "civic-workshop-calibration-v1.jpg" },
+    { file: "wetland-instrument-calibration-v1.jpg" },
   ],
 });
 
@@ -140,7 +171,7 @@ async function authorOne({ sourceRelative, templateId }) {
     const svgBytes = await rendered.bytes;
     const stem = String(index + 1).padStart(2, "0");
     await fs.writeFile(path.join(outputDir, "renders", `${stem}.svg`), svgBytes);
-    await sharp(svgBytes).png().toFile(path.join(outputDir, "renders", `${stem}.png`));
+    await sharp(svgBytes).png(PREVIEW_PNG_OPTIONS).toFile(path.join(outputDir, "renders", `${stem}.png`));
   }
 
   const referencePath = path.join(outputDir, "reference.pptx");
@@ -161,7 +192,7 @@ async function authorOne({ sourceRelative, templateId }) {
   }
   await fs.writeFile(path.join(outputDir, "inspect.jsonl"), `${inspect.ndjson}\n`);
   const preview = await renderArtifact(deck, { format: "montage", scale: 0.28, gap: 28 });
-  await sharp(await preview.bytes).png().toFile(path.join(outputDir, "preview.png"));
+  await sharp(await preview.bytes).png(PREVIEW_PNG_OPTIONS).toFile(path.join(outputDir, "preview.png"));
   await writeEvidence({ style, outputDir, referencePath, editedPath, recordCount: records.length });
   process.stdout.write(`${JSON.stringify({ templateId, sourceRelative, records: records.length, referenceSha256: sha256(await fs.readFile(referencePath)) })}\n`);
 }
@@ -185,7 +216,13 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const partBOffset = sourceGuide.search(/PART B\s*[—-]\s*Signature System/iu);
   const signatureGuide = partBOffset >= 0 ? sourceGuide.slice(partBOffset) : sourceGuide;
   const photoProhibition = /(?:\bno photos?\b|\bdo not add photos?\b|\bno body photography\b|\bnever use (?:body|content)[^\n]*photography|\b(?:body|content) (?:pages?|slides?)\s+(?:use|contain)\s+no\s+photos?\b)/iu;
-  const bodyImage = !photoProhibition.test(signatureGuide) && /(?:every body slide|all (?:body|narrative) slides?|photography is mandatory on (?:narrative|body|case[- ]study)|photography is (?:a )?hard (?:requirement|constraint)\s+on\s+(?:narrative|body)|photography is (?:a )?hard (?:requirement|constraint):\s*(?:every|each)\s+(?:body|narrative)|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,220}(?:slides?\s+use|primary evidence across|at least half the slide)|(?:narrative|case[- ]study) slides?[^.\n]{0,160}(?:photograph|photography)|full[- ]bleed photography\s+(?:on|across)\s+(?:body|narrative))/iu.test(signatureGuide);
+  // A body image is enabled only when the guide binds photography to the
+  // body/case narrative itself. Cover, section-opener and "one image in the
+  // deck" requirements are intentionally excluded; those roles are handled
+  // by coverImage/photoBand below. This keeps data-first styles vector-native
+  // while allowing genuinely image-led styles to spend their full photo pool.
+  const bodyImageSignal = /(?:photography is mandatory on narrative\/case[- ]study slides?|photography is a hard requirement on narrative slides?|(?:case|body|narrative) slides?[^.\n]{0,160}must include[^.\n]{0,100}(?:photograph|photography|photo|image)|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,140}(?:every|each) body slide|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,180}(?:approximately|about|roughly)\s+(?:half|\d+\/\d+)\s+(?:of )?(?:the )?slides?\s+use|photography is mandatory:\s*photographic slides? must use|(?:alternating|alternate)[^.\n]{0,120}(?:photography|photographic)[^.\n]{0,100}(?:imagery|slides?|pages?|evidence)|full[- ]bleed real imagery|(?:full[- ]bleed|large[- ]scale)\s+(?:real|documentary)?\s*(?:photography|imagery|images?)\s+(?:across|throughout|on)\s+(?:body|narrative|content)?\s*(?:slides?|pages?)|approximately\s+(?:half|\d+\/\d+)\s+of\s+(?:the )?slides?\s+use\s+(?:documentary\s+)?photographs?)/iu;
+  const bodyImage = !photoProhibition.test(signatureGuide) && bodyImageSignal.test(signatureGuide);
   const coverImage = /(?:cover|section[- ]opening|section opener|chapter[- ]opening|article[- ]opening).{0,180}(?:photograph|photography|photo)|(?:photograph|photography|photo).{0,180}(?:cover|section[- ]opening|section opener|chapter[- ]opening|article[- ]opening)/iu.test(signatureGuide);
   const imageLead = bodyImage;
   const photoBand = /(?:photo(?:graph|graphy)?[- ](?:band|header)|photo(?:graph|graphy)?[^\n]{0,120}(?:top|header|title band|header background)[^\n]{0,60}(?:band|strip|background)?|(?:title band|header background)[^\n]{0,120}(?:photo(?:graph|graphy)?|image)|darkened technology-photo title band)/iu.test(signatureGuide);
@@ -237,6 +274,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     imageSources.push({ blob: new FileBlob(backdropPng, { type: "image/png" }), asset: null });
   }
   const imageOffset = stableIndex(templateId, imageSources.length);
+  const hasPhotoPool = imageSources.some((source) => Boolean(source.asset));
   return {
     templateId,
     sourceDir,
@@ -268,6 +306,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     imageBlob: imageSources[0].blob,
     imageSources,
     imageOffset,
+    hasPhotoPool,
     imageAsset: imageSources[0].asset,
     imageTransform: imageSources[0].transform,
     sidecar,
@@ -291,24 +330,14 @@ function imageProps(style, role) {
   const sources = Array.isArray(style.imageSources) && style.imageSources.length > 0
     ? style.imageSources : [{ blob: style.imageBlob, transform: style.imageTransform }];
   const offset = Number.isInteger(style.imageOffset) ? style.imageOffset : 0;
-  const roleName = String(role);
-  const roleNumber = roleName.match(/(?:detail|image)-([0-9]+)$/u);
-  // Give each page role a different first-choice asset. The previous map
-  // intentionally reused argument/visual and cover/detail images, which made
-  // a photo-led reference deck look like it had one picture pasted six times.
-  // A role is still deterministic and bounded by the style's pool; it simply
-  // spends the available assets before wrapping around.
-  const roleOrder = roleNumber
-    ? 4 + Number(roleNumber[1])
-    : {
-      cover: 0,
-      argument: 1,
-      evidence: 2,
-      visual: 3,
-      detail: 4,
-      close: 5,
-    }[roleName];
-  const source = sources[(offset + (Number.isFinite(roleOrder) ? roleOrder : stableIndex(roleName, sources.length))) % sources.length];
+  // Spend the pool in call order so a photo-led reference uses a different
+  // image for each role before wrapping. This is intentionally independent of
+  // role names: an evidence page can have more than one image and should not
+  // silently reuse the page background for its inset. The cursor is local to
+  // one authored deck, so the sequence stays deterministic across rebuilds.
+  const sequence = Number.isInteger(style.imageCursor) ? style.imageCursor : 0;
+  style.imageCursor = sequence + 1;
+  const source = sources[(offset + sequence) % sources.length];
   return {
     blob: source.blob,
     ...(source.transform ? { transform: source.transform } : {}),
@@ -414,12 +443,29 @@ function addPageHeading(slide, style, { role, eyebrow, title, basis, titleName, 
     return true;
   }
   const { palette: c } = style;
+  const headingTitle = style.bodyImage ? wrapHeading(title, 38) : title;
+  const headingIsMultiline = headingTitle.includes("\n");
   addLine(slide, `${role}-top-rule`, 88, 70, 1512, 70, c.accent, 3);
   addText(slide, eyebrow, eyebrow, 96, 94, 760, 24, { fontSize: 16, bold: true, color: c.accent });
-  addText(slide, titleName, title, 96, 138, style.bodyImage ? 660 : 1240, 58, { fontSize: 38, bold: true, color: c.ink });
-  addText(slide, basisName, basis, 100, 208, style.bodyImage ? 640 : 1100, 28, { fontSize: 18, color: c.rule });
+  addText(slide, titleName, headingTitle, 96, 138, style.bodyImage ? 660 : 1240, headingIsMultiline ? 96 : 58, { fontSize: style.bodyImage ? 34 : 38, bold: true, color: c.ink });
+  addText(slide, basisName, basis, 100, headingIsMultiline ? 230 : 208, style.bodyImage ? 640 : 1100, 28, { fontSize: 18, color: c.rule });
   addLine(slide, `${role}-rule`, 96, 258, 1504, 258, c.rule, 2);
   return false;
+}
+
+function wrapHeading(value, maxChars) {
+  const words = String(value).trim().split(/\s+/u);
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (current && next.length > maxChars) {
+      lines.push(current);
+      current = word;
+    } else current = next;
+  }
+  if (current) lines.push(current);
+  return lines.join("\n");
 }
 
 // Finance signatures use dark pages as a deliberate change of temperature:
@@ -711,7 +757,7 @@ function makeEvidence(presentation, style) {
     addText(slide, "metric", "68", 1040, 350, 280, 82, { fontSize: 64, bold: true, color: c.accent });
     addText(slide, "metric-label", metricLabel(style), 1040, 435, 330, 30, { fontSize: 18, color: c.rule });
     addLine(slide, "rail-rule", 1040, 505, 1435, 505, c.rule, 2);
-    addText(slide, "read-through", readThrough(style), 1040, 540, 360, 78, { fontSize: 22, bold: true, color: c.ink });
+    addText(slide, "read-through", readThroughText(style), 1040, 540, 360, 78, { fontSize: style.bodyImage ? 18 : 22, bold: true, color: c.ink });
   } else if (style.dense) {
     denseEvidence(slide, style);
   } else {
@@ -737,7 +783,7 @@ function makeEvidence(presentation, style) {
     addText(slide, "metric", "68", 1040, 350, 280, 82, { fontSize: 64, bold: true, color: c.accent });
     addText(slide, "metric-label", metricLabel(style), 1040, 435, 330, 30, { fontSize: 18, color: c.rule });
     addLine(slide, "rail-rule", 1040, 505, 1435, 505, c.rule, 2);
-    addText(slide, "read-through", readThrough(style), 1040, 540, 360, 78, { fontSize: 22, bold: true, color: c.ink });
+    addText(slide, "read-through", readThroughText(style), 1040, 540, 360, 78, { fontSize: style.bodyImage ? 18 : 22, bold: true, color: c.ink });
   }
   addRect(slide, "evidence-band", 96, 722, 1408, 58, c.panel, { fill: c.panel, line: { fill: c.panel, width: 0 } });
   addText(slide, "evidence-band-text", "EVIDENCE  ·  Keep the unit, time window, and limitation adjacent to the number.", 120, 741, 1300, 24, { fontSize: 17, bold: true, color: c.ink });
@@ -762,7 +808,7 @@ function makeDetail(presentation, style) {
   if (style.processLed) detailProcess(slide, style);
   else if (style.category === "finance" || style.category === "academic") detailTable(slide, style);
   else if (style.category === "consulting") detailDecision(slide, style);
-  else if (style.category === "promotion") detailImageMatrix(slide, style);
+  else if (style.category === "promotion" && style.hasPhotoPool) detailImageMatrix(slide, style);
   else detailOperating(slide, style);
   addText(slide, "source", "Source: illustrative calibration brief · labels and values are fictional", 96, 822, 1150, 22, { fontSize: 14, color: c.rule });
   addText(slide, "page-number", "4 / 6", 1400, 822, 100, 22, { fontSize: 14, color: c.rule, alignment: "right" });
@@ -1030,9 +1076,11 @@ function detailDecision(slide, style) {
 function detailImageMatrix(slide, style) {
   const { palette: c } = style;
   const crops = [
-    { left: 104, top: 332, width: 390, height: 300 },
-    { left: 514, top: 332, width: 390, height: 140 },
-    { left: 514, top: 492, width: 390, height: 140 },
+    { left: 104, top: 332, width: 390, height: 250 },
+    { left: 514, top: 332, width: 188, height: 118 },
+    { left: 720, top: 332, width: 188, height: 118 },
+    { left: 514, top: 468, width: 188, height: 118 },
+    { left: 720, top: 468, width: 188, height: 118 },
   ];
   crops.forEach((position, index) => slide.images.add({
     name: `image-evidence-${index}`,
@@ -1042,8 +1090,8 @@ function detailImageMatrix(slide, style) {
     accessibility: { decorative: true },
   }));
   addText(slide, "image-matrix-label", "IMAGE MATRIX", 1010, 348, 300, 24, { fontSize: 15, bold: true, color: c.accent });
-  addText(slide, "image-matrix-title", "One subject, three ways to notice it.", 1010, 398, 390, 76, { fontSize: 28, bold: true, color: c.ink });
-  addText(slide, "image-matrix-body", "Use unequal frames to show facets of one idea. The crop carries the mood; the label carries the claim.", 1010, 520, 370, 70, { fontSize: 17, color: c.rule });
+  addText(slide, "image-matrix-title", "One subject, five ways to notice it.", 1010, 398, 390, 76, { fontSize: 28, bold: true, color: c.ink });
+  addText(slide, "image-matrix-body", "One dominant frame plus four\nsupporting crops. Image carries\nmood; labels carry the claim.", 1010, 520, 370, 82, { fontSize: 16, color: c.rule });
 }
 
 function addNativeVisualCarrier(slide, style, frame) {
@@ -1206,7 +1254,7 @@ function promotionArgument(slide, style) {
   addText(slide, "promotion-kicker", "ONE PROPOSITION", 116, 352, 300, 24, { fontSize: 15, bold: true, color: c.accent });
   addText(slide, "promotion-headline", "Make the next action visible.", 116, 398, 680, 76, { fontSize: 35, bold: true, color: c.ink });
   addText(slide, "promotion-body", "A clear invitation earns attention when evidence and access arrive together.", 116, 500, 650, 48, { fontSize: 21, color: c.ink });
-  slide.images.add({ name: "promotion-hero-frame", ...imageProps(style, "argument"), position: { left: 1000, top: 330, width: 420, height: 270 }, fit: "cover", accessibility: { decorative: true } });
+  slide.images.add({ name: "promotion-hero-frame", ...imageProps(style, "argument-inset"), position: { left: 1000, top: 330, width: 420, height: 270 }, fit: "cover", accessibility: { decorative: true } });
   addLine(slide, "promotion-image-rule", 1000, 620, 1420, 620, c.accent, 3);
   addText(slide, "promotion-image-label", "INVITE · PROVE · MOVE", 1000, 646, 420, 26, { fontSize: 17, bold: true, color: c.accent });
 }
@@ -1305,6 +1353,10 @@ function readThrough(style) {
   if (style.category === "finance") return "The improvement survives the period; the cash gate still sets the release date.";
   if (style.category === "promotion") return "Reach is useful only when the audience can see and take the next step.";
   return "The queue is healthy; the handoff needs a named owner before the next review.";
+}
+
+function readThroughText(style) {
+  return style.bodyImage ? wrapHeading(readThrough(style), 30) : readThrough(style);
 }
 
 function closeTitle(style) {

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-violet-operations/assets/reference.pptx",
-    "sha256": "452c7b8febd0c5a02a1db2b296ba83a75cb3a439c8ef91a1467b4015b15c379e"
+    "sha256": "da7d7bf022f8cb84f5dcd6b69309bd71f7d60522fc74458b852a71aaf34def0e"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:452c7b8febd0c5a02a1db2b296ba83a75cb3a439c8ef91a1467b4015b15c379e"
+      "reference-sha256:da7d7bf022f8cb84f5dcd6b69309bd71f7d60522fc74458b852a71aaf34def0e"
     ]
   },
   "visual": {

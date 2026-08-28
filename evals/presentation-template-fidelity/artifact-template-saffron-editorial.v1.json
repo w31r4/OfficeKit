@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-saffron-editorial/assets/reference.pptx",
-    "sha256": "4c50aa138c51e8fa726c0e4af87e4738bc122244bd9b6875349d27aadf1f2945"
+    "sha256": "9d3f3f3dcc717bb3c068db96b0a1680e1b49fc47114109f958e4cf8361643189"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:190",
+      "records:176",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:4c50aa138c51e8fa726c0e4af87e4738bc122244bd9b6875349d27aadf1f2945"
+      "reference-sha256:9d3f3f3dcc717bb3c068db96b0a1680e1b49fc47114109f958e4cf8361643189"
     ]
   },
   "visual": {

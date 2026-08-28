@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-moonlit-work-report/assets/reference.pptx",
-    "sha256": "e6f9fe2afeaba94a225ff5748bba140db2ce83a8e43f74bedd6111dba571fa97"
+    "sha256": "f9b191e4dc438a58fcf4de04bd4375e4bad52249313c8ff53d9a6add83143018"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:e6f9fe2afeaba94a225ff5748bba140db2ce83a8e43f74bedd6111dba571fa97"
+      "reference-sha256:f9b191e4dc438a58fcf4de04bd4375e4bad52249313c8ff53d9a6add83143018"
     ]
   },
   "visual": {
