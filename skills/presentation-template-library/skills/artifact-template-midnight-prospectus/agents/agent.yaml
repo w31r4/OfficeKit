@@ -1,0 +1,5 @@
+interface:
+  display_name: "Midnight Prospectus"
+  short_description: "Use the Midnight Prospectus presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-midnight-prospectus as the visual style for this presentation."

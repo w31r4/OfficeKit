@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-amber-committee-memo",
+  "displayName": "Amber Committee Memo",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "347749f537d6d85b6a4120a1334009114432e23ae3c860c5500dab4a6e2dd2e7"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "cd5bb25f5edb0773c335c7554845edc006182a537213d048dd06d5d6ed4c6f19"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "87e04c1f7b61212e93512470b7ba00233ab1cefc983e706b712a1b14e334255b"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "393080a1d61660ff64d9688d914924e80a5397b1006097c64d9e8d81af0061a0"
+    }
+  ],
+  "useWhen": [
+    "investment committee",
+    "finance presentation"
+  ],
+  "avoidWhen": [
+    "youth campaign"
+  ],
+  "audiences": [
+    "investors",
+    "finance leaders",
+    "analysts"
+  ],
+  "contentShapes": [
+    "market signal",
+    "risk",
+    "decision"
+  ],
+  "visualTraits": {
+    "tone": [
+      "finance",
+      "Warm paper and amber anchors expose an approval boundary.",
+      "diagonal"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "diagonal",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "b915a6985fe813a6d52db3c8bf4017db91c3e4bd0d3ef6034f2613953614831b",
+    "previewSha256": "70f48c52209186b631debbf5ee625f8c859a3a172229a5420d91af910a79cb97"
+  }
+}

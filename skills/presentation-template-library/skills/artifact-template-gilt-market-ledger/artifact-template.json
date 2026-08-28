@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-gilt-market-ledger",
+  "displayName": "Gilt Market Ledger",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "a7a280890d177417f1f4ac83a9b96ea5769d75c2aad49576d31faf3d746efc8b"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "cc75f00f1a858d4127674554e3fc58b93bc1b2539b29d5ada5b0b1245be00865"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "8f5ad6c7703729105357e67f8b55cbd9acbd66316504886886df6bfb9c76e95a"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "d4f85e1c67f6a0625c15292818129ded0559f9649d7867a2313f7621f1200fc8"
+    }
+  ],
+  "useWhen": [
+    "capital markets report",
+    "finance presentation"
+  ],
+  "avoidWhen": [
+    "children training"
+  ],
+  "audiences": [
+    "investors",
+    "finance leaders",
+    "analysts"
+  ],
+  "contentShapes": [
+    "market signal",
+    "risk",
+    "decision"
+  ],
+  "visualTraits": {
+    "tone": [
+      "finance",
+      "A black-and-white ledger reserves gilt for the current value or threshold.",
+      "rule"
+    ],
+    "density": "dense",
+    "colorMode": "mixed",
+    "structure": [
+      "rule",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "3c7ad56907c48f2f22062edb8bda63ffeb457499558f12dd45e4e134d7baff1a",
+    "previewSha256": "3786852c32c72d20f5f5f92e5af13f1bcaa061ec7a9d9ddbb33d54a6e9d75335"
+  }
+}

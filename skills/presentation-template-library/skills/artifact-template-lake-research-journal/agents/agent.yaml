@@ -1,0 +1,5 @@
+interface:
+  display_name: "Lake Research Journal"
+  short_description: "Use the Lake Research Journal presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-lake-research-journal as the visual style for this presentation."

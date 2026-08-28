@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-ebony-investment-review",
+  "displayName": "Ebony Investment Review",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "106932759a8eee18dbf5a7bc9e113afd38f668cf08c1c303d4a2601651420fd8"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "bcaa9fbcb5bbd14d55607c397d6d2f6fac5381c385370705550ff907c7f5fe74"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "c2635a4582a7c9bc78562f50e38019fb20029981f2e38e68e88e8811583b0dd2"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "e24b1a583db45f83db6e6c939cf586b0db19ce52f8bd3475ae3488fa23ecc072"
+    }
+  ],
+  "useWhen": [
+    "investment benchmark",
+    "finance presentation"
+  ],
+  "avoidWhen": [
+    "product keynote"
+  ],
+  "audiences": [
+    "investors",
+    "finance leaders",
+    "analysts"
+  ],
+  "contentShapes": [
+    "market signal",
+    "risk",
+    "decision"
+  ],
+  "visualTraits": {
+    "tone": [
+      "finance",
+      "Ebony structure, teal evidence, and terracotta judgment create institutional calm.",
+      "terracotta"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "terracotta",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "7dce3879db4a8bfa06580d93381ffc7d626c0e02178effc696bc6aa3f398ff42",
+    "previewSha256": "4fae0d38f3991365a9eef385c18afffecf07ec89e9135974fe6ed9ed10434f07"
+  }
+}

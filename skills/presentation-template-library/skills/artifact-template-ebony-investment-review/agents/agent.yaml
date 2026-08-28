@@ -1,0 +1,5 @@
+interface:
+  display_name: "Ebony Investment Review"
+  short_description: "Use the Ebony Investment Review presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-ebony-investment-review as the visual style for this presentation."

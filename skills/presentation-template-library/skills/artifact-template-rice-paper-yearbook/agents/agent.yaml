@@ -1,0 +1,5 @@
+interface:
+  display_name: "Rice Paper Yearbook"
+  short_description: "Use the Rice Paper Yearbook presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-rice-paper-yearbook as the visual style for this presentation."

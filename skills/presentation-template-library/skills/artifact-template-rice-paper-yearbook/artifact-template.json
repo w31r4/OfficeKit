@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-rice-paper-yearbook",
+  "displayName": "Rice Paper Yearbook",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "9f9fd6cf007c793347899cc909b52fba8d5eb8db459187fee4172e85ede05d84"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "826a5778f9bbf6950f91c39de0372eacae05f0683e1375b225c17a43b56ba03b"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "3c32fb97c4e8ae90b34a88d38b63afcb29218b3f5669a4d0b4161639defb7a60"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "b0c9df25b396c174002e70fef195f41c1a488b93fcf24f29d4014ec33d15a149"
+    }
+  ],
+  "useWhen": [
+    "annual portfolio report",
+    "finance presentation"
+  ],
+  "avoidWhen": [
+    "minimal luxury"
+  ],
+  "audiences": [
+    "investors",
+    "finance leaders",
+    "analysts"
+  ],
+  "contentShapes": [
+    "market signal",
+    "risk",
+    "decision"
+  ],
+  "visualTraits": {
+    "tone": [
+      "finance",
+      "Warm paper and rotating chapter signals turn reporting into a yearbook.",
+      "tabs"
+    ],
+    "density": "dense",
+    "colorMode": "neutral",
+    "structure": [
+      "tabs",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "3b83393a17befe8d809d6a78ab473efe9cdd69cb2d98ac17e18f755975e58321",
+    "previewSha256": "7b9ba8e63131c298e909d8b754c14a61185273ff261621e9f237f5a75c1b01e6"
+  }
+}
