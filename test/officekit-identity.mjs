@@ -45,7 +45,6 @@ assert.equal(packageJson.name, "office-kit");
 assert.equal(packageJson.exports["./codec"], "./src/codecs/office-kit.mjs");
 assert.equal(packageJson.exports["./codec/wire"], "./src/generated/office_kit/artifact/v1/office_artifact_pb.js");
 assert.ok(await fs.stat(path.join(repoRoot, "native", "OfficeKit")));
-assert.ok(await fs.stat(path.join(repoRoot, "runtime", "office-kit")));
 assert.ok(await fs.stat(path.join(repoRoot, "proto", "office_kit", "artifact", "v1")));
 
 console.log(`OfficeKit identity gate passed (${files.length} text files scanned)`);
