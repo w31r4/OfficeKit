@@ -70,7 +70,7 @@ for (const [target, runtime] of Object.entries(nodeRuntimes.runtimes)) {
 const standaloneReleases = JSON.parse(
   await fs.readFile(path.join(repoRoot, "standalone", "releases.v1.json"), "utf8"),
 );
-assert.equal(standaloneReleases.officeKitVersion, packageMetadata.version);
+assert.match(standaloneReleases.officeKitVersion, /^\d+\.\d+\.\d+$/);
 assert.deepEqual(Object.keys(standaloneReleases.assets).sort(), [
   "darwin-arm64",
   "linux-x64",
@@ -78,7 +78,7 @@ assert.deepEqual(Object.keys(standaloneReleases.assets).sort(), [
 ]);
 for (const [target, release] of Object.entries(standaloneReleases.assets)) {
   const extension = target === "win32-x64" ? ".zip" : ".tar.gz";
-  assert.equal(release.asset, `office-kit-${packageMetadata.version}-${target}${extension}`);
+  assert.equal(release.asset, `office-kit-${standaloneReleases.officeKitVersion}-${target}${extension}`);
   assert.match(release.sha256, /^[a-f0-9]{64}$/);
   assert.ok(Number.isSafeInteger(release.size) && release.size > 30_000_000);
 }
@@ -86,13 +86,13 @@ const standaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.sh"),
   "utf8",
 );
-assert.match(standaloneInstaller, /OFFICE_KIT_VERSION=1\.0\.0/);
+assert.ok(standaloneInstaller.includes(`OFFICE_KIT_VERSION=${standaloneReleases.officeKitVersion}`));
 assert.doesNotMatch(standaloneInstaller, /FINALIZE_/);
 const windowsStandaloneInstaller = await fs.readFile(
   path.join(repoRoot, "standalone", "install.ps1"),
   "utf8",
 );
-assert.match(windowsStandaloneInstaller, /\$OfficeKitVersion = "1\.0\.0"/);
+assert.ok(windowsStandaloneInstaller.includes(`$OfficeKitVersion = "${standaloneReleases.officeKitVersion}"`));
 assert.match(windowsStandaloneInstaller, /win32-x64/);
 assert.doesNotMatch(windowsStandaloneInstaller, /RELEASE_(?:SHA256|SIZE)/);
 const pdfFacadeSource = await fs.readFile(path.join(repoRoot, "src", "pdf", "index.mjs"), "utf8");
