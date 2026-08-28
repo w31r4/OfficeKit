@@ -187,7 +187,9 @@ internal static class PptxCodec
                 if (layoutBackground is not null) layoutArtifact.Background = layoutBackground;
                 layoutArtifact.Placeholders.Add(PptxPlaceholderCodec.Read(layoutShapeTree, layout.Id, layoutContext));
                 artifact.Layouts.Add(layoutArtifact);
+                layout.Part.UnloadRootElement();
             }
+            master.Part.UnloadRootElement();
         }
         for (var slideIndex = 0; slideIndex < slideIds.Length; slideIndex++)
         {
@@ -311,7 +313,11 @@ internal static class PptxCodec
                 target.Elements.Add(importedElement);
             }
             artifact.Slides.Add(target);
+            if (slideIndex > 0)
+                slideParts[slideIndex - 1].UnloadRootElement();
         }
+        if (slideParts.Length > 0)
+            slideParts[^1].UnloadRootElement();
         var envelope = new ArtifactEnvelope
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
