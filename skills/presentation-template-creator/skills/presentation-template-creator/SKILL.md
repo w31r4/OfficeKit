@@ -34,6 +34,12 @@ packaging a template.
    When full-page imagery, scrims, crossing diagrams, foreground labels, or
    other overlaps define the style, also inspect the bottom-to-top scene stack.
    A screenshot proves appearance, not independent editability.
+   For image-led references, classify imagery by job before authoring: cover,
+   section transition, evidence/context, or atmosphere. A template that uses
+   several image moments should carry several original calibration assets (at
+   least two when the source visibly changes scene), with deliberate crops or
+   placements per role; do not repeat one photograph on every page merely to
+   satisfy an image count.
 3. Write the style guide independently. It must be useful on its own and
    cover the style's communication territory, visual grammar, page archetypes,
    composition choices, typography and palette roles, content/chart/table/
@@ -44,11 +50,19 @@ packaging a template.
    not copy reference wording or claim uncertain design intent as fact.
 4. Create an unrelated four-to-six-page calibration deck with OfficeKit. Use
    new content and geometry, cover at least three page roles, render every page,
-   and review it visually. Recreate any design-defining overlap with real
+   and review it visually. For a template to be called restored, the visual
+   fidelity and functional fidelity evidence must each score at least 95/100;
+   otherwise publish it as a candidate and record the missing evidence instead
+   of rounding the score up. Recreate any design-defining overlap with real
    editable layers, then reopen the PPTX and verify its stack before describing
    the relationship in the template Skill. The reviewed OfficeKit-authored
    deck becomes `assets/reference.pptx`; its pages and native assets are a
    reusable starting point, not mandatory coordinates.
+   When imagery is part of the grammar, use role-specific assets in the
+   calibration deck and show the treatments the source style actually needs:
+   full-bleed, bounded, layered, or cropped. Image choice must carry identity,
+   evidence, context, or atmosphere; blank space must not be filled with
+   arbitrary stock scenes.
 5. Save the complete guide body, the reviewed reference PPTX, calibration PNGs,
    and a packaging spec in the task. External source files, extracted media,
    superseded intermediate decks, and QA evidence stay outside the published
@@ -63,9 +77,12 @@ packaging a template.
    For an explicit update, also pass the current sidecar SHA-256 as
    `--expected-sha256`.
 7. Read the JSON result, query the generated template by exact ID, view its
-   preview and examples, and create a short unrelated deck from the style. Stop
-   if the result depends on copied layouts, covers an evidence-bearing line,
-   marker, label, connector, or image region, or cannot guide free composition.
+   preview and examples, and create a short unrelated deck from the style. A
+   successful package is not proof of restoration: keep the template pending
+   until the reference has been imported, locally edited, re-imported, and
+   rendered through the available native host. Stop if the result depends on
+   copied layouts, covers an evidence-bearing line, marker, label, connector,
+   or image region, or cannot guide free composition.
 
 ## Boundaries
 

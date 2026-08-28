@@ -13,6 +13,11 @@ It compares the authored deck with the source images and written direction. A
 high score means the same design decisions are recoverable; it does not claim
 pixel identity when the source has no editable package.
 
+Each candidate manifest records SHA-256 values for the source montage and
+design guide. Those source files remain outside the package; the hashes make
+the clean-room comparison reproducible without treating the source as a
+distributable asset.
+
 ## Functional index
 
 The functional score weights inspect discovery (14), editable leaves (14),
