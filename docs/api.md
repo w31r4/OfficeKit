@@ -1840,13 +1840,19 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `compose.table` | api | Create a materialized table in a resolved compose frame; keep the table data and column/row budget explicit. |
 | `compose.text` | api | Create the same editable paragraph node through the reference-template-compatible children-first text(children, props) helper. |
 | `connector.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for connector p:cNvPr title/description/decorative metadata; export re-proves it. |
-| `connector.bringToFront` | api | Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects. |
+| `connector.bringToFront` | api | Move a connector above peers in its slide/group scene stack. An imported direct connector may move only when its fresh zOrderCapability is editable; unsupported or nested native topology rejects. |
 | `connector.delete` | api | Explicitly remove a source-free connector or one capability-proven imported direct p:cxnSp. Relationship-bearing or nested connectors and connector/comment/timing/extension identity consumers fail closed; endpoint shapes remain untouched. |
 | `connector.deletionCapability` | api | Report whether one imported top-level canonical relationship-free connector can be deleted, with a package-local native ID used for post-write absence proof. Export recomputes the source-bound capability. |
-| `connector.sendToBack` | api | Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects. |
+| `connector.sendToBack` | api | Move a connector behind peers in its slide/group scene stack. New shape-connected connectors start behind their nodes; an imported direct connector requires an editable zOrderCapability. |
 | `connector.setAccessibilityMetadata` | api | Transactionally add, change, or clear non-visible connector title/description/decorative metadata. Imported irregular p:cNvPr graphs fail closed without disabling unrelated supported edits. |
 | `connector.setConnectorFrom` | api | Atomically bind a connector start to a modeled same-tree shape and explicit connection-site index. |
 | `connector.setConnectorTo` | api | Atomically bind a connector end to a modeled same-tree shape and explicit connection-site index. |
+| `element.bringToFront` | api | Move a shape, image, table, chart, connector, or group to the front of its current slide/group scene stack. Imported direct elements require a current editable zOrderCapability; unsupported native topology fails closed. |
+| `element.moveAfter` | api | Move one presentation element immediately in front of a different peer in the same scene stack, subject to the same source-bound capability and source-prefix checks. |
+| `element.moveBefore` | api | Move one presentation element immediately behind a different peer in the same scene stack, subject to the same source-bound capability and source-prefix checks. |
+| `element.sendToBack` | api | Move a shape, image, table, chart, connector, or group to the back of its current slide/group scene stack. Imported direct elements require a current editable zOrderCapability; authored overlays on an imported slide cannot move below the complete source-bound prefix. |
+| `element.stackIndex` | api | Return an element's current zero-based position in its owning slide or group scene stack, where zero is farthest back. |
+| `element.zOrderCapability` | api | Return fresh { sourceBound, known, editable, blockedReason } evidence for moving an element in its owner scene stack. Imported direct elements are editable only when the codec issued and export can re-prove the capability. |
 | `exportPptxWithOfficeKit` | api | Export bounded direct slide backgrounds, textbox/rectangle/roundRect/ellipse shapes, free-positioned p:sp lines with the shared six-style/line-end/cap/join outline profile, rich text and lists, basic fills/lines/shadows, straight/elbow/curved p:cxnSp connectors with target connection sites through that same line profile, embedded pictures with native crop/contain/cover semantics, fixed-grid plain-text tables, recursive native p:grpSp trees, relationship-free rich speaker notes, legacy annotations, Office 2021 modern root/direct-reply threads, source-free bar/line/pie charts, the bounded literal clustered bar+line combo profile with either shared primary axes or a canonical secondary line pair, validated payload-only replacement for eligible imported OLE XLSX workbooks plus the uniquely bound DOCX Office-package profile, and bounded source-bound text updates for canonical SmartArt document nodes. Recognized imported modern threads allow only existing text/status edits; their identity, author/date metadata, anchor/range, position, topology, relationships, and source hashes remain fixed. Inherited or complex graphs remain preserved and fail closed on unsupported mutation. |
 | `group.accessibilityCapability` | api | Report sourceBound/editable/addable preflight for group-frame p:cNvPr title/description/decorative metadata; export re-proves it. |
 | `group.delete` | api | Delete one source-free or capability-proven imported group as a complete recursive ownership tree. Shared media and ChartParts survive; nested groups, outside connector/comment targets, relationship reuse, identity-sensitive graphs, and raw collection mutation fail closed. |
@@ -1880,7 +1886,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.editNativeLeaf` | api | Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. Repeat the call for a coordinated move/resize; one export sorts all issued leaves into one deterministic Edit Plan. The current profile changes existing text leaves, including group children and shapes with source-owned outer styling, shape RGB/local-geometry scalars, picture local-geometry scalars (including opaque pictures whose payload and effects remain source-owned), direct rich chart-title runs, direct numeric bar-chart cache points proven against one exact cell in a uniquely bound embedded XLSX, or direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. A chartDataValue operation changes both the ChartPart cache and that worksheet cell. A diagramText operation token-splices only its issued a:t and does not reserialize the diagram part. Separate typed imported-table, embedded-image, and element-delete facades lower to tableCellText, imageAsset, and deleteElement operations in the same Edit Plan; those operation kinds are not arbitrary native-leaf selectors. The compiler binds the complete ownership tree and dependent parts. Stale hashes, concurrent non-leaf changes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes or cells, relationship fields, formulas, namespaces, and topology changes reject. |
 | `presentation.export` | api | Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON. |
 | `presentation.fontFamilies` | api | Return a fresh sorted, case-insensitively deduplicated list of explicitly used presentation text and bullet font families. |
-| `presentation.inspect` | api | Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation. |
+| `presentation.inspect` | api | Emit NDJSON for deck, custom shows, PowerPoint sections, slides, cross-type layers, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. Layer records expose bottom-to-top stackIndex and zOrderCapability without exposing package paths. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation. |
 | `presentation.layout.clearBackground` | api | Clear a direct background on a bounded source-free layout. Imported-layout mutation remains source-bound and fails closed. |
 | `presentation.layout.placeholders.add` | api | Append a direct-frame title/body/ctrTitle/subTitle text placeholder to a source-free layout. It becomes a native p:ph and must be materialized on each slide through applyLayout/setLayout; object/media/chart/table placeholders remain source-bound. |
 | `presentation.layout.placeholders.summary` | api | Return a defensive layout-placeholder discovery snapshot with stable IDs, names, native types/indexes, required flags, and direct-frame presence/geometry; editing the snapshot cannot mutate the model. |
@@ -1927,6 +1933,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.autoLayout` | api | Place existing shapes inside a frame using horizontal or vertical flow, gap, padding, and alignment options. |
 | `slide.charts.add` | api | Add a source-free literal bar, line, pie, standard area, fixed 50%-hole doughnut, marker-only scatter, bounded 2D bubble, or clustered bar+line combo chart. Category families use shared literal categories; scatter and bubble use aligned per-series numeric X/Y values, with positive area-based bubble sizes. Bar and line series, including combo members, accept up to 16 bounded native linear, exponential, logarithmic, power, polynomial, or moving-average trendlines plus one fixed/percentage/standard-deviation/standard-error/custom-literal errorBars projection. Imported trendline count and error-bar presence are fixed; unsupported labels/extensions/unknown children/complex lines remain source-owned. Supported variants retain title, legend, bounded axes, basic series styling, chart-level data labels, layout JSON, error-bar-aware SVG preview, and native ChartPart output across import/edit/re-export. Formula-backed custom error bars without an explicit embedded-workbook route, other formula/external data, advanced family geometry, topology changes, and unsupported styling fail closed rather than being flattened. |
 | `slide.clearBackground` | api | Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded. |
+| `slide.clearBackgroundImage` | api | Remove the image previously authored by slide.setBackgroundImage without changing the slide's solid/theme background. |
 | `slide.clearMorph` | api | Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation. |
 | `slide.clearTransition` | api | Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation. |
 | `slide.cloneCapability` | api | Report whether an imported SlidePart can be copied as one ownership-checked OPC graph. The Codec copies every uniquely owned descendant, DataPart, and external relationship while rebinding proven shared layout, NotesMaster, image, and retained-slide targets. Sections, modern comments, outside-owned nodes, removed slide-jump targets, and over-budget graphs fail closed before the model changes. |
@@ -1938,12 +1945,14 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.delete` | api | Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX first requires deletionCapability.supported, then removes the real SlidePart and every exclusively owned descendant (including closed notes/comments/chart/OLE/diagram/media leaves) while retaining shared parts. Inbound slide references and presentation-level custom-show/section/extension identity remain fail closed. |
 | `slide.deletionCapability` | api | Report whether an imported SlidePart and its exclusively owned OPC descendant closure can be deleted. The count includes the slide plus owned OpenXml/DataPart descendants; shared layout/master/theme/media remain outside the closure. Export re-proves the graph from source bytes and aggregates all requested slide deletions into one ownership transaction. |
 | `slide.duplicate` | api | Clone one original imported PPTX slide after slide.cloneCapability proves a bounded ownership graph. The JavaScript model copies the unchanged semantic element tree and resolves connector targets to fresh clone-local identities; the OfficeKit Codec then creates a distinct SlidePart, recursively byte-copies every uniquely owned OpenXmlPart and DataPart with exact local relationship IDs and external links, and rebinds only proven shared layout, NotesMaster, image, slide-jump, and other identity resources. Custom-show membership is unchanged. The pending clone cannot be edited, cloned twice, or lose its origin before export/reimport. Source-free slides, sections, modern comments, outside-owned unknown nodes, removed slide-jump targets, unresolved semantic elements/connectors, pending native payload replacements, and over-budget graphs fail closed. |
+| `slide.elements` | api | Read the slide's direct cross-type scene stack from back to front. Shapes, textboxes, images, tables, charts, connectors, and groups share this order; type-specific collections remain indexes over the same elements. |
 | `slide.groups.add` | api | Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only. |
 | `slide.hide` | api | Hide this slide from the ordinary slide show through the same source-bound p:sld/@show primitive as slide.setHidden(true). |
 | `slide.images.add` | api | Add an embedded image with accessibility metadata, fit/crop, frame, rotation/flips, layout, preview, and PPTX output. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, decorative metadata, and a:srcRect. |
 | `slide.moveTo` | api | Move this slide to an existing 0-based deck index. On an imported PPTX, OfficeKit rewrites only the retained source SlidePart order in the presentation slide-ID list; unrelated topology changes and broad graph clones remain fail-closed. |
 | `slide.placeholders.getItem` | api | Resolve a slide placeholder shape by stable ID, name, placeholder type, or numeric index. Imported placeholder.textEditable reports a verified local SlidePart text capability; identity, geometry, formatting, layout binding, and inherited Master/Layout graphs remain source-bound. |
 | `slide.setBackground` | api | Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited. |
+| `slide.setBackgroundImage` | api | Add or replace one full-slide embedded image at the bottom of a source-free scene stack. Combine it with a translucent shape and editable foreground objects for image-led pages. Imported slides reject authored underlays because they cannot be placed beneath the complete source-bound prefix without changing native order. |
 | `slide.setHidden` | api | Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setMorph` | api | Author a bounded cross-slide Morph transition between adjacent slides with real source and destination objects and unique named object pairs. OfficeKit gives both objects the same Selection Pane identity; unknown imported Morph extensions remain source-bound and are not reconstructed. |
@@ -2739,7 +2748,7 @@ Report sourceBound/editable/addable preflight for connector p:cNvPr title/descri
 
 #### `connector.bringToFront`
 
-Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects.
+Move a connector above peers in its slide/group scene stack. An imported direct connector may move only when its fresh zOrderCapability is editable; unsupported or nested native topology rejects.
 
 **Adoption tier:** `advanced`
 
@@ -2766,7 +2775,7 @@ Move a source-free connector above modeled slide/group elements. Imported z-orde
 
 **Recipes:**
 
-- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
 
 **Example paths:**
 
@@ -2774,7 +2783,7 @@ Move a source-free connector above modeled slide/group elements. Imported z-orde
 
 **Schema returns:**
 
-- `connector` (ConnectorElement) — Move a source-free connector above modeled elements. Imported connector z-order is source-bound and rejects.
+- `connector` (ConnectorElement) — Move the connector to the front of its owner scene stack. Imported direct connectors require fresh editable zOrderCapability evidence.
 
 #### `connector.delete`
 
@@ -2856,7 +2865,7 @@ Report whether one imported top-level canonical relationship-free connector can 
 
 #### `connector.sendToBack`
 
-Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects.
+Move a connector behind peers in its slide/group scene stack. New shape-connected connectors start behind their nodes; an imported direct connector requires an editable zOrderCapability.
 
 **Adoption tier:** `advanced`
 
@@ -2883,7 +2892,7 @@ Move a source-free connector behind modeled slide/group elements. New shape-conn
 
 **Recipes:**
 
-- skills/presentations/skills/presentations/tasks/create.md#compose-and-review
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
 
 **Example paths:**
 
@@ -2891,7 +2900,7 @@ Move a source-free connector behind modeled slide/group elements. New shape-conn
 
 **Schema returns:**
 
-- `connector` (ConnectorElement) — Move a source-free connector behind modeled elements. Imported connector z-order is source-bound and rejects.
+- `connector` (ConnectorElement) — Move the connector to the back of its owner scene stack. Imported direct connectors require fresh editable zOrderCapability evidence.
 
 #### `connector.setAccessibilityMetadata`
 
@@ -3023,6 +3032,248 @@ Atomically bind a connector end to a modeled same-tree shape and explicit connec
 **Schema returns:**
 
 - `connector` (ConnectorElement) — The same connector with its end target and site changed atomically.
+
+#### `element.bringToFront`
+
+Move a shape, image, table, chart, connector, or group to the front of its current slide/group scene stack. Imported direct elements require a current editable zOrderCapability; unsupported native topology fails closed.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `element` (object) — The same element at the front of its owner stack. Source-bound moves require editable capability evidence.
+
+#### `element.moveAfter`
+
+Move one presentation element immediately in front of a different peer in the same scene stack, subject to the same source-bound capability and source-prefix checks.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `target` (object) required — A different element in the same direct slide or group scene stack.
+
+**Schema returns:**
+
+- `element` (object) — The same element immediately in front of target.
+
+#### `element.moveBefore`
+
+Move one presentation element immediately behind a different peer in the same scene stack, subject to the same source-bound capability and source-prefix checks.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `target` (object) required — A different element in the same direct slide or group scene stack.
+
+**Schema returns:**
+
+- `element` (object) — The same element immediately behind target.
+
+#### `element.sendToBack`
+
+Move a shape, image, table, chart, connector, or group to the back of its current slide/group scene stack. Imported direct elements require a current editable zOrderCapability; authored overlays on an imported slide cannot move below the complete source-bound prefix.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `element` (object) — The same element at the back of its owner stack. Authored overlays on imported slides remain above the complete source-bound prefix.
+
+#### `element.stackIndex`
+
+Return an element's current zero-based position in its owning slide or group scene stack, where zero is farthest back.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `stackIndex` (number) — Current zero-based position in the owner scene stack; zero is farthest back.
+
+#### `element.zOrderCapability`
+
+Return fresh { sourceBound, known, editable, blockedReason } evidence for moving an element in its owner scene stack. Imported direct elements are editable only when the codec issued and export can re-prove the capability.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `capability` (object) — Fresh { sourceBound, known, editable, blockedReason } evidence. Export independently re-proves imported direct-element order against the exact source revision.
 
 #### `exportPptxWithOfficeKit`
 
@@ -4419,7 +4670,7 @@ Return a fresh sorted, case-insensitively deduplicated list of explicitly used p
 
 #### `presentation.inspect`
 
-Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation.
+Emit NDJSON for deck, custom shows, PowerPoint sections, slides, cross-type layers, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. Layer records expose bottom-to-top stackIndex and zOrderCapability without exposing package paths. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation.
 
 **Adoption tier:** `golden`
 
@@ -4471,7 +4722,7 @@ Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide tr
 
 **Schema parameters:**
 
-- `kind` (string) — Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/animation/morph/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds.
+- `kind` (string) — Comma-separated deck/theme/layout/slide/layer/zOrder/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/animation/morph/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds.
 - `search` (string) — Case-insensitive record filter.
 - `target` (string) — Stable target ID/anchor.
 - `before` (number) — Context records before matches.
@@ -6544,6 +6795,45 @@ Remove the direct slide background so preview and PPTX output inherit from the p
 
 - `slide` (Slide) — The same slide with no direct background, inheriting from its preserved Layout/Master chain.
 
+#### `slide.clearBackgroundImage`
+
+Remove the image previously authored by slide.setBackgroundImage without changing the slide's solid/theme background.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `slide` (Slide) — The same slide after removing its authored background-image layer, if present.
+
 #### `slide.clearMorph`
 
 Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation.
@@ -7005,6 +7295,45 @@ Clone one original imported PPTX slide after slide.cloneCapability proves a boun
 - Clone eligibility is graph ownership, not a native-object type whitelist. Unknown or relationship-bearing descendants are accepted when they are uniquely owned, within budget, and unchanged; their bytes, content types, child/external relationships, and DataParts are copied recursively. A descendant with any parent outside the owned closure is not guessed safe and blocks the operation.
 - Open XML SDK allocates collision-free package URIs for copied parts. Agents must use imported object IDs and inspect/resolve results rather than assuming physical names such as slide2.xml. After export and reimport, modeled edits to an independently copied chart, OLE package, SmartArt, InkML, media, notes, or comments leaf remain subject to that feature's own edit capability.
 
+#### `slide.elements`
+
+Read the slide's direct cross-type scene stack from back to front. Shapes, textboxes, images, tables, charts, connectors, and groups share this order; type-specific collections remain indexes over the same elements.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `elements` (object) — Read-only collection facade whose items are the direct slide elements in bottom-to-top export order.
+
 #### `slide.groups.add`
 
 Author recursive native DrawingML p:grpSp trees with optional non-visible group title/description/decorative metadata, outer off/ext, and local chOff/chExt coordinates. The bounded profile supports modeled shapes, connectors, images, tables, charts, and nested groups; canonical imported groups allow fixed-topology semantic edits, while group-level fills/effects, locks, transforms, unknown extensions, or unsupported descendants remain opaque and read-only.
@@ -7135,6 +7464,7 @@ Add an embedded image with accessibility metadata, fit/crop, frame, rotation/fli
 
 **Schema parameters:**
 
+- `blob` (FileBlob) — Embedded image bytes loaded from a local task asset; avoids constructing a large base64 string in Agent code.
 - `dataUrl` (string) — Embedded image data URL.
 - `uri` (string) — External image URI metadata.
 - `prompt` (string) — Generation/source prompt metadata.
@@ -7277,6 +7607,54 @@ Set a direct slide background to a six-digit RGB/theme color solid fill or a nat
 **Schema returns:**
 
 - `slide` (Slide) — The same slide with a normalized direct background; canonical PPTX export never flattens inherited Layout/Master backgrounds.
+
+#### `slide.setBackgroundImage`
+
+Add or replace one full-slide embedded image at the bottom of a source-free scene stack. Combine it with a translucent shape and editable foreground objects for image-led pages. Imported slides reject authored underlays because they cannot be placed beneath the complete source-bound prefix without changing native order.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent is compiling or refining a presentation plan with an explicit reader outcome.
+- The operation can be followed by the Presentation review and commit workflow.
+
+**Avoid when:**
+
+- Do not use it to bypass the active authoring plan or to edit raw package paths.
+- Do not publish before semantic, structural, layout, and delivery review.
+
+**Requires:**
+
+- Presentation facade
+- active authoring plan when the task creates a deck
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `blob` (FileBlob) — Embedded PNG, JPEG, GIF, or safe SVG bytes. Prefer FileBlob.load(path, { type }) over building base64 in task code.
+- `dataUrl` (string) — Embedded image data URL when a FileBlob is not available.
+- `fit` (string) — cover by default; contain or stretch are also accepted.
+- `crop` (object) — Optional normalized source crop { left, top, right, bottom }.
+- `alt` (string) — Compatibility alias for accessibility.description.
+- `accessibility` (object) — Non-visible { title?, description?, decorative? }. Strings require 1-1,024 XML-safe characters. decorative is a presence-aware boolean: true is mutually exclusive with title/description, explicit false differs from omission, and the Office 2019+ value maps through the canonical adec:decorative extension.
+
+**Schema returns:**
+
+- `image` (ImageElement) — The authored full-slide image at stackIndex 0. Repeated calls replace the same image. Source-bound slides reject because a new image cannot be inserted beneath preserved native elements.
 
 #### `slide.setHidden`
 
@@ -7572,7 +7950,7 @@ Connect two modeled shapes in the same slide/group tree by preset side or exact 
 
 **Schema returns:**
 
-- `connector` (ConnectorElement) — A source-free connector behind its nodes by default; call bringToFront() when a background panel would cover its route. `head` is the from/start end and `tail` is the to/end end. Target movement reroutes modeled sites. Recognized imported connectors retain target-plus-site identity, but their z-order stays source-bound.
+- `connector` (ConnectorElement) — A source-free connector behind its nodes by default; call bringToFront() when it must remain visible above another layer. `head` is the from/start end and `tail` is the to/end end. Target movement reroutes modeled sites. Recognized imported direct connectors retain target-plus-site identity and may reorder only with an editable zOrderCapability.
 
 #### `slide.shapes.getConnectionSiteIndex`
 

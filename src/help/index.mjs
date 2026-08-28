@@ -329,6 +329,15 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "slide.delete", summary: "Remove this slide. Source-free decks may remove any non-final slide. An imported PPTX first requires deletionCapability.supported, then removes the real SlidePart and every exclusively owned descendant (including closed notes/comments/chart/OLE/diagram/media leaves) while retaining shared parts. Inbound slide references and presentation-level custom-show/section/extension identity remain fail closed." },
   { artifactKind: "presentation", kind: "api", name: "slide.setBackground", summary: "Set a direct slide background to a six-digit RGB/theme color solid fill or a native style reference. Recognized imported direct backgrounds are hash-bound and editable; inherited Layout/Master backgrounds remain inherited." },
   { artifactKind: "presentation", kind: "api", name: "slide.clearBackground", summary: "Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded." },
+  { artifactKind: "presentation", kind: "api", name: "slide.setBackgroundImage", summary: "Add or replace one full-slide embedded image at the bottom of a source-free scene stack. Combine it with a translucent shape and editable foreground objects for image-led pages. Imported slides reject authored underlays because they cannot be placed beneath the complete source-bound prefix without changing native order." },
+  { artifactKind: "presentation", kind: "api", name: "slide.clearBackgroundImage", summary: "Remove the image previously authored by slide.setBackgroundImage without changing the slide's solid/theme background." },
+  { artifactKind: "presentation", kind: "api", name: "slide.elements", summary: "Read the slide's direct cross-type scene stack from back to front. Shapes, textboxes, images, tables, charts, connectors, and groups share this order; type-specific collections remain indexes over the same elements." },
+  { artifactKind: "presentation", kind: "api", name: "element.stackIndex", summary: "Return an element's current zero-based position in its owning slide or group scene stack, where zero is farthest back." },
+  { artifactKind: "presentation", kind: "api", name: "element.zOrderCapability", summary: "Return fresh { sourceBound, known, editable, blockedReason } evidence for moving an element in its owner scene stack. Imported direct elements are editable only when the codec issued and export can re-prove the capability." },
+  { artifactKind: "presentation", kind: "api", name: "element.bringToFront", summary: "Move a shape, image, table, chart, connector, or group to the front of its current slide/group scene stack. Imported direct elements require a current editable zOrderCapability; unsupported native topology fails closed." },
+  { artifactKind: "presentation", kind: "api", name: "element.sendToBack", summary: "Move a shape, image, table, chart, connector, or group to the back of its current slide/group scene stack. Imported direct elements require a current editable zOrderCapability; authored overlays on an imported slide cannot move below the complete source-bound prefix." },
+  { artifactKind: "presentation", kind: "api", name: "element.moveBefore", summary: "Move one presentation element immediately behind a different peer in the same scene stack, subject to the same source-bound capability and source-prefix checks." },
+  { artifactKind: "presentation", kind: "api", name: "element.moveAfter", summary: "Move one presentation element immediately in front of a different peer in the same scene stack, subject to the same source-bound capability and source-prefix checks." },
   { artifactKind: "presentation", kind: "api", name: "slide.setTransition", summary: "Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "slide.clearTransition", summary: "Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation." },
   { artifactKind: "presentation", kind: "api", name: "slide.animations.add", summary: "Add one bounded native object animation for fade, wipe, fly, zoom, or pulse. Use withPrevious, afterPrevious, or onClick to express speaking order; textBuild reveals whole text or paragraphs, and chartBuild reveals chart content by all-at-once, series, category, series-element, or category-element. The typed surface writes canonical PowerPoint timing and never accepts raw XML." },
@@ -339,7 +348,7 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "presentation.customShows.getItem", summary: "Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.add", summary: "Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque." },
   { artifactKind: "presentation", kind: "api", name: "presentation.sections.getItem", summary: "Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name." },
-  { artifactKind: "presentation", kind: "api", name: "presentation.inspect", summary: "Emit NDJSON for deck, custom shows, PowerPoint sections, slides, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation." },
+  { artifactKind: "presentation", kind: "api", name: "presentation.inspect", summary: "Emit NDJSON for deck, custom shows, PowerPoint sections, slides, cross-type layers, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. Layer records expose bottom-to-top stackIndex and zOrderCapability without exposing package paths. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation." },
   { artifactKind: "presentation", kind: "api", name: "presentation.designProfile", summary: "Return a bounded read-only design-language profile for the current deck: source revision binding when imported, canvas, palette, typography, density, normalized geometry rhythm, layout families, slide archetypes, repeated visual candidates, and opaque native summaries. The profile is evidence for template-conditioned generation only; it contains no XML selectors, package paths, source bytes, or mutation authority." },
   { artifactKind: "presentation", kind: "api", name: "presentation.planTemplateGeneration", summary: "Build a source-bound, read-only multi-page frame map from a trusted imported PPTX: choose clone-safe source slides by role, archetype, content density, and preferred visual kinds; issue bounded text-run targets and reusable-component candidates; report heuristic text-fit warnings, alternatives, opaque-object limits, and blocked requests without mutating the deck." },
   { artifactKind: "presentation", kind: "api", name: "presentation.editNativeLeaf", summary: "Change one native leaf issued by presentation.inspect({ includeNativeLeaves: true }) using its targetId, leafId, expectedHash, and a typed value. Leaf IDs are bound to the exact imported revision and target. Repeat the call for a coordinated move/resize; one export sorts all issued leaves into one deterministic Edit Plan. The current profile changes existing text leaves, including group children and shapes with source-owned outer styling, shape RGB/local-geometry scalars, picture local-geometry scalars (including opaque pictures whose payload and effects remain source-owned), direct rich chart-title runs, direct numeric bar-chart cache points proven against one exact cell in a uniquely bound embedded XLSX, or direct SmartArt text runs from one canonical closed DiagramDataPart with a unique inbound owner. A chartDataValue operation changes both the ChartPart cache and that worksheet cell. A diagramText operation token-splices only its issued a:t and does not reserialize the diagram part. Separate typed imported-table, embedded-image, and element-delete facades lower to tableCellText, imageAsset, and deleteElement operations in the same Edit Plan; those operation kinds are not arbitrary native-leaf selectors. The compiler binds the complete ownership tree and dependent parts. Stale hashes, concurrent non-leaf changes, foreign IDs, raw XML, XPath, part paths, arbitrary attributes or cells, relationship fields, formulas, namespaces, and topology changes reject." },
@@ -366,8 +375,8 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "slide.shapes.getConnectionSiteIndex", summary: "Resolve top/left/bottom/right to a stable bounded preset connection-site index for rect, roundRect, textbox, or ellipse. Custom shapes expose an ordered site table but require its explicit numeric index; other geometries fail closed." },
   { artifactKind: "presentation", kind: "api", name: "connector.setConnectorFrom", summary: "Atomically bind a connector start to a modeled same-tree shape and explicit connection-site index." },
   { artifactKind: "presentation", kind: "api", name: "connector.setConnectorTo", summary: "Atomically bind a connector end to a modeled same-tree shape and explicit connection-site index." },
-  { artifactKind: "presentation", kind: "api", name: "connector.bringToFront", summary: "Move a source-free connector above modeled slide/group elements. Imported z-order is source-bound and rejects." },
-  { artifactKind: "presentation", kind: "api", name: "connector.sendToBack", summary: "Move a source-free connector behind modeled slide/group elements. New shape-connected connectors start behind their nodes; imported z-order rejects." },
+  { artifactKind: "presentation", kind: "api", name: "connector.bringToFront", summary: "Move a connector above peers in its slide/group scene stack. An imported direct connector may move only when its fresh zOrderCapability is editable; unsupported or nested native topology rejects." },
+  { artifactKind: "presentation", kind: "api", name: "connector.sendToBack", summary: "Move a connector behind peers in its slide/group scene stack. New shape-connected connectors start behind their nodes; an imported direct connector requires an editable zOrderCapability." },
   { artifactKind: "presentation", kind: "api", name: "shape.text.set", summary: "Set plain or structured text with ordered text, field, and line-break inlines; bounded run formatting; character, picture-bullet, or auto-numbered lists; levels, indents, spacing; and external URI, internal-slide, relative-action, or existing custom-show hyperlinks. Missing, opaque, malformed, relationship-bearing, or dangling custom-show targets and unmodeled text graphs fail closed in canonical PPTX export." },
   { artifactKind: "presentation", kind: "api", name: "nativeObject.setName", summary: "Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. Separate bounded SmartArt node/run text methods own the only modeled diagram mutation." },
   { artifactKind: "presentation", kind: "api", name: "nativeObject.setPosition", summary: "Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph." },
@@ -1840,6 +1849,26 @@ const PRESENTATION_HELP_SCHEMAS = {
     background: { type: "string|object", required: true, description: "Direct RGB/theme color or { fill, mode: 'solid'|'reference', index? }; reference index must be an unsigned 32-bit integer." },
   }, "slide", "Slide", "The same slide with a normalized direct background; canonical PPTX export never flattens inherited Layout/Master backgrounds."),
   "slide.clearBackground": helpSchema({}, "slide", "Slide", "The same slide with no direct background, inheriting from its preserved Layout/Master chain."),
+  "slide.setBackgroundImage": helpSchema({
+    blob: { type: "FileBlob", description: "Embedded PNG, JPEG, GIF, or safe SVG bytes. Prefer FileBlob.load(path, { type }) over building base64 in task code." },
+    dataUrl: { type: "string", description: "Embedded image data URL when a FileBlob is not available." },
+    fit: { type: "string", description: "cover by default; contain or stretch are also accepted." },
+    crop: { type: "object", description: "Optional normalized source crop { left, top, right, bottom }." },
+    alt: { type: "string", description: "Compatibility alias for accessibility.description." },
+    accessibility: { type: "object", description: PRESENTATION_ACCESSIBILITY_INPUT_DESCRIPTION },
+  }, "image", "ImageElement", "The authored full-slide image at stackIndex 0. Repeated calls replace the same image. Source-bound slides reject because a new image cannot be inserted beneath preserved native elements."),
+  "slide.clearBackgroundImage": helpSchema({}, "slide", "Slide", "The same slide after removing its authored background-image layer, if present."),
+  "slide.elements": helpSchema({}, "elements", "object", "Read-only collection facade whose items are the direct slide elements in bottom-to-top export order."),
+  "element.stackIndex": helpSchema({}, "stackIndex", "number", "Current zero-based position in the owner scene stack; zero is farthest back."),
+  "element.zOrderCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, known, editable, blockedReason } evidence. Export independently re-proves imported direct-element order against the exact source revision."),
+  "element.bringToFront": helpSchema({}, "element", "object", "The same element at the front of its owner stack. Source-bound moves require editable capability evidence."),
+  "element.sendToBack": helpSchema({}, "element", "object", "The same element at the back of its owner stack. Authored overlays on imported slides remain above the complete source-bound prefix."),
+  "element.moveBefore": helpSchema({
+    target: { type: "object", required: true, description: "A different element in the same direct slide or group scene stack." },
+  }, "element", "object", "The same element immediately behind target."),
+  "element.moveAfter": helpSchema({
+    target: { type: "object", required: true, description: "A different element in the same direct slide or group scene stack." },
+  }, "element", "object", "The same element immediately in front of target."),
   "slide.setTransition": helpSchema({
     transition: { type: "object", required: true, description: "A complete ECMA-376 base-transition object. Effect-specific fields are direction (cardinal, corner, or in/out as applicable), orientation (horizontal/vertical), throughBlack (cut/fade), or spokes (wheel, 1..8). speed defaults to medium, advanceOnClick to true, and independent durationMs and advanceAfterMs fields accept 0..86400000." },
   }, "slide", "Slide", "The same slide with a normalized direct p:transition. Source-free slides may author it. An imported slide may replace exactly one canonical direct base transition, or add one only when transition.capability.addable proves the root contains only p:cSld plus optional p:clrMapOvr and has no transition, timing, or extension leaf. Opaque source graphs are not reconstructed."),
@@ -1865,7 +1894,7 @@ const PRESENTATION_HELP_SCHEMAS = {
   }, "slide", "Slide", "The same destination slide with a bounded Morph transition. Both paired objects receive the same !!key Selection Pane identity; charts, non-adjacent slides, incompatible kinds, duplicate objects, name conflicts, and conflicting transitions reject."),
   "slide.clearMorph": helpSchema({}, "slide", "Slide", "The same slide with no authored Morph transition."),
   "presentation.inspect": helpSchema({
-    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/animation/morph/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
+    kind: { type: "string", description: "Comma-separated deck/theme/layout/slide/layer/zOrder/transition/textbox/textRange/shape/groupShape/table/chart/image/connector/animation/morph/nativeObject/nativeLeaf/componentCandidate/contentPart/oleObject/diagram/comment/notes/customShow/section kinds." },
     search: { type: "string", description: "Case-insensitive record filter." },
     target: { type: "string", description: "Stable target ID/anchor." },
     before: { type: "number", description: "Context records before matches." },
@@ -1981,7 +2010,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     cap: { type: "string", description: "flat, round, or square." },
     join: { type: "string", description: "round, bevel, or miter." },
     accessibility: { type: "object", description: `${PRESENTATION_ACCESSIBILITY_INPUT_DESCRIPTION} Maps to p:nvCxnSpPr/p:cNvPr.` },
-  }, "connector", "ConnectorElement", "A source-free connector behind its nodes by default; call bringToFront() when a background panel would cover its route. `head` is the from/start end and `tail` is the to/end end. Target movement reroutes modeled sites. Recognized imported connectors retain target-plus-site identity, but their z-order stays source-bound."),
+  }, "connector", "ConnectorElement", "A source-free connector behind its nodes by default; call bringToFront() when it must remain visible above another layer. `head` is the from/start end and `tail` is the to/end end. Target movement reroutes modeled sites. Recognized imported direct connectors retain target-plus-site identity and may reorder only with an editable zOrderCapability."),
   "connector.accessibilityCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, editable, addable } preflight; export revalidates the connector p:nvCxnSpPr/p:cNvPr."),
   "connector.setAccessibilityMetadata": helpSchema({
     update: { type: "object", required: true, description: PRESENTATION_ACCESSIBILITY_UPDATE_DESCRIPTION },
@@ -2000,8 +2029,8 @@ const PRESENTATION_HELP_SCHEMAS = {
     target: { type: "Shape|string", required: true, description: "Modeled same-tree end shape." },
     index: { type: "number", required: true, description: "Unsigned connection-site index valid for that shape's modeled site table." },
   }, "connector", "ConnectorElement", "The same connector with its end target and site changed atomically."),
-  "connector.bringToFront": helpSchema({}, "connector", "ConnectorElement", "Move a source-free connector above modeled elements. Imported connector z-order is source-bound and rejects."),
-  "connector.sendToBack": helpSchema({}, "connector", "ConnectorElement", "Move a source-free connector behind modeled elements. Imported connector z-order is source-bound and rejects."),
+  "connector.bringToFront": helpSchema({}, "connector", "ConnectorElement", "Move the connector to the front of its owner scene stack. Imported direct connectors require fresh editable zOrderCapability evidence."),
+  "connector.sendToBack": helpSchema({}, "connector", "ConnectorElement", "Move the connector to the back of its owner scene stack. Imported direct connectors require fresh editable zOrderCapability evidence."),
   "presentation.customShows.add": helpSchema({
     name: { type: "string", required: true, description: "Unique custom-show name, compared case-insensitively." },
     slides: { type: "PresentationSlide[]|string[]", required: true, description: "Ordered non-empty list of slide facades or stable slide IDs from this presentation." },
@@ -2118,6 +2147,7 @@ const PRESENTATION_HELP_SCHEMAS = {
   "chart.deletionCapability": helpSchema({}, "capability", "object", "Fresh { sourceBound, known, supported, blockedReason, nativeId } preflight. nativeId is package-local p:cNvPr evidence. Export ignores caller claims and re-proves one direct chart p:graphicFrame, one uniquely used internal ChartPart relationship, the descendant ownership closure, and absence of connector/comment/timing/extension identity consumers."),
   "chart.delete": helpSchema({}, "chart", "ChartElement", "The removed ChartElement facade. Imported deletion requires chart.deletionCapability.supported and records explicit intent; export removes the exact p:graphicFrame and SlidePart relationship, garbage-collects only ChartPart descendants without outside package parents, preserves shared ChartParts, validates native-ID absence, and rejects external/repeated/nested/identity-sensitive graphs or direct array splicing."),
   "slide.images.add": helpSchema({
+    blob: { type: "FileBlob", description: "Embedded image bytes loaded from a local task asset; avoids constructing a large base64 string in Agent code." },
     dataUrl: { type: "string", description: "Embedded image data URL." },
     uri: { type: "string", description: "External image URI metadata." },
     prompt: { type: "string", description: "Generation/source prompt metadata." },
@@ -2820,6 +2850,15 @@ const PRESENTATION_GOLDEN_NAMES = new Set([
   "presentation.export",
   "presentation.validateLayout",
   "presentation.verify",
+  "slide.elements",
+  "slide.setBackgroundImage",
+  "slide.clearBackgroundImage",
+  "element.stackIndex",
+  "element.zOrderCapability",
+  "element.bringToFront",
+  "element.sendToBack",
+  "element.moveBefore",
+  "element.moveAfter",
   "presentation.theme",
   "presentation.master",
   "presentation.layouts.add",
@@ -2879,6 +2918,7 @@ const PRESENTATION_RECIPE_PATHS = Object.freeze({
   continue: "skills/presentations/skills/presentations/tasks/continue.md",
   review: "skills/presentations/skills/presentations/tasks/review-deliver.md",
   motion: "skills/presentations/skills/presentations/references/motion.md",
+  layers: "skills/presentations/skills/presentations/references/layered-composition.md",
 });
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
@@ -2901,6 +2941,9 @@ const PRESENTATION_DESIGN_INTENTS = Object.freeze({
 
 function presentationRecipeFor(name) {
   if (/animation|Morph/.test(name)) return `${PRESENTATION_RECIPE_PATHS.motion}#typed-surface`;
+  if (/BackgroundImage|slide\.elements|stackIndex|zOrderCapability|bringToFront|sendToBack|moveBefore|moveAfter/.test(name)) {
+    return `${PRESENTATION_RECIPE_PATHS.layers}#public-surface`;
+  }
   if (/designProfile|planTemplateGeneration|master|layout|placeholder|reuseSource|resolveComponent/.test(name)) {
     return `${PRESENTATION_RECIPE_PATHS.template}#distill-and-reuse`;
   }
