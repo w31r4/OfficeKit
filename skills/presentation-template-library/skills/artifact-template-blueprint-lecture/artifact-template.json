@@ -1,37 +1,40 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-blueprint-lecture",
   "displayName": "Blueprint Lecture",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "c1c1350011646f440ea202451f663a25ea304bb106d520ac060e37a7a3af8ae1"
+      "sha256": "ad68507a99991ba1b2fe4914731dd4b882ef3be87c4b309acd31cbc58d0ab8c4"
     },
     {
-      "path": "assets/examples/02-analysis.png",
-      "role": "analysis",
-      "sha256": "da6042759f9aa735e5af579cb85ed3443a0ac67888860982ece1cb7f17fe04ee"
+      "path": "assets/examples/02-process.png",
+      "role": "process",
+      "sha256": "088eead55a40013a2ea8b013caef7486d37d2ee241abbd83beb3a41f0e9f9aa3"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "e68d264240fc011da68c3f95e9b88ccb889c8543fb3a193d014bf62da692b9a9"
+      "sha256": "ae57bb3c4818087ccdbf4e6c73a74cb1432ac7c411a4dbb57d2149dbdc3ea135"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "a07af4e1bc506957a23685e3a0630cc14daf0d5f89c116e726678344f1535fc8"
+      "sha256": "61d3d3e8cccbf2b421ec6fa1ff2c70416a74a008a718a7f250899ca3938dbc47"
     }
   ],
   "useWhen": [
     "technical courseware",
-    "academic presentation"
+    "academic presentation",
+    "research defense"
   ],
   "avoidWhen": [
-    "luxury launch"
+    "luxury launch",
+    "festival campaign"
   ],
   "audiences": [
     "researchers",
@@ -39,29 +42,31 @@
     "technical reviewers"
   ],
   "contentShapes": [
-    "claim",
+    "research question",
     "method",
-    "evidence"
+    "evidence",
+    "limitation"
   ],
   "visualTraits": {
     "tone": [
       "academic",
-      "Blue rules make each step of the lesson traceable.",
-      "axis"
+      "precise",
+      "blue-line"
     ],
     "density": "medium",
     "colorMode": "light",
     "structure": [
-      "axis",
-      "variable page silhouettes",
-      "native data graphics"
+      "argument spine",
+      "evidence unit",
+      "top rule"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "bb3c60fab6d0d20433c9c521564b632b54929701dd8ee03eec9b760de1334da5",
-    "previewSha256": "83e24e4f5c1d5b38f79177c5b81c3cdd469b72921617b627762f60413257fb5c"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "f002a92a47fcc1847965604b04405c553a4c08c9cfca14a38a22540b848e8dd0",
+    "referenceSha256": "559fed19ba8fa3792fea17a877107e2f5646a86ef012b5d3cf6289e113490939",
+    "previewSha256": "73e7aa1149075a93036ed1a3e30ca21c6e4ca25c7aaf5692759293c5ea5c80b3"
   }
 }

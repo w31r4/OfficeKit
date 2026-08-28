@@ -1,6 +1,6 @@
 ---
 name: artifact-template-blueprint-lecture
-description: "Blueprint Lecture is an original OfficeKit presentation style for technical courseware, with axis-led composition and medium information density."
+description: "A precise blue-line academic presentation style for reproducible claims, methods, evidence, and bounded conclusions."
 ---
 
 # Blueprint Lecture
