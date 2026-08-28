@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-cream-civic-collage/assets/reference.pptx",
-    "sha256": "58e717d6f6049204d57808b3b9ed53a1504155976c204b4faaa8e848ac8136a2"
+    "sha256": "a4610ae33de8c7979ba087eacfbfb0e7e75570e912a924819eb1ec0fefde8d80"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:58e717d6f6049204d57808b3b9ed53a1504155976c204b4faaa8e848ac8136a2"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:58e717d6f6049204d57808b3b9ed53a1504155976c204b4faaa8e848ac8136a2",
-      "pages:6",
-      "media:1"
+      "reference-sha256:a4610ae33de8c7979ba087eacfbfb0e7e75570e912a924819eb1ec0fefde8d80"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:07277ec062dd435d875a8eb52d80eeeafeb608fae667614691a5afbdb95cfa06",
+        "native-pdf-sha256:a9e2e0be38fd0349a92e777010ee8ffdd56ca179972435e26e0dd5ea49756f6b",
         "pages:6",
         "first-page:rendered"
       ]

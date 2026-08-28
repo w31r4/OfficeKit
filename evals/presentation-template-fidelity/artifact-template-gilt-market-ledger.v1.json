@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-gilt-market-ledger/assets/reference.pptx",
-    "sha256": "8c9cad3edfd2eea96ddd990f5aad824a0e93eea1f9f6b4165363f4427d827084"
+    "sha256": "d1d1e387d7b888c3ddc8d249d0957726d1c3c24f0990f70934748f083c68cd04"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:8c9cad3edfd2eea96ddd990f5aad824a0e93eea1f9f6b4165363f4427d827084"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:8c9cad3edfd2eea96ddd990f5aad824a0e93eea1f9f6b4165363f4427d827084",
-      "pages:6",
-      "media:0"
+      "reference-sha256:d1d1e387d7b888c3ddc8d249d0957726d1c3c24f0990f70934748f083c68cd04"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:ce11114a4b25a4a9dec79722e17a1a885b4fb93ee2f416b5387e6ac3eae07f7b",
+        "native-pdf-sha256:74bed5886e87d1a057f427a71cdf953f568b1c2be68908bea4f06562c7969de2",
         "pages:6",
         "first-page:rendered"
       ]

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-coastal-analysis/assets/reference.pptx",
-    "sha256": "19041b79ceefd122e64307ee023e4e726f034f6cde098328952d34164a085b81"
+    "sha256": "68b99c335232e9b0f6d6c04200aa818b47bed4d131ec3c3e7fbee3f79b12484b"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:19041b79ceefd122e64307ee023e4e726f034f6cde098328952d34164a085b81"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:19041b79ceefd122e64307ee023e4e726f034f6cde098328952d34164a085b81",
-      "pages:6",
-      "media:1"
+      "reference-sha256:68b99c335232e9b0f6d6c04200aa818b47bed4d131ec3c3e7fbee3f79b12484b"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:a5e76b8898639aee29f5e8c6d26cd13ba2287eba623bd6d579aba4f69ea48eb6",
+        "native-pdf-sha256:578ef638fd2467af6f8cc81c1c5144777c6a11dc44713ffc0368301bf28fe384",
         "pages:6",
         "first-page:rendered"
       ]

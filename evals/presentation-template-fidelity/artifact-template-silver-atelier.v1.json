@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/reference.pptx",
-    "sha256": "bdfad6b3a8b10f441474cb6fb4ec3b70d921274b2cabc36d8de786ea57c75ca0"
+    "sha256": "ee14d059fc283b91b037a68a4984170fa63e6b22605d61bbaf32875cad2b7357"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:bdfad6b3a8b10f441474cb6fb4ec3b70d921274b2cabc36d8de786ea57c75ca0"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:bdfad6b3a8b10f441474cb6fb4ec3b70d921274b2cabc36d8de786ea57c75ca0",
-      "pages:6",
-      "media:5"
+      "reference-sha256:ee14d059fc283b91b037a68a4984170fa63e6b22605d61bbaf32875cad2b7357"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:306aa799fbd3521d072bdd802cc234e0434ac1e34323b46a3617c8486f1df940",
+        "native-pdf-sha256:7ed64b6d749e0fb2c890262e1bc39a93b44c425d35ad42b66b2ef62c8dabcf58",
         "pages:6",
         "first-page:rendered"
       ]

@@ -37,9 +37,11 @@ packaging a template.
    For image-led references, classify imagery by job before authoring: cover,
    section transition, evidence/context, or atmosphere. A template that uses
    several image moments should carry several original calibration assets (at
-   least two when the source visibly changes scene), with deliberate crops or
-   placements per role; do not repeat one photograph on every page merely to
-   satisfy an image count.
+   least three when the source visibly changes across three or more moments),
+   assign them to distinct roles before wrapping, and avoid reusing the same
+   asset on adjacent pages. Deliberate crops or placements may reuse an image
+   when it is an intentional motif; do not repeat one photograph on every page
+   merely to satisfy an image count.
 3. Write the style guide independently. It must be useful on its own and
    cover the style's communication territory, visual grammar, page archetypes,
    composition choices, typography and palette roles, content/chart/table/

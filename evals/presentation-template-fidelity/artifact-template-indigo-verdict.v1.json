@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-indigo-verdict/assets/reference.pptx",
-    "sha256": "9ee3b1feaef301de3754428e4f5d0135cf675a3e383bef05e42a33038423167a"
+    "sha256": "41f23671de44c1a6825b4ee2979f98d5bc3e6ee2a03ffa6a81cfec25f61309e1"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:9ee3b1feaef301de3754428e4f5d0135cf675a3e383bef05e42a33038423167a"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:9ee3b1feaef301de3754428e4f5d0135cf675a3e383bef05e42a33038423167a",
-      "pages:6",
-      "media:0"
+      "reference-sha256:41f23671de44c1a6825b4ee2979f98d5bc3e6ee2a03ffa6a81cfec25f61309e1"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:d010a9d0367de4a511566110b68585c4ec96c0ec313dd03ddcf7375fad3077c6",
+        "native-pdf-sha256:982cedf3ca6e280dac5f6d3127e38816aa9ce2a426361dbad936cc0f25104507",
         "pages:6",
         "first-page:rendered"
       ]

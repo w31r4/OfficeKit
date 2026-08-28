@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-lake-research-journal/assets/reference.pptx",
-    "sha256": "ef288d87422b4339604a649b6423fe4608a3dbad40a728b4d9d16e7ca4062fa5"
+    "sha256": "5e5af9973821ed51bac6ba88b2a5c5ae4b8d2779eef8c3fa74412d42243813bc"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:ef288d87422b4339604a649b6423fe4608a3dbad40a728b4d9d16e7ca4062fa5"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:ef288d87422b4339604a649b6423fe4608a3dbad40a728b4d9d16e7ca4062fa5",
-      "pages:6",
-      "media:0"
+      "reference-sha256:5e5af9973821ed51bac6ba88b2a5c5ae4b8d2779eef8c3fa74412d42243813bc"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:3d7ec32ea0e7b5eb98ecce9e0460a58e29f419ceecc3a90670d397868f3b1822",
+        "native-pdf-sha256:529cbe1b8c092ebbb173b29f093fe7f69dfc1de23eee9cf92ead241585fe80ca",
         "pages:6",
         "first-page:rendered"
       ]

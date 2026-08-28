@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-saffron-editorial/assets/reference.pptx",
-    "sha256": "eb27c2ec18e10400e2f251501cea7593dba7eb2ca94c8db01392ae8106c431f1"
+    "sha256": "2fc9ceb8cc0ccb515908a2fd60f75f1a7a61d5d4ae820168eb337a6c75bbe334"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:eb27c2ec18e10400e2f251501cea7593dba7eb2ca94c8db01392ae8106c431f1"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:eb27c2ec18e10400e2f251501cea7593dba7eb2ca94c8db01392ae8106c431f1",
-      "pages:6",
-      "media:1"
+      "reference-sha256:2fc9ceb8cc0ccb515908a2fd60f75f1a7a61d5d4ae820168eb337a6c75bbe334"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:2ff8c7becb46131f631306f78d00a6a476797ee8d7f173734825bc22b887ad90",
+        "native-pdf-sha256:a261adc8dddca7a4de1bd20382ac320a4f9258c96265bf87a5f361c2f3b2fd19",
         "pages:6",
         "first-page:rendered"
       ]

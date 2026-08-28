@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-rice-paper-yearbook/assets/reference.pptx",
-    "sha256": "5cec15fb120e707ee0068cbaf2e8e657241cfaf0e541a3d200c4b1c4e194e916"
+    "sha256": "aa4d419dc88c2f5a48279abbeda67c97e7eb1f90a580e3842b2cc03b586c5f49"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:5cec15fb120e707ee0068cbaf2e8e657241cfaf0e541a3d200c4b1c4e194e916"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:5cec15fb120e707ee0068cbaf2e8e657241cfaf0e541a3d200c4b1c4e194e916",
-      "pages:6",
-      "media:0"
+      "reference-sha256:aa4d419dc88c2f5a48279abbeda67c97e7eb1f90a580e3842b2cc03b586c5f49"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:a8beb41c39f05e73f20cb115cebe516240f2065e036957fcd8a6bc8df40b5db4",
+        "native-pdf-sha256:db076ef08923a64211c1ab4450c859ecc8e810b3aaf88b61f25484916d062c2c",
         "pages:6",
         "first-page:rendered"
       ]

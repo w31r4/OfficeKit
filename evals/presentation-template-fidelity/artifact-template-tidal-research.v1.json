@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-tidal-research/assets/reference.pptx",
-    "sha256": "902cd29043c94ec606f0ef6b9346f60c1c0ec0390bf8d8e7cc3cda7b719b4e69"
+    "sha256": "566338dde3a00a5f61669a5122c19818105fb081eeb20d7a53e3c9d88fcf5ac8"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:902cd29043c94ec606f0ef6b9346f60c1c0ec0390bf8d8e7cc3cda7b719b4e69"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:902cd29043c94ec606f0ef6b9346f60c1c0ec0390bf8d8e7cc3cda7b719b4e69",
-      "pages:6",
-      "media:0"
+      "reference-sha256:566338dde3a00a5f61669a5122c19818105fb081eeb20d7a53e3c9d88fcf5ac8"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:616426766fe66e863903f7aee976168719dc86b2ba449e64580f89009f9f29c1",
+        "native-pdf-sha256:8748be5188c1ae4b240fba86798c69cf2696977a783a9d619963ca097aba5192",
         "pages:6",
         "first-page:rendered"
       ]

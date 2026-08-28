@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-jade-annual-brief/assets/reference.pptx",
-    "sha256": "fd681515bd7b121fd9fbdf2f202782b0e833c4d0653a93bd9a020947ba38db03"
+    "sha256": "4dd5ed729aabe0be0ef2d1aa706b0fab6b8e97dde6bc425b66d932ce8db3bbed"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:fd681515bd7b121fd9fbdf2f202782b0e833c4d0653a93bd9a020947ba38db03"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:fd681515bd7b121fd9fbdf2f202782b0e833c4d0653a93bd9a020947ba38db03",
-      "pages:6",
-      "media:1"
+      "reference-sha256:4dd5ed729aabe0be0ef2d1aa706b0fab6b8e97dde6bc425b66d932ce8db3bbed"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:d7aeaee783cb090a64c85d6dc2e407be3ee32ad53049ed10bd6ff510fd20457d",
+        "native-pdf-sha256:6f6ed0f03e7ada4db33611e195e7b3082abacb635c7e83dd3b0e34dacd83082e",
         "pages:6",
         "first-page:rendered"
       ]

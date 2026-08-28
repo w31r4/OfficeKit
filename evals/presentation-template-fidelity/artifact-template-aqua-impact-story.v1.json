@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/reference.pptx",
-    "sha256": "a69c35f7a9261a27ca94fcb4693759283574a151487467298cb758247e78f3a6"
+    "sha256": "181855766975e13fbdb07338d0496e3602b7c0d2ef667eb5f283aa55be1a4822"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:a69c35f7a9261a27ca94fcb4693759283574a151487467298cb758247e78f3a6"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:a69c35f7a9261a27ca94fcb4693759283574a151487467298cb758247e78f3a6",
-      "pages:6",
-      "media:4"
+      "reference-sha256:181855766975e13fbdb07338d0496e3602b7c0d2ef667eb5f283aa55be1a4822"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:075bafaa360a95c011bb837f5923f86e43f24e2f9dd412b546efce734207695a",
+        "native-pdf-sha256:ee79cef54f5971090ede6234f36f4e5f6192127f7f08778657a766de1af44b69",
         "pages:6",
         "first-page:rendered"
       ]

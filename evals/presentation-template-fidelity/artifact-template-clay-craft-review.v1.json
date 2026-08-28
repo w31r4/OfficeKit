@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-clay-craft-review/assets/reference.pptx",
-    "sha256": "779e73b2292ccd9895fba2f42cbdb6a95a4924640a6c6469f37d3e3665bb2ea5"
+    "sha256": "1a88a9cc82ae02bf942337c5fed5d390d4a6ba935886fedf1b5331731912b320"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:779e73b2292ccd9895fba2f42cbdb6a95a4924640a6c6469f37d3e3665bb2ea5"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:779e73b2292ccd9895fba2f42cbdb6a95a4924640a6c6469f37d3e3665bb2ea5",
-      "pages:6",
-      "media:1"
+      "reference-sha256:1a88a9cc82ae02bf942337c5fed5d390d4a6ba935886fedf1b5331731912b320"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:7d9199e7c922168f5b4aa2b7b641426e1ec0b72af07a16d756e1344c173e17d1",
+        "native-pdf-sha256:5db6218091a4ef19e506e08a47d4c16c9d3c88e3a3f9a0de3c3af7287ae88af3",
         "pages:6",
         "first-page:rendered"
       ]
