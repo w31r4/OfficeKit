@@ -84,6 +84,9 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const text = await verifyTextEdit(bytes);
     const nativeText = await verifyNativeTextEdit(bytes);
     const imageReplacement = await verifyImageReplacement(bytes);
+    const nativeFill = await verifyNativeFillEdit(bytes);
+    const svgStyle = await verifySvgStyleEdit(bytes);
+    const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
     const reuse = await verifyOneSlideReuse(bytes);
     results.push({
@@ -104,6 +107,9 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       text,
       nativeText,
       imageReplacement,
+      nativeFill,
+      svgStyle,
+      animatedText,
       tableCell,
       sourceSlideReuse: reuse,
       nativeLeafCount: records.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
@@ -125,6 +131,9 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       textEdits: results.filter((result) => result.text.status === "passed").length,
       nativeTextEdits: results.filter((result) => result.nativeText.status === "passed").length,
       imageReplacements: results.filter((result) => result.imageReplacement.status === "passed").length,
+      nativeFillEdits: results.filter((result) => result.nativeFill.status === "passed").length,
+      svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
+      animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
       sourceSlideReuse: results.filter((result) => result.sourceSlideReuse.status === "passed").length,
     },
@@ -199,6 +208,99 @@ async function verifyImageReplacement(bytes) {
     throw new Error(`Image replacement changed unexpected parts for ${target.id}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.id, replacementId: replacement.id, contentType, changedParts };
+}
+
+async function verifyNativeFillEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fillRgb");
+  if (!target) return { status: "blocked", reason: "no bounded fill color leaf was discovered" };
+  const value = target.value.toLowerCase() === "#aabbcc" ? "#C3B2A1" : "#AABBCC";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "fillRgb");
+  if (!rebound || rebound.value.toLowerCase() !== value.toLowerCase()) {
+    throw new Error(`Native fill edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native fill edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value: value.toLowerCase(), changedParts };
+}
+
+async function verifySvgStyleEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "image", maxChars: Infinity }).ndjson);
+  let target;
+  let leaf;
+  let image;
+  for (const record of records) {
+    const candidate = presentation.resolve(record.id);
+    const leaves = candidate?.getSvgEditLeaves?.() || [];
+    const styleLeaf = leaves.find((item) => item.leafKind === "svgFillRgb" || item.leafKind === "svgStrokeRgb");
+    if (styleLeaf) {
+      target = record;
+      leaf = styleLeaf;
+      image = candidate;
+      break;
+    }
+  }
+  if (!target || !leaf || !image) return { status: "blocked", reason: "no safe SVG style leaf was discovered" };
+  const value = leaf.value.toLowerCase() === "#aabbcc" ? "#C3B2A1" : "#AABBCC";
+  image.editSvgLeaf(leaf.id, { expectedHash: leaf.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = reopened.resolve(target.id);
+  const reboundLeaf = rebound?.getSvgEditLeaves?.().find((item) => item.leafKind === leaf.leafKind && item.value.toLowerCase() === value.toLowerCase());
+  if (!reboundLeaf) throw new Error(`SVG style edit did not survive re-import for ${target.id}.`);
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedSlide = `ppt/slides/slide${target.slide}.xml`;
+  const expectedRels = `ppt/slides/_rels/slide${target.slide}.xml.rels`;
+  const addedMedia = changedParts.filter((part) => /^ppt\/media\/office-kit-[0-9a-f]+\.svg$/u.test(part));
+  if (changedParts.length !== 3 || !changedParts.includes(expectedSlide) || !changedParts.includes(expectedRels) || addedMedia.length !== 1) {
+    throw new Error(`SVG style edit changed unexpected parts for ${target.id}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.id, leafKind: leaf.leafKind, oldValue: leaf.value, value: value.toLowerCase(), changedParts };
+}
+
+async function verifyAnimatedTextEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const animations = parseNdjson(presentation.inspect({ kind: "animation", maxChars: Infinity }).ndjson);
+  const target = animations.map((animation) => ({ animation, object: presentation.resolve(animation.targetId) }))
+    .find(({ object }) => object?.text?.paragraphs?.some((paragraph) => paragraph.runs?.some((run) => typeof run.text === "string" && run.text.trim().length > 0)));
+  if (!target) return { status: "blocked", reason: "no animated text target with a writable run was discovered" };
+  const run = target.object.text.paragraphs.flatMap((paragraph) => paragraph.runs || [])
+    .find((candidate) => typeof candidate.text === "string" && candidate.text.trim().length > 0);
+  const replacement = `${run.text} OfficeKit`;
+  const beforeAnimations = normalizeAnimationEvidence(animations);
+  target.object.text.replace(run.text, replacement);
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = reopened.resolve(target.animation.targetId);
+  if (!rebound?.text?.value?.includes(replacement)) throw new Error(`Animated text edit did not survive re-import for ${target.animation.targetId}.`);
+  const afterAnimations = normalizeAnimationEvidence(parseNdjson(reopened.inspect({ kind: "animation", maxChars: Infinity }).ndjson));
+  if (JSON.stringify(beforeAnimations) !== JSON.stringify(afterAnimations)) throw new Error(`Animation graph changed during text edit for ${target.animation.targetId}.`);
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.animation.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Animated text edit changed unexpected parts for ${target.animation.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.animation.targetId, animationId: target.animation.id, animationCount: animations.length, changedParts };
+}
+
+function normalizeAnimationEvidence(records) {
+  return records.map((record) => {
+    const normalized = { ...record };
+    if (normalized.capability) {
+      normalized.capability = { ...normalized.capability };
+      delete normalized.capability.sourceRevisionSha256;
+    }
+    return normalized;
+  });
 }
 
 async function verifyTableCellEdit(bytes) {
