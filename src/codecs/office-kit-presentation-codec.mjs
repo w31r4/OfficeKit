@@ -249,8 +249,8 @@ export async function importPptxWithOfficeKit(input, options = {}) {
     fileSidecar: true,
     consumeResponse: async (response) => {
       restoreThinPresentationImport(response.artifact, sourceBytes);
-      const presentation = await presentationFromEnvelope(response.artifact);
       const importedTheme = await parseImportedPresentationTheme(sourceBytes, limits);
+      const presentation = await presentationFromEnvelope(response.artifact, { importedThemeProfile: importedTheme });
       if (importedTheme) setPresentationImportedThemeProfile(presentation, importedTheme);
       return presentation;
     },

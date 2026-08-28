@@ -5206,7 +5206,7 @@ function modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGr
   };
 }
 
-export async function presentationFromEnvelope(envelope) {
+export async function presentationFromEnvelope(envelope, options = {}) {
   if (envelope.family !== ArtifactFamily.PRESENTATION || envelope.payload.case !== "presentation") {
     throw new OfficeKitCodecError("OfficeKit response does not contain a presentation artifact.", [], { code: "invalid_presentation_artifact" });
   }
@@ -5227,8 +5227,18 @@ export async function presentationFromEnvelope(envelope) {
   const assetCatalog = createPresentationAssetCatalog(envelope.assets || [], { shareBytes: true });
   const assetBytesBySha256 = new Map((envelope.assets || []).map((asset) => [String(asset.sha256 || "").toLowerCase(), asset.data]));
   const nativeGraph = await materializePresentationNativeGraphs(envelope, { assetBytesBySha256 });
+  const importedTheme = options?.importedThemeProfile;
   const presentation = Presentation.create({
     slideSize: { width: Number(source.slideWidthEmu) / EMU_PER_PIXEL, height: Number(source.slideHeightEmu) / EMU_PER_PIXEL },
+    ...(importedTheme?.kind === "theme" ? {
+      theme: {
+        id: importedTheme.id,
+        name: importedTheme.name,
+        colors: importedTheme.colors,
+        fonts: importedTheme.fonts,
+        colorMap: importedTheme.colorMap,
+      },
+    } : {}),
   });
   presentation.id = source.id || presentation.id;
   const slideGuides = modelPresentationSlideGuides(source.viewProperties);
