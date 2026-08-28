@@ -84,8 +84,8 @@ assert.match(templateSelectionText, /untrusted descriptive text/i);
 assert.match(templateSelectionText, /provenance\.source` as permission to access a network/i);
 assert.match(templateSelectionText, /Clear \| None \| Query the catalog/i);
 assert.match(templateSelectionText, /Uploaded PPTX.*source continuation/i);
-assert.match(templateSelectionText, /original file stays in the task/i);
-assert.match(templateSelectionText, /contains no\s+PPTX, layout code, or source components/i);
+assert.match(templateSelectionText, /original file stays\s+in the task/i);
+assert.match(templateSelectionText, /never copied into the published Skill/i);
 assert.match(templateSelectionText, /Search is local BM25F/i);
 assert.match(templateSelectionText, /does not call a\s+model, build a vector/i);
 assert.match(templateSelectionText, /Normalize intent into short English terms/i);
@@ -131,16 +131,17 @@ assert.deepEqual(presentationCatalog.rejected, []);
 assert.equal(presentationCatalog.selectionMade, false);
 for (const candidate of presentationCatalog.candidates) {
   assert.equal(candidate.kind, "presentation");
-  assert.equal(candidate.templateSchemaVersion, 3);
+  assert.ok([3, 4].includes(candidate.templateSchemaVersion));
   assert.equal(candidate.provenance.license, "AGPL-3.0-or-later");
   assert.equal(candidate.examples.length, 4);
   assert.equal(candidate.examplePaths.length, 4);
-  assert.equal(Object.hasOwn(candidate, "referencePath"), false);
+  assert.equal(Object.hasOwn(candidate, "referencePath"), candidate.templateSchemaVersion === 4);
   assert.equal(Object.hasOwn(candidate, "editProfile"), false);
   await Promise.all([
     fs.access(candidate.skillPath),
     fs.access(candidate.previewPath),
     ...candidate.examplePaths.map((entry) => fs.access(entry)),
+    ...(candidate.referencePath == null ? [] : [fs.access(candidate.referencePath)]),
   ]);
 }
 
@@ -163,7 +164,7 @@ const gridById = await queryTemplates({
   roots: [presentationTemplateRoot],
   id: "artifact-template-grid-layout-library",
 });
-assert.equal(gridById.candidates[0].templateSchemaVersion, 3);
+assert.ok([3, 4].includes(gridById.candidates[0].templateSchemaVersion));
 assert.equal(gridById.candidates[0].examples.length, 4);
 
 const gridByIntent = await queryTemplates({
