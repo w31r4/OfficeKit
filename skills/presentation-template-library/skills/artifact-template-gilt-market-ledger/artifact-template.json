@@ -1,34 +1,36 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-gilt-market-ledger",
   "displayName": "Gilt Market Ledger",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "a7a280890d177417f1f4ac83a9b96ea5769d75c2aad49576d31faf3d746efc8b"
+      "sha256": "570758275d98fb7999a6513660f6134e495c725c92d8091da1eb0f8355747701"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "cc75f00f1a858d4127674554e3fc58b93bc1b2539b29d5ada5b0b1245be00865"
+      "sha256": "2f431dcea55a1ca74e39d36022bd342567e55b1d941a8e0420dc83cbffdf1be6"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "8f5ad6c7703729105357e67f8b55cbd9acbd66316504886886df6bfb9c76e95a"
+      "sha256": "1e005db927676ee5e92016db0ee8c044993616003b1bbc8dbba29f83905e9704"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "d4f85e1c67f6a0625c15292818129ded0559f9649d7867a2313f7621f1200fc8"
+      "sha256": "6e89e6116e557891bf043a49e856e6ad2f4344904bb41fa45d88d0d497e85afe"
     }
   ],
   "useWhen": [
     "capital markets report",
-    "finance presentation"
+    "finance presentation",
+    "investment committee memo"
   ],
   "avoidWhen": [
     "children training"
@@ -46,22 +48,23 @@
   "visualTraits": {
     "tone": [
       "finance",
-      "A black-and-white ledger reserves gilt for the current value or threshold.",
-      "rule"
+      "rule-led",
+      "evidence-heavy"
     ],
     "density": "dense",
     "colorMode": "mixed",
     "structure": [
-      "rule",
       "variable page silhouettes",
-      "native data graphics"
+      "native data graphics",
+      "direct labels"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "ac2c8d494991667a21b2dcd522284b0c6a4e23852f3822f4665a470c1cf1c3ed",
-    "previewSha256": "3786852c32c72d20f5f5f92e5af13f1bcaa061ec7a9d9ddbb33d54a6e9d75335"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "b15ea2744fdd8021cdc49a46141dcd7d1e9cf6027972018c19ebe68c07787687",
+    "referenceSha256": "a8dd1c8d6144a4e8b43455cf030401ee23e4d71d12f377d924f2eca4e262fe4a",
+    "previewSha256": "99152061263b7843312edb054c7eb4e784c949cf69bb57681a1fd68f07b588f8"
   }
 }

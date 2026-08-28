@@ -1,6 +1,6 @@
 ---
 name: artifact-template-gilt-market-ledger
-description: "Gilt Market Ledger is an original OfficeKit presentation style for capital markets report, with rule-led composition and dense information density."
+description: "A rule-led finance presentation style for evidence-heavy market and allocation decisions."
 ---
 
 # Gilt Market Ledger
