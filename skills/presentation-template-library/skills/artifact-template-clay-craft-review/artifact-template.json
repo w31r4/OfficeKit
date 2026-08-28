@@ -61,7 +61,7 @@
   "provenance": {
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "c2c5dd3d3050c4f79cfbefb59595761facaa01e71f66652e4b5260c8e6557723",
+    "guideSha256": "905efa308b192f2d482e77683805481ed96435a621bc26ec978dfba18c5f6de2",
     "previewSha256": "c86ba194fccbdcec02f7ccb5ffa3ab84be92592dbdd2ccdf2981d3546d585220"
   }
 }
