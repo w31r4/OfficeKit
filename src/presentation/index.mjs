@@ -2827,10 +2827,10 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
   }
 
-  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
+  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
 
   toSvg() {
     const p = this.position;

@@ -176,6 +176,12 @@ export function createPresentationAssetCatalog(initialAssets = [], options = {})
       }
       return source;
     },
+    contentType(id) {
+      const key = String(id);
+      const asset = byId.get(key);
+      if (!asset || !asset.id.startsWith(PICTURE_ASSET_PREFIX)) fail(`Presentation picture bullet references missing asset ${id || "(missing)"}.`);
+      return asset.contentType;
+    },
     addOleWorkbook(data) {
       const bytes = Buffer.from(data || []);
       validateOleWorkbook(XLSX_CONTENT_TYPE, bytes, "Presentation embedded workbook replacement");

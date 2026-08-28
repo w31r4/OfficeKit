@@ -488,6 +488,7 @@ const importedAccessibilityImage = itemByName(shapeAccessibilityImported.slides.
 assert.deepEqual(importedAccessibilityShape.accessibility, shapeAccessibilityShape.accessibility);
 assert.deepEqual(importedAccessibilityConnector.accessibility, shapeAccessibilityConnector.accessibility);
 assert.deepEqual(importedAccessibilityImage.accessibility, shapeAccessibilityImage.accessibility);
+assert.equal(importedAccessibilityImage.contentType, "image/png", "imported images must expose their embedded MIME type");
 assert.deepEqual(importedAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.deepEqual(importedAccessibilityConnector.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.deepEqual(importedAccessibilityImage.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
@@ -495,6 +496,13 @@ assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].name, 
 assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].accessibilityCapability.editable, true);
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
 assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
+
+const blobImageEdit = await PresentationFile.importPptx(shapeAccessibilitySource);
+const blobImage = itemByName(blobImageEdit.slides.getItem(0).images.items, "decision-evidence");
+blobImage.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }) });
+const blobImageOutput = await PresentationFile.exportPptx(blobImageEdit);
+const blobImageRoundTrip = await PresentationFile.importPptx(blobImageOutput);
+assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT, "imported image replacement must accept a same-format FileBlob");
 
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
