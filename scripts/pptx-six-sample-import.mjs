@@ -83,6 +83,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const placement = await verifyPlacementEdit(bytes);
     const text = await verifyTextEdit(bytes);
     const nativeText = await verifyNativeTextEdit(bytes);
+    const imageReplacement = await verifyImageReplacement(bytes);
+    const tableCell = await verifyTableCellEdit(bytes);
     const reuse = await verifyOneSlideReuse(bytes);
     results.push({
       id: source.id,
@@ -101,6 +103,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       placement,
       text,
       nativeText,
+      imageReplacement,
+      tableCell,
       sourceSlideReuse: reuse,
       nativeLeafCount: records.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
       nativeTextLeafCount: records
@@ -120,6 +124,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       placementEdits: results.filter((result) => result.placement.status === "passed").length,
       textEdits: results.filter((result) => result.text.status === "passed").length,
       nativeTextEdits: results.filter((result) => result.nativeText.status === "passed").length,
+      imageReplacements: results.filter((result) => result.imageReplacement.status === "passed").length,
+      tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
       sourceSlideReuse: results.filter((result) => result.sourceSlideReuse.status === "passed").length,
     },
     sources: results,
@@ -162,6 +168,57 @@ async function verifyNativeTextEdit(bytes) {
     throw new Error(`Native text edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, textLeafIndex: target.textLeafIndex, changedParts };
+}
+
+async function verifyImageReplacement(bytes) {
+  const presentation = await importPresentation(bytes);
+  const pair = firstReplaceableImagePair(presentation);
+  if (!pair) return { status: "blocked", reason: "no two distinct same-format images were discovered" };
+  const { target, replacement } = pair;
+  const contentType = String(target.contentType || "").toLowerCase();
+  if (!contentType || contentType !== String(replacement.contentType || "").toLowerCase()) {
+    throw new Error(`Imported image ${target.id} did not expose a stable matching content type.`);
+  }
+  const replacementBytes = dataUrlBytes(replacement.dataUrl);
+  const previousCrop = target.crop ? { ...target.crop } : undefined;
+  target.replace({ blob: new FileBlob(replacementBytes, { type: contentType }) });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = reopened.resolve(target.id);
+  if (!rebound || rebound.contentType !== contentType || rebound.dataUrl !== replacement.dataUrl) {
+    throw new Error(`Image replacement did not survive re-import for ${target.id}.`);
+  }
+  if (JSON.stringify(rebound.crop) !== JSON.stringify(previousCrop)) {
+    throw new Error(`Image replacement changed the crop for ${target.id}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedSlide = `ppt/slides/slide${target.slide.index + 1}.xml`;
+  const expectedRels = `ppt/slides/_rels/slide${target.slide.index + 1}.xml.rels`;
+  const addedMedia = changedParts.filter((part) => /^ppt\/media\/office-kit-[0-9a-f]+\.(?:png|jpe?g|gif|svg)$/u.test(part));
+  if (changedParts.length !== 3 || !changedParts.includes(expectedSlide) || !changedParts.includes(expectedRels) || addedMedia.length !== 1) {
+    throw new Error(`Image replacement changed unexpected parts for ${target.id}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.id, replacementId: replacement.id, contentType, changedParts };
+}
+
+async function verifyTableCellEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const target = firstTableCell(presentation);
+  if (!target) return { status: "blocked", reason: "no table with a writable text cell was discovered" };
+  const value = `${target.value} OfficeKit`;
+  target.table.getCell(target.row, target.column).value = value;
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = reopened.resolve(target.table.id);
+  if (!rebound || rebound.values[target.row]?.[target.column] !== value) {
+    throw new Error(`Table cell edit did not survive re-import for ${target.table.id}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.table.slide.index + 1}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Table cell edit changed unexpected parts for ${target.table.id}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.table.id, row: target.row, column: target.column, changedParts };
 }
 
 async function verifyPlacementEdit(bytes) {
@@ -228,6 +285,41 @@ function firstPlacementObject(presentation) {
   return undefined;
 }
 
+function firstReplaceableImagePair(presentation) {
+  const byType = new Map();
+  for (const slide of presentation.slides.items) {
+    for (const image of slide.images?.items || []) {
+      const dataUrl = image.dataUrl;
+      const contentType = dataUrl?.match(/^data:([^;]+);base64,/u)?.[1]?.toLowerCase();
+      if (!contentType) continue;
+      const candidates = byType.get(contentType) || [];
+      if (!candidates.some((candidate) => candidate.image.dataUrl === dataUrl)) candidates.push({ slide, image });
+      byType.set(contentType, candidates);
+    }
+  }
+  for (const candidates of byType.values()) {
+    if (candidates.length >= 2) return {
+      target: candidates[0].image,
+      replacement: candidates[1].image,
+    };
+  }
+  return undefined;
+}
+
+function firstTableCell(presentation) {
+  for (const slide of presentation.slides.items) {
+    for (const table of slide.tables?.items || []) {
+      for (let row = 0; row < table.rows; row += 1) {
+        for (let column = 0; column < table.columns; column += 1) {
+          const value = String(table.values[row]?.[column] ?? "");
+          if (value.length > 0) return { slide, table, row, column, value };
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
 async function packageEvidence(bytes) {
   const zip = await JSZip.loadAsync(bytes, { checkCRC32: true });
   const slides = Object.keys(zip.files)
@@ -255,11 +347,23 @@ async function changedPackageParts(sourceBytes, outputBytes) {
   ])].sort();
   const changed = [];
   for (const name of names) {
-    const before = source.file(name) ? await source.file(name).async("uint8array") : undefined;
-    const after = output.file(name) ? await output.file(name).async("uint8array") : undefined;
+    const beforeFile = source.file(name);
+    const afterFile = output.file(name);
+    if (!beforeFile || !afterFile) {
+      changed.push(name);
+      continue;
+    }
+    const before = await beforeFile.async("uint8array");
+    const after = await afterFile.async("uint8array");
     if (!before || !after || !Buffer.from(before).equals(Buffer.from(after))) changed.push(name);
   }
   return changed;
+}
+
+function dataUrlBytes(dataUrl) {
+  const match = /^data:[^;]+;base64,([A-Za-z0-9+/=\s]+)$/u.exec(String(dataUrl || ""));
+  if (!match) throw new Error("Expected a base64 image data URL.");
+  return Buffer.from(match[1].replace(/\s/gu, ""), "base64");
 }
 
 function profileSummary(profile) {

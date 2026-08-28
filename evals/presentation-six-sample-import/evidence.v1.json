@@ -9,6 +9,8 @@
     "placementEdits": 6,
     "textEdits": 6,
     "nativeTextEdits": 5,
+    "imageReplacements": 6,
+    "tableCellEdits": 4,
     "sourceSlideReuse": 6
   },
   "sources": [
@@ -68,6 +70,21 @@
         "changedParts": [
           "ppt/slides/slide2.xml"
         ]
+      },
+      "imageReplacement": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/6",
+        "replacementId": "presentation/slide/2/element/6",
+        "contentType": "image/png",
+        "changedParts": [
+          "ppt/media/office-kit-102640f98338eccc3c8b2e6f.png",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "tableCell": {
+        "status": "blocked",
+        "reason": "no table with a writable text cell was discovered"
       },
       "sourceSlideReuse": {
         "status": "passed",
@@ -155,6 +172,26 @@
           "ppt/slides/slide9.xml"
         ]
       },
+      "imageReplacement": {
+        "status": "passed",
+        "targetId": "presentation/slide/3/element/1",
+        "replacementId": "presentation/slide/3/element/4",
+        "contentType": "image/png",
+        "changedParts": [
+          "ppt/media/office-kit-c7ecc9f3547ab6aad4660e9a.png",
+          "ppt/slides/_rels/slide3.xml.rels",
+          "ppt/slides/slide3.xml"
+        ]
+      },
+      "tableCell": {
+        "status": "passed",
+        "targetId": "presentation/slide/20/element/2",
+        "row": 0,
+        "column": 0,
+        "changedParts": [
+          "ppt/slides/slide20.xml"
+        ]
+      },
       "sourceSlideReuse": {
         "status": "passed",
         "sourceSlideId": "presentation/slide/1",
@@ -238,6 +275,26 @@
         "textLeafIndex": 0,
         "changedParts": [
           "ppt/slides/slide3.xml"
+        ]
+      },
+      "imageReplacement": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "replacementId": "presentation/slide/2/element/2",
+        "contentType": "image/jpeg",
+        "changedParts": [
+          "ppt/media/office-kit-171ebf431694734aa220ad29.jpeg",
+          "ppt/slides/_rels/slide1.xml.rels",
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "tableCell": {
+        "status": "passed",
+        "targetId": "presentation/slide/19/element/1",
+        "row": 0,
+        "column": 1,
+        "changedParts": [
+          "ppt/slides/slide19.xml"
         ]
       },
       "sourceSlideReuse": {
@@ -325,6 +382,26 @@
           "ppt/slides/slide17.xml"
         ]
       },
+      "imageReplacement": {
+        "status": "passed",
+        "targetId": "presentation/slide/3/element/1",
+        "replacementId": "presentation/slide/10/element/3",
+        "contentType": "image/jpeg",
+        "changedParts": [
+          "ppt/media/office-kit-d778ff44275ebc76519b1c7a.jpg",
+          "ppt/slides/_rels/slide3.xml.rels",
+          "ppt/slides/slide3.xml"
+        ]
+      },
+      "tableCell": {
+        "status": "passed",
+        "targetId": "presentation/slide/13/element/2",
+        "row": 0,
+        "column": 1,
+        "changedParts": [
+          "ppt/slides/slide13.xml"
+        ]
+      },
       "sourceSlideReuse": {
         "status": "passed",
         "sourceSlideId": "presentation/slide/1",
@@ -409,6 +486,26 @@
           "ppt/slides/slide28.xml"
         ]
       },
+      "imageReplacement": {
+        "status": "passed",
+        "targetId": "presentation/slide/3/element/4",
+        "replacementId": "presentation/slide/10/element/1",
+        "contentType": "image/jpeg",
+        "changedParts": [
+          "ppt/media/office-kit-85bb4ff3c0758fa96c1b3538.jpg",
+          "ppt/slides/_rels/slide3.xml.rels",
+          "ppt/slides/slide3.xml"
+        ]
+      },
+      "tableCell": {
+        "status": "passed",
+        "targetId": "presentation/slide/13/element/2",
+        "row": 0,
+        "column": 1,
+        "changedParts": [
+          "ppt/slides/slide13.xml"
+        ]
+      },
       "sourceSlideReuse": {
         "status": "passed",
         "sourceSlideId": "presentation/slide/1",
@@ -482,7 +579,22 @@
       },
       "nativeText": {
         "status": "blocked",
-        "reason": "no bounded opaque-table text leaf was discovered"
+        "reason": "no bounded native text leaf was discovered"
+      },
+      "imageReplacement": {
+        "status": "passed",
+        "targetId": "presentation/slide/5/element/1",
+        "replacementId": "presentation/slide/8/element/1",
+        "contentType": "image/png",
+        "changedParts": [
+          "ppt/media/office-kit-8f2c46fa28193c4177ab8ad3.png",
+          "ppt/slides/_rels/slide5.xml.rels",
+          "ppt/slides/slide5.xml"
+        ]
+      },
+      "tableCell": {
+        "status": "blocked",
+        "reason": "no table with a writable text cell was discovered"
       },
       "sourceSlideReuse": {
         "status": "passed",
