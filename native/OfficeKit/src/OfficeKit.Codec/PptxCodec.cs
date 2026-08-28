@@ -57,8 +57,8 @@ internal static class PptxCodec
     private const long DefaultSlideHeightEmu = 6_858_000;
     internal static PptxImportResult Import(byte[] bytes, EffectiveCodecLimits limits)
     {
-        var opaque = PackageGuards.ValidateAndCollectOpaque(bytes, limits, OpcPackageProfile.Pptx);
-        var nativeObjects = new PptxNativeObjectCatalog(opaque, bytes, limits);
+        var opaque = PackageGuards.ValidateAndCollectOpaque(bytes, limits, OpcPackageProfile.Pptx, out var packagePaths);
+        var nativeObjects = new PptxNativeObjectCatalog(opaque, packagePaths, limits);
         var diagnostics = new List<Diagnostic>();
         var opaqueCount = opaque.Parts.Count + opaque.PackageRelationships.Count;
         if (opaqueCount > 0)

@@ -124,6 +124,14 @@ internal static class PackageGuards
     private const string ContentTypesNamespace = "http://schemas.openxmlformats.org/package/2006/content-types";
 
     internal static OpaqueOpcGraph ValidateAndCollectOpaque(byte[] bytes, EffectiveCodecLimits limits, OpcPackageProfile profile, bool includeSourcePackage = true)
+        => ValidateAndCollectOpaque(bytes, limits, profile, out _, includeSourcePackage);
+
+    internal static OpaqueOpcGraph ValidateAndCollectOpaque(
+        byte[] bytes,
+        EffectiveCodecLimits limits,
+        OpcPackageProfile profile,
+        out IReadOnlySet<string> packagePaths,
+        bool includeSourcePackage = true)
     {
         if ((ulong)bytes.LongLength > limits.MaxInputBytes)
             throw new CodecException("input_budget_exceeded", $"{profile.Format} input has {bytes.LongLength} bytes and exceeds max_input_bytes ({limits.MaxInputBytes}).");
@@ -206,6 +214,8 @@ internal static class PackageGuards
                     Sha256 = packageHash,
                 };
             }
+            paths.RemoveWhere(static path => path.EndsWith("/", StringComparison.Ordinal));
+            packagePaths = paths;
             return opaque;
         }
         catch (CodecException)

@@ -79,12 +79,17 @@ internal sealed class PptxNativeObjectCatalog
     private readonly EffectiveCodecLimits _limits;
     private readonly Dictionary<string, OpaqueOpcPart> _parts;
     private readonly Dictionary<string, OpaqueOpcRelationship> _relationships;
-    private readonly HashSet<string> _packagePaths;
+    private readonly IReadOnlySet<string> _packagePaths;
     private readonly Dictionary<string, string[]> _closureByTarget = new(StringComparer.OrdinalIgnoreCase);
     private ulong _referenceCount;
     private ulong _traversalCount;
 
     internal PptxNativeObjectCatalog(OpaqueOpcGraph opaque, byte[] sourceBytes, EffectiveCodecLimits limits)
+        : this(opaque, PackagePaths(sourceBytes), limits)
+    {
+    }
+
+    internal PptxNativeObjectCatalog(OpaqueOpcGraph opaque, IReadOnlySet<string> packagePaths, EffectiveCodecLimits limits)
     {
         _limits = limits;
         _parts = opaque.Parts.ToDictionary(part => part.Path, StringComparer.OrdinalIgnoreCase);
@@ -99,12 +104,7 @@ internal sealed class PptxNativeObjectCatalog
                     relationship.SourcePath);
         }
 
-        using var stream = new MemoryStream(sourceBytes, writable: false);
-        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
-        _packagePaths = archive.Entries
-            .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
-            .Select(entry => entry.FullName)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _packagePaths = packagePaths;
         foreach (var relationship in opaque.PackageRelationships)
         {
             if (relationship.TargetMode.Equals("External", StringComparison.OrdinalIgnoreCase)) continue;
@@ -115,6 +115,16 @@ internal sealed class PptxNativeObjectCatalog
                     $"PPTX relationship {relationship.Id} from {relationship.SourcePath} references missing part {targetPath}.",
                     targetPath);
         }
+    }
+
+    private static IReadOnlySet<string> PackagePaths(byte[] sourceBytes)
+    {
+        using var stream = new MemoryStream(sourceBytes, writable: false);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+        return archive.Entries
+            .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
+            .Select(entry => entry.FullName)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     internal void Populate(PresentationOpaqueElement target, OpenXmlElement source, OpenXmlPart owner)
