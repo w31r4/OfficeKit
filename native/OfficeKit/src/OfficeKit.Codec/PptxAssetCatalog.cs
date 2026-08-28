@@ -82,9 +82,10 @@ internal sealed class PptxAssetCatalog
         using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
         using var memory = new MemoryStream();
         stream.CopyTo(memory);
-        var data = memory.ToArray();
-        ValidateImage(contentType, data, $"Presentation image part {part.Uri}");
-        digest ??= Hash(data);
+        var data = memory.GetBuffer();
+        var dataLength = checked((int)memory.Length);
+        ValidateImage(contentType, data, dataLength, $"Presentation image part {part.Uri}");
+        digest ??= Hash(data.AsSpan(0, dataLength));
         var id = PictureAssetPrefix + digest;
         if (_assets.TryGetValue(id, out var requested))
         {
@@ -95,13 +96,13 @@ internal sealed class PptxAssetCatalog
         {
             if (_imported.Count >= MaxAssets)
                 throw new CodecException("presentation_asset_budget_exceeded", $"Presentation exceeds the {MaxAssets}-asset budget.");
-            EnsureBudget(data.LongLength);
+            EnsureBudget(dataLength);
             asset = new Asset
             {
                 Id = id,
                 FileName = $"picture-bullet-{digest[..16]}.{Extension(contentType)}",
                 ContentType = contentType,
-                Data = ByteString.CopyFrom(data),
+                Data = ByteString.CopyFrom(data, 0, dataLength),
                 Sha256 = digest,
             };
             _imported.Add(id, asset);
@@ -178,16 +179,20 @@ internal sealed class PptxAssetCatalog
             throw new CodecException("presentation_asset_budget_exceeded", $"Presentation picture-bullet assets exceed the {_maxTotalBytes}-byte budget.");
     }
 
-    private static void ValidateImage(string contentType, byte[] data, string label)
+    private static void ValidateImage(string contentType, byte[] data, string label) =>
+        ValidateImage(contentType, data, data.Length, label);
+
+    private static void ValidateImage(string contentType, byte[] data, int dataLength, string label)
     {
-        if (data.Length is 0 or > MaxAssetBytes)
+        if (dataLength is 0 or > MaxAssetBytes)
             throw new CodecException("invalid_presentation_asset", $"{label} must contain 1 through {MaxAssetBytes} bytes.");
+        var bytes = data.AsSpan(0, dataLength);
         var valid = contentType switch
         {
-            "image/png" => data.AsSpan().StartsWith(Convert.FromHexString("89504E470D0A1A0A")),
-            "image/jpeg" => data.Length >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff,
-            "image/gif" => data.Length >= 6 && Encoding.ASCII.GetString(data, 0, 6) is "GIF87a" or "GIF89a",
-            "image/svg+xml" => IsSafeSvg(data),
+            "image/png" => bytes.StartsWith(Convert.FromHexString("89504E470D0A1A0A")),
+            "image/jpeg" => dataLength >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff,
+            "image/gif" => dataLength >= 6 && Encoding.ASCII.GetString(data, 0, 6) is "GIF87a" or "GIF89a",
+            "image/svg+xml" => IsSafeSvg(data, dataLength),
             _ => false,
         };
         if (!valid) throw new CodecException("invalid_presentation_asset", $"{label} bytes do not match a supported PNG, JPEG, GIF, or safe SVG content type.");
@@ -211,11 +216,11 @@ internal sealed class PptxAssetCatalog
             throw new CodecException("invalid_presentation_asset", $"{label} must contain 1 through {MaxAssetBytes} bytes of an OPC ZIP package.");
     }
 
-    private static bool IsSafeSvg(byte[] data)
+    private static bool IsSafeSvg(byte[] data, int dataLength)
     {
         try
         {
-            using var stream = new MemoryStream(data, writable: false);
+            using var stream = new MemoryStream(data, 0, dataLength, writable: false, publiclyVisible: true);
             using var reader = XmlReader.Create(stream, new XmlReaderSettings
             {
                 DtdProcessing = DtdProcessing.Prohibit,
@@ -281,5 +286,6 @@ internal sealed class PptxAssetCatalog
         _ => "bin",
     };
 
-    private static string Hash(byte[] data) => Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+    private static string Hash(byte[] data) => Hash(data.AsSpan());
+    private static string Hash(ReadOnlySpan<byte> data) => Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
 }
