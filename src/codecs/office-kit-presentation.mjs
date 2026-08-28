@@ -532,6 +532,7 @@ function cloneImportedPresentationNativeObject(container, source, context) {
     nativeId: source.nativeId,
     creationId: source.creationId,
     nativeKind: source.nativeKind,
+    text: source.text,
     position: clonedPresentationValue(source.position),
     rawXml: source.rawXml,
     sourcePart: source.sourcePart,
@@ -5248,6 +5249,7 @@ export async function presentationFromEnvelope(envelope) {
           name: element.name,
           _officeKitSharePartBytes: true,
           nativeKind: opaque.nativeKind || presentationNativeKind(opaque.elementName),
+          text: opaque.text,
           position: {
             left: Number(opaque.leftEmu) / EMU_PER_PIXEL,
             top: Number(opaque.topEmu) / EMU_PER_PIXEL,

@@ -7,6 +7,7 @@ import { presentationElementDeletionCapability } from "./element-deletion.mjs";
 const MAX_EMBEDDED_WORKBOOK_BYTES = 16 * 1024 * 1024;
 const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
 const MAX_DIAGRAM_NODE_TEXT_LENGTH = 32_767;
+const MAX_NATIVE_TEXT_LENGTH = 32_767;
 const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
@@ -199,6 +200,25 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       this.nativeKind = config.nativeKind || "graphicFrame";
       this.position = normalizeFrame(config, { left: 0, top: 0, width: 1, height: 1 });
       this.rawXml = String(config.rawXml || "");
+      const nativeText = String(config.text ?? "");
+      Object.defineProperty(this, "text", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: nativeText.slice(0, MAX_NATIVE_TEXT_LENGTH),
+      });
+      Object.defineProperty(this, "textTruncated", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: nativeText.length > MAX_NATIVE_TEXT_LENGTH,
+      });
+      Object.defineProperty(this, "textLength", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: nativeText.length,
+      });
       this.sourcePart = config.sourcePart;
       Object.defineProperty(this, "editable", { enumerable: true, value: false, writable: false });
       this.relationshipReferences = (config.relationshipReferences || []).map((reference) => ({ ...reference }));
@@ -512,6 +532,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           title: this._nativeChartTitleLeaves.map((leaf) => leaf.text).join(""),
           dataPoints: this._nativeChartDataPoints.length,
         } : undefined,
+        ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
         deletionCapability: this.deletionCapability,
         bbox: [frame.left, frame.top, frame.width, frame.height],
         bboxUnit: "px",
