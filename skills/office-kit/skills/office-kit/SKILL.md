@@ -115,8 +115,9 @@ XLSX, or PPTX.
 7. Before selecting a DOCX/XLSX template, load the owning domain Skill and
    confirm that requested edits fit its verified edit profile. For PPT, load
    the selected Template Skill and representative examples, derive a new
-   deck-specific Design Grammar, and freely Compose the current content; a
-   presentation template does not provide a retained deck or edit profile.
+   deck-specific Design Grammar, and freely Compose the current content. If
+   the candidate declares an authored reference deck, inspect it only for
+   native layer order and reusable evidence; it is not a fixed page recipe.
 
 `none` means the owning Skill should compose the artifact from first
 principles. It is a successful design decision, not an error or fallback.

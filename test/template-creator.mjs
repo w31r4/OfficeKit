@@ -15,6 +15,7 @@ import {
   SpreadsheetFile,
   Workbook,
 } from "office-kit";
+import { queryTemplates } from "../src/templates/search.mjs";
 
 const packageRoot = path.resolve(import.meta.dirname, "..");
 const creatorPath = path.join(
@@ -161,8 +162,8 @@ async function assertGeneratedTemplate(
     fs.readFile(retainedReferencePath),
   ]);
   if (
-    result.schemaVersion !== 2 ||
-    sidecar.schemaVersion !== 2 ||
+    result.schemaVersion !== (kind === "presentation" ? 4 : 2) ||
+    sidecar.schemaVersion !== (kind === "presentation" ? 4 : 2) ||
     sidecar.id !== result.skillName ||
     sidecar.displayName !== result.displayName ||
     sidecar.kind !== kind ||
@@ -337,6 +338,7 @@ try {
     displayName: "Presentation Fixture",
     description: "Use an original editorial presentation style with free composition.",
     guidePath,
+    referencePath: pptxPath,
     useWhen: ["editorial evidence presentation"],
     avoidWhen: ["playful consumer launch"],
     audiences: ["executives"],
@@ -362,19 +364,31 @@ try {
     "--spec", specPath,
     "--output-root", presentationOutputRoot,
   ]);
-  assert.equal(presentationTemplate.schemaVersion, 3);
+  assert.equal(presentationTemplate.schemaVersion, 4);
   assert.equal(presentationTemplate.updated, false);
   assert.equal(presentationTemplate.examplePaths.length, 4);
   const presentationMetadata = JSON.parse(
     await fs.readFile(path.join(presentationTemplate.skillPath, "artifact-template.json"), "utf8"),
   );
   assert.equal(presentationMetadata.kind, "presentation");
-  assert.equal(presentationMetadata.schemaVersion, 3);
-  assert.equal(Object.hasOwn(presentationMetadata, "reference"), false);
+  assert.equal(presentationMetadata.schemaVersion, 4);
+  assert.equal(presentationMetadata.reference, "assets/reference.pptx");
+  assert.equal(presentationMetadata.provenance.referenceSha256, sha256(await fs.readFile(pptxPath)));
   assert.equal(Object.hasOwn(presentationMetadata, "editProfile"), false);
   assert.deepEqual(
     (await fs.readdir(presentationTemplate.skillPath)).sort(),
     ["SKILL.md", "agents", "artifact-template.json", "assets"],
+  );
+  const discoveredPresentation = await queryTemplates({
+    kind: "presentation",
+    roots: [presentationOutputRoot],
+    id: presentationTemplate.skillName,
+  });
+  assert.equal(discoveredPresentation.invalid.length, 0);
+  assert.equal(discoveredPresentation.candidates[0].templateSchemaVersion, 4);
+  assert.equal(
+    discoveredPresentation.candidates[0].referencePath,
+    path.join(presentationTemplate.skillPath, "assets", "reference.pptx"),
   );
   const updatedPresentationTemplate = await runSuccessfulPresentationCreator([
     "--spec", specPath,
