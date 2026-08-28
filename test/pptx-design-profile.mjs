@@ -177,7 +177,9 @@ const componentSource = await PresentationFile.exportPptx(componentAuthoring);
 const componentImported = await PresentationFile.importPptx(componentSource);
 const componentCandidates = componentImported.inspect({ includeComponentCandidates: true, maxChars: Infinity }).ndjson
   .split("\n").filter(Boolean).map((line) => JSON.parse(line)).filter((record) => record.kind === "componentCandidate");
-const reusableComponent = componentCandidates.find((record) => record.status === "inspect-only" && record.occurrences.length === 2);
+const nonPrefixComponentId = componentImported.slides.items[0].elements.items[1].id;
+const reusableComponent = componentCandidates.find((record) => record.status === "inspect-only" && record.occurrences.length === 2 &&
+  record.occurrences.some((occurrence) => occurrence.slide === 1 && occurrence.targetId === nonPrefixComponentId));
 assert.ok(reusableComponent, "the controlled fixture should expose one repeated top-level component");
 assert.equal(reusableComponent.occurrences.every((occurrence) => occurrence.reuseCapability?.supported === true), true);
 const componentSourceSlideXml = await (await JSZip.loadAsync(componentSource.bytes)).file("ppt/slides/slide1.xml").async("text");

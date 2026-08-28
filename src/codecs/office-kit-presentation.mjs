@@ -2972,7 +2972,11 @@ export function presentationEnvelope(presentation, protocolVersion) {
           (cloneState && allowedCloneDeletionIds && !authorizedCloneDeletions)) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export requires slide ${slideIndex + 1}'s original ${entries.length}-element topology.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_element_topology_changed" });
       }
-      if (cloneState && retainedEntries.some((entry, index) => entry !== entries[index])) {
+      const expectedRetainedEntries = allowedCloneDeletionIds
+        ? entries.filter((entry) => !allowedCloneDeletionIds.has(entry.wire.id))
+        : entries;
+      if (cloneState && (retainedEntries.length !== expectedRetainedEntries.length ||
+          retainedEntries.some((entry, index) => entry !== expectedRetainedEntries[index]))) {
         throw new OfficeKitCodecError(`Pending presentation clone ${slideIndex + 1} cannot reorder source elements before its first export and reimport.`, [], { code: "unsupported_presentation_slide_clone" });
       }
       if (!cloneState) {
