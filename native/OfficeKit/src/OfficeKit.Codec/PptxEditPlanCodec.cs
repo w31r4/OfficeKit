@@ -108,7 +108,8 @@ internal static partial class PptxEditPlanCodec
         ApplyElementDeletionPackagePatches(sourceParts, proofs, patchedParts, removedParts);
 
         var outputBytes = RewriteParts(sourceBytes, patchedParts, addedParts, removedParts);
-        var changedParts = ChangedParts(sourceBytes, outputBytes);
+        var outputParts = PackageParts(outputBytes);
+        var changedParts = ChangedParts(sourceParts, outputParts);
         var expectedParts = patchedParts.Keys.Concat(addedParts.Keys).Concat(removedParts).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         if (!changedParts.SequenceEqual(expectedParts, StringComparer.OrdinalIgnoreCase))
             throw new CodecException(
@@ -117,17 +118,16 @@ internal static partial class PptxEditPlanCodec
 
         foreach (var (path, expected) in patchedParts)
         {
-            var actual = ReadPart(outputBytes, path);
+            var actual = RequiredPart(outputParts, path);
             if (!actual.AsSpan().SequenceEqual(expected))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan output for {path} differs from the compiled token patch.", path);
         }
         foreach (var (path, expected) in addedParts)
         {
-            var actual = ReadPart(outputBytes, path);
+            var actual = RequiredPart(outputParts, path);
             if (!actual.AsSpan().SequenceEqual(expected))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan added part {path} with unexpected bytes.", path);
         }
-        var outputParts = PackageParts(outputBytes);
         foreach (var path in removedParts)
             if (outputParts.ContainsKey(path))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan failed to remove part {path}.", path);
@@ -946,6 +946,11 @@ internal static partial class PptxEditPlanCodec
         return ReadEntry(entry);
     }
 
+    private static byte[] RequiredPart(IReadOnlyDictionary<string, byte[]> parts, string path) =>
+        parts.TryGetValue(path, out var bytes)
+            ? bytes
+            : throw new CodecException("presentation_edit_target_missing", $"PPTX part {path} is missing.", path);
+
     private static byte[] ReadEntry(ZipArchiveEntry entry)
     {
         using var input = entry.Open();
@@ -954,15 +959,21 @@ internal static partial class PptxEditPlanCodec
         return output.ToArray();
     }
 
-    private static string[] ChangedParts(byte[] sourceBytes, byte[] outputBytes)
+    private static string[] ChangedParts(
+        IReadOnlyDictionary<string, byte[]> sourceParts,
+        IReadOnlyDictionary<string, byte[]> outputParts)
     {
-        var source = PackageParts(sourceBytes).ToDictionary(entry => entry.Key, entry => Hash(entry.Value), StringComparer.OrdinalIgnoreCase);
-        var output = PackageParts(outputBytes).ToDictionary(entry => entry.Key, entry => Hash(entry.Value), StringComparer.OrdinalIgnoreCase);
-        return source.Keys.Concat(output.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(path => !source.TryGetValue(path, out var left) || !output.TryGetValue(path, out var right) || left != right)
+        return sourceParts.Keys.Concat(outputParts.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(path =>
+                !sourceParts.TryGetValue(path, out var left) ||
+                !outputParts.TryGetValue(path, out var right) ||
+                !left.AsSpan().SequenceEqual(right))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
+
+    private static string[] ChangedParts(byte[] sourceBytes, byte[] outputBytes) =>
+        ChangedParts(PackageParts(sourceBytes), PackageParts(outputBytes));
 
     private static (string Xml, int BomBytes) DecodeXml(byte[] bytes)
     {
