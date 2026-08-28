@@ -2239,6 +2239,11 @@ message PresentationImage {
   // from an object that has not been classified. `true` cannot coexist with
   // accessibility_title or alt_text.
   optional bool accessibility_decorative = 10;
+  // When a source picture carries the Office SVG fallback extension, this is
+  // the content-addressed SVG asset behind that fallback relationship. The
+  // primary asset remains the rendered PNG/JPEG/GIF; edits to this leaf are
+  // source-bound and preserve both relationships and the extension wrapper.
+  string svg_asset_id = 11;
 }
 
 message PresentationImageTransform {
@@ -4056,6 +4061,10 @@ message PresentationNormalAutoFit {
 message PresentationImageReplacement {
   string asset_id = 1;
   PresentationImageCrop crop = 2;
+  // Replaces only the source SVG fallback while retaining the primary image
+  // relationship. It is intentionally separate from asset_id so a stale
+  // raster/SVG pair cannot be silently split.
+  string svg_asset_id = 3;
 }
 
 // Appended so the internal edit-plan operation can remove one codec-proven

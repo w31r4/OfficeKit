@@ -57,6 +57,7 @@ const PRESENTATION_STATE = Symbol.for("office-kit.presentation-state");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
+const PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-svg-data-url-source");
 
 export { SlideTransition, SlideAnimations, SlideMorph };
 
@@ -2671,6 +2672,36 @@ export class ImageElement {
     } else {
       this.dataUrl = embedded?.dataUrl ?? config.dataUrl;
     }
+    const importedSvgDataUrlSource = config._officeKitSvgDataUrlSource;
+    if (importedSvgDataUrlSource) {
+      if (typeof importedSvgDataUrlSource.resolve !== "function" || !importedSvgDataUrlSource.asset) {
+        throw new TypeError(`Presentation image ${this.id} received an invalid imported SVG dataUrl source.`);
+      }
+      const binding = { source: importedSvgDataUrlSource, modified: false };
+      let resolved = false;
+      let value;
+      binding.get = function getImportedSvgDataUrl() {
+        if (!resolved) {
+          value = binding.source.resolve();
+          resolved = true;
+        }
+        return value;
+      };
+      binding.set = function setImportedSvgDataUrl(next) {
+        value = next;
+        resolved = true;
+        binding.modified = true;
+      };
+      Object.defineProperty(this, PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE, { value: binding });
+      Object.defineProperty(this, "svgDataUrl", {
+        configurable: true,
+        enumerable: true,
+        get: binding.get,
+        set: binding.set,
+      });
+    } else {
+      this.svgDataUrl = config.svgDataUrl;
+    }
     this.contentType = embedded?.contentType ?? config.contentType;
     this.fit = config.fit || "contain";
     this.crop = config.crop;
@@ -2706,8 +2737,8 @@ export class ImageElement {
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
   }
-  get svgTextCapability() { return inspectSvgText(this.dataUrl); }
-  get svgEditCapability() { return inspectSvgLeaves(this.dataUrl, presentationSvgLeafScope(this)); }
+  get svgTextCapability() { return inspectSvgText(this.svgDataUrl || this.dataUrl); }
+  get svgEditCapability() { return inspectSvgLeaves(this.svgDataUrl || this.dataUrl, presentationSvgLeafScope(this)); }
   getSvgTextNodes() {
     const capability = this.svgTextCapability;
     return capability.nodes ? capability.nodes.map((node) => ({ ...node })) : [];
@@ -2719,8 +2750,9 @@ export class ImageElement {
       error.code = "unsupported_presentation_svg_text";
       throw error;
     }
-    const dataUrl = replaceSvgTextNode(this.dataUrl, nodeId, update);
-    this.replace({ dataUrl });
+    const dataUrl = replaceSvgTextNode(this.svgDataUrl || this.dataUrl, nodeId, update);
+    if (this.svgDataUrl) this.svgDataUrl = dataUrl;
+    else this.replace({ dataUrl });
     const next = this.svgTextCapability.nodes?.find((node) => node.id === nodeId);
     return Object.freeze({
       kind: "svgTextEdit",
@@ -2745,8 +2777,9 @@ export class ImageElement {
     }
     const leaf = capability.leaves.find((candidate) => candidate.id === leafId);
     const leafIndex = capability.leaves.findIndex((candidate) => candidate.id === leafId);
-    const dataUrl = replaceSvgLeaf(this.dataUrl, leafId, update, presentationSvgLeafScope(this));
-    this.replace({ dataUrl });
+    const dataUrl = replaceSvgLeaf(this.svgDataUrl || this.dataUrl, leafId, update, presentationSvgLeafScope(this));
+    if (this.svgDataUrl) this.svgDataUrl = dataUrl;
+    else this.replace({ dataUrl });
     const next = leafIndex >= 0 ? this.svgEditCapability.leaves?.[leafIndex] : undefined;
     return Object.freeze({
       kind: "svgLeafEdit",
@@ -2794,10 +2827,10 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
   }
 
-  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
+  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
 
   toSvg() {
     const p = this.position;

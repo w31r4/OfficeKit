@@ -28,7 +28,13 @@ export function decodeSvgDataUrl(dataUrl) {
   } catch {
     return undefined;
   }
-  if (!/^\s*<svg\b[^>]*>/iu.test(source) || !/<\/svg>\s*$/iu.test(source)) return undefined;
+  // Office exports frequently preserve an XML declaration and generator
+  // comments around the root (notably Illustrator SVG fallbacks). They are
+  // inert and remain part of the source token stream, so accepting them here
+  // keeps the bounded leaf/text capability aligned with the native asset
+  // validator without permitting arbitrary markup before or after <svg>.
+  if (!/^\s*(?:<\?xml[\s\S]*?\?>\s*)?(?:(?:<!--[\s\S]*?-->\s*)*)<svg\b[^>]*>/iu.test(source) ||
+      !/<\/svg>\s*(?:(?:<!--[\s\S]*?-->\s*)*)$/iu.test(source)) return undefined;
   return { bytes, source };
 }
 

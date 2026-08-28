@@ -178,7 +178,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -203,9 +203,11 @@ internal static partial class PptxEditPlanCodec
             {
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} cannot attach a SmartArt run binding to {leafKind}.");
             }
-            if (leafKind == "imageAsset")
+            if (leafKind is "imageAsset" or "imageSvgAsset")
             {
-                if (operation.ImageReplacement is null || operation.ImageReplacement.AssetId != operation.Value)
+                if (operation.ImageReplacement is null ||
+                    (leafKind == "imageAsset" && operation.ImageReplacement.AssetId != operation.Value) ||
+                    (leafKind == "imageSvgAsset" && operation.ImageReplacement.SvgAssetId != operation.Value))
                     throw new CodecException("invalid_presentation_edit_target", $"PPTX image operation {operation.OperationId} requires one replacement asset matching value.");
                 ValidateImageReplacement(operation);
             }
@@ -253,8 +255,10 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_item_budget_exceeded", $"PPTX edit-plan text exceeds max_cells ({limits.MaxCells}).");
         }
         var requestedAssetIds = request.Operations
-            .Where(operation => LeafKind(operation) == "imageAsset")
-            .Select(operation => operation.ImageReplacement.AssetId)
+            .Where(operation => LeafKind(operation) is "imageAsset" or "imageSvgAsset")
+            .Select(operation => LeafKind(operation) == "imageSvgAsset"
+                ? operation.ImageReplacement.SvgAssetId
+                : operation.ImageReplacement.AssetId)
             .ToHashSet(StringComparer.Ordinal);
         var suppliedAssetIds = request.Assets.Select(asset => asset.Id).ToHashSet(StringComparer.Ordinal);
         if (!requestedAssetIds.SetEquals(suppliedAssetIds) || request.Assets.Count != suppliedAssetIds.Count)
@@ -360,9 +364,11 @@ internal static partial class PptxEditPlanCodec
                 proofs.Add(new PptxEditPlanProof(operation, elementHash, chart.Binding.PartPath));
                 continue;
             }
-            if (LeafKind(operation) == "imageAsset")
+            if (LeafKind(operation) is "imageAsset" or "imageSvgAsset")
             {
-                var imageProof = ProveImageReplacement(sourceBytes, slidePart, element, projectedElement, operation, requestedAssets);
+                var imageProof = LeafKind(operation) == "imageSvgAsset"
+                    ? ProveImageSvgReplacement(sourceBytes, slidePart, element, projectedElement, operation, requestedAssets)
+                    : ProveImageReplacement(sourceBytes, slidePart, element, projectedElement, operation, requestedAssets);
                 proofs.Add(new PptxEditPlanProof(operation, elementHash, operation.SlidePartPath, Image: imageProof));
                 continue;
             }
@@ -459,7 +465,7 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, or p:graphicFrame.", operation.SlidePartPath);
             if (leafKind is not ("text" or "tableCellText"))
             {
-                if (leafKind == "imageAsset")
+                if (leafKind is "imageAsset" or "imageSvgAsset")
                 {
                     patches.Add(CompileImageXmlPatch(xml, range, proof));
                     continue;
@@ -818,7 +824,7 @@ internal static partial class PptxEditPlanCodec
                 resultById[operation.OperationId].OutputElementSha256 = HashElement(element);
                 continue;
             }
-            if (LeafKind(operation) == "imageAsset")
+            if (LeafKind(operation) is "imageAsset" or "imageSvgAsset")
             {
                 VerifyImageReplacement(slidePart, element, operation, resultById[operation.OperationId]);
                 continue;

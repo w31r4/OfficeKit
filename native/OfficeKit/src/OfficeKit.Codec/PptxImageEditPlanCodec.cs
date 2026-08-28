@@ -28,11 +28,14 @@ internal static partial class PptxEditPlanCodec
     private const string OfficeRelationshipsNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private const string StrictOfficeRelationshipsNamespace = "http://purl.oclc.org/ooxml/officeDocument/relationships";
     private const string PictureAssetPrefix = "asset/presentation/picture-bullet/";
+    private const string SvgBlipNamespace = "http://schemas.microsoft.com/office/drawing/2016/SVG/main";
+    private const string SvgExtensionUri = "{96DAC541-7B7A-43D3-8B79-37D633B846F1}";
 
     private static void ValidateImageReplacement(PresentationEditOperation operation)
     {
         var replacement = operation.ImageReplacement;
-        if (replacement is null || string.IsNullOrWhiteSpace(replacement.AssetId) || replacement.AssetId.Length > 512)
+        var assetId = LeafKind(operation) == "imageSvgAsset" ? replacement?.SvgAssetId : replacement?.AssetId;
+        if (replacement is null || string.IsNullOrWhiteSpace(assetId) || assetId.Length > 512)
             throw new CodecException("invalid_presentation_edit_target", $"PPTX image operation {operation.OperationId} has an invalid replacement asset ID.");
         if (replacement.Crop is { } crop && !ValidImageCrop(crop))
             throw new CodecException("invalid_presentation_edit_operation", $"PPTX image operation {operation.OperationId} has an invalid source rectangle.");
@@ -55,7 +58,7 @@ internal static partial class PptxEditPlanCodec
         ImagePart sourcePart;
         try
         {
-            sourcePart = slidePart.GetPartById(relationshipId) as ImagePart ??
+            sourcePart = slidePart.GetPartById(relationshipId!) as ImagePart ??
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} relationship is not an ImagePart.", operation.SlidePartPath);
         }
         catch (ArgumentOutOfRangeException exception)
@@ -107,6 +110,76 @@ internal static partial class PptxEditPlanCodec
             addsPart);
     }
 
+    private static PptxImageEditPlanProof ProveImageSvgReplacement(
+        byte[] sourceBytes,
+        SlidePart slidePart,
+        OpenXmlElement element,
+        PresentationElement projectedElement,
+        PresentationEditOperation operation,
+        PptxAssetCatalog requestedAssets)
+    {
+        if (element is not P.Picture picture || projectedElement.ContentCase != PresentationElement.ContentOneofCase.Image ||
+            projectedElement.Source.Editable != true || projectedElement.Image.AssetId != operation.ImageReplacement.AssetId ||
+            projectedElement.Image.SvgAssetId != operation.ExpectedValue)
+            throw new CodecException("unsupported_presentation_edit", $"PPTX SVG image operation {operation.OperationId} target is not a bounded editable picture with a source fallback.", operation.SlidePartPath);
+        var relationshipId = SvgFallbackRelationshipId(picture);
+        if (string.IsNullOrWhiteSpace(relationshipId))
+            throw new CodecException("presentation_edit_target_missing", $"PPTX SVG image operation {operation.OperationId} source fallback relationship is missing.", operation.SlidePartPath);
+        ImagePart sourcePart;
+        try
+        {
+            sourcePart = slidePart.GetPartById(relationshipId) as ImagePart ??
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX SVG image operation {operation.OperationId} relationship is not an ImagePart.", operation.SlidePartPath);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new CodecException("presentation_edit_target_missing", $"PPTX SVG image operation {operation.OperationId} source relationship is missing.", operation.SlidePartPath, exception);
+        }
+        if (!sourcePart.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+            throw new CodecException("unsupported_presentation_image", $"PPTX SVG image operation {operation.OperationId} source fallback is not SVG.", operation.SlidePartPath);
+        var sourceData = ReadOpenXmlPart(sourcePart);
+        var sourceAssetId = PictureAssetPrefix + Hash(sourceData);
+        if (sourceAssetId != operation.ExpectedValue)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX SVG image operation {operation.OperationId} source bytes no longer match the expected fallback asset.", operation.SlidePartPath);
+        var replacement = requestedAssets.Get(operation.ImageReplacement.SvgAssetId);
+        if (!replacement.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+            throw new CodecException("unsupported_presentation_image", $"PPTX SVG image operation {operation.OperationId} replacement must use content type image/svg+xml.", operation.SlidePartPath);
+        var sourceImagePartPath = PartPath(sourcePart);
+        var extension = Path.GetExtension(sourceImagePartPath);
+        if (extension.Length is < 2 or > 12 || extension.Any(character => !char.IsAsciiLetterOrDigit(character) && character != '.'))
+            throw new CodecException("unsupported_presentation_image", $"PPTX SVG image operation {operation.OperationId} source part has an unsafe extension.", sourceImagePartPath);
+        var replacementPath = $"ppt/media/office-kit-{replacement.Sha256[..24].ToLowerInvariant()}{extension.ToLowerInvariant()}";
+        var sourceParts = PackageParts(sourceBytes);
+        var addsPart = !sourceParts.TryGetValue(replacementPath, out var existing);
+        if (!addsPart && !existing!.AsSpan().SequenceEqual(replacement.Data.Span))
+            throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX replacement part path {replacementPath} already contains different bytes.", replacementPath);
+        var usedRelationshipIds = slidePart.Parts.Select(pair => pair.RelationshipId)
+            .Concat(slidePart.ExternalRelationships.Select(item => item.Id))
+            .Concat(slidePart.HyperlinkRelationships.Select(item => item.Id))
+            .Concat(slidePart.DataPartReferenceRelationships.Select(item => item.Id))
+            .ToHashSet(StringComparer.Ordinal);
+        var stem = $"rIdOfficeKitSvgImage{replacement.Sha256[..16].ToLowerInvariant()}_";
+        var replacementRelationshipId = Enumerable.Range(1, 1_000_000)
+            .Select(index => stem + index)
+            .FirstOrDefault(candidate => !usedRelationshipIds.Contains(candidate)) ??
+            throw new CodecException("presentation_relationship_budget_exceeded", "PPTX SVG relationship ID allocation exceeded its bounded search.", operation.SlidePartPath);
+        var relationshipPartPath = RelationshipPartPathFor(operation.SlidePartPath);
+        if (!sourceParts.TryGetValue(relationshipPartPath, out var relationshipBytes))
+            throw new CodecException("presentation_edit_target_missing", $"PPTX SVG image operation {operation.OperationId} slide relationship part is missing.", relationshipPartPath);
+        var relationshipType = SourceRelationshipType(relationshipBytes, relationshipId, relationshipPartPath);
+        var replacementTarget = RelativePartTarget(operation.SlidePartPath, replacementPath);
+        return new PptxImageEditPlanProof(
+            replacement.Clone(),
+            relationshipId,
+            sourceImagePartPath,
+            relationshipPartPath,
+            relationshipType,
+            replacementRelationshipId,
+            replacementPath,
+            replacementTarget,
+            addsPart);
+    }
+
     private static PptxXmlPatch CompileImageXmlPatch(
         string xml,
         XmlRange elementRange,
@@ -127,8 +200,10 @@ internal static partial class PptxEditPlanCodec
         }
         var elementXml = xml[elementRange.Start..elementRange.End];
         var tokens = XmlTokenPattern().Matches(elementXml).Cast<Match>().ToArray();
-        var blips = tokens.Where(token => !token.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(token.Value) == "blip" &&
-            namespaceByPrefix.TryGetValue(QualifiedPrefix(token.Value), out var uri) && uri == DrawingNamespace).ToArray();
+        var targetLocalName = LeafKind(operation) == "imageSvgAsset" ? "svgBlip" : "blip";
+        var targetNamespace = LeafKind(operation) == "imageSvgAsset" ? SvgBlipNamespace : DrawingNamespace;
+        var blips = tokens.Where(token => !token.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(token.Value) == targetLocalName &&
+            namespaceByPrefix.TryGetValue(QualifiedPrefix(token.Value), out var uri) && uri == targetNamespace).ToArray();
         if (blips.Length != 1)
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} requires one DrawingML blip token.", operation.SlidePartPath);
         var blip = blips[0];
@@ -141,6 +216,14 @@ internal static partial class PptxEditPlanCodec
         }).ToArray();
         if (embed.Length != 1 || embed[0].Groups["value"].Value != image.SourceRelationshipId)
             throw new CodecException("presentation_leaf_precondition_failed", $"PPTX image operation {operation.OperationId} embedded relationship no longer matches the source.", operation.SlidePartPath);
+
+        if (LeafKind(operation) == "imageSvgAsset")
+        {
+            var start = blip.Index + embed[0].Groups["value"].Index;
+            var end = start + embed[0].Groups["value"].Length;
+            var replacementXml = elementXml[..start] + image.ReplacementRelationshipId + elementXml[end..];
+            return new PptxXmlPatch(operation, elementRange.Start, elementRange.End, replacementXml, proof.SourceElementSha256, proof.MutationPartPath);
+        }
 
         var localPatches = new List<(int Start, int End, string Replacement)>
         {
@@ -210,20 +293,44 @@ internal static partial class PptxEditPlanCodec
     {
         if (element is not P.Picture picture)
             throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} target is no longer a picture.", operation.SlidePartPath);
-        var relationshipId = picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
+        var relationshipId = LeafKind(operation) == "imageSvgAsset"
+            ? SvgFallbackRelationshipId(picture)
+            : picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(relationshipId))
+            throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} output relationship is missing.", operation.SlidePartPath);
         ImagePart imagePart;
         try
         {
-            imagePart = slidePart.GetPartById(relationshipId) as ImagePart ??
+            imagePart = slidePart.GetPartById(relationshipId!) as ImagePart ??
                 throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} output relationship is not an ImagePart.", operation.SlidePartPath);
         }
         catch (ArgumentOutOfRangeException exception)
         {
             throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} output relationship is missing.", operation.SlidePartPath, exception);
         }
-        if (PictureAssetPrefix + Hash(ReadOpenXmlPart(imagePart)) != operation.Value || !SameCrop(picture.BlipFill?.GetFirstChild<A.SourceRectangle>(), operation.ImageReplacement.Crop))
+        if (PictureAssetPrefix + Hash(ReadOpenXmlPart(imagePart)) != operation.Value ||
+            LeafKind(operation) == "imageAsset" && !SameCrop(picture.BlipFill?.GetFirstChild<A.SourceRectangle>(), operation.ImageReplacement.Crop))
             throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} did not retain its asset and crop.", operation.SlidePartPath);
         result.OutputElementSha256 = HashElement(element);
+    }
+
+    private static OpenXmlElement? SvgFallbackElement(P.Picture picture) => picture.BlipFill?.GetFirstChild<A.Blip>()?.ChildElements
+        .Where(child => child.LocalName == "extLst" && child.NamespaceUri == DrawingNamespace)
+        .SelectMany(child => child.ChildElements)
+        .Where(child => child.LocalName == "ext" && child.NamespaceUri == DrawingNamespace &&
+            child.GetAttributes().Any(attribute => attribute.LocalName == "uri" && attribute.NamespaceUri.Length == 0 && attribute.Value == SvgExtensionUri))
+        .SelectMany(child => child.ChildElements)
+        .SingleOrDefault(child => child.LocalName == "svgBlip" && child.NamespaceUri == SvgBlipNamespace);
+
+    private static string? SvgFallbackRelationshipId(P.Picture picture)
+    {
+        var fallback = SvgFallbackElement(picture);
+        if (fallback is null) return null;
+        var embeds = fallback.GetAttributes()
+            .Where(attribute => attribute.LocalName == "embed" &&
+                attribute.NamespaceUri is OfficeRelationshipsNamespace or StrictOfficeRelationshipsNamespace)
+            .ToArray();
+        return embeds.Length == 1 ? embeds[0].Value : string.Empty;
     }
 
     private static byte[] AppendImageRelationships(byte[] sourcePart, IReadOnlyList<PptxImageEditPlanProof> images, string partPath)

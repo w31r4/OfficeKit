@@ -25,7 +25,11 @@ function sha256(bytes) {
 
 function safeSvg(bytes) {
   const source = bytes.toString("utf8").replace(/^\uFEFF/, "");
-  if (!/^\s*(?:<\?xml[\s\S]*?\?>\s*)?<svg(?:\s|>)/i.test(source)) return false;
+  // Exporters commonly place an XML comment (for example an Illustrator
+  // generator marker) between the declaration and the root. Comments are
+  // inert SVG content and are accepted by the native catalog; do not reject a
+  // valid fallback merely because that harmless preamble is present.
+  if (!/^\s*(?:<\?xml[\s\S]*?\?>\s*)?(?:(?:<!--[\s\S]*?-->\s*)*)<svg(?:\s|>)/i.test(source)) return false;
   if (/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet|<\s*(?:script|foreignObject)\b|\son[a-z]+\s*=|@import\b/i.test(source)) return false;
   for (const match of source.matchAll(/\s(?:href|xlink:href)\s*=\s*(["'])(.*?)\1/gi)) {
     const target = match[2].trim();

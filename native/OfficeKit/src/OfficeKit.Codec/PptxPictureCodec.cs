@@ -19,6 +19,7 @@ internal static class PptxPictureCodec
     // into unbounded JS coordinates or allocations.
     private const long MaxFrameCoordinateEmu = 100_000_000L;
     private const string DrawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
+    private const string OfficeRelationshipsNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
     private const string Office2010Namespace = "http://schemas.microsoft.com/office/drawing/2010/main";
     private const string SvgBlipNamespace = "http://schemas.microsoft.com/office/drawing/2016/SVG/main";
     private const string UseLocalDpiUri = "{28A0092B-C50C-407E-A947-70E740481C1C}";
@@ -39,11 +40,16 @@ internal static class PptxPictureCodec
         try
         {
             var asset = context.ReadEmbeddedPicture(relationshipId);
+            var svgRelationshipId = SvgFallbackRelationshipId(blip);
+            var svgAsset = svgRelationshipId is null ? null : context.ReadEmbeddedPicture(svgRelationshipId);
+            if (svgAsset is not null && !svgAsset.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+                return false;
             var offset = transform.Offset!;
             var extents = transform.Extents!;
             image = new PresentationImage
             {
                 AssetId = asset.Id,
+                SvgAssetId = svgAsset?.Id ?? string.Empty,
                 AltText = accessibility?.HasDescription == true ? accessibility.Description : string.Empty,
                 AccessibilityTitle = accessibility?.HasTitle == true ? accessibility.Title : string.Empty,
                 LeftEmu = offset.X?.Value ?? 0,
@@ -75,6 +81,10 @@ internal static class PptxPictureCodec
         if (string.IsNullOrWhiteSpace(image.AssetId) || image.AssetId.Length > 512)
             throw Invalid(elementId, "asset ID must contain 1 through 512 characters");
         _ = assets.Get(image.AssetId);
+        if (image.SvgAssetId.Length > 512)
+            throw Invalid(elementId, "SVG fallback asset ID must contain at most 512 characters");
+        if (image.SvgAssetId.Length > 0 && !assets.Get(image.SvgAssetId).ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+            throw Invalid(elementId, "SVG fallback asset must use content type image/svg+xml");
         PptxNonVisualAccessibilityCodec.Validate(Accessibility(image), elementId, "image");
         if (!FrameCoordinateSupported(image.LeftEmu, sourceBound) || !FrameCoordinateSupported(image.TopEmu, sourceBound) ||
             !FrameExtentSupported(image.WidthEmu) || !FrameExtentSupported(image.HeightEmu))
@@ -89,6 +99,13 @@ internal static class PptxPictureCodec
     internal static P.Picture Build(PresentationElement source, uint nativeId, PptxPartContext context)
     {
         var image = source.Image;
+        // SVG fallbacks are currently source-bound only. Refuse an authored
+        // image carrying one instead of silently dropping the fallback while
+        // constructing a new picture.
+        if (image.SvgAssetId.Length > 0)
+            throw new CodecException(
+                "unsupported_presentation_image",
+                $"Presentation image {source.Id} cannot author an SVG fallback outside the bounded source-preserving path.");
         var transform = new A.Transform2D(
             new A.Offset { X = image.LeftEmu, Y = image.TopEmu },
             new A.Extents { Cx = image.WidthEmu, Cy = image.HeightEmu });
@@ -121,11 +138,33 @@ internal static class PptxPictureCodec
         {
             if (!current.ContentType.Equals(replacement.ContentType, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("unsupported_presentation_image", $"Presentation image {requested.Id} replacement must retain content type {current.ContentType}.");
-            if (HasSvgFallback(blip))
+            if (HasSvgFallback(blip) && requested.Image.SvgAssetId.Length == 0)
                 throw new CodecException(
                     "unsupported_presentation_image",
                     $"Presentation image {requested.Id} has a paired SVG fallback; replacing only the primary asset would leave the fallback stale.");
             blip.Embed = context.AddEmbeddedPicture(replacement.Id);
+        }
+        var currentSvgRelationshipId = SvgFallbackRelationshipId(blip);
+        if (currentSvgRelationshipId is null)
+        {
+            if (requested.Image.SvgAssetId.Length > 0)
+                throw new CodecException("unsupported_presentation_image", $"Presentation image {requested.Id} has no source SVG fallback relationship to replace.");
+        }
+        else
+        {
+            var currentSvg = context.ReadEmbeddedPicture(currentSvgRelationshipId);
+            var requestedSvg = requested.Image.SvgAssetId.Length == 0
+                ? throw new CodecException("unsupported_presentation_image", $"Presentation image {requested.Id} cannot remove a paired SVG fallback in the bounded source-preserving path.")
+                : context.Assets.Get(requested.Image.SvgAssetId);
+            if (!currentSvg.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase) ||
+                !requestedSvg.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+                throw new CodecException("unsupported_presentation_image", $"Presentation image {requested.Id} SVG fallback must retain content type image/svg+xml.");
+            if (!currentSvg.Id.Equals(requestedSvg.Id, StringComparison.Ordinal))
+            {
+                var fallback = SvgFallbackElement(blip) ??
+                    throw new CodecException("unsupported_presentation_image", $"Presentation image {requested.Id} SVG fallback relationship is malformed.");
+                fallback.SetAttribute(new OpenXmlAttribute("r", "embed", OfficeRelationshipsNamespace, context.AddEmbeddedPicture(requestedSvg.Id)));
+            }
         }
         nonVisual.Name = requested.Name;
         if (!AccessibilityEqual(currentImage, requested.Image))
@@ -290,10 +329,25 @@ internal static class PptxPictureCodec
                attributes.Length == 1 && !string.IsNullOrWhiteSpace(embeds[0].Value);
     }
 
-    private static bool HasSvgFallback(A.Blip blip) => blip.ChildElements
+    private static OpenXmlElement? SvgFallbackElement(A.Blip blip) => blip.ChildElements
         .Where(child => child.LocalName == "extLst" && child.NamespaceUri == DrawingNamespace)
         .SelectMany(child => child.ChildElements)
-        .Any(child => child.LocalName == "ext" && child.GetAttributes().Any(attribute => attribute.LocalName == "uri" && attribute.Value == SvgExtensionUri));
+        .Where(child => child.LocalName == "ext" && child.NamespaceUri == DrawingNamespace &&
+            child.GetAttributes().Any(attribute => attribute.LocalName == "uri" && attribute.NamespaceUri.Length == 0 && attribute.Value == SvgExtensionUri))
+        .SelectMany(child => child.ChildElements)
+        .SingleOrDefault(child => child.LocalName == "svgBlip" && child.NamespaceUri == SvgBlipNamespace);
+
+    private static string? SvgFallbackRelationshipId(A.Blip blip)
+    {
+        var fallback = SvgFallbackElement(blip);
+        if (fallback is null) return null;
+        var embeds = fallback.GetAttributes()
+            .Where(attribute => attribute.LocalName == "embed" && RelationshipNamespace(attribute.NamespaceUri))
+            .ToArray();
+        return embeds.Length == 1 ? embeds[0].Value : string.Empty;
+    }
+
+    private static bool HasSvgFallback(A.Blip blip) => SvgFallbackElement(blip) is not null;
 
     private static bool BlipFillSupported(P.BlipFill fill)
     {

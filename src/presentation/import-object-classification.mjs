@@ -78,6 +78,8 @@ function issuedReuse(entry, componentRecords) {
 
 function dependencySummary(entry, leaves, reuse) {
   const model = entry.model;
+  const primaryDataUrl = model?.dataUrl;
+  const svgFallbackDataUrl = model?.svgDataUrl;
   return Object.freeze({
     descendantObjects: Math.max(0, elementIds(entry.wire).size - 1),
     relationshipReferences: Array.isArray(model?.relationshipReferences) ? model.relationshipReferences.length : 0,
@@ -89,7 +91,12 @@ function dependencySummary(entry, leaves, reuse) {
     embeddedOfficePackage: Boolean(model?.oleOfficePackage),
     diagramText: Boolean(model?.diagramText),
     nativeChart: Boolean(model?._nativeChartSourceBinding?.()),
-    svg: typeof model?.dataUrl === "string" && /^data:image\/svg\+xml(?:;|,)/iu.test(model.dataUrl),
+    // Imported Office pictures can carry a raster primary plus an SVG
+    // fallback. Report either source so an Agent does not mistake a visible
+    // vector fallback for an opaque raster-only object.
+    svg: (typeof primaryDataUrl === "string" && /^data:image\/svg\+xml(?:;|,)/iu.test(primaryDataUrl)) ||
+      (typeof svgFallbackDataUrl === "string" && /^data:image\/svg\+xml(?:;|,)/iu.test(svgFallbackDataUrl)),
+    svgFallback: typeof svgFallbackDataUrl === "string" && /^data:image\/svg\+xml(?:;|,)/iu.test(svgFallbackDataUrl),
   });
 }
 

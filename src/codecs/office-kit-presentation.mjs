@@ -57,6 +57,7 @@ const PRESENTATION_ELEMENT_ORDER_CAPABILITY = Symbol.for("office-kit.presentatio
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
+const PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-svg-data-url-source");
 const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
@@ -264,6 +265,7 @@ function cloneImportedPresentationImage(container, source, context) {
     ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
     _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     dataUrl: source.dataUrl,
+    ...(source.svgDataUrl ? { svgDataUrl: source.svgDataUrl } : {}),
     fit: source.fit,
     ...(source.crop ? { crop: clonedPresentationValue(source.crop) } : {}),
     geometry: source.geometry,
@@ -2089,7 +2091,12 @@ function presentationImage(image, original, assetCatalog) {
   const dataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "dataUrl");
   const unchangedImportedAsset = importedDataUrl && importedDataUrl.modified !== true &&
     dataUrlDescriptor?.get === importedDataUrl.get && dataUrlDescriptor?.set === importedDataUrl.set;
+  const importedSvgDataUrl = image[PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE];
+  const svgDataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "svgDataUrl");
+  const unchangedImportedSvgAsset = importedSvgDataUrl && importedSvgDataUrl.modified !== true &&
+    svgDataUrlDescriptor?.get === importedSvgDataUrl.get && svgDataUrlDescriptor?.set === importedSvgDataUrl.set;
   const dataUrl = unchangedImportedAsset ? undefined : image.dataUrl;
+  const svgDataUrl = unchangedImportedSvgAsset ? undefined : image.svgDataUrl;
   if (!unchangedImportedAsset && !dataUrl) {
     throw new OfficeKitCodecError(`Presentation image ${image.id} requires an embedded dataUrl.`, [], { code: "invalid_presentation_image" });
   }
@@ -2113,6 +2120,11 @@ function presentationImage(image, original, assetCatalog) {
         assetId: unchangedImportedAsset
           ? assetCatalog.addAsset(importedDataUrl.source.asset)
           : assetCatalog.addDataUrl(dataUrl),
+        ...(image.svgDataUrl ? {
+          svgAssetId: unchangedImportedSvgAsset
+            ? assetCatalog.addAsset(importedSvgDataUrl.source.asset)
+            : assetCatalog.addDataUrl(svgDataUrl),
+        } : {}),
         altText: accessibility?.description ?? (accessibility ? "" : image.prompt || ""),
         leftEmu: sourceBoundFrameEmuFromPixels(position.left, `${image.id}.position.left`, original),
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
@@ -2814,6 +2826,9 @@ function presentationCloneElementSnapshot(element) {
     if (typeof layout?.dataUrl === "string") {
       layout.dataUrl = createHash("sha256").update(layout.dataUrl).digest("hex");
     }
+    if (typeof layout?.svgDataUrl === "string") {
+      layout.svgDataUrl = createHash("sha256").update(layout.svgDataUrl).digest("hex");
+    }
     return JSON.stringify(layout);
   }
   return JSON.stringify(element);
@@ -2829,6 +2844,7 @@ function presentationCloneHasPendingNativeReplacement(element) {
 
 function registerPresentationCloneAssets(element, assetCatalog) {
   if (element instanceof ImageElement && element.dataUrl) assetCatalog.addDataUrl(element.dataUrl);
+  if (element instanceof ImageElement && element.svgDataUrl) assetCatalog.addDataUrl(element.svgDataUrl);
   if (element instanceof Shape) {
     for (const paragraph of element.text?.paragraphs || []) {
       if (paragraph.bulletImage?.dataUrl) assetCatalog.addDataUrl(paragraph.bulletImage.dataUrl);
@@ -4177,6 +4193,40 @@ function compilePresentationImageAssetOperation(original, requested, sourceSlide
   };
 }
 
+function compilePresentationImageSvgAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
+  if (original.content.case !== "image" || requested.content.case !== "image" || original.source?.editable !== true) return undefined;
+  const beforeImage = original.content.value;
+  const afterImage = requested.content.value;
+  if (!beforeImage.svgAssetId || !afterImage.svgAssetId || beforeImage.svgAssetId === afterImage.svgAssetId) return undefined;
+  const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restored.content.value.svgAssetId = beforeImage.svgAssetId;
+  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  const source = original.source;
+  const slideSource = sourceSlide.source;
+  if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
+  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath.join("/"), "imageSvgAsset", beforeImage.svgAssetId, afterImage.svgAssetId].join("\0");
+  return {
+    operationId: `pptx-imageSvgAsset-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
+    slideId: sourceSlide.id,
+    slidePartPath: slideSource.partPath,
+    expectedSlideSha256: slideSource.slideXmlSha256,
+    targetId: original.id,
+    shapeTreeIndex: shapeTreePath[0],
+    shapeTreePath,
+    leafKind: "imageSvgAsset",
+    expectedElementSha256: source.elementSha256,
+    expectedSemanticSha256: source.semanticSha256,
+    textLeafIndex: 0,
+    expectedTextSha256: createHash("sha256").update(beforeImage.svgAssetId, "utf8").digest("hex"),
+    expectedValue: beforeImage.svgAssetId,
+    value: afterImage.svgAssetId,
+    imageReplacement: {
+      assetId: beforeImage.assetId,
+      svgAssetId: afterImage.svgAssetId,
+    },
+  };
+}
+
 function compilePresentationElementDeletionOperation(original, sourceSlide, sourceSha256, shapeTreePath) {
   const source = original.source;
   const slideSource = sourceSlide.source;
@@ -4260,7 +4310,9 @@ function compilePresentationElementEditOperations(original, requested, sourceSli
     if (scalarOperation) return [scalarOperation];
     if (original.content.case === "image") {
       const operation = compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
-      return operation ? [operation] : undefined;
+      if (operation) return [operation];
+      const svgOperation = compilePresentationImageSvgAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
+      return svgOperation ? [svgOperation] : undefined;
     }
     const operation = compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     return operation ? [operation] : undefined;
@@ -4374,8 +4426,10 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
   const sourceArtifact = state.sourceArtifact;
   if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
   const requestedAssetIds = new Set(operations
-    .filter((operation) => operation.leafKind === "imageAsset")
-    .map((operation) => operation.imageReplacement?.assetId)
+    .filter((operation) => operation.leafKind === "imageAsset" || operation.leafKind === "imageSvgAsset")
+    .map((operation) => operation.leafKind === "imageSvgAsset"
+      ? operation.imageReplacement?.svgAssetId
+      : operation.imageReplacement?.assetId)
     .filter(Boolean));
   const assets = (envelope.assets || []).filter((asset) => requestedAssetIds.has(asset.id));
   if (assets.length !== requestedAssetIds.size) return undefined;
@@ -4904,6 +4958,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks) {
       ...modelPresentationImageAccessibility(image),
       _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
       _officeKitDataUrlSource: assetCatalog.dataUrlSource(image.assetId),
+      ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
       geometry: "rect",
@@ -5218,6 +5273,7 @@ export async function presentationFromEnvelope(envelope) {
           ...modelPresentationImageAccessibility(image),
           _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           _officeKitDataUrlSource: assetCatalog.dataUrlSource(image.assetId),
+          ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
           geometry: "rect",

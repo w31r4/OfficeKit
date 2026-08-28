@@ -43,14 +43,15 @@ function presentationSlideRelationshipPartPath(slidePartPath) {
 
 function presentationImageEditPlanMetadata(operation, editPlan, result) {
   const replacement = operation.imageReplacement;
-  const assets = editPlan.wire.assets.filter((asset) => asset.id === replacement?.assetId);
+  const replacementAssetId = operation.leafKind === "imageSvgAsset" ? replacement?.svgAssetId : replacement?.assetId;
+  const assets = editPlan.wire.assets.filter((asset) => asset.id === replacementAssetId);
   const asset = assets.length === 1 ? assets[0] : undefined;
   const relationshipPartPath = presentationSlideRelationshipPartPath(operation.slidePartPath);
   const contentType = String(asset?.contentType || "").toLowerCase();
   const extensions = PPTX_IMAGE_EXTENSIONS_BY_CONTENT_TYPE.get(contentType);
   const sha256 = String(asset?.sha256 || "").toLowerCase();
   const bytes = asset?.data;
-  if (!replacement || replacement.assetId !== operation.value || !asset || !relationshipPartPath ||
+  if (!replacement || replacementAssetId !== operation.value || !asset || !relationshipPartPath ||
       !(bytes instanceof Uint8Array) || !/^[0-9a-f]{64}$/u.test(sha256) ||
       asset.id !== `asset/presentation/picture-bullet/${sha256}` ||
       createHash("sha256").update(bytes).digest("hex") !== sha256 || !extensions ||
@@ -66,7 +67,7 @@ function presentationImageEditPlanMetadata(operation, editPlan, result) {
   }
   const crop = replacement.crop;
   return {
-    assetId: asset.id,
+    ...(operation.leafKind === "imageSvgAsset" ? { svgAssetId: asset.id } : { assetId: asset.id }),
     sha256,
     contentType,
     byteLength: bytes.byteLength,
@@ -142,7 +143,7 @@ function presentationEditPlanMetadata(editPlan, result) {
           diagramModelId: operation.diagramModelId,
           diagramRunIndex: operation.diagramRunIndex,
         } : {}),
-        ...(operation.leafKind === "imageAsset" ? {
+        ...(operation.leafKind === "imageAsset" || operation.leafKind === "imageSvgAsset" ? {
           imageReplacement: presentationImageEditPlanMetadata(operation, editPlan, result),
         } : {}),
         ...(operation.leafKind === "deleteElement" ? {

@@ -46,6 +46,7 @@ export function buildPresentationDesignProfile(presentation, {
       typography: typographyEvidence(theme, elements),
       density: densityEvidence(slides, elements),
       rhythm: rhythmEvidence(elements, presentation.slideSize, maxItems),
+      vectorAssets: vectorAssetEvidence(presentation, maxItems),
     },
     layoutFamilies: layoutFamilies(records, maxItems),
     slideArchetypes: slideArchetypes(slides, elements),
@@ -143,6 +144,28 @@ function densityEvidence(slides, elements) {
   const chars = slides.map((slide) => perSlide(slide, (items) => items.reduce((sum, element) => sum + String(element.text || "").length, 0)));
   const opaque = slides.map((slide) => perSlide(slide, (items) => items.filter((element) => element.kind === "nativeObject").length));
   return { slides: slides.length, elementsPerSlide: summaryStats(counts), textCharsPerSlide: summaryStats(chars), nativeOpaquePerSlide: summaryStats(opaque) };
+}
+
+function vectorAssetEvidence(presentation, maxItems) {
+  const images = presentation.slides.items.flatMap((slide) => slide.images?.items || [])
+    .filter((image) => typeof image.svgDataUrl === "string" && image.svgDataUrl.length > 0);
+  const sourceHashes = new Set();
+  let editable = 0;
+  for (const image of images) {
+    const capability = image.svgEditCapability;
+    const textCapability = image.svgTextCapability;
+    const sourceHash = capability?.sourceSha256 || textCapability?.sourceSha256;
+    if (sourceHash) sourceHashes.add(sourceHash);
+    if (capability?.supported === true || textCapability?.supported === true) editable += 1;
+  }
+  return {
+    // assetCount is the number of distinct fallback SVG byte streams, while
+    // usageCount records how many picture elements point at one.
+    assetCount: sourceHashes.size,
+    usageCount: images.length,
+    editableUsageCount: editable,
+    examples: [...sourceHashes].sort().slice(0, maxItems),
+  };
 }
 
 function rhythmEvidence(elements, slideSize, maxItems) {
