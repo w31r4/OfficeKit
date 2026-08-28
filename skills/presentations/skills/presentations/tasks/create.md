@@ -33,7 +33,8 @@ Choose one source:
 
 - `self-directed`: invent a visual language for this deck;
 - `design-system`: apply supplied brand rules;
-- `template`: use one schema-v3 Template Skill and its visual examples;
+- `template`: use one presentation Template Skill, its visual examples, and its
+  OfficeKit-authored reference deck when the skill declares one;
 - `style-transfer`: use a reference deck as visual evidence while producing
   new editable Office content.
 

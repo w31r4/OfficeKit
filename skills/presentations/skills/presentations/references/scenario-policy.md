@@ -31,7 +31,8 @@ Use one source mode:
 
 - `self-directed`: derive a new visual language from the communication task;
 - `design-system`: apply supplied brand tokens and rules;
-- `template`: use one schema-v3 style Skill and its visual examples;
+- `template`: use one presentation style Skill and its visual examples; inspect
+  its OfficeKit-authored reference deck when declared and useful;
 - `style-transfer`: use a reference deck as visual evidence while producing
   new editable Office content.
 
