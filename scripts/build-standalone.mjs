@@ -497,7 +497,7 @@ if not exist "%ENTRY%" (
   echo OfficeKit installation is incomplete: command entrypoint is missing. 1>&2
   exit /b 1
 )
-"%NODE%" "%ENTRY%" %*
+"%NODE%" --max-semi-space-size=1 "%ENTRY%" %*
 exit /b %ERRORLEVEL%
 `;
   }
@@ -513,7 +513,7 @@ while [ -L "$self" ]; do
   esac
 done
 root=$(CDPATH= cd -- "$(dirname -- "$self")/.." && pwd)
-exec "$root/runtime/node/bin/node" "$root/app/node_modules/office-kit/bin/officekit.mjs" "$@"
+exec "$root/runtime/node/bin/node" --max-semi-space-size=1 "$root/app/node_modules/office-kit/bin/officekit.mjs" "$@"
 `;
 }
 

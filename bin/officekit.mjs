@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --max-semi-space-size=1
 
 import { runOfficeKitCli } from "../src/cli/officekit.mjs";
 
