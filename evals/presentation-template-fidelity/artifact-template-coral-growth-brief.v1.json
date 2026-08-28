@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-coral-growth-brief/assets/reference.pptx",
-    "sha256": "7a9da7f242b8f9c10f1c42ec86949285f07db31b974fdeffea34fd7e1f056adc"
+    "sha256": "8749e765877f9674a1cab8d297fcdf38e00a64ffdd176bed1c4aba41e6e54f9f"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:7a9da7f242b8f9c10f1c42ec86949285f07db31b974fdeffea34fd7e1f056adc"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:7a9da7f242b8f9c10f1c42ec86949285f07db31b974fdeffea34fd7e1f056adc",
-      "pages:6",
-      "media:0"
+      "reference-sha256:8749e765877f9674a1cab8d297fcdf38e00a64ffdd176bed1c4aba41e6e54f9f"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:8259781495ec3c189b94e0f416113c952dcdd68c4f2b273ee9984ee2f6c87968",
+        "native-pdf-sha256:9c469c9e365f347ceb895562a0d9873a55f5f07e78adacde97c061c760a232e3",
         "pages:6",
         "first-page:rendered"
       ]

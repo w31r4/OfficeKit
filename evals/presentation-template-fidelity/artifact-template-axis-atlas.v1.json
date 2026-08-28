@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-axis-atlas/assets/reference.pptx",
-    "sha256": "66a6fbdfdd10059af3bf4e39afb2b118b53685cc7a605de3dbd7c47800ca0200"
+    "sha256": "569ee985a35f75721013fc7c9f4bb3d0ffe3dc4e221b0d2af3a17f6e269effad"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:66a6fbdfdd10059af3bf4e39afb2b118b53685cc7a605de3dbd7c47800ca0200"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:66a6fbdfdd10059af3bf4e39afb2b118b53685cc7a605de3dbd7c47800ca0200",
-      "pages:6",
-      "media:0"
+      "reference-sha256:569ee985a35f75721013fc7c9f4bb3d0ffe3dc4e221b0d2af3a17f6e269effad"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:d22bee9c522545af8237325e085790d3f4b6ba863e21f84c91d794d93e3e7e65",
+        "native-pdf-sha256:fdcc5c969d767526f4f9ecf1b1a51d79733c01da9f84831b301fbf50dc9aa756",
         "pages:6",
         "first-page:rendered"
       ]

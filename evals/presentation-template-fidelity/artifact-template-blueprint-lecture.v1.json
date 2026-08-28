@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-blueprint-lecture/assets/reference.pptx",
-    "sha256": "736b5d0ea7d3ae0106b35c09713f56ecf5899ea595667f127f022e77581dd8a3"
+    "sha256": "089d5b6e41c2ecd3232b178155cfe0b994160ad43667d735dd194db442f5f191"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:736b5d0ea7d3ae0106b35c09713f56ecf5899ea595667f127f022e77581dd8a3"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:736b5d0ea7d3ae0106b35c09713f56ecf5899ea595667f127f022e77581dd8a3",
-      "pages:6",
-      "media:4"
+      "reference-sha256:089d5b6e41c2ecd3232b178155cfe0b994160ad43667d735dd194db442f5f191"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:3e9d484cab4787f0bd34f5f754b653b9df1dcd68222da1dc4c9d6384e3d51130",
+        "native-pdf-sha256:81516778437e68bdc170e70ef56fc596860a0852c86bbc73ebee81375a7cbedd",
         "pages:6",
         "first-page:rendered"
       ]

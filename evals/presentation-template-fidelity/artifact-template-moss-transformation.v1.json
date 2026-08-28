@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-moss-transformation/assets/reference.pptx",
-    "sha256": "6eddbc78fd3d4910a6533145987ada981616e1819ce242ca2e386dbd271b7dd0"
+    "sha256": "66e4504e51ab30c0bd977c668733761e98e9169f3e58ecef20ec10d1c68c6cb7"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:6eddbc78fd3d4910a6533145987ada981616e1819ce242ca2e386dbd271b7dd0"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:6eddbc78fd3d4910a6533145987ada981616e1819ce242ca2e386dbd271b7dd0",
-      "pages:6",
-      "media:0"
+      "reference-sha256:66e4504e51ab30c0bd977c668733761e98e9169f3e58ecef20ec10d1c68c6cb7"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:dddbe1a34a03ca06ecb095d01673e9ea5b3a8543695335e2a7768e95700eb628",
+        "native-pdf-sha256:b5fd8113062194de70f9e39c7367f46f627c271fcf2677455b2ccd46f5e015fe",
         "pages:6",
         "first-page:rendered"
       ]

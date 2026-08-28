@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-skyline-wayfinding/assets/reference.pptx",
-    "sha256": "c32e4873222f235d2c01b9007e1bb78f62882612b14f64de1bef60c927e79f63"
+    "sha256": "384b3c08c91c22562a663e8b4ca2bb0700f561b5b59ae47877188117449eabc2"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:c32e4873222f235d2c01b9007e1bb78f62882612b14f64de1bef60c927e79f63"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:c32e4873222f235d2c01b9007e1bb78f62882612b14f64de1bef60c927e79f63",
-      "pages:6",
-      "media:1"
+      "reference-sha256:384b3c08c91c22562a663e8b4ca2bb0700f561b5b59ae47877188117449eabc2"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:e50a540b346c3c1081996b73d9f5e571692c135f5f7d8c423a8d4cccfb7f78c0",
+        "native-pdf-sha256:08425bd2d7e88e69202ece5be84caec3e7564f5f3db2a64127265626307a6b9b",
         "pages:6",
         "first-page:rendered"
       ]

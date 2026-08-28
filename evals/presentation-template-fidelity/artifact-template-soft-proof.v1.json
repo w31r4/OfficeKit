@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-soft-proof/assets/reference.pptx",
-    "sha256": "ad8541af228edb019cc11c524ab30df4ed5ea03c26619b957f2fe84f13c6966e"
+    "sha256": "a773c6b8b4d4d24e2ad3d2c9038b5f61e046719ad88d4ca05ef92bf3026bef44"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:ad8541af228edb019cc11c524ab30df4ed5ea03c26619b957f2fe84f13c6966e"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:ad8541af228edb019cc11c524ab30df4ed5ea03c26619b957f2fe84f13c6966e",
-      "pages:6",
-      "media:0"
+      "reference-sha256:a773c6b8b4d4d24e2ad3d2c9038b5f61e046719ad88d4ca05ef92bf3026bef44"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:4e11812dd6f192174e470265c32070ee088ee492b2000af16c9d77ee30d1b6b0",
+        "native-pdf-sha256:d85819322202820c17abdd93924e1fe0dd05d7eab472086239c4751cf3ce92e3",
         "pages:6",
         "first-page:rendered"
       ]

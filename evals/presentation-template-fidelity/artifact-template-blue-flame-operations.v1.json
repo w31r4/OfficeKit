@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-blue-flame-operations/assets/reference.pptx",
-    "sha256": "a502ebac534dbeb297628d01608efad67fc94e2c31458d09aa2623fe8897828d"
+    "sha256": "7dc1c3b6e8f35ef7cb9e21aab5ed50661e353d8b4b69883f7d1309ba4033d651"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:a502ebac534dbeb297628d01608efad67fc94e2c31458d09aa2623fe8897828d"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:a502ebac534dbeb297628d01608efad67fc94e2c31458d09aa2623fe8897828d",
-      "pages:6",
-      "media:1"
+      "reference-sha256:7dc1c3b6e8f35ef7cb9e21aab5ed50661e353d8b4b69883f7d1309ba4033d651"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:e884dcb1546aac7b38f36a2800cf2d32e4ba2d4dffe31ba9dc7f72469fcf31c9",
+        "native-pdf-sha256:961c945d41ef18f4479120802be662cc5fd543915424c6bd20a22092a8d66071",
         "pages:6",
         "first-page:rendered"
       ]

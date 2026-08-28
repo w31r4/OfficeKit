@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-ebony-investment-review/assets/reference.pptx",
-    "sha256": "a64a12db9996748a146ad8d4be010b2c4d292dc1aa7c4a4ff903511e23686af8"
+    "sha256": "b5ea7fdc4f58f423ca27cd77f355a9311fed19db4796bc6286464be8a0000fec"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:a64a12db9996748a146ad8d4be010b2c4d292dc1aa7c4a4ff903511e23686af8"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:a64a12db9996748a146ad8d4be010b2c4d292dc1aa7c4a4ff903511e23686af8",
-      "pages:6",
-      "media:0"
+      "reference-sha256:b5ea7fdc4f58f423ca27cd77f355a9311fed19db4796bc6286464be8a0000fec"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:eb505d121a3f4a0736f3e55100ca9ef34f0e8cf0a529b7666c787fa54f796873",
+        "native-pdf-sha256:049b040a649cee7685f4ec418173abebd3f9d3d04607d83fcb9aaf33eb66f594",
         "pages:6",
         "first-page:rendered"
       ]

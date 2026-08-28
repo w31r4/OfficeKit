@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-violet-operations/assets/reference.pptx",
-    "sha256": "2590f471e2064ea38661560023e1bef1e9a7b035bea3fc45f71e23c0c58787cc"
+    "sha256": "7c0bc3d694eb81a773f84112ae09cbbbb53620df8f075a9a15130c8331f7416a"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:2590f471e2064ea38661560023e1bef1e9a7b035bea3fc45f71e23c0c58787cc"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:2590f471e2064ea38661560023e1bef1e9a7b035bea3fc45f71e23c0c58787cc",
-      "pages:6",
-      "media:5"
+      "reference-sha256:7c0bc3d694eb81a773f84112ae09cbbbb53620df8f075a9a15130c8331f7416a"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:4d8a8bad772beb13c27cc4549a94c7fefc59ee7086089efd78685b49a4581ad3",
+        "native-pdf-sha256:b24659eacb20f998be826bada0fc10e7881fd417f215fea8d81cd9542f9d04e3",
         "pages:6",
         "first-page:rendered"
       ]

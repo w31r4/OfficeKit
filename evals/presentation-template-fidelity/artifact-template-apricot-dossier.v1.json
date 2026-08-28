@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-apricot-dossier/assets/reference.pptx",
-    "sha256": "4b3495c54e02dde30e62b587547a0d83587ce9013b0055ce7271dbf84abced19"
+    "sha256": "4d6ac64551325dc7e4cdd1fd67cdbf755745dea5086388eca1953da5fe9d9be2"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:4b3495c54e02dde30e62b587547a0d83587ce9013b0055ce7271dbf84abced19"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:4b3495c54e02dde30e62b587547a0d83587ce9013b0055ce7271dbf84abced19",
-      "pages:6",
-      "media:5"
+      "reference-sha256:4d6ac64551325dc7e4cdd1fd67cdbf755745dea5086388eca1953da5fe9d9be2"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:83d6124a11e6801796a0de6a46aebfd75ac1af3ad0fbeb97fb9baec0a1e912ee",
+        "native-pdf-sha256:095826e0808fe1fa0cf7bc64b0e71d4d2fb9689e016df2297070f70d5d6cc96a",
         "pages:6",
         "first-page:rendered"
       ]

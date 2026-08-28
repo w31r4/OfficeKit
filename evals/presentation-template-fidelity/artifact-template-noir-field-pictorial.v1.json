@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-noir-field-pictorial/assets/reference.pptx",
-    "sha256": "dcbb1fa731140ae781b0af1f5fc3a0fd72d86f95d82a1f5eb585ac98f92bec1b"
+    "sha256": "92e7ada67877e9eaf64c83dbce7610dc62c739b0a760d2f65982de3622c9c9fe"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:dcbb1fa731140ae781b0af1f5fc3a0fd72d86f95d82a1f5eb585ac98f92bec1b"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:dcbb1fa731140ae781b0af1f5fc3a0fd72d86f95d82a1f5eb585ac98f92bec1b",
-      "pages:6",
-      "media:6"
+      "reference-sha256:92e7ada67877e9eaf64c83dbce7610dc62c739b0a760d2f65982de3622c9c9fe"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:c642d46d36728adbdd20a438074ac98f0d4e1b69024c753e09e3d17cb66207fb",
+        "native-pdf-sha256:b97eb7a3ea510838402ab1f2137cba42024d2f628b3723d8ab70e2303c3ab9bb",
         "pages:6",
         "first-page:rendered"
       ]

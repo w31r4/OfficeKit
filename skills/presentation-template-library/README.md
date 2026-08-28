@@ -32,3 +32,9 @@ because it round-trips, and native-host or visual gaps remain explicitly
 pending until they are proven. The reference archive, source descriptions,
 page images, names, and geometry are not distributed. Each shipped guide,
 calibration page, and reference deck is an original OfficeKit work.
+
+Image-led styles use a role-aware pool of 19 original calibration photographs.
+The batch author assigns distinct scenes to cover, evidence, visual, detail,
+and closing roles before reusing an image; styles whose source explicitly avoids
+photography remain native-vector or chart-led. This keeps the examples varied
+without turning a picture count into a design rule.

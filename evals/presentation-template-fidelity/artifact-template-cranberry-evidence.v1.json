@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-cranberry-evidence/assets/reference.pptx",
-    "sha256": "45c62670a69c77626b35013aa0e8ff842aab2e03a933a2b5ade9f49705cee781"
+    "sha256": "c5dc6da470988747c00b96c36129e76c19c1d752dd8985cae087232ad521642d"
   },
   "evidence": {
     "source": [
@@ -44,13 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:45c62670a69c77626b35013aa0e8ff842aab2e03a933a2b5ade9f49705cee781"
-    ],
-    "nativeRender": [
-      "native-render.v1.json",
-      "reference-sha256:45c62670a69c77626b35013aa0e8ff842aab2e03a933a2b5ade9f49705cee781",
-      "pages:6",
-      "media:1"
+      "reference-sha256:c5dc6da470988747c00b96c36129e76c19c1d752dd8985cae087232ad521642d"
     ]
   },
   "visual": {
@@ -171,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:8a49081daee35ee4bf5538d9657f5b9c1c3b3719713315a9f09f5db5978e8477",
+        "native-pdf-sha256:1ee2024210451635c88a27f1a3bc5fe8b23ecaa1091c38c2526549acdcae9c27",
         "pages:6",
         "first-page:rendered"
       ]
