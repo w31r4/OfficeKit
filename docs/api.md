@@ -1878,7 +1878,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `nativeObject.setName` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only for names; setName rejects instead of mutating the preserved package graph. Separate bounded SmartArt node/run text methods own the only modeled diagram mutation. |
 | `nativeObject.setPosition` | api | Native OLE, SmartArt/diagram, contentPart, and media objects imported through OfficeKit are source-bound and read-only; setPosition rejects instead of rewriting their geometry or payload graph. |
 | `presentation.auditAccessibility` | api | Audit modeled slide objects for explicit meaningful/decorative classification and non-visible title/description coverage, while separating native-object and reading-order checks that still require manual host review. It never claims whole-deck accessibility conformance. |
-| `Presentation.create` | api | Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary. |
+| `Presentation.create` | api | Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference or bounded native image slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary. |
 | `presentation.customShows.add` | api | Define an ordered native p:custShowLst playback route for source-free OfficeKit export. Text runs may target a show by exact name with optional returnToSlide. Canonical imported shows may change only their name and ordered retained-slide membership; fixed native identity keeps existing run links bound across a rename, while irregular graphs stay opaque. |
 | `presentation.customShows.getItem` | api | Resolve a source-free or canonical imported custom show by zero-based index, stable facade ID, or exact name. |
 | `presentation.designProfile` | api | Return a bounded read-only design-language profile for the current deck: source revision binding when imported, canvas, palette, typography, density, normalized geometry rhythm, layout families, slide archetypes, repeated visual candidates, and opaque native summaries. The profile is evidence for template-conditioned generation only; it contains no XML selectors, package paths, source bytes, or mutation authority. |
@@ -1888,14 +1888,18 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.fontFamilies` | api | Return a fresh sorted, case-insensitively deduplicated list of explicitly used presentation text and bullet font families. |
 | `presentation.inspect` | api | Emit NDJSON for deck, custom shows, PowerPoint sections, slides, cross-type layers, direct slide transitions, textboxes, shapes, grouped shapes, tables, charts, images, and native contentPart/OLE/diagram/media objects with bounded editability, relationship-reference, root-relationship, preserved-part, eligible embedded Office-package summaries, and each slide's continuationCapability; narrow with search/target anchors and shape fields with include/exclude. Layer records expose bottom-to-top stackIndex and zOrderCapability without exposing package paths. On a trusted imported source, includeNativeLeaves: true returns revision-bound safe leaves without exposing part paths or XML selectors, while includeComponentCandidates: true returns repeated visual primitives with source hashes, occurrences, and explicit reuse limits; only closed top-level candidates can issue the bounded reuseSourceComponent operation. |
 | `presentation.layout.clearBackground` | api | Clear a direct background on a bounded source-free layout. Imported-layout mutation remains source-bound and fails closed. |
+| `presentation.layout.clearNativeBackgroundImage` | api | Clear a layout's direct native p:bg image and preserve the linked Slide Master background chain. |
 | `presentation.layout.placeholders.add` | api | Append a direct-frame title/body/ctrTitle/subTitle text placeholder to a source-free layout. It becomes a native p:ph and must be materialized on each slide through applyLayout/setLayout; object/media/chart/table placeholders remain source-bound. |
 | `presentation.layout.placeholders.summary` | api | Return a defensive layout-placeholder discovery snapshot with stable IDs, names, native types/indexes, required flags, and direct-frame presence/geometry; editing the snapshot cannot mutate the model. |
 | `presentation.layout.setBackground` | api | Set a direct background on a bounded source-free layout. Imported-layout mutation remains source-bound and fails closed. |
+| `presentation.layout.setNativeBackgroundImage` | api | Set one embedded stretch-only native p:bg image on a Slide Layout. Slides using the layout inherit it beneath their content; unsupported crop, tile, effects, links, and complex imported graphs fail closed. |
 | `presentation.layouts.add` | api | Create one bounded source-free layout under the canonical master. Use blank, title, titleOnly, or obj/titleAndContent plus direct-frame text placeholders; imported layouts remain source-bound and read-only. |
 | `presentation.layouts.getById` | api | Resolve a layout by its stable ID without falling back to a same-named or same-typed layout. |
 | `presentation.master` | api | Access the one canonical source-free Slide Master. It may author a direct background, bounded text styles, and direct-frame title/body/ctrTitle/subTitle placeholders; imported Master graphs remain source-bound and read-only. |
 | `presentation.master.clearBackground` | api | Clear the direct background of the one canonical source-free master. Imported-master mutation remains source-bound and fails closed. |
+| `presentation.master.clearNativeBackgroundImage` | api | Clear the Slide Master's direct native p:bg image without flattening or rewriting the inherited theme background. |
 | `presentation.master.setBackground` | api | Set the direct background of the one canonical source-free master. Imported-master mutation remains source-bound and fails closed. |
+| `presentation.master.setNativeBackgroundImage` | api | Set one embedded stretch-only native p:bg image on the Slide Master so inheriting slides receive a true background beneath their content. Crop, tile, effects, links, and complex imported graphs remain unsupported and fail closed. |
 | `presentation.master.setTheme` | api | Set a model-level master theme override for preview only. Canonical PPTX export rejects that source-free override; imported-master mutation remains source-bound and fails closed. |
 | `presentation.masters.add` | api | Append a model-level Slide Master. Source-free PPTX authoring requires exactly one master, so use Presentation.create({ master }) or presentation.master for the canonical profile; multiple masters and imported-master edits fail closed. |
 | `presentation.masters.getItem` | api | Resolve a model-level or imported Slide Master by stable ID or name. |
@@ -1906,8 +1910,8 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `presentation.reuseSourceSlide` | api | Reuse one inspected imported slide as a source-bound complete graph after matching its exact slideId, sourceRevisionSha256, and optional clone-capability ownership evidence. The operation delegates to the codec-proven slide clone profile; stale revisions, unsupported graphs, and mismatched ownership evidence fail closed before the pending clone is created. |
 | `presentation.sections.add` | api | Define a native PowerPoint p14:sectionLst entry for source-free OfficeKit export. Sections together must form the complete ordered slide partition. Canonical imported sections may change only existing names and contiguous boundaries while count, order, stable facade identity, and native GUID stay fixed; irregular graphs remain opaque. |
 | `presentation.sections.getItem` | api | Resolve a source-free or canonical imported PowerPoint section by zero-based index, stable facade ID, or exact name. |
-| `presentation.slides.add` | api | Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
-| `presentation.slides.insert` | api | Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles. |
+| `presentation.slides.add` | api | Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference or bounded native stretch-image background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened. |
+| `presentation.slides.insert` | api | Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and solid/style-reference or bounded native stretch-image background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles. |
 | `presentation.slideSize` | api | Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly. |
 | `presentation.textRange` | api | Inspect or resolve stable textRange anchors such as shapeId/text for editable slide text frames. |
 | `presentation.theme` | api | Inspect the model theme and theme inheritance. Custom source-free themes are not authored by OfficeKit 0.2, and imported themes are source-bound and read-only. |
@@ -1935,6 +1939,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.clearBackground` | api | Remove the direct slide background so preview and PPTX output inherit from the preserved Layout/Master chain. Unsupported imported background graphs fail closed rather than being flattened or discarded. |
 | `slide.clearBackgroundImage` | api | Remove the image previously authored by slide.setBackgroundImage without changing the slide's solid/theme background. |
 | `slide.clearMorph` | api | Clear a source-free or capability-approved Morph transition. Imported unknown Morph extensions remain preserved and reject mutation. |
+| `slide.clearNativeBackgroundImage` | api | Remove the direct native p:bg image while preserving the inherited Layout/Master background and leaving any ordinary setBackgroundImage layer untouched. |
 | `slide.clearTransition` | api | Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation. |
 | `slide.cloneCapability` | api | Report whether an imported SlidePart can be copied as one ownership-checked OPC graph. The Codec copies every uniquely owned descendant, DataPart, and external relationship while rebinding proven shared layout, NotesMaster, image, and retained-slide targets. Sections, modern comments, outside-owned nodes, removed slide-jump targets, and over-budget graphs fail closed before the model changes. |
 | `slide.comments.addThread` | api | Create either a bounded legacy PPTX annotation or an Office 2021 modern thread. A comment-free imported presentation may add canonical legacy review comments only when comments.capability.addable is true; a canonical imported legacy leaf with comments.capability.editable permits only existing root-text replacement, never addThread/replies/metadata edits. Modern mode supports a top-level element/text-range/textMatch anchor, one root, direct replies, independent people/timestamps, and active/resolved/closed state; imported modern graphs permit only fixed-topology text/status edits. |
@@ -1956,6 +1961,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `slide.setHidden` | api | Set whether this slide is skipped by the ordinary slide show. OfficeKit writes only p:sld/@show, uses absence for visible and show=0 for hidden, and re-proves the source-bound SlidePart before export. |
 | `slide.setLayout` | api | Alias of slide.applyLayout(layout): bind and materialize a bounded source-free layout for native PPTX export. |
 | `slide.setMorph` | api | Author a bounded cross-slide Morph transition between adjacent slides with real source and destination objects and unique named object pairs. OfficeKit gives both objects the same Selection Pane identity; unknown imported Morph extensions remain source-bound and are not reconstructed. |
+| `slide.setNativeBackgroundImage` | api | Set a direct native p:bg/p:bgPr/a:blipFill image stretched across the slide. It stays behind all slide content and is not a reorderable or animatable scene-layer picture; use slide.setBackgroundImage when you need a movable or animated image layer. |
 | `slide.setTransition` | api | Set one direct p:transition from the complete 21-effect ECMA-376 base vocabulary, with effect-specific direction/orientation/throughBlack/spokes plus speed, Office 2010+ durationMs, and click/timer advancement. Source-free slides may author it; imported slides may replace one canonical existing direct transition or add one only when transition.capability.addable is true. Timing, sound, Office-extension effects, non-integer-unit duration, and irregular source graphs fail closed. |
 | `slide.shapes.add` | api | Add a shape/textbox, free-positioned p:sp line, or exact-site p:cxnSp connector with accessibility metadata. Ready bounded-overlay accepts only textbox/rect/roundRect/ellipse in a clean export. Lines support dash/ends/cap/join; custom geometry supports ordered adjustment/guide formulas, XY/polar adjustment handles, and connection sites. Only a connector retains target-plus-site identity. |
 | `slide.shapes.connect` | api | Connect two modeled shapes in the same slide/group tree by preset side or exact DrawingML connection-site index. Custom shapes require an explicit index into customConnectionSites. `head` is the from/start end and `tail` is the to/end end; use tail for a forward arrow, and bringToFront() when a background shape would hide the route. The target-plus-site pair survives import, edit, clone, and second import; moved or re-parameterized modeled targets reroute before render/export. |
@@ -4305,7 +4311,7 @@ Audit modeled slide objects for explicit meaningful/decorative classification an
 
 #### `Presentation.create`
 
-Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary.
+Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference or bounded native image slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary.
 
 **Adoption tier:** `golden`
 
@@ -4780,6 +4786,45 @@ Clear a direct background on a bounded source-free layout. Imported-layout mutat
 
 - `layout` (SlideLayoutTemplate) — Clears a direct background on a bounded source-free layout. Imported-layout edits fail closed.
 
+#### `presentation.layout.clearNativeBackgroundImage`
+
+Clear a layout's direct native p:bg image and preserve the linked Slide Master background chain.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `layout` (SlideLayoutTemplate) — Clear the layout's direct native p:bg image and preserve its linked Slide Master background chain.
+
 #### `presentation.layout.placeholders.add`
 
 Append a direct-frame title/body/ctrTitle/subTitle text placeholder to a source-free layout. It becomes a native p:ph and must be materialized on each slide through applyLayout/setLayout; object/media/chart/table placeholders remain source-bound.
@@ -4904,11 +4949,58 @@ Set a direct background on a bounded source-free layout. Imported-layout mutatio
 
 **Schema parameters:**
 
-- `background` (string|object) required — Direct solid RGB/scheme background or native style reference with index.
+- `background` (string|object) required — Direct solid RGB/scheme background, native style reference with index, or { image: { dataUrl|assetId, fit: 'stretch' } } for one embedded native p:bg image.
 
 **Schema returns:**
 
 - `layout` (SlideLayoutTemplate) — Sets a direct background on a bounded source-free layout. Imported-layout edits fail closed.
+
+#### `presentation.layout.setNativeBackgroundImage`
+
+Set one embedded stretch-only native p:bg image on a Slide Layout. Slides using the layout inherit it beneath their content; unsupported crop, tile, effects, links, and complex imported graphs fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `blob` (FileBlob) — Embedded PNG, JPEG, GIF, or safe SVG bytes.
+- `dataUrl` (string) — Embedded image data URL.
+- `assetId` (string) — Existing content-addressed presentation image asset ID.
+- `fit` (string) — Must be stretch; crop, tile, effects, transforms, and external links are unsupported.
+- `alphaModulationFixed` (boolean) — Optional preservation flag for a parameterless imported a:alphaModFix child.
+
+**Schema returns:**
+
+- `layout` (SlideLayoutTemplate) — Set one embedded stretch-only native p:bg image on the Slide Layout. Slides using the layout inherit it below their content; complex imported background graphs remain opaque and fail closed.
 
 #### `presentation.layouts.add`
 
@@ -4950,7 +5042,7 @@ Create one bounded source-free layout under the canonical master. Use blank, tit
 - `name` (string) required — Layout name; passing a name string is also accepted.
 - `type` (string) — Source-free type: blank, title, titleOnly, obj, or aliases object/content/titleAndContent. Imported layouts retain their native type read-only.
 - `masterId` (string) — Master identity.
-- `background` (string|object) — Optional layout background overriding the linked master background.
+- `background` (string|object) — Optional layout background overriding the linked master: RGB/theme color or { image: { dataUrl|assetId, fit: 'stretch' } } for one embedded native image.
 - `placeholders` (object[]) — Direct-frame title/body/ctrTitle/subTitle source-free text placeholders. Each needs type, idx/index, and position left/top/width/height; object/chart/table/media placeholders are not authored.
 - `slideGuides` (object[]) — Imported layouts expose the presentation's read-only native guide definitions. Canonical export preserves them through the source-bound view-properties part.
 
@@ -5040,7 +5132,7 @@ Access the one canonical source-free Slide Master. It may author a direct backgr
 
 - `id` (string) — Stable master identity used by layouts.
 - `name` (string) — Native Slide Master name.
-- `background` (string|object) — Solid RGB/scheme background or native background reference with index.
+- `background` (string|object) — Solid RGB/scheme background, native style reference with index, or { image: { dataUrl|assetId, fit: 'stretch' } } for one embedded native p:bg image.
 - `theme` (object) — Optional model theme override. Canonical source-free export rejects master-specific theme overrides.
 - `placeholders` (object[]) — Source-free direct-frame title/body/ctrTitle/subTitle text placeholders. Each requires type, idx/index, and left/top/width/height; imported placeholders remain source-bound and read-only.
 - `textParagraphStyles` (object) — title/body/other level maps (0-8) using the structured paragraph style fields, including embedded or external bulletImage values.
@@ -5089,6 +5181,45 @@ Clear the direct background of the one canonical source-free master. Imported-ma
 
 - `master` (PresentationSlideMaster) — Clears the direct background of the one canonical source-free master. Imported-master edits fail closed.
 
+#### `presentation.master.clearNativeBackgroundImage`
+
+Clear the Slide Master's direct native p:bg image without flattening or rewriting the inherited theme background.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `master` (PresentationSlideMaster) — Clear the direct native p:bg image on the Slide Master and preserve inherited theme/background behavior.
+
 #### `presentation.master.setBackground`
 
 Set the direct background of the one canonical source-free master. Imported-master mutation remains source-bound and fails closed.
@@ -5131,6 +5262,53 @@ Set the direct background of the one canonical source-free master. Imported-mast
 **Schema returns:**
 
 - `master` (PresentationSlideMaster) — Sets the direct background of the one canonical source-free master. Imported-master edits fail closed.
+
+#### `presentation.master.setNativeBackgroundImage`
+
+Set one embedded stretch-only native p:bg image on the Slide Master so inheriting slides receive a true background beneath their content. Crop, tile, effects, links, and complex imported graphs remain unsupported and fail closed.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `blob` (FileBlob) — Embedded PNG, JPEG, GIF, or safe SVG bytes.
+- `dataUrl` (string) — Embedded image data URL.
+- `assetId` (string) — Existing content-addressed presentation image asset ID.
+- `fit` (string) — Must be stretch; crop, tile, effects, transforms, and external links are unsupported.
+- `alphaModulationFixed` (boolean) — Optional preservation flag for a parameterless imported a:alphaModFix child.
+
+**Schema returns:**
+
+- `master` (PresentationSlideMaster) — Set the direct native p:bg image on the Slide Master. Slides inherit it without flattening; it is behind all slide content and is not a reorderable scene element. Only one embedded stretch image is authored; unsupported imported background graphs fail closed.
 
 #### `presentation.master.setTheme`
 
@@ -5214,7 +5392,7 @@ Append a model-level Slide Master. Source-free PPTX authoring requires exactly o
 
 - `id` (string) required — Stable unique master identity used by layouts.
 - `name` (string) — Native Slide Master name.
-- `background` (string|object) — Solid RGB/scheme background or native background reference with index.
+- `background` (string|object) — Solid RGB/scheme background, native style reference with index, or { image: { dataUrl|assetId, fit: 'stretch' } } for one embedded native p:bg image.
 - `theme` (object) — Optional model theme override; source-free master-specific themes are unsupported.
 - `placeholders` (object[]) — Direct-frame title/body/ctrTitle/subTitle source-free text placeholders. A second master makes source-free export fail closed.
 - `textParagraphStyles` (object) — title/body/other level maps (0-8) using the structured paragraph style fields, including embedded or external bulletImage values.
@@ -5584,7 +5762,7 @@ Resolve a source-free or canonical imported PowerPoint section by zero-based ind
 
 #### `presentation.slides.add`
 
-Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened.
+Append an editable core slide with optional hidden slideshow state, a bounded source-free layout, direct ECMA-376 base transition, solid/style-reference or bounded native stretch-image background, and plain-text speaker notes. A supplied layout is resolved and materialized transactionally; effective imported Layout/Master inheritance is never flattened.
 
 **Adoption tier:** `advanced`
 
@@ -5622,7 +5800,7 @@ Append an editable core slide with optional hidden slideshow state, a bounded so
 - `name` (string) — Inspectable slide name.
 - `hidden` (boolean) — Whether the slide is skipped by the ordinary slide show. Source-free hidden slides write p:sld/@show=0; visible slides omit the default-valued attribute.
 - `layout` (string|object) — Optional bounded layout name/ID/facade. slides.add resolves it transactionally and materializes its text placeholders; an unknown or cross-presentation layout leaves no slide behind.
-- `background` (string|object) — Optional direct slide background: RGB/theme color or { fill, mode: 'solid'|'reference', index? }. Gradient, pattern, image, transform, and effect-bearing backgrounds are preview-only/source-preserved and fail closed on canonical mutation.
+- `background` (string|object) — Optional direct slide background: RGB/theme color or { image: { dataUrl|assetId, fit: 'stretch' } } for one embedded native image. Crop, tile, transform, effects, links, and irregular imported graphs remain source-bound and fail closed.
 - `transition` (object) — Optional direct ECMA-376 base transition. effect is one of blinds/checker/circle/comb/cover/cut/diamond/dissolve/fade/newsflash/plus/pull/push/random/randomBar/split/strips/wedge/wheel/wipe/zoom. Effect-specific fields are direction, orientation, throughBlack, or spokes (1..8); common fields are slow/medium/fast speed, durationMs 0..86400000, advanceOnClick, and advanceAfterMs 0..86400000. durationMs controls transition playback; advanceAfterMs controls slide advancement.
 - `notes` (string|PresentationParagraph[]) — Optional speaker notes authored into the canonical PresentationML notes graph. A paragraph has runs plus ordinary direct paragraph/run styling; note-local links, fields, picture bullets, list styles, and body layout are rejected.
 
@@ -5632,7 +5810,7 @@ Append an editable core slide with optional hidden slideshow state, a bounded so
 
 #### `presentation.slides.insert`
 
-Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles.
+Insert a source-free slide after an existing Slide or 0-based index, or at the beginning with after: null. It uses the same hidden-state, transactional layout, direct base-transition, notes, and solid/style-reference or bounded native stretch-image background profile as slides.add; imported additions fail closed, while slide.duplicate and slide.delete each have their own narrow source-preserving OPC profiles.
 
 **Adoption tier:** `advanced`
 
@@ -5671,7 +5849,7 @@ Insert a source-free slide after an existing Slide or 0-based index, or at the b
 - `name` (string) — Inspectable slide name.
 - `hidden` (boolean) — Whether the new source-free slide is skipped by the ordinary slide show.
 - `layout` (string|object) — Optional bounded layout name/ID/facade. The new source-free slide is created and materialized transactionally.
-- `background` (string|object) — Optional direct slide background: RGB/theme color or { fill, mode: 'solid'|'reference', index? }.
+- `background` (string|object) — Optional direct slide background: RGB/theme color or { image: { dataUrl|assetId, fit: 'stretch' } } for one embedded native image.
 - `transition` (object) — Optional direct transition with the same complete ECMA-376 base-effect, speed, click, and timer profile as presentation.slides.add.
 - `notes` (string|PresentationParagraph[]) — Optional speaker notes authored into the canonical PresentationML notes graph. A paragraph has runs plus ordinary direct paragraph/run styling; note-local links, fields, picture bullets, list styles, and body layout are rejected.
 
@@ -6873,6 +7051,45 @@ Clear a source-free or capability-approved Morph transition. Imported unknown Mo
 
 - `slide` (Slide) — The same slide with no authored Morph transition.
 
+#### `slide.clearNativeBackgroundImage`
+
+Remove the direct native p:bg image while preserving the inherited Layout/Master background and leaving any ordinary setBackgroundImage layer untouched.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema returns:**
+
+- `slide` (Slide) — Remove the direct native p:bg image authored or replaced by slide.setNativeBackgroundImage, restoring the preserved Layout/Master background chain. It never removes an ordinary setBackgroundImage scene-layer picture.
+
 #### `slide.clearTransition`
 
 Remove one canonical direct imported or source-free slide transition. A transition-absent imported slide remains a no-op until an explicit capability-approved add; timing, sound, extension, and opaque-effect graphs remain byte-preserved and reject mutation.
@@ -7784,6 +8001,53 @@ Author a bounded cross-slide Morph transition between adjacent slides with real 
 **Schema returns:**
 
 - `slide` (Slide) — The same destination slide with a bounded Morph transition. Both paired objects receive the same !!key Selection Pane identity; charts, non-adjacent slides, incompatible kinds, duplicate objects, name conflicts, and conflicting transitions reject.
+
+#### `slide.setNativeBackgroundImage`
+
+Set a direct native p:bg/p:bgPr/a:blipFill image stretched across the slide. It stays behind all slide content and is not a reorderable or animatable scene-layer picture; use slide.setBackgroundImage when you need a movable or animated image layer.
+
+**Adoption tier:** `advanced`
+
+**Use when:**
+
+- A specific advanced PresentationML capability is requested after its capability record has been inspected.
+- The task can tolerate a narrower edit surface than the golden authoring routes.
+
+**Avoid when:**
+
+- Do not substitute it for the create, template, edit, continue, or review task route.
+- Do not bypass source hashes, capability checks, or fail-closed boundaries.
+
+**Requires:**
+
+- Presentation facade
+- capability or source evidence appropriate to the operation
+
+**Review:**
+
+- presentation.validateLayout and presentation.verify
+- reviewArtifact with the active plan and changed page scope
+- visualReview: complete, unavailable, or requires-human
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/references/layered-composition.md#public-surface
+
+**Example paths:**
+
+- examples/create-pptx-compose.mjs
+
+**Schema parameters:**
+
+- `blob` (FileBlob) — Embedded PNG, JPEG, GIF, or safe SVG bytes. Prefer FileBlob.load(path, { type }) over building base64 in task code.
+- `dataUrl` (string) — Embedded image data URL when a FileBlob is not available.
+- `assetId` (string) — Existing content-addressed presentation image asset ID, normally obtained from an imported artifact.
+- `fit` (string) — Must be stretch; native p:bg does not accept crop, cover, contain, transform, effects, or external links.
+- `alphaModulationFixed` (boolean) — Optional preservation flag for the source's parameterless a:alphaModFix child; omission preserves it when replacing a recognized imported native image background.
+
+**Schema returns:**
+
+- `slide` (Slide) — Set the direct native PresentationML background as p:bg/p:bgPr/a:blipFill with one embedded image stretched across the slide. The image is behind all slide content, remains editable through this method, and is not a scene-stack element that can be reordered or animated. Source-bound edits require a recognized direct-background profile; complex crop, tile, effect, linked, or inherited backgrounds remain opaque and fail closed.
 
 #### `slide.setTransition`
 
