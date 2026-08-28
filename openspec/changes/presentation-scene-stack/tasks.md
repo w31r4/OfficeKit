@@ -21,14 +21,14 @@
 
 ## 4. Agent surface
 
-- [ ] 4.1 Add Help for scene-stack inspection, ordering operations, and background images.
-- [ ] 4.2 Update Presentations Skill with image-led composition, scrim/contrast, obstruction, and layer review rules.
-- [ ] 4.3 Update Presentation Template Creator so image-led examples demonstrate real layer composition and remain optional where inappropriate.
+- [x] 4.1 Add Help for scene-stack inspection, ordering operations, and background images.
+- [x] 4.2 Update Presentations Skill with image-led composition, scrim/contrast, obstruction, and layer review rules.
+- [x] 4.3 Update Presentation Template Creator so image-led examples demonstrate real layer composition and remain optional where inappropriate.
 
 ## 5. Acceptance
 
 - [x] 5.1 Run one compact public-contract test for cross-type authored order and background-image round trip.
 - [x] 5.2 Run imported inspect/reorder/preserve/reimport checks on every sample; mutate only capability-proven targets.
 - [x] 5.3 Render and visually inspect the photo/scrim/text reference and supported imported edits in the available host.
-- [ ] 5.4 Repeat from a packed clean install and one fresh Agent context.
+- [x] 5.4 Repeat from a packed clean install and one fresh Agent context.
 - [ ] 5.5 Run final required full/package gates once and publish the verified and blocked boundaries.

@@ -5,6 +5,8 @@ change without redistributing the external PPTX corpus.
 
 - `evidence.v1.json` identifies every local reference by source URL, byte size,
   and SHA-256.
+- `agent.v1.json` records one fresh-context run from a packed clean install. It
+  contains hashes and outcomes, not the source image, generated PPTX, or trace.
 - External files remain under ignored `tmp/` directories and are not package
   inputs.
 - `noOpExact` compares the complete PPTX bytes returned by an unchanged
@@ -15,8 +17,10 @@ change without redistributing the external PPTX corpus.
 - Host-render equality is evidence that the selected non-overlapping reorder
   did not disturb the page. It is not evidence that every possible reorder is
   visually equivalent.
+- The fresh Agent found and repaired a real text-frame overflow before delivery,
+  then reopened the output, inspected the five-layer stack, rendered it through
+  LibreOffice, and completed visual review without a forbidden authoring path.
 
 SlidesCarnival references require CC BY 4.0 attribution and are subject to the
 publisher's redistribution terms. NASA references retain their record and
 author credits. The committed evidence contains no source media or slide bytes.
-

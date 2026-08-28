@@ -1,0 +1,50 @@
+{
+  "schema": "office-kit/presentation-scene-stack-agent-evidence/v1",
+  "environment": {
+    "install": "packed-clean-install",
+    "packageVersion": "1.0.0",
+    "packageSha256": "c66cc15da74ceefa7f6b25fbf0657dab6f739023e67a841c5fc618315cc04730",
+    "skillsInstalled": 9,
+    "agent": "codex-fresh-context"
+  },
+  "request": {
+    "kind": "source-free-image-led-slide",
+    "constraints": [
+      "use only the installed Presentations Skill and public office-kit API",
+      "compose a full-bleed image, translucent scrim, editable text, and foreground decision strip",
+      "export, reopen, inspect layer order, render, and review",
+      "do not use raw OOXML, Python, HTML, PptxGenJS, or @oai/artifact-tool"
+    ]
+  },
+  "result": {
+    "status": "passed-after-self-correction",
+    "artifactSha256": "17b9eaf5f7b02c92a9ebb410d2a9ab66e09b11693cace4dcf3088c39ef51d067",
+    "artifactBytes": 4263410,
+    "sourceSha256Before": "e25e2740b72a4d8bb7bd9cadb6fc56daf5d879d2ae6c5463a86c4f6d215f709f",
+    "sourceSha256After": "e25e2740b72a4d8bb7bd9cadb6fc56daf5d879d2ae6c5463a86c4f6d215f709f",
+    "sourceUnchanged": true,
+    "layerOrderBottomToTop": [
+      "ImageElement",
+      "Translucent dark contrast field",
+      "Editable white headline",
+      "Editable supporting line",
+      "Yellow foreground decision strip"
+    ],
+    "layoutBeforeExport": true,
+    "verifyBeforeExport": true,
+    "layoutAfterReopen": true,
+    "verifyAfterReopen": true,
+    "reviewVerdict": "passed",
+    "visualReview": "complete",
+    "renderSha256": "1d50d8d96c82b928ee68af87c8d1a4896e8c093afcfa9ad03003111e782e6934",
+    "renderHost": "LibreOffice",
+    "traceSha256": "688f79917c3bb57f1d9de939a1114c2c1d02f6cda2e8e96623b4da03739a0288",
+    "forbiddenAuthoringPathsUsed": false
+  },
+  "observations": [
+    "The first candidate exposed a real supporting-line overflow during reopened layout verification.",
+    "The same Agent context corrected the text frame, rebuilt the PPTX, and reran the checks.",
+    "The final native render keeps the photograph visible below the scrim while the editable foreground remains legible and unobstructed.",
+    "This is one black-box workflow result, not a model-quality benchmark or cross-host playback claim."
+  ]
+}
