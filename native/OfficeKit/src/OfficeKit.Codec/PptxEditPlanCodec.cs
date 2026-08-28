@@ -386,7 +386,9 @@ internal static partial class PptxEditPlanCodec
             }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                PptxCodec.SupportsBoundTextLeaf(shape))
+                projectedElement.Source.Editable &&
+                (LeafKind(operation) is "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" ||
+                 (LeafKind(operation) == "text" && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }

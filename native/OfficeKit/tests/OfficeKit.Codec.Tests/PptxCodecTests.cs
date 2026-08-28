@@ -293,6 +293,31 @@ public sealed class PptxCodecTests
         Assert.Equal(sourceXml, outputXml.Replace(replacement, operation.ExpectedValue, StringComparison.Ordinal));
         var reopenedChild = Assert.Single(Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Group.Children);
         Assert.Equal(replacement, reopenedChild.Shape.Text);
+
+        var fillOperation = operation.Clone();
+        fillOperation.OperationId = "op-group-child-fill-0001";
+        fillOperation.LeafKind = "fillRgb";
+        fillOperation.ExpectedValue = importedChild.Shape.FillRgb;
+        fillOperation.Value = "A1B2C3";
+        fillOperation.ExpectedTextSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(fillOperation.ExpectedValue))).ToLowerInvariant();
+        var fillEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ApplyPptxEditPlan,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationEditPlan = new PresentationEditPlanRequest
+            {
+                ExpectedSourceSha256 = imported.Artifact.Source.PackageSha256,
+                Operations = { fillOperation },
+            },
+        });
+        Assert.True(fillEdited.Ok, Diagnostics(fillEdited));
+        var fillSourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, fillOperation.SlidePartPath));
+        var fillOutputXml = Encoding.UTF8.GetString(ZipBytes(fillEdited.File.ToByteArray(), fillOperation.SlidePartPath));
+        Assert.Equal(fillSourceXml, fillOutputXml.Replace(fillOperation.Value, fillOperation.ExpectedValue, StringComparison.Ordinal));
+        var reopenedFillChild = Assert.Single(Assert.Single(Assert.Single(Import(fillEdited.File.ToByteArray()).Artifact.Presentation.Slides).Elements).Group.Children);
+        Assert.Equal(fillOperation.Value, reopenedFillChild.Shape.FillRgb);
     }
 
     [Fact]
