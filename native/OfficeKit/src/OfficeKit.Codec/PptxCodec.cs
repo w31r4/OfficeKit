@@ -2617,7 +2617,7 @@ internal static class PptxCodec
                     _ = assetCatalog.Get(paragraph.PictureBullet.AssetId);
         }
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Image)
-            PptxPictureCodec.Validate(element.Image, element.Id, assetCatalog);
+            PptxPictureCodec.Validate(element.Image, element.Id, assetCatalog, sourceBound: hasSourcePackage && element.Source is not null);
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Table)
         {
             PptxTableCodec.Validate(element.Table, element.Id);
