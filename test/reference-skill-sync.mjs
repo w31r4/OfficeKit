@@ -7,6 +7,7 @@ import {
   createReferenceSkillSnapshot,
   REFERENCE_SKILL_BUNDLES,
   REPLACED_REFERENCE_SKILL_PATHS,
+  RETIRED_REFERENCE_SKILL_PATH_PREFIXES,
 } from "../scripts/reference-skill-sync.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -25,6 +26,17 @@ assert.equal(Object.values(rebuilt.bundles).reduce((sum, bundle) => sum + bundle
 assert.deepEqual([...REPLACED_REFERENCE_SKILL_PATHS].sort(), [
   "spreadsheets/.app.json",
   "spreadsheets/skills/excel-live-control/officejs.md",
+]);
+assert.deepEqual(RETIRED_REFERENCE_SKILL_PATH_PREFIXES, [
+  "presentations/skills/presentations/assets/builtin_templates/grid-layout-library/",
+  "presentations/skills/presentations/builtin_templates_support/",
+  "default-template-library/skills/artifact-template-business-review/",
+  "default-template-library/skills/artifact-template-market-trends-report/",
+  "default-template-library/skills/artifact-template-operating-review/",
+  "default-template-library/skills/artifact-template-project-kickoff/",
+  "default-template-library/skills/artifact-template-simple-dark-mode/",
+  "default-template-library/skills/artifact-template-simple-light-mode/",
+  "default-template-library/skills/artifact-template-team-alignment/",
 ]);
 
 const referenceChecklist = await fs.readFile(path.join(

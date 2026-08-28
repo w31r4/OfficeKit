@@ -31,6 +31,26 @@ export const REPLACED_REFERENCE_SKILL_PATHS = new Set([
   "spreadsheets/skills/excel-live-control/officejs.md",
 ]);
 
+// OfficeKit 1.1 replaced the reference repository's source-backed presentation
+// templates with clean-room schema-v3 Template Skills. Keep the pinned source
+// digest for provenance, but do not require the retired executable Grid assets
+// or the seven PPTX-backed template bundles to reappear in the project surface.
+export const RETIRED_REFERENCE_SKILL_PATH_PREFIXES = Object.freeze([
+  "presentations/skills/presentations/assets/builtin_templates/grid-layout-library/",
+  "presentations/skills/presentations/builtin_templates_support/",
+  "default-template-library/skills/artifact-template-business-review/",
+  "default-template-library/skills/artifact-template-market-trends-report/",
+  "default-template-library/skills/artifact-template-operating-review/",
+  "default-template-library/skills/artifact-template-project-kickoff/",
+  "default-template-library/skills/artifact-template-simple-dark-mode/",
+  "default-template-library/skills/artifact-template-simple-light-mode/",
+  "default-template-library/skills/artifact-template-team-alignment/",
+]);
+
+function isRetiredReferenceSkillPath(relativePath) {
+  return RETIRED_REFERENCE_SKILL_PATH_PREFIXES.some((prefix) => relativePath.startsWith(prefix));
+}
+
 async function regularFiles(root, relative = "") {
   const entries = await fs.readdir(path.join(root, relative), { withFileTypes: true });
   const output = [];
@@ -111,10 +131,11 @@ async function missingProjectPaths(pathsByBundle) {
   const missing = [];
   for (const bundle of REFERENCE_SKILL_BUNDLES) {
     for (const relative of pathsByBundle[bundle]) {
-      if (REPLACED_REFERENCE_SKILL_PATHS.has(`${bundle}/${relative}`)) continue;
+      const referencePath = `${bundle}/${relative}`;
+      if (REPLACED_REFERENCE_SKILL_PATHS.has(referencePath) || isRetiredReferenceSkillPath(referencePath)) continue;
       const projectPath = path.join(projectSkillsRoot, bundle, relative);
       const stat = await fs.lstat(projectPath).catch(() => null);
-      if (!stat?.isFile()) missing.push(`${bundle}/${relative}`);
+      if (!stat?.isFile()) missing.push(referencePath);
     }
   }
   return missing;
