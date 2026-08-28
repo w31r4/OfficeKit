@@ -3814,6 +3814,32 @@ function createPresentationNativeLeafCapability(presentation, state) {
         }
         return;
       }
+      const nativeTextBinding = model?._nativeTextSourceBinding?.();
+      const currentNativeTextLeaves = model?._nativeTextRecords?.();
+      if (Array.isArray(nativeTextBinding) || Array.isArray(currentNativeTextLeaves)) {
+        if (!Array.isArray(nativeTextBinding) || !Array.isArray(currentNativeTextLeaves) ||
+            nativeTextBinding.length !== currentNativeTextLeaves.length) return;
+        for (let index = 0; index < nativeTextBinding.length; index += 1) {
+          const sourceLeaf = nativeTextBinding[index];
+          const currentLeaf = currentNativeTextLeaves[index];
+          if (sourceLeaf.textLeafIndex !== index || currentLeaf.textLeafIndex !== index || sourceLeaf.text !== currentLeaf.text) return;
+          registerLeaf({
+            wire,
+            model,
+            slideState,
+            shapeTreePath,
+            parentGroupId,
+            rootEntry,
+            leafKind: "nativeText",
+            expectedValue: sourceLeaf.text,
+            value: sourceLeaf.text,
+            details: { textLeafIndex: index },
+            normalize(next) { assertNativeLeafTextValue(next); return { raw: next, publicValue: next }; },
+            apply(next) { model._setNativeTextLeaf(index, next); },
+          });
+        }
+        return;
+      }
       if (wire.content.value.nativeKind === "picture" && wire.source?.editable === true) {
         for (const [field, leafKind] of PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, candidate]) => candidate.endsWith("Emu"))) {
           const raw = String(wire.content.value[field] ?? "");

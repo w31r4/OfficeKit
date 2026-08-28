@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+
+import { decodeXml } from "../ooxml/source-reference-xml.mjs";
 import { toUint8Array } from "../shared/binary.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { aid } from "../shared/ids.mjs";
@@ -11,6 +14,45 @@ const MAX_NATIVE_TEXT_LENGTH = 32_767;
 const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
+const TABLE_GRAPHIC_DATA_URI_PATTERN = /\buri\s*=\s*["']http:\/\/schemas\.openxmlformats\.org\/drawingml\/2006\/table["']/iu;
+const NATIVE_TEXT_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?t\b[^>]*>(?<value>[^<]*)<\/(?:[A-Za-z_][\w.-]*:)?t\s*>/giu;
+const NATIVE_TEXT_RUN = /<(?<prefix>[A-Za-z_][\w.-]*:)?r\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?r\s*>/giu;
+const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?tc\s*>/giu;
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function deriveNativeTextLeaves(rawXml, nativeKind) {
+  const source = String(rawXml || "");
+  if (nativeKind !== "graphicFrame" ||
+      !TABLE_GRAPHIC_DATA_URI_PATTERN.test(source)) return undefined;
+  const cells = [...source.matchAll(NATIVE_TEXT_CELL)];
+  const runs = [...source.matchAll(NATIVE_TEXT_RUN)];
+  const texts = [...source.matchAll(NATIVE_TEXT_TAG)];
+  if (!cells.length || !texts.length || texts.length > 4_096) return undefined;
+  const inRange = (match, container) => {
+    const start = match.index ?? -1;
+    const end = start + match[0].length;
+    const containerStart = container.index ?? -1;
+    return start >= containerStart && end <= containerStart + container[0].length;
+  };
+  if (texts.some((text) => !runs.some((run) => inRange(text, run)) || !cells.some((cell) => inRange(text, cell)))) return undefined;
+  const leaves = texts.map((match, index) => {
+    const text = decodeXml(match.groups?.value || "");
+    if (!validDiagramNodeText(text)) return undefined;
+    return Object.freeze({ textLeafIndex: index, text, expectedHash: sha256(text) });
+  });
+  return leaves.every(Boolean) ? Object.freeze(leaves) : undefined;
+}
+
+function nativeTextRecord(leaves) {
+  return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
+    textLeafIndex: leaf.textLeafIndex,
+    text: leaf.text,
+    expectedHash: sha256(leaf.text),
+  }))) : undefined;
+}
 
 function normalizeNativeChart(config) {
   if (!config) return undefined;
@@ -306,10 +348,28 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         writable: false,
         value: nativeChart ? nativeChart.dataPoints.map((point) => ({ ...point })) : undefined,
       });
+      const nativeTextBinding = deriveNativeTextLeaves(this.rawXml, this.nativeKind);
+      Object.defineProperty(this, "_nativeTextBinding", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeTextBinding,
+      });
+      Object.defineProperty(this, "_nativeTextLeaves", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeTextBinding ? nativeTextBinding.map((leaf) => ({ ...leaf })) : undefined,
+      });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
         enumerable: true,
         get: () => diagramTextRecord(this._diagramTextBinding, this._diagramTextNodes || []),
+      });
+      Object.defineProperty(this, "nativeTextLeaves", {
+        configurable: false,
+        enumerable: true,
+        get: () => nativeTextRecord(this._nativeTextLeaves),
       });
       Object.defineProperty(this, "_embeddedWorkbookReplacement", {
         configurable: false,
@@ -518,6 +578,25 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return this._nativeChartBinding ? nativeChartRecord(this._nativeChartBinding, this._nativeChartTitleLeaves, this._nativeChartDataPoints) : undefined;
     }
 
+    _nativeTextSourceBinding() {
+      return nativeTextRecord(this._nativeTextBinding);
+    }
+
+    _nativeTextRecords() {
+      return nativeTextRecord(this._nativeTextLeaves);
+    }
+
+    _setNativeTextLeaf(index, value) {
+      if (!this._nativeTextBinding || !this._nativeTextLeaves || !this._nativeTextLeaves[index]) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native text leaf ${index}.`);
+      }
+      const text = String(value ?? "");
+      if (!validDiagramNodeText(text)) {
+        throw new RangeError(`Native text leaf must contain at most ${MAX_NATIVE_TEXT_LENGTH} XML-safe characters.`);
+      }
+      this._nativeTextLeaves[index].text = text;
+    }
+
     get deletionCapability() {
       return presentationElementDeletionCapability(this, "native object");
     }
@@ -545,6 +624,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         ...(this._diagramTextBinding ? ["diagramText"] : []),
         ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
         ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
+        ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
         ...(this.placementCapability.supported ? ["position"] : []),
       ];
       return {
@@ -569,6 +649,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           title: this._nativeChartTitleLeaves.map((leaf) => leaf.text).join(""),
           dataPoints: this._nativeChartDataPoints.length,
         } : undefined,
+        nativeTextLeaves: this._nativeTextRecords(),
         ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
         deletionCapability: this.deletionCapability,
         placementCapability: this.placementCapability,
@@ -617,6 +698,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         embeddedOfficePackage: this.oleOfficePackage ? this._embeddedOfficePackageRecord() : undefined,
         diagramText: this.diagramText,
         nativeChart: this._nativeChartCurrentRecord(),
+        nativeTextLeaves: this._nativeTextRecords(),
         placementCapability: this.placementCapability,
         editable: false,
         editableFields: [
@@ -625,6 +707,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           ...(this._diagramTextBinding ? ["diagramText"] : []),
           ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
           ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
+          ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
           ...(this.placementCapability.supported ? ["position"] : []),
         ],
       };

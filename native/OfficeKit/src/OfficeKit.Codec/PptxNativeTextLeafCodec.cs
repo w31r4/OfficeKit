@@ -1,0 +1,73 @@
+using DocumentFormat.OpenXml;
+using A = DocumentFormat.OpenXml.Drawing;
+using P = DocumentFormat.OpenXml.Presentation;
+
+namespace OfficeKit.Codec;
+
+internal sealed record PptxNativeTextLeaf(uint Index, string Text, A.Text Element);
+
+// Exposes only the text tokens of an otherwise opaque DrawingML table.  The
+// table keeps its original XML, styles, runs, and topology; an issued leaf
+// can replace one existing a:t token without asking the semantic table model
+// to guess how rich text should be represented.
+internal static class PptxNativeTextLeafCodec
+{
+    private const string TableGraphicDataUri = "http://schemas.openxmlformats.org/drawingml/2006/table";
+    private const int MaxLeaves = 4_096;
+    private const int MaxLeafLength = 32_767;
+
+    internal static bool TryDescribe(OpenXmlElement source, out IReadOnlyList<PptxNativeTextLeaf> leaves)
+    {
+        leaves = Array.Empty<PptxNativeTextLeaf>();
+        if (source is not P.GraphicFrame frame ||
+            frame.Graphic?.GraphicData?.Uri?.Value != TableGraphicDataUri)
+            return false;
+
+        var tables = frame.Descendants<A.Table>().ToArray();
+        if (tables.Length != 1) return false;
+        var cells = tables[0].Descendants<A.TableCell>().ToArray();
+        var texts = tables[0].Descendants<A.Text>().ToArray();
+        if (cells.Length == 0 || texts.Length is < 1 or > MaxLeaves) return false;
+
+        // Every exposed token must be a direct run text inside one table cell.
+        // This excludes fields and foreign text-bearing extensions whose
+        // formatting/meaning would not be source-bound by this profile.
+        foreach (var text in texts)
+        {
+            if (text.Parent is not A.Run || text.Ancestors<A.TableCell>().Count() != 1 || !ValidText(text.Text))
+                return false;
+        }
+
+        leaves = texts.Select((text, index) => new PptxNativeTextLeaf(checked((uint)index), text.Text, text)).ToArray();
+        return true;
+    }
+
+    internal static bool TryResolve(OpenXmlElement source, uint index, out PptxNativeTextLeaf leaf)
+    {
+        leaf = null!;
+        if (!TryDescribe(source, out var leaves) || index >= (uint)leaves.Count) return false;
+        leaf = leaves[(int)index];
+        return true;
+    }
+
+    private static bool ValidText(string value)
+    {
+        if (value.Length > MaxLeafLength) return false;
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (character <= '\b' || character is '\v' or '\f' || character is >= '\u000E' and <= '\u001F')
+                return false;
+            if (char.IsHighSurrogate(character))
+            {
+                if (index + 1 >= value.Length || !char.IsLowSurrogate(value[index + 1])) return false;
+                index++;
+            }
+            else if (char.IsLowSurrogate(character))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+}

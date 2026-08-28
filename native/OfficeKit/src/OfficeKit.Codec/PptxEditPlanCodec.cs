@@ -178,7 +178,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -392,6 +392,13 @@ internal static partial class PptxEditPlanCodec
             {
                 ProveLeafValue(table, operation);
             }
+            else if (element is P.GraphicFrame nativeTextFrame &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                     LeafKind(operation) == "nativeText" &&
+                     PptxNativeTextLeafCodec.TryResolve(nativeTextFrame, operation.TextLeafIndex, out _))
+            {
+                ProveLeafValue(nativeTextFrame, operation);
+            }
             else if (element is P.Picture picture &&
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Opaque) &&
                      projectedElement.Source.Editable &&
@@ -463,7 +470,7 @@ internal static partial class PptxEditPlanCodec
             }
             if (range.LocalName is not ("sp" or "pic" or "graphicFrame"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, or p:graphicFrame.", operation.SlidePartPath);
-            if (leafKind is not ("text" or "tableCellText"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText"))
             {
                 if (leafKind is "imageAsset" or "imageSvgAsset")
                 {
@@ -474,11 +481,16 @@ internal static partial class PptxEditPlanCodec
                 continue;
             }
             if ((leafKind == "text" && range.LocalName != "sp") ||
-                (leafKind == "tableCellText" && range.LocalName != "graphicFrame"))
+                ((leafKind is "tableCellText" or "nativeText") && range.LocalName != "graphicFrame"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
             if (leafKind == "tableCellText")
             {
                 patches.Add(CompileTableCellTextXmlPatch(xml, range, proof, drawingPrefixes));
+                continue;
+            }
+            if (leafKind == "nativeText")
+            {
+                patches.Add(CompileNativeTextXmlPatch(xml, range, proof, drawingPrefixes));
                 continue;
             }
             var elementXml = xml[range.Start..range.End];
@@ -542,6 +554,36 @@ internal static partial class PptxEditPlanCodec
             start,
             start + leaf.Length,
             open + EscapeText(operation.Value) + leaf.Groups["close"].Value,
+            proof.SourceElementSha256,
+            proof.MutationPartPath);
+    }
+
+    private static PptxXmlPatch CompileNativeTextXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof,
+        IReadOnlySet<string> drawingPrefixes)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var leaves = TextLeafPattern().Matches(elementXml)
+            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
+            .ToArray();
+        if (operation.TextLeafIndex >= (uint)leaves.Length)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw native text-leaf index is out of range.", operation.SlidePartPath);
+        var leaf = leaves[operation.TextLeafIndex];
+        var prefix = leaf.Groups["prefix"].Value;
+        if (DecodeTextLeaf(leaf.Value, prefix) != operation.ExpectedValue)
+            throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw native text leaf does not match the expected text.", operation.SlidePartPath);
+        var open = leaf.Groups["open"].Value;
+        if (NeedsPreserve(operation.Value) && !PreserveSpacePattern().IsMatch(open))
+            open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
+        var replacement = open + EscapeText(operation.Value) + leaf.Groups["close"].Value;
+        return new PptxXmlPatch(
+            operation,
+            elementRange.Start + leaf.Index,
+            elementRange.Start + leaf.Index + leaf.Length,
+            replacement,
             proof.SourceElementSha256,
             proof.MutationPartPath);
     }
@@ -628,6 +670,12 @@ internal static partial class PptxEditPlanCodec
             if (operation.TextLeafIndex >= (uint)cells.Length)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} table-cell index is out of range.", operation.SlidePartPath);
             return cells[operation.TextLeafIndex].Text;
+        }
+        if (kind == "nativeText")
+        {
+            if (element is not P.GraphicFrame frame || !PptxNativeTextLeafCodec.TryResolve(frame, operation.TextLeafIndex, out var leaf))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} nativeText target is not a bounded DrawingML table leaf.", operation.SlidePartPath);
+            return leaf.Text;
         }
         var properties = element switch
         {
