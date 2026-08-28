@@ -2953,7 +2953,8 @@ export function presentationEnvelope(presentation, protocolVersion) {
       const current = directSlideElements(slide);
       const entries = cloneState?.entries || bindingState.entries;
       const sourceModels = new Set(entries.map((entry) => entry.model));
-      retainedEntries = entries.filter((entry) => current.includes(entry.model));
+      const entryByModel = new Map(entries.map((entry) => [entry.model, entry]));
+      retainedEntries = current.filter((element) => sourceModels.has(element)).map((element) => entryByModel.get(element));
       deletedEntries = entries.filter((entry) => !current.includes(entry.model));
       authoredElements = current.filter((element) => !sourceModels.has(element));
       const allowedCloneDeletionIds = cloneState?.allowedDeletedIds instanceof Set
@@ -2970,6 +2971,9 @@ export function presentationEnvelope(presentation, protocolVersion) {
           (cloneState && deletedEntries.length > 0 && !authorizedCloneDeletions) ||
           (cloneState && allowedCloneDeletionIds && !authorizedCloneDeletions)) {
         throw new OfficeKitCodecError(`Source-preserving PPTX export requires slide ${slideIndex + 1}'s original ${entries.length}-element topology.`, [], { code: cloneState ? "unsupported_presentation_slide_clone" : "presentation_element_topology_changed" });
+      }
+      if (cloneState && retainedEntries.some((entry, index) => entry !== entries[index])) {
+        throw new OfficeKitCodecError(`Pending presentation clone ${slideIndex + 1} cannot reorder source elements before its first export and reimport.`, [], { code: "unsupported_presentation_slide_clone" });
       }
       if (!cloneState) {
         const authoredIds = new Set();
@@ -5302,19 +5306,30 @@ export async function presentationFromEnvelope(envelope) {
         throw new OfficeKitCodecError(`Presentation element ${element.id} has no supported wire content.`, [], { code: "invalid_presentation_artifact" });
       }
       const elementDeletionCapability = element.source?.deletionCapability;
+      const elementZOrderCapability = element.source?.zOrderCapability;
       const deletionNativeId = Number(elementDeletionCapability?.nativeId || 0) || undefined;
       if (model.nativeId === undefined && deletionNativeId !== undefined) model.nativeId = deletionNativeId;
-      const sourceBoundModels = model instanceof GroupShape ? model.allElements() : [model];
-      for (const sourceBoundModel of sourceBoundModels) {
-        Object.defineProperty(sourceBoundModel, PRESENTATION_ELEMENT_ORDER_CAPABILITY, {
-          value: Object.freeze({
-            sourceBound: true,
-            known: true,
-            editable: false,
-            blockedReason: "Imported element order is preserved until the native codec issues a dependency-proven reorder capability.",
-            ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
-          }),
-        });
+      Object.defineProperty(model, PRESENTATION_ELEMENT_ORDER_CAPABILITY, {
+        value: Object.freeze({
+          sourceBound: true,
+          known: Boolean(elementZOrderCapability),
+          editable: elementZOrderCapability?.supported === true,
+          blockedReason: elementZOrderCapability?.blockedReason || "Imported direct-element order capability is unavailable.",
+          ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+        }),
+      });
+      if (model instanceof GroupShape) {
+        for (const sourceBoundModel of model.allElements().slice(1)) {
+          Object.defineProperty(sourceBoundModel, PRESENTATION_ELEMENT_ORDER_CAPABILITY, {
+            value: Object.freeze({
+              sourceBound: true,
+              known: true,
+              editable: false,
+              blockedReason: "Nested imported group-child reordering is not part of the direct slide scene-stack capability.",
+              ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+            }),
+          });
+        }
       }
       Object.defineProperty(model, PRESENTATION_ELEMENT_DELETION_CAPABILITY, {
         value: Object.freeze({

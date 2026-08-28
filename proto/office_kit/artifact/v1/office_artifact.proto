@@ -1956,6 +1956,12 @@ message PresentationElementSourceBinding {
   // relationship-backed deletion removes only the descendant closure that has
   // no other package parent.
   PresentationElementDeletionCapability deletion_capability = 8;
+  // Import-time preflight for changing this direct element's position in the
+  // owning slide shape tree. Presence makes the capability known. Export
+  // independently re-proves that every direct source element is a movable
+  // drawing node, then moves the existing native nodes without rebuilding
+  // their relationships, identities, descendants, or opaque payloads.
+  PresentationElementZOrderCapability z_order_capability = 9;
 }
 
 message PresentationElementDeletionCapability {
@@ -1966,6 +1972,11 @@ message PresentationElementDeletionCapability {
   // The package-local p:cNvPr/@id used to prove absence after export. This is
   // not a cross-file artifact identity.
   uint32 native_id = 3;
+}
+
+message PresentationElementZOrderCapability {
+  bool supported = 1;
+  string blocked_reason = 2;
 }
 
 // Bounded recursive p:grpSp projection. The outer frame maps the local child

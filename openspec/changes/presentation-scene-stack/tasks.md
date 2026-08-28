@@ -14,9 +14,9 @@
 
 ## 3. Preserve and edit imported order
 
-- [ ] 3.1 Hydrate source order without type regrouping and expose stack index plus source revision.
-- [ ] 3.2 Issue a bounded direct-element reorder capability with explicit blocked reasons.
-- [ ] 3.3 Apply proven reorder in the C# codec by moving existing native nodes; reject unsafe dependencies and mixed mutations.
+- [x] 3.1 Hydrate source order without type regrouping and expose stack index plus source revision.
+- [x] 3.2 Issue a bounded direct-element reorder capability with explicit blocked reasons.
+- [x] 3.3 Apply proven reorder in the C# codec by moving existing native nodes; reject unsafe dependencies and mixed mutations.
 - [ ] 3.4 Reimport and continue editing without changing unrelated OPC parts, relationships, or opaque objects.
 
 ## 4. Agent surface

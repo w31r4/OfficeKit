@@ -207,6 +207,7 @@ internal static class PptxCodec
             var slideVisibility = PptxSlideVisibilityCodec.Read(slideRoot);
             var elements = ShapeElements(shapeTree);
             var deletionAnalysis = PptxElementDeletionCodec.AnalyzeSlide(slidePart);
+            var zOrderPlan = AnalyzeElementZOrder(elements);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
             P.Slide? previousSlideRoot = null;
@@ -311,6 +312,7 @@ internal static class PptxCodec
                 SetElementDeletionCapability(
                     importedElement,
                     PptxElementDeletionCodec.Analyze(slidePart, elements[elementIndex], elements, deletionAnalysis));
+                SetElementZOrderCapability(importedElement, zOrderPlan);
                 target.Elements.Add(importedElement);
             }
             artifact.Slides.Add(target);
@@ -744,6 +746,7 @@ internal static class PptxCodec
                     changed = true;
                 }
                 var sourceElements = ShapeElements(shapeTree);
+                var zOrderPlan = AnalyzeElementZOrder(sourceElements);
                 // Timing edits can change whether a native shape is safe to
                 // delete, but the imported element binding is about the
                 // source revision. Capture that contract before replacing the
@@ -808,7 +811,6 @@ internal static class PptxCodec
 
                 var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
                 var requestedBySourceIndex = new Dictionary<int, PresentationElement>();
-                var previousSourceIndex = -1;
                 foreach (var requested in retainedElements)
                 {
                     var requestedBinding = requested.Source ?? throw new CodecException(
@@ -821,12 +823,11 @@ internal static class PptxCodec
                             $"Presentation slide {slideIndex + 1} retained element {requested.Id} identifies a source shape-tree index outside the slide.",
                             PartPath(slidePart));
                     var sourceIndex = (int)requestedBinding.ShapeTreeIndex;
-                    if (sourceIndex <= previousSourceIndex || !requestedBySourceIndex.TryAdd(sourceIndex, requested))
+                    if (!requestedBySourceIndex.TryAdd(sourceIndex, requested))
                         throw new CodecException(
                             "presentation_element_topology_changed",
-                            $"Presentation slide {slideIndex + 1} retained elements must preserve unique source shape-tree order.",
+                            $"Presentation slide {slideIndex + 1} retained elements must identify unique source shape-tree nodes.",
                             PartPath(slidePart));
-                    previousSourceIndex = sourceIndex;
                 }
                 var deletionsBySourceIndex = new Dictionary<int, PresentationElementDeletion>();
                 foreach (var deletion in target.ElementDeletions)
@@ -847,6 +848,20 @@ internal static class PptxCodec
                             $"Presentation slide {slideIndex + 1} element deletion {deletion.Id} does not identify one omitted source element.",
                             PartPath(slidePart));
                 }
+                var requestedSourceOrder = retainedElements
+                    .Select(element => checked((int)element.Source!.ShapeTreeIndex))
+                    .ToArray();
+                var sourceOrderChanged = !requestedSourceOrder.SequenceEqual(Enumerable.Range(0, sourceElements.Length));
+                if (sourceOrderChanged && (authoredElements.Length > 0 || deletionsBySourceIndex.Count > 0))
+                    throw new CodecException(
+                        "unsupported_presentation_element_reorder",
+                        $"Presentation slide {slideIndex + 1} cannot combine direct-element reordering with authored overlays or deletions in one export; commit and reopen between bounded edits.",
+                        PartPath(slidePart));
+                if (sourceOrderChanged && !zOrderPlan.Supported)
+                    throw new CodecException(
+                        "unsupported_presentation_element_reorder",
+                        $"Presentation slide {slideIndex + 1} cannot safely reorder its direct elements: {zOrderPlan.BlockedReason}.",
+                        PartPath(slidePart));
                 var pendingElementDeletions = new List<(OpenXmlElement Source, PptxElementDeletionPlan Plan)>();
                 for (var elementIndex = 0; elementIndex < sourceElements.Length; elementIndex++)
                 {
@@ -874,7 +889,8 @@ internal static class PptxCodec
                                 "presentation_element_topology_changed",
                                 $"Presentation slide {slideIndex + 1} source element {elementIndex + 1} is neither retained nor explicitly deleted.",
                                 PartPath(slidePart));
-                        AssertElementBinding(deletion.Id, deletion.Source, sourceElement, original, deletionPlan, slideIndex, elementIndex, slidePart);
+                        SetElementZOrderCapability(original, zOrderPlan);
+                        AssertElementBinding(deletion.Id, deletion.Source, sourceElement, original, deletionPlan, zOrderPlan, slideIndex, elementIndex, slidePart);
                         if (!deletion.Id.Equals(original.Id, StringComparison.Ordinal))
                             throw new CodecException(
                                 "presentation_element_deletion_binding_mismatch",
@@ -889,7 +905,8 @@ internal static class PptxCodec
                         continue;
                     }
                     var elementBinding = requested.Source!;
-                    AssertElementBinding(requested.Id, elementBinding, sourceElement, original, deletionPlan, slideIndex, elementIndex, slidePart);
+                    SetElementZOrderCapability(original, zOrderPlan);
+                    AssertElementBinding(requested.Id, elementBinding, sourceElement, original, deletionPlan, zOrderPlan, slideIndex, elementIndex, slidePart);
                     PptxOleWorkbookReplacement? oleWorkbookReplacement = null;
                     PptxOleOfficePackageReplacement? oleOfficePackageReplacement = null;
                     PptxDiagramTextReplacement? diagramTextReplacement = null;
@@ -992,6 +1009,11 @@ internal static class PptxCodec
                     {
                         throw UnsupportedPresentationEdit(slideIndex, elementIndex, slidePart);
                     }
+                }
+                if (sourceOrderChanged)
+                {
+                    ApplyElementZOrder(shapeTree, sourceElements, requestedSourceOrder);
+                    changed = true;
                 }
                 foreach (var deletion in pendingElementDeletions)
                 {
@@ -1345,12 +1367,53 @@ internal static class PptxCodec
         };
     }
 
+    private static PresentationElementZOrderCapability AnalyzeElementZOrder(IReadOnlyList<OpenXmlElement> elements)
+    {
+        for (var index = 0; index < elements.Count; index++)
+        {
+            if (elements[index] is P.Shape or P.Picture or P.GraphicFrame or P.ConnectionShape or P.GroupShape or P.ContentPart) continue;
+            return new PresentationElementZOrderCapability
+            {
+                Supported = false,
+                BlockedReason = $"direct shape-tree child {index + 1} ({elements[index].LocalName}) is not a movable drawing node",
+            };
+        }
+        return new PresentationElementZOrderCapability { Supported = true };
+    }
+
+    private static void SetElementZOrderCapability(
+        PresentationElement element,
+        PresentationElementZOrderCapability plan)
+    {
+        element.Source.ZOrderCapability = plan.Clone();
+    }
+
+    private static void ApplyElementZOrder(
+        P.ShapeTree shapeTree,
+        IReadOnlyList<OpenXmlElement> sourceElements,
+        IReadOnlyList<int> requestedSourceOrder)
+    {
+        if (sourceElements.Count != requestedSourceOrder.Count || requestedSourceOrder.Distinct().Count() != sourceElements.Count ||
+            requestedSourceOrder.Any(index => index < 0 || index >= sourceElements.Count))
+            throw new CodecException("presentation_element_topology_changed", "Presentation direct-element reorder must be a complete permutation of the source shape tree.");
+        OpenXmlElement anchor = shapeTree.GetFirstChild<P.GroupShapeProperties>() ??
+            throw new CodecException("missing_shape_tree", "Presentation shape tree has no group-shape properties anchor.");
+        foreach (var sourceElement in sourceElements) sourceElement.Remove();
+        foreach (var sourceIndex in requestedSourceOrder)
+        {
+            var sourceElement = sourceElements[sourceIndex];
+            shapeTree.InsertAfter(sourceElement, anchor);
+            anchor = sourceElement;
+        }
+    }
+
     private static void AssertElementBinding(
         string requestedId,
         PresentationElementSourceBinding binding,
         OpenXmlElement sourceElement,
         PresentationElement original,
         PptxElementDeletionPlan deletionPlan,
+        PresentationElementZOrderCapability zOrderPlan,
         int slideIndex,
         int elementIndex,
         SlidePart slidePart)
@@ -1369,7 +1432,10 @@ internal static class PptxCodec
             binding.DeletionCapability is null ||
             binding.DeletionCapability.Supported != deletionPlan.Supported ||
             binding.DeletionCapability.NativeId != deletionPlan.NativeId ||
-            !binding.DeletionCapability.BlockedReason.Equals(deletionPlan.BlockedReason, StringComparison.Ordinal))
+            !binding.DeletionCapability.BlockedReason.Equals(deletionPlan.BlockedReason, StringComparison.Ordinal) ||
+            binding.ZOrderCapability is null ||
+            binding.ZOrderCapability.Supported != zOrderPlan.Supported ||
+            !binding.ZOrderCapability.BlockedReason.Equals(zOrderPlan.BlockedReason, StringComparison.Ordinal))
             throw new CodecException(
                 "presentation_element_binding_mismatch",
                 $"Presentation slide {slideIndex + 1} element {elementIndex + 1} changed its source capability contract.",
@@ -2958,13 +3024,18 @@ internal static class PptxCodec
             var outputContext = new PptxPartContext(outputSlides[slideIndex], outputIdByPartPath, assets: outputAssets, customShows: customShowCatalog);
             var before = ShapeElements(sourceSlide.Slide!.CommonSlideData!.ShapeTree!);
             var after = ShapeElements(outputRoot.CommonSlideData!.ShapeTree!);
-            var afterIds = NativeElementIds(after, requested.Slides[slideIndex].Id);
             var (elements, authoredElements) = SplitSourceBoundElements(requested.Slides[slideIndex], before.Length, slideIndex, outputSlide);
             var authoredNativeIds = AuthoredOverlayNativeIds(before, authoredElements, slideIndex, outputSlide);
+            var outputNativeIdSet = after.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
+            var afterIds = sourceTimingIds
+                .Where(entry => outputNativeIdSet.Contains(entry.Key))
+                .ToDictionary(entry => entry.Key, entry => entry.Value);
+            foreach (var (elementId, nativeId) in authoredNativeIds)
+                afterIds.Add(nativeId, elementId);
             var deletions = requested.Slides[slideIndex].ElementDeletions;
             if (before.Length != elements.Length + deletions.Count || after.Length != elements.Length + authoredElements.Length)
                 throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} element topology changed during source-preserving export.", PartPath(outputSlide));
-            var outputNativeIds = after.SelectMany(PptxElementDeletionCodec.NativeIds).ToHashSet();
+            var outputNativeIds = outputNativeIdSet;
             foreach (var deletion in deletions)
             {
                 var binding = deletion.Source ?? throw new CodecException(
@@ -3812,6 +3883,7 @@ internal static class PptxCodec
             throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} legacy comments are not unchanged source comments.", PartPath(source.Part));
 
         var sourceElements = ShapeElements(tree);
+        var zOrderPlan = AnalyzeElementZOrder(sourceElements);
         if (sourceElements.Length != target.Target.Elements.Count + target.Target.ElementDeletions.Count)
             throw PptxSlideCloneCodec.Unsupported(source, "the requested clone does not account for every source element");
         var context = new PptxPartContext(source.Part, slideIdByPartPath, assets: assetCatalog, customShows: customShowCatalog);
@@ -3849,17 +3921,18 @@ internal static class PptxCodec
             var original = ReadElement(sourceElements[elementIndex], source.Index, elementIndex, context, nativeObjects, elementIdsByNativeId);
             var strictDeletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements);
             SetElementDeletionCapability(original, strictDeletionPlan);
+            SetElementZOrderCapability(original, zOrderPlan);
             if (requestedBySourceIndex.TryGetValue(elementIndex, out var requested))
             {
                 var binding = requested.Source!;
-                AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, strictDeletionPlan, target.TargetIndex, elementIndex, source.Part);
+                AssertElementBinding(requested.Id, binding, sourceElements[elementIndex], original, strictDeletionPlan, zOrderPlan, target.TargetIndex, elementIndex, source.Part);
                 if (!SemanticHash(requested).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_slide_clone_mismatch", $"Presentation clone {target.TargetIndex + 1} element {elementIndex + 1} is not an unchanged source element.", PartPath(source.Part));
                 continue;
             }
             if (!deletionsBySourceIndex.TryGetValue(elementIndex, out var deletion))
                 throw PptxSlideCloneCodec.Unsupported(source, "a source element is neither retained nor explicitly deleted");
-            AssertElementBinding(deletion.Id, deletion.Source!, sourceElements[elementIndex], original, strictDeletionPlan, target.TargetIndex, elementIndex, source.Part);
+            AssertElementBinding(deletion.Id, deletion.Source!, sourceElements[elementIndex], original, strictDeletionPlan, zOrderPlan, target.TargetIndex, elementIndex, source.Part);
             if (!deletion.Id.Equals(original.Id, StringComparison.Ordinal))
                 throw new CodecException("presentation_element_deletion_binding_mismatch", $"Presentation clone {target.TargetIndex + 1} deletion {elementIndex + 1} changed its source element identity.", PartPath(source.Part));
             var projectionDeletionPlan = PptxElementDeletionCodec.Analyze(source.Part, sourceElements[elementIndex], sourceElements, allowDuplicateNativeIds: true);

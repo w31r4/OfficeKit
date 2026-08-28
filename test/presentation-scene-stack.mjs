@@ -42,6 +42,10 @@ const reimported = await PresentationFile.importPptx(output);
 const reopened = reimported.slides.items[0];
 assert.deepEqual(reopened.elements.items.map((element) => element.name), ["photo", "scrim", "title"]);
 assert.deepEqual(reopened.elements.getItem("scrim").fill, { color: "#000000", opacity: 0.48 });
-assert.throws(() => reopened.elements.getItem("photo").bringToFront(), /cannot be safely changed/);
+assert.equal(reopened.elements.getItem("photo").zOrderCapability.editable, true);
+reopened.elements.getItem("photo").bringToFront();
+const reorderedOutput = await PresentationFile.exportPptx(reimported);
+const reordered = await PresentationFile.importPptx(reorderedOutput);
+assert.deepEqual(reordered.slides.items[0].elements.items.map((element) => element.name), ["scrim", "title", "photo"]);
 
 console.log("presentation scene stack smoke ok");
