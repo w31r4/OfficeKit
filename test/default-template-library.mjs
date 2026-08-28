@@ -38,6 +38,7 @@ const TEMPLATES = [
   ["artifact-template-simple-dark-mode", "Simple Dark Mode", "presentation", ".pptx"],
   ["artifact-template-simple-light-mode", "Simple Light Mode", "presentation", ".pptx"],
   ["artifact-template-team-alignment", "Team Alignment", "presentation", ".pptx"],
+  ["artifact-template-evidence-ledger", "Evidence Ledger", "presentation", null, "copy-only"],
   ["artifact-template-analytics-dashboard", "Analytics Dashboard", "spreadsheet", ".xlsx"],
   ["artifact-template-financial-budget", "Financial Budget", "spreadsheet", ".xlsx"],
   ["artifact-template-operating-calendar", "Operating Calendar", "spreadsheet", ".xlsx"],
@@ -59,9 +60,9 @@ const templateShardRanges = Object.freeze({
   "documents-a": Object.freeze({ start: 0, end: 4 }),
   "documents-b": Object.freeze({ start: 4, end: 7 }),
   "presentations-a": Object.freeze({ start: 7, end: 11 }),
-  "presentations-b": Object.freeze({ start: 11, end: 15 }),
-  "spreadsheets-a": Object.freeze({ start: 15, end: 18 }),
-  "spreadsheets-b": Object.freeze({ start: 18, end: 21 }),
+  "presentations-b": Object.freeze({ start: 11, end: 16 }),
+  "spreadsheets-a": Object.freeze({ start: 16, end: 19 }),
+  "spreadsheets-b": Object.freeze({ start: 19, end: 22 }),
 });
 const shardTemplateIds = Object.values(templateShardRanges)
   .flatMap(({ start, end }) => TEMPLATES.slice(start, end).map(([id]) => id));
@@ -78,6 +79,7 @@ if (templateShard && !templateShardRange) {
 const WORK_TEMPLATES = templateShardRange
   ? TEMPLATES.slice(templateShardRange.start, templateShardRange.end)
   : TEMPLATES;
+const WORK_REFERENCE_TEMPLATES = WORK_TEMPLATES.filter(([, , , extension]) => extension != null);
 
 const SPREADSHEET_RECALCULATION_SENTINELS = new Map([
   ["artifact-template-analytics-dashboard", { sheet: "Dashboard", address: "B4" }],
@@ -520,7 +522,11 @@ assert.deepEqual(integrity.source, {
   copyright: "Copyright (c) 2026 w31r4",
 });
 assert.match(await fs.readFile(path.join(libraryRoot, "LICENSE.md"), "utf8"), /MIT License\n\nCopyright \(c\) 2026 w31r4/);
-assert.equal(integrity.assets.length, TEMPLATES.length * 2);
+const expectedAssetCount = TEMPLATES.reduce(
+  (count, [, , , extension]) => count + (extension == null ? 6 : 2),
+  0,
+);
+assert.equal(integrity.assets.length, expectedAssetCount);
 
 const expectedFiles = new Set([
   ".codex-plugin/plugin.json",
@@ -535,26 +541,41 @@ const aggregate = crypto.createHash("sha256");
 let totalBytes = 0;
 for (const [id, displayName, kind, extension, editLevel = "bounded-edit"] of [...TEMPLATES].sort((left, right) => left[0].localeCompare(right[0]))) {
   const skillRoot = path.join(libraryRoot, "skills", id);
-  const referencePath = `assets/reference${extension}`;
-  for (const relativePath of ["SKILL.md", "artifact-template.json", "agents/agent.yaml", "assets/preview.png", referencePath]) {
+  const isCleanRoom = extension == null;
+  const referencePath = isCleanRoom ? null : `assets/reference${extension}`;
+  for (const relativePath of ["SKILL.md", "artifact-template.json", "agents/agent.yaml", "assets/preview.png", ...(isCleanRoom ? [] : [referencePath])]) {
     expectedFiles.add(path.posix.join("skills", id, relativePath));
   }
-  const [skillText, agentText, sidecarText, previewBytes, referenceBytes] = await Promise.all([
+  const [skillText, agentText, sidecarText, previewBytes] = await Promise.all([
     fs.readFile(path.join(skillRoot, "SKILL.md"), "utf8"),
     fs.readFile(path.join(skillRoot, "agents", "agent.yaml"), "utf8"),
     fs.readFile(path.join(skillRoot, "artifact-template.json"), "utf8"),
     fs.readFile(path.join(skillRoot, "assets", "preview.png")),
-    fs.readFile(path.join(skillRoot, referencePath)),
   ]);
   assert.equal(skillText.match(/^name:\s*(.+)$/mu)?.[1]?.trim(), id, `${id} frontmatter name`);
   assert.equal(yamlValue(agentText, "display_name"), displayName, `${id} display name`);
   assert.equal(yamlValue(agentText, "icon_large"), "./assets/preview.png", `${id} preview icon`);
   const sidecar = JSON.parse(sidecarText);
-  assert.equal(sidecar.schemaVersion, 2, `${id} sidecar schema`);
+  assert.equal(sidecar.schemaVersion, isCleanRoom ? 3 : 2, `${id} sidecar schema`);
   assert.equal(sidecar.id, id, `${id} sidecar id`);
   assert.equal(sidecar.displayName, displayName, `${id} sidecar display name`);
   assert.equal(sidecar.kind, kind, `${id} sidecar kind`);
-  assert.equal(sidecar.reference, referencePath, `${id} sidecar reference`);
+  if (isCleanRoom) {
+    assert.equal(Object.hasOwn(sidecar, "reference"), false, `${id} clean-room sidecar must not retain a reference`);
+    assert.equal(Array.isArray(sidecar.examples), true, `${id} clean-room examples`);
+    assert.equal(sidecar.examples.length, 5, `${id} clean-room example count`);
+    for (const example of sidecar.examples) {
+      const relativePath = example.path;
+      expectedFiles.add(path.posix.join("skills", id, relativePath));
+      const exampleBytes = await fs.readFile(path.join(skillRoot, relativePath));
+      assert.equal(hasValidPngStructure(exampleBytes), true, `${id} example PNG structure`);
+      assert.equal(sha256(exampleBytes), example.sha256, `${id} example SHA-256`);
+      updateAggregate(aggregate, path.posix.join("skills", id, relativePath), exampleBytes);
+      totalBytes += exampleBytes.length;
+    }
+  } else {
+    assert.equal(sidecar.reference, referencePath, `${id} sidecar reference`);
+  }
   assert.equal(sidecar.preview, "assets/preview.png", `${id} sidecar preview`);
   assert.ok(sidecar.useWhen.length > 0, `${id} sidecar useWhen`);
   assert.ok(Array.isArray(sidecar.avoidWhen), `${id} sidecar avoidWhen`);
@@ -562,12 +583,20 @@ for (const [id, displayName, kind, extension, editLevel = "bounded-edit"] of [..
   assert.ok(Array.isArray(sidecar.contentShapes), `${id} sidecar contentShapes`);
   assert.ok(["neutral", "opinionated"].includes(sidecar.visualCommitment), `${id} sidecar visual commitment`);
   assert.equal(sidecar.editProfile.level, editLevel, `${id} edit profile`);
-  assert.ok(sidecar.editProfile.verifiedOperations.length > 0, `${id} verified edit operations`);
+  if (!isCleanRoom) assert.ok(sidecar.editProfile.verifiedOperations.length > 0, `${id} verified edit operations`);
   assert.equal(sidecar.provenance.license, "MIT", `${id} template license`);
   assert.equal(hasValidPngStructure(previewBytes), true, `${id} preview PNG structure`);
-  assert.equal(referenceBytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])), true, `${id} Office reference ZIP signature`);
+  if (!isCleanRoom) {
+    const referenceBytes = await fs.readFile(path.join(skillRoot, referencePath));
+    assert.equal(referenceBytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])), true, `${id} Office reference ZIP signature`);
+  }
 
-  for (const [role, relativePath, bytes] of [["preview", "assets/preview.png", previewBytes], ["reference", referencePath, referenceBytes]]) {
+  const binaryRecords = [["preview", "assets/preview.png", previewBytes]];
+  if (!isCleanRoom) {
+    const referenceBytes = await fs.readFile(path.join(skillRoot, referencePath));
+    binaryRecords.push(["reference", referencePath, referenceBytes]);
+  }
+  for (const [role, relativePath, bytes] of binaryRecords) {
     const assetPath = path.posix.join("skills", id, relativePath);
     const record = integrity.assets.find((asset) => asset.templateId === id && asset.role === role);
     assert.deepEqual({ templateId: id, role, path: assetPath, bytes: bytes.length, sha256: sha256(bytes) }, record, `${id} ${role} integrity`);
@@ -584,6 +613,7 @@ assert.equal(aggregate.digest("hex"), integrity.assetAggregateSha256, "binary ag
 assert.ok(totalBytes <= 32 * 1024 * 1024, `template binary budget exceeded: ${totalBytes}`);
 assert.ok(integrity.assets.filter((asset) => asset.role === "preview").every((asset) => asset.bytes <= 512 * 1024), "preview budget exceeded");
 assert.ok(integrity.assets.filter((asset) => asset.role === "reference").every((asset) => asset.bytes <= 8 * 1024 * 1024), "Office reference budget exceeded");
+assert.ok(integrity.assets.filter((asset) => asset.role === "example").every((asset) => asset.bytes <= 512 * 1024), "clean-room example budget exceeded");
 const actualFiles = (await walkFiles(libraryRoot)).map((file) => path.relative(libraryRoot, file).split(path.sep).join("/"));
 assert.deepEqual(actualFiles, [...expectedFiles].sort(), "template library canonical file inventory");
 
@@ -592,7 +622,9 @@ assert.deepEqual(actualFiles, [...expectedFiles].sort(), "template library canon
 // instead of assuming that an unrelated reference checkout is byte-identical.
 const sourceRoot = process.env.OFFICE_TEMPLATE_SOURCE_ROOT;
 if (sourceRoot) {
-  for (const asset of integrity.assets.filter((item) => item.templateId !== "artifact-template-grid-layout-library")) {
+  for (const asset of integrity.assets.filter((item) =>
+    item.templateId !== "artifact-template-grid-layout-library" &&
+    item.templateId !== "artifact-template-evidence-ledger")) {
     const [sourceBytes, targetBytes] = await Promise.all([fs.readFile(path.join(sourceRoot, asset.path)), fs.readFile(path.join(libraryRoot, asset.path))]);
     assert.equal(
       sha256(targetBytes),
@@ -605,7 +637,7 @@ if (sourceRoot) {
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-template-library-"));
 try {
   const materialized = [];
-  for (const [id, , kind, extension] of WORK_TEMPLATES) {
+  for (const [id, , kind, extension] of WORK_REFERENCE_TEMPLATES) {
     console.error(`[default-template-library] materialize ${id}`);
     const output = path.join(temporary, `${id}${extension}`);
     const audit = path.join(temporary, `${id}.audit.json`);

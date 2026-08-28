@@ -1,6 +1,10 @@
 # Default Template Library
 
-This checked-in catalog provides 21 independently selectable, reference-backed Office templates: 7 documents, 8 presentations, and 6 spreadsheets.
+This checked-in catalog provides 22 independently selectable Office templates: 7
+documents, 9 presentations, and 6 spreadsheets. Most are reference-backed;
+presentation templates created with schema v3 are clean-room visual grammars
+with a style guide and representative example images, not retained source
+decks.
 
 Twenty templates are copied from the MIT-licensed `office-artifact-tool`
 repository at commit `256cb31bfe0a07b3cef0051b6b159342be381378`
@@ -22,15 +26,18 @@ skills/default-template-library/
     ├── agents/agent.yaml
     └── assets/
         ├── preview.png
-        └── reference.docx | reference.pptx | reference.xlsx
+        ├── reference.docx | reference.pptx | reference.xlsx
+        └── examples/*.png                 # schema-v3 presentations only
 ```
 
-Each nested skill retains its reference Office file and preview image. Its
-schema-v2 `artifact-template.json` adds English intended uses, avoid cases, audiences,
+Each schema-v2 nested skill retains its reference Office file and preview image.
+Its `artifact-template.json` adds English intended uses, avoid cases, audiences,
 content shapes, visual traits, visual commitment, verified edit operations,
-license/source provenance, and retained-asset hashes. OfficeKit can therefore
-shortlist templates without loading all twenty-one Skill descriptions or opening
-every Office file.
+license/source provenance, and retained-asset hashes. A schema-v3 presentation
+skill instead records a style guide, a preview, and one to eight hashed example
+images; it deliberately contains no PPTX, MJS, DSL, fixed layout, or cloneable
+page. OfficeKit can therefore shortlist templates without loading every Skill
+description or opening every Office file.
 
 Use the named template skill to create a new artifact while preserving the
 retained layout and formatting unless the request calls for a change.
@@ -38,7 +45,9 @@ retained layout and formatting unless the request calls for a change.
 These resources ship once inside the global OfficeKit package.
 `officekit init` leaves them there instead of copying them into every project.
 Use `officekit template search` to query them, then create a distinct output
-from the selected retained reference. Never overwrite or mutate that reference.
+from the selected retained reference, or read the selected schema-v3 style guide
+and examples before composing a new deck. Never overwrite or mutate a retained
+reference or example asset.
 
 For a guarded working copy, run:
 

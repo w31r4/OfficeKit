@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "default-template-library",
-  "description": "Curated reference-backed Office templates.",
+  "description": "Curated Office templates, including clean-room presentation visual grammars.",
   "owner": "w31r4",
   "skills": [
     "skills/artifact-template-design-report",
@@ -19,6 +19,7 @@
     "skills/artifact-template-simple-dark-mode",
     "skills/artifact-template-simple-light-mode",
     "skills/artifact-template-team-alignment",
+    "skills/artifact-template-evidence-ledger",
     "skills/artifact-template-analytics-dashboard",
     "skills/artifact-template-financial-budget",
     "skills/artifact-template-operating-calendar",
@@ -31,6 +32,6 @@
   },
   "interface": {
     "displayName": "Default Template Library",
-    "shortDescription": "Reference-backed templates for Office artifacts"
+    "shortDescription": "Reusable Office artifact references and presentation visual grammars"
   }
 }

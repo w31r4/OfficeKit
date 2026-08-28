@@ -1,7 +1,7 @@
 {
   "name": "default-template-library",
   "version": "0.2.0",
-  "description": "MIT-licensed, repository-only Office template library with retained reference files and previews.",
+  "description": "MIT-licensed, repository-only Office template library with retained references and clean-room presentation visual grammars.",
   "author": {
     "name": "w31r4",
     "url": "https://github.com/w31r4/office-artifact-tool"
@@ -11,8 +11,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Default Template Library",
-    "shortDescription": "Use retained MIT Office templates from this repository",
-    "longDescription": "Repository-only MIT Office templates with byte-integrity records. Create a new output from a selected reference; never mutate the retained source file.",
+    "shortDescription": "Use retained Office references or presentation visual grammars",
+    "longDescription": "Repository-only Office templates with byte-integrity records. Document and spreadsheet entries retain references; schema-v3 presentation entries provide a style guide and visual examples without a source deck.",
     "developerName": "w31r4",
     "category": "Productivity",
     "capabilities": [
@@ -26,7 +26,7 @@
     "logo": "./assets/icon.svg",
     "defaultPrompt": [
       "Create a document from the System Design template",
-      "Create a presentation from the Business Review template",
+      "Create a presentation from the Evidence Ledger template",
       "Create a workbook from the Sales Pipeline template"
     ],
     "brandColor": "#0F766E",

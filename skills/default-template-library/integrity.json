@@ -6,7 +6,7 @@
     "license": "MIT",
     "copyright": "Copyright (c) 2026 w31r4"
   },
-  "assetAggregateSha256": "c1a27005a218de0af313244e88e4a8ce14592c52bfe8400fbe359f9efcd8b11e",
+  "assetAggregateSha256": "19c9f374bfca2b700228178676b82a880834cf394740222375bf786cc6ab886b",
   "assets": [
     {
       "templateId": "artifact-template-analytics-dashboard",
@@ -63,6 +63,48 @@
       "path": "skills/artifact-template-experiment-analysis/assets/reference.docx",
       "bytes": 204643,
       "sha256": "d823cd0115186b34c01c6e4b4da3be28b64ee73cac849dbd62d6f4bb6385b0fb"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-01.png",
+      "bytes": 157820,
+      "sha256": "de3562f0e9b10968eb7aff769965414af05779b916cf1de374d9703a37992263"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-02.png",
+      "bytes": 61061,
+      "sha256": "4608c74243cc0a107710c00c16950aa21efb7ff8818291e71b65246c8f370f0e"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-03.png",
+      "bytes": 180470,
+      "sha256": "85a13c68dd98c6be0cb709b8197ede8d60a7eab4cba4da9f944983bf4e1d20b2"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-04.png",
+      "bytes": 66470,
+      "sha256": "3ff195eaddf6ffbe9c6e627b2aa5587502105f3742d285ed19a5c518407a16c5"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-05.png",
+      "bytes": 157888,
+      "sha256": "1d21b1f956ce45cbcb285b6e27edbd1ac770326c04453fd68bba21de0aec9840"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "preview",
+      "path": "skills/artifact-template-evidence-ledger/assets/preview.png",
+      "bytes": 217482,
+      "sha256": "bc52b16bb8369aab192c093828da2017fdda486638b514a53d92d9b7150150d0"
     },
     {
       "templateId": "artifact-template-financial-budget",
