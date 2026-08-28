@@ -1,6 +1,6 @@
 ---
 name: artifact-template-cranberry-evidence
-description: "Cranberry Evidence is an original OfficeKit presentation style for experimental report, with lens-led composition and dense information density."
+description: "Cranberry Evidence presentation style."
 ---
 
 # Cranberry Evidence

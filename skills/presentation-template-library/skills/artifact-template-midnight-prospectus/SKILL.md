@@ -1,6 +1,6 @@
 ---
 name: artifact-template-midnight-prospectus
-description: "Midnight Prospectus is an original OfficeKit presentation style for annual investment outlook, with prospectus-led composition and dense information density."
+description: "Midnight Prospectus presentation style."
 ---
 
 # Midnight Prospectus

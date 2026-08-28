@@ -1,6 +1,6 @@
 ---
 name: artifact-template-amber-committee-memo
-description: "Amber Committee Memo is an original OfficeKit presentation style for investment committee, with diagonal-led composition and dense information density."
+description: "Amber Committee Memo presentation style."
 ---
 
 # Amber Committee Memo

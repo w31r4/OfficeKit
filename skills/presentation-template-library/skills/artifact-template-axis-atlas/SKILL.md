@@ -1,6 +1,6 @@
 ---
 name: artifact-template-axis-atlas
-description: "Axis Atlas is an original OfficeKit presentation style for systems research, with route-led composition and dense information density."
+description: "Axis Atlas presentation style."
 ---
 
 # Axis Atlas

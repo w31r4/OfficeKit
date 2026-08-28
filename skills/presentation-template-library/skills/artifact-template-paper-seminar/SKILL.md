@@ -1,6 +1,6 @@
 ---
 name: artifact-template-paper-seminar
-description: "Paper Seminar is an original OfficeKit presentation style for seminar lecture, with paper-led composition and medium information density."
+description: "Paper Seminar presentation style."
 ---
 
 # Paper Seminar

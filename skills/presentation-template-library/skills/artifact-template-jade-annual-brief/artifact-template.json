@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-jade-annual-brief",
   "displayName": "Jade Annual Brief",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "0f1be53863e8eab626918a3fdc107857b04efb6551e6acaaaf6411d3dc00a30e"
+      "sha256": "e3377c8d3f06f96642b8049440f991ac7a7e7a6fb1b0c0a7cfe002bdca0ac9f7"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "d90e525aeaa4266df750d0daa20382d578124a2b043cda053a5372e53916ae7d"
+      "sha256": "0df6e743c3aa25e909954288c6c6576f0f08b16aeddaca1176354903a5ebe10b"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "6a594e43ba0840856fcdcbe656d80a2b867e09408fe8a5f1767cd59816e762b3"
+      "sha256": "1c646b6f2d66b66c1f6b28a6488caed455e4b4fb419535cbb5d6a500c1182104"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "db1a7caf54c753e3fb9e378aeaccf445c5b67a0c59d6505391fd7a0917596235"
+      "sha256": "65a79f157b398e3d27e134440f03d762029acaf0f8e523c7669b2d87a8aaa254"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "1d85298632a0f8e769a6c6643af14e79f3a8aa886cbca1984b0789c5e56fb4b4",
-    "previewSha256": "c171505fdb28821715d5ddf54ddbc1b15471fd731fb847e305f55a4d364eb07c"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "764e0c4a9d55db8d25febfcba3bc5052d388306e328674a7dae5e18627dd8b10",
+    "referenceSha256": "05c4c50bf0c343c768126fc16f088342214291b91025ed26e040e946dab8df3e",
+    "previewSha256": "1ed4c45abe906f185028c11d6b0512bfce059d13f549314c11c6c4cc0e0a00ff"
   }
 }

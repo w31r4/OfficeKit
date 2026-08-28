@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-axis-atlas",
   "displayName": "Axis Atlas",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "90b069c09bfd9a7e970b1463409c405ab420772044714c8927289bd1790797ca"
+      "sha256": "42b90fc694d554d4348269dd18a6ba5d96f168c6621c3b97474386764c926fb5"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "eb26b507bb65c60f076ed392510c9072d88a8aa4bfaa4e33eda25aa1d6fdf355"
+      "sha256": "85f572d5097b0a90303986292aea9433113feab804044ee0fa1348517ea3d6a7"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "84e704750912da3b218377c7dd098cfd979389771db597b66d8f8e3b41f8186d"
+      "sha256": "3a28db93ab170caec86730e51281b13262f8c20d7c6f3c75b646a327f716f4ac"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "27ad3e78fb466ba52cdc8d3241425387aabd298ffbd15ebca490561719bbf1ba"
+      "sha256": "16041c10ee8c71587afe6754176c3b1b87c2b7692b8f96f4a3465ed15db906d1"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "7806afc524c698a31295bdd5aeeae33a8756c8558d45f4a2c768c4fe442ee0ee",
-    "previewSha256": "99f4054d25c10532ff5f4e4f7b614d17826a84d8c0d1a7134bc3f73888e638e7"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "3987de7cc142e8e40107f76f1454b579f13d99a85c9b4cab47d683cb7c402fae",
+    "referenceSha256": "bda60dc9ce43bbcf9086e0c2df1cacf1bb2a84837ccf12a8a4080939a19eee37",
+    "previewSha256": "81791d61211e33b5e4ebc2f8e9b8ec5d3f606583aace85ba20b14a3694aff859"
   }
 }

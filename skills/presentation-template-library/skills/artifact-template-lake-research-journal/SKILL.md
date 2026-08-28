@@ -1,6 +1,6 @@
 ---
 name: artifact-template-lake-research-journal
-description: "Lake Research Journal is an original OfficeKit presentation style for equity research, with journal-led composition and dense information density."
+description: "Lake Research Journal presentation style."
 ---
 
 # Lake Research Journal

@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-silver-atelier",
   "displayName": "Silver Atelier",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "e9ee116e7b9554ca4570654d5ee753a96f5f57e15838359de97a351578aa9122"
+      "sha256": "c01d016f7f1e55594589df39f7e8ae3a6fa0dc01f4501c2fcd4444dde96ead06"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "887cb8ed25b5a957b8491f546dc3b2105c4ec337ecdda314a9271932ca69973b"
+      "sha256": "1d4ccab9bc9fe292333afc7094d84e5e19f14dd9d85d05fe1a5363352a9afb15"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "2bfb7ad6a38bb970631fd713d3a6108a157aa0de378b80bb3104c69b26751180"
+      "sha256": "22898bed824dcf2a3b516deaa90086f9924177f229515526bf9c7cb9a5b138b6"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "007707d8cd9d87442c527b8b56c1714869af18bd148d982097c0ce12313a6438"
+      "sha256": "dbf4c1b6e91f8fdd1d130e2ff2aa240f573bff393f68e7ee26efe19e8297888d"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "61454cd1473d801e161fd22df604939411c6b4ae363c83b9b5d0c3078c534ec6",
-    "previewSha256": "10c896fc663c2cb74e05cb6c6b4493f9e396dfa2795c20185fbca36b7e64d7e9"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "49a1f7b72d781e873a915bed48fb32917981a28ce8172073f8e89f383064717d",
+    "referenceSha256": "4a6a292b5476c59afe0d3b0fdea9c4513a237147bbc73535ca02de025c978815",
+    "previewSha256": "b203a778ab3c095aa23bc952d2f21870dbcd43c956cbdd84aee28e13e9a083a7"
   }
 }

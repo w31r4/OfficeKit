@@ -1,6 +1,6 @@
 ---
 name: artifact-template-forest-strategy
-description: "Forest Strategy is an original OfficeKit presentation style for growth strategy, with staircase-led composition and dense information density."
+description: "Forest Strategy presentation style."
 ---
 
 # Forest Strategy

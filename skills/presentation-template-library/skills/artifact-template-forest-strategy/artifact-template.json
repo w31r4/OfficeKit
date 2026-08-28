@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-forest-strategy",
   "displayName": "Forest Strategy",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "c14a07d2c9d6ae22b4fa65af95894dcaffcbf70504232f20fc5dfc6639116b44"
+      "sha256": "03b01997b2f99e0591c30d1c10986a8c3d24158f5d02e8574c99f877e880b53b"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "3cd61baa72ebb50ea9079f03aeec7f3d9ca15d7f7147ef417d3e70d36d4e7c6e"
+      "sha256": "de93fa229158a32f860ea994a9bfc9f351ca0f6d898b4aa4ff4634a13635a4f9"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "0e3c3c945a0deff86a4e279113b759a10c2375db934e47b504b5188227b5612e"
+      "sha256": "84b5085c9413069f32b1b67233b45c49ae8a4c2a65b4846caf5850bca8ae82b4"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "363cafac71ac37ac001a6b86c8eaf45123260cc733d1833a06adb01f0608f53c"
+      "sha256": "f8d51f3c111e3450c8d62c690a5b655f379e0c1c869621e46109f679385e9809"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "92b34deefb91afc4d3d0ecfe600b71df18573619ac5a60977e9e9e6bb9702d4c",
-    "previewSha256": "972fcba15bf63aab95e16094c36fcc27e2988a2d2e9787de4fc26bca483b45ba"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "ff606aebb8e67963b2a3253434edcdb99f22eed6f3a78b6655af85fc2301ed32",
+    "referenceSha256": "0160d9f183a7532858e8a6900ee58e1b6552f6895d9f9227729f75ccda1a1ed4",
+    "previewSha256": "876a3ce9cdd09051171deab1b340e8e938f9ad1f4d51cea5070d6a02138d287d"
   }
 }

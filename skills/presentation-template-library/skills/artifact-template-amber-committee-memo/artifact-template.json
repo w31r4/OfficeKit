@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-amber-committee-memo",
   "displayName": "Amber Committee Memo",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "347749f537d6d85b6a4120a1334009114432e23ae3c860c5500dab4a6e2dd2e7"
+      "sha256": "790cb43f8d62929298cf6c9975cb046cb917b0c759723db9cbf6cf7dd6a36d75"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "cd5bb25f5edb0773c335c7554845edc006182a537213d048dd06d5d6ed4c6f19"
+      "sha256": "d0146330d57744fb4e839b99baa45b3b2915d59c57cde524d212c30d59080519"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "87e04c1f7b61212e93512470b7ba00233ab1cefc983e706b712a1b14e334255b"
+      "sha256": "da3ee0557cd6c18e4b199d2903be6b21ee5104e3148be8269fbd16296907ddc1"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "393080a1d61660ff64d9688d914924e80a5397b1006097c64d9e8d81af0061a0"
+      "sha256": "0165e614703c7c04f199930eb5697306a9b056f553cb4b46884e1f4c1181e7f1"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "50bdaadf4a3b414579d0c8095a3a89d1eee2536ef1c5a99e805a68ce12f64d61",
-    "previewSha256": "70f48c52209186b631debbf5ee625f8c859a3a172229a5420d91af910a79cb97"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "21e3d99d29f9038a66a3090ba8e1fff12675fa8fa67c6cc495f481cf161ef26b",
+    "referenceSha256": "067d165c0944c274410242bc71e1c39490057d00ef637039b19978142b0bdaa0",
+    "previewSha256": "3e84761dd08935448447fd75a3b2456b15b2299fa328cec6aa67aa86b9b36370"
   }
 }

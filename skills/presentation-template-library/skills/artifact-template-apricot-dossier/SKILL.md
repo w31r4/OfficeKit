@@ -1,6 +1,6 @@
 ---
 name: artifact-template-apricot-dossier
-description: "Apricot Dossier is an original OfficeKit presentation style for due diligence, with redline-led composition and dense information density."
+description: "Apricot Dossier presentation style."
 ---
 
 # Apricot Dossier

@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-cream-civic-collage",
   "displayName": "Cream Civic Collage",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "984b0253640e580488838e2542734739a8957fa67c62b1b188b42785b6b41ba6"
+      "sha256": "9858c8108378b27497c0f901bdd296d2c3bfaa96f93c1ce3b46b77d80be9dd56"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "ccaf1cb261713bd52ada04426e64530d76d8f64f9bbb8b7d8896312d11331275"
+      "sha256": "5f197056d53dc623255aa2993bd065bfae40db53a4d4f3c94367f70196603433"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "fe0e40647d15fb7eb89087f535f5fe4babb997bfcb78422424db0326d3a29011"
+      "sha256": "6b6a55d2e475707db06e1b38d857d9779962bdfd076f35f72ab901f1eae7fdfa"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "93db2d0d378b975fe29f1319a83455654e1f4363322ad2416be90542f522aaac"
+      "sha256": "0e7b445e482d216ef5295f002069198ac378690b979ee1672a7dc6200bdb1f11"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "28b3de8953a9d92fe80dfc17b94d5c0ddc51486a3ca15ca19d79061889518063",
-    "previewSha256": "354f241911375b5931107310af93354ce0954160b92bc5d37a0535ac4be802bf"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "3b35e6fa7a56f8829db8062fd8745bd0bf49932ea94705a8558188d924ad68ee",
+    "referenceSha256": "798dcf7385373be571f660051646c7b93a31af0108613f5457df69b7c477c7be",
+    "previewSha256": "b6072a58f624b02a018c2e28d3b515e3370ace9dd77e82d7243da5ae1f8483f9"
   }
 }

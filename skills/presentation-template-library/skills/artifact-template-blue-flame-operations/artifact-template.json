@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-blue-flame-operations",
   "displayName": "Blue Flame Operations",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "9dd7c151127913fa75c0d2dc92a9cfbd4c6b84a481b157c4fb6874dfbe99e9dc"
+      "sha256": "2952c643f7a3f42bbe9531a4553b48f4b8b6b4e37052093c0d204cf72bf27a6f"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "625963b6c5fec3fe13798941aabf4d9b1dc34c75a937ecaf1cd38d43ef34a7e6"
+      "sha256": "4779bdd7227f05a6d4786d0fe30505d2c473dd68c02972409c86528281382e77"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "cf82b36538bf2fa5e7635620657230ec3c5789d98415a18d8843a8c518c87fd9"
+      "sha256": "e42d9cf684dccfb3aa77aad50f8154e61086ef71b01d231a1b58a6d173575ea3"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "753404245904ffcd5cba5c01f8f26ed7d278e50dc6e4d794f107ba32ddcda620"
+      "sha256": "8e59a7b9dade6ac5e2862b2cdc9276a88981cc95bf34ceac9f755a1acd32ae7e"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "3d9d5b31f315a81a711d361d6028ed0cf3a49ad631a71704ef206e3ca5fb6394",
-    "previewSha256": "16966fcebcc31d7eaefb7bfc5e82c6176f80a91677e3ee0a295dcfc0ce26aef5"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "72e945a5619cc5c14f792106157c354badc988433ad04cef48ac19cde1e1db90",
+    "referenceSha256": "3067592170427cb6499d0c55b9ab1871e8935328abeffd545de3ee845f5a9ae1",
+    "previewSha256": "e7cd70cbc315be4793cafa371c16be3407d412b8a539617697251eee8172ceb0"
   }
 }

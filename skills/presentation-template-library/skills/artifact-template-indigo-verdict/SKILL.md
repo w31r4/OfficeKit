@@ -1,6 +1,6 @@
 ---
 name: artifact-template-indigo-verdict
-description: "Indigo Verdict is an original OfficeKit presentation style for investment diligence, with verdict-led composition and dense information density."
+description: "Indigo Verdict presentation style."
 ---
 
 # Indigo Verdict

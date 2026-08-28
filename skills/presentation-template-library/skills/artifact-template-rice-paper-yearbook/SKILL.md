@@ -1,6 +1,6 @@
 ---
 name: artifact-template-rice-paper-yearbook
-description: "Rice Paper Yearbook is an original OfficeKit presentation style for annual portfolio report, with tabs-led composition and dense information density."
+description: "Rice Paper Yearbook presentation style."
 ---
 
 # Rice Paper Yearbook

@@ -1,6 +1,6 @@
 ---
 name: artifact-template-blue-flame-operations
-description: "Blue Flame Operations is an original OfficeKit presentation style for operations review, with glow-led composition and dense information density."
+description: "Blue Flame Operations presentation style."
 ---
 
 # Blue Flame Operations
