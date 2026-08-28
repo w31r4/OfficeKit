@@ -34,6 +34,7 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "wetland-instrument-calibration-v1.jpg" },
     { file: "library-quiet-study-calibration-v1.jpg" },
     { file: "field-archive-calibration-v1.jpg" },
+    { file: "archival-research-table-calibration-v1.jpg" },
   ],
   consulting: [
     { file: "research-studio-calibration-v1.jpg" },
@@ -41,6 +42,7 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "operations-control-room-calibration-v1.jpg" },
     { file: "civic-courtyard-calibration-v1.jpg" },
     { file: "stakeholder-room-calibration-v1.jpg" },
+    { file: "civic-workshop-calibration-v1.jpg" },
   ],
   finance: [
     { file: "brass-ledger-calibration-v1.jpg" },
@@ -55,6 +57,7 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "editorial-archive-calibration-v1.jpg" },
     { file: "noir-cinematic-calibration-v1.jpg", transform: { flipHorizontal: true } },
     { file: "gallery-installation-calibration-v1.jpg" },
+    { file: "architectural-staircase-calibration-v1.jpg" },
   ],
   work: [
     { file: "operations-floor-calibration-v1.jpg" },
@@ -63,6 +66,7 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "library-lounge-calibration-v1.jpg" },
     { file: "research-studio-calibration-v1.jpg" },
     { file: "industrial-technician-calibration-v1.jpg" },
+    { file: "industrial-control-room-calibration-v1.jpg" },
   ],
 });
 

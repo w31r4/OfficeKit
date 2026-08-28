@@ -9,7 +9,7 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "8325d66f43474e4453ae0c92db1a938e1bf5fdd4da517e7ec2d6fd4ca06c0727"
+      "sha256": "803ffdbb2ca72a590dcaac85160e4d5faba500b99265b2164fca7e9125f26e35"
     },
     {
       "path": "assets/examples/02-analysis.png",
@@ -63,7 +63,7 @@
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
     "guideSha256": "19619fc739b09861f32bf34e8c728a6ff169e8b56f89c66fdd58a55d8eb1573b",
-    "referenceSha256": "19041b79ceefd122e64307ee023e4e726f034f6cde098328952d34164a085b81",
-    "previewSha256": "c3d90236e620fce6bb037e97b6cb155caff21e93730a46c1d5742c043971895b"
+    "referenceSha256": "68b99c335232e9b0f6d6c04200aa818b47bed4d131ec3c3e7fbee3f79b12484b",
+    "previewSha256": "f3d90371064602a46151f9a6a0f8249b2dd728ac5a8e9b728ac427ec6e607bab"
   }
 }
