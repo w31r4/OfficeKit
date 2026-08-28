@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-moss-transformation/assets/reference.pptx",
-    "sha256": "6fd746a445f2ef37daff9c90e9c9077e6c0aa045d9734bc1794fd37447288641"
+    "sha256": "6eddbc78fd3d4910a6533145987ada981616e1819ce242ca2e386dbd271b7dd0"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:6fd746a445f2ef37daff9c90e9c9077e6c0aa045d9734bc1794fd37447288641"
+      "reference-sha256:6eddbc78fd3d4910a6533145987ada981616e1819ce242ca2e386dbd271b7dd0"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:6eddbc78fd3d4910a6533145987ada981616e1819ce242ca2e386dbd271b7dd0",
+      "pages:6",
+      "media:0"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:dddbe1a34a03ca06ecb095d01673e9ea5b3a8543695335e2a7768e95700eb628",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

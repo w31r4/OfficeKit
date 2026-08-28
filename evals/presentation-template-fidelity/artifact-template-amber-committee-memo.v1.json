@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/reference.pptx",
-    "sha256": "067d165c0944c274410242bc71e1c39490057d00ef637039b19978142b0bdaa0"
+    "sha256": "bc6e92d48ca3428dcfa464806c5569c1b2c55844311fc11790222d29514624d3"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:067d165c0944c274410242bc71e1c39490057d00ef637039b19978142b0bdaa0"
+      "reference-sha256:bc6e92d48ca3428dcfa464806c5569c1b2c55844311fc11790222d29514624d3"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:bc6e92d48ca3428dcfa464806c5569c1b2c55844311fc11790222d29514624d3",
+      "pages:6",
+      "media:1"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:4f9b5c97a1bf1b89dfed08d147507f10cbe5490669176a616835d7b8885ffcd9",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

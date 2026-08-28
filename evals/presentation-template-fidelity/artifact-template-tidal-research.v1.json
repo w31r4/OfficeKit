@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-tidal-research/assets/reference.pptx",
-    "sha256": "b263eae01f62966503093948181f7030249ab66323b74357f62b2bf818a7808f"
+    "sha256": "902cd29043c94ec606f0ef6b9346f60c1c0ec0390bf8d8e7cc3cda7b719b4e69"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:b263eae01f62966503093948181f7030249ab66323b74357f62b2bf818a7808f"
+      "reference-sha256:902cd29043c94ec606f0ef6b9346f60c1c0ec0390bf8d8e7cc3cda7b719b4e69"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:902cd29043c94ec606f0ef6b9346f60c1c0ec0390bf8d8e7cc3cda7b719b4e69",
+      "pages:6",
+      "media:0"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:616426766fe66e863903f7aee976168719dc86b2ba449e64580f89009f9f29c1",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

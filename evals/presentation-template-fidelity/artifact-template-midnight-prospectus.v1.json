@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-midnight-prospectus/assets/reference.pptx",
-    "sha256": "d5d2f353b28c92cebcbd003a2bfa319e0ab9fa8b44ac6e77844678420d9bef7e"
+    "sha256": "f43f0611d981d20854deb5d4fb28d4f13632e2f3aac1824fcf053bb849ba0618"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:d5d2f353b28c92cebcbd003a2bfa319e0ab9fa8b44ac6e77844678420d9bef7e"
+      "reference-sha256:f43f0611d981d20854deb5d4fb28d4f13632e2f3aac1824fcf053bb849ba0618"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:f43f0611d981d20854deb5d4fb28d4f13632e2f3aac1824fcf053bb849ba0618",
+      "pages:6",
+      "media:0"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:5dda3d15e341cb37c926b74039b161b027ff868fbfdef4edb8c88bdc7573358f",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-axis-atlas/assets/reference.pptx",
-    "sha256": "bda60dc9ce43bbcf9086e0c2df1cacf1bb2a84837ccf12a8a4080939a19eee37"
+    "sha256": "66a6fbdfdd10059af3bf4e39afb2b118b53685cc7a605de3dbd7c47800ca0200"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:bda60dc9ce43bbcf9086e0c2df1cacf1bb2a84837ccf12a8a4080939a19eee37"
+      "reference-sha256:66a6fbdfdd10059af3bf4e39afb2b118b53685cc7a605de3dbd7c47800ca0200"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:66a6fbdfdd10059af3bf4e39afb2b118b53685cc7a605de3dbd7c47800ca0200",
+      "pages:6",
+      "media:0"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:d22bee9c522545af8237325e085790d3f4b6ba863e21f84c91d794d93e3e7e65",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

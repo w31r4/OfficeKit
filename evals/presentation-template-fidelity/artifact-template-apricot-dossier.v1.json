@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-apricot-dossier/assets/reference.pptx",
-    "sha256": "3f8c2fcbaea4ff4a25252b22afcc049ca7d2cdaf724ad1573bb54b562da5ffc3"
+    "sha256": "4b3495c54e02dde30e62b587547a0d83587ce9013b0055ce7271dbf84abced19"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:3f8c2fcbaea4ff4a25252b22afcc049ca7d2cdaf724ad1573bb54b562da5ffc3"
+      "reference-sha256:4b3495c54e02dde30e62b587547a0d83587ce9013b0055ce7271dbf84abced19"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:4b3495c54e02dde30e62b587547a0d83587ce9013b0055ce7271dbf84abced19",
+      "pages:6",
+      "media:5"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:83d6124a11e6801796a0de6a46aebfd75ac1af3ad0fbeb97fb9baec0a1e912ee",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

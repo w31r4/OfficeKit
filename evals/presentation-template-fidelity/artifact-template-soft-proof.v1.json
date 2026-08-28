@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-soft-proof/assets/reference.pptx",
-    "sha256": "bf0bb0c2102e742be71df6d6043bb8720e7ad03557c30e58baf3293f88911990"
+    "sha256": "ad8541af228edb019cc11c524ab30df4ed5ea03c26619b957f2fe84f13c6966e"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:bf0bb0c2102e742be71df6d6043bb8720e7ad03557c30e58baf3293f88911990"
+      "reference-sha256:ad8541af228edb019cc11c524ab30df4ed5ea03c26619b957f2fe84f13c6966e"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:ad8541af228edb019cc11c524ab30df4ed5ea03c26619b957f2fe84f13c6966e",
+      "pages:6",
+      "media:0"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:4e11812dd6f192174e470265c32070ee088ee492b2000af16c9d77ee30d1b6b0",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {
