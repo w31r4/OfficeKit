@@ -64,7 +64,7 @@
   "provenance": {
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room visual grammar rebuilt after native background-layer support; no reference deck distributed.",
-    "guideSha256": "78b2db5d5b85973853984e1451ab8b81e3bd1686d220ea44a6566b4a0e6f18d9",
+    "guideSha256": "6206a4f2447b55137c7d300d0c86cc86180324dec111bc2dc51c341628bc6326",
     "previewSha256": "20c908c0bc6f261f0c06ef069df2c79692698ccdda12a482647cbab163e667d6"
   }
 }

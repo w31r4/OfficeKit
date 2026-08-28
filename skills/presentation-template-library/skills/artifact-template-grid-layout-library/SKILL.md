@@ -5,44 +5,111 @@ description: "Use the Grid Layout Library visual grammar when the user selects i
 
 # Grid Layout Library
 
-This is a clean-room visual grammar: a short style guide plus original visual
-examples. The examples are evidence of tone and composition, not pages to copy.
-There is no source deck, code, DSL, or fixed layout in this template.
+## Role and communication job
 
-## Direction
+Use this style when the brief matches **explicit editorial grid presentation, modular evidence deck, and Swiss-typographic analysis**. It is designed for
+design-literate teams, analysts, and business audiences. An open editorial system: alignment creates confidence, while each page chooses its own contour instead of repeating a panel recipe. The deck should help the audience make the
+change implied by the work, not merely browse attractive pages. Its natural
+story arc is **index → question → evidence → relationship → implication**. It is not a good fit for **dark immersive stage, organic playful brand language, or image-led cinematic storytelling**; choose
+another style or record the mismatch instead of forcing this grammar.
 
-An open editorial system: alignment creates confidence, while each page chooses its own contour instead of repeating a panel recipe.
+## Visual grammar
 
-## Rules
+### Surface, palette, and type
 
-- Use a light field, disciplined baselines, fine rules, and occasional blocks of tone. Let the page breathe without leaving the argument stranded.
-- Use a strong title scale, compact labels, and direct annotations. Keep type aligned to a small number of shared axes.
-- Build from columns, axis lines, tables, charts, and numbered sequences. Vary silhouette and scale; do not treat the grid as fixed slots.
-- Use images or SVG only when they carry evidence or context. A media field can anchor a page, but it must have a caption or claim.
-- Place native background imagery behind editable content when it is genuinely the visual field; keep evidence lines and labels clear.
-- Do not recreate the old 26-page library, fill space with modules, or use a card wall as a substitute for hierarchy.
+- Use a light field, dark ink, and a small number of functional accents. Color marks a category, state, or current value; the alignment system does the organizing.
+- Use a strong title scale, compact labels, direct annotations, and a small family of shared baselines. Keep source notes present and legible; do not turn the grid into tiny type.
+- Keep units, dates, source basis, and uncertainty adjacent to the evidence
+  they qualify. A visual hierarchy must not erase the conditions behind a claim.
+
+### Geometry, layers, and motif
+
+- Treat columns, axes, baselines, and rules as a coordinate system, not as fixed slots. Unequal spans, intentional offsets, and open edges are welcome when they clarify the relation.
 - Use native Office text, charts, tables, connectors, SVG, and images when they
-  carry the page's claim. Keep every important object editable.
-- A background image is a visual field, not a license to hide content:
-  validate contrast, crop, and layer order after rendering.
+  carry the page's claim. Keep important foreground content editable.
+- For a full-page image, use the real scene stack: background image → tested
+  scrim or contrast field → editable claim/evidence → foreground markers. Keep
+  axes, labels, connectors, decision lines, and chart marks unobstructed. If the
+  stack cannot be proven after rendering, use a bounded image region or refuse
+  the treatment.
 
-## Route
+## Page composition
 
-1. Read the user's brief and any authoritative design system; those constraints
-   win over this optional grammar.
-2. Inspect all four example images to learn the range, then write a deck-specific
-   design grammar. Do not copy their wording, coordinates, or assets.
-3. Give each page one audience task, one conclusion, and one primary visual
-   carrier. Choose a chart, relationship, image, typography, or native vector
-   only when it explains the conclusion.
-4. Compose pages from scratch with the current OfficeKit Presentations Skill.
-   Use native background imagery only when it is justified by the page's role.
-5. Render, inspect, and reopen the exported presentation. Check text overflow,
-   crop, contrast, layer order, overlap, and source credits before delivery.
+### Preferred page archetypes
 
-## Boundaries
+Use these archetypes as a vocabulary, not fixed layouts:
 
-This template does not provide a cloneable page or a retained source artifact.
-For an existing presentation, use the source-bound import/edit route instead.
-If the grammar conflicts with a user template or brand system, keep the user's
-authority and record the deviation.
+1. **indexed opening** — define the audience task, scope, and one visual
+   signal before adding supporting material.
+2. **modular evidence field** — give one dominant carrier the space needed to be
+   understood, with the shortest useful explanation.
+3. **relationship map** — expose the relationship, method, or comparison with
+   lines, axes, labels, or a measured table.
+4. **structured comparison** — state the implication, owner, condition, or next
+   move; do not end on an ornamental summary.
+
+### Information carriers
+
+- Use tables, charts, indexed sequences, axis lines, and carefully aligned typographic compositions. An image or SVG needs a caption, claim, or contextual role.
+- Use images or SVG as anchored evidence or context, never as decorative tiles. A media field may cross columns only when its crop and caption preserve the reading axis.
+- A chart, table, photograph, SVG, or geometric composition is valid only when
+  it communicates scale, sequence, comparison, context, or identity. Remove
+  decorative shapes that do not support the page's conclusion.
+- Prefer direct labels and short reading cues over unexplained legends or icons.
+  If a framework has no meaningful relationship to show, use typography and a
+  rule instead of manufacturing a diagram.
+
+## Density and rhythm
+
+The expected density is **mixed: use generous openings and compact evidence pages, with whitespace concentrated at transitions and around active axes.**. Alternate a high-structure data page with a quieter typographic or relationship page. Keep alignment stable while span, scale, and carrier change. Do not distribute
+whitespace evenly by habit; concentrate it around the title-to-body transition,
+carrier edges, column gutters, and final implication. If the brief calls for a
+sparse page, record what the empty field is doing.
+
+## Style-specific playbook
+
+- **Page skeleton.** Establish an index or title axis, then allow one dominant span to carry the evidence. Let rules, numbering, and open edges replace containers.
+- **Type rhythm.** Keep the title, evidence, caption, unit, and source roles
+  distinct. Let the largest type carry the reading decision, not the ornament.
+- **Evidence carriers.** Use tables, charts, indexed sequences, axis lines, and carefully aligned typographic compositions. An image or SVG needs a caption, claim, or contextual role.
+- **Images and layers.** Use images or SVG as anchored evidence or context, never as decorative tiles. A media field may cross columns only when its crop and caption preserve the reading axis. Inspect crop, contrast, and z-order after
+  rendering; do not call an obscured line or label intentional without evidence.
+- **Pacing.** Alternate a high-structure data page with a quieter typographic or relationship page. Keep alignment stable while span, scale, and carrier change. Let adjacent pages change energy or silhouette when
+  the narrative changes, while the design grammar remains recognizable.
+- **Selection rule.** Choose only when the user wants an explicit editorial grid language; it is not the automatic OfficeKit fallback and does not provide cloneable layouts.
+
+## Signature moves and variation limits
+
+- Repeat a small set of x/y axes, numbering, and rule weights; vary spans and page contour.
+- Let one module become the page anchor and leave secondary material subordinate.
+- Use a grid to expose relationships, not to fill every cell.
+- If a user supplies a brand system or reference authority, it wins. This guide
+  fills undefined choices and must not be blended with a conflicting style.
+
+## Anti-patterns and refusal boundaries
+
+- Do not recreate a fixed page library, fill space with modules, or use equal cards as a substitute for hierarchy.
+- Do not use decorative grid lines that have no data or reading job.
+- Do not treat a screenshot, layout ID, or old module as an instruction to clone.
+- Do not invent facts, sources, or visual meaning. Mark unresolved design facts
+  as unresolved and ask only when the conflict changes the communication result.
+- If a requested effect would hide evidence, alter an unknown native object, or
+  require a fixed page clone, keep the safe portions and state the boundary.
+
+## Calibration evidence
+
+Inspect all four example images before composing. The four examples demonstrate editorial opening, modular analysis, indexed data, and a structured close; they show range rather than fixed layouts. Recompose
+every real page from its communication task. Never reuse their wording,
+geometry, image bytes, or implied source deck.
+
+## Review checklist
+
+- The page has one audience task, one conclusion, and one primary visual carrier.
+- Check title read-through, source/basis treatment, units, labels, and whether
+  the final implication follows from the evidence.
+- Text, image crop, contrast field, chart marks, connectors, and foreground
+  labels survive a rendered visual check without occlusion or overflow.
+- The deck varies page silhouette and density with purpose instead of repeating
+  a wall of equal modules.
+- Reopen the exported PPTX and structurally inspect it. Record the absolute
+  path, SHA-256, and visual-review state before delivery.

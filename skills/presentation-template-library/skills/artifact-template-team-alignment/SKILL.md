@@ -5,44 +5,111 @@ description: "Use the Team Alignment visual grammar when the user selects it for
 
 # Team Alignment
 
-This is a clean-room visual grammar: a short style guide plus original visual
-examples. The examples are evidence of tone and composition, not pages to copy.
-There is no source deck, code, DSL, or fixed layout in this template.
+## Role and communication job
 
-## Direction
+Use this style when the brief matches **team alignment, planning offsite, and cross-functional strategy**. It is designed for
+teams, cross-functional partners, and internal leadership. A shared horizon: the visual system makes dependencies and commitments visible without turning collaboration into a dashboard. The deck should help the audience make the
+change implied by the work, not merely browse attractive pages. Its natural
+story arc is **context → shared goal → priorities → dependencies → decisions and commitments**. It is not a good fit for **external investor presentation or formal legal review**; choose
+another style or record the mismatch instead of forcing this grammar.
 
-A shared horizon: the visual system makes dependencies and commitments visible without turning collaboration into a dashboard.
+## Visual grammar
 
-## Rules
+### Surface, palette, and type
 
-- Use a dark or deep-tint field with warm paper-like text and one connective accent. Keep groupings open and relational.
-- Use plain, active language and strong section labels. Make decisions and owners more prominent than motivational copy.
-- Use relationship maps, horizons, sequence lines, and paired before/after fields. Connectors need endpoints and labels.
-- Use a team or environment image only to establish shared context; pair it with a concrete question or commitment.
-- Background imagery may establish the horizon, but dependency lines and decision labels must remain above and unobstructed.
-- Avoid sticky-note walls, decorative connectors, equal cards, and ambiguous arrows with no semantic endpoint.
+- Use a dark or deep-tint field with warm paper-like text and one connective accent. Let contrast separate context from commitment, not decorate every participant.
+- Use plain active language and strong section labels. Decisions, owners, and dates should be more prominent than motivational copy.
+- Keep units, dates, source basis, and uncertainty adjacent to the evidence
+  they qualify. A visual hierarchy must not erase the conditions behind a claim.
+
+### Geometry, layers, and motif
+
+- Use relationship maps, horizons, sequence lines, and paired before/after fields. Connectors need endpoints and labels; open grouping is preferred to equal containers.
 - Use native Office text, charts, tables, connectors, SVG, and images when they
-  carry the page's claim. Keep every important object editable.
-- A background image is a visual field, not a license to hide content:
-  validate contrast, crop, and layer order after rendering.
+  carry the page's claim. Keep important foreground content editable.
+- For a full-page image, use the real scene stack: background image → tested
+  scrim or contrast field → editable claim/evidence → foreground markers. Keep
+  axes, labels, connectors, decision lines, and chart marks unobstructed. If the
+  stack cannot be proven after rendering, use a bounded image region or refuse
+  the treatment.
 
-## Route
+## Page composition
 
-1. Read the user's brief and any authoritative design system; those constraints
-   win over this optional grammar.
-2. Inspect all four example images to learn the range, then write a deck-specific
-   design grammar. Do not copy their wording, coordinates, or assets.
-3. Give each page one audience task, one conclusion, and one primary visual
-   carrier. Choose a chart, relationship, image, typography, or native vector
-   only when it explains the conclusion.
-4. Compose pages from scratch with the current OfficeKit Presentations Skill.
-   Use native background imagery only when it is justified by the page's role.
-5. Render, inspect, and reopen the exported presentation. Check text overflow,
-   crop, contrast, layer order, overlap, and source credits before delivery.
+### Preferred page archetypes
 
-## Boundaries
+Use these archetypes as a vocabulary, not fixed layouts:
 
-This template does not provide a cloneable page or a retained source artifact.
-For an existing presentation, use the source-bound import/edit route instead.
-If the grammar conflicts with a user template or brand system, keep the user's
-authority and record the deviation.
+1. **shared horizon** — define the audience task, scope, and one visual
+   signal before adding supporting material.
+2. **priority contour** — give one dominant carrier the space needed to be
+   understood, with the shortest useful explanation.
+3. **dependency map** — expose the relationship, method, or comparison with
+   lines, axes, labels, or a measured table.
+4. **commitment close** — state the implication, owner, condition, or next
+   move; do not end on an ornamental summary.
+
+### Information carriers
+
+- Use routes, dependency maps, priority axes, role tables, and concise before/after comparisons. A chart belongs when it resolves a real team trade-off.
+- Use a team or environment image only to establish shared context; pair it with a concrete question, decision, or commitment.
+- A chart, table, photograph, SVG, or geometric composition is valid only when
+  it communicates scale, sequence, comparison, context, or identity. Remove
+  decorative shapes that do not support the page's conclusion.
+- Prefer direct labels and short reading cues over unexplained legends or icons.
+  If a framework has no meaningful relationship to show, use typography and a
+  rule instead of manufacturing a diagram.
+
+## Density and rhythm
+
+The expected density is **medium: keep context and goal pages open, then earn density where dependencies and decisions need names, dates, and conditions.**. Move from shared view to productive tension to explicit agreement. Do not make every page a celebration or an escalation. Do not distribute
+whitespace evenly by habit; concentrate it around the title-to-body transition,
+carrier edges, column gutters, and final implication. If the brief calls for a
+sparse page, record what the empty field is doing.
+
+## Style-specific playbook
+
+- **Page skeleton.** Orient the room, show the shared destination, expose the dependencies, and land on commitments that can be checked later.
+- **Type rhythm.** Keep the title, evidence, caption, unit, and source roles
+  distinct. Let the largest type carry the reading decision, not the ornament.
+- **Evidence carriers.** Use routes, dependency maps, priority axes, role tables, and concise before/after comparisons. A chart belongs when it resolves a real team trade-off.
+- **Images and layers.** Use a team or environment image only to establish shared context; pair it with a concrete question, decision, or commitment. Inspect crop, contrast, and z-order after
+  rendering; do not call an obscured line or label intentional without evidence.
+- **Pacing.** Move from shared view to productive tension to explicit agreement. Do not make every page a celebration or an escalation. Let adjacent pages change energy or silhouette when
+  the narrative changes, while the design grammar remains recognizable.
+- **Selection rule.** Choose this style when the deck is a working agreement for people who must coordinate after the meeting.
+
+## Signature moves and variation limits
+
+- Repeat a horizon or route cue, while varying between map, comparison, and commitment forms.
+- Use the accent for the active dependency or decision, not for every team or workstream.
+- Put the next conversation or owner close to the visual relationship it resolves.
+- If a user supplies a brand system or reference authority, it wins. This guide
+  fills undefined choices and must not be blended with a conflicting style.
+
+## Anti-patterns and refusal boundaries
+
+- Avoid sticky-note walls, decorative connectors, equal cards, and ambiguous arrows with no semantic endpoint.
+- Do not imply alignment when unresolved conflicts or owners are missing.
+- Do not allow a background image to obscure dependency lines or decision labels.
+- Do not invent facts, sources, or visual meaning. Mark unresolved design facts
+  as unresolved and ask only when the conflict changes the communication result.
+- If a requested effect would hide evidence, alter an unknown native object, or
+  require a fixed page clone, keep the safe portions and state the boundary.
+
+## Calibration evidence
+
+Inspect all four example images before composing. The four examples demonstrate context, priority, dependency, and commitment roles with a shared but flexible horizon. Recompose
+every real page from its communication task. Never reuse their wording,
+geometry, image bytes, or implied source deck.
+
+## Review checklist
+
+- The page has one audience task, one conclusion, and one primary visual carrier.
+- Check title read-through, source/basis treatment, units, labels, and whether
+  the final implication follows from the evidence.
+- Text, image crop, contrast field, chart marks, connectors, and foreground
+  labels survive a rendered visual check without occlusion or overflow.
+- The deck varies page silhouette and density with purpose instead of repeating
+  a wall of equal modules.
+- Reopen the exported PPTX and structurally inspect it. Record the absolute
+  path, SHA-256, and visual-review state before delivery.
