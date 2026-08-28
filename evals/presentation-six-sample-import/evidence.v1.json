@@ -1,0 +1,451 @@
+{
+  "schema": "office-kit/pptx-six-sample-import-evidence/v1",
+  "sourcePolicy": "ignored reference inputs; do not redistribute unmodified SlidesCarnival files",
+  "totals": {
+    "sources": 6,
+    "slides": 157,
+    "visibleTopLevelObjects": 1694,
+    "noOpByteIdentical": true,
+    "placementEdits": 6,
+    "textEdits": 6,
+    "sourceSlideReuse": 6
+  },
+  "sources": [
+    {
+      "id": "nasa-froste-thermal-design",
+      "fileName": "nasa-froste-thermal-design.pptx",
+      "source": "NASA NTRS 20250007120",
+      "sourceSha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "bytes": 8094554,
+      "slides": 13,
+      "visibleTopLevelObjects": 112,
+      "classifiedTopLevelObjects": 112,
+      "rawRootKinds": {
+        "cxnSp": 2,
+        "grpSp": 17,
+        "pic": 15,
+        "sp": 78
+      },
+      "objectKinds": {
+        "connector": 2,
+        "group": 17,
+        "image": 14,
+        "picture": 1,
+        "shape": 78
+      },
+      "classifications": {
+        "typed-editable": 112
+      },
+      "nativeLeafKinds": {
+        "heightEmu": 19,
+        "leftEmu": 19,
+        "text": 56,
+        "topEmu": 19,
+        "widthEmu": 19
+      },
+      "noOpByteIdentical": true,
+      "placement": {
+        "status": "passed",
+        "targetId": "presentation/slide/2/element/5",
+        "nativeKind": "group",
+        "changedParts": [
+          "ppt/slides/slide2.xml"
+        ]
+      },
+      "text": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "sourceSlideReuse": {
+        "status": "passed",
+        "sourceSlideId": "presentation/slide/1",
+        "sourceSlideUnchanged": true,
+        "outputSlideCount": 14,
+        "allSlidesCloneCapable": true
+      },
+      "designProfile": {
+        "schema": "office-kit/pptx-design-profile/v1",
+        "sourceBound": true,
+        "revisionSha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+        "canvas": {
+          "width": 1280,
+          "height": 720,
+          "aspectRatio": 1.77778
+        },
+        "layoutFamilies": 22,
+        "slideArchetypes": 13,
+        "reusableComponents": 5,
+        "componentCandidates": 0,
+        "svgAssets": 0,
+        "nativeOpaque": 18
+      }
+    },
+    {
+      "id": "nasa-mms-machine-learning",
+      "fileName": "nasa-mms-machine-learning.pptx",
+      "source": "NASA NTRS 20250000748",
+      "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "bytes": 4522864,
+      "slides": 21,
+      "visibleTopLevelObjects": 230,
+      "classifiedTopLevelObjects": 230,
+      "rawRootKinds": {
+        "cxnSp": 35,
+        "graphicFrame": 1,
+        "grpSp": 18,
+        "pic": 31,
+        "sp": 145
+      },
+      "objectKinds": {
+        "connector": 35,
+        "group": 18,
+        "image": 31,
+        "shape": 145,
+        "table": 1
+      },
+      "classifications": {
+        "opaque-preserved": 19,
+        "typed-editable": 211
+      },
+      "nativeLeafKinds": {
+        "heightEmu": 38,
+        "leftEmu": 38,
+        "text": 112,
+        "topEmu": 38,
+        "widthEmu": 38
+      },
+      "noOpByteIdentical": true,
+      "placement": {
+        "status": "passed",
+        "targetId": "presentation/slide/3/element/5",
+        "nativeKind": "connector",
+        "changedParts": [
+          "ppt/slides/slide3.xml"
+        ]
+      },
+      "text": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "sourceSlideReuse": {
+        "status": "passed",
+        "sourceSlideId": "presentation/slide/1",
+        "sourceSlideUnchanged": true,
+        "outputSlideCount": 22,
+        "allSlidesCloneCapable": true
+      },
+      "designProfile": {
+        "schema": "office-kit/pptx-design-profile/v1",
+        "sourceBound": true,
+        "revisionSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+        "canvas": {
+          "width": 1279.6666666666667,
+          "height": 720,
+          "aspectRatio": 1.77731
+        },
+        "layoutFamilies": 25,
+        "slideArchetypes": 21,
+        "reusableComponents": 10,
+        "componentCandidates": 0,
+        "svgAssets": 0,
+        "nativeOpaque": 46
+      }
+    },
+    {
+      "id": "slidescarnival-business-infographic",
+      "fileName": "slidescarnival-business-infographic.pptx",
+      "source": "SlidesCarnival Business Infographic",
+      "sourceSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "bytes": 19436162,
+      "slides": 25,
+      "visibleTopLevelObjects": 357,
+      "classifiedTopLevelObjects": 357,
+      "rawRootKinds": {
+        "graphicFrame": 2,
+        "grpSp": 177,
+        "pic": 72,
+        "sp": 106
+      },
+      "objectKinds": {
+        "graphicFrame": 1,
+        "group": 177,
+        "image": 72,
+        "shape": 106,
+        "table": 1
+      },
+      "classifications": {
+        "opaque-preserved": 1,
+        "typed-editable": 356
+      },
+      "nativeLeafKinds": {
+        "fillRgb": 21,
+        "heightEmu": 200,
+        "leftEmu": 200,
+        "text": 113,
+        "topEmu": 200,
+        "widthEmu": 200
+      },
+      "noOpByteIdentical": true,
+      "placement": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/5",
+        "nativeKind": "group",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "text": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/6",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "sourceSlideReuse": {
+        "status": "passed",
+        "sourceSlideId": "presentation/slide/1",
+        "sourceSlideUnchanged": true,
+        "outputSlideCount": 26,
+        "allSlidesCloneCapable": true
+      },
+      "designProfile": {
+        "schema": "office-kit/pptx-design-profile/v1",
+        "sourceBound": true,
+        "revisionSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+        "canvas": {
+          "width": 1920,
+          "height": 1080,
+          "aspectRatio": 1.77778
+        },
+        "layoutFamilies": 36,
+        "slideArchetypes": 25,
+        "reusableComponents": 17,
+        "componentCandidates": 0,
+        "svgAssets": 0,
+        "nativeOpaque": 154
+      }
+    },
+    {
+      "id": "slidescarnival-data-particles",
+      "fileName": "slidescarnival-data-particles.pptx",
+      "source": "SlidesCarnival Data Particles",
+      "sourceSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "bytes": 3382810,
+      "slides": 39,
+      "visibleTopLevelObjects": 432,
+      "classifiedTopLevelObjects": 432,
+      "rawRootKinds": {
+        "cxnSp": 31,
+        "graphicFrame": 3,
+        "grpSp": 144,
+        "pic": 11,
+        "sp": 243
+      },
+      "objectKinds": {
+        "connector": 31,
+        "group": 144,
+        "image": 11,
+        "shape": 243,
+        "table": 3
+      },
+      "classifications": {
+        "typed-editable": 432
+      },
+      "nativeLeafKinds": {
+        "fillRgb": 4,
+        "heightEmu": 54,
+        "leftEmu": 54,
+        "text": 208,
+        "topEmu": 54,
+        "widthEmu": 54
+      },
+      "noOpByteIdentical": true,
+      "placement": {
+        "status": "passed",
+        "targetId": "presentation/slide/7/element/4",
+        "nativeKind": "group",
+        "changedParts": [
+          "ppt/slides/slide7.xml"
+        ]
+      },
+      "text": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "sourceSlideReuse": {
+        "status": "passed",
+        "sourceSlideId": "presentation/slide/1",
+        "sourceSlideUnchanged": true,
+        "outputSlideCount": 40,
+        "allSlidesCloneCapable": true
+      },
+      "designProfile": {
+        "schema": "office-kit/pptx-design-profile/v1",
+        "sourceBound": true,
+        "revisionSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+        "canvas": {
+          "width": 960,
+          "height": 540,
+          "aspectRatio": 1.77778
+        },
+        "layoutFamilies": 49,
+        "slideArchetypes": 39,
+        "reusableComponents": 0,
+        "componentCandidates": 0,
+        "svgAssets": 0,
+        "nativeOpaque": 175
+      }
+    },
+    {
+      "id": "slidescarnival-minimal-business",
+      "fileName": "slidescarnival-minimal-business.pptx",
+      "source": "SlidesCarnival Minimal Business",
+      "sourceSha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "bytes": 2076227,
+      "slides": 39,
+      "visibleTopLevelObjects": 429,
+      "classifiedTopLevelObjects": 429,
+      "rawRootKinds": {
+        "cxnSp": 28,
+        "graphicFrame": 3,
+        "grpSp": 152,
+        "pic": 10,
+        "sp": 236
+      },
+      "objectKinds": {
+        "connector": 28,
+        "group": 152,
+        "image": 10,
+        "shape": 236,
+        "table": 3
+      },
+      "classifications": {
+        "typed-editable": 429
+      },
+      "nativeLeafKinds": {
+        "heightEmu": 59,
+        "leftEmu": 59,
+        "text": 200,
+        "topEmu": 59,
+        "widthEmu": 59
+      },
+      "noOpByteIdentical": true,
+      "placement": {
+        "status": "passed",
+        "targetId": "presentation/slide/7/element/4",
+        "nativeKind": "group",
+        "changedParts": [
+          "ppt/slides/slide7.xml"
+        ]
+      },
+      "text": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "sourceSlideReuse": {
+        "status": "passed",
+        "sourceSlideId": "presentation/slide/1",
+        "sourceSlideUnchanged": true,
+        "outputSlideCount": 40,
+        "allSlidesCloneCapable": true
+      },
+      "designProfile": {
+        "schema": "office-kit/pptx-design-profile/v1",
+        "sourceBound": true,
+        "revisionSha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+        "canvas": {
+          "width": 960,
+          "height": 540,
+          "aspectRatio": 1.77778
+        },
+        "layoutFamilies": 49,
+        "slideArchetypes": 39,
+        "reusableComponents": 0,
+        "componentCandidates": 0,
+        "svgAssets": 0,
+        "nativeOpaque": 180
+      }
+    },
+    {
+      "id": "slidescarnival-professional-minimalist",
+      "fileName": "slidescarnival-professional-minimalist.pptx",
+      "source": "SlidesCarnival Professional Minimalist",
+      "sourceSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "bytes": 24114977,
+      "slides": 20,
+      "visibleTopLevelObjects": 134,
+      "classifiedTopLevelObjects": 134,
+      "rawRootKinds": {
+        "grpSp": 10,
+        "pic": 18,
+        "sp": 106
+      },
+      "objectKinds": {
+        "group": 10,
+        "image": 18,
+        "shape": 106
+      },
+      "classifications": {
+        "typed-editable": 134
+      },
+      "nativeLeafKinds": {
+        "heightEmu": 124,
+        "leftEmu": 124,
+        "text": 106,
+        "topEmu": 124,
+        "widthEmu": 124
+      },
+      "noOpByteIdentical": true,
+      "placement": {
+        "status": "passed",
+        "targetId": "presentation/slide/19/element/1",
+        "nativeKind": "group",
+        "changedParts": [
+          "ppt/slides/slide19.xml"
+        ]
+      },
+      "text": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "sourceSlideReuse": {
+        "status": "passed",
+        "sourceSlideId": "presentation/slide/1",
+        "sourceSlideUnchanged": true,
+        "outputSlideCount": 21,
+        "allSlidesCloneCapable": true
+      },
+      "designProfile": {
+        "schema": "office-kit/pptx-design-profile/v1",
+        "sourceBound": true,
+        "revisionSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+        "canvas": {
+          "width": 1920,
+          "height": 1080,
+          "aspectRatio": 1.77778
+        },
+        "layoutFamilies": 25,
+        "slideArchetypes": 20,
+        "reusableComponents": 0,
+        "componentCandidates": 0,
+        "svgAssets": 0,
+        "nativeOpaque": 10
+      }
+    }
+  ]
+}
