@@ -206,6 +206,7 @@ internal static class PptxCodec
             var slideTransition = PptxTransitionCodec.Read(slideRoot);
             var slideVisibility = PptxSlideVisibilityCodec.Read(slideRoot);
             var elements = ShapeElements(shapeTree);
+            var deletionAnalysis = PptxElementDeletionCodec.AnalyzeSlide(slidePart);
             var slideArtifactId = $"presentation/slide/{slideIndex + 1}";
             var elementIdsByNativeId = NativeElementIds(elements, slideArtifactId);
             P.Slide? previousSlideRoot = null;
@@ -309,7 +310,7 @@ internal static class PptxCodec
                 }
                 SetElementDeletionCapability(
                     importedElement,
-                    PptxElementDeletionCodec.Analyze(slidePart, elements[elementIndex], elements));
+                    PptxElementDeletionCodec.Analyze(slidePart, elements[elementIndex], elements, deletionAnalysis));
                 target.Elements.Add(importedElement);
             }
             artifact.Slides.Add(target);
@@ -748,8 +749,9 @@ internal static class PptxCodec
                 // source revision. Capture that contract before replacing the
                 // timing tree so an animation edit does not masquerade as a
                 // shape-capability mutation.
+                var deletionAnalysis = PptxElementDeletionCodec.AnalyzeSlide(slidePart);
                 var sourceDeletionPlans = sourceElements
-                    .Select(element => PptxElementDeletionCodec.Analyze(slidePart, element, sourceElements))
+                    .Select(element => PptxElementDeletionCodec.Analyze(slidePart, element, sourceElements, deletionAnalysis))
                     .ToArray();
                 var (retainedElements, authoredElements) = SplitSourceBoundElements(target, sourceElements.Length, slideIndex, slidePart);
                 var elementIdsByNativeId = NativeElementIds(sourceElements, target.Id);

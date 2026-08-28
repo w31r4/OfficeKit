@@ -14,6 +14,14 @@ internal sealed record PptxElementDeletionPlan(
     IReadOnlySet<string> ReferenceRelationshipIds,
     IReadOnlySet<string> RemovedPackagePartPaths);
 
+internal sealed record PptxElementDeletionAnalysis(
+    P.Slide? Slide,
+    P.ShapeTree? ShapeTree,
+    IReadOnlyDictionary<uint, int> NativeIdCounts,
+    bool HasIdentitySensitiveSlideGraph,
+    bool HasCommentGraph,
+    IReadOnlyList<P.ConnectionShape> Connectors);
+
 // A shape-tree deletion is safe only when removing the XML subtree cannot
 // leave package relationships or native-identity consumers behind. Keep the
 // eligibility proof separate from semantic editing: the caller may omit an
@@ -27,32 +35,58 @@ internal static class PptxElementDeletionCodec
         SlidePart slidePart,
         OpenXmlElement source,
         IReadOnlyList<OpenXmlElement> siblings,
+        bool allowDuplicateNativeIds = false) =>
+        Analyze(slidePart, source, siblings, AnalyzeSlide(slidePart), allowDuplicateNativeIds);
+
+    internal static PptxElementDeletionAnalysis AnalyzeSlide(SlidePart slidePart)
+    {
+        var slide = slidePart.Slide;
+        var common = slide?.CommonSlideData;
+        var shapeTree = common?.ShapeTree;
+        var nativeIdCounts = shapeTree is null
+            ? new Dictionary<uint, int>()
+            : NativeIdOccurrences(shapeTree)
+                .GroupBy(static id => id)
+                .ToDictionary(static group => group.Key, static group => group.Count());
+        return new PptxElementDeletionAnalysis(
+            slide,
+            shapeTree,
+            nativeIdCounts,
+            slide is not null && common is not null && HasIdentitySensitiveSlideGraph(slide, common),
+            PptxLegacyCommentsCodec.CommentPartPresent(slidePart) ||
+                slidePart.Parts.Any(pair => pair.OpenXmlPart is PowerPointCommentPart),
+            shapeTree?.Descendants<P.ConnectionShape>().ToArray() ?? []);
+    }
+
+    internal static PptxElementDeletionPlan Analyze(
+        SlidePart slidePart,
+        OpenXmlElement source,
+        IReadOnlyList<OpenXmlElement> siblings,
+        PptxElementDeletionAnalysis analysis,
         bool allowDuplicateNativeIds = false)
     {
         if (source is not (P.Shape or P.Picture or P.ConnectionShape or P.GraphicFrame or P.GroupShape))
             return Blocked("only a bounded top-level PresentationML shape, picture, connector, table, chart, or group is in the deletion profile");
 
-        var slide = slidePart.Slide;
-        var common = slide?.CommonSlideData;
-        if (slide is null || common?.ShapeTree is null)
+        var slide = analysis.Slide;
+        var shapeTree = analysis.ShapeTree;
+        if (slide is null || shapeTree is null)
             return Blocked("the slide has no canonical shape tree");
-        if (!ReferenceEquals(source.Parent, common.ShapeTree))
+        if (!ReferenceEquals(source.Parent, shapeTree))
             return Blocked("nested group children are not top-level shape-tree elements");
         var nativeId = NativeId(source);
         if (nativeId is null)
             return Blocked("the element has no unique native drawing ID");
         var ownedIds = NativeIds(source);
-        var slideIds = NativeIdOccurrences(common.ShapeTree);
-        if (!allowDuplicateNativeIds && ownedIds.Any(id => slideIds.Count(candidate => candidate == id) != 1))
+        if (!allowDuplicateNativeIds && ownedIds.Any(id =>
+                !analysis.NativeIdCounts.TryGetValue(id, out var count) || count != 1))
             return Blocked($"native drawing ID {nativeId} or one of its descendants is ambiguous", nativeId.Value);
-        if (HasIdentitySensitiveSlideGraph(slide, common))
+        if (analysis.HasIdentitySensitiveSlideGraph)
             return Blocked("slide timing or extension data may retain native element identity", nativeId.Value);
-        if (PptxLegacyCommentsCodec.CommentPartPresent(slidePart))
-            return Blocked("a slide comment graph may retain native element identity", nativeId.Value);
-        if (slidePart.Parts.Any(pair => pair.OpenXmlPart is PowerPointCommentPart))
+        if (analysis.HasCommentGraph)
             return Blocked("a slide comment graph may retain native element identity", nativeId.Value);
         var ownedElements = source.Descendants().Prepend(source).ToHashSet();
-        if (common.ShapeTree.Descendants<P.ConnectionShape>()
+        if (analysis.Connectors
                 .Where(connector => !ownedElements.Contains(connector))
                 .Any(connector => ownedIds.Any(id => References(connector, id))))
             return Blocked($"connector topology references native drawing ID {nativeId} or one of its descendants", nativeId.Value);
