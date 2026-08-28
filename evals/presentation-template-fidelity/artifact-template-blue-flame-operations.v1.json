@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-blue-flame-operations/assets/reference.pptx",
-    "sha256": "3067592170427cb6499d0c55b9ab1871e8935328abeffd545de3ee845f5a9ae1"
+    "sha256": "a502ebac534dbeb297628d01608efad67fc94e2c31458d09aa2623fe8897828d"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:3067592170427cb6499d0c55b9ab1871e8935328abeffd545de3ee845f5a9ae1"
+      "reference-sha256:a502ebac534dbeb297628d01608efad67fc94e2c31458d09aa2623fe8897828d"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:a502ebac534dbeb297628d01608efad67fc94e2c31458d09aa2623fe8897828d",
+      "pages:6",
+      "media:1"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:e884dcb1546aac7b38f36a2800cf2d32e4ba2d4dffe31ba9dc7f72469fcf31c9",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

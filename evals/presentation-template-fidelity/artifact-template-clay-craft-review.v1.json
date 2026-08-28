@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-clay-craft-review/assets/reference.pptx",
-    "sha256": "05b4695c6f3d457215309807afa706a2200b27bb4500158ff736859e7b506148"
+    "sha256": "779e73b2292ccd9895fba2f42cbdb6a95a4924640a6c6469f37d3e3665bb2ea5"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:05b4695c6f3d457215309807afa706a2200b27bb4500158ff736859e7b506148"
+      "reference-sha256:779e73b2292ccd9895fba2f42cbdb6a95a4924640a6c6469f37d3e3665bb2ea5"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:779e73b2292ccd9895fba2f42cbdb6a95a4924640a6c6469f37d3e3665bb2ea5",
+      "pages:6",
+      "media:1"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:7d9199e7c922168f5b4aa2b7b641426e1ec0b72af07a16d756e1344c173e17d1",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

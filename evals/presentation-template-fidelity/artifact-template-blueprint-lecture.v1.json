@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-blueprint-lecture/assets/reference.pptx",
-    "sha256": "3c844e161b2027bc2d4111e4b18fdee3e4ca8fde2e6c7a92c4d41f27cf340f76"
+    "sha256": "736b5d0ea7d3ae0106b35c09713f56ecf5899ea595667f127f022e77581dd8a3"
   },
   "evidence": {
     "source": [
@@ -27,11 +27,11 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:304",
+      "records:264",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:3c844e161b2027bc2d4111e4b18fdee3e4ca8fde2e6c7a92c4d41f27cf340f76"
+      "reference-sha256:736b5d0ea7d3ae0106b35c09713f56ecf5899ea595667f127f022e77581dd8a3"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:736b5d0ea7d3ae0106b35c09713f56ecf5899ea595667f127f022e77581dd8a3",
+      "pages:6",
+      "media:4"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:3e9d484cab4787f0bd34f5f754b653b9df1dcd68222da1dc4c9d6384e3d51130",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

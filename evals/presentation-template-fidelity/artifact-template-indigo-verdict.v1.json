@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-indigo-verdict/assets/reference.pptx",
-    "sha256": "c85ed27c2c1972459498201d6c64d02092dff67b11c3e01b3dd6dba2744630da"
+    "sha256": "9ee3b1feaef301de3754428e4f5d0135cf675a3e383bef05e42a33038423167a"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:c85ed27c2c1972459498201d6c64d02092dff67b11c3e01b3dd6dba2744630da"
+      "reference-sha256:9ee3b1feaef301de3754428e4f5d0135cf675a3e383bef05e42a33038423167a"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:9ee3b1feaef301de3754428e4f5d0135cf675a3e383bef05e42a33038423167a",
+      "pages:6",
+      "media:0"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:d010a9d0367de4a511566110b68585c4ec96c0ec313dd03ddcf7375fad3077c6",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

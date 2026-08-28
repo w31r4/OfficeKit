@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-saffron-editorial/assets/reference.pptx",
-    "sha256": "5a5235bd2649aad6df495ef25e08994b7da72aa4755ab4c12e426742de4bce3f"
+    "sha256": "eb27c2ec18e10400e2f251501cea7593dba7eb2ca94c8db01392ae8106c431f1"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,7 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:5a5235bd2649aad6df495ef25e08994b7da72aa4755ab4c12e426742de4bce3f"
+      "reference-sha256:eb27c2ec18e10400e2f251501cea7593dba7eb2ca94c8db01392ae8106c431f1"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:eb27c2ec18e10400e2f251501cea7593dba7eb2ca94c8db01392ae8106c431f1",
+      "pages:6",
+      "media:1"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:2ff8c7becb46131f631306f78d00a6a476797ee8d7f173734825bc22b887ad90",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {

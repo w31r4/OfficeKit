@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-noir-field-pictorial/assets/reference.pptx",
-    "sha256": "84bebe9deefb687a09cbe866830f068ba8e5e4ececd3c43905b6054eb5017d25"
+    "sha256": "dcbb1fa731140ae781b0af1f5fc3a0fd72d86f95d82a1f5eb585ac98f92bec1b"
   },
   "evidence": {
     "source": [
@@ -27,11 +27,11 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render:unverified"
+      "native-render.v1.json"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:298",
+      "records:306",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,13 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:84bebe9deefb687a09cbe866830f068ba8e5e4ececd3c43905b6054eb5017d25"
+      "reference-sha256:dcbb1fa731140ae781b0af1f5fc3a0fd72d86f95d82a1f5eb585ac98f92bec1b"
+    ],
+    "nativeRender": [
+      "native-render.v1.json",
+      "reference-sha256:dcbb1fa731140ae781b0af1f5fc3a0fd72d86f95d82a1f5eb585ac98f92bec1b",
+      "pages:6",
+      "media:6"
     ]
   },
   "visual": {
@@ -162,9 +168,12 @@
       ]
     },
     "nativeRendering": {
-      "score": 0,
+      "score": 96,
       "evidence": [
-        "native-render:unverified"
+        "native-render.v1.json",
+        "native-pdf-sha256:c642d46d36728adbdd20a438074ac98f0d4e1b69024c753e09e3d17cb66207fb",
+        "pages:6",
+        "first-page:rendered"
       ]
     },
     "backgroundAndLayerFidelity": {
