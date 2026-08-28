@@ -2,14 +2,14 @@
 
 - [x] 1.1 Reuse the three external PPTX hashes and package inventories from the lossless benchmark.
 - [ ] 1.2 Record current direct source order, element kinds, dependency risks, and reorder capability for each sample.
-- [ ] 1.3 Add one source-free photo/scrim/text reference page that reproduces the fixed-bucket failure.
+- [x] 1.3 Add one source-free photo/scrim/text reference page that reproduces the fixed-bucket failure.
 
 ## 2. Implement the authored scene stack
 
-- [ ] 2.1 Add ordered `slide.elements` while retaining type collections as filtered indexes.
-- [ ] 2.2 Register add/delete/group operations with exactly one owner stack.
-- [ ] 2.3 Add shared ordering capability and `sendToBack`, `bringToFront`, `moveBefore`, `moveAfter` methods.
-- [ ] 2.4 Export, SVG preview, layout inspection, and model serialization in scene-stack order.
+- [x] 2.1 Add ordered `slide.elements` while retaining type collections as filtered indexes.
+- [x] 2.2 Register add/delete/group operations with exactly one owner stack.
+- [x] 2.3 Add shared ordering capability and `sendToBack`, `bringToFront`, `moveBefore`, `moveAfter` methods.
+- [x] 2.4 Export, SVG preview, layout inspection, and model serialization in scene-stack order.
 - [ ] 2.5 Add `slide.setBackgroundImage(...)` and prove image -> scrim -> editable foreground output.
 
 ## 3. Preserve and edit imported order
@@ -27,7 +27,7 @@
 
 ## 5. Acceptance
 
-- [ ] 5.1 Run one compact public-contract test for cross-type authored order and background-image round trip.
+- [x] 5.1 Run one compact public-contract test for cross-type authored order and background-image round trip.
 - [ ] 5.2 Run imported inspect/reorder/preserve/reimport checks on every sample; mutate only capability-proven targets.
 - [ ] 5.3 Render and visually inspect the photo/scrim/text reference and supported imported edits in the available host.
 - [ ] 5.4 Repeat from a packed clean install and one fresh Agent context.

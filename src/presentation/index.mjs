@@ -1,7 +1,9 @@
 import { inspectOoxmlPackage, ooxmlResolveRelationshipTarget, ooxmlSafePartPath, patchOoxmlPackage } from "../ooxml/package.mjs";
 import { validatePptxPackageSemantics } from "../ooxml/pptx-package-semantics.mjs";
 import { queryHelpRecords } from "../help/index.mjs";
+import { Buffer } from "node:buffer";
 import { FileBlob } from "../shared/file-blob.mjs";
+import { toUint8Array } from "../shared/binary.mjs";
 import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { aid } from "../shared/ids.mjs";
@@ -34,6 +36,7 @@ import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./l
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
+import { installPresentationElementOrdering } from "./element-order.mjs";
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
 import { editSvgLeaf as replaceSvgLeaf, inspectSvgLeaves } from "./svg-leaves.mjs";
 import { buildPresentationDesignProfile } from "./design-profile.mjs";
@@ -1157,8 +1160,10 @@ class ShapeCollection {
     }
     const shape = new Shape(this.slide, config);
     shape.parentGroup = this.owner;
+    installPresentationElementOrdering(shape);
     this.items.push(shape);
-    this.owner?._rememberChild?.(shape);
+    if (this.owner) this.owner._rememberChild(shape);
+    else this.slide.elements._remember(shape);
     return shape;
   }
   connect(from, to, options = {}) {
@@ -1174,8 +1179,21 @@ class ShapeCollection {
 
 class ElementCollection {
   constructor(slide, ElementClass, owner) { this.slide = slide; this.ElementClass = ElementClass; this.owner = owner; this.items = []; }
-  add(...args) { const element = new this.ElementClass(this.slide, ...args); element.parentGroup = this.owner; this.items.push(element); this.owner?._rememberChild?.(element); return element; }
+  add(...args) { const element = new this.ElementClass(this.slide, ...args); element.parentGroup = this.owner; installPresentationElementOrdering(element); this.items.push(element); if (this.owner) this.owner._rememberChild(element); else this.slide.elements._remember(element); return element; }
   getItemAt(index) { return this.items[index]; }
+  [Symbol.iterator]() { return this.items[Symbol.iterator](); }
+}
+
+class SlideElementCollection {
+  constructor(slide) { this.slide = slide; this.items = []; }
+  _remember(element) {
+    if (element?.slide !== this.slide || element.parentGroup) throw new Error("Direct presentation element must belong to this slide scene stack.");
+    if (this.items.includes(element)) throw new Error(`Presentation element ${element.id} is already registered in the slide scene stack.`);
+    this.items.push(element);
+  }
+  getItem(idOrName) { return this.items.find((element) => element.id === idOrName || element.name === idOrName); }
+  getItemAt(index) { return this.items[index]; }
+  get count() { return this.items.length; }
   [Symbol.iterator]() { return this.items[Symbol.iterator](); }
 }
 
@@ -1474,18 +1492,7 @@ class SpeakerNotes {
 }
 
 function orderedSlideModelElements(slide) {
-  const backgroundConnectors = slide.connectors.items.filter((connector) => !connector.isForeground);
-  const foregroundConnectors = slide.connectors.items.filter((connector) => connector.isForeground);
-  return [
-    ...backgroundConnectors,
-    ...slide.shapes.items,
-    ...slide.tables.items,
-    ...slide.charts.items,
-    ...slide.images.items,
-    ...slide.groups.items,
-    ...slide.nativeObjects.items,
-    ...foregroundConnectors,
-  ];
+  return [...slide.elements.items];
 }
 
 export class Slide {
@@ -1496,6 +1503,7 @@ export class Slide {
     this.presentation = presentation;
     this.id = aid("sl");
     this.name = options.name || "";
+    this.elements = new SlideElementCollection(this);
     this.shapes = new ShapeCollection(this);
     this.images = new ElementCollection(this, ImageElement);
     this.tables = new ElementCollection(this, TableElement);
@@ -1602,6 +1610,31 @@ export class Slide {
   addComment(target, text, config = {}) { return this.comments.addThread(target, text, config); }
   addConnector(config = {}) { return this.connectors.add(config); }
   addGroup(config = {}) { return this.groups.add(config); }
+  setBackgroundImage(config = {}) {
+    if (!config || typeof config !== "object" || Array.isArray(config)) throw new TypeError("Presentation background image requires an options object.");
+    if (this.elements.items.some((element) => element.zOrderCapability?.sourceBound === true)) {
+      const error = new Error("Imported presentation slides cannot place a new image below source-bound elements; use a source-derived slide or a capability-proven native reorder.");
+      error.code = "unsupported_presentation_background_image";
+      throw error;
+    }
+    const existing = this.images.items.find((image) => image._officeKitLayerRole === "background");
+    const frame = { ...this.frame };
+    if (existing) {
+      existing.replace({ ...config, position: frame });
+      existing.position = frame;
+      existing.sendToBack();
+      return existing;
+    }
+    const image = this.images.add({ ...config, position: frame, fit: config.fit || "cover" });
+    Object.defineProperty(image, "_officeKitLayerRole", { enumerable: false, configurable: false, writable: false, value: "background" });
+    image.sendToBack();
+    return image;
+  }
+  clearBackgroundImage() {
+    const existing = this.images.items.find((image) => image._officeKitLayerRole === "background");
+    if (existing) existing.delete();
+    return this;
+  }
   setBackground(background) { this.background = normalizePresentationBackground(background, this.background); return this; }
   clearBackground() { this.background = {}; return this; }
   setTransition(transition) { this.transition.set(transition); return this; }
@@ -1626,7 +1659,17 @@ export class Slide {
   inspectRecords(kinds) {
     const records = [];
     if (kinds.has("layout")) { const layout = this.presentation.layouts.getItem(this.layoutId); records.push({ kind: "layout", layoutId: this.layoutId || `${this.id}/layout`, name: layout?.name || "Blank", type: layout?.type || "blank", masterId: layout?.masterId, themeId: this.effectiveTheme().id, placeholders: layout?.placeholders.length || 0 }); }
-    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, continuationCapability: this.continuationCapability, background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
+    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, continuationCapability: this.continuationCapability, background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, layerCount: this.elements.count, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
+    if (kinds.has("layer") || kinds.has("zOrder")) records.push(...this.elements.items.map((element, stackIndex) => ({
+      kind: "layer",
+      id: element.id,
+      slide: this.index + 1,
+      elementKind: element instanceof GroupShape ? "groupShape" : element.kind || element.constructor?.name,
+      name: element.name || undefined,
+      stackIndex,
+      layerRole: element._officeKitLayerRole,
+      zOrderCapability: element.zOrderCapability,
+    })));
     for (const shape of this.shapes) {
       if (kinds.has("textbox") && shape.text.value) records.push(shape.inspectRecord("textbox"));
       else if (kinds.has("shape")) records.push(shape.inspectRecord("shape"));
@@ -1659,7 +1702,7 @@ export class Slide {
       const shape = this.shapes.items.find((item) => item.id === parentId);
       if (shape) return createTextRange(shape, id, { parentKind: "shape" });
     }
-    const direct = [...this.shapes.items, ...this.tables.items, ...this.charts.items, ...this.images.items, ...this.connectors.items, ...this.groups.items, ...this.nativeObjects.items, ...this.comments.items].find((element) => element.id === id);
+    const direct = [...this.elements.items, ...this.comments.items].find((element) => element.id === id);
     if (direct) return direct;
     for (const group of this.groups) {
       const nested = group.resolve(id);
@@ -1671,7 +1714,7 @@ export class Slide {
   validateLayout(options = {}) {
     const issues = [];
     const slideFrame = this.frame;
-    const elements = [...this.shapes.items, ...this.tables.items, ...this.charts.items, ...this.images.items, ...this.groups.items, ...this.nativeObjects.items];
+    const elements = this.elements.items.filter((element) => !(element instanceof ConnectorElement));
     const connectors = this.connectors.items;
     const minOverlapArea = options.minOverlapArea ?? 64;
     const backgroundCoverage = options.backgroundCoverage ?? 0.8;
@@ -2523,6 +2566,31 @@ function presentationSvgLeafScope(image) {
   };
 }
 
+const PRESENTATION_EMBEDDED_IMAGE_CONTENT_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/svg+xml",
+]);
+
+function presentationImageDataUrlFromBlob(blob, contentType, label) {
+  const blobType = blob instanceof FileBlob || blob?.bytes instanceof Uint8Array
+    ? blob.type
+    : undefined;
+  const bytes = blob instanceof FileBlob || blob?.bytes instanceof Uint8Array
+    ? blob.bytes
+    : toUint8Array(blob);
+  const resolvedContentType = String(contentType || blobType || "").trim().toLowerCase();
+  if (!PRESENTATION_EMBEDDED_IMAGE_CONTENT_TYPES.has(resolvedContentType)) {
+    throw new TypeError(`${label} blob requires contentType image/png, image/jpeg, image/gif, or image/svg+xml.`);
+  }
+  if (bytes.byteLength === 0) throw new TypeError(`${label} blob cannot be empty.`);
+  return {
+    contentType: resolvedContentType,
+    dataUrl: `data:${resolvedContentType};base64,${Buffer.from(bytes).toString("base64")}`,
+  };
+}
+
 export class ImageElement {
   constructor(slide, config = {}) {
     this.slide = slide;
@@ -2547,9 +2615,18 @@ export class ImageElement {
       { ...config, accessibility },
       `Presentation image ${this.id}`,
     );
+    const embedded = config.blob == null
+      ? undefined
+      : presentationImageDataUrlFromBlob(config.blob, config.contentType, `Presentation image ${this.id}`);
+    if (embedded && (config.dataUrl != null || config.uri != null)) {
+      throw new TypeError(`Presentation image ${this.id} blob cannot be combined with dataUrl or uri.`);
+    }
     this.prompt = config.prompt;
     this.uri = config.uri;
     const importedDataUrlSource = config._officeKitDataUrlSource;
+    if (embedded && importedDataUrlSource) {
+      throw new TypeError(`Presentation image ${this.id} blob cannot replace an imported lazy dataUrl source.`);
+    }
     if (importedDataUrlSource) {
       if (typeof importedDataUrlSource.resolve !== "function" || !importedDataUrlSource.asset) {
         throw new TypeError(`Presentation image ${this.id} received an invalid imported dataUrl source.`);
@@ -2577,9 +2654,9 @@ export class ImageElement {
         set: binding.set,
       });
     } else {
-      this.dataUrl = config.dataUrl;
+      this.dataUrl = embedded?.dataUrl ?? config.dataUrl;
     }
-    this.contentType = config.contentType;
+    this.contentType = embedded?.contentType ?? config.contentType;
     this.fit = config.fit || "contain";
     this.crop = config.crop;
     this.geometry = config.geometry || "rect";
@@ -2668,7 +2745,7 @@ export class ImageElement {
     });
   }
   replace(config = {}) {
-    const { alt, accessibility, ...rest } = config;
+    const { alt, accessibility, blob, ...rest } = config;
     let nextAccessibility = this.accessibility;
     if (accessibility !== undefined) {
       if (Object.hasOwn(config, "alt") && accessibility?.description != null && accessibility.description !== (alt == null ? "" : alt)) {
@@ -2686,6 +2763,15 @@ export class ImageElement {
           `Presentation image ${this.id}`,
         );
       }
+    }
+    if (blob != null) {
+      if (rest.dataUrl != null || rest.uri != null) {
+        throw new TypeError(`Presentation image ${this.id} blob cannot be combined with dataUrl or uri.`);
+      }
+      const embedded = presentationImageDataUrlFromBlob(blob, rest.contentType, `Presentation image ${this.id}`);
+      rest.dataUrl = embedded.dataUrl;
+      rest.contentType = embedded.contentType;
+      rest.uri = undefined;
     }
     Object.assign(this, rest);
     this.accessibility = nextAccessibility;
@@ -2757,20 +2843,12 @@ function presentationElementKind(element) {
 }
 
 function presentationSlideElements(slide) {
-  const direct = [...slide.connectors.items, ...slide.shapes.items, ...slide.tables.items, ...slide.charts.items, ...slide.images.items, ...slide.groups.items, ...slide.nativeObjects.items];
+  const direct = [...slide.elements.items];
   return direct.flatMap((element) => element instanceof GroupShape ? element.allElements() : [element]);
 }
 
 function directSlideModelElements(slide) {
-  return [
-    ...slide.connectors.items,
-    ...slide.shapes.items,
-    ...slide.tables.items,
-    ...slide.charts.items,
-    ...slide.images.items,
-    ...slide.groups.items,
-    ...slide.nativeObjects.items,
-  ];
+  return [...slide.elements.items];
 }
 
 function removePendingCloneDirectElement(slide, element) {
@@ -2787,6 +2865,8 @@ function removePendingCloneDirectElement(slide, element) {
     const index = collection.items.indexOf(element);
     if (index < 0) continue;
     collection.items.splice(index, 1);
+    const sceneIndex = slide.elements.items.indexOf(element);
+    if (sceneIndex >= 0) slide.elements.items.splice(sceneIndex, 1);
     return;
   }
   throw new Error(`Presentation clone element ${element?.id || "<unknown>"} does not belong to its slide.`);

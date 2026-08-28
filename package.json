@@ -110,6 +110,7 @@
     "test:spreadsheet": "node test/spreadsheet.mjs && node test/spreadsheet-statistics.mjs && node test/spreadsheet-formula-syntax.mjs && node test/spreadsheet-range-compat.mjs && node test/spreadsheet-sparkline.mjs",
     "test:skill:spreadsheets": "node test/spreadsheet-skill.mjs",
     "test:presentation": "node test/presentation.mjs && node test/presentation-svg-leaves.mjs",
+    "test:presentation-scene-stack": "node test/presentation-scene-stack.mjs",
     "test:pptx-lossless-benchmark": "node test/pptx-lossless-benchmark.mjs",
     "test:pptx-svg-leaf-benchmark": "node test/pptx-svg-leaf-benchmark.mjs",
     "test:pptx-import-object-classification": "node test/pptx-import-object-classification.mjs",

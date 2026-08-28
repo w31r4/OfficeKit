@@ -53,6 +53,7 @@ const PRESENTATION_SLIDE_CLONE_CAPABILITY = Symbol.for("office-kit.slide-clone-c
 const PRESENTATION_SLIDE_CONTINUATION_CAPABILITY = Symbol.for("office-kit.slide-continuation-capability");
 const PRESENTATION_ELEMENT_DELETION_CAPABILITY = Symbol.for("office-kit.presentation-element-deletion-capability");
 const PRESENTATION_ELEMENT_DELETED = Symbol.for("office-kit.presentation-element-deleted");
+const PRESENTATION_ELEMENT_ORDER_CAPABILITY = Symbol.for("office-kit.presentation-element-order-capability");
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
@@ -2301,18 +2302,7 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
 }
 
 function directSlideElements(slide) {
-  const backgroundConnectors = slide.connectors.items.filter((connector) => !connector.isForeground);
-  const foregroundConnectors = slide.connectors.items.filter((connector) => connector.isForeground);
-  return [
-    ...backgroundConnectors,
-    ...slide.shapes.items,
-    ...slide.tables.items,
-    ...slide.charts.items,
-    ...slide.images.items,
-    ...slide.groups.items,
-    ...slide.nativeObjects.items,
-    ...foregroundConnectors,
-  ];
+  return [...slide.elements.items];
 }
 
 const SOURCE_BOUND_AUTHORED_OVERLAY_GEOMETRIES = new Set(["textbox", "rect", "roundRect", "ellipse"]);
@@ -5292,6 +5282,18 @@ export async function presentationFromEnvelope(envelope) {
       const elementDeletionCapability = element.source?.deletionCapability;
       const deletionNativeId = Number(elementDeletionCapability?.nativeId || 0) || undefined;
       if (model.nativeId === undefined && deletionNativeId !== undefined) model.nativeId = deletionNativeId;
+      const sourceBoundModels = model instanceof GroupShape ? model.allElements() : [model];
+      for (const sourceBoundModel of sourceBoundModels) {
+        Object.defineProperty(sourceBoundModel, PRESENTATION_ELEMENT_ORDER_CAPABILITY, {
+          value: Object.freeze({
+            sourceBound: true,
+            known: true,
+            editable: false,
+            blockedReason: "Imported element order is preserved until the native codec issues a dependency-proven reorder capability.",
+            ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+          }),
+        });
+      }
       Object.defineProperty(model, PRESENTATION_ELEMENT_DELETION_CAPABILITY, {
         value: Object.freeze({
           sourceBound: true,
