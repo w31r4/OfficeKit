@@ -211,9 +211,7 @@ class NativeCodecClient {
     const prefix = Buffer.allocUnsafe(REQUEST_PREFIX_BYTES);
     prefix.writeUInt32BE(bytes.byteLength, 0);
     prefix.writeUInt32BE(fileBytes?.byteLength ?? 0, 4);
-    await this.write(prefix);
-    await this.write(bytes);
-    if (fileBytes?.byteLength) await this.write(fileBytes);
+    await this.writeFrame(prefix, bytes, fileBytes);
     const responsePrefix = await this.readOrThrow(4, "runtime_terminated");
     const responseLength = responsePrefix.readUInt32BE(0);
     if (responseLength === 0 || responseLength > OFFICE_KIT_NATIVE_MAX_FRAME_BYTES) {
@@ -222,9 +220,20 @@ class NativeCodecClient {
     return this.readOrThrow(responseLength, "runtime_terminated");
   }
 
-  async write(bytes) {
+  async writeFrame(prefix, bytes, fileBytes) {
     if (this.closed || this.child.stdin.destroyed) throw this.terminationError();
-    if (!this.child.stdin.write(bytes)) {
+    this.child.stdin.cork();
+    let prefixAccepted;
+    let requestAccepted;
+    let fileAccepted = true;
+    try {
+      prefixAccepted = this.child.stdin.write(prefix);
+      requestAccepted = this.child.stdin.write(bytes);
+      if (fileBytes?.byteLength) fileAccepted = this.child.stdin.write(fileBytes);
+    } finally {
+      this.child.stdin.uncork();
+    }
+    if (!prefixAccepted || !requestAccepted || !fileAccepted) {
       await Promise.race([
         once(this.child.stdin, "drain"),
         this.terminated.then(() => { throw this.terminationError(); }),

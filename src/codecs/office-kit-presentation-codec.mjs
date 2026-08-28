@@ -196,7 +196,7 @@ export async function exportPptxWithOfficeKit(presentation, options = {}) {
       file: editPlan.sourceBytes,
       presentationEditPlan: editPlan.wire,
       limits: codecLimits(options.limits),
-    });
+    }, { fileSidecar: true });
     const result = response.presentationEditPlan;
     const outputSha256 = createHash("sha256").update(response.file).digest("hex");
     if (!result || result.sourceSha256 !== editPlan.sourceRevisionSha256 || result.outputSha256 !== outputSha256 ||
