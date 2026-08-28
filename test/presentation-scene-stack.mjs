@@ -48,4 +48,22 @@ const reorderedOutput = await PresentationFile.exportPptx(reimported);
 const reordered = await PresentationFile.importPptx(reorderedOutput);
 assert.deepEqual(reordered.slides.items[0].elements.items.map((element) => element.name), ["scrim", "title", "photo"]);
 
+// A real NASA fixture exposed that source-bound reorder could lose imported
+// picture-bullet assets even though the source package itself was preserved.
+// Keep one compact import -> edit -> export regression beside the scene-stack
+// contract instead of adding a fixture matrix.
+const bulletDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const bulletSlide = bulletDeck.slides.add({ name: "picture bullet" });
+bulletSlide.shapes.add({
+  name: "list",
+  geometry: "textbox",
+  position: { left: 40, top: 40, width: 520, height: 72 },
+  text: [{ runs: [{ text: "Preserved marker" }], bulletImage: { dataUrl: PNG } }],
+});
+bulletSlide.shapes.add({ name: "accent", geometry: "rect", position: { left: 32, top: 32, width: 8, height: 88 }, fill: "#0f766e" });
+const importedBulletDeck = await PresentationFile.importPptx(await PresentationFile.exportPptx(bulletDeck));
+importedBulletDeck.slides.items[0].elements.getItem("accent").sendToBack();
+const reopenedBulletDeck = await PresentationFile.importPptx(await PresentationFile.exportPptx(importedBulletDeck));
+assert.equal(reopenedBulletDeck.slides.items[0].elements.getItem("list").text.paragraphs[0].bulletImage.dataUrl, PNG);
+
 console.log("presentation scene stack smoke ok");

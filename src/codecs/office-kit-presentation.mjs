@@ -2921,7 +2921,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
   const sections = presentationSections(presentation, state);
   const viewProperties = presentationViewPropertiesForEnvelope(presentation, state);
   const customShowLinks = presentationCustomShowLinkContext(customShows, state);
-  const assetCatalog = createPresentationAssetCatalog();
+  const assetCatalog = createPresentationAssetCatalog(state?.assets || [], { shareBytes: true });
   const masters = presentationMasters(presentation, state, assetCatalog, customShowLinks);
   const layouts = presentationLayouts(presentation, state, assetCatalog, customShowLinks);
   const slides = presentation.slides.items.map((slide, slideIndex) => {
@@ -5314,7 +5314,9 @@ export async function presentationFromEnvelope(envelope) {
           sourceBound: true,
           known: Boolean(elementZOrderCapability),
           editable: elementZOrderCapability?.supported === true,
-          blockedReason: elementZOrderCapability?.blockedReason || "Imported direct-element order capability is unavailable.",
+          blockedReason: elementZOrderCapability
+            ? elementZOrderCapability.blockedReason || ""
+            : "Imported direct-element order capability is unavailable.",
           ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
         }),
       });
@@ -5505,6 +5507,7 @@ export async function presentationFromEnvelope(envelope) {
   const presentationState = {
     source: envelope.source,
     opaqueOpc: envelope.opaqueOpc,
+    assets: assetCatalog.assets(),
     diagnostics: envelope.diagnostics,
     sourceArtifact: source,
     name: source.name,
