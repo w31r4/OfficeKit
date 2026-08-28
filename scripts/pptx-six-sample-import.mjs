@@ -65,13 +65,18 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     if (digest !== source.sha256) throw new Error(`${source.id} source SHA-256 mismatch: ${digest}`);
     const packageInfo = await packageEvidence(bytes);
     const presentation = await importPresentation(bytes);
-    const records = parseNdjson(presentation.inspect({ kind: "importObject", maxChars: Infinity }).ndjson);
+    const records = parseNdjson(presentation.inspect({ kind: "importObject", includeNested: true, maxChars: Infinity }).ndjson);
+    const topLevelRecords = records.filter((record) => record.topLevel === true);
+    const nestedRecords = records.filter((record) => record.topLevel === false);
     const rawObjectCount = packageInfo.rawObjectCount;
     if (presentation.slides.count !== packageInfo.slideCount) {
       throw new Error(`${source.id} imported ${presentation.slides.count} slides, expected ${packageInfo.slideCount}.`);
     }
-    if (records.length !== rawObjectCount) {
-      throw new Error(`${source.id} classified ${records.length} of ${rawObjectCount} visible top-level objects.`);
+    if (topLevelRecords.length !== rawObjectCount) {
+      throw new Error(`${source.id} classified ${topLevelRecords.length} of ${rawObjectCount} visible top-level objects.`);
+    }
+    if (records.length !== packageInfo.visibleObjectCount) {
+      throw new Error(`${source.id} classified ${records.length} of ${packageInfo.visibleObjectCount} visible objects including nested group children.`);
     }
     if (new Set(records.map((record) => record.targetId)).size !== records.length) {
       throw new Error(`${source.id} has duplicate imported object IDs.`);
@@ -97,11 +102,17 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       bytes: bytes.byteLength,
       slides: packageInfo.slideCount,
       visibleTopLevelObjects: rawObjectCount,
-      classifiedTopLevelObjects: records.length,
+      visibleNestedObjects: packageInfo.nestedObjectCount,
+      visibleObjects: packageInfo.visibleObjectCount,
+      classifiedTopLevelObjects: topLevelRecords.length,
+      classifiedNestedObjects: nestedRecords.length,
+      classifiedObjects: records.length,
       rawRootKinds: packageInfo.rawRootKinds,
-      objectKinds: counts(records.map((record) => record.objectKind)),
-      classifications: counts(records.map((record) => record.classification)),
-      nativeLeafKinds: counts(records.flatMap((record) => record.nativeLeafKinds || [])),
+      objectKinds: counts(topLevelRecords.map((record) => record.objectKind)),
+      nestedObjectKinds: counts(nestedRecords.map((record) => record.objectKind)),
+      classifications: counts(topLevelRecords.map((record) => record.classification)),
+      nestedClassifications: counts(nestedRecords.map((record) => record.classification)),
+      nativeLeafKinds: counts(topLevelRecords.flatMap((record) => record.nativeLeafKinds || [])),
       noOpByteIdentical: true,
       placement,
       text,
@@ -112,8 +123,9 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       animatedText,
       tableCell,
       sourceSlideReuse: reuse,
-      nativeLeafCount: records.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
-      nativeTextLeafCount: records
+      nativeLeafCount: topLevelRecords.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
+      nativeNestedLeafCount: nestedRecords.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
+      nativeTextLeafCount: topLevelRecords
         .filter((record) => (record.nativeLeafKinds || []).includes("nativeText"))
         .reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
       designProfile: profileSummary(profile),
@@ -126,6 +138,9 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       sources: results.length,
       slides: results.reduce((sum, result) => sum + result.slides, 0),
       visibleTopLevelObjects: results.reduce((sum, result) => sum + result.visibleTopLevelObjects, 0),
+      visibleNestedObjects: results.reduce((sum, result) => sum + result.visibleNestedObjects, 0),
+      visibleObjects: results.reduce((sum, result) => sum + result.visibleObjects, 0),
+      classifiedObjects: results.reduce((sum, result) => sum + result.classifiedObjects, 0),
       noOpByteIdentical: results.every((result) => result.noOpByteIdentical),
       placementEdits: results.filter((result) => result.placement.status === "passed").length,
       textEdits: results.filter((result) => result.text.status === "passed").length,
@@ -428,16 +443,30 @@ async function packageEvidence(bytes) {
     .filter((name) => /^ppt\/slides\/slide[1-9][0-9]*[.]xml$/u.test(name))
     .sort((left, right) => slideOrdinal(left) - slideOrdinal(right));
   let rawObjectCount = 0;
+  let nestedObjectCount = 0;
   const rawRootKinds = {};
   for (const slide of slides) {
     const roots = directPresentationChildren(await zip.file(slide).async("text"), "spTree");
     for (const root of roots) {
       if (["nvGrpSpPr", "grpSpPr", "extLst"].includes(root.localName)) continue;
       rawObjectCount += 1;
+      if (root.localName === "grpSp") nestedObjectCount += countNestedObjects(root.xml, "grpSp");
       rawRootKinds[root.localName] = (rawRootKinds[root.localName] || 0) + 1;
     }
   }
-  return { slideCount: slides.length, rawObjectCount, rawRootKinds: sortObject(rawRootKinds) };
+  return {
+    slideCount: slides.length,
+    rawObjectCount,
+    nestedObjectCount,
+    visibleObjectCount: rawObjectCount + nestedObjectCount,
+    rawRootKinds: sortObject(rawRootKinds),
+  };
+}
+
+function countNestedObjects(xml, parentLocalName) {
+  return directPresentationChildren(xml, parentLocalName)
+    .filter((child) => !["nvGrpSpPr", "grpSpPr", "extLst"].includes(child.localName))
+    .reduce((count, child) => count + 1 + (child.localName === "grpSp" ? countNestedObjects(child.xml, "grpSp") : 0), 0);
 }
 
 async function changedPackageParts(sourceBytes, outputBytes) {

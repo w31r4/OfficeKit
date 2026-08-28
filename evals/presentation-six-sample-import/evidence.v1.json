@@ -5,6 +5,9 @@
     "sources": 6,
     "slides": 157,
     "visibleTopLevelObjects": 1694,
+    "visibleNestedObjects": 2371,
+    "visibleObjects": 4065,
+    "classifiedObjects": 4065,
     "noOpByteIdentical": true,
     "placementEdits": 6,
     "textEdits": 6,
@@ -25,7 +28,11 @@
       "bytes": 8094554,
       "slides": 13,
       "visibleTopLevelObjects": 112,
+      "visibleNestedObjects": 55,
+      "visibleObjects": 167,
       "classifiedTopLevelObjects": 112,
+      "classifiedNestedObjects": 55,
+      "classifiedObjects": 167,
       "rawRootKinds": {
         "cxnSp": 2,
         "grpSp": 17,
@@ -39,8 +46,19 @@
         "picture": 1,
         "shape": 78
       },
+      "nestedObjectKinds": {
+        "connector": 5,
+        "group": 2,
+        "image": 3,
+        "picture": 3,
+        "shape": 42
+      },
       "classifications": {
         "typed-editable": 112
+      },
+      "nestedClassifications": {
+        "opaque-preserved": 51,
+        "typed-editable": 4
       },
       "nativeLeafKinds": {
         "heightEmu": 19,
@@ -109,6 +127,7 @@
         "allSlidesCloneCapable": true
       },
       "nativeLeafCount": 276,
+      "nativeNestedLeafCount": 17,
       "nativeTextLeafCount": 19,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -135,7 +154,11 @@
       "bytes": 4522864,
       "slides": 21,
       "visibleTopLevelObjects": 230,
+      "visibleNestedObjects": 99,
+      "visibleObjects": 329,
       "classifiedTopLevelObjects": 230,
+      "classifiedNestedObjects": 99,
+      "classifiedObjects": 329,
       "rawRootKinds": {
         "cxnSp": 35,
         "graphicFrame": 1,
@@ -150,10 +173,20 @@
         "shape": 145,
         "table": 1
       },
+      "nestedObjectKinds": {
+        "group": 20,
+        "image": 21,
+        "picture": 26,
+        "shape": 32
+      },
       "classifications": {
         "native-leaf-editable": 3,
         "opaque-preserved": 16,
         "typed-editable": 211
+      },
+      "nestedClassifications": {
+        "opaque-preserved": 75,
+        "typed-editable": 24
       },
       "nativeLeafKinds": {
         "heightEmu": 38,
@@ -232,6 +265,7 @@
         "allSlidesCloneCapable": true
       },
       "nativeLeafCount": 492,
+      "nativeNestedLeafCount": 120,
       "nativeTextLeafCount": 8,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -258,7 +292,11 @@
       "bytes": 19436162,
       "slides": 25,
       "visibleTopLevelObjects": 357,
+      "visibleNestedObjects": 487,
+      "visibleObjects": 844,
       "classifiedTopLevelObjects": 357,
+      "classifiedNestedObjects": 487,
+      "classifiedObjects": 844,
       "rawRootKinds": {
         "graphicFrame": 2,
         "grpSp": 177,
@@ -272,9 +310,17 @@
         "shape": 106,
         "table": 1
       },
+      "nestedObjectKinds": {
+        "group": 26,
+        "shape": 461
+      },
       "classifications": {
         "native-leaf-editable": 1,
         "typed-editable": 356
+      },
+      "nestedClassifications": {
+        "opaque-preserved": 448,
+        "typed-editable": 39
       },
       "nativeLeafKinds": {
         "fillRgb": 21,
@@ -362,6 +408,7 @@
         "allSlidesCloneCapable": true
       },
       "nativeLeafCount": 1140,
+      "nativeNestedLeafCount": 189,
       "nativeTextLeafCount": 108,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -388,7 +435,11 @@
       "bytes": 3382810,
       "slides": 39,
       "visibleTopLevelObjects": 432,
+      "visibleNestedObjects": 750,
+      "visibleObjects": 1182,
       "classifiedTopLevelObjects": 432,
+      "classifiedNestedObjects": 750,
+      "classifiedObjects": 1182,
       "rawRootKinds": {
         "cxnSp": 31,
         "graphicFrame": 3,
@@ -403,8 +454,16 @@
         "shape": 243,
         "table": 3
       },
+      "nestedObjectKinds": {
+        "connector": 77,
+        "group": 18,
+        "shape": 655
+      },
       "classifications": {
         "typed-editable": 432
+      },
+      "nestedClassifications": {
+        "opaque-preserved": 750
       },
       "nativeLeafKinds": {
         "fillRgb": 4,
@@ -484,6 +543,7 @@
         "allSlidesCloneCapable": true
       },
       "nativeLeafCount": 572,
+      "nativeNestedLeafCount": 0,
       "nativeTextLeafCount": 25,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -510,7 +570,11 @@
       "bytes": 2076227,
       "slides": 39,
       "visibleTopLevelObjects": 429,
+      "visibleNestedObjects": 923,
+      "visibleObjects": 1352,
       "classifiedTopLevelObjects": 429,
+      "classifiedNestedObjects": 923,
+      "classifiedObjects": 1352,
       "rawRootKinds": {
         "cxnSp": 28,
         "graphicFrame": 3,
@@ -525,8 +589,16 @@
         "shape": 236,
         "table": 3
       },
+      "nestedObjectKinds": {
+        "connector": 74,
+        "group": 15,
+        "shape": 834
+      },
       "classifications": {
         "typed-editable": 429
+      },
+      "nestedClassifications": {
+        "opaque-preserved": 923
       },
       "nativeLeafKinds": {
         "heightEmu": 59,
@@ -600,6 +672,7 @@
         "allSlidesCloneCapable": true
       },
       "nativeLeafCount": 556,
+      "nativeNestedLeafCount": 0,
       "nativeTextLeafCount": 16,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -626,7 +699,11 @@
       "bytes": 24114977,
       "slides": 20,
       "visibleTopLevelObjects": 134,
+      "visibleNestedObjects": 57,
+      "visibleObjects": 191,
       "classifiedTopLevelObjects": 134,
+      "classifiedNestedObjects": 57,
+      "classifiedObjects": 191,
       "rawRootKinds": {
         "grpSp": 10,
         "pic": 18,
@@ -637,8 +714,14 @@
         "image": 18,
         "shape": 106
       },
+      "nestedObjectKinds": {
+        "shape": 57
+      },
       "classifications": {
         "typed-editable": 134
+      },
+      "nestedClassifications": {
+        "opaque-preserved": 57
       },
       "nativeLeafKinds": {
         "heightEmu": 124,
@@ -702,6 +785,7 @@
         "allSlidesCloneCapable": true
       },
       "nativeLeafCount": 615,
+      "nativeNestedLeafCount": 0,
       "nativeTextLeafCount": 0,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
