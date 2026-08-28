@@ -271,6 +271,10 @@ const file = await SpreadsheetFile.exportXlsx(workbook, { recalculate: true });
 await file.save("summary.xlsx");
 ```
 
+只处理 PPT 的 `.mjs` 任务和 REPL 会话可以从 `office-kit/presentation`
+导入同一组演示文稿构造器，避免初始化无关的文档、表格、PDF、Help 和视觉
+QA 模块。根入口 `office-kit` 与所有现有 import 保持不变。
+
 可运行示例：
 
 - [创建 DOCX 报告](examples/create-docx-report.mjs)

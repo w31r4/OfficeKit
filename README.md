@@ -299,6 +299,11 @@ const file = await SpreadsheetFile.exportXlsx(workbook, { recalculate: true });
 await file.save("summary.xlsx");
 ```
 
+PPT-only `.mjs` tasks and REPL sessions can import the same presentation
+constructors from `office-kit/presentation` to avoid initializing unrelated
+document, spreadsheet, PDF, Help, and visual-QA modules. The root `office-kit`
+entry and all existing imports remain unchanged.
+
 Runnable examples:
 
 - [Create a DOCX report](examples/create-docx-report.mjs)

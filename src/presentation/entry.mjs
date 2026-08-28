@@ -1,0 +1,30 @@
+export { FileBlob } from "../shared/file-blob.mjs";
+export {
+  ChartElement,
+  GroupShape,
+  ImageElement,
+  Presentation,
+  PresentationFile,
+  Shape,
+  Slide,
+  SlideAnimations,
+  SlideMorph,
+  SlideTransition,
+  TableElement,
+} from "./index.mjs";
+export {
+  box,
+  chart,
+  column,
+  grid,
+  image,
+  layers,
+  node,
+  paragraph,
+  row,
+  rule,
+  run,
+  shape,
+  table,
+  text,
+} from "./compose.mjs";

@@ -38,6 +38,7 @@
   },
   "exports": {
     ".": "./src/index.mjs",
+    "./presentation": "./src/presentation/entry.mjs",
     "./live": "./src/live/bridge.mjs",
     "./live/protocol": "./src/live/protocol.mjs",
     "./live/adapters/powerpoint": "./src/live/adapters/powerpoint.mjs",
