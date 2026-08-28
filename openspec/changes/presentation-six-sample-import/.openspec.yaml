@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-08-28
+goal: Make six real third-party PPTX files dependable OfficeKit starting states for
+  inspection, bounded local editing, source-derived reuse, review, and continuation
+  without rebuilding or silently flattening unknown native content.
