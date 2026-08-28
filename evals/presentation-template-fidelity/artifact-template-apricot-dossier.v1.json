@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-apricot-dossier/assets/reference.pptx",
-    "sha256": "4d6ac64551325dc7e4cdd1fd67cdbf755745dea5086388eca1953da5fe9d9be2"
+    "sha256": "981db37649b4cdc51929bd8b44b67c153fc0b2ece26dca0d002db4c3af01ac3d"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:262",
+      "records:260",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:4d6ac64551325dc7e4cdd1fd67cdbf755745dea5086388eca1953da5fe9d9be2"
+      "reference-sha256:981db37649b4cdc51929bd8b44b67c153fc0b2ece26dca0d002db4c3af01ac3d"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:095826e0808fe1fa0cf7bc64b0e71d4d2fb9689e016df2297070f70d5d6cc96a",
+        "native-pdf-sha256:017ab08aab4b6b486cc5b264498999f11cdaa0c9e7de027cd9ccfbb66a864ab4",
         "pages:6",
         "first-page:rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 86.3, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 86.3, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

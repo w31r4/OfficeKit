@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-cranberry-evidence/assets/reference.pptx",
-    "sha256": "c5dc6da470988747c00b96c36129e76c19c1d752dd8985cae087232ad521642d"
+    "sha256": "d720f9e219097c67cbbb59424e967c5ab262cfc4926601c77f691dcbde115e70"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:306",
+      "records:304",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:c5dc6da470988747c00b96c36129e76c19c1d752dd8985cae087232ad521642d"
+      "reference-sha256:d720f9e219097c67cbbb59424e967c5ab262cfc4926601c77f691dcbde115e70"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:1ee2024210451635c88a27f1a3bc5fe8b23ecaa1091c38c2526549acdcae9c27",
+        "native-pdf-sha256:ef23605123b575cb0c13ec13a489a659693a0c7f05b3f811acfe1f2ba83cdb48",
         "pages:6",
         "first-page:rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 88.2, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 88.2, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

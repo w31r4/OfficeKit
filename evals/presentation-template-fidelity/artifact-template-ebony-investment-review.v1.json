@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-ebony-investment-review/assets/reference.pptx",
-    "sha256": "b5ea7fdc4f58f423ca27cd77f355a9311fed19db4796bc6286464be8a0000fec"
+    "sha256": "533e7b4140764d79c4fb22cf992ac03f7abe098d6343e9dac46c285b964730aa"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:b5ea7fdc4f58f423ca27cd77f355a9311fed19db4796bc6286464be8a0000fec"
+      "reference-sha256:533e7b4140764d79c4fb22cf992ac03f7abe098d6343e9dac46c285b964730aa"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:049b040a649cee7685f4ec418173abebd3f9d3d04607d83fcb9aaf33eb66f594",
+        "native-pdf-sha256:c4318c7b947e561b097ed65578e46431f2d92c70a9134c5b27ddb2b847605115",
         "pages:6",
         "first-page:rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 89.6, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 89.6, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

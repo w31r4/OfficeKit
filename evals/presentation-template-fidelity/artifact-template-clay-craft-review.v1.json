@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-clay-craft-review/assets/reference.pptx",
-    "sha256": "1a88a9cc82ae02bf942337c5fed5d390d4a6ba935886fedf1b5331731912b320"
+    "sha256": "643dae13ac94cad57912420f21c8e58e0a3660f63191f0757d9d30bd442ef041"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:246",
+      "records:244",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:1a88a9cc82ae02bf942337c5fed5d390d4a6ba935886fedf1b5331731912b320"
+      "reference-sha256:643dae13ac94cad57912420f21c8e58e0a3660f63191f0757d9d30bd442ef041"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:5db6218091a4ef19e506e08a47d4c16c9d3c88e3a3f9a0de3c3af7287ae88af3",
+        "native-pdf-sha256:e1a9e4e13b7732309dd9aa7e9c5d9c434211921c83f1acd5ad1bac94c67089f3",
         "pages:6",
         "first-page:rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
