@@ -95,6 +95,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
     const reuse = await verifyOneSlideReuse(bytes);
+    const componentReuse = await verifySourceComponentReuse(bytes);
     results.push({
       id: source.id,
       fileName: source.fileName,
@@ -125,6 +126,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       animatedText,
       tableCell,
       sourceSlideReuse: reuse,
+      sourceComponentReuse: componentReuse,
       nativeLeafCount: topLevelRecords.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
       nativeNestedLeafCount: nestedRecords.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
       nativeTextLeafCount: topLevelRecords
@@ -154,6 +156,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
       sourceSlideReuse: results.filter((result) => result.sourceSlideReuse.status === "passed").length,
+      sourceComponentReuse: results.filter((result) => result.sourceComponentReuse.status === "passed").length,
     },
     sources: results,
   };
@@ -406,6 +409,54 @@ async function verifyOneSlideReuse(bytes) {
     outputSlideCount: reopened.slides.count,
     allSlidesCloneCapable,
   };
+}
+
+async function verifySourceComponentReuse(bytes) {
+  const presentation = await importPresentation(bytes);
+  const candidates = parseNdjson(presentation.inspect({ kind: "componentCandidate", maxChars: Infinity }).ndjson)
+    .filter((candidate) => candidate.status === "inspect-only" && candidate.occurrences?.some((occurrence) => occurrence.reuseCapability?.supported === true));
+  if (!candidates.length) return { status: "blocked", reason: "no closed source component candidate was discovered" };
+  const originalSlideCount = presentation.slides.count;
+  let lastError;
+  for (const candidate of candidates) {
+    const occurrenceIndex = candidate.occurrences.findIndex((occurrence) => occurrence.reuseCapability?.supported === true);
+    const occurrence = candidate.occurrences[occurrenceIndex];
+    const sourceSlideIndex = presentation.slides.items.findIndex((slide) => slide.id === occurrence.slideId);
+    if (sourceSlideIndex < 0) continue;
+    try {
+      const sourceZip = await JSZip.loadAsync(bytes);
+      const sourceSlidePart = `ppt/slides/slide${sourceSlideIndex + 1}.xml`;
+      const sourceSlideXml = await sourceZip.file(sourceSlidePart).async("uint8array");
+      const clone = presentation.reuseSourceComponent({
+        candidateId: candidate.candidateId,
+        occurrenceIndex,
+        expectedCandidate: candidate,
+      });
+      const output = await PresentationFile.exportPptx(presentation);
+      const reopened = await importPresentation(output.bytes);
+      if (reopened.slides.count !== originalSlideCount + 1 || clone.elements.count !== 1) {
+        throw new Error(`Source component reuse produced an unexpected clone shape for ${candidate.candidateId}.`);
+      }
+      const outputZip = await JSZip.loadAsync(output.bytes);
+      const outputSlideXml = await outputZip.file(sourceSlidePart).async("uint8array");
+      if (!Buffer.from(sourceSlideXml).equals(Buffer.from(outputSlideXml))) {
+        throw new Error(`Source component reuse changed its source slide for ${candidate.candidateId}.`);
+      }
+      return {
+        status: "passed",
+        candidateId: candidate.candidateId,
+        occurrenceIndex,
+        sourceSlide: sourceSlideIndex + 1,
+        cloneSlide: clone.index + 1,
+        cloneElements: clone.elements.count,
+        reopenedSlides: reopened.slides.count,
+        sourceSlideUnchanged: true,
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Source component reuse candidates could not be executed.");
 }
 
 function firstTextRun(presentation) {
