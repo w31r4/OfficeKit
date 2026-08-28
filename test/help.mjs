@@ -295,6 +295,8 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "connector.setConnectorTo
 assert.match(HELP_CATALOG.find((item) => item.name === "connector.bringToFront")?.summary || "", /scene stack.*imported direct connector.*zOrderCapability/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "connector.sendToBack")?.summary || "", /scene stack.*imported direct connector.*zOrderCapability/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.setBackgroundImage")?.summary || "", /full-slide embedded image.*translucent shape.*editable foreground/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.setNativeBackgroundImage")?.summary || "", /direct native p:bg\/p:bgPr\/a:blipFill.*not a reorderable or animatable scene-layer picture/i);
+assert.match(HELP_CATALOG.find((item) => item.name === "slide.setNativeBackgroundImage")?.schema?.parameters?.fit?.description || "", /must be stretch.*crop.*external links/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "slide.elements")?.summary || "", /cross-type scene stack.*back to front/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "element.moveAfter")?.schema?.parameters?.target?.description || "", /same direct slide or group scene stack/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.schema?.parameters?.kind?.description || "", /layer\/zOrder/);
