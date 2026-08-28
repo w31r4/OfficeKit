@@ -39,9 +39,8 @@ try {
 async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
   const spec = await readJsonFile(specPath, MAX_SPEC_BYTES, "spec");
   validateSpec(spec);
-  const guideBody = await readTextFile(spec.guidePath, MAX_GUIDE_BYTES, "guidePath");
+  const guideBody = normalizeGuideBody(await readTextFile(spec.guidePath, MAX_GUIDE_BYTES, "guidePath"));
   if (guideBody.trim().length < 120) throw new Error("guidePath must contain a substantive style guide");
-  if (/^---\s*$/mu.test(guideBody)) throw new Error("guidePath must be a Markdown body without YAML frontmatter");
   const referenceBytes = await readRegularFile(spec.referencePath, MAX_REFERENCE_BYTES, "referencePath");
   await validateReferencePptx(referenceBytes);
 
@@ -279,6 +278,16 @@ async function readJsonFile(filePath, maxBytes, label) {
 
 async function readTextFile(filePath, maxBytes, label) {
   return (await readRegularFile(filePath, maxBytes, label)).toString("utf8");
+}
+
+function normalizeGuideBody(source) {
+  const trimmed = source.trim();
+  if (!trimmed.startsWith("---")) return `${trimmed}\n`;
+  const match = /^---\s*\n[\s\S]*?\n---\s*\n([\s\S]*)$/u.exec(trimmed);
+  if (!match || match[1].trim() === "") {
+    throw new Error("guidePath contains malformed YAML frontmatter or no Markdown body");
+  }
+  return `${match[1].trim()}\n`;
 }
 
 async function validateReferencePptx(bytes) {

@@ -22,9 +22,11 @@ used to derive the style.
 ## Guide body
 
 The packaging script adds YAML frontmatter. Supply a complete, self-contained
-Markdown body that explains this style's distinctive choices. Do not shorten a
-guide into a palette summary or an adjective list; the Agent must not have to
-guess the design system:
+Markdown body that explains this style's distinctive choices. When updating a
+template, the existing generated `SKILL.md` may be supplied; its frontmatter is
+removed before the new package is written. Do not shorten a guide into a
+palette summary or an adjective list; the Agent must not have to guess the
+design system:
 
 - communication territory and unsuitable uses;
 - palette roles and surface hierarchy;

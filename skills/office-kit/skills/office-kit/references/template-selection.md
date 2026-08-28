@@ -32,8 +32,8 @@ and skip catalog search.
 An uploaded reference becomes a reusable presentation template only after an
 explicit request runs `presentation-template-creator`, recreates unrelated
 calibration pages, authors and reviews an OfficeKit reference deck, and
-publishes the current presentation template protocol. The original file stays
-in the task; it is never copied into the published Skill.
+publishes the current presentation template protocol. The original file stays in the task;
+it is never copied into the published Skill.
 
 ## Query
 
