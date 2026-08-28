@@ -2620,7 +2620,14 @@ internal static class PptxCodec
             PptxPictureCodec.Validate(element.Image, element.Id, assetCatalog, sourceBound: hasSourcePackage && element.Source is not null);
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Table)
         {
-            PptxTableCodec.Validate(element.Table, element.Id);
+            // Imported DrawingML tables may use a graphic-frame scale that
+            // differs from the table grid coordinate space.  Keep authored
+            // tables strict, while allowing a trusted source-bound table to
+            // retain that bounded scale during a no-op or local edit.
+            PptxTableCodec.Validate(
+                element.Table,
+                element.Id,
+                allowScaledFrame: hasSourcePackage && element.Source is not null);
             items += checked((ulong)element.Table.Rows.Sum(row => row.Cells.Count));
             if (items > limits.MaxCells)
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).");
