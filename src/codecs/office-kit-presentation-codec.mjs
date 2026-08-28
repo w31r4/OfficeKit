@@ -236,7 +236,7 @@ export async function importPptxWithOfficeKit(input, options = {}) {
     file: sourceBytes,
     limits: codecLimits(options.limits),
     thinPresentationImportResponse: true,
-  });
+  }, { fileSidecar: true });
   restoreThinPresentationImport(response.artifact, sourceBytes);
   return presentationFromEnvelope(response.artifact);
 }

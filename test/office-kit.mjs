@@ -49,7 +49,7 @@ assert.equal(status.protocolVersion, 2);
 assert.equal(status.assemblyName, "officekit-codec");
 assert.equal(status.backend, "native-aot");
 assert.equal(status.target, `${process.platform}-${process.arch}`);
-assert.equal(status.transportVersion, 1);
+assert.equal(status.transportVersion, 2);
 assert.equal(status.manifest.backend, "native-aot");
 
 const png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=";

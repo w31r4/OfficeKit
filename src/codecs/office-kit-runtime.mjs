@@ -77,16 +77,18 @@ function responseFailure(response) {
   return new OfficeKitCodecError(message, response.diagnostics);
 }
 
-export async function invokeOfficeKit(request) {
+export async function invokeOfficeKit(request, { fileSidecar = false } = {}) {
   if (Object.hasOwn(request || {}, "allowLossy") || Object.hasOwn(request || {}, "allow_lossy")) {
     throw new TypeError("invokeOfficeKit no longer accepts allowLossy/allow_lossy; opaque Office content without a validated source package always fails closed.");
   }
   const loaded = await runtime();
   const loadedPromise = runtimePromise;
   const wireRequest = create(CodecRequestSchema, request);
+  const sidecar = fileSidecar && wireRequest.file?.byteLength ? bytesFrom(wireRequest.file) : undefined;
+  if (sidecar) wireRequest.file = new Uint8Array();
   let response;
   try {
-    const wireResponse = bytesFrom(await loaded.invoke(toBinary(CodecRequestSchema, wireRequest)));
+    const wireResponse = bytesFrom(await loaded.invoke(toBinary(CodecRequestSchema, wireRequest), sidecar));
     response = fromBinary(CodecResponseSchema, wireResponse);
   } catch (error) {
     loaded.kill();

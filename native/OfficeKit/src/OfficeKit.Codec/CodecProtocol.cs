@@ -21,6 +21,11 @@ public static class CodecProtocol
 
     public static CodecResponse InvokeResponse(ref byte[] requestBytes)
     {
+        return InvokeResponse(ref requestBytes, null);
+    }
+
+    public static CodecResponse InvokeResponse(ref byte[] requestBytes, byte[]? requestFileBytes)
+    {
         var response = new CodecResponse { ProtocolVersion = ProtocolVersion };
         try
         {
@@ -31,6 +36,15 @@ public static class CodecProtocol
 
             var request = CodecRequest.Parser.ParseFrom(requestBytes);
             requestBytes = [];
+            if (requestFileBytes is { Length: > 0 })
+            {
+                if (!request.File.IsEmpty)
+                    throw new CodecException("ambiguous_file_payload", "Codec request cannot contain both inline file bytes and a native transport file sidecar.");
+                // NativeHost owns this array for the duration of InvokeResponse
+                // and never mutates it. Keep the public protobuf request model
+                // unchanged without copying the raw file through the parser.
+                request.File = UnsafeByteOperations.UnsafeWrap(requestFileBytes);
+            }
             ValidateRequest(request);
             var limits = EffectiveCodecLimits.From(request.Limits);
             switch (request.Operation)

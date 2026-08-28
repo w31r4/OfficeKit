@@ -58,7 +58,7 @@ try {
     schemaVersion: 1,
     packageVersion: packageMetadata.version,
     backend: "native-aot",
-    transportVersion: 1,
+    transportVersion: 2,
     protocolVersion: 2,
     target,
     runtimeIdentifier: targetConfig.rid,

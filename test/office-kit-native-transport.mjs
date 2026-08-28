@@ -17,7 +17,7 @@ assert.throws(() => officeKitNativeTarget("freebsd", "x64"), (error) => error?.c
 const installed = await loadOfficeKitNativeDescriptor();
 assert.equal(installed.target, target);
 assert.equal(installed.manifest.backend, "native-aot");
-assert.equal(installed.manifest.transportVersion, 1);
+assert.equal(installed.manifest.transportVersion, 2);
 assert.equal(installed.manifest.protocolVersion, 2);
 
 const temporary = await mkdtemp(path.join(os.tmpdir(), "office-kit-native-transport-"));
@@ -39,7 +39,7 @@ import process from "node:process";
 const mode = process.argv[2];
 const handshake = Buffer.alloc(12);
 handshake.write("OKIT", 0, "ascii");
-handshake.writeUInt32BE(1, 4);
+handshake.writeUInt32BE(2, 4);
 handshake.writeUInt32BE(2, 8);
 if (mode === "bad-handshake") handshake.write("FAIL", 0, "ascii");
 process.stdout.write(handshake);
@@ -48,11 +48,13 @@ let pending = Buffer.alloc(0);
 process.stdin.on("data", (chunk) => {
   if (mode === "crash") process.exit(77);
   pending = Buffer.concat([pending, chunk]);
-  while (pending.length >= 4) {
+  while (pending.length >= 8) {
     const length = pending.readUInt32BE(0);
-    if (pending.length < 4 + length) return;
-    const request = pending.subarray(4, 4 + length);
-    pending = pending.subarray(4 + length);
+    const fileLength = pending.readUInt32BE(4);
+    if (pending.length < 8 + length + fileLength) return;
+    const request = pending.subarray(8, 8 + length);
+    const file = pending.subarray(8 + length, 8 + length + fileLength);
+    pending = pending.subarray(8 + length + fileLength);
     const prefix = Buffer.alloc(4);
     if (mode === "truncated") {
       prefix.writeUInt32BE(8, 0);
@@ -61,9 +63,10 @@ process.stdin.on("data", (chunk) => {
       setTimeout(() => process.exit(78), 20);
       return;
     }
-    prefix.writeUInt32BE(request.length, 0);
+    prefix.writeUInt32BE(request.length + file.length, 0);
     process.stdout.write(prefix);
     process.stdout.write(request);
+    process.stdout.write(file);
   }
 });
 `, "utf8");
@@ -85,10 +88,10 @@ process.stdin.on("data", (chunk) => {
   const echo = await startOfficeKitNativeClient({ descriptor: fakeDescriptor, spawnProcess: fakeSpawner("echo") });
   const [first, second] = await Promise.all([
     echo.invoke(Uint8Array.from([1, 2, 3])),
-    echo.invoke(Uint8Array.from([4, 5, 6, 7])),
+    echo.invoke(Uint8Array.from([4, 5]), Uint8Array.from([6, 7])),
   ]);
   assert.deepEqual([...first], [1, 2, 3]);
-  assert.deepEqual([...second], [4, 5, 6, 7]);
+assert.deepEqual([...second], [4, 5, 6, 7]);
   echo.kill();
 
   const truncated = await startOfficeKitNativeClient({ descriptor: fakeDescriptor, spawnProcess: fakeSpawner("truncated") });

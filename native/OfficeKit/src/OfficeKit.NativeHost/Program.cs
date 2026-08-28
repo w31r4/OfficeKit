@@ -3,9 +3,10 @@ using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 using OfficeKit.Codec;
 
-const int TransportVersion = 1;
+const int TransportVersion = 2;
 const int HandshakeBytes = 12;
-const int FramePrefixBytes = 4;
+const int RequestPrefixBytes = 8;
+const int ResponsePrefixBytes = 4;
 const int AbsoluteFrameLimit = 128 * 1024 * 1024;
 const int LargeExchangeCollectionThreshold = 8 * 1024 * 1024;
 
@@ -29,7 +30,7 @@ BinaryPrimitives.WriteUInt32BigEndian(handshake.AsSpan(8, 4), CodecProtocol.Prot
 await output.WriteAsync(handshake);
 await output.FlushAsync();
 
-var prefix = new byte[FramePrefixBytes];
+var prefix = new byte[RequestPrefixBytes];
 while (true)
 {
     var prefixRead = await ReadExactlyOrEofAsync(input, prefix);
@@ -40,10 +41,11 @@ while (true)
         return 65;
     }
 
-    var requestLength = BinaryPrimitives.ReadInt32BigEndian(prefix);
-    if (requestLength <= 0 || requestLength > AbsoluteFrameLimit)
+    var requestLength = BinaryPrimitives.ReadInt32BigEndian(prefix.AsSpan(0, 4));
+    var requestFileLength = BinaryPrimitives.ReadInt32BigEndian(prefix.AsSpan(4, 4));
+    if (requestLength <= 0 || requestFileLength < 0 || (long)requestLength + requestFileLength > AbsoluteFrameLimit)
     {
-        Console.Error.WriteLine("OfficeKit native transport rejected an invalid request frame length.");
+        Console.Error.WriteLine("OfficeKit native transport rejected an invalid request or file-sidecar frame length.");
         return 65;
     }
 
@@ -54,7 +56,15 @@ while (true)
         return 65;
     }
 
-    CodecResponse? response = CodecProtocol.InvokeResponse(ref request);
+    var requestFile = requestFileLength == 0 ? [] : GC.AllocateUninitializedArray<byte>(requestFileLength);
+    if (requestFileLength > 0 && await ReadExactlyOrEofAsync(input, requestFile) != requestFileLength)
+    {
+        Console.Error.WriteLine("OfficeKit native transport received a truncated file sidecar.");
+        return 65;
+    }
+
+    CodecResponse? response = CodecProtocol.InvokeResponse(ref request, requestFile);
+    requestFile = [];
     var responseLength = response.CalculateSize();
     if (responseLength > AbsoluteFrameLimit)
     {
@@ -63,7 +73,7 @@ while (true)
             $"Codec response exceeds the absolute {AbsoluteFrameLimit}-byte native transport budget.");
         responseLength = response.CalculateSize();
     }
-    var largeExchange = (long)requestLength + responseLength >= LargeExchangeCollectionThreshold;
+    var largeExchange = (long)requestLength + requestFileLength + responseLength >= LargeExchangeCollectionThreshold;
     if (largeExchange)
     {
         // Release the input and transient Open XML/protobuf request graph
@@ -72,7 +82,7 @@ while (true)
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
     }
     BinaryPrimitives.WriteInt32BigEndian(prefix, responseLength);
-    await output.WriteAsync(prefix);
+    await output.WriteAsync(prefix.AsMemory(0, ResponsePrefixBytes));
     response.WriteTo(output);
     await output.FlushAsync();
 

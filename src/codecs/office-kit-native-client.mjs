@@ -10,11 +10,12 @@ import { fileURLToPath } from "node:url";
 
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 
-export const OFFICE_KIT_NATIVE_TRANSPORT_VERSION = 1;
+export const OFFICE_KIT_NATIVE_TRANSPORT_VERSION = 2;
 export const OFFICE_KIT_NATIVE_MAX_FRAME_BYTES = 128 * 1024 * 1024;
 
 const HANDSHAKE_BYTES = 12;
 const HANDSHAKE_MAGIC = Buffer.from("OKIT", "ascii");
+const REQUEST_PREFIX_BYTES = 8;
 const STDERR_LIMIT = 16 * 1024;
 const require = createRequire(import.meta.url);
 const activeClients = new Set();
@@ -174,16 +175,20 @@ class NativeCodecClient {
     this.unref();
   }
 
-  invoke(bytes) {
+  invoke(bytes, fileBytes = undefined) {
     if (!(bytes instanceof Uint8Array)) throw new TypeError("OfficeKit native codec request must be a Uint8Array.");
-    if (bytes.byteLength === 0 || bytes.byteLength > OFFICE_KIT_NATIVE_MAX_FRAME_BYTES) {
-      throw nativeError("request_budget_exceeded", `OfficeKit native codec request exceeds the ${OFFICE_KIT_NATIVE_MAX_FRAME_BYTES}-byte transport budget.`);
+    if (fileBytes != null && !(fileBytes instanceof Uint8Array)) {
+      throw new TypeError("OfficeKit native codec file sidecar must be a Uint8Array.");
+    }
+    const fileLength = fileBytes?.byteLength ?? 0;
+    if (bytes.byteLength === 0 || bytes.byteLength + fileLength > OFFICE_KIT_NATIVE_MAX_FRAME_BYTES) {
+      throw nativeError("request_budget_exceeded", `OfficeKit native codec request and file sidecar exceed the ${OFFICE_KIT_NATIVE_MAX_FRAME_BYTES}-byte transport budget.`);
     }
     this.pendingRequests += 1;
     if (this.pendingRequests === 1) this.ref();
     const operation = this.queue.then(
-      () => this.invokeFrame(bytes),
-      () => this.invokeFrame(bytes),
+      () => this.invokeFrame(bytes, fileBytes),
+      () => this.invokeFrame(bytes, fileBytes),
     );
     this.queue = operation.catch(() => {});
     return operation.finally(() => {
@@ -192,12 +197,14 @@ class NativeCodecClient {
     });
   }
 
-  async invokeFrame(bytes) {
+  async invokeFrame(bytes, fileBytes) {
     if (this.closed) throw this.terminationError();
-    const prefix = Buffer.allocUnsafe(4);
+    const prefix = Buffer.allocUnsafe(REQUEST_PREFIX_BYTES);
     prefix.writeUInt32BE(bytes.byteLength, 0);
+    prefix.writeUInt32BE(fileBytes?.byteLength ?? 0, 4);
     await this.write(prefix);
     await this.write(bytes);
+    if (fileBytes?.byteLength) await this.write(fileBytes);
     const responsePrefix = await this.readOrThrow(4, "runtime_terminated");
     const responseLength = responsePrefix.readUInt32BE(0);
     if (responseLength === 0 || responseLength > OFFICE_KIT_NATIVE_MAX_FRAME_BYTES) {
