@@ -1257,10 +1257,6 @@ function isAllowedContainerOverlap(left, leftFrame, right, rightFrame, container
     || (containers.has(right) && (containsFrame(rightFrame, leftFrame) || overlapsLineLikeContainer(rightFrame, leftFrame)));
 }
 
-function isDeclaredDecorativeElement(element) {
-  return element?.accessibility?.decorative === true && !String(element?.text?.value || "").trim();
-}
-
 function textOverflowIssue(slide, element, frame, measurementFrame = frame) {
   const text = element.text?.value || "";
   if (!text) return undefined;
@@ -1684,7 +1680,6 @@ export class Slide {
       const frame = elementFrame(element);
       return frame && coversSlideBackground(frame, slideFrame, backgroundCoverage);
     }));
-    const decorativeElements = new Set(elements.filter(isDeclaredDecorativeElement));
     const containerBackgrounds = new Set(elements.filter((element) => {
       const frame = elementFrame(element);
       return isFilledContainerBackground(element, frame, elements);
@@ -1694,20 +1689,16 @@ export class Slide {
       if (!frame) continue;
       const offCanvas = frame.left < slideFrame.left - padding || frame.top < slideFrame.top - padding || frame.left + frame.width > slideFrame.left + slideFrame.width + padding || frame.top + frame.height > slideFrame.top + slideFrame.height + padding;
       if (offCanvas) {
-        const visibleArea = overlapArea(frame, slideFrame);
-        const declaredDecoration = decorativeElements.has(element) && visibleArea > 0;
-        if (!declaredDecoration) {
-          issues.push({
-            kind: "layoutIssue",
-            type: "offCanvas",
-            severity: "error",
-            slide: this.index + 1,
-            id: element.id,
-            name: element.name || undefined,
-            bbox: [frame.left, frame.top, frame.width, frame.height],
-            message: `${elementLabel(element)} extends outside the slide frame.`,
-          });
-        }
+        issues.push({
+          kind: "layoutIssue",
+          type: "offCanvas",
+          severity: "error",
+          slide: this.index + 1,
+          id: element.id,
+          name: element.name || undefined,
+          bbox: [frame.left, frame.top, frame.width, frame.height],
+          message: `${elementLabel(element)} extends outside the slide frame.`,
+        });
       }
       const textIssue = textOverflowIssue(this, element, frame);
       if (textIssue) issues.push(textIssue);
@@ -1725,7 +1716,6 @@ export class Slide {
         const left = elements[leftIndex];
         const right = elements[rightIndex];
         if (backgroundElements.has(left) || backgroundElements.has(right)) continue;
-        if (decorativeElements.has(left) || decorativeElements.has(right)) continue;
         const leftFrame = elementFrame(left);
         const rightFrame = elementFrame(right);
         if (!leftFrame || !rightFrame) continue;
