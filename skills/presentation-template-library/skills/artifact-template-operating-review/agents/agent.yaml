@@ -1,5 +1,5 @@
 interface:
   display_name: "Operating Review"
-  short_description: "Use the Operating Review presentation style"
+  short_description: "Use the Operating Review clean-room visual grammar"
   icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-operating-review as the visual style for this presentation."
+  default_prompt: "Create a new presentation using the Operating Review visual grammar."

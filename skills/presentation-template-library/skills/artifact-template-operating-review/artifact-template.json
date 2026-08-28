@@ -8,62 +8,63 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "a7b9918976d72cb7bad63865fb35820d6684f752eece38b42145a58d8c2e1c8f"
+      "sha256": "63eb84500138a4096c4909e0b279478a9e4007bc7a34f49775fb8009e45b7b50"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "6965da935d849bc339412e64e8f118dc543b49ea2a82fa3b05c27dec27e17576"
+      "sha256": "812563c2ac828b4fb02b7e2a11bb8d59bef1a9cb12da759cb215fca894519923"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "0529e5355983336678078ac338626a1eaa4d9c2e8b7e6be9f959c22850eccd50"
+      "sha256": "831ad67616da2b0dbd57412a38faaf83dc41975969151ac56041d60f256ff602"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "e4dac65a8dec6a4a9b2b1293099e055f95821df4ce904b90c8edf5dc203c1e61"
+      "sha256": "b75052e7461bf8600fa9bd61b80aadb881d7458d4b8c3e4785518ff8e3a4fcd1"
     }
   ],
   "useWhen": [
+    "weekly operating review",
     "monthly operating review",
-    "execution health review",
-    "cross functional delivery review"
+    "operations scorecard"
   ],
   "avoidWhen": [
-    "cinematic brand reveal",
-    "minimal keynote opener"
+    "external sales pitch",
+    "consumer campaign"
   ],
   "audiences": [
-    "operators",
-    "functional leaders",
-    "program owners"
+    "executive",
+    "operations",
+    "functional leadership"
   ],
   "contentShapes": [
-    "operating metrics",
-    "owner timeline",
-    "blocker escalation"
+    "scorecard",
+    "exception path",
+    "root cause",
+    "owner action"
   ],
   "visualTraits": {
     "tone": [
-      "practical",
-      "accountable",
-      "dense"
+      "operational",
+      "calm",
+      "accountable"
     ],
     "density": "dense",
     "colorMode": "light",
     "structure": [
-      "tabular",
-      "sequenced",
-      "owner led"
+      "cadence",
+      "scorecard",
+      "exception path"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original calibration deck for version 1.1.0",
-    "guideSha256": "7915c449c992a85bc250247bc00165ffe53185bbbc27d617c856eda0e242f187",
-    "previewSha256": "952db0d648602af3286a5c80e4a9aad71b80044024ff9b2d58a2005ae4a24886"
+    "source": "OfficeKit original clean-room visual grammar rebuilt after native background-layer support; no reference deck distributed.",
+    "guideSha256": "d458d0b16516793e5e539af8afd398bb7d5763952eaadcebd2e9c820397287fe",
+    "previewSha256": "cf6f011446d039ff58e5785c349292d8156c0a1045395ecb47146b3c7c943709"
   }
 }

@@ -1,5 +1,5 @@
 interface:
   display_name: "Project Kickoff"
-  short_description: "Use the Project Kickoff presentation style"
+  short_description: "Use the Project Kickoff clean-room visual grammar"
   icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-project-kickoff as the visual style for this presentation."
+  default_prompt: "Create a new presentation using the Project Kickoff visual grammar."

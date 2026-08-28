@@ -8,42 +8,44 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "ec1d6f40566e4d1e3324675ac6118ed3e2dcba15ff97cae04afbaead3457adf1"
+      "sha256": "9a3faab020e112e8cfc9825c6e273962005c1d371a0f75207dc080b9f4a4c962"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "16f71c94e5533ea23409c3dc2c43a3ff6ac50a7b4df02f78e006c8b480e9853c"
+      "sha256": "9601bda6aa04b08141a20966a9c4616cfff80878eda822b419dfeb9391f3554b"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "fa9d1d24bf40763a6adf4f0a1ca0c170d95cfa7083c7f1484609f98f7b48dabd"
+      "sha256": "9423748cedf2e70b1af6df8c80748512ca18aa049f23c781f8d7d31e3410bc66"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "23cd97701f3ac511874c471782b0070aa6f81782d23d7fae39837618712cabef"
+      "sha256": "0f1c7477d0a020a8164e5da289d65e90561e970356014baa2e5964a54670c83b"
     }
   ],
   "useWhen": [
     "project kickoff",
-    "program launch alignment",
-    "new team working agreement"
+    "initiative launch",
+    "implementation plan"
   ],
   "avoidWhen": [
-    "audit findings report",
-    "conservative investment committee"
+    "quarterly board review",
+    "market research report"
   ],
   "audiences": [
-    "project teams",
-    "cross functional partners",
-    "sponsors"
+    "project team",
+    "stakeholders",
+    "cross-functional partners"
   ],
   "contentShapes": [
-    "mission",
-    "workstream map",
-    "milestone sequence"
+    "outcome",
+    "scope",
+    "roles",
+    "milestones",
+    "risks"
   ],
   "visualTraits": {
     "tone": [
@@ -54,16 +56,16 @@
     "density": "medium",
     "colorMode": "light",
     "structure": [
-      "modular",
-      "directional",
-      "milestone led"
+      "route",
+      "milestones",
+      "working agreement"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original calibration deck for version 1.1.0",
-    "guideSha256": "69d0a31813ffbbe851d77ccdb9ce01bfff63adc5b63c1b226d3695940cc9b448",
-    "previewSha256": "0406a563a32f1069321a6f1482ea2be080d283aba21407c2e2ddc1a77f7fb661"
+    "source": "OfficeKit original clean-room visual grammar rebuilt after native background-layer support; no reference deck distributed.",
+    "guideSha256": "14e713e6adcf38f2bc4390c8a47df638e5490fb7bb4df11e60f622a6d7b31c74",
+    "previewSha256": "70e5caec71df9c5fa6c1006e5629ec887650fd972ead8f09b6c0ffdaae086ea4"
   }
 }

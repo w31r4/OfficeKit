@@ -8,62 +8,64 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "b844abb195b621d6b2471c3569584b39200eeec6742ae4b54ed5a191aacd6933"
+      "sha256": "cc17211199071b22e449d098ed33029826487cd7a147efb84852c3178dbd823c"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "0c936a8b848cf3c2314d520e3971d7a4568339378d0d74c4fe0dac7f222fcf34"
+      "sha256": "52b8fe0d577c6335e280514875670adf8093523293873a4fc3d9dc4e6ccbbf1c"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "d72114ad4c386a7c0b9842b3af2da7571ef750e58a2b2f403a54f8789984c168"
+      "sha256": "1ebf2dc5e55265a8b35d7cb12682f7c5e56d95f37f664489c49fe6c9480fafc0"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "ce490c170e3aec58c5714cab26e509958a03d75c00169b7f3d780b94ccf2f4cf"
+      "sha256": "775ed880ccfbe39d50f0dabdfe8309b37a513a7d140ae9a80f8f7c66615931ed"
     }
   ],
   "useWhen": [
-    "minimal dark presentation",
-    "live executive keynote",
-    "focused technology narrative"
+    "dark presentation",
+    "high-contrast visual deck",
+    "product narrative",
+    "stage presentation"
   ],
   "avoidWhen": [
-    "dense leave behind report",
-    "warm community workshop"
+    "print-first handout",
+    "dense operating scorecard"
   ],
   "audiences": [
-    "live audiences",
-    "technical leaders",
-    "executives"
+    "general",
+    "internal",
+    "external"
   ],
   "contentShapes": [
-    "single argument",
-    "large metric",
-    "focused diagram"
+    "hero metric",
+    "visual explanation",
+    "narrative",
+    "call to action"
   ],
   "visualTraits": {
     "tone": [
-      "minimal",
-      "confident",
-      "technical"
+      "bold",
+      "focused",
+      "cinematic"
     ],
     "density": "sparse",
     "colorMode": "dark",
     "structure": [
-      "type led",
-      "single focus",
-      "high contrast"
+      "hero",
+      "contrast",
+      "reveal"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original calibration deck for version 1.1.0",
-    "guideSha256": "b08901d684c12f93f9eb1740f84261180a2ef8fd90e5292ca5cc4032f877e508",
-    "previewSha256": "0af8f2617ca758ee1de35d7d9bfbc12505ca7baa0de88ae3b9b84175e6644b1f"
+    "source": "OfficeKit original clean-room visual grammar rebuilt after native background-layer support; no reference deck distributed.",
+    "guideSha256": "7d6cdc927a70bb2117e1c3ae2650139fa66c826d8f80778a1e8d982b8516c22f",
+    "previewSha256": "4fdbf40fa3c5615f88219fdce75003a007e91bebac7ff778398543a2ff7da066"
   }
 }

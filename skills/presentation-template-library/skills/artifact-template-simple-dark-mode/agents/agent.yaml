@@ -1,5 +1,5 @@
 interface:
   display_name: "Simple Dark Mode"
-  short_description: "Use the Simple Dark Mode presentation style"
+  short_description: "Use the Simple Dark Mode clean-room visual grammar"
   icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-simple-dark-mode as the visual style for this presentation."
+  default_prompt: "Create a new presentation using the Simple Dark Mode visual grammar."
