@@ -172,6 +172,29 @@ async function assertGeneratedTemplate(
   ]);
 }
 
+async function assertGeneratedCleanRoomTemplate(result, examplePaths, previewPath) {
+  const sidecarPath = path.join(result.skillPath, "artifact-template.json");
+  const skillPath = path.join(result.skillPath, "SKILL.md");
+  const previewAssetPath = path.join(result.skillPath, "assets/preview.png");
+  const sidecar = JSON.parse(await fs.readFile(sidecarPath, "utf8"));
+  assert.equal(result.kind, "presentation");
+  assert.equal(result.schemaVersion, 3);
+  assert.equal(sidecar.schemaVersion, 3);
+  assert.equal(sidecar.kind, "presentation");
+  assert.equal(Object.hasOwn(sidecar, "reference"), false);
+  assert.equal(sidecar.examples.length, examplePaths.length);
+  assert.equal(sidecar.preview, "assets/preview.png");
+  assert.equal(sidecar.editProfile.level, "copy-only");
+  assert.equal(sidecar.editProfile.verifiedOperations.length, 0);
+  assert.match(await fs.readFile(skillPath, "utf8"), /visual grammar/u);
+  assert.equal(sha256(await fs.readFile(previewAssetPath)), sha256(await fs.readFile(previewPath)));
+  for (const [index, examplePath] of examplePaths.entries()) {
+    const record = sidecar.examples[index];
+    const generatedPath = path.join(result.skillPath, record.path);
+    assert.equal(sha256(await fs.readFile(generatedPath)), sha256(await fs.readFile(examplePath)));
+  }
+}
+
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -244,6 +267,8 @@ try {
   const crossFamilyDocxPath = path.join(fixturesDirectory, "presentation-renamed.docx");
   const invalidRootRelationshipDocxPath = path.join(fixturesDirectory, "invalid-root-relationship.docx");
   const previewPath = path.join(fixturesDirectory, "preview.png");
+  const cleanRoomStyleGuidePath = path.join(fixturesDirectory, "clean-room-style-guide.md");
+  const cleanRoomExamplePath = path.join(fixturesDirectory, "clean-room-example.png");
 
   await Promise.all([
     writePresentationFixture(pptxPath, 1),
@@ -254,6 +279,8 @@ try {
     fs.writeFile(renamedPptxPath, "not an Office package\n", "utf8"),
     fs.writeFile(renamedXlsxPath, "not an Office package\n", "utf8"),
     writePngFixture(previewPath),
+    fs.writeFile(cleanRoomStyleGuidePath, "## Visual grammar\nUse one evidence carrier, clear type hierarchy, and intentional rules.\n", "utf8"),
+    writePngFixture(cleanRoomExamplePath),
     fs.mkdir(home, { recursive: true }),
   ]);
   await fs.copyFile(pptxPath, crossFamilyDocxPath);
@@ -369,6 +396,26 @@ try {
     assert.deepEqual(createdPptxMetadata[key], pptxSelection[key], `selection metadata ${key}`);
   }
   assert.equal(createdPptxMetadata.provenance.source, "local-test-reference");
+
+  const cleanRoomTemplate = await runSuccessfulCreator([
+    "--kind", "presentation",
+    "--style-guide-path", cleanRoomStyleGuidePath,
+    "--examples-json", JSON.stringify([{ path: cleanRoomExamplePath, role: "opening claim" }]),
+    "--preview-path", previewPath,
+    "--display-name", "Clean room presentation fixture",
+    "--description", "Create a clean room evidence presentation from a visual grammar.",
+    "--selection-json", JSON.stringify({
+      useWhen: ["clean room evidence presentation"],
+      avoidWhen: [],
+      audiences: ["executive"],
+      contentShapes: ["claim and evidence"],
+      visualTraits: { tone: ["editorial"], density: "medium", colorMode: "light", structure: ["horizontal rules"] },
+      visualCommitment: "opinionated",
+      editProfile: { level: "copy-only", verifiedOperations: [] },
+      provenance: { license: "MIT", source: "local-test-clean-room" },
+    }),
+  ]);
+  await assertGeneratedCleanRoomTemplate(cleanRoomTemplate, [cleanRoomExamplePath], previewPath);
 
   const docxTemplate = await runSuccessfulCreator([
     "--reference-path", docxPath,

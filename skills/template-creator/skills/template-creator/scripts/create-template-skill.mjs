@@ -21,6 +21,7 @@ const BACKUP_NAME_PATTERN = /^(artifact-template-[a-z0-9]+(?:-[a-z0-9]+)*)\.back
 const MAX_SKILL_NAME_LENGTH = 64;
 const MAX_REFERENCE_BYTES = 512 * 1024 * 1024;
 const MAX_PREVIEW_BYTES = 64 * 1024 * 1024;
+const MAX_STYLE_GUIDE_BYTES = 256 * 1024;
 const MAX_SELECTION_JSON_BYTES = 32 * 1024;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const TEMPLATE_REFERENCE_INSPECTION_OPTIONS = Object.freeze({
@@ -30,7 +31,7 @@ const TEMPLATE_REFERENCE_INSPECTION_OPTIONS = Object.freeze({
   verifyCrc32: true,
 });
 const USAGE =
-  "Usage: create-template-skill.mjs --reference-path <path> --preview-path <path> --display-name <name> --description <description> [--selection-json <json>] [--mode update --skill-name <name>]";
+  "Usage: create-template-skill.mjs --reference-path <path> --preview-path <path> --display-name <name> --description <description> [--selection-json <json>] [--mode update --skill-name <name>]\n       create a clean-room presentation with --kind presentation --style-guide-path <path> --examples-json <json> --preview-path <path>";
 const artifactKinds = new Map([
   [
     ".docx",
@@ -69,9 +70,9 @@ async function createTemplateSkill(
   officeKitHome = getDefaultOfficeKitHome(),
 ) {
   const request = await validateRequest(rawRequest);
-  const artifact = artifactKinds.get(
-    path.extname(request.referencePath).toLowerCase(),
-  );
+  const artifact = request.cleanRoom
+    ? artifactKinds.get(".pptx")
+    : artifactKinds.get(path.extname(request.referencePath).toLowerCase());
   const skillsRoot = path.join(officeKitHome, "skills");
   const releaseLock = await acquireWriteLock(
     path.join(officeKitHome, WRITE_LOCK_NAME),
@@ -85,8 +86,10 @@ async function createTemplateSkill(
     const skillPath = path.join(skillsRoot, identity.skillName);
     const stagedSkill = await stageTemplateSkill({
       artifact,
+      cleanRoom: request.cleanRoom,
       description: request.description,
       displayName: identity.displayName,
+      examples: request.examples,
       selectionMetadata:
         request.selectionMetadata ?? identity.existingMetadata ?? null,
       parentDirectory: skillsRoot,
@@ -94,6 +97,7 @@ async function createTemplateSkill(
       referencePath: request.referencePath,
       skillName: identity.skillName,
       sourceSkillPath: request.mode === "update" ? skillPath : null,
+      styleGuidePath: request.styleGuidePath,
     });
     try {
       if (request.mode === "update") {
@@ -108,7 +112,7 @@ async function createTemplateSkill(
     return {
       displayName: identity.displayName,
       kind: artifact.kind,
-      schemaVersion: 2,
+      schemaVersion: request.cleanRoom ? 3 : 2,
       skillName: identity.skillName,
       skillPath,
     };
@@ -134,24 +138,13 @@ async function validateRequest(rawRequest) {
   );
   assertSingleLine(displayName, "--display-name", 64);
   assertSingleLine(description, "--description", 600);
-  const referencePath = path.resolve(
-    getRequiredString(rawRequest, "referencePath", "--reference-path"),
-  );
   const previewPath = path.resolve(
     getRequiredString(rawRequest, "previewPath", "--preview-path"),
   );
-  const extension = path.extname(referencePath).toLowerCase();
-  if (!artifactKinds.has(extension)) {
-    throw new Error("--reference-path must end in .docx, .pptx, or .xlsx.");
-  }
-  await Promise.all([
-    assertRegularFile(referencePath, "--reference-path", MAX_REFERENCE_BYTES),
-    assertRegularFile(previewPath, "--preview-path", MAX_PREVIEW_BYTES),
-  ]);
-  await assertValidOfficeReference(referencePath, artifactKinds.get(extension));
   if (path.extname(previewPath).toLowerCase() !== ".png") {
     throw new Error("--preview-path must end in .png.");
   }
+  await assertRegularFile(previewPath, "--preview-path", MAX_PREVIEW_BYTES);
   if (!hasValidPngStructure(await fs.readFile(previewPath))) {
     throw new Error("--preview-path must contain a valid PNG.");
   }
@@ -192,10 +185,72 @@ async function validateRequest(rawRequest) {
       "--skill-name is only valid when --mode is 'update'.",
     );
   }
-
+  const requestedKind = getOptionalString(rawRequest, "kind", "--kind");
+  const referenceValue = getOptionalString(rawRequest, "referencePath", "--reference-path");
+  const cleanRoom = requestedKind === "presentation" && referenceValue == null;
+  if (cleanRoom) {
+    if (mode !== "create") throw new Error("Clean-room presentation templates only support --mode create.");
+    const styleGuidePath = path.resolve(getRequiredString(rawRequest, "styleGuidePath", "--style-guide-path"));
+    await assertRegularFile(styleGuidePath, "--style-guide-path", MAX_STYLE_GUIDE_BYTES);
+    const styleGuide = await fs.readFile(styleGuidePath, "utf8");
+    if (styleGuide.trim().length === 0 || /^---/mu.test(styleGuide)) {
+      throw new Error("--style-guide-path must contain a non-empty Markdown style guide without frontmatter.");
+    }
+    const examplesJson = getRequiredString(rawRequest, "examplesJson", "--examples-json");
+    if (Buffer.byteLength(examplesJson, "utf8") > MAX_SELECTION_JSON_BYTES) {
+      throw new Error(`--examples-json exceeds the ${MAX_SELECTION_JSON_BYTES}-byte input budget.`);
+    }
+    let examples;
+    try {
+      examples = JSON.parse(examplesJson);
+    } catch (error) {
+      throw new Error(`--examples-json must be valid JSON: ${error.message}`);
+    }
+    if (!Array.isArray(examples) || examples.length < 1 || examples.length > 8) {
+      throw new Error("--examples-json must contain 1-8 example objects.");
+    }
+    const normalizedExamples = [];
+    const seen = new Set();
+    for (const [index, example] of examples.entries()) {
+      if (example == null || typeof example !== "object" || Array.isArray(example)) throw new Error(`--examples-json[${index}] must be an object.`);
+      const examplePath = path.resolve(getRequiredString(example, "path", `--examples-json[${index}].path`));
+      const role = getRequiredString(example, "role", `--examples-json[${index}].role`);
+      assertSingleLine(role, `--examples-json[${index}].role`, 80);
+      if (seen.has(examplePath)) throw new Error("--examples-json must not repeat an example path.");
+      seen.add(examplePath);
+      if (path.extname(examplePath).toLowerCase() !== ".png") throw new Error(`--examples-json[${index}].path must end in .png.`);
+      await assertRegularFile(examplePath, `--examples-json[${index}].path`, MAX_PREVIEW_BYTES);
+      if (!hasValidPngStructure(await fs.readFile(examplePath))) throw new Error(`--examples-json[${index}].path must contain a valid PNG.`);
+      normalizedExamples.push({ path: examplePath, role });
+    }
+    return {
+      cleanRoom: true,
+      description,
+      displayName,
+      examples: normalizedExamples,
+      kind: "presentation",
+      mode,
+      previewPath,
+      selectionMetadata,
+      skillName,
+      styleGuidePath,
+    };
+  }
+  if (requestedKind != null) throw new Error("--kind is only valid for a clean-room presentation.");
+  if (referenceValue == null) throw new Error("--reference-path must point to a .docx, .pptx, or .xlsx file.");
+  const referencePath = path.resolve(referenceValue);
+  const extension = path.extname(referencePath).toLowerCase();
+  if (!artifactKinds.has(extension)) {
+    throw new Error("--reference-path must end in .docx, .pptx, or .xlsx.");
+  }
+  await assertRegularFile(referencePath, "--reference-path", MAX_REFERENCE_BYTES);
+  await assertValidOfficeReference(referencePath, artifactKinds.get(extension));
   return {
     description,
     displayName,
+    cleanRoom: false,
+    examples: null,
+    kind: artifactKinds.get(extension).kind,
     mode,
     previewPath,
     referencePath,
@@ -305,20 +360,23 @@ async function getUpdateIdentity(skillsRoot, request, kind) {
 
 async function stageTemplateSkill({
   artifact,
+  cleanRoom,
   description,
   displayName,
+  examples,
   selectionMetadata,
   parentDirectory,
   previewPath,
   referencePath,
   skillName,
   sourceSkillPath,
+  styleGuidePath,
 }) {
   await fs.mkdir(parentDirectory, { recursive: true });
   const stagedSkill = await fs.mkdtemp(
     path.join(parentDirectory, `.${skillName}-stage-`),
   );
-  const referenceFilename = `reference${path.extname(referencePath).toLowerCase()}`;
+  const referenceFilename = cleanRoom ? null : `reference${path.extname(referencePath).toLowerCase()}`;
   try {
     if (sourceSkillPath != null) {
       await fs.cp(sourceSkillPath, stagedSkill, { recursive: true });
@@ -326,30 +384,44 @@ async function stageTemplateSkill({
     await Promise.all([
       fs.mkdir(path.join(stagedSkill, "agents"), { recursive: true }),
       fs.mkdir(path.join(stagedSkill, "assets"), { recursive: true }),
+      ...(cleanRoom ? [fs.mkdir(path.join(stagedSkill, "assets", "examples"), { recursive: true })] : []),
     ]);
-    const [referenceSha256, previewSha256] = await Promise.all([
-      sha256File(referencePath),
-      sha256File(previewPath),
-    ]);
+    const previewSha256 = await sha256File(previewPath);
+    const exampleRecords = cleanRoom
+      ? await Promise.all(examples.map(async (example, index) => {
+        const filename = `example-${String(index + 1).padStart(2, "0")}.png`;
+        const relativePath = `assets/examples/${filename}`;
+        await fs.copyFile(example.path, path.join(stagedSkill, relativePath));
+        return { path: relativePath, role: example.role, sha256: await sha256File(example.path) };
+      }))
+      : [];
+    const referenceSha256 = cleanRoom ? null : await sha256File(referencePath);
+    const selectedMetadata = selectionMetadata ?? defaultSelectionMetadata(description);
     const metadata = {
-      schemaVersion: 2,
+      schemaVersion: cleanRoom ? 3 : 2,
       id: skillName,
       displayName,
       kind: artifact.kind,
-      reference: `assets/${referenceFilename}`,
       preview: "assets/preview.png",
-      ...(selectionMetadata ?? defaultSelectionMetadata(description)),
+      ...(cleanRoom ? { examples: exampleRecords } : { reference: `assets/${referenceFilename}` }),
+      ...selectedMetadata,
       provenance: {
-        license: selectionMetadata?.provenance.license ?? "user-provided",
-        source: selectionMetadata?.provenance.source ?? "local-user-reference",
-        referenceSha256,
+        license: selectedMetadata.provenance?.license ?? (cleanRoom ? "AGPL-3.0-or-later" : "user-provided"),
+        source: selectedMetadata.provenance?.source ?? (cleanRoom ? "OfficeKit original clean-room calibration" : "local-user-reference"),
+        ...(cleanRoom ? {} : { referenceSha256 }),
         previewSha256,
       },
     };
+    const styleGuide = cleanRoom ? await fs.readFile(styleGuidePath, "utf8") : null;
     await Promise.all([
       fs.writeFile(
         path.join(stagedSkill, "SKILL.md"),
-        getTemplateSkillMarkdown({
+        cleanRoom ? getCleanRoomSkillMarkdown({
+          description,
+          displayName,
+          skillName,
+          styleGuide,
+        }) : getTemplateSkillMarkdown({
           artifact,
           description,
           displayName,
@@ -364,10 +436,10 @@ async function stageTemplateSkill({
         path.join(stagedSkill, "artifact-template.json"),
         `${JSON.stringify(metadata, null, 2)}\n`,
       ),
-      fs.copyFile(
+      ...(cleanRoom ? [] : [fs.copyFile(
         referencePath,
         path.join(stagedSkill, "assets", referenceFilename),
-      ),
+      )]),
       fs.copyFile(previewPath, path.join(stagedSkill, "assets", "preview.png")),
     ]);
     return stagedSkill;
@@ -407,6 +479,30 @@ Create a new ${artifact.kind} from this template. Keep the reference file unchan
 ${artifact.preservation}
 
 User instructions control requested content and explicit deviations. The retained reference controls layout and formatting where the user has not requested a change.
+`;
+}
+
+function getCleanRoomSkillMarkdown({
+  description,
+  displayName,
+  skillName,
+  styleGuide,
+}) {
+  return `---
+name: ${skillName}
+description: ${JSON.stringify(`Create a presentation using the ${displayName} visual grammar. Use when the user selects this style template. ${description}`)}
+---
+
+# ${displayName}
+
+${styleGuide.trim()}
+
+## Use
+
+Treat this template as a visual grammar, not a fixed page or a source deck.
+Form a deck-specific narrative and compose each page from the user's facts.
+Inspect the example images for visual evidence, then render and review the new
+presentation. Do not copy their wording, geometry, or assets.
 `;
 }
 
@@ -883,7 +979,10 @@ const requestFlagToKey = new Map([
   ["--mode", "mode"],
   ["--skill-name", "skillName"],
   ["--reference-path", "referencePath"],
+  ["--kind", "kind"],
   ["--preview-path", "previewPath"],
+  ["--style-guide-path", "styleGuidePath"],
+  ["--examples-json", "examplesJson"],
   ["--display-name", "displayName"],
   ["--description", "description"],
   ["--selection-json", "selectionJson"],

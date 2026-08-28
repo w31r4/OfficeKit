@@ -1,22 +1,33 @@
 ---
 name: template-creator
-description: Create or update a reusable local Office artifact template from a Word document, PowerPoint presentation, or Excel workbook. Use when the user asks to make a reusable template from a `.docx`, `.pptx`, or `.xlsx` reference, or explicitly asks to update an existing artifact-template skill. Do not use for one-off artifact creation from an existing template.
+description: Create or update a reusable local Office artifact template. For presentations, create a clean-room visual grammar from a style guide and representative PNG examples; for Word and Excel, retain a validated reference file. Use when the user asks to make or update an artifact-template skill. Do not use for one-off artifact creation from an existing template.
 ---
 
 # Template Creator
 
-Create or update a reference-backed local template. The source Office file stays in the template so later work can clone or import it faithfully.
+Create or update a reusable local template. Presentation templates and document/spreadsheet
+templates have deliberately different evidence models:
+
+- A presentation template is a clean-room visual grammar: `SKILL.md`,
+  `artifact-template.json` schema v3, `agents/agent.yaml`, `assets/preview.png`,
+  and hashed `assets/examples/*.png`. It does not publish the source PPTX,
+  MJS, DSL, fixed layout, or cloneable page.
+- A DOCX/XLSX template remains reference-backed and uses schema v2. A PPTX may
+  still be processed as a one-off reference for import/edit work, but publishing
+  it as a new reusable presentation template uses the clean-room path below.
+
+The uploaded source and all analysis evidence stay in the task workspace; only
+the selected presentation guidance and original calibration images leave the task.
 
 ## Run template creation in one task
 
-For preview, metadata, and packaging steps that span several commands, use
-`officekit repl` and `../office-kit/references/repl.md`. Keep the reference
-path, preview path, and schema-v2 metadata in `ctx.state`; do not publish the
-template until the reference and preview hashes, ZIP structure, and selection
-card have been checked. Use `ctx.recordEvidence` for preview or validation
-reports and return the created Skill directory as an absolute path. The
-creator's deterministic helper command remains explicit; a REPL cell does not
-silently download or install a template provider.
+For preview, analysis, metadata, and packaging steps that span several commands,
+use `officekit repl` and `../office-kit/references/repl.md`. Keep source paths,
+style evidence, preview hashes, and selection metadata in the task state; do not
+publish a template until its assets and selection card have been checked. Use
+`ctx.recordEvidence` for preview or validation reports and return the created
+Skill directory as an absolute path. The deterministic helper command remains
+explicit; a REPL cell does not silently download or install a provider.
 
 Use `workspaceRoot`, `taskRoot`, `inputRoot`, and `assetRoot` from
 `../office-kit/references/workspace.md`. Keep the uploaded reference read-only, put
@@ -31,6 +42,34 @@ directory as an absolute path.
 - Keep template creation local. Do not fetch remote templates or modify installed caches.
 
 ## Create workflow
+
+### Presentation clean-room workflow
+
+Use this path when the reusable result should teach an Agent a visual language
+rather than ship a source deck. The style guide must be written in English and
+state evidenced rules for hierarchy, surfaces, geometry, density, imagery, and
+anti-patterns. Produce four to six original calibration pages from unrelated
+content, render them to PNG, and inspect the spread. Example images are visual
+evidence only; they are not pages to copy.
+
+Run:
+
+```bash
+officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
+  --kind presentation \
+  --style-guide-path "/absolute/path/style-guide.md" \
+  --examples-json '[{"path":"/absolute/path/example-01.png","role":"opening claim"}]' \
+  --preview-path "/absolute/path/preview.png" \
+  --display-name "Evidence Ledger" \
+  --description "Create evidence-led decision presentations with readable data and clear conclusions."
+```
+
+The command writes schema v3 with content-addressed example records and no
+reference path. Verify the generated `SKILL.md`, `artifact-template.json`,
+`agents/agent.yaml`, preview, and example PNGs. Keep `editProfile.level` at
+`copy-only`; a clean-room style guide does not prove imported edit capability.
+
+### Reference-backed Office workflow
 
 1. Require exactly one `.docx`, `.pptx`, or `.xlsx` reference unless the user explicitly requests a batch. For a batch, complete this workflow separately for every file. An extension alone is not evidence: the creator must accept the reference as a bounded Office OPC package before retaining it.
 2. Infer a concise display name, intended-use description, and artifact kind
@@ -72,7 +111,7 @@ proves a narrower or broader profile. The script permits a minimal default only
 when the English intended-use description itself is enough for `useWhen`; the
 normal Skill workflow should pass the explicit evidence-backed profile.
 
-6. Read the JSON result. Verify that the generated directory contains `SKILL.md`, schema-v2 `artifact-template.json`, `agents/agent.yaml`, the retained `assets/reference.<ext>`, and `assets/preview.png`. Verify the recorded reference and preview hashes.
+6. Read the JSON result. For DOCX/XLSX, verify that the generated directory contains `SKILL.md`, schema-v2 `artifact-template.json`, `agents/agent.yaml`, the retained `assets/reference.<ext>`, and `assets/preview.png`; verify the recorded reference and preview hashes. For a clean-room presentation, verify schema v3, `assets/examples/*.png`, and the example/preview hashes instead.
 
 The creator verifies ZIP CRCs, the required family-specific primary part and
 content type, and exactly one root `officeDocument` relationship before it
@@ -81,6 +120,12 @@ archive, or broken primary relationship must fail closed without creating or
 changing a template.
 
 ## Update workflow
+
+Schema-v3 presentation templates are intentionally immutable style packages for
+their first release. To revise one, create a new calibration set and invoke the
+clean-room create path with a new display name or explicit skill name; do not
+replace its examples in place without rerendering and rechecking the style
+guide. Reference-backed DOCX/XLSX updates continue below.
 
 1. Resolve the exact passed template and read its `SKILL.md`, `artifact-template.json`, `agents/agent.yaml`, retained reference, and preview. Stop if it is not a direct child of the local skills directory or if more than one target was passed.
 2. Preserve the template folder name and every file or behavior the user did not ask to change.
