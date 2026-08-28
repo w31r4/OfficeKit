@@ -131,11 +131,11 @@ assert.deepEqual(presentationCatalog.rejected, []);
 assert.equal(presentationCatalog.selectionMade, false);
 for (const candidate of presentationCatalog.candidates) {
   assert.equal(candidate.kind, "presentation");
-  assert.ok([3, 4].includes(candidate.templateSchemaVersion));
+  assert.equal(candidate.templateSchemaVersion, 4);
   assert.equal(candidate.provenance.license, "AGPL-3.0-or-later");
   assert.equal(candidate.examples.length, 4);
   assert.equal(candidate.examplePaths.length, 4);
-  assert.equal(Object.hasOwn(candidate, "referencePath"), candidate.templateSchemaVersion === 4);
+  assert.equal(Object.hasOwn(candidate, "referencePath"), true);
   assert.equal(Object.hasOwn(candidate, "editProfile"), false);
   await Promise.all([
     fs.access(candidate.skillPath),
@@ -148,64 +148,49 @@ for (const candidate of presentationCatalog.candidates) {
 const ranked = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
-  tags: ["executive", "quarterly"],
+  tags: ["quarterly", "update"],
   maxCandidates: 3,
 });
-assert.equal(ranked.candidates[0].id, "artifact-template-business-review");
-assert.deepEqual(ranked.candidates[0].matchedTags, ["executive", "quarterly"]);
+assert.equal(ranked.candidates[0].id, "artifact-template-moonlit-work-report");
+assert.deepEqual(ranked.candidates[0].matchedTags, ["quarterly", "update"]);
 assert.ok(ranked.candidates.length >= 1);
 assert.equal(ranked.ranking.algorithm, "bm25f");
 if (ranked.candidates.length > 1) {
   assert.ok(ranked.candidates[0].match.bm25 > ranked.candidates[1].match.bm25);
 }
 
-const gridById = await queryTemplates({
+const explicitPresentation = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
-  id: "artifact-template-grid-layout-library",
+  id: "artifact-template-moonlit-work-report",
 });
-assert.ok([3, 4].includes(gridById.candidates[0].templateSchemaVersion));
-assert.equal(gridById.candidates[0].examples.length, 4);
+assert.equal(explicitPresentation.candidates[0].templateSchemaVersion, 4);
+assert.equal(explicitPresentation.candidates[0].examples.length, 4);
 
-const gridByIntent = await queryTemplates({
+const imageLedByIntent = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
   intent: {
-    purposes: ["explicit editorial grid presentation"],
-    visualTraits: { colorMode: "light", structure: ["grid aligned"] },
+    purposes: ["quarterly update"],
+    audiences: ["operators"],
+    contentShapes: ["status"],
+    visualTraits: { colorMode: "light", structure: ["native data graphics"] },
   },
 });
-assert.equal(gridByIntent.candidates[0].id, "artifact-template-grid-layout-library");
-
-for (const conflictingPurpose of [
-  "dark immersive stage",
-  "organic playful brand language",
-  "image led cinematic storytelling",
-]) {
-  const conflict = await queryTemplates({
-    kind: "presentation",
-    roots: [presentationTemplateRoot],
-    intent: { purposes: [conflictingPurpose] },
-  });
-  assert.ok(
-    conflict.rejected.find((entry) =>
-      entry.id === "artifact-template-grid-layout-library" && entry.reasons.includes("avoid-when-conflict")),
-    `Grid must reject ${conflictingPurpose}`,
-  );
-}
+assert.equal(imageLedByIntent.candidates[0].id, "artifact-template-moonlit-work-report");
 
 const structuredRanked = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
   intent: {
-    purposes: ["quarterly business review"],
-    audiences: ["executives"],
-    contentShapes: ["decision brief"],
+    purposes: ["quarterly update"],
+    audiences: ["operators"],
+    contentShapes: ["status"],
     visualTraits: {
-      tone: ["executive"],
+      tone: ["work"],
       density: "medium",
       colorMode: "light",
-      structure: ["claim led"],
+      structure: ["native data graphics"],
     },
     brandSensitive: false,
   },
@@ -213,7 +198,7 @@ const structuredRanked = await queryTemplates({
 });
 assert.equal(
   structuredRanked.candidates[0].id,
-  "artifact-template-business-review",
+  "artifact-template-moonlit-work-report",
 );
 assert.equal(structuredRanked.candidates[0].match.score, 100);
 assert.equal(structuredRanked.candidates[0].match.queryCoverage, 100);
@@ -242,9 +227,9 @@ assert.ok(
 const brandSensitive = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
-  id: "artifact-template-business-review",
+  id: "artifact-template-moonlit-work-report",
   intent: {
-    purposes: ["quarterly business review"],
+    purposes: ["quarterly update"],
     brandSensitive: true,
   },
 });
@@ -299,11 +284,11 @@ const structuredCli = spawnSync(
     "--root",
     presentationTemplateRoot,
     "--purpose",
-    "quarterly business review",
+    "quarterly update",
     "--audience",
-    "executive",
+    "operators",
     "--content-shape",
-    "KPIs",
+    "status",
     "--brand-sensitive",
     "--json",
   ],
@@ -314,7 +299,7 @@ const structuredCliResult = JSON.parse(structuredCli.stdout);
 assert.equal(structuredCliResult.ranking.algorithm, "bm25f");
 assert.equal(
   structuredCliResult.candidates[0].id,
-  "artifact-template-business-review",
+  "artifact-template-moonlit-work-report",
 );
 assert.equal(structuredCliResult.queryIntent.brandSensitive, true);
 assert.ok(
@@ -366,7 +351,7 @@ try {
   });
   assert.equal(invalid.candidates.length, 0);
   assert.equal(invalid.invalid.length, 9);
-  assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-old-schema").error, /schemaVersion must be 2 for document\/spreadsheet or 3 for presentation/);
+  assert.match(invalid.invalid.find((entry) => entry.id === "artifact-template-old-schema").error, /schemaVersion must be 2 for document\/spreadsheet or 4 for presentation/);
   assert.match(
     invalid.invalid.find((entry) => entry.id === "artifact-template-old-presentation").error,
     /presentation schema v2 is unsupported; rebuild it with presentation-template-creator/,

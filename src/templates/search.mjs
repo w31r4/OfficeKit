@@ -405,16 +405,17 @@ function validateMetadata(value, expectedId) {
       "presentation schema v2 is unsupported; rebuild it with presentation-template-creator",
     );
   }
+  if (value.schemaVersion === 3 && value.kind === "presentation") {
+    throw new Error(
+      "presentation schema v3 is unsupported; rebuild it with presentation-template-creator",
+    );
+  }
   if (value.schemaVersion === 4) {
     validatePresentationMetadata(value, expectedId, { referenceRequired: true });
     return;
   }
-  if (value.schemaVersion === 3) {
-    validatePresentationMetadata(value, expectedId, { referenceRequired: false });
-    return;
-  }
   if (value.schemaVersion !== 2) {
-    throw new Error("schemaVersion must be 2 for document/spreadsheet or 3 for presentation (or 4 with an authored reference deck)");
+    throw new Error("schemaVersion must be 2 for document/spreadsheet or 4 for presentation");
   }
   validateSourceTemplateMetadata(value, expectedId);
 }

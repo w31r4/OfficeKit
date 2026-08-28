@@ -172,9 +172,9 @@ const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
 // and hosted gates. The 1.1.0 global CLI ships 13 source-backed DOCX/XLSX
-// templates plus thirty-eight presentation style Skills once inside the package. Keep
+// templates plus thirty presentation style Skills once inside the package. Keep
 // narrow cross-platform headroom over the measured release archive.
-const maxPackedBytes = 37_500_000;
+const maxPackedBytes = 45_000_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
 // and offline consumer guidance. Repository-generated evidence such as the API
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
@@ -183,7 +183,7 @@ const maxPackedBytes = 37_500_000;
 // evidence, or provider binaries in the tarball.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
-const maxUnpackedBytes = 55_000_000;
+const maxUnpackedBytes = 58_000_000;
 // Public Skill PNGs are required user-facing assets. They are retained with
 // byte-identical non-IDAT chunks and inflated scanline streams, but their IDAT
 // payloads are deterministically recompressed. Prevent future PNG tooling from
@@ -489,15 +489,16 @@ for (const required of [
   "skills/presentation-template-library/.codex-plugin/plugin.json",
   "skills/presentation-template-library/README.md",
   "skills/presentation-template-library/manifest.json",
-  "skills/presentation-template-library/skills/artifact-template-business-review/SKILL.md",
-  "skills/presentation-template-library/skills/artifact-template-business-review/agents/agent.yaml",
-  "skills/presentation-template-library/skills/artifact-template-business-review/artifact-template.json",
-  "skills/presentation-template-library/skills/artifact-template-business-review/assets/preview.png",
-  "skills/presentation-template-library/skills/artifact-template-business-review/assets/examples/01-cover.png",
-  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/SKILL.md",
-  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
-  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
-  "skills/presentation-template-library/skills/artifact-template-grid-layout-library/assets/examples/04-closing.png",
+  "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/SKILL.md",
+  "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/artifact-template.json",
+  "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/reference.pptx",
+  "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/preview.png",
+  "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/examples/01-cover.png",
+  "skills/presentation-template-library/skills/artifact-template-forest-strategy/SKILL.md",
+  "skills/presentation-template-library/skills/artifact-template-forest-strategy/artifact-template.json",
+  "skills/presentation-template-library/skills/artifact-template-forest-strategy/assets/reference.pptx",
+  "skills/presentation-template-library/skills/artifact-template-forest-strategy/assets/preview.png",
+  "skills/presentation-template-library/skills/artifact-template-forest-strategy/assets/examples/04-closing.png",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -589,11 +590,11 @@ assert.equal(
 const packagedPresentationSidecars = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
 );
-assert.equal(packagedPresentationSidecars.length, 38, "npm package must ship exactly thirty-eight presentation style Skills");
+assert.equal(packagedPresentationSidecars.length, 30, "npm package must ship exactly thirty presentation style Skills");
 const packagedPresentationReferences = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/reference\.pptx$/u.test(file),
 );
-assert.equal(packagedPresentationReferences.length, 2, "the migrated presentation pilots must each ship an authored reference deck");
+assert.equal(packagedPresentationReferences.length, 30, "each image-only presentation style must ship an authored reference deck");
 assert.ok(
   files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|mjs|js|svg)$/u.test(file)
     || file.endsWith("/assets/icon.svg")
@@ -603,7 +604,7 @@ assert.ok(
 const packagedPresentationCalibrationPngs = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
 );
-assert.equal(packagedPresentationCalibrationPngs.length, 190, "each presentation style must ship one preview and four calibration examples");
+assert.equal(packagedPresentationCalibrationPngs.length, 150, "each presentation style must ship one preview and four calibration examples");
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(

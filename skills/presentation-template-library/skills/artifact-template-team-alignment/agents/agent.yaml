@@ -1,5 +1,0 @@
-interface:
-  display_name: "Team Alignment"
-  short_description: "Use the Team Alignment clean-room visual grammar"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Create a new presentation using the Team Alignment visual grammar."
