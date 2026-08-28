@@ -6,7 +6,7 @@
     "license": "MIT",
     "copyright": "Copyright (c) 2026 w31r4"
   },
-  "assetAggregateSha256": "19c9f374bfca2b700228178676b82a880834cf394740222375bf786cc6ab886b",
+  "assetAggregateSha256": "e3c320c0ed782def46aa5f8f3bbd4b82bf1618567b7a77cd780d923fbec6e8a8",
   "assets": [
     {
       "templateId": "artifact-template-analytics-dashboard",
@@ -26,15 +26,43 @@
       "templateId": "artifact-template-business-review",
       "role": "preview",
       "path": "skills/artifact-template-business-review/assets/preview.png",
-      "bytes": 30573,
-      "sha256": "af6b092987472013920bb251e0e9d60b97fdb02cc1fd3109abf2b0951bc6aa3c"
+      "bytes": 144538,
+      "sha256": "96636c89acc89f9478d8d30d4b368842e2ef97e088a8c6e06f5a9dda36a20cf2"
     },
     {
       "templateId": "artifact-template-business-review",
-      "role": "reference",
-      "path": "skills/artifact-template-business-review/assets/reference.pptx",
-      "bytes": 2035231,
-      "sha256": "595b9a314c7e8e9b5f22180e7c7db167afba2437c8623d57e3f9dbc20af392c1"
+      "role": "example",
+      "path": "skills/artifact-template-business-review/assets/examples/slide-01.png",
+      "bytes": 62371,
+      "sha256": "a94f020e8d9361921608ad061d6df51c9d8bf42b5656740de889f60007017304"
+    },
+    {
+      "templateId": "artifact-template-business-review",
+      "role": "example",
+      "path": "skills/artifact-template-business-review/assets/examples/slide-02.png",
+      "bytes": 61280,
+      "sha256": "e80959b62e5b91e46a05c704af3e48670eb1a32f49854f7ea3ffe38e232bc4db"
+    },
+    {
+      "templateId": "artifact-template-business-review",
+      "role": "example",
+      "path": "skills/artifact-template-business-review/assets/examples/slide-03.png",
+      "bytes": 55306,
+      "sha256": "b5e636ce5ee2d57b45e52e769ca6f1aa7a1fa3f5ded621a38eaa7cade90ad07e"
+    },
+    {
+      "templateId": "artifact-template-business-review",
+      "role": "example",
+      "path": "skills/artifact-template-business-review/assets/examples/slide-04.png",
+      "bytes": 98511,
+      "sha256": "7971a193cbd875ba56232e32b3ac806afd473db9506a65a8f09fcb246014b637"
+    },
+    {
+      "templateId": "artifact-template-business-review",
+      "role": "example",
+      "path": "skills/artifact-template-business-review/assets/examples/slide-05.png",
+      "bytes": 52915,
+      "sha256": "98f0537d427f122602dbeb95653a87add28d83a7b901d4bab4fe2a26b1763937"
     },
     {
       "templateId": "artifact-template-design-report",
@@ -51,6 +79,48 @@
       "sha256": "ba1e11258ff52659318a321462a5e598c7bed33cf991329eb91150788fcd1a7b"
     },
     {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "preview",
+      "path": "skills/artifact-template-evidence-ledger/assets/preview.png",
+      "bytes": 225133,
+      "sha256": "dd8d37aaaa6316ef66b34336421aa5968da896c5f63857128e4f7a1b053f22f1"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-01.png",
+      "bytes": 98922,
+      "sha256": "91d25b324506b40d19d890222a677054f431693ca396ae7930f986c961133c61"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-02.png",
+      "bytes": 122640,
+      "sha256": "4bb9b5cb3152751ed5211dbf9c5188b7bed33ee0cde896138ba09d3b9837f2c8"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-03.png",
+      "bytes": 119334,
+      "sha256": "5f1200115714b92e1fbe905ff86ff6b5051afaa8a6e26727c5ae283d50b65039"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-04.png",
+      "bytes": 139058,
+      "sha256": "fb05c74470c0b24989a279605d1b41fa1629dbff699c8d380883ff0f340962fb"
+    },
+    {
+      "templateId": "artifact-template-evidence-ledger",
+      "role": "example",
+      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-05.png",
+      "bytes": 113973,
+      "sha256": "d2f354b0913f4d49aa88adf3dfe85f02161f5e76cdbc3c512b766e679e48ccae"
+    },
+    {
       "templateId": "artifact-template-experiment-analysis",
       "role": "preview",
       "path": "skills/artifact-template-experiment-analysis/assets/preview.png",
@@ -63,48 +133,6 @@
       "path": "skills/artifact-template-experiment-analysis/assets/reference.docx",
       "bytes": 204643,
       "sha256": "d823cd0115186b34c01c6e4b4da3be28b64ee73cac849dbd62d6f4bb6385b0fb"
-    },
-    {
-      "templateId": "artifact-template-evidence-ledger",
-      "role": "example",
-      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-01.png",
-      "bytes": 157820,
-      "sha256": "de3562f0e9b10968eb7aff769965414af05779b916cf1de374d9703a37992263"
-    },
-    {
-      "templateId": "artifact-template-evidence-ledger",
-      "role": "example",
-      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-02.png",
-      "bytes": 61061,
-      "sha256": "4608c74243cc0a107710c00c16950aa21efb7ff8818291e71b65246c8f370f0e"
-    },
-    {
-      "templateId": "artifact-template-evidence-ledger",
-      "role": "example",
-      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-03.png",
-      "bytes": 180470,
-      "sha256": "85a13c68dd98c6be0cb709b8197ede8d60a7eab4cba4da9f944983bf4e1d20b2"
-    },
-    {
-      "templateId": "artifact-template-evidence-ledger",
-      "role": "example",
-      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-04.png",
-      "bytes": 66470,
-      "sha256": "3ff195eaddf6ffbe9c6e627b2aa5587502105f3742d285ed19a5c518407a16c5"
-    },
-    {
-      "templateId": "artifact-template-evidence-ledger",
-      "role": "example",
-      "path": "skills/artifact-template-evidence-ledger/assets/examples/slide-05.png",
-      "bytes": 157888,
-      "sha256": "1d21b1f956ce45cbcb285b6e27edbd1ac770326c04453fd68bba21de0aec9840"
-    },
-    {
-      "templateId": "artifact-template-evidence-ledger",
-      "role": "preview",
-      "path": "skills/artifact-template-evidence-ledger/assets/preview.png",
-      "bytes": 217482,
-      "sha256": "bc52b16bb8369aab192c093828da2017fdda486638b514a53d92d9b7150150d0"
     },
     {
       "templateId": "artifact-template-financial-budget",
@@ -124,15 +152,43 @@
       "templateId": "artifact-template-grid-layout-library",
       "role": "preview",
       "path": "skills/artifact-template-grid-layout-library/assets/preview.png",
-      "bytes": 265771,
-      "sha256": "7cf1f1e77d278a91c39305bb49629e7bb9422da13a0ebab59edf7648a5ec3298"
+      "bytes": 153431,
+      "sha256": "f4cbc6320f50bf3526c69617d095c82f131d9d25803730a0c488aff76da4e5d5"
     },
     {
       "templateId": "artifact-template-grid-layout-library",
-      "role": "reference",
-      "path": "skills/artifact-template-grid-layout-library/assets/reference.pptx",
-      "bytes": 56428,
-      "sha256": "3e9f8f2fc673e91a74227603ee8aa4abe67b0974ea4541a44db76abc97b55712"
+      "role": "example",
+      "path": "skills/artifact-template-grid-layout-library/assets/examples/slide-01.png",
+      "bytes": 43859,
+      "sha256": "4254d5b512ac03015ee74753876b66d8b22898c77ca2bedce16306c5dc5837be"
+    },
+    {
+      "templateId": "artifact-template-grid-layout-library",
+      "role": "example",
+      "path": "skills/artifact-template-grid-layout-library/assets/examples/slide-02.png",
+      "bytes": 73212,
+      "sha256": "af60374ab7c3d5a4096971092148a830c687409fddb00fbea6314d39a51077c8"
+    },
+    {
+      "templateId": "artifact-template-grid-layout-library",
+      "role": "example",
+      "path": "skills/artifact-template-grid-layout-library/assets/examples/slide-03.png",
+      "bytes": 68326,
+      "sha256": "c3b99ef690c82b3bff9cdc2e10d77aff90a32cc392aef9c744760032578e0280"
+    },
+    {
+      "templateId": "artifact-template-grid-layout-library",
+      "role": "example",
+      "path": "skills/artifact-template-grid-layout-library/assets/examples/slide-04.png",
+      "bytes": 105070,
+      "sha256": "4330837d11ad9f5f1ef9dc1bbf7ec0f5b239a4bdfa25f9db25b58bacf68f0a7f"
+    },
+    {
+      "templateId": "artifact-template-grid-layout-library",
+      "role": "example",
+      "path": "skills/artifact-template-grid-layout-library/assets/examples/slide-05.png",
+      "bytes": 66105,
+      "sha256": "835a5e28218326da0403c80c57d0b7317fc91a8c9835a90846491573604eb864"
     },
     {
       "templateId": "artifact-template-investment-committee-memo",
@@ -166,15 +222,43 @@
       "templateId": "artifact-template-market-trends-report",
       "role": "preview",
       "path": "skills/artifact-template-market-trends-report/assets/preview.png",
-      "bytes": 19232,
-      "sha256": "a27d80525678a8b0b4e2242dd13aca95f7920ac790b1a66e96d8b39cc4a74e8f"
+      "bytes": 243086,
+      "sha256": "a8367ac25c4a47b4cab6c0b956fbbb998aeb1f665f4b318580582d81175fe1b3"
     },
     {
       "templateId": "artifact-template-market-trends-report",
-      "role": "reference",
-      "path": "skills/artifact-template-market-trends-report/assets/reference.pptx",
-      "bytes": 1972113,
-      "sha256": "52396c3a70dc11d35989bb4e3f9a96d2c728c5eba8a1aad96920cfe24cff59fa"
+      "role": "example",
+      "path": "skills/artifact-template-market-trends-report/assets/examples/slide-01.png",
+      "bytes": 118505,
+      "sha256": "4c0e49331edc173aaf799bd4acdd2592d7e25520a712b9ca3201f8773b317406"
+    },
+    {
+      "templateId": "artifact-template-market-trends-report",
+      "role": "example",
+      "path": "skills/artifact-template-market-trends-report/assets/examples/slide-02.png",
+      "bytes": 139226,
+      "sha256": "97c41fe62277d0ace3e0ac91d4aaf6705ac70fc990d119c2657cc7b98c9e8232"
+    },
+    {
+      "templateId": "artifact-template-market-trends-report",
+      "role": "example",
+      "path": "skills/artifact-template-market-trends-report/assets/examples/slide-03.png",
+      "bytes": 138477,
+      "sha256": "eb38859668088d263e4fcc012fd05881279e534cb3748a65fe104d8ba2eadbdd"
+    },
+    {
+      "templateId": "artifact-template-market-trends-report",
+      "role": "example",
+      "path": "skills/artifact-template-market-trends-report/assets/examples/slide-04.png",
+      "bytes": 158099,
+      "sha256": "8d231284feda08ac8e98f2a51f4bbf8aa6f429fe64a547d12ce04f04a758cfff"
+    },
+    {
+      "templateId": "artifact-template-market-trends-report",
+      "role": "example",
+      "path": "skills/artifact-template-market-trends-report/assets/examples/slide-05.png",
+      "bytes": 130641,
+      "sha256": "2391118432898cb2a758c41f5a74c23d34135c254fd3102ad2252798d2b19f81"
     },
     {
       "templateId": "artifact-template-minimal-letterhead",
@@ -208,29 +292,85 @@
       "templateId": "artifact-template-operating-review",
       "role": "preview",
       "path": "skills/artifact-template-operating-review/assets/preview.png",
-      "bytes": 37218,
-      "sha256": "e8f1dd91d1258c3bb06d2b1d0c52a49fce454e6682732e2e8f43b37c494e3c19"
+      "bytes": 134276,
+      "sha256": "cf6f011446d039ff58e5785c349292d8156c0a1045395ecb47146b3c7c943709"
     },
     {
       "templateId": "artifact-template-operating-review",
-      "role": "reference",
-      "path": "skills/artifact-template-operating-review/assets/reference.pptx",
-      "bytes": 306716,
-      "sha256": "ec2084d143a4d52857cc06c24129abbb45c45d04b90cca06e319ac26d3cadd4f"
+      "role": "example",
+      "path": "skills/artifact-template-operating-review/assets/examples/slide-01.png",
+      "bytes": 40358,
+      "sha256": "63eb84500138a4096c4909e0b279478a9e4007bc7a34f49775fb8009e45b7b50"
+    },
+    {
+      "templateId": "artifact-template-operating-review",
+      "role": "example",
+      "path": "skills/artifact-template-operating-review/assets/examples/slide-02.png",
+      "bytes": 61364,
+      "sha256": "812563c2ac828b4fb02b7e2a11bb8d59bef1a9cb12da759cb215fca894519923"
+    },
+    {
+      "templateId": "artifact-template-operating-review",
+      "role": "example",
+      "path": "skills/artifact-template-operating-review/assets/examples/slide-03.png",
+      "bytes": 55529,
+      "sha256": "831ad67616da2b0dbd57412a38faaf83dc41975969151ac56041d60f256ff602"
+    },
+    {
+      "templateId": "artifact-template-operating-review",
+      "role": "example",
+      "path": "skills/artifact-template-operating-review/assets/examples/slide-04.png",
+      "bytes": 99922,
+      "sha256": "02cfd97f09e1506901e60dadfb7e31f674044d880a82edcfb8eb6165985b6cf7"
+    },
+    {
+      "templateId": "artifact-template-operating-review",
+      "role": "example",
+      "path": "skills/artifact-template-operating-review/assets/examples/slide-05.png",
+      "bytes": 52931,
+      "sha256": "b75052e7461bf8600fa9bd61b80aadb881d7458d4b8c3e4785518ff8e3a4fcd1"
     },
     {
       "templateId": "artifact-template-project-kickoff",
       "role": "preview",
       "path": "skills/artifact-template-project-kickoff/assets/preview.png",
-      "bytes": 25166,
-      "sha256": "02823427c2552cc894d333fb96fd2fb3e3ac04503904ab6f73643ca877362df5"
+      "bytes": 142484,
+      "sha256": "70e5caec71df9c5fa6c1006e5629ec887650fd972ead8f09b6c0ffdaae086ea4"
     },
     {
       "templateId": "artifact-template-project-kickoff",
-      "role": "reference",
-      "path": "skills/artifact-template-project-kickoff/assets/reference.pptx",
-      "bytes": 2082300,
-      "sha256": "b1b15cb0c23ad524f9832749ec31b775719bae2bdba897de9c9d8556ca00a44c"
+      "role": "example",
+      "path": "skills/artifact-template-project-kickoff/assets/examples/slide-01.png",
+      "bytes": 62449,
+      "sha256": "9a3faab020e112e8cfc9825c6e273962005c1d371a0f75207dc080b9f4a4c962"
+    },
+    {
+      "templateId": "artifact-template-project-kickoff",
+      "role": "example",
+      "path": "skills/artifact-template-project-kickoff/assets/examples/slide-02.png",
+      "bytes": 60855,
+      "sha256": "9601bda6aa04b08141a20966a9c4616cfff80878eda822b419dfeb9391f3554b"
+    },
+    {
+      "templateId": "artifact-template-project-kickoff",
+      "role": "example",
+      "path": "skills/artifact-template-project-kickoff/assets/examples/slide-03.png",
+      "bytes": 54968,
+      "sha256": "9423748cedf2e70b1af6df8c80748512ca18aa049f23c781f8d7d31e3410bc66"
+    },
+    {
+      "templateId": "artifact-template-project-kickoff",
+      "role": "example",
+      "path": "skills/artifact-template-project-kickoff/assets/examples/slide-04.png",
+      "bytes": 96606,
+      "sha256": "fca1f4084dc230e684e1ea942611e1cd6094ae691dea3e4fb53ab64792c2dea9"
+    },
+    {
+      "templateId": "artifact-template-project-kickoff",
+      "role": "example",
+      "path": "skills/artifact-template-project-kickoff/assets/examples/slide-05.png",
+      "bytes": 52400,
+      "sha256": "0f1c7477d0a020a8164e5da289d65e90561e970356014baa2e5964a54670c83b"
     },
     {
       "templateId": "artifact-template-project-tracker",
@@ -264,29 +404,85 @@
       "templateId": "artifact-template-simple-dark-mode",
       "role": "preview",
       "path": "skills/artifact-template-simple-dark-mode/assets/preview.png",
-      "bytes": 115324,
-      "sha256": "2082897b4e30c9a2ed137e51fa32503b1e85afb53c8555521ba374b75df622ec"
+      "bytes": 224821,
+      "sha256": "4fdbf40fa3c5615f88219fdce75003a007e91bebac7ff778398543a2ff7da066"
     },
     {
       "templateId": "artifact-template-simple-dark-mode",
-      "role": "reference",
-      "path": "skills/artifact-template-simple-dark-mode/assets/reference.pptx",
-      "bytes": 3244996,
-      "sha256": "042ef2fcb8726524a1e773e3c73bf8b8c10b98f67ae675eb01c4501b9365a897"
+      "role": "example",
+      "path": "skills/artifact-template-simple-dark-mode/assets/examples/slide-01.png",
+      "bytes": 98198,
+      "sha256": "cc17211199071b22e449d098ed33029826487cd7a147efb84852c3178dbd823c"
+    },
+    {
+      "templateId": "artifact-template-simple-dark-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-dark-mode/assets/examples/slide-02.png",
+      "bytes": 120599,
+      "sha256": "52b8fe0d577c6335e280514875670adf8093523293873a4fc3d9dc4e6ccbbf1c"
+    },
+    {
+      "templateId": "artifact-template-simple-dark-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-dark-mode/assets/examples/slide-03.png",
+      "bytes": 118055,
+      "sha256": "1ebf2dc5e55265a8b35d7cb12682f7c5e56d95f37f664489c49fe6c9480fafc0"
+    },
+    {
+      "templateId": "artifact-template-simple-dark-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-dark-mode/assets/examples/slide-04.png",
+      "bytes": 144688,
+      "sha256": "5420dbcc28e8e8f8d75b913400016985bb944210a01ec34916a3a33543eedd8c"
+    },
+    {
+      "templateId": "artifact-template-simple-dark-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-dark-mode/assets/examples/slide-05.png",
+      "bytes": 111730,
+      "sha256": "775ed880ccfbe39d50f0dabdfe8309b37a513a7d140ae9a80f8f7c66615931ed"
     },
     {
       "templateId": "artifact-template-simple-light-mode",
       "role": "preview",
       "path": "skills/artifact-template-simple-light-mode/assets/preview.png",
-      "bytes": 28676,
-      "sha256": "9c12751105bbdea9e74df059b0b86c6eef22b3af34ba38c090edb7e2e4acf3ac"
+      "bytes": 142437,
+      "sha256": "20c908c0bc6f261f0c06ef069df2c79692698ccdda12a482647cbab163e667d6"
     },
     {
       "templateId": "artifact-template-simple-light-mode",
-      "role": "reference",
-      "path": "skills/artifact-template-simple-light-mode/assets/reference.pptx",
-      "bytes": 1519451,
-      "sha256": "2ae8105571f68403f438458cd51e6ad14f0d989c7af64239e280437a4ac2a633"
+      "role": "example",
+      "path": "skills/artifact-template-simple-light-mode/assets/examples/slide-01.png",
+      "bytes": 61545,
+      "sha256": "2d7d718e94aab8750a002632efdc06a178b33cf7acf6b8e76520d2fa18bf6daa"
+    },
+    {
+      "templateId": "artifact-template-simple-light-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-light-mode/assets/examples/slide-02.png",
+      "bytes": 61559,
+      "sha256": "73a67c4df388555a25864c53a4987defda4a3ede4feb04e0a6fc573b1d627ddd"
+    },
+    {
+      "templateId": "artifact-template-simple-light-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-light-mode/assets/examples/slide-03.png",
+      "bytes": 55285,
+      "sha256": "80f415c775f63c255dbdd811a2cb9b82e79dcfb679c9b47d2ec74242449f6146"
+    },
+    {
+      "templateId": "artifact-template-simple-light-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-light-mode/assets/examples/slide-04.png",
+      "bytes": 103761,
+      "sha256": "257cef0c714b574e915726622f0507a55bef192650b4545e1d97eb7e6bc3551a"
+    },
+    {
+      "templateId": "artifact-template-simple-light-mode",
+      "role": "example",
+      "path": "skills/artifact-template-simple-light-mode/assets/examples/slide-05.png",
+      "bytes": 52807,
+      "sha256": "9bdccaf892e54f2b365764c3defc2215b03ed2c21b450664cbe0138802616c60"
     },
     {
       "templateId": "artifact-template-strategy-memorandum",
@@ -320,15 +516,43 @@
       "templateId": "artifact-template-team-alignment",
       "role": "preview",
       "path": "skills/artifact-template-team-alignment/assets/preview.png",
-      "bytes": 66065,
-      "sha256": "8b91c66156be4dec9eca517ca330c246ca8e863ee9b97b3b93cc159eee362c2d"
+      "bytes": 222342,
+      "sha256": "6b414ff290e7b14f23018b617cfc41b19fc5e79a5ff20841a158b4d8911b2ea1"
     },
     {
       "templateId": "artifact-template-team-alignment",
-      "role": "reference",
-      "path": "skills/artifact-template-team-alignment/assets/reference.pptx",
-      "bytes": 7330920,
-      "sha256": "72b9f23a07bfd679cde36757acb11ec99900b4be0f5d393a5b4e8c6fdce4286d"
+      "role": "example",
+      "path": "skills/artifact-template-team-alignment/assets/examples/slide-01.png",
+      "bytes": 96787,
+      "sha256": "1e7d9b1491c7d21eeaa8c9d4a55c3d1c7cf76293a68be408bc4de58fa2c3e01f"
+    },
+    {
+      "templateId": "artifact-template-team-alignment",
+      "role": "example",
+      "path": "skills/artifact-template-team-alignment/assets/examples/slide-02.png",
+      "bytes": 120090,
+      "sha256": "0840d8de07ba825a06f905b57c4f2c093448f1313eb20e5d3dcabb3891ea17eb"
+    },
+    {
+      "templateId": "artifact-template-team-alignment",
+      "role": "example",
+      "path": "skills/artifact-template-team-alignment/assets/examples/slide-03.png",
+      "bytes": 119218,
+      "sha256": "c2f456c0d4b8546bab5596a4db259bbc901c95c03d8a7c2e0ac38b493d7a0588"
+    },
+    {
+      "templateId": "artifact-template-team-alignment",
+      "role": "example",
+      "path": "skills/artifact-template-team-alignment/assets/examples/slide-04.png",
+      "bytes": 138647,
+      "sha256": "e469a657f35523305182b68e8ccf80b88345c57928112e681db144d738ce4857"
+    },
+    {
+      "templateId": "artifact-template-team-alignment",
+      "role": "example",
+      "path": "skills/artifact-template-team-alignment/assets/examples/slide-05.png",
+      "bytes": 113239,
+      "sha256": "40c6258d98e673c98be43b94a3bf7a33233b9ae2d4943a4637e83bf3b73b2599"
     },
     {
       "templateId": "artifact-template-three-statement-forecast",

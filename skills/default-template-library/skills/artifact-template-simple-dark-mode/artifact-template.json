@@ -1,17 +1,45 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-simple-dark-mode",
   "displayName": "Simple Dark Mode",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "cc17211199071b22e449d098ed33029826487cd7a147efb84852c3178dbd823c"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "52b8fe0d577c6335e280514875670adf8093523293873a4fc3d9dc4e6ccbbf1c"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "1ebf2dc5e55265a8b35d7cb12682f7c5e56d95f37f664489c49fe6c9480fafc0"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "5420dbcc28e8e8f8d75b913400016985bb944210a01ec34916a3a33543eedd8c"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "775ed880ccfbe39d50f0dabdfe8309b37a513a7d140ae9a80f8f7c66615931ed"
+    }
+  ],
   "useWhen": [
     "dark presentation",
-    "high-contrast visual deck"
+    "high-contrast visual deck",
+    "product narrative",
+    "stage presentation"
   ],
   "avoidWhen": [
     "print-first handout",
-    "strict corporate brand"
+    "dense operating scorecard"
   ],
   "audiences": [
     "general",
@@ -19,34 +47,33 @@
     "external"
   ],
   "contentShapes": [
+    "hero metric",
+    "visual explanation",
     "narrative",
-    "sections",
-    "charts",
-    "imagery"
+    "call to action"
   ],
   "visualTraits": {
     "tone": [
       "bold",
-      "minimal"
+      "focused",
+      "cinematic"
     ],
     "density": "sparse",
     "colorMode": "dark",
     "structure": [
-      "narrative",
-      "visual"
+      "hero",
+      "contrast",
+      "reveal"
     ]
   },
   "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "042ef2fcb8726524a1e773e3c73bf8b8c10b98f67ae675eb01c4501b9365a897",
-    "previewSha256": "2082897b4e30c9a2ed137e51fa32503b1e85afb53c8555521ba374b75df622ec"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "4fdbf40fa3c5615f88219fdce75003a007e91bebac7ff778398543a2ff7da066"
   }
 }

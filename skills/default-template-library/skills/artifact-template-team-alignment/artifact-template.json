@@ -1,13 +1,40 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-team-alignment",
   "displayName": "Team Alignment",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "1e7d9b1491c7d21eeaa8c9d4a55c3d1c7cf76293a68be408bc4de58fa2c3e01f"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "0840d8de07ba825a06f905b57c4f2c093448f1313eb20e5d3dcabb3891ea17eb"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "c2f456c0d4b8546bab5596a4db259bbc901c95c03d8a7c2e0ac38b493d7a0588"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "e469a657f35523305182b68e8ccf80b88345c57928112e681db144d738ce4857"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "40c6258d98e673c98be43b94a3bf7a33233b9ae2d4943a4637e83bf3b73b2599"
+    }
+  ],
   "useWhen": [
     "team alignment",
-    "planning offsite"
+    "planning offsite",
+    "cross-functional strategy"
   ],
   "avoidWhen": [
     "external investor presentation",
@@ -16,38 +43,37 @@
   "audiences": [
     "team",
     "cross-functional",
-    "internal"
+    "internal leadership"
   ],
   "contentShapes": [
     "context",
-    "goals",
+    "shared goal",
     "priorities",
-    "decisions",
-    "action items"
+    "dependencies",
+    "decisions"
   ],
   "visualTraits": {
     "tone": [
       "collaborative",
-      "energetic"
+      "optimistic",
+      "direct"
     ],
     "density": "medium",
-    "colorMode": "light",
+    "colorMode": "dark",
     "structure": [
-      "workshop",
-      "narrative"
+      "horizon",
+      "relationship map",
+      "commitment"
     ]
   },
   "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "72b9f23a07bfd679cde36757acb11ec99900b4be0f5d393a5b4e8c6fdce4286d",
-    "previewSha256": "8b91c66156be4dec9eca517ca330c246ca8e863ee9b97b3b93cc159eee362c2d"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "6b414ff290e7b14f23018b617cfc41b19fc5e79a5ff20841a158b4d8911b2ea1"
   }
 }

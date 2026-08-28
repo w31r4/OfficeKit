@@ -1,5 +1,5 @@
 interface:
   display_name: "Business Review"
-  short_description: "Create presentations with the Business Review template"
+  short_description: "Use the Business Review clean-room visual grammar"
   icon_large: "./assets/preview.png"
-  default_prompt: "Create a new presentation with this template."
+  default_prompt: "Create a new presentation using the Business Review visual grammar."

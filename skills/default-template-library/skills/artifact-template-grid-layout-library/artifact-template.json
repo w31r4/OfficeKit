@@ -1,60 +1,79 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-grid-layout-library",
   "displayName": "Grid Layout Library",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "4254d5b512ac03015ee74753876b66d8b22898c77ca2bedce16306c5dc5837be"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "af60374ab7c3d5a4096971092148a830c687409fddb00fbea6314d39a51077c8"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "c3b99ef690c82b3bff9cdc2e10d77aff90a32cc392aef9c744760032578e0280"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "4330837d11ad9f5f1ef9dc1bbf7ec0f5b239a4bdfa25f9db25b58bacf68f0a7f"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "835a5e28218326da0403c80c57d0b7317fc91a8c9835a90846491573604eb864"
+    }
+  ],
   "useWhen": [
-    "explicit grid layout presentation",
-    "monochrome editorial presentation",
-    "evidence-led white background deck",
-    "modular presentation layout library"
+    "editorial analysis presentation",
+    "evidence-led narrative",
+    "modular presentation system"
   ],
   "avoidWhen": [
-    "dark visual direction",
-    "brand creative presentation",
-    "image-led cinematic storytelling",
-    "authoritative external brand template"
+    "dark cinematic direction",
+    "brand launch",
+    "image-first storytelling"
   ],
   "audiences": [
     "business",
     "analysis",
-    "general"
+    "research"
   ],
   "contentShapes": [
-    "evidence tables",
-    "process sequences",
-    "charts",
-    "image splits",
-    "editorial narrative"
+    "evidence table",
+    "process sequence",
+    "comparison",
+    "chart"
   ],
   "visualTraits": {
     "tone": [
-      "restrained",
       "editorial",
-      "evidence-led",
-      "monochrome"
+      "measured",
+      "precise"
     ],
     "density": "mixed",
     "colorMode": "light",
     "structure": [
-      "grid",
-      "modular",
-      "sectioned"
+      "open grid",
+      "sequence",
+      "evidence"
     ]
   },
   "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "composable",
-    "verifiedOperations": [
-      "source-slide-reuse"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/OfficeKit/commit/6566b5e304441be2ec66cc390d45635dbd3d880c",
-    "referenceSha256": "3e9f8f2fc673e91a74227603ee8aa4abe67b0974ea4541a44db76abc97b55712",
-    "previewSha256": "7cf1f1e77d278a91c39305bb49629e7bb9422da13a0ebab59edf7648a5ec3298"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "f4cbc6320f50bf3526c69617d095c82f131d9d25803730a0c488aff76da4e5d5"
   }
 }

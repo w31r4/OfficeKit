@@ -1,54 +1,79 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-project-kickoff",
   "displayName": "Project Kickoff",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "9a3faab020e112e8cfc9825c6e273962005c1d371a0f75207dc080b9f4a4c962"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "9601bda6aa04b08141a20966a9c4616cfff80878eda822b419dfeb9391f3554b"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "9423748cedf2e70b1af6df8c80748512ca18aa049f23c781f8d7d31e3410bc66"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "fca1f4084dc230e684e1ea942611e1cd6094ae691dea3e4fb53ab64792c2dea9"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "0f1c7477d0a020a8164e5da289d65e90561e970356014baa2e5964a54670c83b"
+    }
+  ],
   "useWhen": [
     "project kickoff",
-    "initiative launch"
+    "initiative launch",
+    "implementation plan"
   ],
   "avoidWhen": [
-    "quarterly business review",
+    "quarterly board review",
     "market research report"
   ],
   "audiences": [
     "project team",
-    "stakeholder",
-    "internal"
+    "stakeholders",
+    "cross-functional partners"
   ],
   "contentShapes": [
-    "goals",
+    "outcome",
     "scope",
     "roles",
     "milestones",
-    "risks",
-    "working model"
+    "risks"
   ],
   "visualTraits": {
     "tone": [
       "energetic",
+      "clear",
       "collaborative"
     ],
     "density": "medium",
     "colorMode": "light",
     "structure": [
-      "narrative",
-      "workshop"
+      "route",
+      "milestones",
+      "working agreement"
     ]
   },
   "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "b1b15cb0c23ad524f9832749ec31b775719bae2bdba897de9c9d8556ca00a44c",
-    "previewSha256": "02823427c2552cc894d333fb96fd2fb3e3ac04503904ab6f73643ca877362df5"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "70e5caec71df9c5fa6c1006e5629ec887650fd972ead8f09b6c0ffdaae086ea4"
   }
 }

@@ -1,5 +1,5 @@
 interface:
   display_name: "Operating Review"
-  short_description: "Create presentations with the Operating Review template"
+  short_description: "Use the Operating Review clean-room visual grammar"
   icon_large: "./assets/preview.png"
-  default_prompt: "Create a new presentation with this template."
+  default_prompt: "Create a new presentation using the Operating Review visual grammar."

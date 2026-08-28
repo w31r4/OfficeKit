@@ -1,13 +1,40 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-business-review",
   "displayName": "Business Review",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "a94f020e8d9361921608ad061d6df51c9d8bf42b5656740de889f60007017304"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "e80959b62e5b91e46a05c704af3e48670eb1a32f49854f7ea3ffe38e232bc4db"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "b5e636ce5ee2d57b45e52e769ca6f1aa7a1fa3f5ded621a38eaa7cade90ad07e"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "7971a193cbd875ba56232e32b3ac806afd473db9506a65a8f09fcb246014b637"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "98f0537d427f122602dbeb95653a87add28d83a7b901d4bab4fe2a26b1763937"
+    }
+  ],
   "useWhen": [
     "quarterly business review",
-    "executive performance review"
+    "executive performance review",
+    "board decision brief"
   ],
   "avoidWhen": [
     "project kickoff",
@@ -19,35 +46,32 @@
     "business leadership"
   ],
   "contentShapes": [
-    "KPIs",
-    "segment results",
-    "strategic priorities",
-    "decisions",
-    "outlook"
+    "KPI trend evidence",
+    "trade-off comparison",
+    "decision read-through"
   ],
   "visualTraits": {
     "tone": [
       "formal",
-      "restrained"
+      "decisive",
+      "evidence-led"
     ],
     "density": "medium",
-    "colorMode": "neutral",
+    "colorMode": "light",
     "structure": [
       "narrative",
-      "sectioned"
+      "comparison",
+      "read-through"
     ]
   },
-  "visualCommitment": "neutral",
+  "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "595b9a314c7e8e9b5f22180e7c7db167afba2437c8623d57e3f9dbc20af392c1",
-    "previewSha256": "af6b092987472013920bb251e0e9d60b97fdb02cc1fd3109abf2b0951bc6aa3c"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "96636c89acc89f9478d8d30d4b368842e2ef97e088a8c6e06f5a9dda36a20cf2"
   }
 }

@@ -30,14 +30,14 @@ const TEMPLATES = [
   ["artifact-template-minimal-letterhead", "Minimal Letterhead", "document", ".docx"],
   ["artifact-template-strategy-memorandum", "Strategy Memorandum", "document", ".docx"],
   ["artifact-template-system-design", "System Design", "document", ".docx"],
-  ["artifact-template-business-review", "Business Review", "presentation", ".pptx"],
-  ["artifact-template-grid-layout-library", "Grid Layout Library", "presentation", ".pptx", "composable"],
-  ["artifact-template-market-trends-report", "Market Trends Report", "presentation", ".pptx"],
-  ["artifact-template-operating-review", "Operating Review", "presentation", ".pptx"],
-  ["artifact-template-project-kickoff", "Project Kickoff", "presentation", ".pptx"],
-  ["artifact-template-simple-dark-mode", "Simple Dark Mode", "presentation", ".pptx"],
-  ["artifact-template-simple-light-mode", "Simple Light Mode", "presentation", ".pptx"],
-  ["artifact-template-team-alignment", "Team Alignment", "presentation", ".pptx"],
+  ["artifact-template-business-review", "Business Review", "presentation", null, "copy-only"],
+  ["artifact-template-grid-layout-library", "Grid Layout Library", "presentation", null, "copy-only"],
+  ["artifact-template-market-trends-report", "Market Trends Report", "presentation", null, "copy-only"],
+  ["artifact-template-operating-review", "Operating Review", "presentation", null, "copy-only"],
+  ["artifact-template-project-kickoff", "Project Kickoff", "presentation", null, "copy-only"],
+  ["artifact-template-simple-dark-mode", "Simple Dark Mode", "presentation", null, "copy-only"],
+  ["artifact-template-simple-light-mode", "Simple Light Mode", "presentation", null, "copy-only"],
+  ["artifact-template-team-alignment", "Team Alignment", "presentation", null, "copy-only"],
   ["artifact-template-evidence-ledger", "Evidence Ledger", "presentation", null, "copy-only"],
   ["artifact-template-analytics-dashboard", "Analytics Dashboard", "spreadsheet", ".xlsx"],
   ["artifact-template-financial-budget", "Financial Budget", "spreadsheet", ".xlsx"],
@@ -543,7 +543,13 @@ for (const [id, displayName, kind, extension, editLevel = "bounded-edit"] of [..
   const skillRoot = path.join(libraryRoot, "skills", id);
   const isCleanRoom = extension == null;
   const referencePath = isCleanRoom ? null : `assets/reference${extension}`;
-  for (const relativePath of ["SKILL.md", "artifact-template.json", "agents/agent.yaml", "assets/preview.png", ...(isCleanRoom ? [] : [referencePath])]) {
+  for (const relativePath of [
+    "SKILL.md",
+    "artifact-template.json",
+    "agents/agent.yaml",
+    "assets/preview.png",
+    ...(isCleanRoom ? [] : [referencePath]),
+  ]) {
     expectedFiles.add(path.posix.join("skills", id, relativePath));
   }
   const [skillText, agentText, sidecarText, previewBytes] = await Promise.all([
@@ -570,8 +576,6 @@ for (const [id, displayName, kind, extension, editLevel = "bounded-edit"] of [..
       const exampleBytes = await fs.readFile(path.join(skillRoot, relativePath));
       assert.equal(hasValidPngStructure(exampleBytes), true, `${id} example PNG structure`);
       assert.equal(sha256(exampleBytes), example.sha256, `${id} example SHA-256`);
-      updateAggregate(aggregate, path.posix.join("skills", id, relativePath), exampleBytes);
-      totalBytes += exampleBytes.length;
     }
   } else {
     assert.equal(sidecar.reference, referencePath, `${id} sidecar reference`);
@@ -592,16 +596,26 @@ for (const [id, displayName, kind, extension, editLevel = "bounded-edit"] of [..
   }
 
   const binaryRecords = [["preview", "assets/preview.png", previewBytes]];
-  if (!isCleanRoom) {
+  if (isCleanRoom) {
+    for (const example of sidecar.examples) {
+      binaryRecords.push(["example", example.path, await fs.readFile(path.join(skillRoot, example.path))]);
+    }
+  } else {
     const referenceBytes = await fs.readFile(path.join(skillRoot, referencePath));
     binaryRecords.push(["reference", referencePath, referenceBytes]);
   }
   for (const [role, relativePath, bytes] of binaryRecords) {
     const assetPath = path.posix.join("skills", id, relativePath);
-    const record = integrity.assets.find((asset) => asset.templateId === id && asset.role === role);
+    const record = integrity.assets.find((asset) =>
+      asset.templateId === id && asset.role === role && asset.path === assetPath);
     assert.deepEqual({ templateId: id, role, path: assetPath, bytes: bytes.length, sha256: sha256(bytes) }, record, `${id} ${role} integrity`);
+    const expectedHash = role === "preview"
+      ? sidecar.provenance.previewSha256
+      : role === "reference"
+        ? sidecar.provenance.referenceSha256
+        : sidecar.examples.find((example) => example.path === relativePath)?.sha256;
     assert.equal(
-      sidecar.provenance[role === "preview" ? "previewSha256" : "referenceSha256"],
+      expectedHash,
       record.sha256,
       `${id} ${role} sidecar hash`,
     );
@@ -623,8 +637,7 @@ assert.deepEqual(actualFiles, [...expectedFiles].sort(), "template library canon
 const sourceRoot = process.env.OFFICE_TEMPLATE_SOURCE_ROOT;
 if (sourceRoot) {
   for (const asset of integrity.assets.filter((item) =>
-    item.templateId !== "artifact-template-grid-layout-library" &&
-    item.templateId !== "artifact-template-evidence-ledger")) {
+    TEMPLATES.find(([id]) => id === asset.templateId)?.[3] != null)) {
     const [sourceBytes, targetBytes] = await Promise.all([fs.readFile(path.join(sourceRoot, asset.path)), fs.readFile(path.join(libraryRoot, asset.path))]);
     assert.equal(
       sha256(targetBytes),

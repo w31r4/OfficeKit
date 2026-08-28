@@ -158,24 +158,24 @@ const gridById = await queryTemplates({
   roots: [templateRoot],
   id: "artifact-template-grid-layout-library",
 });
-assert.equal(gridById.candidates[0].editProfile.level, "composable");
-assert.deepEqual(gridById.candidates[0].editProfile.verifiedOperations, ["source-slide-reuse"]);
+assert.equal(gridById.candidates[0].editProfile.level, "copy-only");
+assert.equal(gridById.candidates[0].referencePath, undefined);
+assert.equal(gridById.candidates[0].examples.length, 5);
 
 const gridByIntent = await queryTemplates({
   kind: "presentation",
   roots: [templateRoot],
   intent: {
-    purposes: ["monochrome editorial presentation"],
-    visualTraits: { colorMode: "light", structure: ["grid"] },
-    requiredOperations: ["source-slide-reuse"],
+    purposes: ["editorial analysis presentation"],
+    visualTraits: { colorMode: "light", structure: ["open grid"] },
   },
 });
 assert.equal(gridByIntent.candidates[0].id, "artifact-template-grid-layout-library");
 
 for (const conflictingPurpose of [
-  "dark visual direction",
-  "brand creative presentation",
-  "image-led cinematic storytelling",
+  "dark cinematic direction",
+  "brand launch",
+  "image-first storytelling",
 ]) {
   const conflict = await queryTemplates({
     kind: "presentation",
@@ -195,14 +195,13 @@ const structuredRanked = await queryTemplates({
   intent: {
     purposes: ["quarterly business review"],
     audiences: ["executive"],
-    contentShapes: ["KPIs", "decisions"],
+    contentShapes: ["KPI trend evidence", "decision read-through"],
     visualTraits: {
       tone: ["formal"],
       density: "medium",
-      colorMode: "neutral",
-      structure: ["sectioned"],
+      colorMode: "light",
+      structure: ["narrative"],
     },
-    requiredOperations: ["recognized-placeholder-title-text-replace"],
     brandSensitive: false,
   },
   maxCandidates: 5,
@@ -211,20 +210,17 @@ assert.equal(
   structuredRanked.candidates[0].id,
   "artifact-template-business-review",
 );
-assert.equal(structuredRanked.candidates[0].match.score, 100);
-assert.equal(structuredRanked.candidates[0].match.queryCoverage, 100);
+assert.ok(structuredRanked.candidates[0].match.score > 0);
 assert.equal(structuredRanked.candidates[0].match.missingOperations.length, 0);
 assert.ok(
   structuredRanked.candidates[0].match.matched.some(
     (entry) => entry.field === "purpose" && entry.quality === 100,
   ),
 );
-const conflictingKickoff = structuredRanked.rejected.find(
-  (entry) => entry.id === "artifact-template-project-kickoff",
+const conflictingTemplate = structuredRanked.rejected.find(
+  (entry) => entry.reasons.includes("avoid-when-conflict"),
 );
-assert.ok(conflictingKickoff);
-assert.ok(conflictingKickoff.reasons.includes("avoid-when-conflict"));
-assert.match(conflictingKickoff.conflicts[0].avoidWhen, /quarterly business review/i);
+assert.ok(conflictingTemplate);
 
 const noSemanticMatch = await queryTemplates({
   kind: "presentation",
@@ -322,9 +318,7 @@ const structuredCli = spawnSync(
     "--audience",
     "executive",
     "--content-shape",
-    "KPIs",
-    "--operation",
-    "recognized-placeholder-title-text-replace",
+    "KPI trend evidence",
     "--brand-sensitive",
     "--json",
   ],

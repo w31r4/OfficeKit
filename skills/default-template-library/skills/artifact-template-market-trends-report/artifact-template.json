@@ -1,53 +1,80 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-market-trends-report",
   "displayName": "Market Trends Report",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "4c0e49331edc173aaf799bd4acdd2592d7e25520a712b9ca3201f8773b317406"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "97c41fe62277d0ace3e0ac91d4aaf6705ac70fc990d119c2657cc7b98c9e8232"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "eb38859668088d263e4fcc012fd05881279e534cb3748a65fe104d8ba2eadbdd"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "8d231284feda08ac8e98f2a51f4bbf8aa6f429fe64a547d12ce04f04a758cfff"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "2391118432898cb2a758c41f5a74c23d34135c254fd3102ad2252798d2b19f81"
+    }
+  ],
   "useWhen": [
     "market trends report",
-    "industry outlook"
+    "industry outlook",
+    "competitive landscape",
+    "investment thesis"
   ],
   "avoidWhen": [
-    "internal operating review",
-    "project tracker"
+    "internal operating scorecard",
+    "print-first handout"
   ],
   "audiences": [
     "executive",
     "client",
-    "strategy"
+    "strategy",
+    "investor"
   ],
   "contentShapes": [
-    "trends",
-    "evidence",
-    "comparison",
-    "implications",
-    "recommended responses"
+    "trend line",
+    "market map",
+    "scenario",
+    "comparison"
   ],
   "visualTraits": {
     "tone": [
-      "editorial",
-      "insight-led"
+      "insight-led",
+      "confident",
+      "analytical"
     ],
     "density": "medium",
-    "colorMode": "light",
+    "colorMode": "dark",
     "structure": [
-      "narrative",
-      "visual report"
+      "atlas",
+      "signal path",
+      "scenario"
     ]
   },
   "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "52396c3a70dc11d35989bb4e3f9a96d2c728c5eba8a1aad96920cfe24cff59fa",
-    "previewSha256": "a27d80525678a8b0b4e2242dd13aca95f7920ac790b1a66e96d8b39cc4a74e8f"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "a8367ac25c4a47b4cab6c0b956fbbb998aeb1f665f4b318580582d81175fe1b3"
   }
 }

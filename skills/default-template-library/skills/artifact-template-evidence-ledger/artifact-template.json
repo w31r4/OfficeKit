@@ -5,31 +5,67 @@
   "kind": "presentation",
   "preview": "assets/preview.png",
   "examples": [
-    { "path": "assets/examples/slide-01.png", "role": "opening claim", "sha256": "de3562f0e9b10968eb7aff769965414af05779b916cf1de374d9703a37992263" },
-    { "path": "assets/examples/slide-02.png", "role": "measured evidence", "sha256": "4608c74243cc0a107710c00c16950aa21efb7ff8818291e71b65246c8f370f0e" },
-    { "path": "assets/examples/slide-03.png", "role": "causal sequence", "sha256": "85a13c68dd98c6be0cb709b8197ede8d60a7eab4cba4da9f944983bf4e1d20b2" },
-    { "path": "assets/examples/slide-04.png", "role": "decision comparison", "sha256": "3ff195eaddf6ffbe9c6e627b2aa5587502105f3742d285ed19a5c518407a16c5" },
-    { "path": "assets/examples/slide-05.png", "role": "closing decision", "sha256": "1d21b1f956ce45cbcb285b6e27edbd1ac770326c04453fd68bba21de0aec9840" }
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "91d25b324506b40d19d890222a677054f431693ca396ae7930f986c961133c61"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "4bb9b5cb3152751ed5211dbf9c5188b7bed33ee0cde896138ba09d3b9837f2c8"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "5f1200115714b92e1fbe905ff86ff6b5051afaa8a6e26727c5ae283d50b65039"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "fb05c74470c0b24989a279605d1b41fa1629dbff699c8d380883ff0f340962fb"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "d2f354b0913f4d49aa88adf3dfe85f02161f5e76cdbc3c512b766e679e48ccae"
+    }
   ],
   "useWhen": [
-    "evidence-led decision presentation",
-    "research and strategy narrative",
-    "measured operational review",
-    "data-driven executive briefing"
+    "evidence-led decision deck",
+    "research findings presentation",
+    "strategy recommendation"
   ],
   "avoidWhen": [
-    "playful event poster",
-    "dense dashboard clone",
-    "photo-only moodboard",
-    "fixed page replica"
+    "consumer campaign",
+    "decorative moodboard"
   ],
-  "audiences": ["executive", "decision maker", "researcher", "operator"],
-  "contentShapes": ["claim and evidence", "trend chart", "causal sequence", "comparison table", "next action"],
+  "audiences": [
+    "executive",
+    "research",
+    "strategy",
+    "review committee"
+  ],
+  "contentShapes": [
+    "claim",
+    "evidence",
+    "causal chain",
+    "comparison",
+    "decision"
+  ],
   "visualTraits": {
-    "tone": ["editorial", "measured", "decisive", "evidence-led"],
-    "density": "medium",
+    "tone": [
+      "restrained",
+      "precise",
+      "evidence-led"
+    ],
+    "density": "mixed",
     "colorMode": "mixed",
-    "structure": ["typographic hierarchy", "horizontal rules", "direct labels", "full-bleed image field"]
+    "structure": [
+      "claim",
+      "evidence",
+      "decision"
+    ]
   },
   "visualCommitment": "opinionated",
   "editProfile": {
@@ -38,7 +74,7 @@
   },
   "provenance": {
     "license": "MIT",
-    "source": "OfficeKit original clean-room calibration; no reference deck distributed",
-    "previewSha256": "bc52b16bb8369aab192c093828da2017fdda486638b514a53d92d9b7150150d0"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "dd8d37aaaa6316ef66b34336421aa5968da896c5f63857128e4f7a1b053f22f1"
   }
 }

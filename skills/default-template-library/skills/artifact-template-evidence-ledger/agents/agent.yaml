@@ -1,5 +1,5 @@
 interface:
   display_name: "Evidence Ledger"
-  short_description: "Create evidence-led presentations with a restrained visual grammar"
+  short_description: "Use the Evidence Ledger clean-room visual grammar"
   icon_large: "./assets/preview.png"
-  default_prompt: "Use the Evidence Ledger visual grammar to create a new presentation from the user's evidence."
+  default_prompt: "Create a new presentation using the Evidence Ledger visual grammar."

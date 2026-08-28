@@ -172,14 +172,16 @@ const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
 // and hosted gates. The 1.0.0 global CLI deliberately ships the twenty-two audited
-// default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
+// default Office templates once inside the package. Presentation entries are
+// clean-room style grammars with visual examples, not retained source decks.
+// Keep narrow
 // cross-platform headroom over the measured 36,592,843-byte archive.
 const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
 // and offline consumer guidance. Repository-generated evidence such as the API
 // Markdown remains in GitHub and CI, while the runtime Help catalog is shipped.
-// Keep measured headroom for bounded codec/Skill growth and the compact Grid
-// Layout reference without concealing specialist binaries, generated evidence,
+// Keep measured headroom for bounded codec/Skill growth without concealing
+// specialist binaries, generated evidence,
 // or provider binaries in the tarball.
 // Help adoption metadata is shipped with the runtime so task-facing queries
 // remain self-contained. Keep a small measured headroom for that index.
@@ -459,9 +461,6 @@ for (const required of [
   "skills/presentations/skills/presentations/artifact_tool/api/references/embedded-video-clone.spec.md",
   "skills/presentations/skills/presentations/container_tools/artifact_tool_utils.mjs",
   "skills/presentations/skills/presentations/container_tools/slides_test.py",
-  "skills/presentations/skills/presentations/builtin_templates_support/scripts/create-presentation.mjs",
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/artifact-tool-compose/index.mjs",
-  "skills/presentations/skills/presentations/assets/builtin_templates/grid-layout-library/assets/previews/layout-library.png",
   "skills/office-kit/.codex-plugin/plugin.json",
   "skills/office-kit/README.md",
   "skills/office-kit/skills/office-kit/SKILL.md",
@@ -483,23 +482,24 @@ for (const required of [
   "skills/default-template-library/README.md",
   "skills/default-template-library/manifest.json",
   "skills/default-template-library/integrity.json",
-  "skills/default-template-library/skills/artifact-template-business-review/SKILL.md",
-  "skills/default-template-library/skills/artifact-template-business-review/artifact-template.json",
-  "skills/default-template-library/skills/artifact-template-business-review/assets/reference.pptx",
-  "skills/default-template-library/skills/artifact-template-business-review/assets/preview.png",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/SKILL.md",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/reference.pptx",
-  "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/SKILL.md",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/artifact-template.json",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/agents/agent.yaml",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/preview.png",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-01.png",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-02.png",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-03.png",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-04.png",
-  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-05.png",
+  ...[
+    "business-review",
+    "grid-layout-library",
+    "market-trends-report",
+    "operating-review",
+    "project-kickoff",
+    "simple-dark-mode",
+    "simple-light-mode",
+    "team-alignment",
+    "evidence-ledger",
+  ].flatMap((id) => [
+    `skills/default-template-library/skills/artifact-template-${id}/SKILL.md`,
+    `skills/default-template-library/skills/artifact-template-${id}/artifact-template.json`,
+    `skills/default-template-library/skills/artifact-template-${id}/agents/agent.yaml`,
+    `skills/default-template-library/skills/artifact-template-${id}/assets/preview.png`,
+    ...Array.from({ length: 5 }, (_, index) =>
+      `skills/default-template-library/skills/artifact-template-${id}/assets/examples/slide-${String(index + 1).padStart(2, "0")}.png`),
+  ]),
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -605,7 +605,7 @@ assert.ok(
 );
 const skillPngs = report.files.filter(({ path: filename }) => /^skills\/(?:documents|spreadsheets|presentations|pdf)\/.*\.png$/.test(filename));
 const skillPngBytes = skillPngs.reduce((total, { size }) => total + size, 0);
-assert.equal(skillPngs.length, 41, "npm package must retain all 41 public Skill PNG assets");
+assert.equal(skillPngs.length, 14, "npm package must retain the current public Skill PNG assets");
 assert.ok(skillPngBytes < maxSkillPngBytes, `public Skill PNG payload unexpectedly large: ${skillPngBytes} (limit ${maxSkillPngBytes})`);
 assert.ok(report.size < maxPackedBytes, `npm package archive unexpectedly large: ${report.size} (limit ${maxPackedBytes})`);
 assert.ok(report.unpackedSize < maxUnpackedBytes, `npm package unpacked size unexpectedly large: ${report.unpackedSize} (limit ${maxUnpackedBytes})`);

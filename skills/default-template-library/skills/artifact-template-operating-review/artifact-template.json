@@ -1,17 +1,44 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-operating-review",
   "displayName": "Operating Review",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "63eb84500138a4096c4909e0b279478a9e4007bc7a34f49775fb8009e45b7b50"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "812563c2ac828b4fb02b7e2a11bb8d59bef1a9cb12da759cb215fca894519923"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "831ad67616da2b0dbd57412a38faaf83dc41975969151ac56041d60f256ff602"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "02cfd97f09e1506901e60dadfb7e31f674044d880a82edcfb8eb6165985b6cf7"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "b75052e7461bf8600fa9bd61b80aadb881d7458d4b8c3e4785518ff8e3a4fcd1"
+    }
+  ],
   "useWhen": [
     "weekly operating review",
-    "monthly operating review"
+    "monthly operating review",
+    "operations scorecard"
   ],
   "avoidWhen": [
     "external sales pitch",
-    "project kickoff"
+    "consumer campaign"
   ],
   "audiences": [
     "executive",
@@ -20,34 +47,32 @@
   ],
   "contentShapes": [
     "scorecard",
-    "functional updates",
-    "risks",
-    "decisions",
-    "action items"
+    "exception path",
+    "root cause",
+    "owner action"
   ],
   "visualTraits": {
     "tone": [
       "operational",
-      "formal"
+      "calm",
+      "accountable"
     ],
     "density": "dense",
-    "colorMode": "neutral",
+    "colorMode": "light",
     "structure": [
+      "cadence",
       "scorecard",
-      "sectioned"
+      "exception path"
     ]
   },
-  "visualCommitment": "neutral",
+  "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "ec2084d143a4d52857cc06c24129abbb45c45d04b90cca06e319ac26d3cadd4f",
-    "previewSha256": "e8f1dd91d1258c3bb06d2b1d0c52a49fce454e6682732e2e8f43b37c494e3c19"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "cf6f011446d039ff58e5785c349292d8156c0a1045395ecb47146b3c7c943709"
   }
 }

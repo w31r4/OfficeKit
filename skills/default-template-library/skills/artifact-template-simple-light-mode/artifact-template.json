@@ -1,13 +1,40 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "artifact-template-simple-light-mode",
   "displayName": "Simple Light Mode",
   "kind": "presentation",
-  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/slide-01.png",
+      "role": "opening composition",
+      "sha256": "2d7d718e94aab8750a002632efdc06a178b33cf7acf6b8e76520d2fa18bf6daa"
+    },
+    {
+      "path": "assets/examples/slide-02.png",
+      "role": "evidence composition",
+      "sha256": "73a67c4df388555a25864c53a4987defda4a3ede4feb04e0a6fc573b1d627ddd"
+    },
+    {
+      "path": "assets/examples/slide-03.png",
+      "role": "relationship composition",
+      "sha256": "80f415c775f63c255dbdd811a2cb9b82e79dcfb679c9b47d2ec74242449f6146"
+    },
+    {
+      "path": "assets/examples/slide-04.png",
+      "role": "comparison composition",
+      "sha256": "257cef0c714b574e915726622f0507a55bef192650b4545e1d97eb7e6bc3551a"
+    },
+    {
+      "path": "assets/examples/slide-05.png",
+      "role": "closing composition",
+      "sha256": "9bdccaf892e54f2b365764c3defc2215b03ed2c21b450664cbe0138802616c60"
+    }
+  ],
   "useWhen": [
     "general business presentation",
-    "clean light presentation"
+    "clean light presentation",
+    "research briefing"
   ],
   "avoidWhen": [
     "dense operating scorecard",
@@ -20,33 +47,32 @@
   ],
   "contentShapes": [
     "narrative",
-    "sections",
-    "charts",
-    "imagery"
+    "evidence",
+    "comparison",
+    "recommendation"
   ],
   "visualTraits": {
     "tone": [
-      "clean",
-      "minimal"
+      "editorial",
+      "quiet",
+      "legible"
     ],
     "density": "sparse",
     "colorMode": "light",
     "structure": [
-      "narrative",
-      "visual"
+      "essay",
+      "evidence",
+      "verdict"
     ]
   },
-  "visualCommitment": "neutral",
+  "visualCommitment": "opinionated",
   "editProfile": {
-    "level": "bounded-edit",
-    "verifiedOperations": [
-      "recognized-placeholder-title-text-replace"
-    ]
+    "level": "copy-only",
+    "verifiedOperations": []
   },
   "provenance": {
     "license": "MIT",
-    "source": "https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378",
-    "referenceSha256": "2ae8105571f68403f438458cd51e6ad14f0d989c7af64239e280437a4ac2a633",
-    "previewSha256": "9c12751105bbdea9e74df059b0b86c6eef22b3af34ba38c090edb7e2e4acf3ac"
+    "source": "OfficeKit original clean-room visual grammar; no reference deck distributed",
+    "previewSha256": "20c908c0bc6f261f0c06ef069df2c79692698ccdda12a482647cbab163e667d6"
   }
 }
