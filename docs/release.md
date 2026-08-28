@@ -1,5 +1,15 @@
 # Release
 
+## Unreleased presentation style expansion
+
+The presentation template library now contains thirty-eight schema-v3 style
+Skills. Thirty additions were independently authored from high-level visual
+observations of a user-supplied reference set. The source archive, descriptions,
+names, images, and page geometry are excluded; each shipped guide and all four
+calibration pages are original OfficeKit works. This corrects an earlier local
+experiment that treated a methodology/prompt bundle as if it were a template
+catalog; those prompt-derived styles were removed before this expansion.
+
 ## OfficeKit 1.1.0
 
 OfficeKit 1.1.0 replaces the two-track presentation template surface with one
