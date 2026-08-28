@@ -1,0 +1,5 @@
+interface:
+  display_name: "Apricot Dossier"
+  short_description: "Use the Apricot Dossier presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-apricot-dossier as the visual style for this presentation."

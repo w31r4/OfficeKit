@@ -1,0 +1,5 @@
+interface:
+  display_name: "Moss Transformation"
+  short_description: "Use the Moss Transformation presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-moss-transformation as the visual style for this presentation."

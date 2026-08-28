@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-forest-strategy",
+  "displayName": "Forest Strategy",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "c14a07d2c9d6ae22b4fa65af95894dcaffcbf70504232f20fc5dfc6639116b44"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "3cd61baa72ebb50ea9079f03aeec7f3d9ca15d7f7147ef417d3e70d36d4e7c6e"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "0e3c3c945a0deff86a4e279113b759a10c2375db934e47b504b5188227b5612e"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "363cafac71ac37ac001a6b86c8eaf45123260cc733d1833a06adb01f0608f53c"
+    }
+  ],
+  "useWhen": [
+    "growth strategy",
+    "consulting presentation"
+  ],
+  "avoidWhen": [
+    "luxury portfolio"
+  ],
+  "audiences": [
+    "executives",
+    "strategy teams",
+    "decision makers"
+  ],
+  "contentShapes": [
+    "finding",
+    "comparison",
+    "recommendation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "consulting",
+      "Forest-green steps connect real context to strategic action.",
+      "staircase"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "staircase",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "2066d623112cf1f95dd7e3f41190affe4593075d4f8b23157e0643a6ea1b6581",
+    "previewSha256": "972fcba15bf63aab95e16094c36fcc27e2988a2d2e9787de4fc26bca483b45ba"
+  }
+}

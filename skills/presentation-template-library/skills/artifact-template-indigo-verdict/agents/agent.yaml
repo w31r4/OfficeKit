@@ -1,0 +1,5 @@
+interface:
+  display_name: "Indigo Verdict"
+  short_description: "Use the Indigo Verdict presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-indigo-verdict as the visual style for this presentation."

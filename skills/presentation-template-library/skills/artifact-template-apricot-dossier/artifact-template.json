@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-apricot-dossier",
+  "displayName": "Apricot Dossier",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "cd7eb4eedecc3011b7713ad47b65f320b33c5dc6ebf0ddafff3aa367c51c2293"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "4a089e722c361bc3fc98712c13153b86254c8669b8d9e40cb87b0eef84423513"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "de93724b995b1a8406a6446415fc4e306f8ee117eda357cc3f6361fb841bf94e"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "7ec255c4e22555d77cd08713df45b06e1af4134615542e1bd41ad83d9c0aa6d8"
+    }
+  ],
+  "useWhen": [
+    "due diligence",
+    "consulting presentation"
+  ],
+  "avoidWhen": [
+    "festival campaign"
+  ],
+  "audiences": [
+    "executives",
+    "strategy teams",
+    "decision makers"
+  ],
+  "contentShapes": [
+    "finding",
+    "comparison",
+    "recommendation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "consulting",
+      "Red editorial marks turn a dense dossier into a visible decision path.",
+      "redline"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "redline",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "307b43a305c77e40b1a80b7a5c33f8364385b35cfca8d5bd7f6ebf21c9a337f9",
+    "previewSha256": "661c745a9f921d78599ee63055261ba8f2aee0d5ad035e8178db5549b4a8284e"
+  }
+}

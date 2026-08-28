@@ -1,0 +1,5 @@
+interface:
+  display_name: "Coral Growth Brief"
+  short_description: "Use the Coral Growth Brief presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-coral-growth-brief as the visual style for this presentation."

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Coastal Analysis"
+  short_description: "Use the Coastal Analysis presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-coastal-analysis as the visual style for this presentation."

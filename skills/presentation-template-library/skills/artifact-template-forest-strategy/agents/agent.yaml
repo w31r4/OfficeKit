@@ -1,0 +1,5 @@
+interface:
+  display_name: "Forest Strategy"
+  short_description: "Use the Forest Strategy presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-forest-strategy as the visual style for this presentation."

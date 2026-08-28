@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-moss-transformation",
+  "displayName": "Moss Transformation",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "64493cd224c5c0a1f694c95f5333fe9793b23ec266a991674d06c17b142d3003"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "e9ad9c9cc81c12e5929b6cf5fc70e68d7e28cfa894fce39f5f65e710ff407d16"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "45d99016293c329ce9ff588bdfceecba39cfba59b6bf421e3b7701f2789d8c03"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "3608746325b80da9bff9408f14541abcb73ddfaa288e918429e7ff0d71017d1e"
+    }
+  ],
+  "useWhen": [
+    "transformation roadmap",
+    "consulting presentation"
+  ],
+  "avoidWhen": [
+    "heritage editorial"
+  ],
+  "audiences": [
+    "executives",
+    "strategy teams",
+    "decision makers"
+  ],
+  "contentShapes": [
+    "finding",
+    "comparison",
+    "recommendation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "consulting",
+      "A dark transformation field makes progress, friction, and gates visible.",
+      "wedge"
+    ],
+    "density": "dense",
+    "colorMode": "dark",
+    "structure": [
+      "wedge",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "6a656df89a7307351dbbe087734e0f1449ea88c1621f5ca6f20fca239f945555",
+    "previewSha256": "e39df04809bea4cbdb7bccda2944941b879f444ffb8b6d8fb08408a0c31dd6a7"
+  }
+}

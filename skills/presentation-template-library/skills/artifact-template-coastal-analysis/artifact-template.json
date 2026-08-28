@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-coastal-analysis",
+  "displayName": "Coastal Analysis",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "656953cabb928058009b6b0498f26b570e6864e9e47945adb985453480736d36"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "d5738cc241fb8a40992f40370455d694978aaece45c3bf90a15934e3c755f532"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "0f837ae5140c0a2290c4d81e08b4a610e7be49fd822a6318acc07eb8603ace4e"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "96fe4a0bff92bb284221b1ad275b09e1d19605217ea5d6ab758577843c01353a"
+    }
+  ],
+  "useWhen": [
+    "industry research",
+    "consulting presentation"
+  ],
+  "avoidWhen": [
+    "minimal stage keynote"
+  ],
+  "audiences": [
+    "executives",
+    "strategy teams",
+    "decision makers"
+  ],
+  "contentShapes": [
+    "finding",
+    "comparison",
+    "recommendation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "consulting",
+      "Cyan evidence and editorial breadth support industry research.",
+      "grid"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "grid",
+      "variable page silhouettes",
+      "documentary imagery"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "e2e9890fef348984bcda13be4d5655ba36625ca68da9eb0000769f84587affa8",
+    "previewSha256": "4a18b6495c98c02b6ccfbb18059a7611a5a183735dc8effb74707a9d97a060d0"
+  }
+}

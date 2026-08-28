@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-coral-growth-brief",
+  "displayName": "Coral Growth Brief",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "85acb79e6bd317f84fc7df28fbf14a4ce745c77b50234e3f6588a175bd7836fa"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "67df893fe0fde30724a50c8b41e48120640cf5371b2b0308a34afadf132bda5f"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "c99d32fe272300bfba546a11113dd1bb5a036a72dea86fdbe6f69bd2cf45f5f6"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "d6e22ec87e6f0faceb5c73d6c1aec610eaa2bfe38ef5e1dc5cbf056dc2084447"
+    }
+  ],
+  "useWhen": [
+    "commercial growth review",
+    "consulting presentation"
+  ],
+  "avoidWhen": [
+    "photo essay"
+  ],
+  "audiences": [
+    "executives",
+    "strategy teams",
+    "decision makers"
+  ],
+  "contentShapes": [
+    "finding",
+    "comparison",
+    "recommendation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "consulting",
+      "One coral signal cuts through disciplined black-and-white analysis.",
+      "rail"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "rail",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "c57859a5a6daa4b6143e2676f327e45bc227401bf35a265fd35c7cacab7f0031",
+    "previewSha256": "b0e214d8dbf0065478a5a457cf526548d07db66b770c6a6c746f2348dcb891fb"
+  }
+}

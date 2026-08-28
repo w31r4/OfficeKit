@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-indigo-verdict",
+  "displayName": "Indigo Verdict",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "d3d77ce38abc957ab8b74a99169079d3e81340a47c1d44e5a351a7e3504e52b7"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "82cb86137e388a346a10ff9ff2c14364361718bde559eed0a7703c965f99f1c5"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "7e49c1c909177c54ffcae8751dbf639b73448e604f8215dfc6d6e666472f56eb"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "3d80ed1fe002ca4f854e2e06559c3bbdb71ac80c0131d9c6b7602f6729d8a2cd"
+    }
+  ],
+  "useWhen": [
+    "investment diligence",
+    "consulting presentation"
+  ],
+  "avoidWhen": [
+    "creative manifesto"
+  ],
+  "audiences": [
+    "executives",
+    "strategy teams",
+    "decision makers"
+  ],
+  "contentShapes": [
+    "finding",
+    "comparison",
+    "recommendation"
+  ],
+  "visualTraits": {
+    "tone": [
+      "consulting",
+      "A cool evidence field resolves into one explicit verdict and its conditions.",
+      "verdict"
+    ],
+    "density": "dense",
+    "colorMode": "light",
+    "structure": [
+      "verdict",
+      "variable page silhouettes",
+      "native data graphics"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
+    "guideSha256": "0b86122b06fff0b9695491c61adfd982a30be3a4a6607e62db84f5fd85c4a1d1",
+    "previewSha256": "df66e09577e223ac5c9c173bbc9df6f9e43730dd23967f22c44e8ae8d06b9f5b"
+  }
+}
