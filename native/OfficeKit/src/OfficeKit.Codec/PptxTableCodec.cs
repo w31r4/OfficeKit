@@ -5,10 +5,11 @@ using P = DocumentFormat.OpenXml.Presentation;
 
 namespace OfficeKit.Codec;
 
-// Owns one deliberately narrow DrawingML table profile. Table topology,
-// rectangular merge ranges, and cell formatting remain fixed after import;
-// name, complete outer frame, non-visible title/description, and the single
-// plain-text run in each visible origin cell are the only source-bound edits.
+// Owns a bounded, source-preserving DrawingML table projection. Table
+// topology, merge ranges, and cell formatting remain fixed after import;
+// name, complete outer frame, non-visible title/description, and a cell's
+// single text leaf are the only source-bound edits. Recognized PowerPoint
+// style/extension shells stay in the source graph instead of being rebuilt.
 internal static class PptxTableCodec
 {
     private const string TableGraphicDataUri = "http://schemas.openxmlformats.org/drawingml/2006/table";
@@ -57,15 +58,14 @@ internal static class PptxTableCodec
                 nativeTable.Elements<A.TableGrid>().Count() != 1 ||
                 nativeTable.ChildElements[0] is not A.TableProperties ||
                 nativeTable.ChildElements[1] is not A.TableGrid ||
-                properties.ChildElements.Count != 0 ||
-                !HasOnlyAttributes(properties, "firstRow", "bandRow") ||
+                !TablePropertiesSupported(properties) ||
                 rows.Length is < 1 or > MaxRows)
                 return false;
 
             var columns = grid.Elements<A.GridColumn>().ToArray();
             if (columns.Length is < 1 or > MaxColumns ||
-                grid.ChildElements.Count != columns.Length ||
-                columns.Any(column => column.Width?.Value is null or <= 0 || column.ChildElements.Count != 0 || !HasOnlyAttributes(column, "w")))
+                grid.ChildElements.Any(child => child is not A.GridColumn) ||
+                columns.Any(column => column.Width?.Value is null or <= 0 || !GridColumnSupported(column)))
                 return false;
 
             var result = new PresentationTable
@@ -83,21 +83,26 @@ internal static class PptxTableCodec
             var nativeCells = new List<A.TableCell[]>(rows.Length);
             foreach (var nativeRow in rows)
             {
-                if (nativeRow.Height?.Value is null or <= 0 || !HasOnlyAttributes(nativeRow, "h")) return false;
+                if (nativeRow.Height?.Value is null or <= 0 || !TableRowSupported(nativeRow)) return false;
                 var cells = nativeRow.Elements<A.TableCell>().ToArray();
-                if (nativeRow.ChildElements.Count != cells.Length || cells.Length != columns.Length) return false;
+                if (cells.Length != columns.Length) return false;
                 nativeCells.Add(cells);
                 var row = new PresentationTableRow { HeightEmu = nativeRow.Height.Value };
                 foreach (var cell in cells)
                 {
                     if (!TryReadCell(cell, out var text)) return false;
-                    row.Cells.Add(new PresentationTableCell { Text = text.Text });
+                    row.Cells.Add(new PresentationTableCell { Text = text });
                 }
                 result.Rows.Add(row);
             }
 
             if (!TryReadMergeRanges(nativeCells, result)) return false;
-            if (result.ColumnWidthsEmu.Sum() != width || result.Rows.Sum(row => row.HeightEmu) != height) return false;
+            // PowerPoint commonly stores a table in its own coordinate space
+            // and scales the graphic frame around it. Keep both dimensions
+            // exactly as authored instead of rejecting the table or rewriting
+            // its grid during a source-bound edit.
+            if (!ScaledExtentSupported(width, result.ColumnWidthsEmu.Sum()) ||
+                !ScaledExtentSupported(height, result.Rows.Sum(row => row.HeightEmu))) return false;
             table = result;
             return true;
         }
@@ -178,22 +183,35 @@ internal static class PptxTableCodec
             rows[rowIndex].Height = table.Rows[rowIndex].HeightEmu;
             var cells = rows[rowIndex].Elements<A.TableCell>().ToArray();
             for (var columnIndex = 0; columnIndex < cells.Length; columnIndex++)
-                SingleText(cells[columnIndex]).Text = table.Rows[rowIndex].Cells[columnIndex].Text;
+            {
+                var text = SingleText(cells[columnIndex]);
+                var requestedText = table.Rows[rowIndex].Cells[columnIndex].Text;
+                if (text is null)
+                {
+                    if (requestedText.Length != 0)
+                        throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} cannot add text to an empty or covered cell without a source text leaf.");
+                    continue;
+                }
+                text.Text = requestedText;
+            }
         }
     }
 
-    internal static void Validate(PresentationTable? table, string elementId)
+    internal static void Validate(PresentationTable? table, string elementId, bool allowScaledFrame = false)
     {
         if (table is null) throw Invalid(elementId, "payload is missing");
         if (table.LeftEmu < 0 || table.TopEmu < 0 || table.WidthEmu <= 0 || table.HeightEmu <= 0)
             throw Invalid(elementId, "frame must have non-negative coordinates and positive dimensions");
         if (table.ColumnWidthsEmu.Count is < 1 or > MaxColumns || table.Rows.Count is < 1 or > MaxRows)
             throw Invalid(elementId, $"grid must contain 1-{MaxColumns} columns and 1-{MaxRows} rows");
-        if (table.ColumnWidthsEmu.Any(width => width <= 0) || Sum(table.ColumnWidthsEmu, elementId) != table.WidthEmu)
-            throw Invalid(elementId, "positive column widths must sum to the outer frame width");
+        if (table.ColumnWidthsEmu.Any(width => width <= 0) ||
+            (!allowScaledFrame && Sum(table.ColumnWidthsEmu, elementId) != table.WidthEmu) ||
+            (allowScaledFrame && !ScaledExtentSupported(table.WidthEmu, Sum(table.ColumnWidthsEmu, elementId))))
+            throw Invalid(elementId, "positive column widths must fit the outer frame width");
         if (table.Rows.Any(row => row.HeightEmu <= 0 || row.Cells.Count != table.ColumnWidthsEmu.Count) ||
-            Sum(table.Rows.Select(row => row.HeightEmu), elementId) != table.HeightEmu)
-            throw Invalid(elementId, "positive row heights must sum to the outer frame height and every row must match the grid width");
+            (!allowScaledFrame && Sum(table.Rows.Select(row => row.HeightEmu), elementId) != table.HeightEmu) ||
+            (allowScaledFrame && !ScaledExtentSupported(table.HeightEmu, Sum(table.Rows.Select(row => row.HeightEmu), elementId))))
+            throw Invalid(elementId, "positive row heights must fit the outer frame height and every row must match the grid width");
         foreach (var cell in table.Rows.SelectMany(row => row.Cells))
             if (cell.Text.Length > MaxCellTextLength || cell.Text.Any(character => char.IsControl(character) && character is not '\t' and not '\n' and not '\r'))
                 throw Invalid(elementId, $"cell text must contain at most {MaxCellTextLength} characters and no unsupported controls");
@@ -221,13 +239,16 @@ internal static class PptxTableCodec
         foreach (var row in table.Elements<A.TableRow>())
         {
             row.Height = 1L;
-            foreach (var cell in row.Elements<A.TableCell>()) SingleText(cell).Text = string.Empty;
+            foreach (var cell in row.Elements<A.TableCell>())
+                if (SingleText(cell) is { } text) text.Text = string.Empty;
         }
     }
 
     private static void ValidateRequest(PresentationTable original, PresentationElement requested)
     {
-        Validate(requested.Table, requested.Id);
+        var scaledFrame = original.ColumnWidthsEmu.Sum() != original.WidthEmu ||
+            original.Rows.Sum(row => row.HeightEmu) != original.HeightEmu;
+        Validate(requested.Table, requested.Id, allowScaledFrame: scaledFrame);
         if (requested.Name.Length > 1_024) throw Invalid(requested.Id, "name exceeds 1024 characters");
         var allowed = original.Clone();
         allowed.LeftEmu = requested.Table.LeftEmu;
@@ -262,23 +283,24 @@ internal static class PptxTableCodec
         return true;
     }
 
-    private static bool TryReadCell(A.TableCell cell, out A.Text text)
+    private static bool TryReadCell(A.TableCell cell, out string text)
     {
-        text = new A.Text();
-        if (!HasOnlyAttributes(cell, "rowSpan", "gridSpan", "hMerge", "vMerge") || cell.ChildElements.Count != 2 ||
-            cell.ChildElements[0] is not A.TextBody body || cell.ChildElements[1] is not A.TableCellProperties ||
-            body.ChildElements.Count != 3 || body.ChildElements[0] is not A.BodyProperties || body.ChildElements[1] is not A.ListStyle ||
-            body.ChildElements[2] is not A.Paragraph paragraph)
+        text = string.Empty;
+        if (!HasOnlyAttributes(cell, "rowSpan", "gridSpan", "hMerge", "vMerge")) return false;
+        // Covered merge cells are legal and intentionally have no text body.
+        // They remain fixed-topology cells and cannot receive new text during
+        // a source-bound edit.
+        if (cell.ChildElements.Count == 0) return true;
+        if (cell.Elements<A.TextBody>().Count() != 1 || cell.Elements<A.TableCellProperties>().Count() != 1) return false;
+        var body = cell.GetFirstChild<A.TextBody>()!;
+        if (body.ChildElements.Count < 3 || body.ChildElements[0] is not A.BodyProperties ||
+            body.ChildElements[1] is not A.ListStyle || body.ChildElements.Skip(2).Any(child => child is not A.Paragraph))
             return false;
-        var run = paragraph.Elements<A.Run>().SingleOrDefault();
-        if (run is null || paragraph.Elements<A.Run>().Count() != 1 ||
-            paragraph.ChildElements.Any(child => child is not A.Run and not A.EndParagraphRunProperties) ||
-            paragraph.Elements<A.EndParagraphRunProperties>().Count() > 1 ||
-            run.ChildElements.Any(child => child is not A.RunProperties and not A.Text) ||
-            run.Elements<A.RunProperties>().Count() > 1 || run.Elements<A.Text>().Count() != 1)
-            return false;
-        text = run.GetFirstChild<A.Text>()!;
-        return text.Text.Length <= MaxCellTextLength;
+        var texts = body.Descendants<A.Text>().ToArray();
+        if (texts.Length > 1 || texts.Any(value => value.Text.Length > MaxCellTextLength)) return false;
+        if (texts.Length == 1 && texts[0].Parent is not A.Run) return false;
+        text = texts.Length == 1 ? texts[0].Text : string.Empty;
+        return true;
     }
 
     private static bool TryReadMergeRanges(IReadOnlyList<A.TableCell[]> nativeRows, PresentationTable table)
@@ -415,7 +437,50 @@ internal static class PptxTableCodec
             cellProperties);
     }
 
-    private static A.Text SingleText(A.TableCell cell) => cell.GetFirstChild<A.TextBody>()!.Descendants<A.Text>().Single();
+    private static A.Text? SingleText(A.TableCell cell)
+    {
+        var texts = cell.GetFirstChild<A.TextBody>()?.Descendants<A.Text>().ToArray() ?? [];
+        return texts.Length == 1 ? texts[0] : null;
+    }
+
+    private static bool TablePropertiesSupported(A.TableProperties properties)
+    {
+        if (!HasOnlyAttributes(properties, "firstRow", "firstCol", "lastRow", "lastCol", "bandRow", "bandCol")) return false;
+        var styleIds = properties.Elements<A.TableStyleId>().ToArray();
+        var noFills = properties.Elements<A.NoFill>().ToArray();
+        return properties.ChildElements.All(child => child is A.TableStyleId or A.NoFill) &&
+               styleIds.Length <= 1 && noFills.Length <= 1 &&
+               styleIds.All(style => !style.HasAttributes && !style.HasChildren && style.InnerText.Length <= 256) &&
+               noFills.All(fill => !fill.HasAttributes && !fill.HasChildren);
+    }
+
+    private static bool GridColumnSupported(A.GridColumn column) =>
+        HasOnlyAttributes(column, "w") &&
+        column.ChildElements.All(child => child is A.ExtensionList && ExtensionListSupported((A.ExtensionList)child));
+
+    private static bool TableRowSupported(A.TableRow row) =>
+        HasOnlyAttributes(row, "h") &&
+        row.ChildElements.All(child => child is A.TableCell || child is A.ExtensionList && ExtensionListSupported((A.ExtensionList)child));
+
+    private static bool ExtensionListSupported(A.ExtensionList extensions)
+    {
+        if (extensions.HasAttributes) return false;
+        foreach (var extension in extensions.ChildElements)
+        {
+            if (extension is not A.Extension || !HasOnlyAttributes(extension, "uri") || extension.ChildElements.Count != 1)
+                return false;
+            if (string.IsNullOrWhiteSpace(extension.GetAttributes().Single().Value)) return false;
+        }
+        return true;
+    }
+
+    private static bool ScaledExtentSupported(long frameExtent, long contentExtent)
+    {
+        if (frameExtent <= 0 || contentExtent <= 0) return false;
+        // Permit ordinary graphic-frame scaling while bounding malformed
+        // source dimensions that could otherwise produce extreme geometry.
+        return (double)frameExtent / contentExtent is >= 1d / 256d and <= 256d;
+    }
 
     private static void SetFrame(P.Transform transform, PresentationTable table)
     {

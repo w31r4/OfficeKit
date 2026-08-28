@@ -2198,10 +2198,14 @@ function presentationTable(table, original) {
     throw new OfficeKitCodecError(`Source-preserving PPTX export requires presentation table ${table.id}'s original fixed topology.`, [], { code: "presentation_table_topology_changed" });
   }
   const columnWidthsEmu = originalTable
-    ? scalePresentationTableSize(originalTable.columnWidthsEmu, widthEmu, `${table.id} columns`)
+    ? widthEmu === BigInt(originalTable.widthEmu)
+      ? originalTable.columnWidthsEmu.map((value) => BigInt(value))
+      : scalePresentationTableSize(originalTable.columnWidthsEmu, widthEmu, `${table.id} columns`)
     : distributePresentationTableSize(widthEmu, columns, `${table.id} columns`);
   const rowHeightsEmu = originalTable
-    ? scalePresentationTableSize(originalTable.rows.map((row) => row.heightEmu), heightEmu, `${table.id} rows`)
+    ? heightEmu === BigInt(originalTable.heightEmu)
+      ? originalTable.rows.map((row) => BigInt(row.heightEmu))
+      : scalePresentationTableSize(originalTable.rows.map((row) => row.heightEmu), heightEmu, `${table.id} rows`)
     : distributePresentationTableSize(heightEmu, rows, `${table.id} rows`);
   const accessibility = normalizePresentationAccessibility(table.accessibility, `Presentation table ${table.id}`);
   return {
@@ -2226,8 +2230,12 @@ function presentationTable(table, original) {
           startColumn: range.startColumn,
           endColumn: range.endColumn,
         })),
-        ...(originalTable?.firstRow === undefined ? { firstRow: Boolean(table.styleOptions?.headerRow) } : { firstRow: originalTable.firstRow }),
-        ...(originalTable?.bandedRows === undefined ? { bandedRows: Boolean(table.styleOptions?.bandedRows) } : { bandedRows: originalTable.bandedRows }),
+        // Optional protobuf booleans are presence-sensitive.  Keep the
+        // canonical representation sparse for false so an imported table
+        // whose native flag is absent does not become a semantic edit merely
+        // because the JS facade exposes `styleOptions` defaults.
+        ...(originalTable?.firstRow === true || (originalTable?.firstRow === undefined && table.styleOptions?.headerRow === true) ? { firstRow: true } : {}),
+        ...(originalTable?.bandedRows === true || (originalTable?.bandedRows === undefined && table.styleOptions?.bandedRows === true) ? { bandedRows: true } : {}),
         ...(accessibility ? { accessibility } : {}),
       },
     },
