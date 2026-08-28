@@ -32,7 +32,7 @@ export const REPLACED_REFERENCE_SKILL_PATHS = new Set([
 ]);
 
 // OfficeKit 1.1 replaced the reference repository's source-backed presentation
-// templates with clean-room schema-v3 Template Skills. Keep the pinned source
+// templates with clean-room schema-v4 Template Skills. Keep the pinned source
 // digest for provenance, but do not require the retired executable Grid assets
 // or the seven PPTX-backed template bundles to reappear in the project surface.
 export const RETIRED_REFERENCE_SKILL_PATH_PREFIXES = Object.freeze([

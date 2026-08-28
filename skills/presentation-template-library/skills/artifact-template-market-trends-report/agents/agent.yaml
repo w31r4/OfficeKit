@@ -1,5 +1,0 @@
-interface:
-  display_name: "Market Trends Report"
-  short_description: "Use the Market Trends Report clean-room visual grammar"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Create a new presentation using the Market Trends Report visual grammar."
