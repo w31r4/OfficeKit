@@ -12,7 +12,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 388047,
-      "pdfSha256": "c1699edb183ac3ca1ee2862d655e3e1e047c411aff02f65ddad57ccb8c23a5cd",
+      "pdfSha256": "7d989092ecdf910a667ae7e873767aa1080ab5578072d84cdfff6c2a19e0bd82",
       "firstPageRendered": true
     },
     {
@@ -22,17 +22,17 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 1112084,
-      "pdfSha256": "017ab08aab4b6b486cc5b264498999f11cdaa0c9e7de027cd9ccfbb66a864ab4",
+      "pdfSha256": "d920780083a90f70430eb03ba0b9bbf06cb0d211583cfbd2fb64f571dc701ca9",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-aqua-impact-story",
-      "referenceSha256": "415566c9e7efac1318dd24e3bc297e50082ea58a68b1885d0ee76387be1aa15f",
-      "mediaCount": 5,
+      "referenceSha256": "67d9f11f8d1cd4c701b298846dd30e4fc4ede1cc35b2c60d1776703baf4baa88",
+      "mediaCount": 11,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 902458,
-      "pdfSha256": "4ee6bcfcf1ed4d8f371c65dbb3dcaa0a6780bc111601f546f44b7c0c3c48105a",
+      "pdfBytes": 1538481,
+      "pdfSha256": "db6c6e8a635d01073c8cf2f5659428e9eee324c258ace6ea7fa34d54c10c0ec2",
       "firstPageRendered": true
     },
     {
@@ -42,7 +42,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 245811,
-      "pdfSha256": "3a619b18f1fc303b47f3dbe8fa54a795a6176b72c277103e88c7f3fb11db5954",
+      "pdfSha256": "e36bcb50889de63ecfed0819f9a5671795fe88a23e2eafa288718182a05394bd",
       "firstPageRendered": true
     },
     {
@@ -52,17 +52,17 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 465582,
-      "pdfSha256": "5bae3e58098ef4c98de297d2c3090c98dc780aba5d8719dea05dd9a02e3d8b11",
+      "pdfSha256": "0ba115644b86647cf6d6c08d2dbc3bee0d1cf94bcdd5b2eb5f15345799b77867",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-blueprint-lecture",
-      "referenceSha256": "f1cc934926e34872193bba6820831855b6228a1b45a02f31ba334f2fa9c4511d",
-      "mediaCount": 4,
+      "referenceSha256": "39de1dd3222af41ab22ded2dce3fbe392be696a3c99fe87d304979b8de55ff16",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 792043,
-      "pdfSha256": "2d11aad114b11003d9d2bff9852b3576d58c0d90b86e58ff7e59ee30fa21fd81",
+      "pdfBytes": 1036156,
+      "pdfSha256": "157eafaae1ec14ae24ffec21d3d441757e4476a9a2a957122fcb521b78555dad",
       "firstPageRendered": true
     },
     {
@@ -72,7 +72,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 352001,
-      "pdfSha256": "e1a9e4e13b7732309dd9aa7e9c5d9c434211921c83f1acd5ad1bac94c67089f3",
+      "pdfSha256": "4724fe267071a073deab214ae3db59fc63c0910f37cc0f33c8b4261d7d60ae99",
       "firstPageRendered": true
     },
     {
@@ -82,7 +82,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 346070,
-      "pdfSha256": "2a2b0fca898773f5dd778c4c5534a91357f2d619352833f2454651055d163d43",
+      "pdfSha256": "bade295d646595eba64b4d1a5a1993d5254c6ad559aabe966cd2469ccd060f3e",
       "firstPageRendered": true
     },
     {
@@ -92,7 +92,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 237365,
-      "pdfSha256": "3877b1d3eb7dd8a735e6892ad45fbce08f65b5a5386861b44dae901d6680ff56",
+      "pdfSha256": "c34cb3611a73a7f3c1d1489fa84cb2b6dc32dd5cb8e1f7f45ab3eed61c72a985",
       "firstPageRendered": true
     },
     {
@@ -102,7 +102,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 373271,
-      "pdfSha256": "ef23605123b575cb0c13ec13a489a659693a0c7f05b3f811acfe1f2ba83cdb48",
+      "pdfSha256": "0a82529c2c730622b048358a0c0022dbf323d119dfffc48febf36ec1eafe3e8f",
       "firstPageRendered": true
     },
     {
@@ -112,7 +112,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 296451,
-      "pdfSha256": "b9138f9eb2d016afb94ba16f51a3970dc028732f22220fe3c89bba2ddc1c96d9",
+      "pdfSha256": "d2af2c0e5af0a19495022793247beae955b219c4a27335312c263583850f1fde",
       "firstPageRendered": true
     },
     {
@@ -122,7 +122,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 218997,
-      "pdfSha256": "c4318c7b947e561b097ed65578e46431f2d92c70a9134c5b27ddb2b847605115",
+      "pdfSha256": "5d3a5f2a0b38c010d581025f4d8d8a723b50a5ef9cff8048163432b40e79bd1d",
       "firstPageRendered": true
     },
     {
@@ -132,7 +132,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 1152011,
-      "pdfSha256": "a48a4f0f6e915770ae68fa730be359fa6a0a735777bd2257a8a3c87a97a3da6b",
+      "pdfSha256": "892ba643dcfeab7e47b34d826a149cbdab829f4ec63497179d4f376e1b7408c2",
       "firstPageRendered": true
     },
     {
@@ -142,7 +142,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 237121,
-      "pdfSha256": "d5e4ca9e77db77145dd06ecad9bfb59ee6bf05b692ce5a78fdddb8e932433853",
+      "pdfSha256": "bb7f92ecd38d0a2e9ce4f603c0d05d92618f4f87091c7fa5f68fe4942d1947a0",
       "firstPageRendered": true
     },
     {
@@ -152,7 +152,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 227183,
-      "pdfSha256": "48d5b9059d5ea97d92b2a829b4b65447ae41bf961d47813310d5ca094bb99515",
+      "pdfSha256": "f618a3c25aacdd66d890fb3d4c97874f54f6abada4c2ca094a65d7da614c26b1",
       "firstPageRendered": true
     },
     {
@@ -162,7 +162,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 351152,
-      "pdfSha256": "d4655075e80c409c4aee404316bd92509f9215593a3932a010bbd1ee0f6a84db",
+      "pdfSha256": "53b6b5720e15d64963ccaea7367ec4c53a407d9ef9da6983b54ec4b786cc528b",
       "firstPageRendered": true
     },
     {
@@ -172,7 +172,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 233295,
-      "pdfSha256": "996386d0a37b450095201cd898b9aa1c9fd7050383a2d289d05734ae266fb510",
+      "pdfSha256": "85b19212ca0bce16f6fb5044dcf82678fee5c34042bcaa5a56ed6b7a4f4abda7",
       "firstPageRendered": true
     },
     {
@@ -182,17 +182,17 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 251302,
-      "pdfSha256": "27336e826bfe45a8a34d7543d6b7c6ebba34facbcee80d72b88fe736eadcbf12",
+      "pdfSha256": "e199e003966b7cf6f4ff53f74d6c5e05a68068f9c4ee708da12cf4b554830698",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-moonlit-work-report",
-      "referenceSha256": "e6f9fe2afeaba94a225ff5748bba140db2ce83a8e43f74bedd6111dba571fa97",
-      "mediaCount": 6,
+      "referenceSha256": "f9b191e4dc438a58fcf4de04bd4375e4bad52249313c8ff53d9a6add83143018",
+      "mediaCount": 9,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1232144,
-      "pdfSha256": "8d7af85716464180af27c0bb754091dfc986e0c0362c898b96b3e43e12c081b1",
+      "pdfBytes": 1547642,
+      "pdfSha256": "fa185646e9bb60fd1b8c6fffaf4fdad86ff140c524f5f2a41f0394b4e06ddf42",
       "firstPageRendered": true
     },
     {
@@ -202,17 +202,17 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 241260,
-      "pdfSha256": "97c18547ab225487e98db05677738d1c61a6c65c79c80a2a2fa7d849e5eed558",
+      "pdfSha256": "4d4c3f514d1e8d7524fd066f98456180f6d55eb05b4af1b1ee927e15e652b536",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-noir-field-pictorial",
-      "referenceSha256": "7fedfb117a79c9d7354de6fb21b856c5b912f13e058ebb45158a671da07f1a1a",
-      "mediaCount": 7,
+      "referenceSha256": "e3e563d8d37b0f9737d1f5007ff324f8c5770dd37ab755dac3c42a0e04e109b4",
+      "mediaCount": 12,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1781542,
-      "pdfSha256": "1acd1c252d177d3b44119e53b1823344e0e48285323ab9809d51bd89fe638d27",
+      "pdfBytes": 1854209,
+      "pdfSha256": "50ad9d11bc9dd0989dd86dcda5588eb913c9a493d66a3cb3447630553b5cd4b4",
       "firstPageRendered": true
     },
     {
@@ -222,7 +222,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 1001897,
-      "pdfSha256": "41a40faac251ad15fb0196bb22b9d8f6f1ecf0b4f400d87d67ba7c9987887d22",
+      "pdfSha256": "f309d60fcbd7cf94cf2dcbf7d233b87e237a10f1486ba6aaa31d30e4355242f6",
       "firstPageRendered": true
     },
     {
@@ -232,7 +232,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 218502,
-      "pdfSha256": "9386528ef06f9c5c17edb163efa2ab7bff98d16dfe4794780ee8dbe3f0fd1120",
+      "pdfSha256": "ebce8c0a74e979dab3ecc55901d88111d5ddaccea9ea5b2427ed8d0229591f73",
       "firstPageRendered": true
     },
     {
@@ -242,27 +242,27 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 1693695,
-      "pdfSha256": "525539c28d1dcf8728ea7a4f1f595b72503bc47a6241aeccf30e2c8f46c0ae17",
+      "pdfSha256": "551d20aba058dabd1be5004a3bbfee674180bb34f0b1d1da75e83cbeb31105d9",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-saffron-editorial",
-      "referenceSha256": "4c50aa138c51e8fa726c0e4af87e4738bc122244bd9b6875349d27aadf1f2945",
-      "mediaCount": 1,
+      "referenceSha256": "9d3f3f3dcc717bb3c068db96b0a1680e1b49fc47114109f958e4cf8361643189",
+      "mediaCount": 11,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 342915,
-      "pdfSha256": "e51f3744ae7c7638bd1187e39e96191759cadcfc50bd2e5d950659264d773954",
+      "pdfBytes": 1405441,
+      "pdfSha256": "08fd2b3a30f9772f2e5620b22e443e751217201540e143b73d03c0308e3782dd",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-silver-atelier",
-      "referenceSha256": "6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a",
-      "mediaCount": 5,
+      "referenceSha256": "8100fa9346e4a9cad54333ae5a0fd3c56f42551774ef02419eb8a85722c3cd22",
+      "mediaCount": 6,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1160181,
-      "pdfSha256": "350f33bd9a69f6b2e1d90324eeda34bdc47012ed6c9833401e6d01d082b3a0dd",
+      "pdfBytes": 1002450,
+      "pdfSha256": "413d32046237c8d3d580405ed4bc41dc640c901d2db563156ce17fc7497c807d",
       "firstPageRendered": true
     },
     {
@@ -272,7 +272,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 481455,
-      "pdfSha256": "fd2a0f3b2f8d07a9921aa1cd751e1b511c92a8b3221e12c726df3228954f192e",
+      "pdfSha256": "deb5b8c0a3ccde3a8eb0fd9fc57a8a504661aeaab33c6b6266e028cd7df4a50d",
       "firstPageRendered": true
     },
     {
@@ -282,7 +282,7 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 220740,
-      "pdfSha256": "4460c586fcfb6e5c0c9f7700800dbecc10fae0d40e701451dfa27b5329fa9c1b",
+      "pdfSha256": "61a44e34c93eb55088bc6c6eb75c00ef535d46b609f2a8372797c2ec209f999a",
       "firstPageRendered": true
     },
     {
@@ -292,17 +292,17 @@
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
       "pdfBytes": 221495,
-      "pdfSha256": "838983f0d4fd78edc4a9669d6ffd786ba0e2b80ae854a3d4df45f1de96e35fec",
+      "pdfSha256": "68fe57b732d7970a1e0cf6a0fcc7a6199abee951e286b7468f61280ca78fe52b",
       "firstPageRendered": true
     },
     {
       "id": "artifact-template-violet-operations",
-      "referenceSha256": "452c7b8febd0c5a02a1db2b296ba83a75cb3a439c8ef91a1467b4015b15c379e",
+      "referenceSha256": "da7d7bf022f8cb84f5dcd6b69309bd71f7d60522fc74458b852a71aaf34def0e",
       "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1001510,
-      "pdfSha256": "439f2ead4c0d6fb1a6735a10a897531e4a13010763bc481ca87e537f85c2ab1f",
+      "pdfBytes": 947852,
+      "pdfSha256": "cca9629ca423d8e5fb3b083db3edb68e0dd1cc5a44d57ce1b0f7fcf28a4660a3",
       "firstPageRendered": true
     }
   ]
