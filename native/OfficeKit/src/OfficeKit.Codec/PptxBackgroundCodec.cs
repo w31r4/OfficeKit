@@ -6,25 +6,37 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns only a direct, bounded p:bg choice on one p:cSld. Effective color
-// inheritance stays in the JavaScript model; gradients, patterns, images,
-// transforms, and effect-bearing backgrounds remain source-bound.
+// inheritance stays in the JavaScript model; gradients, patterns, transforms,
+// and effect-bearing backgrounds remain source-bound. Images use the narrow
+// embedded/stretch-only profile represented by PresentationBackground.
 internal static class PptxBackgroundCodec
 {
-    internal static PresentationBackground? Read(P.CommonSlideData? source)
+    internal static PresentationBackground? Read(P.CommonSlideData? source, PptxPartContext? context = null)
     {
         var background = source?.GetFirstChild<P.Background>();
-        return background is not null && TryRead(background, out var semantic) ? semantic : null;
+        return background is not null && TryRead(background, context, out var semantic) ? semantic : null;
     }
 
-    internal static bool Supports(P.CommonSlideData? source)
+    internal static bool Supports(P.CommonSlideData? source, PptxPartContext? context = null)
     {
         var backgrounds = source?.Elements<P.Background>().ToArray() ?? [];
-        return backgrounds.Length == 0 || backgrounds.Length == 1 && TryRead(backgrounds[0], out _);
+        return backgrounds.Length == 0 || backgrounds.Length == 1 && TryRead(backgrounds[0], context, out _);
     }
 
-    internal static void Validate(PresentationBackground? source)
+    internal static void Validate(PresentationBackground? source, PptxAssetCatalog? assets = null)
     {
         if (source is null) return;
+        if (!string.IsNullOrWhiteSpace(source.ImageAssetId))
+        {
+            if (source.ColorCase != PresentationBackground.ColorOneofCase.None || source.KindCase != PresentationBackground.KindOneofCase.None)
+                throw Invalid("Presentation image background cannot also define a color or kind.");
+            if (source.ImageAssetId.Length > 512)
+                throw Invalid("Presentation image background asset ID exceeds 512 characters.");
+            if (assets is not null) _ = assets.Get(source.ImageAssetId);
+            return;
+        }
+        if (source.ImageAlphaModulationFixed)
+            throw Invalid("Presentation image alpha modulation requires an image background asset.");
         switch (source.ColorCase)
         {
             case PresentationBackground.ColorOneofCase.ColorRgb:
@@ -47,38 +59,43 @@ internal static class PptxBackgroundCodec
         }
     }
 
-    internal static void Build(P.CommonSlideData target, PresentationBackground? source)
+    internal static void Build(P.CommonSlideData target, PresentationBackground? source, PptxPartContext context)
     {
         if (source is null) return;
-        target.AddChild(BuildElement(source), true);
+        target.AddChild(BuildElement(source, context), true);
     }
 
-    internal static void Apply(P.CommonSlideData target, PresentationBackground? source)
+    internal static void Apply(P.CommonSlideData target, PresentationBackground? source, PptxPartContext context)
     {
-        Validate(source);
+        Validate(source, context.Assets);
         var current = target.GetFirstChild<P.Background>();
+        var currentImageRelationshipId = ImageRelationshipId(current);
         if (source is null)
         {
             current?.Remove();
+            context.RemoveIfUnreferenced(currentImageRelationshipId);
             return;
         }
-        var replacement = BuildElement(source);
+        var replacement = BuildElement(source, context);
+        var replacementImageRelationshipId = ImageRelationshipId(replacement);
         if (current is null)
         {
             target.AddChild(replacement, true);
+            context.RemoveIfUnreferenced(currentImageRelationshipId);
             return;
         }
         current.InsertAfterSelf(replacement);
         current.Remove();
+        context.RemoveIfUnreferenced(currentImageRelationshipId == replacementImageRelationshipId ? string.Empty : currentImageRelationshipId);
     }
 
-    internal static void ScrubModeledContent(P.CommonSlideData? source)
+    internal static void ScrubModeledContent(P.CommonSlideData? source, PptxPartContext? context = null)
     {
         var background = source?.GetFirstChild<P.Background>();
-        if (background is not null && TryRead(background, out _)) background.Remove();
+        if (background is not null && TryRead(background, context, out _)) background.Remove();
     }
 
-    private static bool TryRead(P.Background source, out PresentationBackground semantic)
+    private static bool TryRead(P.Background source, PptxPartContext? context, out PresentationBackground semantic)
     {
         semantic = new PresentationBackground();
         if (source.GetAttributes().Count != 0 || source.ChildElements.Count != 1) return false;
@@ -87,6 +104,13 @@ internal static class PptxBackgroundCodec
             case P.BackgroundProperties properties:
                 if (properties.GetAttributes().Count != 0) return false;
                 var children = properties.ChildElements.ToArray();
+                if (children.Length == 1 && children[0] is A.BlipFill imageFill)
+                {
+                    if (!TryReadImage(imageFill, context, out var assetId, out var alphaModulationFixed)) return false;
+                    semantic.ImageAssetId = assetId;
+                    semantic.ImageAlphaModulationFixed = alphaModulationFixed;
+                    return true;
+                }
                 if (children.Length is < 1 or > 2 || children[0] is not A.SolidFill solid) return false;
                 if (children.Length == 2 && (children[1] is not A.EffectList { ChildElements.Count: 0 } effectList || effectList.GetAttributes().Count != 0)) return false;
                 if (!TryReadColor(solid, out semantic)) return false;
@@ -100,6 +124,36 @@ internal static class PptxBackgroundCodec
                 return true;
             default:
                 return false;
+        }
+    }
+
+    private static bool TryReadImage(A.BlipFill source, PptxPartContext? context, out string assetId, out bool alphaModulationFixed)
+    {
+        assetId = string.Empty;
+        alphaModulationFixed = false;
+        if (context is null || context.Assets is null || source.GetAttributes().Count != 0 || source.ChildElements.Count != 2 ||
+            source.ChildElements[0] is not A.Blip blip || source.ChildElements[1] is not A.Stretch stretch ||
+            stretch.GetAttributes().Count != 0 || stretch.ChildElements.Count != 1 ||
+            stretch.GetFirstChild<A.FillRectangle>() is not { } fillRect || fillRect.GetAttributes().Count != 0 || fillRect.ChildElements.Count != 0 ||
+            blip.Link is not null || blip.Embed?.Value is not { Length: > 0 } embed || blip.CompressionState is not null ||
+            blip.ChildElements.Any(child => child is not A.AlphaModulationFixed || child.GetAttributes().Count != 0 || child.ChildElements.Count != 0) ||
+            blip.ChildElements.Count > 1 || blip.GetAttributes().Count != 1)
+            return false;
+        var attribute = blip.GetAttributes()[0];
+        if (attribute.LocalName != "embed" ||
+            attribute.NamespaceUri is not "http://schemas.openxmlformats.org/officeDocument/2006/relationships" and
+            not "http://purl.oclc.org/ooxml/officeDocument/relationships") return false;
+        try
+        {
+            assetId = context.ReadEmbeddedPicture(embed).Id;
+            alphaModulationFixed = blip.GetFirstChild<A.AlphaModulationFixed>() is not null;
+            return true;
+        }
+        catch (CodecException)
+        {
+            assetId = string.Empty;
+            alphaModulationFixed = false;
+            return false;
         }
     }
 
@@ -120,9 +174,20 @@ internal static class PptxBackgroundCodec
         }
     }
 
-    private static P.Background BuildElement(PresentationBackground source)
+    private static string ImageRelationshipId(P.Background? source) =>
+        source?.BackgroundProperties?.GetFirstChild<A.BlipFill>()?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
+
+    private static P.Background BuildElement(PresentationBackground source, PptxPartContext context)
     {
-        Validate(source);
+        Validate(source, context.Assets);
+        if (!string.IsNullOrWhiteSpace(source.ImageAssetId))
+        {
+            var blip = new A.Blip { Embed = context.AddEmbeddedPicture(source.ImageAssetId) };
+            if (source.ImageAlphaModulationFixed) blip.Append(new A.AlphaModulationFixed());
+            var fill = new A.BlipFill(blip);
+            fill.Append(new A.Stretch(new A.FillRectangle()));
+            return new P.Background(new P.BackgroundProperties(fill));
+        }
         return source.KindCase switch
         {
             PresentationBackground.KindOneofCase.Solid =>

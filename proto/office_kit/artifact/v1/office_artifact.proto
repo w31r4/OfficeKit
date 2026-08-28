@@ -1850,7 +1850,10 @@ message PresentationLayoutSourceBinding {
 }
 
 // Bounded direct PresentationML background. Color transforms, gradient,
-// pattern, image, group, and effect-bearing fills remain source-bound.
+// pattern, group, and effect-bearing fills remain source-bound. An image
+// background is limited to one embedded content-addressed picture stretched
+// across the owning slide, layout, or master; crop, tile, effects, and links
+// remain source-bound.
 message PresentationBackground {
   oneof color {
     string color_rgb = 1;
@@ -1860,6 +1863,13 @@ message PresentationBackground {
     bool solid = 3;
     uint32 style_reference_index = 4;
   }
+  // Content-addressed embedded image from ArtifactEnvelope.assets. When set,
+  // color and kind must be absent.
+  string image_asset_id = 5;
+  // Preserve the source's no-parameter a:alphaModFix child when replacing a
+  // recognized native image background. It is intentionally not a general
+  // image-effects surface.
+  bool image_alpha_modulation_fixed = 6;
 }
 
 // Bounded owner-local placeholder semantics. Type/index/name are identity and
