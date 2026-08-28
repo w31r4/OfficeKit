@@ -11,8 +11,8 @@ Run from a checkout with the reference inputs available:
 node scripts/pptx-six-sample-import.mjs
 ```
 
-The runner verifies the frozen source hashes, counts visible slide roots,
-requires a byte-identical no-op export, builds a source-bound design profile,
+The runner verifies the frozen source hashes, counts visible slide roots and
+their recursive group children, requires a byte-identical no-op export, builds a source-bound design profile,
 and performs one fresh text edit, placement edit, same-format image replacement,
 and source-slide reuse per sample. Where a table has a writable cell, it also
 proves one cell-text edit; otherwise that operation is reported as blocked
@@ -22,8 +22,12 @@ image part and relationship when an image changes). When a rich DrawingML table
 or grouped shape is outside the semantic profile, the runner exposes safe
 existing text tokens as bounded native leaves and proves one token-splice edit
 without rebuilding the object.
-`evidence.v1.json` contains hashes, counts, capabilities, and statuses only; it
-does not contain source bytes or extracted content.  Imported pictures that
+`inspect({ kind: "importObject", includeNested: true })` exposes a stable
+shape-tree path for every semantic group child.  Children inside a group that
+cannot be safely projected are emitted as `opaque-preserved` records derived
+from the preserved source subtree; they are discoverable for audit but carry no
+edit operation.  `evidence.v1.json` contains hashes, counts, capabilities, and
+statuses only; it does not contain source bytes or extracted content. Imported pictures that
 carry an Office SVG fallback are surfaced as one image with a separately bound
 SVG asset; safe SVG leaves can be edited without replacing the primary raster
 relationship.  Unsupported SVG topology remains preserved and reports no

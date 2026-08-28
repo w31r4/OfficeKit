@@ -14,6 +14,15 @@ independent ZIP/package reader:
    slide XML.
 5. Emit compact JSON containing hashes, counts, capabilities, and statuses.
 
+Imported-object inspection remains top-level by default for compatibility.  A
+caller that needs a complete visual inventory opts into
+`inspect({ kind: "importObject", includeNested: true })`; the result adds
+source-tree paths and parent IDs for semantic group children.  When a group is
+preserved as an opaque native subtree, its direct visible children are indexed
+from the preserved XML as `opaque-preserved` records with synthetic,
+revision-bound locators.  These records are audit targets only and never imply
+an edit capability.
+
 The runtime remains layered: semantic objects are used when available,
 controlled native leaves are used only when the source locator and hash prove
 the target, and unknown parts remain opaque.  The runner is diagnostic evidence,
