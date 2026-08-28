@@ -148,7 +148,7 @@ async function verifyNativeTextEdit(bytes) {
   const presentation = await importPresentation(bytes);
   const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
   const target = records.find((record) => record.leafKind === "nativeText");
-  if (!target) return { status: "blocked", reason: "no bounded opaque-table text leaf was discovered" };
+  if (!target) return { status: "blocked", reason: "no bounded native text leaf was discovered" };
   const value = `${target.value} OfficeKit`;
   presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
   const output = await PresentationFile.exportPptx(presentation);

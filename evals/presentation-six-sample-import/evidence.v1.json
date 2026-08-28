@@ -8,7 +8,7 @@
     "noOpByteIdentical": true,
     "placementEdits": 6,
     "textEdits": 6,
-    "nativeTextEdits": 1,
+    "nativeTextEdits": 5,
     "sourceSlideReuse": 6
   },
   "sources": [
@@ -40,6 +40,7 @@
       "nativeLeafKinds": {
         "heightEmu": 19,
         "leftEmu": 19,
+        "nativeText": 3,
         "text": 56,
         "topEmu": 19,
         "widthEmu": 19
@@ -61,8 +62,12 @@
         ]
       },
       "nativeText": {
-        "status": "blocked",
-        "reason": "no bounded opaque-table text leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/2/element/5",
+        "textLeafIndex": 0,
+        "changedParts": [
+          "ppt/slides/slide2.xml"
+        ]
       },
       "sourceSlideReuse": {
         "status": "passed",
@@ -71,8 +76,8 @@
         "outputSlideCount": 14,
         "allSlidesCloneCapable": true
       },
-      "nativeLeafCount": 257,
-      "nativeTextLeafCount": 0,
+      "nativeLeafCount": 276,
+      "nativeTextLeafCount": 19,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -114,12 +119,14 @@
         "table": 1
       },
       "classifications": {
-        "opaque-preserved": 19,
+        "native-leaf-editable": 3,
+        "opaque-preserved": 16,
         "typed-editable": 211
       },
       "nativeLeafKinds": {
         "heightEmu": 38,
         "leftEmu": 38,
+        "nativeText": 8,
         "text": 112,
         "topEmu": 38,
         "widthEmu": 38
@@ -141,8 +148,12 @@
         ]
       },
       "nativeText": {
-        "status": "blocked",
-        "reason": "no bounded opaque-table text leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/9/element/6",
+        "textLeafIndex": 0,
+        "changedParts": [
+          "ppt/slides/slide9.xml"
+        ]
       },
       "sourceSlideReuse": {
         "status": "passed",
@@ -151,8 +162,8 @@
         "outputSlideCount": 22,
         "allSlidesCloneCapable": true
       },
-      "nativeLeafCount": 484,
-      "nativeTextLeafCount": 0,
+      "nativeLeafCount": 492,
+      "nativeTextLeafCount": 8,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -200,7 +211,7 @@
         "fillRgb": 21,
         "heightEmu": 200,
         "leftEmu": 200,
-        "nativeText": 1,
+        "nativeText": 31,
         "text": 113,
         "topEmu": 200,
         "widthEmu": 200
@@ -223,10 +234,10 @@
       },
       "nativeText": {
         "status": "passed",
-        "targetId": "presentation/slide/17/element/2",
+        "targetId": "presentation/slide/3/element/8",
         "textLeafIndex": 0,
         "changedParts": [
-          "ppt/slides/slide17.xml"
+          "ppt/slides/slide3.xml"
         ]
       },
       "sourceSlideReuse": {
@@ -236,8 +247,8 @@
         "outputSlideCount": 26,
         "allSlidesCloneCapable": true
       },
-      "nativeLeafCount": 1048,
-      "nativeTextLeafCount": 16,
+      "nativeLeafCount": 1140,
+      "nativeTextLeafCount": 108,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -285,6 +296,7 @@
         "fillRgb": 4,
         "heightEmu": 54,
         "leftEmu": 54,
+        "nativeText": 12,
         "text": 208,
         "topEmu": 54,
         "widthEmu": 54
@@ -306,8 +318,12 @@
         ]
       },
       "nativeText": {
-        "status": "blocked",
-        "reason": "no bounded opaque-table text leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/17/element/3",
+        "textLeafIndex": 0,
+        "changedParts": [
+          "ppt/slides/slide17.xml"
+        ]
       },
       "sourceSlideReuse": {
         "status": "passed",
@@ -316,8 +332,8 @@
         "outputSlideCount": 40,
         "allSlidesCloneCapable": true
       },
-      "nativeLeafCount": 547,
-      "nativeTextLeafCount": 0,
+      "nativeLeafCount": 572,
+      "nativeTextLeafCount": 25,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -364,6 +380,7 @@
       "nativeLeafKinds": {
         "heightEmu": 59,
         "leftEmu": 59,
+        "nativeText": 8,
         "text": 200,
         "topEmu": 59,
         "widthEmu": 59
@@ -385,8 +402,12 @@
         ]
       },
       "nativeText": {
-        "status": "blocked",
-        "reason": "no bounded opaque-table text leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/28/element/5",
+        "textLeafIndex": 0,
+        "changedParts": [
+          "ppt/slides/slide28.xml"
+        ]
       },
       "sourceSlideReuse": {
         "status": "passed",
@@ -395,8 +416,8 @@
         "outputSlideCount": 40,
         "allSlidesCloneCapable": true
       },
-      "nativeLeafCount": 540,
-      "nativeTextLeafCount": 0,
+      "nativeLeafCount": 556,
+      "nativeTextLeafCount": 16,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
