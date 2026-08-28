@@ -36,7 +36,7 @@ import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./l
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
 import { auditPresentationAccessibility } from "./accessibility-audit.mjs";
 import { deletePresentationElement, PRESENTATION_ELEMENT_DELETED, presentationElementDeletionCapability } from "./element-deletion.mjs";
-import { installPresentationElementOrdering } from "./element-order.mjs";
+import { assertPresentationElementIndexes, installPresentationElementOrdering } from "./element-order.mjs";
 import { editSvgText as replaceSvgTextNode, inspectSvgText } from "./svg-text.mjs";
 import { editSvgLeaf as replaceSvgLeaf, inspectSvgLeaves } from "./svg-leaves.mjs";
 import { buildPresentationDesignProfile } from "./design-profile.mjs";
@@ -1492,6 +1492,7 @@ class SpeakerNotes {
 }
 
 function orderedSlideModelElements(slide) {
+  assertPresentationElementIndexes(slide, slide.elements.items);
   return [...slide.elements.items];
 }
 
