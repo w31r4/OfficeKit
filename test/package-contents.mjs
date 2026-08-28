@@ -593,7 +593,7 @@ assert.equal(packagedPresentationSidecars.length, 38, "npm package must ship exa
 const packagedPresentationReferences = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/reference\.pptx$/u.test(file),
 );
-assert.equal(packagedPresentationReferences.length, 1, "exactly one migrated presentation template must ship an authored reference deck");
+assert.equal(packagedPresentationReferences.length, 2, "the migrated presentation pilots must each ship an authored reference deck");
 assert.ok(
   files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|mjs|js|svg)$/u.test(file)
     || file.endsWith("/assets/icon.svg")
