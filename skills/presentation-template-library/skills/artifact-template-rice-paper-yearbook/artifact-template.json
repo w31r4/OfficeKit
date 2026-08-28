@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-rice-paper-yearbook",
   "displayName": "Rice Paper Yearbook",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "9f9fd6cf007c793347899cc909b52fba8d5eb8db459187fee4172e85ede05d84"
+      "sha256": "a118c33c64b48d3a8aeb58c311e50ca0e6dff8767c1e1043b10fd345fc7e8ca9"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "826a5778f9bbf6950f91c39de0372eacae05f0683e1375b225c17a43b56ba03b"
+      "sha256": "8eef737718ad7d9da3d0a65f6e5f17caf100d1310c585d433812657b6001a667"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "3c32fb97c4e8ae90b34a88d38b63afcb29218b3f5669a4d0b4161639defb7a60"
+      "sha256": "39525befc3e40508b7197773223e07543a65e2d63f34c0ca693d45270f0d713c"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "b0c9df25b396c174002e70fef195f41c1a488b93fcf24f29d4014ec33d15a149"
+      "sha256": "b5f8d63b7727a2897fb96efe4957c339ce3539c6bef489b12e6014c2159c89c4"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "0b599d2ba45e4753af0c71f0b761ed06f734b494c04a4befcb49224d9bc20181",
-    "previewSha256": "7b9ba8e63131c298e909d8b754c14a61185273ff261621e9f237f5a75c1b01e6"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "4c7f0ae33dee7f01b3ea87942b03d795c78ff0345d9c730f68b937a03cab2660",
+    "referenceSha256": "3d7e808f4da1dfd4fabc57dcea598d13daf99a1ac3b63a44742de2972c10b419",
+    "previewSha256": "daf89b197311c138f51a8afe6fbbbb3c2267d4516f4ac79b6917ae6d59a0a159"
   }
 }

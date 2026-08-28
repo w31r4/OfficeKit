@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-violet-operations",
   "displayName": "Violet Operations",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "03d3b97a4e40964e637161db8d4f419858bd1fb190c6fbf9d1ef3464f25fff12"
+      "sha256": "ae134523092b66087382e3fd80aca3b36ca7416d947b690a12b683e24ddd18ca"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "347566619ecfcd8b7bd8192b2c8b3b95b4b0cb85c1b8f3a5871669e1387ac4ca"
+      "sha256": "eb620e72784413e1be131ae9bfe17de02c582d01f155657060b3c4b9ce2f0a6c"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "d9dfa6f258ecfed608eac81136aa08d35f8daf48264ea4c19f04e93d0681bfd5"
+      "sha256": "422e05c383f6e338393ba2f5f1bcb2e04d19a1f93bb8022c9383d8015086b3ab"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "c2a4ec6f1d5abdd11658d289351f97c1207ba69115aa1fe906771fba6d42a5ae"
+      "sha256": "5517a8e03729d4b0dcc28d9f99f7c1c490bfb84e65ab7634e3f422b4f1951779"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "5de82343d447f533b4800bfdd36e714d38bd699fd92315d60b60ea69f35d3cc3",
-    "previewSha256": "b23fc3b8c291878aac17db67c36a77f1d3c350a08c211f384d5d2de889d52dfc"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "a752e5b8a7792bc355f24caf1045839afe3d5230ba0c17ad17c8f34b03ad97f0",
+    "referenceSha256": "1d3c384b5f2efa0105bf487c1bbf025969f343fe24271cfb85aaf8a222717ea1",
+    "previewSha256": "97e695f23f5d5846fe758fd64f6d72b040fc220487271fa2ff21137c98d41d5a"
   }
 }

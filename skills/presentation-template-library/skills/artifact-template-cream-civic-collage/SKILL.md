@@ -1,6 +1,6 @@
 ---
 name: artifact-template-cream-civic-collage
-description: "Cream Civic Collage is an original OfficeKit presentation style for community campaign, with collage-led composition and medium information density."
+description: "Cream Civic Collage presentation style."
 ---
 
 # Cream Civic Collage

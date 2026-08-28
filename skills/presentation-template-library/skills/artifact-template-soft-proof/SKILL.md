@@ -1,6 +1,6 @@
 ---
 name: artifact-template-soft-proof
-description: "Soft Proof is an original OfficeKit presentation style for mathematical derivation, with contour-led composition and sparse information density."
+description: "Soft Proof presentation style."
 ---
 
 # Soft Proof

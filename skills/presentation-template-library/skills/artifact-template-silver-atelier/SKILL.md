@@ -1,6 +1,6 @@
 ---
 name: artifact-template-silver-atelier
-description: "Silver Atelier is an original OfficeKit presentation style for premium portfolio, with atelier-led composition and sparse information density."
+description: "Silver Atelier presentation style."
 ---
 
 # Silver Atelier

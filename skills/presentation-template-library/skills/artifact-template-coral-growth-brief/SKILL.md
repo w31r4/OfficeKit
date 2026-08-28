@@ -1,6 +1,6 @@
 ---
 name: artifact-template-coral-growth-brief
-description: "Coral Growth Brief is an original OfficeKit presentation style for commercial growth review, with rail-led composition and dense information density."
+description: "Coral Growth Brief presentation style."
 ---
 
 # Coral Growth Brief

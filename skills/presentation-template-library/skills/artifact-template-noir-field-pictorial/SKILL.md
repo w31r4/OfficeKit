@@ -1,6 +1,6 @@
 ---
 name: artifact-template-noir-field-pictorial
-description: "Noir Field Pictorial is an original OfficeKit presentation style for cultural pictorial, with photo-led composition and medium information density."
+description: "Noir Field Pictorial presentation style."
 ---
 
 # Noir Field Pictorial

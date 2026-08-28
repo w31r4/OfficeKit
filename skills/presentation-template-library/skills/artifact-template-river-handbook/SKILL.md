@@ -1,6 +1,6 @@
 ---
 name: artifact-template-river-handbook
-description: "River Handbook is an original OfficeKit presentation style for place handbook, with wayfinding-led composition and mixed information density."
+description: "River Handbook presentation style."
 ---
 
 # River Handbook

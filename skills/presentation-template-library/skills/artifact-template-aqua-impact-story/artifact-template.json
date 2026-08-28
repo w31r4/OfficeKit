@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-aqua-impact-story",
   "displayName": "Aqua Impact Story",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "38f5c82b29be9daa0c925e164c7407d01a264a16ef58d119615323749784535f"
+      "sha256": "f7869baaef1266c508f25c8aa8438677e894a7b63ba5e753fc01dd150db796ba"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "992616533f52b68a49ce58034f080dc110d900798b3a543e1e9213e36a3a652c"
+      "sha256": "3f0f3640b407eee48cab66439c5ab6a04f2a1482759e406013892318662321de"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "a810a523f7ce6b79e8fdcb668de42e474ecd8c7dbbd2393b5c226344239ad701"
+      "sha256": "81170be55f19c9851e296e349936315108bb550677ef706769108bcbc477d1ca"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "bc8585a1b53fade64f3f0475168ec8307e3ad9d4125a8076c1d9865f0e2a4cf0"
+      "sha256": "0f2dbde5b5de484ad14564bd8a5383e0ba1382a40e1a37e056dd272b382abe7b"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "4a7e233c7325c21de98a02c054d4007f7ef4a13225839237248207843e17ed7c",
-    "previewSha256": "eb3392e5405953e323131da756f4e17d19f044fd24acb3dd5b2cbcc28ec561b3"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "5239e88b44afb6356bc9f23ca88f560346b1c571911fe7827c9c4009161d0a87",
+    "referenceSha256": "d2217e03161e36334da2219e8a9f15672fc69b15649f6b68ab87eac7645962e9",
+    "previewSha256": "c6ae3f7fea60d48de86724731dfdf87ee2615dcedb56de7d559b191030cb5df2"
   }
 }

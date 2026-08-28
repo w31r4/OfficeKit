@@ -1,6 +1,6 @@
 ---
 name: artifact-template-tidal-research
-description: "Tidal Research is an original OfficeKit presentation style for field study, with tide-led composition and medium information density."
+description: "Tidal Research presentation style."
 ---
 
 # Tidal Research

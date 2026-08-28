@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-river-handbook",
   "displayName": "River Handbook",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "d7e643e6d9b6248402f049b87a278663378e68fcbe2e9fc59691869acf4405f4"
+      "sha256": "28f67dbc81b7b3fa5884f2d924e530ed242d62de62b0c3e55d0bc86823e875c4"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "69ba52086356303b0aa4f439b5a0f522d76b3a2b3858b8f24a30200572ddc12b"
+      "sha256": "be9b12dc274a211f66be94ff812273be79b9a86b21ce7bf5f5c9c6bd14a7d77a"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "03cc7f63545672c041b4d3220b7eeeace721d11c70721fe13d8276d646190c04"
+      "sha256": "1c7fe45443b819770ab076f516c06d68360f53e29a63b080c028dc6e583663a5"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "d023b2fae0c7215380bde5d776eb24e848d1bbead235750d932fe803405e9646"
+      "sha256": "97d915f02c7e68326024e07708e195e32435cbc5526210b05f3dacabd19050df"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "c6a47ad2399938788a3da20c8dab8e2e7449613ded83043c8b409d484ef4e08f",
-    "previewSha256": "5ad99a1023e063631856c012a8d52006f410e263551fb1cc95bcfaff9699c5f9"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "b341facb2e1c93565c462ae17e149434fed5ddd754ce33829cf43979d4f50ade",
+    "referenceSha256": "0bd531c211a34acb3f6e9780c62099661bac8738520d60cb4ff06b3022bf7226",
+    "previewSha256": "6fecde90de10a5c01b05f3b1f1b53cfb316b92e30f189945fd84d4b1fd3854c6"
   }
 }

@@ -1,29 +1,30 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "id": "artifact-template-cranberry-evidence",
   "displayName": "Cranberry Evidence",
   "kind": "presentation",
+  "reference": "assets/reference.pptx",
   "preview": "assets/preview.png",
   "examples": [
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "0c3a6bdc0eb652d2a533526f7d5d38eae1c940d08e2dcecb234415432d1e9926"
+      "sha256": "2edf750c75657e7442df85ed581f7754412355800e6503744f396421264af8ae"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "9f6d46afd0420d59484b23176a801f054dbc8b9178cad4a1a1f37f7a31f6a543"
+      "sha256": "4925534482ad7a88782b9cacafa37f8da3d1b6fea338b76abb9a6a339afa944f"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "e099ce55b023039a628fb8a8ce5c9f7ca57d51eaf7cca9dac65698f20777df4f"
+      "sha256": "9c3ee3ad5b682d05f0b0256aff38ec7f3e4cc8c488b297fb984b3698e0352bc8"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "baa35c1803bb587f655af817c44d0ff3b8fda4190402fd44d5f64915ddd09f9e"
+      "sha256": "60ff2ed0a814b36bc35b17c02a01b748db7fa69953cd461669eba3714f6bc829"
     }
   ],
   "useWhen": [
@@ -60,8 +61,9 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "391c6715772027dc969998e28699b154b072f6981dc99be6fae6fae8414da7a1",
-    "previewSha256": "346f74b70f45c0660d06bf0e978a08bf2047da977bcd9919ff58af9a134b98a9"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "b149111756c3b7f4323718354d62164738e11a9c0bbae7dbb0c2e05ac84e17b7",
+    "referenceSha256": "d6e131b9174e4354d9389186452d5b988b7c2d64a6d8886c1aac64741dbaeb32",
+    "previewSha256": "fc6ba9139cf58c79f30418ae563b2fbd006e7d11875327fa11a03648e70d8871"
   }
 }

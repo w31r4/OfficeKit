@@ -1,6 +1,6 @@
 ---
 name: artifact-template-moonlit-work-report
-description: "Moonlit Work Report is an original OfficeKit presentation style for quarterly update, with moon-led composition and medium information density."
+description: "Moonlit Work Report presentation style."
 ---
 
 # Moonlit Work Report

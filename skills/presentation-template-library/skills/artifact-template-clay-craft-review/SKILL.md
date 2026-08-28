@@ -1,6 +1,6 @@
 ---
 name: artifact-template-clay-craft-review
-description: "Clay Craft Review is an original OfficeKit presentation style for place-based annual report, with kiln-led composition and sparse information density."
+description: "Clay Craft Review presentation style."
 ---
 
 # Clay Craft Review
