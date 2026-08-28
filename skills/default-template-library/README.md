@@ -7,7 +7,7 @@ previews come from the MIT-licensed `office-artifact-tool` repository at commit
 `integrity.json`. See [LICENSE.md](LICENSE.md).
 
 Presentation templates use the separate `presentation-template-library` and
-its schema-v3 style-Skill format. This library intentionally contains no PPTX
+its schema-v4 style-Skill format. This library intentionally contains no PPTX
 templates.
 
 ## Layout

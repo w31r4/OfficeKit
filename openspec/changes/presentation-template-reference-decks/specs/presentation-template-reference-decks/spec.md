@@ -30,7 +30,8 @@ as a fixed layout registry.
 
 Search SHALL return an absolute `referencePath` for schema v4 candidates and
 verify its declared SHA-256 before returning the candidate. Schema v3 entries
-may remain discoverable only as legacy migration entries.
+SHALL be rejected and rebuilt with the Creator; no presentation compatibility
+path is retained.
 
 ### Requirement: restoration threshold
 
