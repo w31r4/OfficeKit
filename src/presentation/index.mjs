@@ -2,6 +2,7 @@ import { inspectOoxmlPackage, ooxmlResolveRelationshipTarget, ooxmlSafePartPath,
 import { validatePptxPackageSemantics } from "../ooxml/pptx-package-semantics.mjs";
 import { queryHelpRecords } from "../help/index.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
+import { toUint8Array } from "../shared/binary.mjs";
 import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { aid } from "../shared/ids.mjs";
@@ -504,12 +505,15 @@ class PresentationSlideMaster {
   }
 
   setBackground(background) { this.configured = true; this.background = normalizePresentationBackground(background, this.background); this._backgroundClearRequested = false; return this; }
+  setNativeBackgroundImage(config = {}) { this.configured = true; this.background = normalizeNativePresentationBackgroundImage(config, `Presentation master ${this.id}`, this.background); this._backgroundClearRequested = false; return this; }
   clearBackground() { this.configured = true; this.background = undefined; this._backgroundClearRequested = true; return this; }
+  clearNativeBackgroundImage() { this.configured = true; if (presentationBackgroundHasImage(this.background)) this.clearBackground(); return this; }
   setTheme(theme) { this.configured = true; this.theme = theme ? new PresentationTheme(this.presentation, { ...theme, id: theme.id || `${this.id}/theme` }, this.presentation.theme) : undefined; return this; }
   effectiveTheme() { return this.theme || this.presentation.theme; }
-  effectiveBackground() { return this.background || normalizePresentationBackground(this.effectiveTheme().colors.bg1, "#ffffff"); }
+  effectiveBackground() { return this.background?.fill ? this.background : normalizePresentationBackground(this.effectiveTheme().colors.bg1, "#ffffff"); }
+  effectiveBackgroundImage() { return presentationBackgroundHasImage(this.background) ? this.background : undefined; }
   paragraphStylesForPlaceholder(type) { return this.textParagraphStyles[presentationPlaceholderTextStyleKind(type)] || {}; }
-  inspectRecord() { const theme = this.effectiveTheme(); return { kind: "slideMaster", id: this.id, name: this.name, background: this.background, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, placeholderTypes: this.placeholders.map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length, textParagraphStyleLevels: Object.fromEntries(Object.entries(this.textParagraphStyles).map(([kind, styles]) => [kind, Object.keys(styles).length])), hasThemeOverride: Boolean(this.theme), themeId: theme.id, themeName: theme.name }; }
+  inspectRecord() { const theme = this.effectiveTheme(); return { kind: "slideMaster", id: this.id, name: this.name, background: this.background, nativeBackgroundImage: presentationBackgroundHasImage(this.background) ? { fit: "stretch", editable: true, inherited: false } : undefined, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, placeholderTypes: this.placeholders.map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length, textParagraphStyleLevels: Object.fromEntries(Object.entries(this.textParagraphStyles).map(([kind, styles]) => [kind, Object.keys(styles).length])), hasThemeOverride: Boolean(this.theme), themeId: theme.id, themeName: theme.name }; }
   toJSON() { return { id: this.id, name: this.name, background: this.background, theme: this.theme?.toJSON(), placeholders: this.placeholders.map((placeholder) => ({ ...placeholder })), slideGuides: this.slideGuides.map((guide) => ({ ...guide })), textParagraphStyles: normalizePresentationMasterParagraphStyles(this.textParagraphStyles) }; }
 }
 
@@ -545,7 +549,9 @@ class SlideLayoutTemplate {
   effectiveMaster() { return this.presentation.masters.getItem(this.masterId); }
   effectiveTheme() { return this.effectiveMaster()?.effectiveTheme() || this.presentation.theme; }
   setBackground(background) { this.background = normalizePresentationBackground(background, this.background); this._backgroundClearRequested = false; return this; }
+  setNativeBackgroundImage(config = {}) { this.background = normalizeNativePresentationBackgroundImage(config, `Presentation layout ${this.id}`, this.background); this._backgroundClearRequested = false; return this; }
   clearBackground() { this.background = undefined; this._backgroundClearRequested = true; return this; }
+  clearNativeBackgroundImage() { if (presentationBackgroundHasImage(this.background)) this.clearBackground(); return this; }
   effectivePlaceholders() {
     const master = this.effectiveMaster();
     return mergePresentationPlaceholders(master?.placeholders || [], this.placeholders).map((placeholder) => ({
@@ -553,7 +559,12 @@ class SlideLayoutTemplate {
       paragraphStyles: mergePresentationParagraphStyles(master?.paragraphStylesForPlaceholder(placeholder.type), placeholder.paragraphStyles),
     }));
   }
-  effectiveBackground() { return this.background || this.effectiveMaster()?.effectiveBackground() || normalizePresentationBackground(this.presentation.theme.colors.bg1, "#ffffff"); }
+  effectiveBackground() { return this.background?.fill ? this.background : this.effectiveMaster()?.effectiveBackground() || normalizePresentationBackground(this.presentation.theme.colors.bg1, "#ffffff"); }
+  effectiveBackgroundImage() {
+    if (presentationBackgroundHasImage(this.background)) return this.background;
+    if (this.background?.fill) return undefined;
+    return this.effectiveMaster()?.effectiveBackgroundImage();
+  }
 
   apply(slide) {
     if (!(slide instanceof Slide) || slide.presentation !== this.presentation) {
@@ -590,7 +601,7 @@ class SlideLayoutTemplate {
     });
   }
 
-  inspectRecord() { return { kind: "layoutTemplate", id: this.id, name: this.name, type: this.type, masterId: this.masterId, themeId: this.effectiveTheme().id, background: this.background, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, effectivePlaceholders: this.effectivePlaceholders().length, placeholderTypes: this.effectivePlaceholders().map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length }; }
+  inspectRecord() { const directImage = presentationBackgroundHasImage(this.background); const inheritedImage = !directImage && !this.background?.fill && presentationBackgroundHasImage(this.effectiveMaster()?.effectiveBackgroundImage()); return { kind: "layoutTemplate", id: this.id, name: this.name, type: this.type, masterId: this.masterId, themeId: this.effectiveTheme().id, background: this.background, nativeBackgroundImage: directImage || inheritedImage ? { fit: "stretch", editable: directImage, inherited: inheritedImage } : undefined, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, effectivePlaceholders: this.effectivePlaceholders().length, placeholderTypes: this.effectivePlaceholders().map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length }; }
   toJSON() { return { id: this.id, name: this.name, type: this.type, masterId: this.masterId, background: this.background, placeholders: this.placeholders.map((placeholder) => ({ ...placeholder })), slideGuides: this.slideGuides.map((guide) => ({ ...guide })) }; }
 }
 
@@ -1487,6 +1498,15 @@ function orderedSlideModelElements(slide) {
   ];
 }
 
+function presentationBackgroundHasImage(background) {
+  return Boolean(background?.image && (background.image.dataUrl || background.image.assetId));
+}
+
+function presentationBackgroundImageSvg(background) {
+  if (!background?.image?.dataUrl) return "";
+  return `<image href="${xmlEscape(background.image.dataUrl)}" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none"/>`;
+}
+
 export class Slide {
   constructor(presentation, options = {}) {
     if (options.hidden !== undefined && typeof options.hidden !== "boolean") {
@@ -1601,6 +1621,39 @@ export class Slide {
   addComment(target, text, config = {}) { return this.comments.addThread(target, text, config); }
   addConnector(config = {}) { return this.connectors.add(config); }
   addGroup(config = {}) { return this.groups.add(config); }
+  setBackgroundImage(config = {}) {
+    if (!config || typeof config !== "object" || Array.isArray(config)) throw new TypeError("Presentation background image requires an options object.");
+    if (this.elements.items.some((element) => element.zOrderCapability?.sourceBound === true)) {
+      const error = new Error("Imported presentation slides cannot place a new image below source-bound elements; use a source-derived slide or a capability-proven native reorder.");
+      error.code = "unsupported_presentation_background_image";
+      throw error;
+    }
+    const existing = this.images.items.find((image) => image._officeKitLayerRole === "background");
+    const frame = { ...this.frame };
+    if (existing) {
+      existing.replace({ ...config, position: frame });
+      existing.position = frame;
+      existing.sendToBack();
+      return existing;
+    }
+    const image = this.images.add({ ...config, position: frame, fit: config.fit || "cover" });
+    Object.defineProperty(image, "_officeKitLayerRole", { enumerable: false, configurable: false, writable: false, value: "background" });
+    image.sendToBack();
+    return image;
+  }
+  setNativeBackgroundImage(config = {}) {
+    this.background = normalizeNativePresentationBackgroundImage(config, `Presentation slide ${this.id}`, this.background);
+    return this;
+  }
+  clearNativeBackgroundImage() {
+    if (presentationBackgroundHasImage(this.background)) this.background = {};
+    return this;
+  }
+  clearBackgroundImage() {
+    const existing = this.images.items.find((image) => image._officeKitLayerRole === "background");
+    if (existing) existing.delete();
+    return this;
+  }
   setBackground(background) { this.background = normalizePresentationBackground(background, this.background); return this; }
   clearBackground() { this.background = {}; return this; }
   setTransition(transition) { this.transition.set(transition); return this; }
@@ -1620,12 +1673,28 @@ export class Slide {
   }
   setLayout(layoutOrName) { this.applyLayout(layoutOrName); return this; }
   effectiveBackground() { const layout = this.presentation.layouts.getItem(this.layoutId); return this.background.fill ? this.background : layout?.effectiveBackground() || this.presentation.master.effectiveBackground(); }
+  effectiveBackgroundImage() {
+    if (presentationBackgroundHasImage(this.background)) return this.background;
+    if (this.background?.fill) return undefined;
+    const layout = this.presentation.layouts.getItem(this.layoutId);
+    return layout?.effectiveBackgroundImage() || this.presentation.master.effectiveBackgroundImage();
+  }
   effectiveTheme() { const layout = this.presentation.layouts.getItem(this.layoutId); return layout?.effectiveTheme() || this.presentation.master.effectiveTheme(); }
 
   inspectRecords(kinds) {
     const records = [];
     if (kinds.has("layout")) { const layout = this.presentation.layouts.getItem(this.layoutId); records.push({ kind: "layout", layoutId: this.layoutId || `${this.id}/layout`, name: layout?.name || "Blank", type: layout?.type || "blank", masterId: layout?.masterId, themeId: this.effectiveTheme().id, placeholders: layout?.placeholders.length || 0 }); }
-    if (kinds.has("slide")) records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, continuationCapability: this.continuationCapability, background: this.background.fill ? this.background : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability });
+    if (kinds.has("slide")) { const directImage = presentationBackgroundHasImage(this.background); const effectiveImage = this.effectiveBackgroundImage(); const layout = this.presentation.layouts.getItem(this.layoutId); const inheritedImage = !directImage && !this.background?.fill && Boolean(effectiveImage); const imageOwner = directImage ? "slide" : layout && presentationBackgroundHasImage(layout.background) ? "layout" : inheritedImage ? "master" : undefined; records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, continuationCapability: this.continuationCapability, background: this.background.fill || this.background.image ? this.background : undefined, nativeBackgroundImage: effectiveImage ? { fit: "stretch", editable: directImage, inherited: !directImage, owner: imageOwner } : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, layerCount: this.elements.count, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability }); }
+    if (kinds.has("layer") || kinds.has("zOrder")) records.push(...this.elements.items.map((element, stackIndex) => ({
+      kind: "layer",
+      id: element.id,
+      slide: this.index + 1,
+      elementKind: element instanceof GroupShape ? "groupShape" : element.kind || element.constructor?.name,
+      name: element.name || undefined,
+      stackIndex,
+      layerRole: element._officeKitLayerRole,
+      zOrderCapability: element.zOrderCapability,
+    })));
     for (const shape of this.shapes) {
       if (kinds.has("textbox") && shape.text.value) records.push(shape.inspectRecord("textbox"));
       else if (kinds.has("shape")) records.push(shape.inspectRecord("shape"));
@@ -1754,10 +1823,11 @@ export class Slide {
         commentTextPreview: comments.length ? comments.flatMap((comment) => comment.comments.map((item) => item.text)).join("\n").slice(0, 300) : undefined,
       };
     });
+    const effectiveBackground = this.effectiveBackgroundImage() || this.effectiveBackground();
     return slideLayoutSlice(this, {
       schema: "office-kit-artifact.layout/v1",
       unit: "px",
-      slide: { id: this.id, slide: this.index + 1, frame: this.frame, hidden: this.hidden, background: this.effectiveBackground(), transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined },
+      slide: { id: this.id, slide: this.index + 1, frame: this.frame, hidden: this.hidden, background: effectiveBackground, transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined },
       elements,
     }, options);
   }
@@ -1765,10 +1835,13 @@ export class Slide {
   toSvg() {
     const { width, height } = this.presentation.slideSize;
     const elements = orderedSlideModelElements(this).map((element) => element.toSvg()).join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(this.effectiveBackground(), this.effectiveTheme()))}"/>${elements}</svg>`;
+    const backgroundImage = this.effectiveBackgroundImage();
+    const imageSvg = presentationBackgroundImageSvg(backgroundImage);
+    const background = imageSvg || `<rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(this.effectiveBackground(), this.effectiveTheme()))}"/>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${background}${elements}</svg>`;
   }
 
-  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill ? this.background : undefined, transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
+  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill || this.background.image ? this.background : undefined, transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
 
   compose(composeNode, options = {}) {
     const frame = options.frame || { left: 72, top: 64, width: this.presentation.slideSize.width - 144, height: this.presentation.slideSize.height - 128 };
@@ -2520,6 +2593,48 @@ function presentationSvgLeafScope(image) {
     scopeId: `${sourceRevisionSha256 || "authored"}\0${presentation?.id || ""}\0${image.slide?.id || ""}\0${image.id}`,
     ...(/^[0-9a-f]{64}$/u.test(sourceRevisionSha256) ? { sourceRevisionSha256 } : {}),
   };
+}
+
+const PRESENTATION_EMBEDDED_IMAGE_CONTENT_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/svg+xml",
+]);
+
+function presentationImageDataUrlFromBlob(blob, contentType, label) {
+  const blobType = blob instanceof FileBlob || blob?.bytes instanceof Uint8Array
+    ? blob.type
+    : undefined;
+  const bytes = blob instanceof FileBlob || blob?.bytes instanceof Uint8Array
+    ? blob.bytes
+    : toUint8Array(blob);
+  const resolvedContentType = String(contentType || blobType || "").trim().toLowerCase();
+  if (!PRESENTATION_EMBEDDED_IMAGE_CONTENT_TYPES.has(resolvedContentType)) {
+    throw new TypeError(`${label} blob requires contentType image/png, image/jpeg, image/gif, or image/svg+xml.`);
+  }
+  if (bytes.byteLength === 0) throw new TypeError(`${label} blob cannot be empty.`);
+  return {
+    contentType: resolvedContentType,
+    dataUrl: `data:${resolvedContentType};base64,${Buffer.from(bytes).toString("base64")}`,
+  };
+}
+
+function normalizeNativePresentationBackgroundImage(config, label, previous) {
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw new TypeError(`${label} requires an options object.`);
+  if (config.uri != null || config.fit != null && String(config.fit) !== "stretch" || config.crop != null || config.transform != null) {
+    throw new TypeError(`${label} only supports an embedded stretch image without crop or transform.`);
+  }
+  const assetId = config.assetId == null ? undefined : String(config.assetId).trim();
+  const alphaModulationFixed = config.alphaModulationFixed === undefined
+    ? previous?.image?.alphaModulationFixed === true
+    : config.alphaModulationFixed;
+  if (typeof alphaModulationFixed !== "boolean") throw new TypeError(`${label} alphaModulationFixed must be boolean.`);
+  const embedded = config.blob == null
+    ? { dataUrl: config.dataUrl }
+    : presentationImageDataUrlFromBlob(config.blob, config.contentType, `${label} image`);
+  if (!embedded.dataUrl && !assetId) throw new TypeError(`${label} requires dataUrl, blob, or assetId.`);
+  return normalizePresentationBackground({ image: { ...(assetId ? { assetId } : {}), ...(embedded.dataUrl ? { dataUrl: embedded.dataUrl } : {}), fit: "stretch", ...(alphaModulationFixed ? { alphaModulationFixed: true } : {}) } });
 }
 
 export class ImageElement {
