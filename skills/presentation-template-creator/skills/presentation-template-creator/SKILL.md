@@ -19,11 +19,16 @@ packaging a template.
 2. Render and inspect the references. Distill only reusable decisions: audience
    fit, palette and surfaces, typography rhythm, geometry and line language,
    density, imagery, charts, diagrams, motifs, and anti-patterns.
+   When full-page imagery, scrims, crossing diagrams, foreground labels, or
+   other overlaps define the style, also inspect the bottom-to-top scene stack.
+   A screenshot proves appearance, not independent editability.
 3. Write the style guide independently. Do not copy reference wording or claim
    uncertain design intent as fact.
 4. Create an unrelated four-to-six-page calibration deck with OfficeKit. Use
    new content and geometry, cover at least three page roles, render every page,
-   and review it visually.
+   and review it visually. Recreate any design-defining overlap with real
+   editable layers, then reopen the PPTX and verify its stack before describing
+   the relationship in the template Skill.
 5. Save only the guide body, calibration PNGs, and a packaging spec in the task.
    Source files, intermediate PPTX files, extracted media, and QA evidence stay
    outside the published Skill.
@@ -38,7 +43,8 @@ packaging a template.
    `--expected-sha256`.
 7. Read the JSON result, query the generated template by exact ID, view its
    preview and examples, and create a short unrelated deck from the style. Stop
-   if the result depends on copied layouts or cannot guide free composition.
+   if the result depends on copied layouts, covers an evidence-bearing line,
+   marker, label, connector, or image region, or cannot guide free composition.
 
 ## Boundaries
 

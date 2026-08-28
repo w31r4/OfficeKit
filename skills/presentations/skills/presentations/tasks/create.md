@@ -68,6 +68,12 @@ For durable work, write the existing
 - one dominant visual carrier and its asset/source strategy;
 - a page silhouette that contributes to the deck-wide rhythm.
 
+When the carrier is an image or the composition depends on overlapping object
+types, read [layered composition](../references/layered-composition.md). Plan the
+bottom-to-top relationship explicitly. An image-led page normally starts with
+the image, adds only the contrast treatment it needs, and keeps editable copy,
+evidence, and decisions in the foreground.
+
 Use a quantitative relationship as a chart, axis, direct label, spatial
 comparison, or diagram rather than an inventory of numbers. Title pages should
 be minimal; executive summaries should scan quickly through hierarchy and
@@ -103,6 +109,10 @@ different template or a second design state after a failed calibration.
 Search Presentation Help by intent and use public OfficeKit primitives. Examples
 show API and file workflows, not a house style; do not copy their palettes,
 generic container helpers, or page silhouettes.
+
+Use `slide.elements` and the shared ordering methods when composition depends on
+layering. Do not rely on a type collection or source-code statement order as a
+substitute for the exported scene stack.
 
 Compose in this order:
 

@@ -204,8 +204,9 @@ legacy source-free workflows that intentionally have no exact site identity.
 New connectors are sent behind shapes by default so boxes and labels remain
 readable. Call `connector.bringToFront()` when the connector should sit above
 other elements, or `connector.sendToBack()` to restore the default. Those
-z-order methods are source-free operations. Imported connector z-order remains
-source-bound and rejects instead of reordering an unmodeled SlidePart tree.
+methods operate on the shared slide/group scene stack. A direct imported
+connector may move only when `connector.zOrderCapability.editable` is true;
+unsupported or nested native topology remains source-bound and rejects.
 An imported connector with irregular `p:cNvPr` attributes or children keeps
 those source bytes during unrelated supported endpoint/line edits, while a
 metadata edit fails closed.
@@ -228,10 +229,12 @@ triangle/stealth/diamond/oval/arrow ends with small/medium/large dimensions.
 profile used by ordinary shape outlines.
 
 A recognized imported connector can change its bounded endpoints or line
-profile while the surrounding element topology stays fixed. Source-bound
-z-order is not editable. Missing connection IDs/indexes, duplicate connection
-nodes, unsupported connector presets, custom adjustment graphs, theme/effect
-outlines, or other unmodeled XML remain opaque/read-only and an attempted
+profile while the surrounding element topology stays fixed. A codec-issued
+direct-element capability may also authorize one bounded scene-order change;
+export independently re-proves the source revision and SlidePart ownership.
+Missing connection IDs/indexes, duplicate connection nodes, unsupported
+connector presets, custom adjustment graphs, theme/effect outlines, nested
+ownership, or other unmodeled XML remain opaque/read-only and an attempted
 semantic edit fails closed. No fallback rebuild substitutes a visually similar
 line.
 

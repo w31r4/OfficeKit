@@ -46,6 +46,12 @@ new Design Grammar for this deck:
 - image, SVG, chart, diagram, and table treatment;
 - allowed motifs and explicit anti-patterns.
 
+If the source uses full-page imagery, scrims, crossing diagrams, or foreground
+copy over evidence, inspect its cross-type layer order and read
+[layered composition](../references/layered-composition.md). Treat those
+relationships as part of the design grammar rather than flattening the page to
+a screenshot.
+
 Every page gets a claim, evidence, content budget, dominant carrier, and source
 strategy. “Follow the template” is not a composition intent. Unknown source
 facts remain unresolved.
@@ -70,5 +76,8 @@ Review communication, narrative, density, visual continuity, factual sources,
 layout, native editability, and delivery. For a style Skill, compare the result
 with its principles and relationships, not pixel similarity to examples. For a
 reference deck, separate visual observation from source-preservation evidence.
+For image-led or overlapping pages, inspect the final bottom-to-top stack and
+confirm that evidence, labels, lines, markers, and foreground copy remain
+unobstructed. Do not use a reference screenshot as the finished editable page.
 Run editorial page-fit after the actual composition is visible, then commit the
 reviewed candidate before follow-up edits or publication.

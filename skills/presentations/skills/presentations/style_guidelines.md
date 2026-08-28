@@ -33,6 +33,10 @@ brand rules take precedence.
 - For data, choose a chart whose form matches the relationship, direct-label
   important values when practical, and use color to direct attention rather
   than decorate every series.
+- Keep evidence-bearing lines, markers, labels, axes, connectors, arrowheads,
+  and source-critical image regions visible. When truthful series overlap,
+  preserve the relationship and resolve label or fill conflicts with bounded
+  transparency, offsets, local masks, or a valid alternate chart form.
 - Use icons only when they encode structure or meaning, and keep one coherent
   icon language within a deck.
 - Preserve native editability and render every changed page before delivery.

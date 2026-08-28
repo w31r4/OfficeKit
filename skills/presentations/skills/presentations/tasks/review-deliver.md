@@ -55,6 +55,10 @@ the exact plan page IDs for a local edit.
 - Repair design findings in this order: claim/evidence, carrier,
   composition/hierarchy, style/motif, then motion. Do not begin with decoration
   when the information relationship is wrong.
+- On layered pages, compare `slide.elements` or `inspect({ kind: "layer" })`
+  with the render. Reject hidden chart lines, markers, labels, axes,
+  connectors, arrowheads, causal routes, or source-critical image regions.
+  Transparency is not automatically safe; judge the actual rendered contrast.
 - Evaluate repetition, density, rhythm, card-wall, dominant-geometry, hollow-
   container, text/container hierarchy, title-form, and design-drift warnings in
   context. They are deterministic signals, not aesthetic verdicts.

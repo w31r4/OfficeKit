@@ -101,7 +101,10 @@ steps are in [Continue](tasks/continue.md).
 - Catalog-style creation loads only the selected Template Skill, its examples,
   and the creation workflow. Reference-deck continuation loads its source-bound
   workflow instead.
-- Imported editing loads advanced guidance only for the targeted native object.
+- Image-led pages and any cross-type overlap load
+  [layered composition](references/layered-composition.md).
+- Imported editing loads advanced guidance only for the targeted native object;
+  a z-order request also loads layered composition.
 - Motion loads only for a speaking or explicit animation requirement.
 - Review and continuation each have one authoritative task document; do not
   copy their mechanics into another route.

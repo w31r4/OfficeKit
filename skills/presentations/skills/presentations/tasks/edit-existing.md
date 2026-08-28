@@ -14,6 +14,11 @@ source-derived-reusable, or opaque-preserved. Load
 [advanced imported editing](../references/advanced-imported-editing.md) only
 for the relevant advanced object.
 
+For a layer-order request, also read
+[layered composition](../references/layered-composition.md). Inspect `kind:
+"layer"`, resolve the target and peer, and require an editable
+`zOrderCapability`; do not infer safety from an object's visible type.
+
 ## 2. Declare scope
 
 Use an `edit-existing` authoring plan for broad or resumable work. Preserve the
@@ -34,6 +39,10 @@ capability. Avoid raw XML, XPath, relationship IDs, and whole-package rebuilds.
 
 Export after a source-bound edit. Reimport and reinspect before the next edit;
 capability IDs do not survive revision changes.
+
+Keep a source-bound reorder isolated from unrelated overlays, deletion, or
+broad rewrites. Verify that only the intended order changed and that unknown
+native content stayed intact.
 
 If copy reflows, render the changed pages and run the editorial page-fit pass.
 Do not alter layout or neighboring objects when the requested scope is
