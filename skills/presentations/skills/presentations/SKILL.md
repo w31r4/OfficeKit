@@ -98,9 +98,10 @@ steps are in [Continue](tasks/continue.md).
 
 - Creation loads the doctrine, visual floor, scenario policy, and one selected
   scenario guide.
-- Catalog-style creation loads only the selected Template Skill, its examples,
-  and the creation workflow. Reference-deck continuation loads its source-bound
-  workflow instead.
+- Catalog-style creation loads the selected Template Skill in full, its examples,
+  and the creation workflow. The guide is a complete mini design system, not a
+  palette summary or a fixed page recipe. Reference-deck continuation loads its
+  source-bound workflow instead.
 - Image-led pages and any cross-type overlap load
   [layered composition](references/layered-composition.md).
 - Imported editing loads advanced guidance only for the targeted native object;

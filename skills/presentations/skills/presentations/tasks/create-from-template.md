@@ -20,11 +20,13 @@ and task-bound by SHA-256.
 
 ## 2. Gather only the relevant evidence
 
-For `template`, read its `SKILL.md`, preview, and four-to-six role-labelled
-examples. Extract hierarchy, palette roles, typography rhythm, geometry and
-line behavior, density, visual carriers, imagery, chart language, motifs, and
-anti-patterns. Do not look for a PPTX, Layout ID, MJS module, or edit profile;
-they are not part of the template protocol.
+For `template`, read its complete `SKILL.md`, preview, and four-to-six
+role-labelled examples. The guide is the reusable design system: extract its
+communication territory, hierarchy, palette roles, typography rhythm, geometry
+and line behavior, density, visual carriers, imagery, chart language, motifs,
+variation limits, and anti-patterns. Do not reduce it to a few adjectives or
+copy a helper's default silhouette. Do not look for a PPTX, Layout ID, MJS
+module, or edit profile; they are not part of the template protocol.
 
 For `design-system`, record exact supplied rules and unresolved gaps. For
 `style-transfer`, render and inspect the reference deck but do not copy its

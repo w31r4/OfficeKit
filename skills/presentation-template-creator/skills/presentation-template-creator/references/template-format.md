@@ -18,8 +18,10 @@ No other file is allowed.
 
 ## Guide body
 
-The packaging script adds YAML frontmatter. Supply a Markdown body that explains
-only this style's distinctive choices:
+The packaging script adds YAML frontmatter. Supply a complete, self-contained
+Markdown body that explains this style's distinctive choices. Do not shorten a
+guide into a palette summary or an adjective list; the Agent must not have to
+guess the design system:
 
 - communication territory and unsuitable uses;
 - palette roles and surface hierarchy;
@@ -28,7 +30,11 @@ only this style's distinctive choices:
 - image, chart, table, and diagram treatment;
 - recurring motifs and variation limits;
 - concrete anti-patterns;
-- what each example demonstrates.
+- what each example demonstrates;
+- the preferred page archetypes and information density;
+- how the style treats photographs, SVG, charts, tables, diagrams, and
+  editable foreground/background layers;
+- the final visual and structural checks that protect the style.
 
 Do not repeat the general Presentations workflow or prescribe fixed coordinates.
 
