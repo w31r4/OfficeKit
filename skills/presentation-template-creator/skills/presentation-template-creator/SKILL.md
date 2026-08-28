@@ -5,9 +5,14 @@ description: Create or update a reusable PowerPoint style template from a refere
 
 # Presentation Template Creator
 
-Create OfficeKit's single PowerPoint template form: a concise style Skill plus
-original visual examples. Never retain a reference PPTX, fixed layout, page
-skeleton, source component, or authoring script in the template.
+Create OfficeKit's single PowerPoint template form: a complete, self-contained
+style Skill plus original visual examples. The main Presentations Skill is a
+short router; a template Skill is the durable mini design system an Agent reads
+after selection. Preserve the useful design evidence an Agent needs to work
+without the reference at hand. Do not turn it into a palette slogan, a short
+list of adjectives, or a compressed copy of the source. Never retain a
+reference PPTX, fixed layout, page skeleton, source component, or authoring
+script in the template.
 
 Read [references/template-format.md](references/template-format.md) before
 packaging a template.
@@ -16,14 +21,23 @@ packaging a template.
 
 1. Put all references in the current task as read-only inputs. A PPTX is a
    reference deck, not a template artifact.
-2. Render and inspect the references. Distill only reusable decisions: audience
-   fit, palette and surfaces, typography rhythm, geometry and line language,
-   density, imagery, charts, diagrams, motifs, and anti-patterns.
+2. Render and inspect the references. Distill every reusable, evidence-backed
+   decision: audience fit, communication jobs, narrative moves, palette and
+   surfaces, typography rhythm, geometry and line language, density, imagery,
+   charts, tables, diagrams, motifs, page archetypes, variation limits, and
+   anti-patterns. Preserve concrete guidance instead of collapsing it into a
+   generic tone word. Unknown facts stay marked as unknown.
    When full-page imagery, scrims, crossing diagrams, foreground labels, or
    other overlaps define the style, also inspect the bottom-to-top scene stack.
    A screenshot proves appearance, not independent editability.
-3. Write the style guide independently. Do not copy reference wording or claim
-   uncertain design intent as fact.
+3. Write the style guide independently. It must be useful on its own and
+   cover the style's communication territory, visual grammar, page archetypes,
+   composition choices, typography and palette roles, content/chart/table/
+   diagram treatment, image policy, density/rhythm, layer order, signatures,
+   variation limits, prohibitions, review checks, and a calibration map.
+   Do not optimize this guide for token count or line count: every published
+   template must carry those decisions in a complete, self-contained form. Do
+   not copy reference wording or claim uncertain design intent as fact.
 4. Create an unrelated four-to-six-page calibration deck with OfficeKit. Use
    new content and geometry, cover at least three page roles, render every page,
    and review it visually. Recreate any design-defining overlap with real

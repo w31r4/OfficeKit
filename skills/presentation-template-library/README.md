@@ -15,9 +15,13 @@ assets/preview.png
 assets/examples/*.png
 ```
 
-The selected style informs a new deck-specific Design Grammar. The
-Presentations Skill still composes every page from the current content and
-reviews the rendered result. Selecting no template remains valid.
+The selected style informs a new deck-specific Design Grammar. Each shipped
+guide is self-contained: it records the communication territory, page
+archetypes, visual carriers, layer order, density/rhythm, variation limits,
+and review checks that make the style usable without reopening its source.
+The examples calibrate range; they are not pages to copy. The Presentations
+Skill still composes every page from the current content and reviews the
+rendered result. Selecting no template remains valid.
 
 Thirty styles were independently rebuilt from high-level observations of a
 user-supplied visual reference set. The eight earlier default styles were
