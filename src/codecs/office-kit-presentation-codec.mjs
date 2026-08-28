@@ -4,6 +4,7 @@ import {
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { createHash } from "node:crypto";
 import { FileBlob } from "../shared/file-blob.mjs";
+import { assertPresentationElementIndexes } from "../presentation/element-order.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import { compilePresentationEditPlan, presentationEnvelope, presentationFromEnvelope, presentationRequiresNativeLeafEditPlan } from "./office-kit-presentation.mjs";
 import {
@@ -175,6 +176,9 @@ function presentationEditPlanMetadata(editPlan, result) {
 
 export async function exportPptxWithOfficeKit(presentation, options = {}) {
   assertCodecOptions(options, new Set(["limits"]), "exportPptxWithOfficeKit");
+  for (const slide of presentation?.slides?.items || []) {
+    assertPresentationElementIndexes(slide, slide.elements?.items);
+  }
   const editPlan = compilePresentationEditPlan(presentation, OFFICE_KIT_PROTOCOL_VERSION);
   if (!editPlan && presentationRequiresNativeLeafEditPlan(presentation)) {
     throw new OfficeKitCodecError("Presentation native-leaf edits must compile to a bounded source-package Edit Plan; dependent or unsupported changes fail closed.", [], { code: "unsupported_presentation_native_leaf_edit" });

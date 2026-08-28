@@ -1414,7 +1414,9 @@ assert.equal(importedCurvedConnector.line.style, "dash-dot");
 assert.equal(importedCurvedConnector.cap, "round");
 assert.equal(importedCurvedConnector.join, "bevel");
 assert.equal(itemByName(importedConnectorSlide.connectors.items, "hidden-site-connector").line.style, "none");
-assert.throws(() => importedCurvedConnector.bringToFront(), /z-order is source-bound/);
+assert.equal(importedCurvedConnector.zOrderCapability.sourceBound, true);
+assert.equal(importedCurvedConnector.zOrderCapability.known, true);
+assert.equal(importedCurvedConnector.zOrderCapability.editable, true);
 const connectorNoOpExport = await PresentationFile.exportPptx(connectorImported);
 const connectorNoOpZip = await JSZip.loadAsync(connectorNoOpExport.bytes);
 assert.deepEqual(

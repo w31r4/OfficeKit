@@ -1,5 +1,7 @@
 export const PRESENTATION_ELEMENT_ORDER_CAPABILITY = Symbol.for("office-kit.presentation-element-order-capability");
 
+const FILTERED_INDEX_KEYS = ["shapes", "images", "tables", "charts", "connectors", "groups", "nativeObjects"];
+
 function ownerItems(element) {
   const items = element?.parentGroup?.children || element?.slide?.elements?.items;
   if (!Array.isArray(items)) throw new Error("Presentation element does not belong to an ordered slide or group scene stack.");
@@ -43,6 +45,51 @@ function sourcePrefixIsValid(items) {
   return true;
 }
 
+function filteredIndexUpdates(element, orderedItems) {
+  const owner = element.parentGroup || element.slide;
+  const updates = [];
+  for (const key of FILTERED_INDEX_KEYS) {
+    const items = owner?.[key]?.items;
+    if (!Array.isArray(items)) continue;
+    const members = new Set(items);
+    const ordered = orderedItems.filter((item) => members.has(item));
+    if (ordered.length !== items.length) {
+      throw new Error(`Presentation ${key} index is inconsistent with its owner scene stack.`);
+    }
+    updates.push({ items, ordered });
+  }
+  return updates;
+}
+
+export function assertPresentationElementIndexes(owner, orderedItems = owner?.children || owner?.elements?.items) {
+  if (!Array.isArray(orderedItems)) throw new Error("Presentation scene stack is unavailable for index validation.");
+  const collections = FILTERED_INDEX_KEYS
+    .map((key) => ({ key, items: owner?.[key]?.items }))
+    .filter((entry) => Array.isArray(entry.items));
+  const indexedItems = collections.flatMap((entry) => entry.items);
+  const indexedSet = new Set(indexedItems);
+  const orderedSet = new Set(orderedItems);
+  const complete = indexedItems.length === orderedItems.length
+    && indexedSet.size === indexedItems.length
+    && orderedSet.size === orderedItems.length
+    && orderedItems.every((item) => indexedSet.has(item));
+  const ordered = complete && collections.every((entry) => {
+    const members = new Set(entry.items);
+    const expected = orderedItems.filter((item) => members.has(item));
+    return expected.length === entry.items.length && expected.every((item, index) => item === entry.items[index]);
+  });
+  if (!complete || !ordered) {
+    const grouped = Array.isArray(owner?.children);
+    const error = new Error(`Presentation ${grouped ? "group" : "element"} topology changed outside the typed scene-stack lifecycle.`);
+    error.code = grouped ? "presentation_group_topology_changed" : "presentation_element_topology_changed";
+    throw error;
+  }
+  for (const item of orderedItems) {
+    if (Array.isArray(item?.children)) assertPresentationElementIndexes(item, item.children);
+  }
+  return true;
+}
+
 function move(element, destinationIndex, placement) {
   assertEditable(element);
   const items = ownerItems(element);
@@ -57,7 +104,9 @@ function move(element, destinationIndex, placement) {
     error.code = "unsupported_presentation_element_reorder";
     throw error;
   }
+  const indexUpdates = filteredIndexUpdates(element, next);
   items.splice(0, items.length, ...next);
+  for (const update of indexUpdates) update.items.splice(0, update.items.length, ...update.ordered);
   element._zPlacement = placement;
   return element;
 }
