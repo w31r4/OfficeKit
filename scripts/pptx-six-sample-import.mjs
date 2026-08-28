@@ -82,6 +82,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const profile = presentation.designProfile({ maxItems: 64, includeComponentCandidates: true });
     const placement = await verifyPlacementEdit(bytes);
     const text = await verifyTextEdit(bytes);
+    const nativeText = await verifyNativeTextEdit(bytes);
     const reuse = await verifyOneSlideReuse(bytes);
     results.push({
       id: source.id,
@@ -99,7 +100,12 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       noOpByteIdentical: true,
       placement,
       text,
+      nativeText,
       sourceSlideReuse: reuse,
+      nativeLeafCount: records.reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
+      nativeTextLeafCount: records
+        .filter((record) => (record.nativeLeafKinds || []).includes("nativeText"))
+        .reduce((sum, record) => sum + Number(record.nativeLeafCount || 0), 0),
       designProfile: profileSummary(profile),
     });
   }
@@ -113,6 +119,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       noOpByteIdentical: results.every((result) => result.noOpByteIdentical),
       placementEdits: results.filter((result) => result.placement.status === "passed").length,
       textEdits: results.filter((result) => result.text.status === "passed").length,
+      nativeTextEdits: results.filter((result) => result.nativeText.status === "passed").length,
       sourceSlideReuse: results.filter((result) => result.sourceSlideReuse.status === "passed").length,
     },
     sources: results,
@@ -135,6 +142,26 @@ async function verifyTextEdit(bytes) {
     throw new Error(`Text edit changed unexpected parts for ${target.shape.id}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.shape.id, changedParts };
+}
+
+async function verifyNativeTextEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "nativeText");
+  if (!target) return { status: "blocked", reason: "no bounded opaque-table text leaf was discovered" };
+  const value = `${target.value} OfficeKit`;
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const object = reopened.resolve(target.targetId);
+  const leaf = object?.nativeTextLeaves?.find((candidate) => candidate.textLeafIndex === target.textLeafIndex);
+  if (leaf?.text !== value) throw new Error(`Native text edit did not survive re-import for ${target.targetId}.`);
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, textLeafIndex: target.textLeafIndex, changedParts };
 }
 
 async function verifyPlacementEdit(bytes) {
