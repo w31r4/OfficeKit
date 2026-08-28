@@ -11,6 +11,7 @@
 - [x] 2.3 Add shared ordering capability and `sendToBack`, `bringToFront`, `moveBefore`, `moveAfter` methods.
 - [x] 2.4 Export, SVG preview, layout inspection, and model serialization in scene-stack order.
 - [x] 2.5 Add `slide.setBackgroundImage(...)` and prove image -> scrim -> editable foreground output.
+- [x] 2.6 Add the bounded native `p:bg/p:bgPr/a:blipFill` image-background primitive for true full-bleed backdrops, while keeping the ordinary picture-layer route for crop, z-order, and animation.
 
 ## 3. Preserve and edit imported order
 

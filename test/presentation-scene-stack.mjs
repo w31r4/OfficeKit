@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import JSZip from "jszip";
 
 import { FileBlob, Presentation, PresentationFile } from "../src/index.mjs";
 
@@ -47,6 +48,24 @@ reopened.elements.getItem("photo").bringToFront();
 const reorderedOutput = await PresentationFile.exportPptx(reimported);
 const reordered = await PresentationFile.importPptx(reorderedOutput);
 assert.deepEqual(reordered.slides.items[0].elements.items.map((element) => element.name), ["scrim", "title", "photo"]);
+
+// Native p:bg is distinct from the ordinary bottom-layer picture above: it is
+// written as a direct PresentationML background and remains editable as an
+// embedded image without entering the scene stack.
+const nativeDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const nativeSlide = nativeDeck.slides.add({ name: "native background" });
+nativeSlide.shapes.add({ name: "foreground", geometry: "textbox", position: { left: 40, top: 40, width: 520, height: 72 }, text: "Native background stays behind content" });
+nativeSlide.setNativeBackgroundImage({ blob: new FileBlob(pngBytes, { type: "image/png" }), alphaModulationFixed: true });
+const nativeOutput = await PresentationFile.exportPptx(nativeDeck);
+const nativeZip = await JSZip.loadAsync(nativeOutput.bytes);
+const nativeSlideXml = await nativeZip.file("ppt/slides/slide1.xml").async("string");
+assert.match(nativeSlideXml, /<p:bg>[\s\S]*?<p:bgPr>[\s\S]*?<a:blipFill\b[^>]*>[\s\S]*?<a:stretch>[\s\S]*?<\/p:bgPr>[\s\S]*?<\/p:bg>/);
+assert.doesNotMatch(nativeSlideXml, /<p:pic>/);
+const nativeReimported = await PresentationFile.importPptx(nativeOutput);
+assert.deepEqual(nativeReimported.slides.items[0].background.image.fit, "stretch");
+assert.equal(nativeReimported.slides.items[0].background.image.dataUrl, PNG);
+assert.equal(nativeReimported.slides.items[0].background.image.alphaModulationFixed, true);
+assert.equal(nativeReimported.slides.items[0].inspectRecords(new Set(["slide"]))[0].nativeBackgroundImage.editable, true);
 
 // A real NASA fixture exposed that source-bound reorder could lose imported
 // picture-bullet assets even though the source package itself was preserved.

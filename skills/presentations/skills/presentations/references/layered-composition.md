@@ -50,6 +50,22 @@ identity, or emotion. Preserve an important subject and information-bearing
 region when cropping. Add a scrim only when it makes foreground content
 readable without destroying the image's evidence.
 
+There are two deliberate image routes. Use `slide.setNativeBackgroundImage(...)`
+when the image is a true full-bleed backdrop that must sit below every slide
+object:
+
+```js
+slide.setNativeBackgroundImage({
+  blob: await FileBlob.load(asset.path, { type: asset.mimeType }),
+});
+```
+
+This writes native `p:bg/p:bgPr/a:blipFill` and supports one embedded image
+with `fit: "stretch"`. It is not a scene-stack element, so it cannot be
+reordered or animated. Use `slide.setBackgroundImage(...)` below when the
+image needs crop, cover/contain behavior, z-order changes, or animation; that
+route writes an ordinary editable picture layer.
+
 ```js
 const photo = slide.setBackgroundImage({
   blob: await FileBlob.load(asset.path, { type: asset.mimeType }),

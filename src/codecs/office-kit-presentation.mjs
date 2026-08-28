@@ -699,7 +699,7 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
     after: slide,
     name: slide.name,
     hidden: slide.hidden,
-    ...(slide.background?.fill ? { background: clonedPresentationValue(slide.background) } : {}),
+    ...(slide.background?.fill || slide.background?.image ? { background: clonedPresentationValue(slide.background) } : {}),
     ...(slide.transition?.configured ? { transition: slide.transition.toJSON() } : {}),
     ...(source.wire.speakerNotes
       ? { notes: source.wire.speakerNotes.textBody ? slide.speakerNotes?.textFrame?.paragraphs || [] : slide.speakerNotes?.text || "" }
@@ -1384,8 +1384,21 @@ function wireMasterTextStyles(master, original, assetCatalog) {
   return result;
 }
 
-function wireBackground(background, ownerId) {
+function hasPresentationBackground(background) {
+  return Boolean(background && (background.fill || background.image));
+}
+
+function wireBackground(background, ownerId, assetCatalog) {
   if (!background) return undefined;
+  if (background.image) {
+    const image = background.image;
+    const assetId = image.dataUrl ? assetCatalog.addDataUrl(image.dataUrl) : String(image.assetId || "").trim();
+    if (!assetId) throw new OfficeKitCodecError(`Presentation ${ownerId} image background requires an embedded asset.`, [], { code: "invalid_presentation_background" });
+    if (image.dataUrl && image.assetId && String(image.assetId).trim() !== assetId) {
+      throw new OfficeKitCodecError(`Presentation ${ownerId} image background assetId does not match its dataUrl.`, [], { code: "invalid_presentation_background" });
+    }
+    return { imageAssetId: assetId, ...(image.alphaModulationFixed ? { imageAlphaModulationFixed: true } : {}) };
+  }
   const fill = String(background.fill || "").trim();
   const color = PRESENTATION_SCHEME_COLORS.has(fill)
     ? { case: "colorScheme", value: fill }
@@ -1402,7 +1415,11 @@ function wireBackground(background, ownerId) {
   return { color, kind: { case: "solid", value: true } };
 }
 
-function modelBackground(background) {
+function modelBackground(background, assetCatalog) {
+  if (background?.imageAssetId) {
+    const assetId = String(background.imageAssetId);
+    return { image: { assetId, dataUrl: assetCatalog.dataUrl(assetId), fit: "stretch", ...(background.imageAlphaModulationFixed ? { alphaModulationFixed: true } : {}) } };
+  }
   if (!background?.color?.case || !background?.kind?.case) return undefined;
   const fill = background.color.case === "colorScheme" ? background.color.value : `#${String(background.color.value).toLowerCase()}`;
   return background.kind.case === "styleReferenceIndex"
@@ -1654,7 +1671,7 @@ function presentationMasters(presentation, state, assetCatalog, customShowLinks)
     id: master.id,
     name: master.name,
     textStyles: wireMasterTextStyles(master, undefined, assetCatalog),
-    background: wireBackground(master.background, `master ${master.id}`),
+    background: wireBackground(master.background, `master ${master.id}`, assetCatalog),
     placeholders: master.placeholders.map((placeholder) => sourceFreePlaceholder(placeholder, master.id, assetCatalog, customShowLinks)),
   }] : [];
 }
@@ -1666,7 +1683,7 @@ function presentationLayouts(presentation, state, assetCatalog, customShowLinks)
       name: layout.name,
       masterId: layout.masterId,
       type: sourceFreeLayoutType(layout.type, layout.id),
-      ...(layout.background ? { background: wireBackground(layout.background, `layout ${layout.id}`) } : {}),
+      ...(layout.background ? { background: wireBackground(layout.background, `layout ${layout.id}`, assetCatalog) } : {}),
       placeholders: layout.placeholders.map((placeholder) => sourceFreePlaceholder(placeholder, layout.id, assetCatalog, customShowLinks)),
     }));
   }
@@ -3067,7 +3084,7 @@ export function presentationEnvelope(presentation, protocolVersion) {
       source: sourceState?.wire.source,
       ...(slide.visibilityCapability.known ? { hidden: slide.hidden } : {}),
       ...(slide.layoutId ? { layoutId: slide.layoutId } : {}),
-      ...(slide.background?.fill ? { background: wireBackground(slide.background, `slide ${slideIndex + 1}`) } : {}),
+      ...(hasPresentationBackground(slide.background) ? { background: wireBackground(slide.background, `slide ${slideIndex + 1}`, assetCatalog) } : {}),
       ...(slide.transition?.configured ? { transition: wirePresentationTransition(slide.transition) } : {}),
       ...(slide.animations.count ? { animations: slide.animations.items.map((animation) => wirePresentationAnimation(animation, `slide ${slideIndex + 1}`)) } : {}),
       ...(slide.morph.configured ? { morph: wirePresentationMorph(slide.morph.value, `slide ${slideIndex + 1}`) } : {}),
@@ -4973,7 +4990,7 @@ export async function presentationFromEnvelope(envelope) {
       const model = presentation.masters.add({
         id: sourceMaster.id,
         name: sourceMaster.name,
-        ...(sourceMaster.background ? { background: modelBackground(sourceMaster.background) } : {}),
+        ...(sourceMaster.background ? { background: modelBackground(sourceMaster.background, assetCatalog) } : {}),
         placeholders: (sourceMaster.placeholders || []).map((placeholder) => modelPlaceholder(placeholder, assetCatalog, customShowLinks)),
         textParagraphStyles: modelMasterTextStyles(sourceMaster, assetCatalog),
         slideGuides,
@@ -4996,7 +5013,7 @@ export async function presentationFromEnvelope(envelope) {
       name: sourceLayout.name,
       type: sourceLayout.type,
       masterId: sourceLayout.masterId,
-      ...(sourceLayout.background ? { background: modelBackground(sourceLayout.background) } : {}),
+      ...(sourceLayout.background ? { background: modelBackground(sourceLayout.background, assetCatalog) } : {}),
       placeholders: (sourceLayout.placeholders || []).map((placeholder) => modelPlaceholder(placeholder, assetCatalog, customShowLinks)),
       slideGuides,
     });
@@ -5011,7 +5028,7 @@ export async function presentationFromEnvelope(envelope) {
     const slide = presentation.slides.add({
       name: sourceSlide.name,
       ...(sourceSlide.hidden === undefined ? {} : { hidden: sourceSlide.hidden }),
-      ...(sourceSlide.background ? { background: modelBackground(sourceSlide.background) } : {}),
+      ...(sourceSlide.background ? { background: modelBackground(sourceSlide.background, assetCatalog) } : {}),
       ...(sourceSlide.transition ? { transition: modelPresentationTransition(sourceSlide.transition, slideStates.length) } : {}),
       ...(sourceSlide.animations?.length ? { animations: sourceSlide.animations.map((animation) => modelPresentationAnimation(animation, `slide ${slideStates.length + 1}`)) } : {}),
       ...(sourceSlide.morph ? { morph: modelPresentationMorph(sourceSlide.morph, `slide ${slideStates.length + 1}`) } : {}),

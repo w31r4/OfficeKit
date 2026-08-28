@@ -41,7 +41,7 @@ PPTX export.
 ## Supported source-free boundary
 
 - Exactly one master.
-- Direct RGB/theme solid or style-reference background.
+- Direct RGB/theme solid, style-reference, or bounded embedded-image background.
 - Bounded `title`, `body`, and `other` paragraph-style levels.
 - Direct-frame `title`, `body`, `ctrTitle`, and `subTitle` text placeholders.
 - Layout types `blank`, `title`, `titleOnly`, and `obj`.

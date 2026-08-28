@@ -37,6 +37,28 @@ OfficeKit SHALL provide a background-image convenience that creates an ordinary 
 - **WHEN** an Agent sets a background image, adds a semi-transparent scrim, and adds editable foreground content
 - **THEN** the picture SHALL remain editable and the rendered foreground SHALL remain visible above it
 
+### Requirement: Native full-bleed image background
+
+OfficeKit SHALL provide a separate native-background primitive for one embedded
+stretch-only image on a slide, layout, or master. The primitive SHALL keep the
+image outside the scene stack and SHALL preserve the ordinary picture-layer
+primitive for images that require crop, z-order, or animation.
+
+#### Scenario: Native backdrop remains beneath content
+
+- **WHEN** an Agent sets a native image background and adds editable slide content
+- **THEN** export SHALL write a direct `p:bg/p:bgPr/a:blipFill`, reimport SHALL expose the image background, and the content SHALL remain above it
+
+#### Scenario: Unsupported native image behavior fails closed
+
+- **WHEN** an Agent requests crop, tile, effects, external links, or an irregular imported background graph through the native primitive
+- **THEN** OfficeKit SHALL reject the request without flattening or replacing the source background
+
+#### Scenario: Native image replacement preserves package ownership
+
+- **WHEN** a recognized source-bound native image background is replaced or cleared
+- **THEN** only the owning slide/layout/master, its relationship part, and exclusively owned obsolete image part MAY change; shared or opaque package content SHALL remain preserved
+
 ### Requirement: Source-bound imported reorder
 
 OfficeKit SHALL preserve imported order by default and SHALL reorder existing native direct nodes only under an independently re-proved capability.

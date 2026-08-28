@@ -10,6 +10,7 @@ The wire and native importer already preserve shape-tree order. The loss occurs 
 - Make authored image backgrounds, scrims, editable text, charts, and foreground controls deterministic.
 - Let inspection explain every element's stack position and reorder capability.
 - Support bounded imported reorder without collateral serialization or unknown-content loss.
+- Represent a true full-bleed image as a bounded native PresentationML background when its semantics do not require a scene-layer picture.
 - Prove the complete workflow on source-free pages and the existing three complex PPTX references.
 
 **Non-Goals:**
@@ -31,9 +32,18 @@ The stack is bottom-to-top, matching PresentationML shape-tree order and drawing
 
 A common layer helper implements capability reporting and the four order operations. Authored direct elements and authored group children are editable. Imported objects are marked source-bound during hydration and use a capability issued by the importer/codec. Unknown or unsafe imported objects remain inspectable and preserved but reject reorder.
 
-### 3. Background image is an ordinary bottom-layer image
+### 3. Background images have two explicit semantic routes
 
 `slide.setBackgroundImage({ blob | dataUrl, fit, crop, ... })` creates or replaces one tagged full-slide image and moves it to index zero. It does not pretend that PresentationML supports a native bitmap background. The returned `ImageElement` remains editable, inspectable, and auditable. The background role is metadata in the JavaScript authoring model; export remains ordinary editable picture XML.
+
+`slide.setNativeBackgroundImage({ blob | dataUrl | assetId })` is the separate
+semantic route for a true full-bleed backdrop. It writes one embedded,
+stretch-only `p:bg/p:bgPr/a:blipFill` beneath all slide content and is inherited
+through the normal Layout/Master chain. It is not a scene-stack element, so it
+cannot be reordered or animated. Crop, tile, effects, external links, and
+irregular imported background graphs remain source-bound and fail closed. This
+keeps the Agent choice legible: use the native route for a backdrop, and the
+ordinary picture route when the image itself must participate in composition.
 
 ### 4. Imported reorder is an explicit source-bound mutation
 
@@ -49,5 +59,6 @@ The existing `evals/pptx-lossless/manifest.v1.json` is the immutable source inve
 
 - [Code expects type-bucket ordering] -> Keep type collections intact and replace only order-sensitive consumers with the scene stack.
 - [Imported node movement changes dependencies] -> Start from a narrow direct-child capability and have the codec reject timing, connector, group, or ambiguous identities.
-- [Background image API implies native slide background] -> Document and inspect it as an editable picture role, not `p:bg`.
+- [A full-bleed image needs native PresentationML semantics] -> Expose a distinct bounded native-background primitive instead of changing the existing picture-layer contract.
+- [Native background needs crop or animation] -> Route to the ordinary picture layer, which remains editable and reorderable.
 - [Visual review misses obstruction] -> Inspect stack order and run one host-rendered photo/scrim/text acceptance page in addition to layout checks.
