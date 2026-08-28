@@ -31,4 +31,4 @@
 - [x] 5.2 Run imported inspect/reorder/preserve/reimport checks on every sample; mutate only capability-proven targets.
 - [x] 5.3 Render and visually inspect the photo/scrim/text reference and supported imported edits in the available host.
 - [x] 5.4 Repeat from a packed clean install and one fresh Agent context.
-- [ ] 5.5 Run final required full/package gates once and publish the verified and blocked boundaries.
+- [x] 5.5 Run final required full/package gates once and publish the verified and blocked boundaries.

@@ -46,5 +46,17 @@
     "The same Agent context corrected the text frame, rebuilt the PPTX, and reran the checks.",
     "The final native render keeps the photograph visible below the scrim while the editable foreground remains legible and unobstructed.",
     "This is one black-box workflow result, not a model-quality benchmark or cross-host playback claim."
-  ]
+  ],
+  "finalCandidateVerification": {
+    "packageVersion": "1.1.0",
+    "packageSha256": "305e22c32b6cd5dfdeb267f6f9f5870397e0d2fc73401ddf2f011afa1393dd9b",
+    "packedBytes": 28568962,
+    "unpackedBytes": 36827175,
+    "skillsInstalled": 10,
+    "offlineCleanInstall": "passed",
+    "globalCli": "passed",
+    "nativeAotReproducibility": "passed",
+    "nativeAotFiles": 8,
+    "note": "The earlier fresh-context result remains the model-behavior evidence; this final candidate check re-proved the current package and runtime without rerunning the Agent."
+  }
 }
