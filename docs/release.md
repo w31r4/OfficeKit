@@ -1,5 +1,29 @@
 # Release
 
+## Unreleased: Presentation scene stack
+
+Presentation authoring now uses one bottom-to-top scene stack across shapes,
+text, images, tables, charts, connectors, and groups. Public ordering operations
+move supported objects relative to one another, while typed collections remain
+filtered indexes. Full-bleed image pages can use `slide.setBackgroundImage(...)`
+and translucent native shapes for a reliable image, scrim, editable foreground,
+and emphasis-layer composition. Inspect and Help expose the resulting stack and
+capability evidence to Agents.
+
+Imported direct top-level elements are reorderable only when the complete native
+order and dependencies can be re-proved against the source revision. The codec
+moves existing native XML nodes instead of rebuilding the slide; group children,
+unsafe relationships, mixed source-reorder/overlay transactions, and attempts to
+place authored overlays beneath the preserved source prefix fail closed.
+
+Evidence covers six real external references totaling 157 pages. Unchanged
+exports are byte-exact; three capability-proven reorders changed only their
+target SlidePart and survived second import and LibreOffice rendering. A packed
+clean install plus one fresh Codex context independently authored, reopened,
+inspected, rendered, corrected, and delivered a five-layer image-led slide using
+only the installed Skill and public OfficeKit API. These checks do not claim
+arbitrary nested-native reorder or Windows PowerPoint visual acceptance.
+
 ## Unreleased presentation style expansion
 
 The presentation template library now contains thirty-eight schema-v3 style
