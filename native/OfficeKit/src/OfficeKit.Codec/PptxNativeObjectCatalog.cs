@@ -117,6 +117,9 @@ internal sealed class PptxNativeObjectCatalog
         }
     }
 
+    internal string? ValidatedPartSha256(OpenXmlPart part) =>
+        _parts.TryGetValue(PartPath(part), out var descriptor) ? descriptor.Sha256 : null;
+
     private static IReadOnlySet<string> PackagePaths(byte[] sourceBytes)
     {
         using var stream = new MemoryStream(sourceBytes, writable: false);

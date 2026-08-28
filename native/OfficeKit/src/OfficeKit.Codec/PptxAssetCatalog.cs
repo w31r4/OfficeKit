@@ -22,11 +22,16 @@ internal sealed class PptxAssetCatalog
     private readonly Dictionary<string, Asset> _assets = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ImagePart> _partByAssetId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Asset> _imported = new(StringComparer.Ordinal);
+    private readonly Func<ImagePart, string?>? _validatedPartSha256;
     private readonly ulong _maxTotalBytes;
     private ulong _totalBytes;
 
-    internal PptxAssetCatalog(IEnumerable<Asset>? assets, EffectiveCodecLimits limits)
+    internal PptxAssetCatalog(
+        IEnumerable<Asset>? assets,
+        EffectiveCodecLimits limits,
+        Func<ImagePart, string?>? validatedPartSha256 = null)
     {
+        _validatedPartSha256 = validatedPartSha256;
         _maxTotalBytes = Math.Min(limits.MaxUncompressedBytes, (ulong)MaxAssets * MaxAssetBytes);
         foreach (var asset in assets ?? []) AddRequested(asset);
     }
@@ -51,13 +56,35 @@ internal sealed class PptxAssetCatalog
 
     internal Asset Import(ImagePart part)
     {
+        var contentType = NormalizeContentType(part.ContentType);
+        var digest = _validatedPartSha256?.Invoke(part);
+        if (digest is { Length: 64 } && digest.All(char.IsAsciiHexDigit))
+        {
+            digest = digest.ToLowerInvariant();
+            var validatedId = PictureAssetPrefix + digest;
+            if (_assets.TryGetValue(validatedId, out var requestedAsset) &&
+                requestedAsset.ContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase))
+            {
+                _partByAssetId.TryAdd(validatedId, part);
+                return requestedAsset;
+            }
+            if (_imported.TryGetValue(validatedId, out var importedAsset) &&
+                importedAsset.ContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase))
+            {
+                _partByAssetId.TryAdd(validatedId, part);
+                return importedAsset;
+            }
+        }
+        else
+        {
+            digest = null;
+        }
         using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
         using var memory = new MemoryStream();
         stream.CopyTo(memory);
         var data = memory.ToArray();
-        var contentType = NormalizeContentType(part.ContentType);
         ValidateImage(contentType, data, $"Presentation image part {part.Uri}");
-        var digest = Hash(data);
+        digest ??= Hash(data);
         var id = PictureAssetPrefix + digest;
         if (_assets.TryGetValue(id, out var requested))
         {

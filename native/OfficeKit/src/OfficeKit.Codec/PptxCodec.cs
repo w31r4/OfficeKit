@@ -89,7 +89,7 @@ internal static class PptxCodec
         var slideIdByPartPath = slideParts
             .Select((part, index) => (Path: PartPath(part), Id: $"presentation/slide/{index + 1}"))
             .ToDictionary(item => item.Path, item => item.Id, StringComparer.OrdinalIgnoreCase);
-        var assetCatalog = new PptxAssetCatalog([], limits);
+        var assetCatalog = new PptxAssetCatalog([], limits, nativeObjects.ValidatedPartSha256);
         var masterGraph = ReadMasterGraph(presentationPart);
         var layoutIdByPartPath = masterGraph
             .SelectMany(master => master.Layouts)
