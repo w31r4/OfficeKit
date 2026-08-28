@@ -65,7 +65,7 @@ internal static partial class PptxEditPlanCodec
     [GeneratedRegex("xmlns:(?<prefix>[A-Za-z_][\\w.-]*)\\s*=\\s*(?<quote>['\"])(?<uri>.*?)\\k<quote>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex NamespacePattern();
 
-    [GeneratedRegex("(?<open><(?<prefix>[A-Za-z_][\\w.-]*):t\\b(?![^>]*\\/\\s*>)[^>]*>)(?<value>.*?)(?<close></\\k<prefix>:t\\s*>)", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
+    [GeneratedRegex("(?:(?<open><(?<prefix>[A-Za-z_][\\w.-]*):t\\b[^>]*?\\/\\s*>)|(?<open><(?<prefix>[A-Za-z_][\\w.-]*):t\\b[^>]*>)(?<value>.*?)(?<close></\\k<prefix>:t\\s*>))", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex TextLeafPattern();
 
     [GeneratedRegex("<(?<prefix>[A-Za-z_][\\w.-]*):tc\\b[^>]*>.*?</\\k<prefix>:tc\\s*>", RegexOptions.CultureInvariant | RegexOptions.Singleline)]
@@ -586,7 +586,7 @@ internal static partial class PptxEditPlanCodec
         var open = leaf.Groups["open"].Value;
         if (NeedsPreserve(operation.Value) && !PreserveSpacePattern().IsMatch(open))
             open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
-        var replacement = open + EscapeText(operation.Value) + leaf.Groups["close"].Value;
+        var replacement = ReplaceTextLeaf(leaf, prefix, operation.Value, open);
         return new PptxXmlPatch(
             operation,
             elementRange.Start + leaf.Index,
@@ -602,9 +602,7 @@ internal static partial class PptxEditPlanCodec
         IReadOnlySet<string> drawingPrefixes)
     {
         var texts = TextLeafPattern().Matches(elementXml)
-            .Where(IsNonSelfClosingTextLeaf)
             .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
-            .Where(match => elementLocalName != "grpSp" || match.Groups["value"].Value.Length > 0)
             .ToArray();
         if (elementLocalName != "grpSp") return texts;
 
@@ -624,6 +622,18 @@ internal static partial class PptxEditPlanCodec
 
     private static bool IsNonSelfClosingTextLeaf(Match match) =>
         !match.Groups["open"].Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal);
+
+    private static string ReplaceTextLeaf(Match leaf, string prefix, string value, string? openOverride = null)
+    {
+        var open = openOverride ?? leaf.Groups["open"].Value;
+        if (!IsNonSelfClosingTextLeaf(leaf))
+        {
+            var expanded = open.TrimEnd();
+            expanded = expanded[..^2] + ">";
+            return expanded + EscapeText(value) + $"</{prefix}:t>";
+        }
+        return open + EscapeText(value) + leaf.Groups["close"].Value;
+    }
 
     private static PptxXmlPatch[] CompileChartTitleXmlPatches(byte[] partBytes, IReadOnlyList<PptxEditPlanProof> proofs)
     {

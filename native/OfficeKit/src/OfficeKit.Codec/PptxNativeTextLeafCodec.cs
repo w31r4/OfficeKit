@@ -50,9 +50,10 @@ internal static class PptxNativeTextLeafCodec
 
     private static A.Text[] DescribeGroup(P.GroupShape group)
     {
-        // Empty a:t placeholders are not emitted by the bounded JS leaf index;
-        // they carry no visible value and remain part of the opaque source.
-        var texts = group.Descendants<A.Text>().Where(text => !string.IsNullOrEmpty(text.Text)).ToArray();
+        // Empty a:t placeholders are valid text targets: imported templates
+        // commonly use them as writable slots. They remain source-bound and
+        // are only exposed when every token is a direct run in one shape.
+        var texts = group.Descendants<A.Text>().ToArray();
         // A group can contain opaque geometry, images, and nested groups.  A
         // token is safe to expose only when it belongs to exactly one regular
         // shape/run; table, chart, field, and extension text stays opaque.

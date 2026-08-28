@@ -15,7 +15,7 @@ const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
 const TABLE_GRAPHIC_DATA_URI_PATTERN = /\buri\s*=\s*["']http:\/\/schemas\.openxmlformats\.org\/drawingml\/2006\/table["']/iu;
-const NATIVE_TEXT_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?t\b[^>]*>(?<value>[^<]*)<\/(?:[A-Za-z_][\w.-]*:)?t\s*>/giu;
+const NATIVE_TEXT_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?t\b[^>]*?(?:\/\s*>|>(?<value>[^<]*)<\/(?:[A-Za-z_][\w.-]*:)?t\s*>)/giu;
 const NATIVE_TEXT_RUN = /<(?<prefix>[A-Za-z_][\w.-]*:)?r\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?r\s*>/giu;
 const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?tc\s*>/giu;
 const NATIVE_TEXT_SHAPE = /<(?<prefix>[A-Za-z_][\w.-]*:)?sp\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?sp\s*>/giu;
