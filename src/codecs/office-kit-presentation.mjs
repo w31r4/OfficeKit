@@ -780,13 +780,12 @@ function emuFromPixels(value, name, { allowNegative = false } = {}) {
   return BigInt(Math.round(number * EMU_PER_PIXEL));
 }
 
-// DrawingML permits a negative offset. The authoring profile deliberately
-// does not, but an opaque source-bound element can already contain one. C#
-// verifies that such an element remains semantically unchanged before it
-// preserves it, so let the adapter carry exactly that source-bound value
-// instead of inventing a separate per-shape escape hatch.
+// DrawingML permits a negative offset for source-bound bleed images. The
+// authoring profile remains non-negative, while an imported image keeps its
+// valid edge-bleed geometry so the semantic projection does not downgrade it
+// to opaque solely because it crosses the slide boundary.
 function sourceBoundFrameEmuFromPixels(value, name, original) {
-  return emuFromPixels(value, name, { allowNegative: original?.source?.editable === false });
+  return emuFromPixels(value, name, { allowNegative: Boolean(original?.source) });
 }
 
 function signedEmuFromPixels(value, name) {
