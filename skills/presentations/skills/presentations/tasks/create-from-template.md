@@ -8,7 +8,8 @@ and editorial trim Skill.
 
 Choose exactly one primary source:
 
-- `template`: one schema-v3 Presentation Template Skill;
+- `template`: one presentation Template Skill, its visual examples, and its
+  OfficeKit-authored reference deck when declared;
 - `design-system`: user or brand rules that are authoritative;
 - `style-transfer`: a reference deck used only as visual evidence;
 - `source-continuation`: an existing PPTX whose native pages/components remain
@@ -25,8 +26,11 @@ role-labelled examples. The guide is the reusable design system: extract its
 communication territory, hierarchy, palette roles, typography rhythm, geometry
 and line behavior, density, visual carriers, imagery, chart language, motifs,
 variation limits, and anti-patterns. Do not reduce it to a few adjectives or
-copy a helper's default silhouette. Do not look for a PPTX, Layout ID, MJS
-module, or edit profile; they are not part of the template protocol.
+copy a helper's default silhouette. If the template declares
+`assets/reference.pptx`, import and inspect that OfficeKit-authored deck when
+native backgrounds, source-derived assets, or editable layer order improve the
+result. It is a starting source, not a fixed page recipe; do not clone every
+page or treat it as an external source deck.
 
 For `design-system`, record exact supplied rules and unresolved gaps. For
 `style-transfer`, render and inspect the reference deck but do not copy its
