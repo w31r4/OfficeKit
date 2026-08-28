@@ -24,9 +24,9 @@ assert.deepEqual(packageMetadata.bin, {
 });
 assert.equal(packageMetadata.engines.node, ">=22.15.0");
 assert.deepEqual(packageMetadata.optionalDependencies, {
-  "office-kit-codec-darwin-arm64": "0.6.0",
-  "office-kit-codec-linux-x64": "0.6.0",
-  "office-kit-codec-win32-x64": "0.6.0",
+  "office-kit-codec-darwin-arm64": "1.0.0",
+  "office-kit-codec-linux-x64": "1.0.0",
+  "office-kit-codec-win32-x64": "1.0.0",
 });
 assert.equal(
   packageMetadata.scripts["build:standalone"],
@@ -171,7 +171,7 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. The 1.0.0 global CLI deliberately ships the twenty-one audited
+// and hosted gates. The 1.0.0 global CLI deliberately ships the twenty-two audited
 // default DOCX/XLSX/PPTX templates once inside the package. Keep narrow
 // cross-platform headroom over the measured 36,592,843-byte archive.
 const maxPackedBytes = 37_500_000;
@@ -491,6 +491,15 @@ for (const required of [
   "skills/default-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
   "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/reference.pptx",
   "skills/default-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/SKILL.md",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/artifact-template.json",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/agents/agent.yaml",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/preview.png",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-01.png",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-02.png",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-03.png",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-04.png",
+  "skills/default-template-library/skills/artifact-template-evidence-ledger/assets/examples/slide-05.png",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -576,8 +585,8 @@ const packagedTemplateSidecars = files.filter((file) =>
 );
 assert.equal(
   packagedTemplateSidecars.length,
-  21,
-  "npm package must ship exactly the 21 audited default templates",
+  22,
+  "npm package must ship exactly the 22 audited default templates",
 );
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");

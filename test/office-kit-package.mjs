@@ -619,7 +619,7 @@ try {
       !fs.existsSync(packagedTemplateRoot) ||
       fs.readdirSync(packagedTemplateRoot).filter((name) =>
         name.startsWith("artifact-template-")
-      ).length !== 21
+      ).length !== 22
     ) process.exit(55);
     if (
       fs.existsSync(path.join(
@@ -849,7 +849,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
   const expectedTemplateCounts = new Map([
     ["document", 7],
     ["spreadsheet", 6],
-    ["presentation", 8],
+    ["presentation", 9],
   ]);
   for (const [kind, expectedCount] of expectedTemplateCounts) {
     const search = JSON.parse(expectSuccess([
