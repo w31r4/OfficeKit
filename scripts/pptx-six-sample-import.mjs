@@ -86,6 +86,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
 
     const profile = presentation.designProfile({ maxItems: 64, includeComponentCandidates: true });
     const placement = await verifyPlacementEdit(bytes);
+    const zOrder = await verifyZOrderEdit(bytes);
     const text = await verifyTextEdit(bytes);
     const nativeText = await verifyNativeTextEdit(bytes);
     const imageReplacement = await verifyImageReplacement(bytes);
@@ -117,6 +118,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeLeafKinds: counts(topLevelRecords.flatMap((record) => record.nativeLeafKinds || [])),
       noOpByteIdentical: true,
       placement,
+      zOrder,
       text,
       nativeText,
       imageReplacement,
@@ -147,6 +149,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       classifiedObjects: results.reduce((sum, result) => sum + result.classifiedObjects, 0),
       noOpByteIdentical: results.every((result) => result.noOpByteIdentical),
       placementEdits: results.filter((result) => result.placement.status === "passed").length,
+      zOrderEdits: results.filter((result) => result.zOrder.status === "passed").length,
       textEdits: results.filter((result) => result.text.status === "passed").length,
       nativeTextEdits: results.filter((result) => result.nativeText.status === "passed").length,
       imageReplacements: results.filter((result) => result.imageReplacement.status === "passed").length,
@@ -385,6 +388,42 @@ async function verifyPlacementEdit(bytes) {
     throw new Error(`Placement edit changed unexpected parts for ${target.object.id}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.object.id, nativeKind: target.object.nativeKind, changedParts };
+}
+
+async function verifyZOrderEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  let target;
+  for (const slide of presentation.slides.items) {
+    const items = slide.elements.items;
+    for (let index = 0; index + 1 < items.length; index += 1) {
+      if (items[index].zOrderCapability?.editable === true && items[index + 1].zOrderCapability?.editable === true) {
+        target = { slide, first: items[index], second: items[index + 1] };
+        break;
+      }
+    }
+    if (target) break;
+  }
+  if (!target) return { status: "blocked", reason: "no adjacent direct elements exposed a safe z-order capability" };
+  const identity = (element) => `${element.nativeId ?? ""}\0${element.name || ""}`;
+  const before = target.slide.elements.items.map(identity);
+  target.first.moveAfter(target.second);
+  const expected = [...before];
+  const firstIndex = expected.indexOf(identity(target.first));
+  const secondIndex = expected.indexOf(identity(target.second));
+  expected.splice(firstIndex, 1);
+  expected.splice(secondIndex, 0, identity(target.first));
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const after = reopened.slides.items[target.slide.index].elements.items.map(identity);
+  if (JSON.stringify(after) !== JSON.stringify(expected)) {
+    throw new Error(`Z-order edit did not survive re-import for slide ${target.slide.index + 1}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide.index + 1}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Z-order edit changed unexpected parts for slide ${target.slide.index + 1}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", slide: target.slide.index + 1, movedId: target.first.id, before, after, changedParts };
 }
 
 async function verifyOneSlideReuse(bytes) {
