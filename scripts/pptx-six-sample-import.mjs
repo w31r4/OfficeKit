@@ -89,6 +89,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const text = await verifyTextEdit(bytes);
     const nativeText = await verifyNativeTextEdit(bytes);
     const imageReplacement = await verifyImageReplacement(bytes);
+    const imageCrop = await verifyImageCropEdit(bytes);
     const nativeFill = await verifyNativeFillEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
@@ -118,6 +119,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       text,
       nativeText,
       imageReplacement,
+      imageCrop,
       nativeFill,
       svgStyle,
       animatedText,
@@ -146,6 +148,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       textEdits: results.filter((result) => result.text.status === "passed").length,
       nativeTextEdits: results.filter((result) => result.nativeText.status === "passed").length,
       imageReplacements: results.filter((result) => result.imageReplacement.status === "passed").length,
+      imageCropEdits: results.filter((result) => result.imageCrop.status === "passed").length,
       nativeFillEdits: results.filter((result) => result.nativeFill.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
@@ -223,6 +226,29 @@ async function verifyImageReplacement(bytes) {
     throw new Error(`Image replacement changed unexpected parts for ${target.id}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.id, replacementId: replacement.id, contentType, changedParts };
+}
+
+async function verifyImageCropEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const target = presentation.slides.items
+    .flatMap((slide) => slide.images.items.map((image) => ({ slide, image })))
+    .find(({ image }) => image.contentType && image.dataUrl);
+  if (!target) return { status: "blocked", reason: "no embedded image with a bounded crop surface was discovered" };
+  const before = target.image.crop ? { ...target.image.crop } : undefined;
+  const crop = { left: 0.06, top: 0.03, right: 0.02, bottom: 0.05 };
+  target.image.crop = crop;
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = reopened.resolve(target.image.id);
+  if (!rebound || JSON.stringify(rebound.crop) !== JSON.stringify(crop)) {
+    throw new Error(`Image crop edit did not survive re-import for ${target.image.id}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide.index + 1}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Image crop edit changed unexpected parts for ${target.image.id}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.image.id, before, crop, changedParts };
 }
 
 async function verifyNativeFillEdit(bytes) {
