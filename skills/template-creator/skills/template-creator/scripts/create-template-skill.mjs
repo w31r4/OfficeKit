@@ -237,11 +237,14 @@ async function validateRequest(rawRequest) {
     };
   }
   if (requestedKind != null) throw new Error("--kind is only valid for a clean-room presentation.");
-  if (referenceValue == null) throw new Error("--reference-path must point to a .docx, .pptx, or .xlsx file.");
+  if (referenceValue == null) throw new Error("--reference-path must point to a .docx or .xlsx file.");
   const referencePath = path.resolve(referenceValue);
   const extension = path.extname(referencePath).toLowerCase();
-  if (!artifactKinds.has(extension)) {
-    throw new Error("--reference-path must end in .docx, .pptx, or .xlsx.");
+  if (extension === ".pptx") {
+    throw new Error("PPTX references are one-off presentation source material; use --kind presentation with a clean-room style guide and PNG examples.");
+  }
+  if (!artifactKinds.has(extension) || ![".docx", ".xlsx"].includes(extension)) {
+    throw new Error("--reference-path must end in .docx or .xlsx.");
   }
   await assertRegularFile(referencePath, "--reference-path", MAX_REFERENCE_BYTES);
   await assertValidOfficeReference(referencePath, artifactKinds.get(extension));

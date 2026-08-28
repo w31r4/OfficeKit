@@ -258,8 +258,8 @@ async function writeSpreadsheetFixture(filePath) {
 try {
   await fs.mkdir(fixturesDirectory, { recursive: true });
   const pptxPath = path.join(fixturesDirectory, "reference.pptx");
-  const updatedPptxPath = path.join(fixturesDirectory, "updated-reference.pptx");
   const docxPath = path.join(fixturesDirectory, "reference.docx");
+  const updatedDocxPath = path.join(fixturesDirectory, "updated-reference.docx");
   const xlsxPath = path.join(fixturesDirectory, "reference.xlsx");
   const renamedDocxPath = path.join(fixturesDirectory, "renamed-not-office.docx");
   const renamedPptxPath = path.join(fixturesDirectory, "renamed-not-office.pptx");
@@ -272,9 +272,9 @@ try {
 
   await Promise.all([
     writePresentationFixture(pptxPath, 1),
-    writePresentationFixture(updatedPptxPath, 2),
     writeSpreadsheetFixture(xlsxPath),
     writeDocumentFixture(docxPath),
+    writeDocumentFixture(updatedDocxPath),
     fs.writeFile(renamedDocxPath, "not an Office package\n", "utf8"),
     fs.writeFile(renamedPptxPath, "not an Office package\n", "utf8"),
     fs.writeFile(renamedXlsxPath, "not an Office package\n", "utf8"),
@@ -302,13 +302,20 @@ try {
 
   for (const [referencePath, label] of [
     [renamedDocxPath, "renamed DOCX text"],
-    [renamedPptxPath, "renamed PPTX text"],
     [renamedXlsxPath, "renamed XLSX text"],
     [crossFamilyDocxPath, "PPTX bytes renamed as DOCX"],
     [invalidRootRelationshipDocxPath, "DOCX with invalid root relationship"],
   ]) {
     await assertRejectedOfficeReference(referencePath, label);
   }
+  const rejectedPptxReference = await runCreator([
+    "--reference-path", renamedPptxPath,
+    "--preview-path", previewPath,
+    "--display-name", "PPTX source material",
+    "--description", "A PPTX must use the clean-room presentation workflow.",
+  ]);
+  assert.notEqual(rejectedPptxReference.code, 0);
+  assert.match(rejectedPptxReference.stderr, /PPTX references are one-off presentation source material/u);
   assert.deepEqual(
     await fs.readdir(home),
     [],
@@ -320,7 +327,7 @@ try {
     "999999999\n",
   );
 
-  const pptxSelection = {
+  const selection = {
     useWhen: ["quarterly project review"],
     avoidWhen: ["legal memorandum"],
     audiences: ["executive"],
@@ -341,10 +348,10 @@ try {
       source: "local-test-reference",
     },
   };
-  const unsupportedSelection = structuredClone(pptxSelection);
+  const unsupportedSelection = structuredClone(selection);
   unsupportedSelection.visualTraits.undocumentedTrait = true;
   const unsupportedSelectionResult = await runCreator([
-    "--reference-path", pptxPath,
+    "--reference-path", xlsxPath,
     "--preview-path", previewPath,
     "--display-name", "Unsupported selection fixture",
     "--description", "This fixture must fail before writing a template.",
@@ -355,10 +362,10 @@ try {
     unsupportedSelectionResult.stderr,
     /visualTraits contains unsupported fields: undocumentedTrait/,
   );
-  const nonEnglishSelection = structuredClone(pptxSelection);
+  const nonEnglishSelection = structuredClone(selection);
   nonEnglishSelection.useWhen = ["季度项目复盘"];
   const nonEnglishSelectionResult = await runCreator([
-    "--reference-path", pptxPath,
+    "--reference-path", xlsxPath,
     "--preview-path", previewPath,
     "--display-name", "Non-English selection fixture",
     "--description", "This fixture must keep one English search representation.",
@@ -367,35 +374,15 @@ try {
   assert.notEqual(nonEnglishSelectionResult.code, 0);
   assert.match(nonEnglishSelectionResult.stderr, /useWhen must use English search text/);
 
-  const pptxTemplate = await runSuccessfulCreator([
+  const rejectedPresentationTemplate = await runCreator([
     "--reference-path", pptxPath,
     "--preview-path", previewPath,
     "--display-name", "Presentation fixture",
     "--description", "Create presentations from the fixture layout.",
-    "--selection-json", JSON.stringify(pptxSelection),
+    "--selection-json", JSON.stringify(selection),
   ]);
-  await assertGeneratedTemplate(pptxTemplate, {
-    kind: "presentation",
-    referencePath: pptxPath,
-    visualCommitment: "neutral",
-    editLevel: "bounded-edit",
-    provenanceSource: "local-test-reference",
-  });
-  const createdPptxMetadata = JSON.parse(
-    await fs.readFile(path.join(pptxTemplate.skillPath, "artifact-template.json"), "utf8"),
-  );
-  for (const key of [
-    "useWhen",
-    "avoidWhen",
-    "audiences",
-    "contentShapes",
-    "visualTraits",
-    "visualCommitment",
-    "editProfile",
-  ]) {
-    assert.deepEqual(createdPptxMetadata[key], pptxSelection[key], `selection metadata ${key}`);
-  }
-  assert.equal(createdPptxMetadata.provenance.source, "local-test-reference");
+  assert.notEqual(rejectedPresentationTemplate.code, 0);
+  assert.match(rejectedPresentationTemplate.stderr, /PPTX references are one-off presentation source material/u);
 
   const cleanRoomTemplate = await runSuccessfulCreator([
     "--kind", "presentation",
@@ -462,7 +449,7 @@ try {
   const kindChange = await runCreator([
     "--mode", "update",
     "--skill-name", docxTemplate.skillName,
-    "--reference-path", pptxPath,
+    "--reference-path", xlsxPath,
     "--preview-path", previewPath,
     "--display-name", "Document fixture",
     "--description", "Attempt to change the document fixture kind.",
@@ -472,44 +459,27 @@ try {
   }
   await assertGeneratedTemplate(docxTemplate, { kind: "document", referencePath: docxPath });
 
-  const interruptedBackupPath = `${pptxTemplate.skillPath}.backup-11111111-1111-4111-8111-111111111111`;
-  await fs.rename(pptxTemplate.skillPath, interruptedBackupPath);
+  const interruptedBackupPath = `${docxTemplate.skillPath}.backup-11111111-1111-4111-8111-111111111111`;
+  await fs.rename(docxTemplate.skillPath, interruptedBackupPath);
   const sentinelPath = path.join(interruptedBackupPath, "sentinel.txt");
   await fs.writeFile(sentinelPath, "retain me\n");
-  const updatedPptxTemplate = await runSuccessfulCreator([
+  const updatedDocxTemplate = await runSuccessfulCreator([
     "--mode", "update",
-    "--skill-name", pptxTemplate.skillName,
-    "--reference-path", updatedPptxPath,
+    "--skill-name", docxTemplate.skillName,
+    "--reference-path", updatedDocxPath,
     "--preview-path", previewPath,
-    "--display-name", "Updated presentation fixture",
-    "--description", "Create presentations from the updated fixture layout.",
+    "--display-name", "Updated document fixture",
+    "--description", "Create documents from the updated fixture layout.",
   ]);
-  if (updatedPptxTemplate.skillPath !== pptxTemplate.skillPath) {
+  if (updatedDocxTemplate.skillPath !== docxTemplate.skillPath) {
     throw new Error("Template update changed the template path.");
   }
-  await assertGeneratedTemplate(updatedPptxTemplate, {
-    kind: "presentation",
-    referencePath: updatedPptxPath,
-    visualCommitment: "neutral",
-    editLevel: "bounded-edit",
-    provenanceSource: "local-test-reference",
+  await assertGeneratedTemplate(updatedDocxTemplate, {
+    kind: "document",
+    referencePath: updatedDocxPath,
   });
-  const updatedPptxMetadata = JSON.parse(
-    await fs.readFile(path.join(updatedPptxTemplate.skillPath, "artifact-template.json"), "utf8"),
-  );
-  for (const key of [
-    "useWhen",
-    "avoidWhen",
-    "audiences",
-    "contentShapes",
-    "visualTraits",
-    "visualCommitment",
-    "editProfile",
-  ]) {
-    assert.deepEqual(updatedPptxMetadata[key], pptxSelection[key], `preserved selection metadata ${key}`);
-  }
   const restoredSentinel = await fs.readFile(
-    path.join(updatedPptxTemplate.skillPath, "sentinel.txt"),
+    path.join(updatedDocxTemplate.skillPath, "sentinel.txt"),
     "utf8",
   );
   if (restoredSentinel !== "retain me\n") {
@@ -558,7 +528,7 @@ try {
   const activeLockPath = path.join(home, ".artifact-template-write-lock");
   await fs.writeFile(activeLockPath, `${process.pid}\n`);
   const activeLock = await runCreator([
-    "--reference-path", pptxPath,
+    "--reference-path", docxPath,
     "--preview-path", previewPath,
     "--display-name", "Blocked presentation fixture",
     "--description", "Attempt to create while another writer owns the lock.",

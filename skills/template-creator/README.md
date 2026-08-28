@@ -25,7 +25,7 @@ description:
 
 ```sh
 officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
-  --reference-path /absolute/path/reference.pptx \
+  --reference-path /absolute/path/reference.docx \
   --preview-path /absolute/path/preview.png \
   --display-name "Quarterly business review" \
   --description "Create a quarterly business review from the saved deck layout."
@@ -35,11 +35,13 @@ The command returns JSON containing the created template name, artifact kind, an
 
 Before it acquires a write lock or retains any bytes, the creator checks the
 reference through the same bounded Office package inspector used by the public
-facades. The extension must match a DOCX/PPTX/XLSX OPC package with its required
+facades. The extension must match a DOCX/XLSX OPC package with its required
 primary part, declared main content type, and exactly one root
 `officeDocument` relationship; ZIP entry CRCs are also verified. A renamed text
 file, a cross-family Office package, a broken root relationship, or a corrupt
-archive fails closed and creates no template tree.
+archive fails closed and creates no template tree. A PPTX used to study a
+presentation style follows the clean-room path above and is never retained by
+the published template.
 
 The generated `artifact-template.json` uses schema version 2. Its searchable
 fields use one English canonical form: `useWhen`, `avoidWhen`, audiences,
@@ -83,7 +85,7 @@ Updates require the exact template name and preserve other skill-owned files:
 officekit run skills/template-creator/skills/template-creator/scripts/create-template-skill.mjs \
   --mode update \
   --skill-name artifact-template-quarterly-business-review \
-  --reference-path /absolute/path/updated-reference.pptx \
+  --reference-path /absolute/path/updated-reference.docx \
   --preview-path /absolute/path/updated-preview.png \
   --display-name "Quarterly business review" \
   --description "Create a quarterly business review from the updated deck layout."
@@ -109,7 +111,7 @@ $OFFICE_KIT_HOME/skills/artifact-template-<slug>/
 ├── artifact-template.json
 ├── agents/agent.yaml
 └── assets/
-    ├── reference.docx | reference.pptx | reference.xlsx
+    ├── reference.docx | reference.xlsx
     ├── preview.png
     └── examples/*.png                 # schema-v3 presentations only
 ```

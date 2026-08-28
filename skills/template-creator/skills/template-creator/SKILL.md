@@ -69,9 +69,9 @@ reference path. Verify the generated `SKILL.md`, `artifact-template.json`,
 `agents/agent.yaml`, preview, and example PNGs. Keep `editProfile.level` at
 `copy-only`; a clean-room style guide does not prove imported edit capability.
 
-### Reference-backed Office workflow
+### Reference-backed Office workflow (DOCX/XLSX only)
 
-1. Require exactly one `.docx`, `.pptx`, or `.xlsx` reference unless the user explicitly requests a batch. For a batch, complete this workflow separately for every file. An extension alone is not evidence: the creator must accept the reference as a bounded Office OPC package before retaining it.
+1. Require exactly one `.docx` or `.xlsx` reference unless the user explicitly requests a batch. For a batch, complete this workflow separately for every file. An extension alone is not evidence: the creator must accept the reference as a bounded Office OPC package before retaining it. A PPTX may be inspected as one-off source material for the clean-room presentation path, but it is never retained in a reusable presentation template.
 2. Infer a concise display name, intended-use description, and artifact kind
    from the reference and request. Always prepare schema-v2 selection metadata.
    Write `useWhen`, `avoidWhen`, audiences, content shapes, tone, and structure
@@ -80,7 +80,6 @@ reference path. Verify the generated `SKILL.md`, `artifact-template.json`,
    density or color mode as `mixed`.
 3. Create `preview.png` before packaging:
    - DOCX: render the reference and use a representative page PNG.
-   - PPTX: render the reference and use a representative slide PNG.
    - XLSX: render the used range of the first visible non-empty sheet.
 4. Inspect the PNG. Stop if it is blank, clipped, corrupted, or not representative of the reference.
 5. Set `SKILL_DIR` to this skill directory and pass shell-escaped values directly to the creator:
@@ -97,7 +96,7 @@ Pass the complete selection metadata as one shell-escaped JSON value:
 
 ```bash
 officekit run "$SKILL_DIR/scripts/create-template-skill.mjs" \
-  --reference-path "/absolute/path/reference.pptx" \
+  --reference-path "/absolute/path/reference.docx" \
   --preview-path "/absolute/path/preview.png" \
   --display-name "Quarterly Review" \
   --description "Review quarterly performance, decisions, risks, and outlook." \
@@ -127,7 +126,7 @@ clean-room create path with a new display name or explicit skill name; do not
 replace its examples in place without rerendering and rechecking the style
 guide. Reference-backed DOCX/XLSX updates continue below.
 
-1. Resolve the exact passed template and read its `SKILL.md`, `artifact-template.json`, `agents/agent.yaml`, retained reference, and preview. Stop if it is not a direct child of the local skills directory or if more than one target was passed.
+1. Resolve the exact passed DOCX/XLSX template and read its `SKILL.md`, `artifact-template.json`, `agents/agent.yaml`, retained reference, and preview. Stop if it is not a direct child of the local skills directory or if more than one target was passed. Presentation schema-v3 packages are revised by creating a new calibration set through the clean-room path, not by replacing their examples in place.
 2. Preserve the template folder name and every file or behavior the user did not ask to change.
 3. For reference or visual changes, edit a temporary copy of the retained reference using the matching Office artifact workflow, render a new preview, and inspect it. For display-name or intended-use changes, retain the existing reference and preview unless they also change.
 4. Pass every current or changed required value to the creator explicitly.
@@ -158,7 +157,7 @@ Skill. Do not emit host-specific cards, links, or sharing directives.
 ## Constraints
 
 - Do not create an intermediary request file; pass creator inputs through command-line flags, including optional selection JSON.
-- Do not delete or sanitize the retained reference; fidelity depends on retaining it verbatim.
+- Do not delete or sanitize a retained DOCX/XLSX reference; fidelity depends on retaining it verbatim. A PPTX used as clean-room source material is not a retained reference.
 - Do not change the artifact kind during an update.
 - Do not mark a template `bounded-edit` or `composable` without repeatable capability evidence.
 - Do not create translated metadata copies or a `searchLanguage` field.
