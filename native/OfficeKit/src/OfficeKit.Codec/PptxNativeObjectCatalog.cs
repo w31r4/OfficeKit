@@ -342,20 +342,47 @@ internal sealed class PptxNativeObjectCatalog
                    !string.IsNullOrWhiteSpace(blipAttributes[0].Value) &&
                    cropSafe;
         }
-        if (kind is "oleObject" or "diagram" && source is P.GraphicFrame frame)
+        if (kind is "oleObject" or "diagram" or "graphicFrame" && source is P.GraphicFrame frame)
         {
+            var transform = frame.Transform;
             return frame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is not null &&
-                   frame.Transform?.Offset is not null &&
-                   frame.Transform.Extents is not null;
+                   transform?.Offset?.X?.Value is >= 0 &&
+                   transform.Offset.Y?.Value is >= 0 &&
+                   transform.Extents?.Cx?.Value is > 0 &&
+                   transform.Extents.Cy?.Value is > 0;
         }
         if (kind == "contentPart" && source is P.GroupShape group)
         {
             var transform = group.GetFirstChild<P.GroupShapeProperties>()?.GetFirstChild<A.TransformGroup>();
             return group.GetFirstChild<P.NonVisualGroupShapeProperties>()?.NonVisualDrawingProperties is not null &&
-                   transform?.Offset is not null &&
-                   transform.Extents is not null &&
+                   transform?.Offset?.X?.Value is >= 0 &&
+                   transform.Offset.Y?.Value is >= 0 &&
+                   transform.Extents?.Cx?.Value is > 0 &&
+                   transform.Extents.Cy?.Value is > 0 &&
+                   transform.ChildExtents?.Cx?.Value is > 0 &&
+                   transform.ChildExtents.Cy?.Value is > 0;
+        }
+        if (kind == "group" && source is P.GroupShape groupShape)
+        {
+            var transform = groupShape.GetFirstChild<P.GroupShapeProperties>()?.GetFirstChild<A.TransformGroup>();
+            return groupShape.GetFirstChild<P.NonVisualGroupShapeProperties>()?.NonVisualDrawingProperties is not null &&
+                   transform?.Offset?.X?.Value is >= 0 &&
+                   transform.Offset.Y?.Value is >= 0 &&
+                   transform.Extents?.Cx?.Value is > 0 &&
+                   transform.Extents.Cy?.Value is > 0 &&
                    transform.ChildOffset is not null &&
-                   transform.ChildExtents is not null;
+                   transform.ChildExtents?.Cx?.Value is > 0 &&
+                   transform.ChildExtents.Cy?.Value is > 0;
+        }
+        if (kind == "connector" && source is P.ConnectionShape connector)
+        {
+            var transforms = connector.ShapeProperties?.ChildElements.OfType<A.Transform2D>().ToArray() ?? [];
+            var transform = transforms.Length == 1 ? transforms[0] : null;
+            return connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is not null &&
+                   transform?.Offset?.X?.Value is >= 0 &&
+                   transform.Offset.Y?.Value is >= 0 &&
+                   transform.Extents?.Cx?.Value is > 0 &&
+                   transform.Extents.Cy?.Value is > 0;
         }
         return false;
     }

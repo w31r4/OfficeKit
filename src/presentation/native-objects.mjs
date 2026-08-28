@@ -221,6 +221,32 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       });
       this.sourcePart = config.sourcePart;
       Object.defineProperty(this, "editable", { enumerable: true, value: false, writable: false });
+      const placement = config.placementCapability || {};
+      const placementCapability = Object.freeze({
+        sourceBound: placement.sourceBound === true,
+        known: placement.known !== false,
+        supported: placement.supported === true,
+        blockedReason: String(placement.blockedReason || ""),
+        sourceRevisionSha256: placement.sourceRevisionSha256 ? String(placement.sourceRevisionSha256).toLowerCase() : undefined,
+      });
+      Object.defineProperty(this, "placementCapability", {
+        configurable: false,
+        enumerable: true,
+        writable: false,
+        value: placementCapability,
+      });
+      Object.defineProperty(this, "_nativePlacementSourcePosition", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: Object.freeze({ ...this.position }),
+      });
+      Object.defineProperty(this, "_nativePlacementMutationIssued", {
+        configurable: false,
+        enumerable: false,
+        writable: true,
+        value: false,
+      });
       this.relationshipReferences = (config.relationshipReferences || []).map((reference) => ({ ...reference }));
       this.rootRelationships = (config.rootRelationships || []).map((relationship) => ({ ...relationship }));
       const shareImportedPartBytes = config._officeKitSharePartBytes === true;
@@ -308,9 +334,19 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
     }
 
     setPosition(value = {}) {
-      if (!this.editable) throw new Error(`Native ${this.nativeKind} object ${this.id} is read-only.`);
+      if (!this.editable && !this.placementCapability.supported) {
+        const reason = this.placementCapability.blockedReason ? `: ${this.placementCapability.blockedReason}` : ".";
+        throw new Error(`Native ${this.nativeKind} object ${this.id} is read-only for placement${reason}`);
+      }
       this.position = normalizeFrame({ position: { ...this.position, ...value } }, this.position);
+      this._nativePlacementMutationIssued = true;
       return this;
+    }
+
+    _nativePlacementChanged() {
+      const source = this._nativePlacementSourcePosition;
+      return this.position.left !== source.left || this.position.top !== source.top ||
+        this.position.width !== source.width || this.position.height !== source.height;
     }
 
     embeddedWorkbookPart() {
@@ -509,6 +545,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         ...(this._diagramTextBinding ? ["diagramText"] : []),
         ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
         ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
+        ...(this.placementCapability.supported ? ["position"] : []),
       ];
       return {
         kind: "nativeObject",
@@ -534,6 +571,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         } : undefined,
         ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
         deletionCapability: this.deletionCapability,
+        placementCapability: this.placementCapability,
         bbox: [frame.left, frame.top, frame.width, frame.height],
         bboxUnit: "px",
         editable: false,
@@ -579,6 +617,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         embeddedOfficePackage: this.oleOfficePackage ? this._embeddedOfficePackageRecord() : undefined,
         diagramText: this.diagramText,
         nativeChart: this._nativeChartCurrentRecord(),
+        placementCapability: this.placementCapability,
         editable: false,
         editableFields: [
           ...(this.oleWorkbook ? ["embeddedWorkbook"] : []),
@@ -586,6 +625,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           ...(this._diagramTextBinding ? ["diagramText"] : []),
           ...(this._nativeChartTitleLeaves?.length ? ["chartTitleText"] : []),
           ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
+          ...(this.placementCapability.supported ? ["position"] : []),
         ],
       };
     }

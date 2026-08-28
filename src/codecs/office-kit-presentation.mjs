@@ -539,6 +539,7 @@ function cloneImportedPresentationNativeObject(container, source, context) {
     relationshipReferences: clonedPresentationValue(source.relationshipReferences),
     rootRelationships: clonedPresentationValue(source.rootRelationships),
     parts: clonedPresentationValue(source.parts),
+    placementCapability: clonedPresentationValue(source.placementCapability),
     oleWorkbook: clonedPresentationValue(source.oleWorkbook),
     oleOfficePackage: clonedPresentationValue(source.oleOfficePackage),
     diagramText: clonedPresentationValue(source._diagramTextSourceBinding?.()),
@@ -2294,6 +2295,12 @@ function presentationElement(element, original, assetCatalog, sourceIdByCloneId,
 }
 
 function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, customShowLinks) {
+  // A source-bound group is normally emitted from its original wire.  When a
+  // sibling edit makes the group require semantic projection, nested picture
+  // bullets and image children must still be registered in the fresh request
+  // asset catalog; otherwise the native validator sees a valid source asset
+  // ID with no corresponding request bytes.
+  registerPresentationCloneAssets(group, assetCatalog);
   const originalGroup = original?.content?.case === "group" ? original.content.value : undefined;
   if (!group.children.length) throw new OfficeKitCodecError(`Presentation group ${group.id} requires at least one child.`, [], { code: "invalid_presentation_group" });
   if (originalGroup && originalGroup.children.length !== group.children.length) {
@@ -2834,15 +2841,30 @@ function registerPresentationCloneAssets(element, assetCatalog) {
 
 function presentationOpaque(object, original, snapshot, assetCatalog) {
   if (opaquePresentationSnapshot(object) !== snapshot) {
-    // A semantically opaque picture may still expose only its direct frame as
-    // a source-issued native leaf. Keep the opaque payload byte-bound while
-    // allowing the Edit Plan compiler to consume that geometry change.
+    // A semantically opaque native object may still expose only its direct
+    // frame as a source-issued leaf. Keep the payload byte-bound while
+    // allowing a proven placement-only edit; every other model change stays
+    // fail-closed. The wire clone retains the original source graph and only
+    // replaces the four frame scalars consumed by the native codec.
     if (original?.content?.case === "opaque" &&
-        original.content.value.nativeKind === "picture" &&
         original.source?.editable === true &&
-        hasPendingPresentationNativeLeafEdit(object) &&
+        object.placementCapability?.supported === true &&
+        (object._nativePlacementMutationIssued === true || hasPendingPresentationNativeLeafEdit(object)) &&
         opaquePresentationSnapshotWithoutPosition(object) === opaquePresentationSnapshotWithoutPosition(snapshot)) {
-      return original;
+      const frame = object.position;
+      const leftEmu = presentationNativePlacementEmu(frame.left, "left");
+      const topEmu = presentationNativePlacementEmu(frame.top, "top");
+      const widthEmu = presentationNativePlacementEmu(frame.width, "width");
+      const heightEmu = presentationNativePlacementEmu(frame.height, "height");
+      if (leftEmu < 0n || topEmu < 0n || widthEmu <= 0n || heightEmu <= 0n) {
+        throw new OfficeKitCodecError(`Presentation native element ${object.id} requires a non-negative position and positive size.`, [], { code: "invalid_presentation_frame" });
+      }
+      const updated = clonePresentationWire(PresentationElementSchema, original);
+      updated.content.value.leftEmu = leftEmu;
+      updated.content.value.topEmu = topEmu;
+      updated.content.value.widthEmu = widthEmu;
+      updated.content.value.heightEmu = heightEmu;
+      return updated;
     }
     const message = object.oleWorkbook || object.oleOfficePackage
       ? `Presentation native element ${object.id} changed outside its bounded embedded Office package replacement boundary.`
@@ -2895,7 +2917,17 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
 
 function hasPendingPresentationNativeLeafEdit(object) {
   const pending = object?.slide?.presentation?.[PRESENTATION_STATE]?.pendingNativeLeafEdits;
-  return Boolean([...pending?.values?.() || []].some((entry) => entry?.leaf?.rootEntry?.model === object));
+  return Boolean([...pending?.values?.() || []].some((entry) => entry?.leaf?.rootEntry?.model === object &&
+    ["leftEmu", "topEmu", "widthEmu", "heightEmu"].includes(entry?.leaf?.leafKind)));
+}
+
+function presentationNativePlacementEmu(value, field) {
+  const number = Number(value);
+  const emu = Math.round(number * EMU_PER_PIXEL);
+  if (!Number.isFinite(number) || !Number.isSafeInteger(emu)) {
+    throw new OfficeKitCodecError(`Presentation native placement ${field} must be a finite safe coordinate.`, [], { code: "invalid_presentation_frame" });
+  }
+  return BigInt(emu);
 }
 
 function opaquePresentationSnapshotWithoutPosition(value) {
@@ -3048,6 +3080,12 @@ export function presentationEnvelope(presentation, protocolVersion) {
           if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
           if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
           if (entry.wire.content.case === "group") {
+            // The native validator still checks an unchanged, source-bound
+            // group's recursively projected children whenever another object
+            // on the presentation is edited.  Register those immutable image
+            // and picture-bullet bytes even when the group itself can reuse
+            // its original wire.
+            registerPresentationCloneAssets(entry.model, assetCatalog);
             if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
               return entry.wire;
             }
@@ -5266,6 +5304,16 @@ export async function presentationFromEnvelope(envelope) {
           rawXml: opaque.rawXml,
           sourcePart,
           editable: false,
+        placementCapability: {
+          sourceBound: Boolean(element.source),
+          known: true,
+          supported: element.source?.editable === true && !["oleObject", "diagram"].includes(opaque.nativeKind),
+          blockedReason: element.source?.editable === true && opaque.nativeKind === "oleObject"
+            ? "embedded Office payload is editable only through its bounded replacement API"
+            : element.source?.editable === true && opaque.nativeKind === "diagram"
+              ? "diagram text is editable only through its bounded diagram-text API"
+              : element.source?.editable === true ? "" : "opaque native frame is not proven safe to edit",
+        },
           ...(opaque.oleWorkbook ? { oleWorkbook: {
             partPath: opaque.oleWorkbook.partPath,
             contentType: opaque.oleWorkbook.contentType,

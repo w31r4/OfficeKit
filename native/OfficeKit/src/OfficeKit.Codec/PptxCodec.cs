@@ -1712,6 +1712,22 @@ internal static class PptxCodec
     private static void ApplyNativePlacement(OpenXmlElement source, PresentationElement requested)
     {
         var frame = requested.Opaque;
+        if (source is P.Picture picture)
+        {
+            if (picture.NonVisualPictureProperties?.NonVisualDrawingProperties is { } nonVisual)
+                nonVisual.Name = requested.Name;
+            SetFrame(picture.ShapeProperties?.GetFirstChild<A.Transform2D>() ??
+                throw new CodecException("unsupported_presentation_edit", $"Presentation native object {requested.Id} has no supported picture placement owner."), frame);
+            return;
+        }
+        if (source is P.ConnectionShape connector)
+        {
+            if (connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
+                nonVisual.Name = requested.Name;
+            SetFrame(connector.ShapeProperties?.GetFirstChild<A.Transform2D>() ??
+                throw new CodecException("unsupported_presentation_edit", $"Presentation native object {requested.Id} has no supported connector placement owner."), frame);
+            return;
+        }
         if (source is P.GraphicFrame graphicFrame)
         {
             if (graphicFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is { } nonVisual)
@@ -4130,7 +4146,15 @@ internal static class PptxCodec
         var clone = source.CloneNode(true);
         if (clone.Descendants<P.NonVisualDrawingProperties>().FirstOrDefault() is { } nonVisual)
             nonVisual.Name = string.Empty;
-        if (clone is P.GraphicFrame graphicFrame && graphicFrame.Transform is { } transform)
+        if (clone is P.Picture picture && picture.ShapeProperties?.GetFirstChild<A.Transform2D>() is { } pictureTransform)
+        {
+            ScrubFrame(pictureTransform);
+        }
+        else if (clone is P.ConnectionShape connector && connector.ShapeProperties?.GetFirstChild<A.Transform2D>() is { } connectorTransform)
+        {
+            ScrubFrame(connectorTransform);
+        }
+        else if (clone is P.GraphicFrame graphicFrame && graphicFrame.Transform is { } transform)
         {
             ScrubFrame(transform);
             if (PptxNativeObjectCatalog.Classify(clone) == "oleObject" && graphicFrame.Descendants<A.Transform2D>().FirstOrDefault() is { } preview)
