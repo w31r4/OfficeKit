@@ -315,15 +315,29 @@ function imageProps(style, role) {
   };
 }
 
-function addImageLedSurface(slide, style, role) {
-  const { palette: c } = style;
+// Use the real PresentationML background for an untransformed 16:9 field.
+// This keeps the photo below every authored object (scrim, title, data and
+// rules) instead of relying on a late Picture layer. Transformed or cropped
+// sources stay ordinary editable pictures because the native background
+// profile deliberately accepts only stretch-only fills.
+function setFullSlideImageBackground(slide, style, role) {
   const image = imageProps(style, role);
+  if (!image.transform && typeof slide.setNativeBackgroundImage === "function") {
+    slide.setNativeBackgroundImage({ ...image, fit: "stretch" });
+    return;
+  }
   slide.setBackgroundImage({
     name: `${role}-visual-field`,
     ...image,
+    position: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
     fit: "cover",
     accessibility: { decorative: true },
   });
+}
+
+function addImageLedSurface(slide, style, role) {
+  const { palette: c } = style;
+  setFullSlideImageBackground(slide, style, role);
   // Image-led guides reserve an actual image field. An opaque full-canvas
   // scrim would silently turn the promised photograph into a hidden layer.
   // Keep an editable reading plane on the left and leave the visual field
@@ -504,14 +518,7 @@ function makeFinanceClose(presentation, style) {
 function makeEditorialCover(presentation, style) {
   const slide = presentation.slides.add({ name: "Opening claim" });
   const { palette: c } = style;
-  const image = imageProps(style, "cover");
-  slide.setBackgroundImage({
-    name: "editorial-cover-field",
-    ...image,
-    position: { left: 0, top: 0, width: WIDTH, height: HEIGHT },
-    fit: "cover",
-    accessibility: { decorative: true },
-  });
+  setFullSlideImageBackground(slide, style, "cover");
   addRect(slide, "editorial-cover-scrim", 0, 0, 760, HEIGHT, c.ink, {
     fill: { color: c.ink, opacity: 0.84 },
     line: { fill: c.ink, width: 0 },
@@ -540,12 +547,7 @@ function makeCover(presentation, style) {
     // side with an editable paper plane. This is the same composition problem
     // that the richer reference styles expose: image, scrim, then readable
     // foreground objects with a verified z-order.
-    slide.setBackgroundImage({
-      name: `${style.templateId}-cover-field`,
-      ...imageProps(style, "cover"),
-      fit: "cover",
-      accessibility: { decorative: true },
-    });
+    setFullSlideImageBackground(slide, style, "cover");
     addRect(slide, "cover-paper-scrim", 0, 0, 1000, HEIGHT, c.paper, {
       fill: { color: c.paper, opacity: 1 },
       line: { fill: c.paper, width: 0 },
@@ -772,13 +774,7 @@ function makeVisual(presentation, style) {
   const { palette: c } = style;
   addFixedNavigation(slide, style, 2);
   if (style.bodyImage) {
-    const image = imageProps(style, "visual");
-    slide.setBackgroundImage({
-      name: "visual-field",
-      ...image,
-      fit: "cover",
-      accessibility: { decorative: true },
-    });
+    setFullSlideImageBackground(slide, style, "visual");
     addRect(slide, "visual-scrim", 0, 0, 720, HEIGHT, c.paper, {
       fill: { color: c.paper, opacity: style.dark ? 0.88 : 0.94 },
       line: { fill: c.paper, width: 0 },

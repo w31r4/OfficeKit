@@ -6054,6 +6054,23 @@ const clearedBackgroundRoundTrip = await PresentationFile.importPptx(clearedBack
 assert.deepEqual(clearedBackgroundRoundTrip.slides.getItem(0).background, {});
 assert.equal(itemByName(clearedBackgroundRoundTrip.slides.getItem(0).images.items, "cover-image").crop, undefined);
 
+// A native image background belongs to p:bg, not to the ordinary picture
+// layer.  Keep this as one compact contract check: the image must remain
+// below authored content and come back as an embedded, stretch-only asset.
+const nativeBackgroundDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+const nativeBackgroundSlide = nativeBackgroundDeck.slides.add({ name: "Native image background" });
+nativeBackgroundSlide.setNativeBackgroundImage({ dataUrl: PNG });
+nativeBackgroundSlide.shapes.add({ name: "native-background-copy", text: "Foreground", position: { left: 40, top: 40, width: 220, height: 60 } });
+assert.equal(nativeBackgroundSlide.images.items.length, 0);
+const nativeBackgroundExport = await PresentationFile.exportPptx(nativeBackgroundDeck);
+const nativeBackgroundZip = await JSZip.loadAsync(new Uint8Array(await nativeBackgroundExport.arrayBuffer()));
+const nativeBackgroundXml = await nativeBackgroundZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(nativeBackgroundXml, /<p:bg>[\s\S]*<p:bgPr>[\s\S]*<a:blipFill\b[^>]*>[\s\S]*<a:stretch\b[^>]*>[\s\S]*<a:fillRect\s*\/>[\s\S]*<\/a:blipFill>/);
+assert.doesNotMatch(nativeBackgroundXml, /name="background"/);
+const nativeBackgroundRoundTrip = await PresentationFile.importPptx(nativeBackgroundExport);
+assert.deepEqual(nativeBackgroundRoundTrip.slides.getItem(0).background, { image: { assetId: nativeBackgroundRoundTrip.slides.getItem(0).background.image.assetId, dataUrl: PNG, fit: "stretch" } });
+assert.equal(nativeBackgroundRoundTrip.slides.getItem(0).images.items.length, 0);
+
 const importedWithoutSourceSnapshot = await PresentationFile.importPptx(firstExport);
 const presentationState = importedWithoutSourceSnapshot[Symbol.for("office-kit.presentation-state")];
 presentationState.opaqueOpc.sourcePackage = undefined;
