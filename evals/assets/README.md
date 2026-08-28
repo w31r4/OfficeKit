@@ -4,6 +4,10 @@ This directory is evaluator-side test data. It is excluded from the npm
 package and is never copied into an Agent trial except for the exact declared,
 read-only input files.
 
+The PPTX files under `presentations/` are self-authored PromptBench fixtures
+for imported-edit and preservation tests. They are not reusable presentation
+templates and are not part of the published template library.
+
 The initial PDF boundary set, DOCX modern-comment and complex-table boundary
 fixtures, and XLSX threaded-reply boundary fixture are self-authored. They contain no customer data, production credentials,
 production trust anchors or private signing keys, or third-party sample

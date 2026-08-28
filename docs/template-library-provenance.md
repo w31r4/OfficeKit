@@ -34,7 +34,10 @@ assets/preview.png
 assets/examples/*.png
 ```
 
-The guide is the style authority; the images are visual calibration evidence.
+The guide is the style authority; each shipped guide is a complete, self-contained
+mini design system covering communication job, page archetypes, visual carriers,
+layer order, density/rhythm, variation limits, and review checks. The images are
+visual calibration evidence, not a substitute for those instructions.
 No presentation template ships a PPTX, MJS, DSL, SVG page skeleton, fixed
 Layout, or cloneable component. Existing IDs are retained only as catalog
 identity. Thirty styles were rebuilt from high-level observations of the
@@ -43,9 +46,9 @@ rewritten and re-rendered after native background-layer support was available;
 their guides now cover scene stacking, contrast, crop, and editable foreground
 content. No source deck, source wording, or page geometry is distributed.
 
-`presentation-template-creator` packages the same fixed surface from a distilled
-guide and four to six original calibration images. Reference decks, analysis,
-temporary PPTX files, and review evidence remain task-local.
+`presentation-template-creator` packages the same fixed surface from a complete
+distilled guide and four to six original calibration images. Reference decks,
+analysis, temporary PPTX files, and review evidence remain task-local.
 
 ## Verification
 
