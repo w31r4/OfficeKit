@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-jade-annual-brief/assets/reference.pptx",
-    "sha256": "4dd5ed729aabe0be0ef2d1aa706b0fab6b8e97dde6bc425b66d932ce8db3bbed"
+    "sha256": "9b047c52d2c677c8044a3d8988c964a6efeb95abfc3c1db40a68f169c2031fd7"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:380",
+      "records:378",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:4dd5ed729aabe0be0ef2d1aa706b0fab6b8e97dde6bc425b66d932ce8db3bbed"
+      "reference-sha256:9b047c52d2c677c8044a3d8988c964a6efeb95abfc3c1db40a68f169c2031fd7"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:6f6ed0f03e7ada4db33611e195e7b3082abacb635c7e83dd3b0e34dacd83082e",
+        "native-pdf-sha256:d4655075e80c409c4aee404316bd92509f9215593a3932a010bbd1ee0f6a84db",
         "pages:6",
         "first-page:rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

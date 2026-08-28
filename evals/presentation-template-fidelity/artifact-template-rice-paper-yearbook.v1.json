@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-rice-paper-yearbook/assets/reference.pptx",
-    "sha256": "aa4d419dc88c2f5a48279abbeda67c97e7eb1f90a580e3842b2cc03b586c5f49"
+    "sha256": "66c468afdedeb2c0d1ca8c6c9390451f5c87324a4d84e5fe78b2de70bacf61ae"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:aa4d419dc88c2f5a48279abbeda67c97e7eb1f90a580e3842b2cc03b586c5f49"
+      "reference-sha256:66c468afdedeb2c0d1ca8c6c9390451f5c87324a4d84e5fe78b2de70bacf61ae"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:db076ef08923a64211c1ab4450c859ecc8e810b3aaf88b61f25484916d062c2c",
+        "native-pdf-sha256:9386528ef06f9c5c17edb163efa2ab7bff98d16dfe4794780ee8dbe3f0fd1120",
         "pages:6",
         "first-page:rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 89.6, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 89.6, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
