@@ -29,10 +29,9 @@ current sidecar hash. The creator does not infer or download a reference deck.
 ## Search contract
 
 Schema v4 is valid only for presentation templates and requires the reference
-asset plus its hash. Search returns `referencePath` for v4 candidates while
-retaining read-only support for existing v3 entries during the migration
-window. A v3 entry is legacy evidence and cannot be used to claim a completed
-95/95 restoration.
+asset plus its hash. Search returns `referencePath` for v4 candidates and
+rejects v3 entries; a legacy presentation entry must be rebuilt with the
+Creator before it can be used.
 
 ## Restoration indices
 
