@@ -220,6 +220,13 @@ const normalAutoFitShape = normalAutoFitDeck.slides.add({ name: "Normal AutoFit"
   },
 });
 assert.deepEqual(normalAutoFitShape.text.bodyProperties.normalAutoFit, { fontScale: 87.5, lineSpacingReduction: 12.5 });
+const smallImportedRun = normalAutoFitDeck.slides.getItem(0).shapes.add({
+  name: "small-imported-run",
+  position: { left: 80, top: 240, width: 760, height: 16 },
+  text: [{ runs: [{ text: "Source · compact evidence footer", style: { fontSize: 9.333333333333334 } }] }],
+  textBodyProperties: { insets: { left: 0, top: 0, right: 0, bottom: 0 }, autoFit: "shrinkText" },
+});
+assert.equal(normalAutoFitDeck.slides.getItem(0).validateLayout().issues.some((issue) => issue.id === smallImportedRun.id && issue.type === "textOverflow"), false);
 assert.throws(
   () => Presentation.create().slides.add().shapes.add({ text: "invalid", textBodyProperties: { autoFit: "resizeShape", normalAutoFit: { fontScale: 90 } } }),
   /require autoFit to be shrinkText/,

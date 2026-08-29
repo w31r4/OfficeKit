@@ -1311,14 +1311,19 @@ function textOverflowIssue(slide, element, frame, measurementFrame = frame) {
   const displayTextFrame = measurementFrame === frame || typeof element.textFrame !== "function" ? textFrame : element.textFrame(frame);
   const paragraphs = typeof element.text.effectiveParagraphs === "function" ? element.text.effectiveParagraphs() : normalizePresentationParagraphs(text);
   const requiredHeight = paragraphs.reduce((height, paragraph) => {
-    const paragraphFontSize = Math.max(element.text.style.fontSize || 24, ...paragraph.runs.map((run) => run.style?.fontSize || 0));
-    const availableWidth = Math.max(1, textFrame.width - 18 - Math.max(0, paragraph.marginLeft || paragraph.level * 24));
+    const explicitFontSizes = [
+      paragraph.style?.fontSize,
+      element.text.style.fontSize,
+      ...paragraph.runs.map((run) => run.style?.fontSize),
+    ].filter((fontSize) => Number.isFinite(fontSize) && fontSize > 0);
+    const paragraphFontSize = explicitFontSizes.length ? Math.max(...explicitFontSizes) : 24;
+    const availableWidth = Math.max(1, textFrame.width - Math.max(0, paragraph.marginLeft || paragraph.level * 24));
     const charsPerLine = Math.max(1, Math.floor(availableWidth / (paragraphFontSize * 0.55)));
     const requiredLines = presentationParagraphsText([paragraph]).split("\n").reduce((lines, line) => lines + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
-    const spacing = paragraph.lineSpacing || element.text.style.lineSpacing || 1.2;
+    const spacing = paragraph.lineSpacing || element.text.style.lineSpacing || 1;
     const lineHeight = spacing > 10 ? spacing : paragraphFontSize * spacing;
     return height + (paragraph.spaceBefore ?? paragraphFontSize * (paragraph.spaceBeforePercent || 0)) + requiredLines * lineHeight + (paragraph.spaceAfter ?? paragraphFontSize * (paragraph.spaceAfterPercent || 0));
-  }, 12);
+  }, 0);
   if (requiredHeight <= textFrame.height) return undefined;
   const scaleY = measurementFrame === frame || !(textFrame.height > 0) ? 1 : displayTextFrame.height / textFrame.height;
   const renderedRequiredHeight = requiredHeight * scaleY;
