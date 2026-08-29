@@ -255,7 +255,7 @@ internal static class PpjJsonSchemaValidator
             if (declared.TryGetValue(property.Name, out var propertySchema))
                 ValidateNode(property.Value, propertySchema, propertyPath, diagnostics);
             if (schema.TryGetProperty("propertyNames", out var propertyNameSchema))
-                ValidateNode(JsonSerializer.SerializeToElement(property.Name), propertyNameSchema, propertyPath, diagnostics);
+                ValidateNode(StringElement(property.Name), propertyNameSchema, propertyPath, diagnostics);
         }
 
         if (schema.TryGetProperty("additionalProperties", out var additional))
@@ -276,6 +276,15 @@ internal static class PpjJsonSchemaValidator
             foreach (var property in properties.Where(item => !evaluated.Contains(item.Name)))
                 diagnostics.Add(new("ppj.schema.unknownField", $"Unknown property {property.Name} is not allowed.", PpjJsonPath.Property(path, property.Name)));
         }
+    }
+
+    private static JsonElement StringElement(string value)
+    {
+        using var buffer = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(buffer))
+            writer.WriteStringValue(value);
+        using var document = JsonDocument.Parse(buffer.ToArray());
+        return document.RootElement.Clone();
     }
 
     private static void ValidateArray(JsonElement instance, JsonElement schema, string path, List<PpjDiagnostic> diagnostics)
