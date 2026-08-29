@@ -3,6 +3,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { projectPptxToPpj } from "./native.mjs";
+import { renderPpj, reviewPpj } from "./render-review.mjs";
 import {
   resolveRegularFile,
   compilePpjWorkspace,
@@ -37,6 +38,8 @@ export async function runPpjCommand(args, {
     inspect: parseInspectArguments,
     check: parseCheckArguments,
     build: parseBuildArguments,
+    render: parseRenderArguments,
+    review: parseReviewArguments,
   }[subcommand];
   if (!parser) throw new Error(`Unknown or unavailable PPJ command "${subcommand}". Run "officekit ppj --help".`);
   const request = parser(rest);
@@ -49,6 +52,8 @@ export async function runPpjCommand(args, {
     inspect: inspectPpj,
     check: checkPpj,
     build: buildPpj,
+    render: renderPpj,
+    review: reviewPpj,
   }[subcommand];
   const result = await handler(request, { cwd });
   output.write(request.json ? `${JSON.stringify(result)}\n` : `${formatResult(result)}\n`);
@@ -133,6 +138,43 @@ function parseBuildArguments(args) {
   if (help) return { help, json };
   if (positional.length !== 1 || !outputPath) throw new Error("PPJ build requires one deck.ppj and -o <deck.pptx>.");
   return { inputPath: positional[0], outputPath, json, help };
+}
+
+function parseRenderArguments(args) {
+  const positional = [];
+  let outputPath;
+  let pages;
+  let json = false;
+  let help = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--json") json = true;
+    else if (argument === "--help" || argument === "-h") help = true;
+    else if (argument === "-o" || argument === "--output") outputPath = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--output=")) outputPath = argument.slice("--output=".length);
+    else if (argument === "--pages") pages = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--pages=")) pages = argument.slice("--pages=".length);
+    else if (argument.startsWith("-")) throw new Error(`Unknown PPJ render option "${argument}".`);
+    else positional.push(argument);
+  }
+  if (help) return { help, json };
+  if (positional.length !== 1 || !outputPath) throw new Error("PPJ render requires one deck.ppj and -o <previews/>.");
+  return { inputPath: positional[0], outputPath, pages, json, help };
+}
+
+function parseReviewArguments(args) {
+  const positional = [];
+  let json = false;
+  let help = false;
+  for (const argument of args) {
+    if (argument === "--json") json = true;
+    else if (argument === "--help" || argument === "-h") help = true;
+    else if (argument.startsWith("-")) throw new Error(`Unknown PPJ review option "${argument}".`);
+    else positional.push(argument);
+  }
+  if (help) return { help, json };
+  if (positional.length !== 1) throw new Error("PPJ review requires one deck.ppj input.");
+  return { inputPath: positional[0], json, help };
 }
 
 function requiredValue(args, index, option) {
@@ -477,5 +519,20 @@ function formatResult(result) {
     }
     return lines.join("\n");
   }
+  if (result.command === "render") return [
+    `OfficeKit rendered ${result.pages.length} / ${result.pageCount} pages`,
+    `Output    ${result.output}`,
+    `Program   ${result.programSha256}`,
+    `Renderer  ${result.renderer}`,
+    `Review    ${result.visualReview}`,
+  ].join("\n");
+  if (result.command === "review") return [
+    `OfficeKit reviewed ${result.input}`,
+    `Program   ${result.programSha256}`,
+    `Candidate ${result.candidateSha256}`,
+    `Verdict   ${result.report.verdict}`,
+    `Visual    ${result.visualReview}`,
+    result.report.summary,
+  ].join("\n");
   return JSON.stringify(result);
 }
