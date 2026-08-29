@@ -1547,6 +1547,7 @@ internal static class PptxCodec
             Text = PptxTextCodec.Flatten(textBody),
             TextBody = textBody,
             FillRgb = PptxColor.SolidRgb(solidFill),
+            FillScheme = PptxColor.SolidScheme(solidFill),
             Placeholder = placeholder,
             DirectFrame = placeholder is null ? null : PptxPlaceholderCodec.ReadDirectFrame(shape),
             Transform = placeholder is null && PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")
@@ -2495,6 +2496,7 @@ internal static class PptxCodec
             PptxTextCodec.NormalizeSemantics(semantic.Shape);
             PptxLineStyleCodec.NormalizeSemantics(semantic.Shape);
             semantic.Shape.FillRgb = string.IsNullOrWhiteSpace(semantic.Shape.FillRgb) ? string.Empty : PptxColor.Normalize(semantic.Shape.FillRgb);
+            semantic.Shape.FillScheme = string.IsNullOrWhiteSpace(semantic.Shape.FillScheme) ? string.Empty : PptxColor.NormalizeScheme(semantic.Shape.FillScheme);
         }
         else if (placementEditable) semantic.Opaque.RawXml = string.Empty;
         return Hash(semantic.ToByteArray());
@@ -2714,6 +2716,8 @@ internal static class PptxCodec
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation free line {element.Id} cannot be a placeholder.");
             PptxCustomGeometryCodec.Validate(element.Shape, element.Id);
             if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb)) PptxColor.Normalize(element.Shape.FillRgb);
+            if (!string.IsNullOrWhiteSpace(element.Shape.FillScheme) && !hasSourcePackage)
+                throw new CodecException("unsupported_presentation_features", $"Source-free presentation shape {element.Id} cannot author a theme fill directly.");
             if (element.Shape.HasFillOpacityThousandthPercent &&
                 (string.IsNullOrWhiteSpace(element.Shape.FillRgb) || element.Shape.FillOpacityThousandthPercent > 100_000))
                 throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} has invalid solid-fill opacity.");

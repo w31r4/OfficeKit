@@ -28,6 +28,22 @@ internal static class PptxColor
     internal static string SolidRgb(A.SolidFill? fill) =>
         fill?.GetFirstChild<A.RgbColorModelHex>()?.Val?.Value ?? string.Empty;
 
+    internal static string SolidScheme(A.SolidFill? fill)
+    {
+        if (fill is null || fill.ChildElements.Count != 1 ||
+            fill.FirstChild is not A.SchemeColor scheme ||
+            scheme.ChildElements.Count != 0 || !HasOnlyAttributes(scheme, "val") ||
+            scheme.Val?.Value is not { } value || !TrySchemeToken(value, out var token))
+            return string.Empty;
+        return token;
+    }
+
+    private static bool HasOnlyAttributes(DocumentFormat.OpenXml.OpenXmlElement element, params string[] allowed)
+    {
+        var accepted = allowed.ToHashSet(StringComparer.Ordinal);
+        return element.GetAttributes().All(attribute => accepted.Contains(attribute.LocalName));
+    }
+
     internal static string Normalize(string value)
     {
         var rgb = value.Trim().TrimStart('#').ToUpperInvariant();

@@ -629,6 +629,41 @@ assert.equal(irregularStyleXml.replace("A1B2C3", "DBEAFE"), irregularShapeAccess
 const irregularStyleRoundTrip = await PresentationFile.importPptx(irregularStyleOutput);
 assert.equal(itemByName(irregularStyleRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill.toLowerCase(), "#a1b2c3");
 
+// A source-bound shape with a bare theme-color fill has the same narrow
+// token-splice boundary as an RGB fill. The theme token itself may change,
+// while the surrounding vendor markup must remain byte-for-byte untouched.
+const schemeShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const schemeShapeAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:solidFill\b[^>]*><a:)srgbClr(\s+val=")DBEAFE("\s*\/><\/a:solidFill>)/u,
+  '$1schemeClr$2accent2$3',
+);
+assert.match(schemeShapeAccessibilityXml, /<a:solidFill\b[^>]*><a:schemeClr val="accent2"\s*\/><\/a:solidFill>/);
+schemeShapeAccessibilityZip.file("ppt/slides/slide1.xml", schemeShapeAccessibilityXml);
+const schemeShapeAccessibilityFile = new FileBlob(
+  await schemeShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const schemeShapeAccessibilityImported = await PresentationFile.importPptx(schemeShapeAccessibilityFile);
+const schemeShapeLeaves = schemeShapeAccessibilityImported.inspect({ includeNativeLeaves: true, target: irregularAccessibilityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const schemeFillLeaf = schemeShapeLeaves.find((record) => record.leafKind === "fillScheme");
+assert.ok(schemeFillLeaf, "source-bound shapes should expose a bare theme fill leaf");
+assert.equal(schemeFillLeaf.value, "accent2");
+schemeShapeAccessibilityImported.editNativeLeaf(schemeFillLeaf.targetId, schemeFillLeaf.leafId, {
+  expectedHash: schemeFillLeaf.expectedHash,
+  value: "accent1",
+});
+const schemeShapeOutput = await PresentationFile.exportPptx(schemeShapeAccessibilityImported);
+assert.equal(schemeShapeOutput.metadata.editPlan.operations[0].leafKind, "fillScheme");
+const schemeShapeXml = await (await JSZip.loadAsync(schemeShapeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(schemeShapeXml, /fixture:opaque="kept"/);
+assert.equal(schemeShapeXml.replace('val="accent1"', 'val="accent2"'), schemeShapeAccessibilityXml);
+const schemeShapeRoundTrip = await PresentationFile.importPptx(schemeShapeOutput);
+assert.equal(itemByName(schemeShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill, "accent1");
+
 // An alpha-bearing fill is intentionally outside the token-splice profile:
 // the semantic color is visible, but its native alpha child must not be
 // discarded by a source-bound color edit. Such a leaf stays undisclosed.

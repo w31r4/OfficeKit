@@ -833,7 +833,7 @@ function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
 }
 
 function modelPresentationShapeFill(shape) {
-  const color = shape.fillRgb ? `#${shape.fillRgb}` : "transparent";
+  const color = shape.fillScheme || (shape.fillRgb ? `#${shape.fillRgb}` : "transparent");
   return shape.fillOpacityThousandthPercent === undefined
     ? color
     : { color, opacity: Number(shape.fillOpacityThousandthPercent) / 100_000 };
@@ -4008,7 +4008,23 @@ function createPresentationNativeLeafCapability(presentation, state) {
       ? wire.source?.editable !== true && wire.source?.textEditable !== true
       : wire.source?.editable !== true)) return;
     const registerImportedShapeColorLeaves = () => {
-      if (!isShape || wire.source?.editable === true || wire.source?.textEditable !== true) return;
+      if (!isShape || wire.source?.editable === true) return;
+      const scheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme || "").toLowerCase()];
+      if (scheme) {
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fillScheme",
+          expectedValue: scheme,
+          value: scheme,
+          normalize(next) {
+            const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+            if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+            return { raw: canonical, publicValue: canonical };
+          },
+          isNoop(next) { return next === scheme; },
+          apply(next) { model.fill = next; },
+        });
+      }
+      if (wire.source?.textEditable !== true) return;
       for (const [field, leafKind] of [["fillRgb", "fillRgb"], ["lineRgb", "lineRgb"]]) {
         // The semantic projection carries opacity separately when the native
         // color token has an alpha/effect child. The codec deliberately keeps
