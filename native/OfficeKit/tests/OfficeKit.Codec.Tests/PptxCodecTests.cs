@@ -140,8 +140,12 @@ public sealed class PptxCodecTests
         Assert.Equal("ellipse", importedImage.MaskPreset);
         Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
+        var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
+        Assert.True(importedChart.DataLabels.HasShowSeriesName);
+        Assert.False(importedChart.DataLabels.ShowSeriesName);
         Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+            element.ContentCase == PresentationElement.ContentOneofCase.Connector);
 
         var recovered = Invoke(new CodecRequest
         {

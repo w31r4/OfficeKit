@@ -901,7 +901,11 @@ internal static class PpjAuthoredPresentationCompiler
         var labels = FirstProperty(inline, named, "showDataLabels");
         if (labels is { } showLabels && showLabels.GetBoolean())
         {
-            chart.DataLabels = new SpreadsheetChartDataLabelsArtifact { ShowValue = true };
+            chart.DataLabels = new SpreadsheetChartDataLabelsArtifact
+            {
+                ShowValue = true,
+                ShowSeriesName = false,
+            };
             var position = FirstProperty(inline, named, "dataLabelPosition")?.GetString();
             if (position is not null) chart.DataLabels.Position = LabelPosition(position);
         }
