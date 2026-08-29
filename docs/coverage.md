@@ -32,6 +32,14 @@ paragraph indent edit, changing only the owning slide XML and surviving a
 second import. These leaves expose only canonical bounded `a:pPr/@marL` and
 `a:pPr/@indent` integers; inherited, malformed, or out-of-range layout remains
 blocked.
+Two of the six samples also expose a direct character-bullet leaf and pass a
+single source-bound `a:buChar/@char` edit with second import. The edit accepts
+one non-control Unicode scalar and changes only the owning slide XML; inherited,
+auto-numbered, picture, ambiguous, or malformed marker graphs remain opaque.
+Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
+one bounded `a:pPr/@lvl` edit with second import. Because the current wire
+scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero
+attributes remain preserved but are not issued as editable leaves.
 Unsupported paragraph topologies and inherited or ambiguous spacing remain
 blocked.
 The compact result is `evals/presentation-six-sample-import/evidence.v1.json`.
