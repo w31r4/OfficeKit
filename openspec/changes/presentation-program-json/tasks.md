@@ -9,7 +9,7 @@
 
 ## 2. Native PPJ model and validation
 
-- [ ] 2.1 Add additive proto v2 request/response messages and operations for PPTX projection and PPJ compilation.
+- [x] 2.1 Add additive proto v2 request/response messages and operations for PPTX projection and PPJ compilation.
 - [ ] 2.2 Implement C# PPJ root, deck, page, asset, source, component, and discriminated element models with strict JSON parsing.
 - [ ] 2.3 Implement semantic validation for IDs, references, paths, hashes, types, ordering, limits, and prohibited executable/native content.
 - [ ] 2.4 Implement deterministic component expansion with parameter, slot, variant, finite repeat, and simple condition support.

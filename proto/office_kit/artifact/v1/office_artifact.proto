@@ -24,6 +24,8 @@ enum CodecOperation {
   CODEC_OPERATION_FINALIZE_DOCX_REVISIONS = 7;
   CODEC_OPERATION_ADD_DOCX_TRACKED_REPLACEMENT = 8;
   CODEC_OPERATION_APPLY_PPTX_EDIT_PLAN = 9;
+  CODEC_OPERATION_PROJECT_PPTX_TO_PPJ = 10;
+  CODEC_OPERATION_COMPILE_PPJ_TO_PPTX = 11;
 }
 
 enum DocumentRevisionFinalizationMode {
@@ -109,6 +111,7 @@ message CodecRequest {
   // bytes; the caller must restore them from the exact request file and
   // verify its SHA-256 before exposing the artifact.
   bool thin_presentation_import_response = 11;
+  PresentationProgramRequest presentation_program = 12;
 }
 
 message CodecResponse {
@@ -120,6 +123,35 @@ message CodecResponse {
   DocumentRevisionFinalizationResult revision_finalization = 6;
   DocumentTrackedReplacementResult tracked_replacement = 7;
   PresentationEditPlanResult presentation_edit_plan = 8;
+  PresentationProgramResult presentation_program = 9;
+}
+
+// PPJ bytes are deliberately carried as UTF-8 JSON instead of being expanded
+// into protobuf fields. The checked-in JSON Schema is the public language
+// contract and the NativeAOT codec parses it directly. For a source-bound
+// compile, CodecRequest.file carries the exact source PPTX as the native
+// transport sidecar; a source-free compile leaves file empty.
+message PresentationProgramRequest {
+  bytes program_json = 1;
+  repeated Asset assets = 2;
+  bool include_node_map = 3;
+}
+
+// Typed receipt shared by projection and compilation. Projection returns
+// program_json plus any materialized local assets. Compilation returns file in
+// CodecResponse and binds it to the canonical PPJ and mutation footprint here.
+message PresentationProgramResult {
+  bytes program_json = 1;
+  string program_sha256 = 2;
+  bytes node_map_json = 3;
+  string source_sha256 = 4;
+  string output_sha256 = 5;
+  repeated string changed_parts = 6;
+  repeated Asset assets = 7;
+  bool restored_embedded_program = 8;
+  bool source_bound = 9;
+  uint32 expanded_element_count = 10;
+  repeated string changed_node_ids = 11;
 }
 
 // Internal compiler IR for byte-bound source-preserving PresentationML edits.
