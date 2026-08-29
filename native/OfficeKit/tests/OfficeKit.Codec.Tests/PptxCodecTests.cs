@@ -107,6 +107,19 @@ public sealed class PptxCodecTests
         Assert.True(first.Ok, Diagnostics(first));
         Assert.Equal(16U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
+        var authoredParts = ZipPartPaths(first.File.ToByteArray());
+        Assert.Contains("officeKit/program.ppj", authoredParts);
+        Assert.Contains("officeKit/program-map.json", authoredParts);
+        Assert.Equal(first.PresentationProgram.ProgramJson.ToByteArray(), ZipBytes(first.File.ToByteArray(), "officeKit/program.ppj"));
+        using (var embeddedMap = JsonDocument.Parse(ZipBytes(first.File.ToByteArray(), "officeKit/program-map.json")))
+        {
+            Assert.Equal("office-kit/ppj-map/v1", embeddedMap.RootElement.GetProperty("schema").GetString());
+            Assert.Equal(first.PresentationProgram.ProgramSha256, embeddedMap.RootElement.GetProperty("programSha256").GetString());
+            Assert.Contains(embeddedMap.RootElement.GetProperty("nativeBindings").EnumerateArray(), binding =>
+                binding.GetProperty("id").GetString() == "claim-title" && binding.GetProperty("nativeId").GetUInt32() >= 2);
+            Assert.Contains(embeddedMap.RootElement.GetProperty("assets").EnumerateArray(), asset =>
+                asset.GetProperty("id").GetString() == "evidence-mark");
+        }
         var validationOnlyRequest = request.Clone();
         validationOnlyRequest.PresentationProgram.ValidationOnly = true;
         var validationOnly = Invoke(validationOnlyRequest);

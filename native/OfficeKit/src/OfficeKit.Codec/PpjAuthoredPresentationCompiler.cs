@@ -62,7 +62,13 @@ internal static class PpjAuthoredPresentationCompiler
         var catalog = new Catalog(program.Root);
         var envelope = BuildEnvelope(program, validation.Expansion!, catalog, assets);
         var exported = PptxCodec.Export(envelope, limits);
-        var fileSha256 = Sha256(exported.File);
+        var file = PpjEmbeddedProgramCodec.Embed(
+            exported.File,
+            validation,
+            envelope.Presentation,
+            assets,
+            limits);
+        var fileSha256 = Sha256(file);
         var receipt = new PresentationProgramResult
         {
             ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
@@ -75,7 +81,7 @@ internal static class PpjAuthoredPresentationCompiler
             receipt.NodeMapJson = ByteString.CopyFrom(validation.Expansion.NodeMapJson);
         receipt.Assets.Add(assets.Select(asset => asset.Clone()));
         receipt.ChangedNodeIds.Add(validation.Expansion.Nodes.Select(node => node.Id));
-        return new(exported.File, receipt, exported.Diagnostics);
+        return new(file, receipt, exported.Diagnostics);
     }
 
     private static ArtifactEnvelope BuildEnvelope(
