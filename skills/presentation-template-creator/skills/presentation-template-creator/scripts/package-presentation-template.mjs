@@ -20,6 +20,8 @@ const MAX_GUIDE_BYTES = 256 * 1024;
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 60 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
+const MAX_REFERENCE_PROGRAM_BYTES = 16 * 1024 * 1024;
+const MAX_REFERENCE_PPTX_BYTES = 256 * 1024 * 1024;
 const LOCK_NAME = ".presentation-template-write-lock";
 
 let args = null;
@@ -41,6 +43,30 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
   const guideBody = await readTextFile(spec.guidePath, MAX_GUIDE_BYTES, "guidePath");
   if (guideBody.trim().length < 120) throw new Error("guidePath must contain a substantive style guide");
   if (/^---\s*$/mu.test(guideBody)) throw new Error("guidePath must be a Markdown body without YAML frontmatter");
+  const referenceProgram = await readReference(spec.referenceProgram, {
+    label: "referenceProgram",
+    maxBytes: MAX_REFERENCE_PROGRAM_BYTES,
+    extension: ".ppj",
+  });
+  if (referenceProgram != null) {
+    let parsed;
+    try {
+      parsed = JSON.parse(referenceProgram.bytes.toString("utf8"));
+    } catch (error) {
+      throw new Error(`referenceProgram is not strict JSON: ${error.message}`);
+    }
+    if (parsed?.schema !== "office-kit/ppj/v1") {
+      throw new Error("referenceProgram must use schema office-kit/ppj/v1");
+    }
+  }
+  const referencePptx = await readReference(spec.referencePptx, {
+    label: "referencePptx",
+    maxBytes: MAX_REFERENCE_PPTX_BYTES,
+    extension: ".pptx",
+  });
+  if (referencePptx != null && !referencePptx.bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) {
+    throw new Error("referencePptx must be an OPC ZIP package");
+  }
 
   const examples = [];
   let totalImageBytes = 0;
@@ -88,6 +114,9 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
 
     await fs.mkdir(path.join(stagedPath, "agents"), { recursive: true, mode: 0o755 });
     await fs.mkdir(path.join(stagedPath, "assets", "examples"), { recursive: true, mode: 0o755 });
+    if (referenceProgram != null || referencePptx != null) {
+      await fs.mkdir(path.join(stagedPath, "assets", "references"), { recursive: true, mode: 0o755 });
+    }
     stagedExists = true;
 
     const skillText = `---\nname: ${spec.id}\ndescription: ${JSON.stringify(spec.description)}\n---\n\n${guideBody.trim()}\n`;
@@ -115,6 +144,12 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
       writeImmutable(path.join(stagedPath, "SKILL.md"), skillText),
       writeImmutable(path.join(stagedPath, "agents", "agent.yaml"), agentText),
       writeImmutable(path.join(stagedPath, "assets", "preview.png"), previewBytes),
+      ...(referenceProgram == null ? [] : [
+        writeImmutable(path.join(stagedPath, "assets", "references", "reference.ppj"), referenceProgram.bytes),
+      ]),
+      ...(referencePptx == null ? [] : [
+        writeImmutable(path.join(stagedPath, "assets", "references", "reference.pptx"), referencePptx.bytes),
+      ]),
     ]);
 
     const sidecar = {
@@ -130,6 +165,12 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
       contentShapes: spec.contentShapes,
       visualTraits: spec.visualTraits,
       visualCommitment: spec.visualCommitment,
+      ...(referenceProgram == null ? {} : {
+        referenceProgram: referenceMetadata(referenceProgram, "assets/references/reference.ppj"),
+      }),
+      ...(referencePptx == null ? {} : {
+        referencePptx: referenceMetadata(referencePptx, "assets/references/reference.pptx"),
+      }),
       provenance: {
         license: spec.provenance.license,
         source: spec.provenance.source,
@@ -149,6 +190,8 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
       sidecarSha256: sha256(sidecarBytes),
       previewPath: path.join(targetPath, "assets", "preview.png"),
       examplePaths: stagedExamples.map((entry) => path.join(targetPath, entry.path)),
+      referenceProgramPath: referenceProgram == null ? null : path.join(targetPath, "assets", "references", "reference.ppj"),
+      referencePptxPath: referencePptx == null ? null : path.join(targetPath, "assets", "references", "reference.pptx"),
       updated: current != null,
     };
   } finally {
@@ -161,7 +204,8 @@ function validateSpec(spec) {
   if (spec == null || typeof spec !== "object" || Array.isArray(spec)) throw new Error("spec must be an object");
   assertKeys(spec, "spec", [
     "id", "displayName", "description", "guidePath", "useWhen", "avoidWhen",
-    "audiences", "contentShapes", "visualTraits", "visualCommitment", "examples", "provenance",
+    "audiences", "contentShapes", "visualTraits", "visualCommitment", "examples",
+    "referenceProgram", "referencePptx", "provenance",
   ]);
   if (!TEMPLATE_ID.test(spec.id ?? "")) throw new Error("id must be an artifact-template-* identifier");
   assertLine(spec.displayName, "displayName", 80);
@@ -197,6 +241,8 @@ function validateSpec(spec) {
     roles.add(example.role);
   }
   if (roles.size < 3) throw new Error("examples must cover at least 3 distinct roles");
+  validateReferenceSpec(spec.referenceProgram, "referenceProgram", ".ppj");
+  validateReferenceSpec(spec.referencePptx, "referencePptx", ".pptx");
   if (spec.provenance == null || typeof spec.provenance !== "object" || Array.isArray(spec.provenance)) {
     throw new Error("provenance must be an object");
   }
@@ -214,10 +260,46 @@ async function validateStagedSurface(root, sidecar) {
   const assetNames = (await fs.readdir(path.join(root, "assets"))).sort();
   const exampleNames = (await fs.readdir(path.join(root, "assets", "examples"))).sort();
   if (agentNames.length !== 1 || agentNames[0] !== "agent.yaml") throw new Error("generated agents surface is invalid");
-  if (JSON.stringify(assetNames) !== JSON.stringify(["examples", "preview.png"])) throw new Error("generated assets surface is invalid");
+  const expectedAssets = ["examples", "preview.png", ...(sidecar.referenceProgram == null && sidecar.referencePptx == null ? [] : ["references"])].sort();
+  if (JSON.stringify(assetNames) !== JSON.stringify(expectedAssets)) throw new Error("generated assets surface is invalid");
   if (JSON.stringify(exampleNames) !== JSON.stringify(sidecar.examples.map((entry) => path.basename(entry.path)).sort())) {
     throw new Error("generated example surface is invalid");
   }
+  if (expectedAssets.includes("references")) {
+    const referenceNames = (await fs.readdir(path.join(root, "assets", "references"))).sort();
+    const expectedReferences = [
+      ...(sidecar.referenceProgram == null ? [] : ["reference.ppj"]),
+      ...(sidecar.referencePptx == null ? [] : ["reference.pptx"]),
+    ].sort();
+    if (JSON.stringify(referenceNames) !== JSON.stringify(expectedReferences)) {
+      throw new Error("generated reference surface is invalid");
+    }
+  }
+}
+
+function validateReferenceSpec(value, label, extension) {
+  if (value == null) return;
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
+  assertKeys(value, label, ["path", "license", "source"]);
+  assertAbsolutePath(value.path, `${label}.path`);
+  if (path.extname(value.path).toLowerCase() !== extension) throw new Error(`${label}.path must use ${extension}`);
+  assertLine(value.license, `${label}.license`, 120);
+  assertLine(value.source, `${label}.source`, 500);
+}
+
+async function readReference(value, { label, maxBytes, extension }) {
+  if (value == null) return null;
+  if (path.extname(value.path).toLowerCase() !== extension) throw new Error(`${label}.path must use ${extension}`);
+  return { ...value, bytes: await readRegularFile(value.path, maxBytes, `${label}.path`) };
+}
+
+function referenceMetadata(value, relativePath) {
+  return {
+    path: relativePath,
+    sha256: sha256(value.bytes),
+    license: value.license,
+    source: value.source,
+  };
 }
 
 async function inspectCurrentTarget(targetPath) {

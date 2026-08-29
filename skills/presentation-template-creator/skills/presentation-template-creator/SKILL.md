@@ -6,8 +6,9 @@ description: Create or update a reusable PowerPoint style template from a refere
 # Presentation Template Creator
 
 Create OfficeKit's single PowerPoint template form: a concise style Skill plus
-original visual examples. Never retain a reference PPTX, fixed layout, page
-skeleton, source component, or authoring script in the template.
+original visual examples, with an optional clean-room reference PPJ/PPTX.
+Never publish the user's source deck, a copied layout, an executable authoring
+script, or a reference whose rights and provenance are unclear.
 
 Read [references/template-format.md](references/template-format.md) before
 packaging a template.
@@ -21,8 +22,9 @@ reference PPJ/PPTX.
 
 ## Workflow
 
-1. Put all references in the current task as read-only inputs. A PPTX is a
-   reference deck, not a template artifact.
+1. Put all inputs in the current task as read-only references. A user PPTX is
+   evidence for distillation, never the file published as the template
+   reference.
 2. Render and inspect the references. Distill only reusable decisions: audience
    fit, palette and surfaces, typography rhythm, geometry and line language,
    density, imagery, charts, diagrams, motifs, and anti-patterns.
@@ -31,7 +33,8 @@ reference PPJ/PPTX.
    A screenshot proves appearance, not independent editability.
 3. Write the style guide independently. Do not copy reference wording or claim
    uncertain design intent as fact.
-4. Create an unrelated four-to-six-page calibration deck as PPJ. Use
+4. Create an unrelated four-to-six-page clean-room calibration deck as PPJ and
+   compile it to PPTX. Use
    new content and geometry, cover at least three page roles, render every page,
    and review it visually. Recreate any design-defining overlap with real
    editable layers, then reopen the PPTX and verify its stack before describing
@@ -39,9 +42,11 @@ reference PPJ/PPTX.
    a page background for a true native backdrop, or an image element in the
    ordered `pages[].elements[]` stack when it must be movable, cropped, or
    animated. Do not simulate layer order by rebuilding the whole slide.
-5. Save only the guide body, calibration PNGs, and a packaging spec in the task.
-   Source files, intermediate PPTX files, extracted media, and QA evidence stay
-   outside the published Skill.
+5. Check, build, render, review, and re-import the clean-room PPJ/PPTX. Keep the
+   original source files, extracted media, and analysis evidence private. Add
+   the clean-room `referenceProgram` and `referencePptx` to the packaging spec
+   only when their license, package size, and reuse value justify publishing;
+   otherwise publish only the guide and calibration PNGs.
 6. Package with:
 
    ```bash
@@ -67,5 +72,6 @@ reference PPJ/PPTX.
 - The calibration workflow may use PPJ background images, true scene order,
   chart/shape/image composition, motion, and `officekit ppj inspect`. A template
   never promises that a third-party source graph is fully editable.
-- Do not add `STYLE.md`, a retained reference, executable code, SVG page
-  skeletons, or undocumented files to a generated template.
+- Do not add `STYLE.md`, an original input deck, executable code, SVG page
+  skeletons, or undocumented files to a generated template. Optional reference
+  files must be the reviewed clean-room PPJ/PPTX declared in schema v3.

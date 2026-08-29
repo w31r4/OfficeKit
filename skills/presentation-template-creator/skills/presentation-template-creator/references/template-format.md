@@ -9,9 +9,12 @@ artifact-template-<slug>/
 ├── agents/agent.yaml
 └── assets/
     ├── preview.png
-    └── examples/
-        ├── 01-<role>.png
-        └── ...
+    ├── examples/
+    │   ├── 01-<role>.png
+    │   └── ...
+    └── references/              # optional, only when declared
+        ├── reference.ppj
+        └── reference.pptx
 ```
 
 No other file is allowed.
@@ -57,6 +60,16 @@ Do not repeat the general Presentations workflow or prescribe fixed coordinates.
     { "path": "/absolute/task/data.png", "role": "data" },
     { "path": "/absolute/task/decision.png", "role": "closing" }
   ],
+  "referenceProgram": {
+    "path": "/absolute/task/reference.ppj",
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration"
+  },
+  "referencePptx": {
+    "path": "/absolute/task/reference.pptx",
+    "license": "AGPL-3.0-or-later",
+    "source": "Compiled from the declared referenceProgram"
+  },
   "provenance": {
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original calibration work"
@@ -69,5 +82,9 @@ Use English for search metadata. Example roles are `cover`, `section`,
 to six PNGs and at least three distinct roles.
 
 The resulting `artifact-template.json` is schema v3. Its hashes bind the guide,
-preview, and every example. The generated preview is a deterministic two-column
-montage; examples remain the full-resolution evidence the Agent should inspect.
+preview, every example, and any declared reference. The generated preview is a
+deterministic two-column montage; examples remain the full-resolution evidence
+the Agent should inspect. `referenceProgram` and `referencePptx` are optional,
+but when present they must be clean-room, reviewed, rights-declared files. The
+Creator copies them under `assets/references/`; it never packages an undeclared
+source deck.

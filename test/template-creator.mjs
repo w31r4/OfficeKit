@@ -331,6 +331,14 @@ try {
     guidePath,
     "# Visual direction\n\nUse a disciplined editorial rhythm, a strong evidence hierarchy, restrained color roles, and varied page silhouettes. Build every slide freely for the current content. Treat the examples as visual evidence rather than geometry to trace.\n",
   );
+  const referenceProgramPath = path.join(presentationInputRoot, "reference.ppj");
+  await fs.writeFile(referenceProgramPath, `${JSON.stringify({
+    schema: "office-kit/ppj/v1",
+    meta: { id: "template-fixture", title: "Template fixture", language: "en-US", version: 1 },
+    intent: {},
+    design: {},
+    pages: [],
+  }, null, 2)}\n`);
   const specPath = path.join(presentationInputRoot, "spec.json");
   const presentationSpec = {
     id: "artifact-template-presentation-fixture",
@@ -352,6 +360,16 @@ try {
       path: entry,
       role: ["cover", "analysis", "data", "closing"][index],
     })),
+    referenceProgram: {
+      path: referenceProgramPath,
+      license: "AGPL-3.0-or-later",
+      source: "OfficeKit original clean-room fixture",
+    },
+    referencePptx: {
+      path: pptxPath,
+      license: "AGPL-3.0-or-later",
+      source: "Compiled OfficeKit fixture",
+    },
     provenance: {
       license: "user-provided",
       source: "unrelated calibration pages created for this smoke",
@@ -372,6 +390,12 @@ try {
   assert.equal(presentationMetadata.schemaVersion, 3);
   assert.equal(Object.hasOwn(presentationMetadata, "reference"), false);
   assert.equal(Object.hasOwn(presentationMetadata, "editProfile"), false);
+  assert.equal(presentationMetadata.referenceProgram.path, "assets/references/reference.ppj");
+  assert.equal(presentationMetadata.referencePptx.path, "assets/references/reference.pptx");
+  assert.equal(presentationMetadata.referenceProgram.sha256, sha256(await fs.readFile(referenceProgramPath)));
+  assert.equal(presentationMetadata.referencePptx.sha256, sha256(await fs.readFile(pptxPath)));
+  assert.equal(presentationTemplate.referenceProgramPath, path.join(presentationTemplate.skillPath, "assets", "references", "reference.ppj"));
+  assert.equal(presentationTemplate.referencePptxPath, path.join(presentationTemplate.skillPath, "assets", "references", "reference.pptx"));
   assert.deepEqual(
     (await fs.readdir(presentationTemplate.skillPath)).sort(),
     ["SKILL.md", "agents", "artifact-template.json", "assets"],
