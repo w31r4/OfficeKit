@@ -154,7 +154,7 @@ message PresentationEditOperation {
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, tableCellText, paragraphAlignment, verticalAnchor,
   // textBodyInsetLeftEmu, textBodyInsetTopEmu, textBodyInsetRightEmu, textBodyInsetBottomEmu,
-  // textBodyWrap,
+  // textBodyWrap, textBodyColumnCount,
   // fontSizePoints, fontFamily,
   // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
   // fontColorRgb, fillRgb, fillScheme,

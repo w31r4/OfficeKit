@@ -75,6 +75,8 @@ const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
   Object.freeze(["bottom", "textBodyInsetBottomEmu", "bottomInset"]),
 ]);
 const PRESENTATION_TEXT_BODY_WRAPS = new Set(["square", "none"]);
+const MIN_TEXT_BODY_COLUMNS = 1;
+const MAX_TEXT_BODY_COLUMNS = 16;
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -4462,6 +4464,41 @@ function createPresentationNativeLeafCapability(presentation, state) {
               model.text.bodyProperties = { ...(model.text.bodyProperties || {}), wrap: next };
             },
           });
+        }
+        const columnCount = bodyProperties?.columnCount;
+        if (columnCount?.case === "columns") {
+          const raw = String(columnCount.value ?? "");
+          const count = Number(raw);
+          if (/^[0-9]+$/u.test(raw) && Number.isSafeInteger(count) && count >= MIN_TEXT_BODY_COLUMNS && count <= MAX_TEXT_BODY_COLUMNS) {
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+              leafKind: "textBodyColumnCount",
+              expectedValue: raw,
+              value: count,
+              details: { nativeLeafIndex: 0 },
+              normalize(next) {
+                if (typeof next !== "string" && typeof next !== "number") {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnCount native leaf requires an integer from 1 through 16.");
+                }
+                const token = String(next).trim();
+                if (!/^[0-9]+$/u.test(token)) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnCount native leaf requires an integer from 1 through 16.");
+                }
+                const normalized = Number(token);
+                if (!Number.isSafeInteger(normalized) || normalized < MIN_TEXT_BODY_COLUMNS || normalized > MAX_TEXT_BODY_COLUMNS) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnCount native leaf is outside the safe range 1 through 16.");
+                }
+                return { raw: String(normalized), publicValue: normalized };
+              },
+              isNoop(next) { return next === raw; },
+              apply(next) {
+                model.text.bodyProperties = {
+                  ...(model.text.bodyProperties || {}),
+                  columns: { ...(model.text.bodyProperties?.columns || {}), count: Number(next) },
+                };
+              },
+            });
+          }
         }
         const anchor = model.text.bodyProperties?.anchor;
         if (PRESENTATION_VERTICAL_ANCHORS.has(anchor)) {
