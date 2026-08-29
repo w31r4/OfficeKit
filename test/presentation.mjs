@@ -1233,6 +1233,50 @@ const textBodyVerticalTextRoundTripLeaf = textBodyVerticalTextRoundTrip.inspect(
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyVerticalText");
 assert.equal(textBodyVerticalTextRoundTripLeaf.value, "vertical");
 
+// Direct a:xfrm rotation is a source-bound transform leaf. Changing degrees
+// must splice only the rot token while preserving the shape's other transform
+// fields and the vendor metadata on cNvPr.
+const rotationAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const rotationAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<p:spPr[\s\S]*?<a:xfrm\b)(?![^>]*\brot=)([^>]*>)/u,
+  '$1 rot="600000"$2',
+);
+assert.match(rotationAccessibilityXml, /<a:xfrm\b[^>]*\brot="600000"/);
+rotationAccessibilityZip.file("ppt/slides/slide1.xml", rotationAccessibilityXml);
+const rotationAccessibilityFile = new FileBlob(
+  await rotationAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const rotationImported = await PresentationFile.importPptx(rotationAccessibilityFile);
+const rotationShape = itemByName(rotationImported.slides.getItem(0).shapes.items, "decision-status");
+const rotationLeaf = rotationImported.inspect({ includeNativeLeaves: true, target: rotationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "rotationDegrees");
+assert.ok(rotationLeaf, "source-bound shapes should expose direct a:xfrm rotation leaves");
+assert.equal(rotationLeaf.value, 10);
+assert.equal(rotationLeaf.unit, "degrees");
+rotationImported.editNativeLeaf(rotationLeaf.targetId, rotationLeaf.leafId, {
+  expectedHash: rotationLeaf.expectedHash,
+  value: 12.5,
+});
+const rotationOutput = await PresentationFile.exportPptx(rotationImported);
+const rotationOperation = rotationOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "rotationDegrees");
+assert.ok(rotationOperation);
+await assertOnlyDeclaredPptxFootprintChanged(rotationAccessibilityFile, rotationOutput, rotationOperation);
+const rotationXml = await (await JSZip.loadAsync(rotationOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(rotationXml, /<a:xfrm\b[^>]*\brot="750000"/);
+assert.match(rotationXml, /fixture:opaque="kept"/);
+const rotationRoundTrip = await PresentationFile.importPptx(rotationOutput);
+const rotationRoundTripLeaf = rotationRoundTrip.inspect({ includeNativeLeaves: true, target: rotationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "rotationDegrees");
+assert.equal(rotationRoundTripLeaf.value, 12.5);
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
