@@ -26,6 +26,7 @@ const pluginNames = [
   "presentation-template-creator",
   "default-template-library",
   "presentation-template-library",
+  "skill-update",
 ];
 const defaultTemplateSkills = [
   "artifact-template-analytics-dashboard",
@@ -90,6 +91,7 @@ const expectedSkills = new Map([
   ["office-kit", ["office-kit"]],
   ["template-creator", ["template-creator"]],
   ["presentation-template-creator", ["presentation-template-creator"]],
+  ["skill-update", ["skill-update"]],
   ["default-template-library", defaultTemplateSkills],
   ["presentation-template-library", presentationTemplateSkills],
 ]);
@@ -104,6 +106,7 @@ const expectedDeclaredSkillNames = new Map([
   ["office-kit", "office-kit"],
   ["template-creator", "template-creator"],
   ["presentation-template-creator", "presentation-template-creator"],
+  ["skill-update", "skill-update"],
 ]);
 for (const skillName of defaultTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
 for (const skillName of presentationTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
@@ -138,6 +141,7 @@ for (const pluginName of pluginNames) {
     "presentation-template-library",
     "presentations",
     "template-creator",
+    "skill-update",
   ]).has(pluginName) ? "1.1.0" : "0.2.0";
   assert.equal(manifest.version, expectedVersion);
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");

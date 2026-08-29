@@ -119,6 +119,18 @@
       "category": "templates",
       "tags": ["office", "templates", "docx", "xlsx"],
       "license": "MIT"
+    },
+    {
+      "name": "skill-update",
+      "displayName": "Skill Update",
+      "version": "1.1.0",
+      "description": "Propagate capability changes through Skills, Help, examples, tests, and release evidence.",
+      "source": "./skills/skill-update",
+      "strict": false,
+      "skills": "./skills/",
+      "license": "AGPL-3.0-or-later",
+      "category": "developer-tools",
+      "tags": ["skills", "maintenance", "help", "office"]
     }
   ]
 }

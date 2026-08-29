@@ -1,0 +1,31 @@
+{
+  "name": "skill-update",
+  "version": "1.1.0",
+  "description": "Keep OfficeKit Skills, Help, examples, tests, and release evidence aligned when a capability changes.",
+  "author": {
+    "name": "w31r4",
+    "email": "w31r4@users.noreply.github.com",
+    "url": "https://github.com/w31r4/OfficeKit"
+  },
+  "homepage": "https://github.com/w31r4/OfficeKit",
+  "repository": "https://github.com/w31r4/OfficeKit",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["office", "skills", "maintenance", "presentation", "help"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Skill Update",
+    "shortDescription": "Propagate capability changes through Skills",
+    "longDescription": "Inspect a capability diff and report the OfficeKit Skills, Help, examples, focused tests, and release evidence that must be reviewed together.",
+    "developerName": "w31r4",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "websiteURL": "https://github.com/w31r4/OfficeKit",
+    "privacyPolicyURL": "https://github.com/w31r4/OfficeKit#readme",
+    "termsOfServiceURL": "https://github.com/w31r4/OfficeKit#readme",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "defaultPrompt": ["Check which Skills and docs a capability change must update"],
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

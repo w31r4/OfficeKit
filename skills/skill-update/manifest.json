@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "skill-update",
+  "description": "Keep capability changes aligned with their consumer Skills and evidence.",
+  "owner": "w31r4",
+  "skills": ["skills/skill-update"],
+  "assets": { "icon": "assets/icon.svg" },
+  "interface": {
+    "displayName": "Skill Update",
+    "shortDescription": "Propagate capability changes through Skills"
+  }
+}

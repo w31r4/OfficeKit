@@ -30,6 +30,7 @@ const SKILLS = Object.freeze([
   ["pdf", "skills/pdf/skills/pdf"],
   ["template-creator", "skills/template-creator/skills/template-creator"],
   ["presentation-template-creator", "skills/presentation-template-creator/skills/presentation-template-creator"],
+  ["skill-update", "skills/skill-update/skills/skill-update"],
 ].map(([id, source]) => Object.freeze({ id, source })));
 
 // These project-local Skill roots follow the same cross-agent layout used by

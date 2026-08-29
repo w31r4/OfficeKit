@@ -22,6 +22,7 @@ const expected = new Map([
   ["presentation-template-creator", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["presentation-template-library", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
   ["default-template-library", { version: "1.1.0", license: "MIT" }],
+  ["skill-update", { version: "1.1.0", license: "AGPL-3.0-or-later" }],
 ]);
 assert.deepEqual(
   marketplace.plugins.map((plugin) => plugin.name),

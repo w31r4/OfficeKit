@@ -73,6 +73,7 @@
     "skills/office-kit/**",
     "skills/template-creator/**",
     "skills/presentation-template-creator/**",
+    "skills/skill-update/**",
     "skills/default-template-library/**",
     "skills/presentation-template-library/**",
     "proto/**",

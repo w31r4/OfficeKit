@@ -76,7 +76,7 @@ try {
   const initialized = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(initialized.ok, true);
   assert.deepEqual(initialized.tools.map((tool) => tool.id), ["claude", "cursor"]);
-  assert.equal(initialized.created, 20);
+  assert.equal(initialized.created, 22);
   assert.equal(initialized.updated, 0);
   assert.equal(initialized.unchanged, 0);
   for (const toolRoot of [".claude", ".cursor"]) {
@@ -91,6 +91,7 @@ try {
       "pdf",
       "template-creator",
       "presentation-template-creator",
+      "skill-update",
     ]) {
       assert.ok(fs.existsSync(path.join(project, toolRoot, "skills", skill, "SKILL.md")));
     }
@@ -105,14 +106,14 @@ try {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.schemaVersion, 1);
   assert.deepEqual(manifest.tools, ["claude", "cursor"]);
-  assert.equal(manifest.installations.length, 20);
+  assert.equal(manifest.installations.length, 22);
   assert.equal(manifest.package.name, "office-kit");
   assert.equal(manifest.package.version, "1.1.0");
 
   const idempotent = parseJson(run(["init", project, "--yes", "--json"]).stdout);
   assert.equal(idempotent.created, 0);
   assert.equal(idempotent.updated, 0);
-  assert.equal(idempotent.unchanged, 20);
+  assert.equal(idempotent.unchanged, 22);
 
   const managedSkill = path.join(project, ".claude", "skills", "office-kit", "SKILL.md");
   const sourceSkill = path.join(
