@@ -105,6 +105,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeFontColor = await verifyNativeFontColorEdit(bytes);
     const nativeFontDecoration = await verifyNativeFontDecorationEdit(bytes);
     const nativeParagraphAlignment = await verifyNativeParagraphAlignmentEdit(bytes);
+    const nativeParagraphLineSpacing = await verifyNativeParagraphLineSpacingEdit(bytes);
     const nativeVerticalAnchor = await verifyNativeVerticalAnchorEdit(bytes);
     const nativeTextBodyInset = await verifyNativeTextBodyInsetEdit(bytes);
     const nativeTextBodyWrap = await verifyNativeTextBodyWrapEdit(bytes);
@@ -160,6 +161,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFontColor,
       nativeFontDecoration,
       nativeParagraphAlignment,
+      nativeParagraphLineSpacing,
       nativeVerticalAnchor,
       nativeTextBodyInset,
       nativeTextBodyWrap,
@@ -214,6 +216,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFontColorEdits: results.filter((result) => result.nativeFontColor.status === "passed").length,
       nativeFontDecorationEdits: results.filter((result) => result.nativeFontDecoration.status === "passed").length,
       nativeParagraphAlignmentEdits: results.filter((result) => result.nativeParagraphAlignment.status === "passed").length,
+      nativeParagraphLineSpacingEdits: results.filter((result) => result.nativeParagraphLineSpacing.status === "passed").length,
       nativeVerticalAnchorEdits: results.filter((result) => result.nativeVerticalAnchor.status === "passed").length,
       nativeTextBodyInsetEdits: results.filter((result) => result.nativeTextBodyInset.status === "passed").length,
       nativeTextBodyWrapEdits: results.filter((result) => result.nativeTextBodyWrap.status === "passed").length,
@@ -618,6 +621,32 @@ async function verifyNativeParagraphAlignmentEdit(bytes) {
     throw new Error(`Native paragraph-alignment edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeParagraphLineSpacingEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphLineSpacingPoints" || record.leafKind === "paragraphLineSpacingMultiplier");
+  if (!target) return { status: "blocked", reason: "no bounded direct paragraph line-spacing leaf was discovered" };
+  const oldValue = Number(target.value);
+  const maximum = target.leafKind === "paragraphLineSpacingPoints" ? 1584 : 132;
+  const step = 0.01;
+  const value = oldValue + step <= maximum ? Number((oldValue + step).toFixed(5)) : Number((oldValue - step).toFixed(5));
+  if (!Number.isFinite(oldValue) || value <= 0 || value === oldValue) return { status: "blocked", reason: "discovered paragraph line spacing is outside the safe edit range" };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Math.abs(Number(rebound.value) - value) > 0.00001) {
+    throw new Error(`Native paragraph line-spacing edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native paragraph line-spacing edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
 }
 
 async function verifyNativeVerticalAnchorEdit(bytes) {
