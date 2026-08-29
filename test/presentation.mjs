@@ -120,6 +120,10 @@ function verticalAnchorToken(value) {
   return ({ top: "t", center: "ctr", bottom: "b" })[value] || value;
 }
 
+function textBodyAutoFitToken(value) {
+  return ({ none: "noAutofit", shrinkText: "normAutofit", resizeShape: "spAutoFit" })[value] || value;
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -139,11 +143,15 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
       ? paragraphAlignmentToken(item.expectedValue)
       : item.leafKind === "verticalAnchor"
         ? verticalAnchorToken(item.expectedValue)
+        : item.leafKind === "textBodyAutoFit"
+          ? textBodyAutoFitToken(item.expectedValue)
         : String(item.expectedValue);
     const replacementValue = item.leafKind === "paragraphAlignment"
       ? paragraphAlignmentToken(item.value)
       : item.leafKind === "verticalAnchor"
         ? verticalAnchorToken(item.value)
+        : item.leafKind === "textBodyAutoFit"
+          ? textBodyAutoFitToken(item.value)
         : String(item.value);
     const expected = Buffer.from(expectedValue, "utf8");
     const replacement = Buffer.from(replacementValue, "utf8");
@@ -1078,6 +1086,50 @@ const textBodyColumnCountRoundTripLeaf = textBodyColumnCountRoundTrip.inspect({ 
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnCount");
 assert.equal(textBodyColumnCountRoundTripLeaf.value, 2);
+
+// Bare AutoFit choices are source-bound child-token leaves.  Switching the
+// choice must splice only the local element name, preserving the bodyPr
+// attributes and vendor extension around the text body.
+const textBodyAutoFitAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyAutoFitAccessibilityXml = (await textBodyAutoFitAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:bodyPr\b[^>]*)(\/>)/u,
+    '$1><a:spAutoFit/></a:bodyPr>',
+  );
+assert.match(textBodyAutoFitAccessibilityXml, /<a:bodyPr\b[^>]*><a:spAutoFit\s*\/>\s*<\/a:bodyPr>/);
+textBodyAutoFitAccessibilityZip.file("ppt/slides/slide1.xml", textBodyAutoFitAccessibilityXml);
+const textBodyAutoFitAccessibilityFile = new FileBlob(
+  await textBodyAutoFitAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyAutoFitImported = await PresentationFile.importPptx(textBodyAutoFitAccessibilityFile);
+const textBodyAutoFitShape = itemByName(textBodyAutoFitImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyAutoFitLeaf = textBodyAutoFitImported.inspect({ includeNativeLeaves: true, target: textBodyAutoFitShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyAutoFit");
+assert.ok(textBodyAutoFitLeaf, "source-bound shapes should expose bare text-body AutoFit leaves");
+assert.equal(textBodyAutoFitLeaf.value, "resizeShape");
+textBodyAutoFitImported.editNativeLeaf(textBodyAutoFitLeaf.targetId, textBodyAutoFitLeaf.leafId, {
+  expectedHash: textBodyAutoFitLeaf.expectedHash,
+  value: "none",
+});
+const textBodyAutoFitOutput = await PresentationFile.exportPptx(textBodyAutoFitImported);
+const textBodyAutoFitOperation = textBodyAutoFitOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyAutoFit");
+assert.ok(textBodyAutoFitOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyAutoFitAccessibilityFile, textBodyAutoFitOutput, textBodyAutoFitOperation);
+const textBodyAutoFitXml = await (await JSZip.loadAsync(textBodyAutoFitOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyAutoFitXml, /<a:bodyPr\b[^>]*><a:noAutofit\s*\/>\s*<\/a:bodyPr>/);
+assert.match(textBodyAutoFitXml, /fixture:opaque="kept"/);
+const textBodyAutoFitRoundTrip = await PresentationFile.importPptx(textBodyAutoFitOutput);
+const textBodyAutoFitRoundTripLeaf = textBodyAutoFitRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyAutoFitShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyAutoFit");
+assert.equal(textBodyAutoFitRoundTripLeaf.value, "none");
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,

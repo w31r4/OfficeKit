@@ -104,6 +104,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeTextBodyInset = await verifyNativeTextBodyInsetEdit(bytes);
     const nativeTextBodyWrap = await verifyNativeTextBodyWrapEdit(bytes);
     const nativeTextBodyColumnCount = await verifyNativeTextBodyColumnCountEdit(bytes);
+    const nativeTextBodyAutoFit = await verifyNativeTextBodyAutoFitEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -148,6 +149,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeTextBodyInset,
       nativeTextBodyWrap,
       nativeTextBodyColumnCount,
+      nativeTextBodyAutoFit,
       svgStyle,
       animatedText,
       tableCell,
@@ -191,6 +193,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeTextBodyInsetEdits: results.filter((result) => result.nativeTextBodyInset.status === "passed").length,
       nativeTextBodyWrapEdits: results.filter((result) => result.nativeTextBodyWrap.status === "passed").length,
       nativeTextBodyColumnCountEdits: results.filter((result) => result.nativeTextBodyColumnCount.status === "passed").length,
+      nativeTextBodyAutoFitEdits: results.filter((result) => result.nativeTextBodyAutoFit.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -587,6 +590,28 @@ async function verifyNativeTextBodyColumnCountEdit(bytes) {
     throw new Error(`Native text-body column-count edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeTextBodyAutoFitEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyAutoFit");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body AutoFit leaf was discovered" };
+  const value = target.value === "none" ? "resizeShape" : "none";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native text-body AutoFit edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body AutoFit edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
 }
 
 async function verifySvgStyleEdit(bytes) {
