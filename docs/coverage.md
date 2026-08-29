@@ -93,10 +93,11 @@ splices only the alpha token, preserves the fill color and neighboring source
 markup, and survives second import; effect-bearing, theme, multiple-child, and
 otherwise irregular alpha graphs remain opaque.
 
-Opaque connectors and group descendants with one explicit preset
-`a:prstDash/@val` and a simple solid RGB or theme-colored outline now expose a
-source-bound `lineStyle` leaf (`solid`, `dashed`, `dotted`, `dash-dot`, or
-`dash-dot-dot`). Edits splice only that existing dash token and survive
+Imported connectors and group descendants with one explicit preset
+`a:prstDash/@val` or canonical `a:ln/@cap` and a simple solid RGB or
+theme-colored outline now expose source-bound `lineStyle` or `lineCap` leaves
+(`solid`, `dashed`, `dotted`, `dash-dot`, `dash-dot-dot`, `flat`, `round`, or
+`square`). Edits splice only that existing dash/cap token and survive
 re-import with the target SlidePart as the declared footprint; custom dash
 graphs, missing/ambiguous paints, effects, and other unsupported line graphs
 remain opaque.
