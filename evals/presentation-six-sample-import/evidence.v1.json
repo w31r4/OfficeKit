@@ -27,6 +27,7 @@
     "nativeVerticalAnchorEdits": 6,
     "nativeTextBodyInsetEdits": 6,
     "nativeTextBodyWrapEdits": 6,
+    "nativeTextBodyColumnCountEdits": 2,
     "svgStyleEdits": 1,
     "animatedTextEdits": 1,
     "tableCellEdits": 4,
@@ -89,6 +90,7 @@
         "nativeText": 1,
         "paragraphAlignment": 15,
         "text": 59,
+        "textBodyColumnCount": 27,
         "textBodyInsetBottomEmu": 30,
         "textBodyInsetLeftEmu": 30,
         "textBodyInsetRightEmu": 30,
@@ -286,6 +288,17 @@
           "ppt/slides/slide1.xml"
         ]
       },
+      "nativeTextBodyColumnCount": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/8",
+        "leafKind": "textBodyColumnCount",
+        "nativeLeafIndex": 0,
+        "oldValue": 1,
+        "value": 2,
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -315,9 +328,9 @@
         "reopenedSlides": 14,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 846,
-      "nativeNestedLeafCount": 167,
-      "nativeTextLeafCount": 24,
+      "nativeLeafCount": 879,
+      "nativeNestedLeafCount": 176,
+      "nativeTextLeafCount": 25,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -396,6 +409,7 @@
         "lineWidthEmu": 80,
         "paragraphAlignment": 75,
         "text": 120,
+        "textBodyColumnCount": 109,
         "textBodyInsetBottomEmu": 109,
         "textBodyInsetLeftEmu": 109,
         "textBodyInsetRightEmu": 109,
@@ -601,6 +615,17 @@
           "ppt/slides/slide1.xml"
         ]
       },
+      "nativeTextBodyColumnCount": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/4",
+        "leafKind": "textBodyColumnCount",
+        "nativeLeafIndex": 0,
+        "oldValue": 1,
+        "value": 2,
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -640,8 +665,8 @@
         "reopenedSlides": 22,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 1979,
-      "nativeNestedLeafCount": 760,
+      "nativeLeafCount": 2109,
+      "nativeNestedLeafCount": 811,
       "nativeTextLeafCount": 0,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -908,6 +933,10 @@
         "changedParts": [
           "ppt/slides/slide20.xml"
         ]
+      },
+      "nativeTextBodyColumnCount": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body column-count leaf was discovered"
       },
       "svgStyle": {
         "status": "passed",
@@ -1235,6 +1264,10 @@
           "ppt/slides/slide7.xml"
         ]
       },
+      "nativeTextBodyColumnCount": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body column-count leaf was discovered"
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -1558,6 +1591,10 @@
           "ppt/slides/slide2.xml"
         ]
       },
+      "nativeTextBodyColumnCount": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body column-count leaf was discovered"
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -1859,6 +1896,10 @@
         "changedParts": [
           "ppt/slides/slide1.xml"
         ]
+      },
+      "nativeTextBodyColumnCount": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body column-count leaf was discovered"
       },
       "svgStyle": {
         "status": "blocked",

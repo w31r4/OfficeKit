@@ -1038,6 +1038,47 @@ const textBodyWrapRoundTripLeaf = textBodyWrapRoundTrip.inspect({ includeNativeL
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyWrap");
 assert.equal(textBodyWrapRoundTripLeaf.value, "none");
 
+// Direct text-body column count is a source-bound token leaf. The fixture
+// gains one canonical numCol value; changing it must leave all other bodyPr
+// attributes and the vendor extension untouched.
+const textBodyColumnCountAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyColumnCountAccessibilityXml = (await textBodyColumnCountAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(/<a:bodyPr\b/u, '<a:bodyPr numCol="1"');
+assert.match(textBodyColumnCountAccessibilityXml, /<a:bodyPr\b[^>]*\bnumCol="1"/);
+textBodyColumnCountAccessibilityZip.file("ppt/slides/slide1.xml", textBodyColumnCountAccessibilityXml);
+const textBodyColumnCountAccessibilityFile = new FileBlob(
+  await textBodyColumnCountAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyColumnCountImported = await PresentationFile.importPptx(textBodyColumnCountAccessibilityFile);
+const textBodyColumnCountShape = itemByName(textBodyColumnCountImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyColumnCountLeaf = textBodyColumnCountImported.inspect({ includeNativeLeaves: true, target: textBodyColumnCountShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnCount");
+assert.ok(textBodyColumnCountLeaf, "source-bound shapes should expose direct text-body column-count leaves");
+assert.equal(textBodyColumnCountLeaf.value, 1);
+textBodyColumnCountImported.editNativeLeaf(textBodyColumnCountLeaf.targetId, textBodyColumnCountLeaf.leafId, {
+  expectedHash: textBodyColumnCountLeaf.expectedHash,
+  value: 2,
+});
+const textBodyColumnCountOutput = await PresentationFile.exportPptx(textBodyColumnCountImported);
+const textBodyColumnCountOperation = textBodyColumnCountOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyColumnCount");
+assert.ok(textBodyColumnCountOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyColumnCountAccessibilityFile, textBodyColumnCountOutput, textBodyColumnCountOperation);
+const textBodyColumnCountXml = await (await JSZip.loadAsync(textBodyColumnCountOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyColumnCountXml, /<a:bodyPr\b[^>]*\bnumCol="2"/);
+assert.match(textBodyColumnCountXml, /fixture:opaque="kept"/);
+const textBodyColumnCountRoundTrip = await PresentationFile.importPptx(textBodyColumnCountOutput);
+const textBodyColumnCountRoundTripLeaf = textBodyColumnCountRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyColumnCountShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnCount");
+assert.equal(textBodyColumnCountRoundTripLeaf.value, 2);
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
