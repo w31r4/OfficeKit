@@ -107,8 +107,11 @@ steps are in [Continue](tasks/continue.md).
   workflow instead.
 - Image-led pages and any cross-type overlap load
   [layered composition](references/layered-composition.md).
-- Imported editing loads advanced guidance only for the targeted native object;
-  a z-order request also loads layered composition.
+- Imported editing loads [imported capabilities](references/imported-capabilities.md)
+  and then only the API reference for the targeted native object; a z-order
+  request also loads layered composition.
+- Source continuation loads [source continuation](references/source-continuation.md)
+  instead of the style-template or free-compose route.
 - Motion loads only for a speaking or explicit animation requirement.
 - Review and continuation each have one authoritative task document; do not
   copy their mechanics into another route.

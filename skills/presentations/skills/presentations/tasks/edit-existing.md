@@ -10,9 +10,9 @@ Stage the source with `ctx.input`, import the managed copy, and run targeted
 choosing an edit primitive.
 
 Classify the target as typed-editable, native-leaf-editable,
-source-derived-reusable, or opaque-preserved. Load
-[advanced imported editing](../references/advanced-imported-editing.md) only
-for the relevant advanced object.
+source-derived-reusable, or opaque-preserved. Load the
+[imported capability router](../references/imported-capabilities.md), then the
+relevant authoritative API reference only for the selected object.
 
 For a layer-order request, also read
 [layered composition](../references/layered-composition.md). Inspect `kind:

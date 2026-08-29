@@ -31,8 +31,10 @@ For `design-system`, record exact supplied rules and unresolved gaps. For
 `style-transfer`, render and inspect the reference deck but do not copy its
 wording, exact page geometry, or protected assets. For `source-continuation`,
 import and inspect the package, then read
-[reference-deck conditioned generation](../references/template-conditioned-generation.md)
-and capability guidance before cloning or editing anything.
+[source continuation](../references/source-continuation.md) and the
+[imported capability router](../references/imported-capabilities.md) before
+cloning or editing anything. For a reference deck that is not the actual
+starting state, use [reference-deck conditioned generation](../references/template-conditioned-generation.md).
 
 ## 3. Write the current deck's plan
 

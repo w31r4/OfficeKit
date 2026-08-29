@@ -37,7 +37,7 @@ function usage() {
     "  --source-slide-count <n>     Optional source slide count check.",
     "  --no-report                  Validate without writing qa/template-plan-check.*.",
     "",
-    "Validates a template-following frame map before starter deck creation.",
+    "Validates a source-continuation frame map before starter deck creation.",
   ].join("\n");
 }
 

@@ -15,10 +15,12 @@ This installable Skill bundle is distributed with `office-kit`.
 Use this plugin for presentation-oriented terms from the file-type naming model: slides, deck, PowerPoint, Google Slides, presentation, presentations, PPT, and `.pptx`. Choose the Live Skill only when the user explicitly refers to the currently open desktop deck. Use Presentation Editorial Trim directly for copy-only work; the Presentations Skill also invokes it during creation and bounded edits.
 
 The Presentation route is intentionally small. Load `references/primitives.md`
-for the semantic capability map and `references/fonts.md` for role-based
-typography/fallback decisions; the detailed API references and Help catalog own
-signatures and source-bound limits. Repository maintainers use the separate
-`skill-update` Skill to trace primitive changes to these consumers.
+for the semantic capability map, `references/imported-capabilities.md` for
+source-bound edits, `references/source-continuation.md` for reused source
+slides, and `references/fonts.md` for role-based typography/fallback decisions.
+The detailed API references and Help catalog own signatures and source-bound
+limits. Repository maintainers use the separate `skill-update` Skill to trace
+primitive changes to these consumers.
 
 ## Source
 
@@ -26,4 +28,7 @@ The plugin tree is versioned directly under `skills/presentations` in the public
 
 ## Compatibility status
 
-The shipped 26-slide built-in template runs unchanged apart from public package branding through canonical OfficeKit export/import. The wider API guide includes advanced package graphs beyond the current fail-closed authoring boundary; those calls remain under compatibility audit.
+Presentation guidance is source-bound and progressive: a style Template Skill,
+a reference deck, and a source-continuation PPTX are separate authorities. The
+API reference files document advanced package graphs; unsupported imported
+topology remains opaque and fail-closed rather than being reconstructed.

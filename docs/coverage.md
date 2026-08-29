@@ -593,7 +593,7 @@ oracle fingerprint
 covers the bounded finalisation workflow only; it does not generalize to P=3,
 arbitrary signed PDFs, or general PDF editing.
 
-### Presentation template-following starter
+### Presentation source-continuation starter
 
 Status: **done for bounded topology**. The portable starter command consumes a
 validated frame map as data rather than branching on slide type. It imports one
@@ -611,7 +611,7 @@ omitted source targets, sections, custom shows, modern comments, and other
 unsupported identity graphs remain explicit blockers. Content editing begins
 only after importing the starter and resolving the manifest's final IDs.
 
-### Presentation template-following edit transaction
+### Presentation source-continuation edit transaction
 
 Status: **done for bounded typed edits**. The portable
 `apply_template_edit_plan.mjs` command consumes the starter and its manifest plus

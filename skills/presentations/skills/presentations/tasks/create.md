@@ -142,3 +142,13 @@ or the selected visual direction. Resolve overflow, unintended overlap,
 off-canvas content, weak contrast, and unrecorded design warnings before commit.
 Offer the reviewed working deck and a concise story summary; do not ask the user
 to select internal layouts before a complete draft exists.
+
+## 6. Hand the draft back
+
+For an ordinary conversational request, return a working-draft path, review
+status, one-sentence goal, three-to-six story beats, and at most three material
+open questions. Do not publish or call a draft delivered until the user asks to
+finalize it. Silence is not acceptance. On a later revision, reopen the latest
+reviewed artifact, change only the declared scope, and return the new path plus
+the top remaining issue; do not repeat the whole plan unless the direction
+changes.

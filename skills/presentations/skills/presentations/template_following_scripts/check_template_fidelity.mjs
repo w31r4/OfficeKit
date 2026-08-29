@@ -44,7 +44,7 @@ function usage() {
     "  --agent-log <path>            Additional child-agent log to scan.",
     "  --no-report                  Validate without writing qa/template-fidelity-check.*.",
     "",
-    "Checks final template-following decks for overlays, unresolved placeholders,",
+    "Checks final source-continuation decks for overlays, unresolved placeholders,",
     "fresh-slide rebuilds, and deck-affecting Python/OOXML bypasses.",
   ].join("\n");
 }
