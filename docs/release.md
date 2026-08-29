@@ -1,5 +1,41 @@
 # Release
 
+## OfficeKit 2.0.0
+
+OfficeKit 2.0 makes PPJ the only public Presentation authoring language. A
+`.ppj` file is one UTF-8 strict JSON program with stable IDs, real page and
+z-order arrays, typed content, bounded components, hashed local assets, and an
+optional immutable PPTX source binding. It is not JavaScript, JSON5, a ZIP, raw
+OOXML, or an executable expression language.
+
+The NativeAOT codec now parses PPJ bytes directly. It validates and expands
+authored programs, compiles editable PPTX, projects third-party PPTX into typed
+or opaque `nativeRef` elements, computes structural PPJ diffs, and lowers only
+capability-proven changes into a local Edit Plan. Authored outputs embed the PPJ
+and node map for exact recovery. Third-party no-op builds return the exact source
+bytes; non-target OPC content and unknown graphs remain source-owned.
+
+The installed CLI provides `officekit ppj import`, `inspect`, `check`, `build`,
+`render`, and `review` with or without a Task. Public Help and the short
+Presentations Skill route exclusively through those commands. Task revisions
+add resume, reviewed-state, mutation-footprint, and publication evidence without
+becoming a prerequisite for compilation.
+
+This is a breaking Presentation release. The package root, former
+`office-kit/presentation` subpath, Compose helpers, JSX runtimes, public
+Presentation/MJS examples, legacy Skill routes, and obsolete authoring-evaluation
+harnesses are removed. The JavaScript Presentation implementation remains an
+internal codec and regression-test layer. DOCX, XLSX, PDF, PowerPoint Live, and
+the low-level `office-kit/codec` boundary keep their existing roles.
+PPJ 2.0 adds no runtime dependency or third-party license.
+
+Acceptance covers an authored high-density Evidence Ledger deck, exact embedded
+PPJ recovery and continuation from only its PPTX, and source-bound typed plus
+`nativeRef` edits on a complex third-party deck. Packed clean-install evidence
+completed all three workflows. Final release hashes and platform build evidence
+are recorded after the one release gate run; Windows PowerPoint playback remains
+unverified and is not a 2.0 completion condition.
+
 ## Unreleased: Presentation scene stack
 
 Presentation authoring now uses one bottom-to-top scene stack across shapes,

@@ -1,7 +1,7 @@
 {
   "name": "office-kit",
   "version": "1.1.0",
-  "description": "OfficeKit: agent-native Office and PDF Skills plus JavaScript APIs for creating, inspecting, editing, rendering, and verifying artifacts.",
+  "description": "OfficeKit: agent-native Office and PDF Skills, PPJ presentation compilation, and artifact APIs.",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "keywords": [
@@ -11,6 +11,7 @@
     "docx",
     "xlsx",
     "pptx",
+    "ppj",
     "agent",
     "skills",
     "openxml",

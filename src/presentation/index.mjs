@@ -1165,7 +1165,7 @@ export class Presentation {
   }
 
   help(query = "*", options = {}) {
-    return ndjson(queryHelpRecords("presentation", query, options), options.maxChars ?? Infinity);
+    return ndjson(queryHelpRecords("presentation", query, { ...options, includeInternal: true }), options.maxChars ?? Infinity);
   }
 
   async export(options = {}) {

@@ -2,13 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { HELP_CATALOG } from "../src/help/index.mjs";
+import { PUBLIC_HELP_CATALOG } from "../src/help/index.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputPath = path.join(repoRoot, "docs", "api.md");
 
 const byKind = new Map();
-for (const item of HELP_CATALOG) {
+for (const item of PUBLIC_HELP_CATALOG) {
   const list = byKind.get(item.artifactKind) || [];
   list.push(item);
   byKind.set(item.artifactKind, list);
@@ -17,7 +17,7 @@ for (const item of HELP_CATALOG) {
 const lines = [
   "# API catalog",
   "",
-  "Generated from `HELP_CATALOG` in `src/help/index.mjs`.",
+  "Generated from `PUBLIC_HELP_CATALOG` in `src/help/index.mjs`.",
   "",
 ];
 

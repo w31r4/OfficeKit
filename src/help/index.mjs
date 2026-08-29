@@ -311,6 +311,42 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.IRR", category: "financial", summary: "Return a bounded-convergence periodic return rate for a finite cash-flow vector.", examples: ["=IRR(B2:B8)", "=IRR(B2:B8,0.15)"], notes: ["Cash flows must contain both a positive and a negative finite number. The optional finite guess defaults to 0.1; no converged valid root or an invalid rate returns #NUM! rather than a guessed value."] },
   { artifactKind: "workbook", kind: "formula", name: "fx.XIRR", category: "financial", summary: "Return a bounded-convergence annualized return rate for date-aligned finite cash flows using a 365-day year.", examples: ["=XIRR(B2:B8,C2:C8)", "=XIRR(B2:B8,C2:C8,0.15)"], notes: ["Values and dates must have the same nonzero count, dates must be valid, and cash flows must contain both signs. The optional finite guess defaults to 0.1; invalid or unconverged cases return #VALUE! or #NUM!."] },
 
+  {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj import",
+    summary: "Project a PPTX into one strict JSON .ppj program. OfficeKit-authored PPTX files recover their embedded program when its map still matches; third-party files produce typed elements plus source-bound opaque nativeRef records without putting unknown OOXML into the program.",
+    examples: ["officekit ppj import input.pptx -o deck.ppj --json"],
+    schema: { parameters: { input: { type: "path", required: true, description: "Existing PPTX input; never overwritten." }, output: { type: "path", required: true, description: "New .ppj path." }, task: { type: "string", description: "Optional OfficeKit task id used to persist a revision." }, json: { type: "boolean", description: "Emit a machine-readable receipt." } }, returns: { receipt: { type: "object", description: "Projection mode, stable program identity, hashes, warnings, and output path." } } },
+  },
+  {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj inspect",
+    summary: "Search or inspect a .ppj program by stable page and element IDs without evaluating code or changing the file.",
+    examples: ["officekit ppj inspect deck.ppj --query revenue --json"],
+    schema: { parameters: { input: { type: "path", required: true, description: "Existing .ppj program." }, query: { type: "string", description: "Bounded fuzzy text or ID query." }, page: { type: "string", description: "Optional stable page ID." }, json: { type: "boolean", description: "Emit structured results." } }, returns: { records: { type: "object[]", description: "Stable-ID matches, element summaries, source capabilities, and diagnostics." } } },
+  },
+  {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj check",
+    summary: "Validate PPJ schema, stable references, local assets, bounded component expansion, source hashes, and nativeRef capabilities before compilation. --fix is limited to deterministic formatting repairs.",
+    examples: ["officekit ppj check deck.ppj --json"],
+    schema: { parameters: { input: { type: "path", required: true, description: "Existing .ppj program." }, fix: { type: "boolean", description: "Apply deterministic non-semantic normalization only." }, task: { type: "string", description: "Optional task id used to persist the checked revision." }, json: { type: "boolean", description: "Emit structured diagnostics." } }, returns: { report: { type: "object", description: "Validation status, program hash, expanded budgets, warnings, and precise errors." } } },
+  },
+  {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj build",
+    summary: "Compile an authored .ppj to editable PPTX or lower a source-bound PPJ diff into a capability-proven local Edit Plan. A third-party no-op returns the exact source bytes; unsupported mutations fail closed.",
+    examples: ["officekit ppj build deck.ppj -o deck.pptx --json"],
+    schema: { parameters: { input: { type: "path", required: true, description: "Checked .ppj program." }, output: { type: "path", required: true, description: "New PPTX output; source inputs are never overwritten." }, task: { type: "string", description: "Optional task id used to persist the build revision." }, json: { type: "boolean", description: "Emit a structured build receipt." } }, returns: { receipt: { type: "object", description: "Output SHA-256, compile mode, mutation footprint, source-preservation evidence, and warnings." } } },
+  },
+  {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj render",
+    summary: "Compile and render selected PPJ pages for visual review without treating a successful render as design approval.",
+    examples: ["officekit ppj render deck.ppj -o previews/ --pages 1-4 --json"],
+    schema: { parameters: { input: { type: "path", required: true, description: "Existing .ppj program." }, output: { type: "path", required: true, description: "Preview directory." }, pages: { type: "string", description: "Optional bounded page selector." }, json: { type: "boolean", description: "Emit render evidence." } }, returns: { receipt: { type: "object", description: "Rendered page paths, renderer identity, hashes, and unavailable boundaries." } } },
+  },
+  {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj review",
+    summary: "Review PPJ structure, layout, source fidelity, communication intent, motion, delivery evidence, and rendered pages. It reports visual capability honestly and never invents fact verification.",
+    examples: ["officekit ppj review deck.ppj --task defense-deck --json"],
+    schema: { parameters: { input: { type: "path", required: true, description: "Existing .ppj program." }, task: { type: "string", description: "Optional task id used to bind review evidence to a revision." }, json: { type: "boolean", description: "Emit the complete review report." } }, returns: { report: { type: "object", description: "Blocking issues, warnings, review scope, playback/visual evidence, and program/source hashes." } } },
+  },
   { artifactKind: "presentation", kind: "api", name: "Presentation.create", summary: "Create a deck model whose canonical OfficeKit export supports ordinary slides, the complete ECMA-376 base slide-transition vocabulary, direct solid/style-reference slide backgrounds, shapes, rich text, tables, images, connectors, recursive native p:grpSp groups, plain-text speaker notes, native custom shows with canonical run links, literal bar/line/pie/standard-area/fixed-doughnut/marker-scatter/2D-bubble charts, and a bounded literal clustered bar+line combo profile. Combo bars stay on the primary pair; all lines share either that pair or the canonical secondary top/right pair. Formula/external chart data, custom themes, Master/Layout authoring, comments, custom-show topology mutation, advanced plot geometry, mixed line groups, secondary bars, irregular combo graphs, and other package-level features remain outside the source-free PPTX boundary." },
   { artifactKind: "presentation", kind: "api", name: "presentation.slideSize", summary: "Read or set the deck canvas in pixels. On a trusted imported PPTX, a changed size is a deliberately canvas-only source-bound operation: OfficeKit updates only ppt/presentation.xml p:sldSz, clears an old preset type, and leaves slide, layout, master, chart, and shape coordinates unchanged. It never silently rescales or reflows content; callers must make any layout edits explicitly." },
   { artifactKind: "presentation", kind: "api", name: "presentation.view", summary: "Control local editor gridline/guide visibility and inspect imported PowerPoint grid spacing, snap settings, and guides. Visibility is local model state; a separately capability-gated fixed-topology source-bound edit profile may change only already-present grid/snap values and guide positions in viewProps.xml." },
@@ -2973,6 +3009,17 @@ function presentationRecipeFor(name) {
 function presentationAdoptionFor(item) {
   if (item.artifactKind !== "presentation") return undefined;
   const { name } = item;
+  if (name.startsWith("officekit ppj ")) {
+    return {
+      adoptionTier: "golden",
+      useWhen: ["The agent needs to create, inspect, validate, compile, render, or review the durable Presentation program.", "The operation must remain deterministic and resumable without a JavaScript heap."],
+      avoidWhen: ["Do not use raw OOXML, XPath, relationship IDs, or the internal Presentation object model as a substitute.", "Do not claim visual, playback, or factual review beyond the evidence returned by the command."],
+      requires: ["UTF-8 strict JSON using office-kit/ppj/v1", "local content-addressed assets and exact source hashes when referenced"],
+      review: ["Run officekit ppj check before delivery.", "Render and review the pages affected by the current change; re-import the built PPTX when source fidelity matters."],
+      recipes: ["skills/presentations/skills/presentations/SKILL.md#routes"],
+      examplePaths: ["skills/presentations/skills/presentations/references/ppj.md"],
+    };
+  }
   const adoptionTier = PRESENTATION_GOLDEN_NAMES.has(name)
     ? "golden"
     : PRESENTATION_COMPATIBILITY_NAMES.has(name)
@@ -3051,6 +3098,15 @@ for (const item of HELP_CATALOG) {
   if (adoption) Object.assign(item, adoption);
 }
 
+const PPJ_HELP_PREFIX = "officekit ppj ";
+
+// HELP_CATALOG remains the repository-internal capability ledger used by the
+// codec and maintainer. Only PPJ commands are part of the public Presentation
+// Help surface in 2.0; the JavaScript facade entries stay discoverable to
+// internal codec diagnostics through includeInternal.
+export const PUBLIC_HELP_CATALOG = HELP_CATALOG.filter((item) =>
+  item.artifactKind !== "presentation" || item.name.startsWith(PPJ_HELP_PREFIX));
+
 export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) {
   const q = String(query || "*").toLowerCase();
   const search = String(options.search || "").toLowerCase();
@@ -3059,7 +3115,8 @@ export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) 
     ? new RegExp(`^${q.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`, "i")
     : undefined;
   const searchTerms = search.split("|").map((part) => part.trim()).filter(Boolean);
-  return HELP_CATALOG.filter((item) => {
+  const catalog = options.includeInternal === true ? HELP_CATALOG : PUBLIC_HELP_CATALOG;
+  return catalog.filter((item) => {
     const kindMatch = artifactKind === "*" || item.artifactKind === artifactKind || (artifactKind === "unknown" && item.artifactKind === "shared");
     if (!kindMatch) return false;
     const tierMatch = adoptionTier === "*" || item.adoptionTier === adoptionTier;

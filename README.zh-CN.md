@@ -241,9 +241,9 @@ officekit template search \
 读取原件 → 创建或修改 → 导出 → 重新打开 → 渲染页面 → 检查结果
 ```
 
-- DOCX、XLSX 和 PPTX 统一通过对应平台的 OfficeKit C# NativeAOT codec
-  读写；导入、编辑、导出和二次校验沿用同一条路径，JavaScript API 和
-  REPL 仍运行在 Node 中。
+- DOCX、XLSX 由公开 JavaScript 对象模型配合对应平台的 OfficeKit C#
+  NativeAOT codec 读写。演示文稿使用唯一的严格 `.ppj` 程序；NativeAOT
+  直接校验、投影并在 PPJ 与 PPTX 之间编译。
 - OfficeKit 先确定复杂 Office 内容的可编辑范围，再修改受支持的部分；其余内容
   保持原样并报告具体限制。
 - PDF 默认通过 MuPDF.js 读取、编辑、检查和渲染。qpdf、OCR、严格清理、
@@ -271,15 +271,26 @@ const file = await SpreadsheetFile.exportXlsx(workbook, { recalculate: true });
 await file.save("summary.xlsx");
 ```
 
-只处理 PPT 的 `.mjs` 任务和 REPL 会话可以从 `office-kit/presentation`
-导入同一组演示文稿构造器，避免初始化无关的文档、表格、PDF、Help 和视觉
-QA 模块。根入口 `office-kit` 与所有现有 import 保持不变。
+演示文稿创建和第三方 PPTX 续写统一使用 PPJ，不再暴露 JavaScript
+Presentation 对象模型：
+
+```sh
+officekit ppj import input.pptx -o deck.ppj --json
+officekit ppj check deck.ppj --json
+officekit ppj build deck.ppj -o deck.pptx --json
+officekit ppj render deck.ppj -o previews/ --json
+officekit ppj review deck.ppj --json
+```
+
+Agent 直接修改严格 JSON。第三方文件无修改 build 会逐字节返回源包；无法证明
+安全的 native mutation 会明确拒绝。设计理由见
+[OfficeKit 为什么使用 PPJ](docs/why-ppj.zh-CN.md)。
 
 可运行示例：
 
 - [创建 DOCX 报告](examples/create-docx-report.mjs)
 - [创建 XLSX 仪表盘](examples/create-xlsx-dashboard.mjs)
-- [使用 Compose 创建 PPTX](examples/create-pptx-compose.mjs)
+- [Evidence Ledger PPJ](skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.ppj)
 - [解析与渲染 PDF](examples/parse-render-pdf.mjs)
 
 需要直接访问底层 Office codec 时，使用 `office-kit/codec`；生成的 wire

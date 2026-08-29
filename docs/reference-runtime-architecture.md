@@ -9,13 +9,20 @@ selector, alternate runtime shim, or fallback path.
 
 ```mermaid
 flowchart LR
-  A["JavaScript artifact model"] --> B["Office facade"]
+  A["JavaScript Workbook / Document models"] --> B["Office facade"]
   B --> C["OfficeKit wire adapter"]
   C --> D["OfficeKit Codec (NativeAOT sidecar)"]
-  D --> E["XLSX / DOCX / PPTX package"]
+  D --> E["XLSX / DOCX package"]
   E --> D
   D --> C
   C --> A
+
+  J["Agent edits strict JSON .ppj"] --> K["officekit ppj CLI"]
+  K --> D
+  D --> L["PPJ validation / expansion / diff"]
+  L --> M["PPTX projection or compilation"]
+  M --> N["PPTX package"]
+  N --> M
 
   P["Greenfield PDF artifact model"] --> Q["Independent PDF writer / QA"]
   Q --> R["PDF bytes"]
@@ -35,9 +42,9 @@ flowchart LR
 
 JavaScript owns:
 
-- public Workbook, DocumentModel, Presentation, and PDF object models;
+- public Workbook, DocumentModel, and PDF object models;
 - formula calculation and other model-side computation;
-- presentation Compose/JSX;
+- PPJ CLI argument, file, task, render, and framed-transport orchestration;
 - validation, normalization, inspect, resolve, layout, render orchestration, and QA;
 - the OfficeKit wire adapter and generated protocol binding;
 - explicit, low-level OOXML package inspect/patch helpers;
@@ -51,12 +58,18 @@ JavaScript does not serialize or parse DOCX, XLSX, or PPTX for the normal file f
 OfficeKit owns:
 
 - OPC package validation and safe path/relationship/content-type handling;
-- DOCX, XLSX, and PPTX semantic import/export;
+- DOCX and XLSX semantic import/export;
+- direct PPJ JSON parsing, schema validation, bounded component expansion,
+  authored PPTX compilation, PPTX semantic projection, and PPJ diff lowering;
 - source snapshot and opaque-object preservation checks;
 - bounded source-bound edits;
 - deterministic package generation within the supported profiles.
 
-The implementation uses the Open XML SDK because its strongly typed package and schema model provides a broad, shared foundation across WordprocessingML, SpreadsheetML, and PresentationML. C# is not exposed as a second user model; the wire is the boundary between JavaScript artifacts and native OOXML operations.
+The implementation uses the Open XML SDK because its strongly typed package and
+schema model provides a broad, shared foundation across WordprocessingML,
+SpreadsheetML, and PresentationML. PPJ is the public Presentation language; the
+internal JavaScript Presentation model remains a codec implementation detail and
+is not exported from the package.
 
 ### PDF
 
@@ -66,7 +79,7 @@ The JavaScript `PdfArtifact`/`PdfFile` domain owns greenfield semantic/tagged au
 
 The native PDF Skill calls the same `PdfFile` MuPDF.js primitives through a thin JavaScript CLI. `office-kit/pdf/providers` is a separate, lightweight control plane: it imports a versioned catalog and project policy but does not load MuPDF, download, or write a cache. It resolves exactly one selected task/provider to `ready`, `installable`, or `blocked`; a missing `.office-kit/pdf-providers.json` means download-disabled. Under explicit managed policy it may install only catalog-declared, versioned, hash-pinned release assets into a project-private cache using locks, bounded temporary downloads, safe extraction, receipts, and atomic publication. A `system-only` deployment remains possible, but neither route silently changes to the other. The current catalog publishes and attests qpdf `12.3.2-oat.2`, `python-foundation` `3.13.14-oat.2`, `python-specialists` `3.13.14-oat.2`, veraPDF/JRE `1.30.2-oat.2`, OCR core `17.8.1-oat.3`, and `eng`/`chi_sim` language packs `4.1.0-oat.3` for `darwin-arm64`, `linux-x64`, and `win32-x64`; public live acceptance verifies resolve, ensure, probe, and asset attestations for every published closure. The foundation contains isolated CPython, ReportLab, pdfplumber, pypdf, and Pillow. Specialists contain PyMuPDF, pikepdf, pyHanko, and certificate validation, depend on qpdf, and require an AGPL-or-commercial acknowledgement. The veraPDF pack brings a managed JRE, so probe/validation has no global Java dependency. OCR installs its qpdf/core/language closure only after policy authorization; the core contains isolated OCRmyPDF, Tesseract 5, Ghostscript, and `pdftotext`, and language packs are selected explicitly. Only Poppler QA remains intentionally unpublished and therefore blocks rather than substituting an unverified download.
 
-OfficeKit 0.6.0 also has a distribution boundary above the runtime graph. The
+OfficeKit 2.0.0 also has a distribution boundary above the runtime graph. The
 `darwin-arm64`, `linux-x64`, and `win32-x64` standalone archives carry an
 official SHA-256-pinned Node 24.18.0 executable plus the same OfficeKit payload
 and production dependency closure. `bin/officekit` or `bin/officekit.cmd`
@@ -149,18 +162,27 @@ to Template Creator for reusable local registration. BM25F returns ranking and
 match/conflict evidence with `selectionMade: false`; semantic and visual choice
 remains with the Agent, without a vector database or embedded model call.
 
-## Facade contract
+## Public format contract
 
-The six Office methods are:
+The four public JavaScript Office facade methods are:
 
 - `SpreadsheetFile.importXlsx(input, { limits? })`
 - `SpreadsheetFile.exportXlsx(workbook, { limits?, recalculate? })`
 - `DocumentFile.importDocx(input, { limits? })`
 - `DocumentFile.exportDocx(document, { limits? })`
-- `PresentationFile.importPptx(input, { limits? })`
-- `PresentationFile.exportPptx(presentation, { limits? })`
 
-Each method dynamically imports the OfficeKit codec leaf, then invokes the corresponding typed helper. This avoids the model/adapter static-import cycle while keeping one runtime identity.
+Presentation files instead use the standalone language commands:
+
+- `officekit ppj import`
+- `officekit ppj inspect`
+- `officekit ppj check`
+- `officekit ppj build`
+- `officekit ppj render`
+- `officekit ppj review`
+
+Each JavaScript facade method dynamically imports the OfficeKit codec leaf, then
+invokes the corresponding typed helper. PPJ JSON bytes cross the framed native
+transport directly; Node does not reconstruct a public Presentation object graph.
 
 Passing `codec`, `allowLossy`, `preferNative`, `relativeDateAsOf`, or any other unknown option throws before codec execution. A missing, incompatible, or integrity-invalid platform codec package also throws; no alternate implementation is tried.
 
@@ -235,22 +257,38 @@ It excludes OfficeKit C# source, every C# test and solution, all C# build output
 
 ## JavaScript source-module discipline
 
-`src/index.mjs` remains the package composition root and compatibility barrel. Splitting it must not change the root export names, constructor identities, package subpaths, or facade behavior.
+`src/index.mjs` remains the package composition root. In 2.0 it deliberately no
+longer exports Presentation constructors, Compose helpers, JSX runtimes, or the
+internal Help ledger.
 
 The target dependency direction is intentionally one-way:
 
 ```text
 shared binary / FileBlob / inspection / image / render primitives
-  -> Help, presentation Compose, and PDF domain
+  -> public PPJ Help, PPJ CLI, and PDF domain
   -> Office format models and shared OOXML package tools
   -> root compatibility barrel
 ```
 
-New leaf modules must not import the root entry. The root re-exports the original binding instead of wrapping or copying classes and functions, so `instanceof` and strict identity checks remain stable. Renderer, native-bridge, JSX, and the Document-side OfficeKit adapter now import their leaf dependencies directly. The remaining OfficeKit adapters still temporarily import root model bindings; that dependency will be removed only after the corresponding Spreadsheet and Presentation models move as atomic clusters. Office facade methods retain dynamic OfficeKit imports to avoid eager model/adapter cycles.
+New leaf modules must not import the root entry. The root re-exports the original
+Document, Spreadsheet, PDF, and shared bindings instead of wrapping or copying
+them, so `instanceof` and strict identity checks remain stable. Repository-only
+Presentation codec tests and tools import the internal leaf directly. Office
+facade methods retain dynamic OfficeKit imports to avoid eager model/adapter
+cycles.
 
-The first extraction phase moved Help, presentation Compose, binary conversion, `FileBlob`, inspection, and text-range primitives out of the root. The shared text-range primitive is consumed by both Presentation and Document resolve/inspect paths instead of being hidden inside either domain. The PDF phase then moved the complete PDF model, writer/parser facade, SVG preview, and tagged-file serializer as one domain cluster; the root re-exports the exact `PdfArtifact` and `PdfFile` bindings. Cross-format IDs still come from one shared allocator, while image, PNG, XML, and render-output primitives are dependency leaves used by multiple domains.
+The public Help catalog now exposes six PPJ commands for Presentation work; the
+complete legacy capability ledger remains internal for codec maintenance. The
+shared text-range primitive is still consumed by internal Presentation and
+Document paths. The root re-exports the exact `PdfArtifact` and `PdfFile`
+bindings, while image, PNG, XML, and render-output primitives remain dependency
+leaves used by multiple domains.
 
-The shared OOXML package phase moved JSZip loading, decompression limits, safe part paths, content types, relationships, part recipes, source-reference synchronization, validation, and transactional generation into `src/ooxml/package.mjs`. That module has four internal exports and does not import the root. The Document phase then moved styles, blocks, bookmarks, comments, layout, inspect/resolve/verify/render, DOCX package policy, and `DocumentFile` together into `src/document/index.mjs`; the root re-exports the exact `DocumentModel` and `DocumentFile` bindings. Spreadsheet and Presentation stateful models remain future atomic clusters. Each phase is behavior-preserving: public binding identity, root export names, facade behavior, package security failures, and packed contents are regression-tested before further decomposition.
+The shared OOXML package leaf owns JSZip loading, decompression limits, safe
+part paths, content types, relationships, source-reference synchronization,
+validation, and transactional generation. The internal Presentation model and
+codec helpers remain available to repository regression tests, but only PPJ and
+its NativeAOT compiler form the public Presentation authoring boundary.
 
 ## Verification layers
 

@@ -6,24 +6,23 @@ import {
   DocumentModel,
   FileBlob,
   helpArtifact,
-  HELP_CATALOG,
   PdfArtifact,
   Workbook,
 } from "office-kit";
-import { HELP_CATALOG as LEAF_HELP_CATALOG } from "../src/help/index.mjs";
+import { HELP_CATALOG, PUBLIC_HELP_CATALOG } from "../src/help/index.mjs";
 import * as presentationApi from "../src/presentation/index.mjs";
 import * as spreadsheetApi from "../src/spreadsheet/index.mjs";
 import { FileBlob as LeafFileBlob } from "../src/shared/file-blob.mjs";
 
 assert.deepEqual(Object.keys(rootApi).sort(), [
-  "DocumentFile", "DocumentModel", "FileBlob", "HELP_CATALOG", "PdfArtifact", "PdfFile",
+  "DocumentFile", "DocumentModel", "FileBlob", "PdfArtifact", "PdfFile",
   "Range", "SpreadsheetFile", "Workbook", "Worksheet", "WorksheetDataTableCollection",
   "clearOfficeFontDesignMetrics", "helpArtifact",
   "registerScopedOfficeFontDesignMetrics", "renderArtifact", "resolveOfficeFontDesignMetrics",
   "setOfficeFontDesignMetrics", "skiaPaintBaselineCompensationPx", "verifyArtifact",
   "visualQaArtifact", "reviewArtifact",
 ].sort(), "root public export contract changed");
-assert.strictEqual(HELP_CATALOG, LEAF_HELP_CATALOG, "root must re-export the help catalog binding");
+assert.equal("HELP_CATALOG" in rootApi, false, "the package root must not expose the internal capability ledger");
 assert.strictEqual(FileBlob, LeafFileBlob, "root must re-export the FileBlob constructor binding");
 for (const name of ["Presentation", "PresentationFile", "Slide", "SlideAnimations", "SlideMorph", "SlideTransition", "Shape", "TableElement", "ChartElement", "ImageElement", "GroupShape", "box", "node", "text"]) {
   assert.equal(name in rootApi, false, `root must not expose legacy Presentation authoring binding ${name}`);
@@ -35,6 +34,10 @@ for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Ra
 assert.ok(HELP_CATALOG.length >= 40);
 assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
+assert.deepEqual(
+  PUBLIC_HELP_CATALOG.filter((item) => item.artifactKind === "presentation").map((item) => item.name),
+  ["officekit ppj import", "officekit ppj inspect", "officekit ppj check", "officekit ppj build", "officekit ppj render", "officekit ppj review"],
+);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeComponentCandidates.*repeated visual primitives.*reuse limits/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.designProfile")?.summary || "", /read-only design-language profile.*source revision.*no XML selectors/i);
@@ -1074,7 +1077,8 @@ assert.match(helpArtifact("shared", "createPlaywrightRenderer").ndjson, /Playwri
 assert.match(helpArtifact("shared", "createSharpRenderer").ndjson, /sharp renderer adapter/);
 assert.match(helpArtifact("shared", "createPopplerRenderer").ndjson, /Poppler CLI renderer adapter/);
 assert.match(helpArtifact("shared", "createLibreOfficeRenderer").ndjson, /LibreOffice CLI renderer adapter/);
-assert.match(helpArtifact("presentation", "PresentationFile.inspectPptx").ndjson, /PPTX package/);
+assert.match(helpArtifact("presentation", "ppj build").ndjson, /source-bound PPJ diff/);
+assert.equal(helpArtifact("presentation", "PresentationFile.inspectPptx").ndjson, "");
 assert.match(helpArtifact("pdf", "PdfFile.inspectPdf").ndjson, /PDF bytes/);
 assert.match(helpArtifact("shared", "createNativeOfficeRenderer").ndjson, /native Office renderer adapter/);
 assert.match(helpArtifact("shared", "renderFileWithNativeOffice").ndjson, /native Office bridge command/);
@@ -1107,12 +1111,14 @@ assert.match(apiDocs, /#### `pdf\.addPage`/);
 assert.match(apiDocs, /#### `pdf\.addTable`/);
 assert.match(apiDocs, /#### `document\.resolve`/);
 assert.match(apiDocs, /#### `DocumentFile\.importDocx`/);
-assert.match(apiDocs, /#### `presentation\.slides\.add`/);
-assert.match(apiDocs, /#### `PresentationFile\.importPptx`/);
+assert.match(apiDocs, /#### `officekit ppj import`/);
+assert.match(apiDocs, /#### `officekit ppj build`/);
+assert.doesNotMatch(apiDocs, /#### `presentation\.slides\.add`/);
+assert.doesNotMatch(apiDocs, /#### `PresentationFile\.importPptx`/);
 assert.match(apiDocs, /#### `workbook\.worksheets\.add`/);
 assert.match(apiDocs, /#### `workbook\.recalculate`/);
 assert.match(apiDocs, /#### `fx\.TAKE`/);
 assert.match(apiDocs, /#### `SpreadsheetFile\.inspectXlsx`/);
-assert.match(apiDocs, /#### `PresentationFile\.patchPptx`/);
+assert.match(apiDocs, /#### `officekit ppj review`/);
 
 console.log("help smoke ok");

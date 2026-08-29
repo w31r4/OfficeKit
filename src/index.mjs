@@ -14,7 +14,6 @@ export {
   setOfficeFontDesignMetrics,
   skiaPaintBaselineCompensationPx,
 } from "./shared/font-design-metrics.mjs";
-export { HELP_CATALOG } from "./help/index.mjs";
 export { DocumentFile, DocumentModel, PdfArtifact, PdfFile, Range, SpreadsheetFile, Workbook, Worksheet, WorksheetDataTableCollection };
 
 function inferArtifactKind(artifact) {

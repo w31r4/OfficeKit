@@ -267,9 +267,9 @@ source reference.
 read the source → create or change → export → reopen → render pages → check the result
 ```
 
-- DOCX, XLSX, and PPTX use the platform OfficeKit C# NativeAOT codec. Import,
-  editing, export, and second-pass verification follow the same path while the
-  JavaScript API and REPL remain in Node.
+- DOCX and XLSX use the public JavaScript models with the platform OfficeKit C#
+  NativeAOT codec. Presentation authoring uses one strict `.ppj` program;
+  NativeAOT validates, projects, and compiles PPJ directly to or from PPTX.
 - OfficeKit identifies the editable scope of complex Office content, applies
   supported changes, preserves the rest, and reports the exact boundary.
 - PDF uses MuPDF.js for normal reading, editing, inspection, and rendering.
@@ -299,16 +299,26 @@ const file = await SpreadsheetFile.exportXlsx(workbook, { recalculate: true });
 await file.save("summary.xlsx");
 ```
 
-PPT-only `.mjs` tasks and REPL sessions can import the same presentation
-constructors from `office-kit/presentation` to avoid initializing unrelated
-document, spreadsheet, PDF, Help, and visual-QA modules. The root `office-kit`
-entry and all existing imports remain unchanged.
+Presentation creation and imported-PPTX continuation use PPJ rather than a
+public JavaScript object model:
+
+```sh
+officekit ppj import input.pptx -o deck.ppj --json
+officekit ppj check deck.ppj --json
+officekit ppj build deck.ppj -o deck.pptx --json
+officekit ppj render deck.ppj -o previews/ --json
+officekit ppj review deck.ppj --json
+```
+
+The Agent edits the strict JSON file directly. A third-party no-op returns the
+exact source bytes; unsupported native mutations fail closed. See
+[Why OfficeKit Uses PPJ](docs/why-ppj.md).
 
 Runnable examples:
 
 - [Create a DOCX report](examples/create-docx-report.mjs)
 - [Create an XLSX dashboard](examples/create-xlsx-dashboard.mjs)
-- [Create a PPTX deck with Compose](examples/create-pptx-compose.mjs)
+- [Evidence Ledger PPJ](skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.ppj)
 - [Parse and render a PDF](examples/parse-render-pdf.mjs)
 
 For direct access to the low-level Office codec, use `office-kit/codec`.
