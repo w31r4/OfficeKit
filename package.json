@@ -99,7 +99,6 @@
     "test:slow:promptbench": "node test/agent-evals.mjs",
     "eval:agents": "node scripts/run-agent-evals.mjs",
     "test:agent-evals": "node test/agent-evals.mjs",
-    "test:agent-eval-branded-template": "node test/agent-eval-branded-template.mjs",
     "test:office-kit": "node test/office-kit.mjs",
     "test:office-kit-native": "node test/office-kit-native-transport.mjs",
     "test:font-metrics": "node test/font-metrics.mjs",

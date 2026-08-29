@@ -15,7 +15,9 @@ import { checkReferenceSkillSync, REFERENCE_SKILLS_ROOT } from "./reference-skil
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // PromptBench remains PDF-led while it grows independently graded workflows
-// for the four artifact families. The durable product invariant is an absolute
+// for PDF, DOCX, and XLSX. Presentation acceptance moved to PPJ-native evidence
+// instead of continuing to exercise the retired JavaScript authoring layer.
+// The durable product invariant is an absolute
 // PDF majority, not a fixed percentage that would force unrelated filler
 // prompts whenever a meaningful Office vertical slice is added.
 export const MINIMUM_PDF_CASE_SHARE = 0.5;
@@ -30,14 +32,12 @@ const oracleSourcesByFamily = new Map([
   ["pdf", ["scripts/agent-eval-pdf-graders.mjs", "scripts/agent-eval-pdf-oracle.py"]],
   ["documents", ["scripts/agent-eval-office-graders.mjs", "scripts/agent-eval-office-fixtures.mjs"]],
   ["spreadsheets", ["scripts/agent-eval-office-graders.mjs", "scripts/agent-eval-office-fixtures.mjs"]],
-  ["presentations", ["scripts/agent-eval-office-graders.mjs", "scripts/agent-eval-office-fixtures.mjs"]],
 ]);
-const families = new Set(["pdf", "documents", "spreadsheets", "presentations"]);
+const families = new Set(["pdf", "documents", "spreadsheets"]);
 const skillsByFamily = new Map([
   ["pdf", "pdf"],
   ["documents", "documents"],
   ["spreadsheets", "spreadsheets"],
-  ["presentations", "presentations"],
 ]);
 const savePolicies = new Set(["read-only", "none", "rewrite", "incremental", "sanitize"]);
 const mimeMagic = new Map([
@@ -1120,7 +1120,7 @@ function help() {
     "  score <case-id> --trial-root <prepared trial directory>",
     "",
     `Every run has a ${DEFAULT_CODEX_TIMEOUT_MS / 60000}-minute Codex execution deadline by default; set OFFICE_KIT_AGENT_EVAL_TIMEOUT_MS or --timeout-ms to change it. A timeout terminates the child process tree, writes timedOut:true and the deadline to evaluator/exit.json, and scores as an incomplete hard-gate failure.`,
-    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. A shared --run-root materializes exactly one read-only, hash-validated input fixture snapshot per case, then copies those same bytes into every candidate/reference trial; use one run root for a comparable repeat matrix. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 21 ready PDF cases include twelve locked corpus signature/boundary/repair/redaction/table fixtures plus PAdES/TSA/LTV and mixed-scan OCR preprocessing fail-closed routes with independent source-structure, audit, visual, OCR, geometry, and trace grading; they do not pass from generic no-artifact gates alone. The ready XLSX threaded-comment, nested-reply safe-refusal, growth-assumption, auditable-operating-plan, connection refresh-on-open, Pivot refresh-on-open, and source-bound opaque-enterprise local-edit cases, seven DOCX cases (classic-comment, mixed classic/modern board-review surgical edit, modern-comment nested-reply safe refusal, complex-table topology safe refusal, source-bound DOCX header text, source-bound DOCX footer text, and source-bound DOCX section page-numbering), and six PPTX cases (title plus fixed-topology rich-notes run edit, source-bound slide-name edit, source-bound complete section-boundary edit, closed-leaf slide clone, SmartArt/notes/comment-reply safe refusal, and the self-authored branded-template preservation transaction) also have independent semantic, native-render, security, and provider-trace graders. PDF remains an absolute majority of the full suite; all 41 cases now have pinned inputs and can enter the repeat-matrix pipeline.",
+    "The Agent receives only PROMPT.md, declared inputs, the selected Skill, and an installed candidate tarball. A shared --run-root materializes exactly one read-only, hash-validated input fixture snapshot per case, then copies those same bytes into every candidate/reference trial; use one run root for a comparable repeat matrix. Prepared PDF trials declare one authoritative provider interpreter in PROMPT.md from OFFICE_KIT_AGENT_EVAL_PROVIDER_PYTHON, OFFICE_KIT_PDF_PROVIDER_PYTHON, or OFFICE_KIT_AGENT_EVAL_PYTHON, in that order. OFFICE_KIT_AGENT_EVAL_PYTHON remains the separate fixture/oracle interpreter, so a small evaluator runtime can grade a managed specialist provider without pretending that they are the same environment. Fixture specifications and graders are never copied into its workspace; run.json records integrity evidence and only a fingerprint of the hidden oracle, never the grading specification. The default run root is outside the repository in the OS temp directory. A production benchmark must additionally mount only the trial workspace into a no-network container, because a CLI sandbox alone is not an oracle confidentiality boundary. The 21 ready PDF cases include twelve locked corpus signature/boundary/repair/redaction/table fixtures plus PAdES/TSA/LTV and mixed-scan OCR preprocessing fail-closed routes with independent source-structure, audit, visual, OCR, geometry, and trace grading; they do not pass from generic no-artifact gates alone. Seven ready XLSX cases cover threaded comments, bounded formulas, connection refresh-on-open, Pivot refresh-on-open, and opaque-enterprise preservation; seven DOCX cases cover classic and modern comments, page furniture, section numbering, complex tables, and a composite surgical edit. Presentation acceptance is maintained separately under evals/presentation-program-json and does not exercise the retired public JavaScript authoring layer. PDF remains an absolute majority of this 35-case suite; every declared input is pinned for the repeat-matrix pipeline.",
     "",
   ].join("\n");
 }

@@ -155,7 +155,6 @@ const slowSteps = [
   nodeStep("test/reference-skills.mjs"),
   nodeStep("test/claude-plugin.mjs"),
   nodeStep("test/agent-evals.mjs"),
-  nodeStep("test/agent-eval-branded-template.mjs"),
   nodeStep("test/verify.mjs"),
   nodeStep("test/review.mjs"),
   nodeStep("test/render.mjs"),
@@ -179,9 +178,9 @@ const slowSegments = Object.freeze({
   documents: Object.freeze({ start: 42, end: 51 }),
   "pdf-packs": Object.freeze({ start: 51, end: 60 }),
   "pdf-providers": Object.freeze({ start: 60, end: 69 }),
-  "pdf-specialists": Object.freeze({ start: 69, end: 78 }),
-  qa: Object.freeze({ start: 78, end: 85 }),
-  release: Object.freeze({ start: 85, end: 88 }),
+  "pdf-specialists": Object.freeze({ start: 69, end: 77 }),
+  qa: Object.freeze({ start: 77, end: 84 }),
+  release: Object.freeze({ start: 84, end: 87 }),
 });
 
 const segmentRanges = Object.values(slowSegments);
