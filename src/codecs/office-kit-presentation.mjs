@@ -4633,30 +4633,80 @@ function createPresentationNativeLeafCapability(presentation, state) {
           const paragraphs = wire.content.value.textBody?.paragraphs || [];
           paragraphs.forEach((paragraph, paragraphIndex) => {
             const alignment = paragraph.alignment;
-            if (!PRESENTATION_PARAGRAPH_ALIGNMENTS.has(alignment)) return;
-            if (paragraphAlignmentIndices.has(paragraphIndex)) return;
-            paragraphAlignmentIndices.add(paragraphIndex);
+            if (PRESENTATION_PARAGRAPH_ALIGNMENTS.has(alignment) && !paragraphAlignmentIndices.has(paragraphIndex)) {
+              paragraphAlignmentIndices.add(paragraphIndex);
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind: "paragraphAlignment",
+                expectedValue: alignment,
+                value: alignment,
+                details: { nativeLeafIndex: paragraphIndex },
+                normalize(next) {
+                  const normalized = String(next ?? "").trim();
+                  if (!PRESENTATION_PARAGRAPH_ALIGNMENTS.has(normalized)) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphAlignment native leaf requires left, center, right, or justify.");
+                  }
+                  return { raw: normalized, publicValue: normalized };
+                },
+                isNoop(next) { return next === alignment; },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-alignment native leaf no longer resolves to the imported paragraph.");
+                  }
+                  target.alignment = next;
+                },
+              });
+            }
+            const spacing = paragraph.lineSpacing;
+            const spacingCase = spacing?.case;
+            if (spacingCase !== "lineSpacingPoints" && spacingCase !== "lineSpacingMultiplier") return;
+            const scale = spacingCase === "lineSpacingPoints" ? 100 : 100_000;
+            const maximum = spacingCase === "lineSpacingPoints" ? 1584 : 132;
+            const sourceValue = Number(spacing.value);
+            const sourceRawNumber = sourceValue * scale;
+            const sourceRaw = Math.round(sourceRawNumber);
+            if (!Number.isFinite(sourceValue) || sourceValue <= 0 || sourceValue > maximum ||
+                !Number.isSafeInteger(sourceRaw) || sourceRaw < 1 || sourceRaw > maximum * scale ||
+                Math.abs(sourceRawNumber - sourceRaw) > 1e-6) return;
+            const leafKind = spacingCase === "lineSpacingPoints"
+              ? "paragraphLineSpacingPoints"
+              : "paragraphLineSpacingMultiplier";
+            const expectedValue = String(sourceRaw);
             registerLeaf({
               wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
-              leafKind: "paragraphAlignment",
-              expectedValue: alignment,
-              value: alignment,
-              details: { nativeLeafIndex: paragraphIndex },
+              leafKind,
+              expectedValue,
+              value: sourceRaw / scale,
+              unit: spacingCase === "lineSpacingPoints" ? "pt" : "multiplier",
+              details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
               normalize(next) {
-                const normalized = String(next ?? "").trim();
-                if (!PRESENTATION_PARAGRAPH_ALIGNMENTS.has(normalized)) {
-                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphAlignment native leaf requires left, center, right, or justify.");
+                if (typeof next !== "string" && typeof next !== "number") {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a positive ${spacingCase === "lineSpacingPoints" ? "point" : "multiplier"} value.`);
                 }
-                return { raw: normalized, publicValue: normalized };
+                const token = String(next).trim();
+                if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/u.test(token)) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a canonical positive numeric value.`);
+                }
+                const candidate = Number(token);
+                const rawNumber = candidate * scale;
+                const raw = Math.round(rawNumber);
+                if (!Number.isFinite(candidate) || candidate <= 0 || candidate > maximum ||
+                    !Number.isSafeInteger(raw) || raw < 1 || raw > maximum * scale ||
+                    Math.abs(rawNumber - raw) > 1e-6) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the supported DrawingML range.`);
+                }
+                return { raw: String(raw), publicValue: raw / scale };
               },
-              isNoop(next) { return next === alignment; },
+              isNoop(next) { return next === expectedValue; },
               apply(next) {
                 const current = model.text._paragraphs;
                 const target = current[paragraphIndex];
                 if (!target || typeof target !== "object") {
-                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-alignment native leaf no longer resolves to the imported paragraph.");
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph line-spacing native leaf no longer resolves to the imported paragraph.");
                 }
-                target.alignment = next;
+                target.lineSpacing = (Number(next) / scale) / (spacingCase === "lineSpacingPoints" ? POINTS_PER_PIXEL : 1);
               },
             });
           });

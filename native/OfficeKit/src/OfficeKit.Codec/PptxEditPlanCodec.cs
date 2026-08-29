@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -300,6 +300,13 @@ internal static partial class PptxEditPlanCodec
                 var requested = ParseTextBodyVerticalTextToken(operation.Value, operation);
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body vertical text mode.");
+            }
+            if (leafKind is "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier")
+            {
+                var expected = ParseParagraphLineSpacingToken(operation.ExpectedValue, leafKind, operation);
+                var requested = ParseParagraphLineSpacingToken(operation.Value, leafKind, operation);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its paragraph line spacing.");
             }
             if (leafKind == "rotationDegrees")
             {
@@ -518,7 +525,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                  ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -629,6 +636,13 @@ internal static partial class PptxEditPlanCodec
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} paragraphAlignment target has the wrong native element type.", operation.SlidePartPath);
                 patches.Add(CompileTextParagraphAlignmentXmlPatch(xml, range, proof));
+                continue;
+            }
+            if (leafKind is "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextParagraphLineSpacingXmlPatch(xml, range, proof));
                 continue;
             }
             if (leafKind == "verticalAnchor")
@@ -1051,6 +1065,24 @@ internal static partial class PptxEditPlanCodec
                 ParagraphAlignmentName(alignment) is not { Length: > 0 } name)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct paragraph alignment.", operation.SlidePartPath);
             return name;
+        }
+        if (kind is "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
+            var paragraphs = shape.Descendants<A.Paragraph>().ToArray();
+            if (operation.NativeLeafIndex >= (uint)paragraphs.Length)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph line-spacing index is out of range.", operation.SlidePartPath);
+            var lineSpacing = paragraphs[operation.NativeLeafIndex].ParagraphProperties?.GetFirstChild<A.LineSpacing>();
+            if (lineSpacing is null || lineSpacing.ExtendedAttributes.Any() || lineSpacing.ChildElements.Count != 1)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct paragraph line spacing.", operation.SlidePartPath);
+            if (kind == "paragraphLineSpacingPoints" && lineSpacing.GetFirstChild<A.SpacingPoints>()?.Val?.Value is { } points &&
+                lineSpacing.FirstChild is A.SpacingPoints pointChild && !pointChild.ExtendedAttributes.Any() &&
+                ValidParagraphLineSpacingNative(points, false, out var pointToken)) return pointToken;
+            if (kind == "paragraphLineSpacingMultiplier" && lineSpacing.GetFirstChild<A.SpacingPercent>()?.Val?.Value is { } percent &&
+                lineSpacing.FirstChild is A.SpacingPercent percentChild && !percentChild.ExtendedAttributes.Any() &&
+                ValidParagraphLineSpacingNative(percent, true, out var percentToken)) return percentToken;
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct paragraph line spacing of the requested unit.", operation.SlidePartPath);
         }
         if (kind == "verticalAnchor")
         {
@@ -1489,6 +1521,45 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextParagraphLineSpacingXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var paragraphs = ShapeElementRanges(elementXml, "txBody")
+            .Where(range => range.LocalName == "p")
+            .ToArray();
+        if (operation.NativeLeafIndex >= (uint)paragraphs.Length)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph line-spacing index is out of range.", operation.SlidePartPath);
+        var paragraph = paragraphs[operation.NativeLeafIndex];
+        var pPr = DirectChildRange(elementXml, paragraph, "p", "pPr", operation);
+        var lineSpacing = DirectChildRange(elementXml, pPr, "pPr", "lnSpc", operation);
+        var children = DirectChildRanges(elementXml, lineSpacing);
+        var expectedName = LeafKind(operation) == "paragraphLineSpacingPoints" ? "spcPts" : "spcPct";
+        if (children.Count != 1 || children[0].LocalName != expectedName)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} paragraph line spacing has the wrong native unit or ambiguous child.", operation.SlidePartPath);
+        var child = children[0];
+        var childXml = elementXml[child.Start..child.End];
+        var startTag = XmlTokenPattern().Matches(childXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == expectedName)
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph line-spacing child tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "val")
+            .ToArray();
+        if (attributes.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} paragraph line-spacing value attribute is missing or ambiguous.", operation.SlidePartPath);
+        var valueGroup = attributes[0].Groups["value"];
+        var actual = ParseParagraphLineSpacingToken(System.Net.WebUtility.HtmlDecode(valueGroup.Value), LeafKind(operation), operation);
+        var expected = ParseParagraphLineSpacingToken(operation.ExpectedValue, LeafKind(operation), operation);
+        if (actual != expected)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw paragraph line spacing does not match the expected value.", operation.SlidePartPath);
+        var replacement = ParseParagraphLineSpacingToken(operation.Value, LeafKind(operation), operation).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var start = elementRange.Start + child.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static PptxXmlPatch CompileTextVerticalAnchorXmlPatch(
         string xml,
         XmlRange elementRange,
@@ -1790,6 +1861,28 @@ internal static partial class PptxEditPlanCodec
         if (value is not ("horizontal" or "vertical" or "vertical270"))
             throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} text-body vertical text mode must be horizontal, vertical, or vertical270.", operation.SlidePartPath);
         return value;
+    }
+
+    private static int ParseParagraphLineSpacingToken(string value, string leafKind, PresentationEditOperation operation)
+    {
+        var maximum = leafKind == "paragraphLineSpacingPoints" ? 158_400 : 13_200_000;
+        if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
+            parsed is < 1 || parsed > maximum ||
+            parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
+            throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} {leafKind} must use a canonical positive DrawingML spacing token.", operation.SlidePartPath);
+        return parsed;
+    }
+
+    private static bool ValidParagraphLineSpacingNative(int value, bool multiplier, out string token)
+    {
+        var maximum = multiplier ? 13_200_000 : 158_400;
+        if (value < 1 || value > maximum)
+        {
+            token = string.Empty;
+            return false;
+        }
+        token = value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return true;
     }
 
     private static int ParseTextBodyColumnCountToken(string value, PresentationEditOperation operation)
