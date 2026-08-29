@@ -73,12 +73,16 @@ function normalizeRunStyle(style = {}) {
   const rawFontSize = style.fontSize == null ? undefined : String(style.fontSize).trim();
   const fontSize = rawFontSize == null ? undefined : finiteNumber(rawFontSize.replace(/(?:px|pt)$/i, "")) * (/pt$/i.test(rawFontSize) ? 4 / 3 : 1);
   if (fontSize != null && !(fontSize > 0 && fontSize <= 1024)) throw new RangeError("Presentation run fontSize must be between 0 and 1024 pixels.");
+  const rawFontKerning = style.fontKerning == null ? undefined : String(style.fontKerning).trim();
+  const fontKerning = rawFontKerning == null ? undefined : finiteNumber(rawFontKerning.replace(/pt$/i, ""));
+  if (fontKerning != null && !(fontKerning >= 0 && fontKerning <= 768)) throw new RangeError("Presentation run fontKerning must be between 0 and 768 points.");
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
     ...(style.underline == null ? {} : { underline: normalizePresentationUnderline(style.underline) }),
     ...(style.strike == null ? {} : { strike: normalizePresentationStrike(style.strike) }),
     ...(fontSize == null ? {} : { fontSize }),
+    ...(fontKerning == null ? {} : { fontKerning }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),

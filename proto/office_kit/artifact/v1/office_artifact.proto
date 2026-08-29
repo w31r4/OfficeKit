@@ -2462,6 +2462,10 @@ message PresentationTextStyle {
   // Direct DrawingML decoration tokens for default run properties.
   optional string underline = 8;
   optional string strike = 9;
+  // Direct DrawingML a:defRPr/@kern value in points. The wire keeps the
+  // semantic unit while source-bound edits splice the canonical hundredths
+  // of a point token.
+  optional double font_kerning_points = 10;
 }
 
 message PresentationTextParagraph {
@@ -2588,6 +2592,9 @@ message PresentationTextRun {
   // kept separate from color_rgb so source-bound edits can preserve theme
   // semantics instead of resolving them to a lossy RGB value.
   optional string color_scheme = 14;
+  // Direct DrawingML a:rPr/@kern value in points. Source-bound edits retain
+  // the native hundredths-of-a-point token and do not rewrite other run XML.
+  optional double font_kerning_points = 15;
 }
 
 message PresentationTextField {

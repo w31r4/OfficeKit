@@ -949,6 +949,47 @@ const fontDecorationRoundTripLeaves = fontDecorationRoundTrip.inspect({ includeN
 assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontUnderline").value, "dbl");
 assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontStrike").value, "sngStrike");
 
+// Direct DrawingML run kerning is a source-bound scalar.  Keep the vendor
+// attribute in place while changing only the canonical hundredths-of-a-point
+// token, then prove the leaf survives a second import.
+const fontKerningAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontKerningAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 kern="1200"$2',
+);
+assert.match(fontKerningAccessibilityXml, /<a:rPr\b[^>]*\bkern="1200"/);
+fontKerningAccessibilityZip.file("ppt/slides/slide1.xml", fontKerningAccessibilityXml);
+const fontKerningAccessibilityFile = new FileBlob(
+  await fontKerningAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontKerningImported = await PresentationFile.importPptx(fontKerningAccessibilityFile);
+const fontKerningShape = itemByName(fontKerningImported.slides.getItem(0).shapes.items, "decision-status");
+const fontKerningLeaf = fontKerningImported.inspect({ includeNativeLeaves: true, target: fontKerningShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontKerningPoints");
+assert.ok(fontKerningLeaf, "source-bound shapes should expose a direct run kerning leaf");
+assert.equal(fontKerningLeaf.value, 12);
+fontKerningImported.editNativeLeaf(fontKerningLeaf.targetId, fontKerningLeaf.leafId, {
+  expectedHash: fontKerningLeaf.expectedHash,
+  value: 14,
+});
+const fontKerningOutput = await PresentationFile.exportPptx(fontKerningImported);
+assert.equal(fontKerningOutput.metadata.editPlan.operations[0].leafKind, "fontKerningPoints");
+await assertOnlyDeclaredPptxFootprintChanged(fontKerningAccessibilityFile, fontKerningOutput, fontKerningOutput.metadata.editPlan.operations);
+const fontKerningXml = await (await JSZip.loadAsync(fontKerningOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontKerningXml, /<a:rPr\b[^>]*\bkern="1400"/);
+assert.match(fontKerningXml, /fixture:opaque="kept"/);
+const fontKerningRoundTrip = await PresentationFile.importPptx(fontKerningOutput);
+const fontKerningRoundTripLeaf = fontKerningRoundTrip.inspect({ includeNativeLeaves: true, target: fontKerningShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontKerningPoints");
+assert.equal(fontKerningRoundTripLeaf.value, 14);
+
 // Direct paragraph alignment is a source-bound token leaf.  The fixture adds
 // one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
 // it must splice only that attribute and retain the vendor cNvPr extension.

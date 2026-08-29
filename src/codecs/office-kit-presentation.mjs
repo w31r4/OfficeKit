@@ -117,7 +117,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontFamily", "fontFamilyEastAsia", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -922,6 +922,10 @@ function wireTextStyle(style = {}, shapeId) {
   }
   const fontFamily = presentationFontFamily(style.fontFamily, `Presentation shape ${shapeId} paragraph`);
   const fontFamilyEastAsia = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} paragraph East Asian`);
+  const fontKerning = style.fontKerning == null ? undefined : Number(style.fontKerning);
+  if (fontKerning !== undefined && (!Number.isFinite(fontKerning) || fontKerning < 0 || fontKerning > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font kerning value outside the supported 0-768 point range.`, [], { code: "invalid_presentation_text" });
+  }
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
@@ -938,6 +942,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
+    ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
@@ -1000,6 +1005,10 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   const runText = run.field?.text ?? run.text ?? "";
   const explicitEastAsianFamily = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} East Asian`);
   const fontFamilyEastAsia = explicitEastAsianFamily ?? (fontFamily && containsEastAsianText(runText) ? fontFamily : undefined);
+  const fontKerning = style.fontKerning == null ? undefined : Number(style.fontKerning);
+  if (fontKerning !== undefined && (!Number.isFinite(fontKerning) || fontKerning < 0 || fontKerning > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font kerning value outside the supported 0-768 point range.`, [], { code: "invalid_presentation_text" });
+  }
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
   const colorToken = style.color == null ? undefined : String(style.color).trim();
@@ -1020,6 +1029,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
+    ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
@@ -3427,6 +3437,22 @@ function normalizeNativeLeafStrikeValue(value) {
   }
 }
 
+function normalizeNativeLeafKerningValue(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontKerningPoints leaf requires a finite point value.");
+  }
+  const token = String(value).trim().replace(/pt$/iu, "");
+  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontKerningPoints leaf requires at most two decimal places.");
+  }
+  const points = Number(token);
+  if (!Number.isFinite(points) || points < 0 || points > 768) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontKerningPoints leaf is outside the safe 0-768 point range.");
+  }
+  const hundredths = Math.round(points * 100);
+  return { raw: String(hundredths), publicValue: hundredths / 100 };
+}
+
 function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
   if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
@@ -4514,6 +4540,33 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontSizePoints native leaf no longer resolves to the imported text run.");
               }
               run.style = { ...(run.style || {}), fontSize: (Number(next) / 100) / POINTS_PER_PIXEL };
+            },
+          });
+        }
+        const fontKerningPoints = Number(leaf.run.fontKerningPoints);
+        // Kerning is a direct run scalar in hundredths of a point. Keep the
+        // source-bound capability narrow so transformed/inherited typography
+        // remains owned by the original XML graph.
+        if (Number.isFinite(fontKerningPoints) && fontKerningPoints >= 0 && fontKerningPoints <= 768) {
+          const expectedValue = String(Math.round(fontKerningPoints * 100));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontKerningPoints",
+            expectedValue,
+            value: fontKerningPoints,
+            unit: "pt",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              const normalized = normalizeNativeLeafKerningValue(next);
+              return { raw: normalized.raw, publicValue: normalized.publicValue };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontKerningPoints native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontKerning: Number(next) / 100 };
             },
           });
         }
@@ -5897,6 +5950,7 @@ function modelRun(run, customShowLinks) {
       ...(run.bold === undefined ? {} : { bold: run.bold }),
       ...(run.italic === undefined ? {} : { italic: run.italic }),
       ...(run.fontSizePoints === undefined ? {} : { fontSize: run.fontSizePoints / POINTS_PER_PIXEL }),
+      ...(run.fontKerningPoints === undefined ? {} : { fontKerning: run.fontKerningPoints }),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
       ...(run.underline === undefined ? {} : { underline: run.underline }),
@@ -5982,6 +6036,7 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.bold === undefined ? {} : { bold: style.bold }),
     ...(style.italic === undefined ? {} : { italic: style.italic }),
     ...(style.fontSizePoints === undefined ? {} : { fontSize: style.fontSizePoints / POINTS_PER_PIXEL }),
+    ...(style.fontKerningPoints === undefined ? {} : { fontKerning: style.fontKerningPoints }),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
     ...(style.underline === undefined ? {} : { underline: style.underline }),

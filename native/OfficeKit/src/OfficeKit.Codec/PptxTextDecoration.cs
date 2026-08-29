@@ -7,6 +7,7 @@ namespace OfficeKit.Codec;
 // stay opaque; only a plain token on a:rPr/defRPr can be edited in place.
 internal static class PptxTextDecoration
 {
+    private const int MaxKerningHundredthsPoints = 76_800;
     private static readonly HashSet<string> UnderlineValues = new(StringComparer.Ordinal)
     {
         "none", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy",
@@ -61,6 +62,39 @@ internal static class PptxTextDecoration
     internal static bool IsUnderlineToken(string value) => UnderlineValues.Contains(value);
 
     internal static bool IsStrikeToken(string value) => StrikeValues.Contains(value);
+
+    internal static bool TryKerning(A.TextCharacterPropertiesType? source, out string value)
+    {
+        if (source?.Kerning?.Value is { } raw && raw >= 0 && raw <= MaxKerningHundredthsPoints)
+        {
+            value = raw.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    internal static string NormalizeKerning(string value)
+    {
+        if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var raw) ||
+            raw < 0 || raw > MaxKerningHundredthsPoints ||
+            raw.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
+            throw new CodecException("invalid_presentation_text", $"Unsupported Presentation kerning token {value}.");
+        return raw.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    internal static bool IsKerningToken(string value)
+    {
+        try
+        {
+            _ = NormalizeKerning(value);
+            return true;
+        }
+        catch (CodecException)
+        {
+            return false;
+        }
+    }
 
     private static bool HasUnderlineEffects(A.TextCharacterPropertiesType source) =>
         source.ChildElements.Any(child => child.LocalName is "uFillTx" or "uFill" or "uLnTx" or "uLn");
