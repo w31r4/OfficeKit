@@ -104,6 +104,10 @@ function validateSkillTree(errors) {
 function renderManual(schema, registry) {
   const schemaBytes = readFileSync(schemaPath);
   const registryBytes = readFileSync(registryPath);
+  const minimumProgram = readFileSync(
+    path.join(repo, "examples", "ppj", "minimum.ppj"),
+    "utf8",
+  ).trimEnd();
   const elementRefs = schema.$defs.element.oneOf.map((entry) => entry.$ref.split("/").at(-1));
   const rootDescriptions = {
     schema: "Fixed language identifier `office-kit/ppj/v1`.",
@@ -221,20 +225,7 @@ must not choose layout, rewrite copy or change design semantics.
 ## Minimum authored program
 
 \`\`\`json
-{
-  "schema": "office-kit/ppj/v1",
-  "meta": { "id": "brief", "title": "Decision brief", "language": "en-US", "version": 1 },
-  "intent": {},
-  "design": {},
-  "pages": [
-    {
-      "id": "opening",
-      "elements": [
-        { "type": "text", "id": "claim", "frame": { "x": 48, "y": 42, "width": 624, "height": 72 }, "text": "Evidence changed the decision" }
-      ]
-    }
-  ]
-}
+${minimumProgram}
 \`\`\`
 
 ## Capability ownership

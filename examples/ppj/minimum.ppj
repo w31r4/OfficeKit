@@ -1,0 +1,92 @@
+{
+  "schema": "office-kit/ppj/v1",
+  "meta": {
+    "id": "decision-brief",
+    "title": "Decision brief",
+    "language": "en-US",
+    "version": 1
+  },
+  "intent": {
+    "brief": {
+      "primaryJob": "inform",
+      "expectedOutcome": "The audience understands the bounded next step."
+    },
+    "audience": {
+      "description": "Decision makers"
+    },
+    "narrative": {
+      "thesis": "The evidence supports a bounded next step."
+    },
+    "editorial": {},
+    "delivery": {
+      "mode": "reader"
+    }
+  },
+  "design": {
+    "canvas": {
+      "width": 960,
+      "height": 540,
+      "unit": "pt"
+    },
+    "theme": {
+      "colors": [
+        {
+          "id": "ink",
+          "value": "#172B4D",
+          "role": "primary text"
+        }
+      ]
+    },
+    "fonts": [
+      {
+        "id": "body",
+        "family": "Arial",
+        "language": "en-US"
+      }
+    ],
+    "styles": {},
+    "grammar": {
+      "name": "Decision brief",
+      "rationale": "Use one legible claim to demonstrate the smallest complete PPJ program.",
+      "visualThesis": "A single decisive statement carries the page.",
+      "surfaceHierarchy": [
+        "Use one quiet canvas."
+      ],
+      "typographyRhythm": [
+        "Use scale to establish one reading order."
+      ],
+      "geometryRules": [
+        "Do not add geometry without an information role."
+      ],
+      "densityRhythm": [
+        "Keep the minimum example intentionally sparse."
+      ],
+      "carrierRules": [
+        "The conclusion text is the sole visual carrier."
+      ],
+      "forbiddenPatterns": [
+        "Do not fabricate evidence or add decorative cards."
+      ]
+    },
+    "motionPolicy": "none"
+  },
+  "pages": [
+    {
+      "id": "opening",
+      "role": "opening claim",
+      "elements": [
+        {
+          "type": "text",
+          "id": "claim",
+          "frame": {
+            "x": 48,
+            "y": 42,
+            "width": 624,
+            "height": 72
+          },
+          "text": "Evidence changed the decision"
+        }
+      ]
+    }
+  ]
+}
