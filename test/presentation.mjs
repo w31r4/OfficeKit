@@ -112,6 +112,10 @@ function relationshipPartPath(partPath) {
   return path.posix.join(directory, "_rels", `${path.posix.basename(partPath)}.rels`);
 }
 
+function paragraphAlignmentToken(value) {
+  return ({ left: "l", center: "ctr", right: "r", justify: "just" })[value] || value;
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -127,8 +131,10 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
     const sourceStart = Number(item.footprint.sourceStartOffset);
     const sourceEnd = Number(item.footprint.sourceEndOffset);
     const outputEnd = Number(item.footprint.outputEndOffset);
-    const expected = Buffer.from(String(item.expectedValue), "utf8");
-    const replacement = Buffer.from(String(item.value), "utf8");
+    const expectedValue = item.leafKind === "paragraphAlignment" ? paragraphAlignmentToken(item.expectedValue) : String(item.expectedValue);
+    const replacementValue = item.leafKind === "paragraphAlignment" ? paragraphAlignmentToken(item.value) : String(item.value);
+    const expected = Buffer.from(expectedValue, "utf8");
+    const replacement = Buffer.from(replacementValue, "utf8");
     const textLike = item.leafKind === "text" || item.leafKind === "tableCellText";
     const sourceSpan = sourcePart.subarray(sourceStart, sourceEnd);
     const expectedOutputSpan = textLike
@@ -864,6 +870,49 @@ const fontDecorationRoundTripLeaves = fontDecorationRoundTrip.inspect({ includeN
   .filter((record) => record.kind === "nativeLeaf" && ["fontUnderline", "fontStrike"].includes(record.leafKind));
 assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontUnderline").value, "dbl");
 assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontStrike").value, "sngStrike");
+
+// Direct paragraph alignment is a source-bound token leaf.  The fixture adds
+// one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
+// it must splice only that attribute and retain the vendor cNvPr extension.
+const paragraphAlignmentAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const paragraphAlignmentAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:p\b[^>]*>)(<a:r>)/u,
+  '$1<a:pPr algn="ctr"/>$2',
+);
+assert.match(paragraphAlignmentAccessibilityXml, /<a:pPr algn="ctr"\s*\/>/);
+paragraphAlignmentAccessibilityZip.file("ppt/slides/slide1.xml", paragraphAlignmentAccessibilityXml);
+const paragraphAlignmentAccessibilityFile = new FileBlob(
+  await paragraphAlignmentAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const paragraphAlignmentImported = await PresentationFile.importPptx(paragraphAlignmentAccessibilityFile);
+const paragraphAlignmentShape = itemByName(paragraphAlignmentImported.slides.getItem(0).shapes.items, "decision-status");
+const paragraphAlignmentLeaves = paragraphAlignmentImported.inspect({ includeNativeLeaves: true, target: paragraphAlignmentShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind === "paragraphAlignment");
+assert.equal(paragraphAlignmentLeaves.length, 1, "each direct paragraph alignment must be issued once per paragraph");
+const paragraphAlignmentLeaf = paragraphAlignmentLeaves[0];
+assert.equal(paragraphAlignmentLeaf.value, "center");
+paragraphAlignmentImported.editNativeLeaf(paragraphAlignmentLeaf.targetId, paragraphAlignmentLeaf.leafId, {
+  expectedHash: paragraphAlignmentLeaf.expectedHash,
+  value: "right",
+});
+const paragraphAlignmentOutput = await PresentationFile.exportPptx(paragraphAlignmentImported);
+const paragraphAlignmentOperation = paragraphAlignmentOutput.metadata.editPlan.operations[0];
+assert.equal(paragraphAlignmentOperation.leafKind, "paragraphAlignment");
+await assertOnlyDeclaredPptxFootprintChanged(paragraphAlignmentAccessibilityFile, paragraphAlignmentOutput, paragraphAlignmentOperation);
+const paragraphAlignmentXml = await (await JSZip.loadAsync(paragraphAlignmentOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(paragraphAlignmentXml, /<a:pPr algn="r"\s*\/>/);
+assert.match(paragraphAlignmentXml, /fixture:opaque="kept"/);
+const paragraphAlignmentRoundTrip = await PresentationFile.importPptx(paragraphAlignmentOutput);
+const paragraphAlignmentRoundTripLeaf = paragraphAlignmentRoundTrip.inspect({ includeNativeLeaves: true, target: paragraphAlignmentShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "paragraphAlignment");
+assert.equal(paragraphAlignmentRoundTripLeaf.value, "right");
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
