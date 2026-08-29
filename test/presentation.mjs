@@ -629,6 +629,40 @@ assert.equal(irregularStyleXml.replace("A1B2C3", "DBEAFE"), irregularShapeAccess
 const irregularStyleRoundTrip = await PresentationFile.importPptx(irregularStyleOutput);
 assert.equal(itemByName(irregularStyleRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill.toLowerCase(), "#a1b2c3");
 
+// An alpha-bearing fill is intentionally outside the token-splice profile:
+// the semantic color is visible, but its native alpha child must not be
+// discarded by a source-bound color edit. Such a leaf stays undisclosed.
+assert.match(irregularShapeAccessibilityXml, /<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE"\s*\/><\/a:solidFill>/);
+const alphaShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const alphaShapeAccessibilityXml = irregularShapeAccessibilityXml
+  .replace(
+    /(<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE")\s*(\/><\/a:solidFill>)/u,
+    '$1><a:alpha val="50000"/></a:srgbClr></a:solidFill>',
+  )
+  // The style reference makes the surrounding shape source-bound while its
+  // owner-local text remains safe; this exercises the new narrow branch.
+  .replace(
+    /(<\/p:nvSpPr>)(<p:spPr>)/u,
+    '$1<p:style xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:lnRef idx="1"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="0"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></p:style>$2',
+  );
+alphaShapeAccessibilityZip.file("ppt/slides/slide1.xml", alphaShapeAccessibilityXml);
+const alphaShapeAccessibilityFile = new FileBlob(
+  await alphaShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const alphaShapeAccessibilityImported = await PresentationFile.importPptx(alphaShapeAccessibilityFile);
+const alphaShapeLeaves = alphaShapeAccessibilityImported.inspect({ includeNativeLeaves: true, target: irregularAccessibilityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(alphaShapeLeaves.some((record) => record.leafKind === "fillRgb"), false);
+assert.deepEqual(
+  (await PresentationFile.exportPptx(alphaShapeAccessibilityImported)).bytes,
+  alphaShapeAccessibilityFile.bytes,
+  "alpha-bearing source-bound fills must retain an exact no-op package",
+);
+
 const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
 const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
 const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeNativeLeaves: true, target: nativeImageGeometry.id }).ndjson

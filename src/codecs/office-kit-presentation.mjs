@@ -4010,6 +4010,11 @@ function createPresentationNativeLeafCapability(presentation, state) {
     const registerImportedShapeColorLeaves = () => {
       if (!isShape || wire.source?.editable === true || wire.source?.textEditable !== true) return;
       for (const [field, leafKind] of [["fillRgb", "fillRgb"], ["lineRgb", "lineRgb"]]) {
+        // The semantic projection carries opacity separately when the native
+        // color token has an alpha/effect child. The codec deliberately keeps
+        // those source-bound paints opaque: do not issue a leaf that the
+        // export-time proof will reject after the Agent has selected it.
+        if (leafKind === "fillRgb" && wire.content.value.fillOpacityThousandthPercent !== undefined) continue;
         const raw = String(wire.content.value[field] ?? "");
         if (!/^[0-9A-F]{6}$/iu.test(raw)) continue;
         registerLeaf({
