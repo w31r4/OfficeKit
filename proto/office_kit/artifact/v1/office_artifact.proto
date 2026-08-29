@@ -156,7 +156,7 @@ message PresentationEditOperation {
   // paragraphLineSpacingMultiplier, paragraphSpaceBeforePoints,
   // paragraphSpaceBeforeMultiplier, paragraphSpaceAfterPoints,
   // paragraphSpaceAfterMultiplier, paragraphMarginLeftEmu, paragraphIndentEmu,
-  // verticalAnchor,
+  // paragraphBulletCharacter, paragraphLevel, verticalAnchor,
   // textBodyInsetLeftEmu, textBodyInsetTopEmu, textBodyInsetRightEmu, textBodyInsetBottomEmu,
   // textBodyWrap, textBodyColumnCount,
   // fontSizePoints, fontFamily,

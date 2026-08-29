@@ -4668,6 +4668,67 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 },
               });
             }
+            const bullet = paragraph.bullet;
+            if (bullet?.case === "bulletCharacter") {
+              const character = String(bullet.value ?? "");
+              const codePoint = character.codePointAt(0);
+              if ([...character].length === 1 && !(codePoint >= 0xD800 && codePoint <= 0xDFFF) && !/[\u0000-\u001F\u007F-\u009F]/u.test(character)) {
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletCharacter",
+                  expectedValue: character,
+                  value: character,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "");
+                    const point = normalized.codePointAt(0);
+                    if ([...normalized].length !== 1 || (point >= 0xD800 && point <= 0xDFFF) || /[\u0000-\u001F\u007F-\u009F]/u.test(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletCharacter native leaf requires one non-control Unicode scalar value.");
+                    }
+                    return { raw: normalized, publicValue: normalized };
+                  },
+                  isNoop(next) { return next === character; },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation character-bullet native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.bulletCharacter = next;
+                  },
+                });
+              }
+            }
+            const paragraphLevel = Number(paragraph.level);
+            // The scalar wire field cannot distinguish an omitted level from
+            // an explicit lvl="0".  Issue a source-bound leaf only for
+            // explicit non-zero levels; the codec still validates the full
+            // 0..8 range at the package boundary.
+            if (Number.isInteger(paragraphLevel) && paragraphLevel >= 1 && paragraphLevel <= 8) {
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind: "paragraphLevel",
+                expectedValue: String(paragraphLevel),
+                value: paragraphLevel,
+                details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                normalize(next) {
+                  const normalized = String(next ?? "").trim();
+                  if (!/^[0-8]$/u.test(normalized) || normalized === "0") {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphLevel native leaf requires an integer from 1 through 8.");
+                  }
+                  return { raw: normalized, publicValue: Number(normalized) };
+                },
+                isNoop(next) { return next === String(paragraphLevel); },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-level native leaf no longer resolves to the imported paragraph.");
+                  }
+                  target.level = Number(next);
+                },
+              });
+            }
             for (const slot of paragraphLayoutSlots) {
               const choice = paragraph[slot.property];
               if (choice?.case !== slot.sourceCase) continue;
