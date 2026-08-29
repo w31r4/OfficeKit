@@ -4,7 +4,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { FileBlob, Presentation, PresentationFile } from "../src/index.mjs";
+import { FileBlob } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 import { runTemplateConditionedGeneration } from "../scripts/pptx-template-generation.mjs";
 
 const workspace = await mkdtemp(path.join(os.tmpdir(), "office-kit-template-generation-fixture-"));

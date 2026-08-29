@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import {
   DocumentModel,
   PdfArtifact,
-  Presentation,
   verifyArtifact,
   Workbook,
 } from "office-kit";
+import { Presentation } from "../src/presentation/index.mjs";
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Sheet1");

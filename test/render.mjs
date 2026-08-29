@@ -6,12 +6,12 @@ import {
   DocumentModel,
   FileBlob,
   PdfArtifact,
-  Presentation,
   renderArtifact,
   visualQaArtifact,
   Workbook,
 } from "office-kit";
 import { createArtifactVisualQaApi } from "../src/qa/artifact-visual.mjs";
+import { Presentation } from "../src/presentation/index.mjs";
 
 function pngChunk(type, data = Buffer.alloc(0)) {
   const length = Buffer.alloc(4);

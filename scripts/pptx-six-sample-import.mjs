@@ -5,7 +5,8 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 
-import { FileBlob, PresentationFile } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 import { directPresentationChildren } from "../src/presentation/group-shapes.mjs";
 
 const SCHEMA = "office-kit/pptx-six-sample-import-evidence/v1";

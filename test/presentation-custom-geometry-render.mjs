@@ -6,7 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import sharp from "sharp";
 
-import { Presentation, PresentationFile } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 const PROBE_TIMEOUT_MS = 5_000;
 const RENDER_TIMEOUT_MS = 120_000;

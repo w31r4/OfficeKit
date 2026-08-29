@@ -7,34 +7,26 @@ import {
   FileBlob,
   helpArtifact,
   HELP_CATALOG,
-  node,
   PdfArtifact,
-  Presentation,
-  text,
   Workbook,
 } from "office-kit";
 import { HELP_CATALOG as LEAF_HELP_CATALOG } from "../src/help/index.mjs";
-import { node as leafNode, text as leafText } from "../src/presentation/compose.mjs";
 import * as presentationApi from "../src/presentation/index.mjs";
 import * as spreadsheetApi from "../src/spreadsheet/index.mjs";
 import { FileBlob as LeafFileBlob } from "../src/shared/file-blob.mjs";
 
 assert.deepEqual(Object.keys(rootApi).sort(), [
-  "ChartElement", "DocumentFile", "DocumentModel", "FileBlob", "GroupShape",
-  "HELP_CATALOG", "ImageElement", "PdfArtifact", "PdfFile", "Presentation",
-  "PresentationFile", "Range", "Shape", "Slide", "SlideAnimations", "SlideMorph", "SlideTransition", "SpreadsheetFile",
-  "TableElement", "Workbook", "Worksheet", "WorksheetDataTableCollection", "box", "chart", "column", "grid",
-  "clearOfficeFontDesignMetrics", "helpArtifact", "image", "layers", "node", "paragraph",
+  "DocumentFile", "DocumentModel", "FileBlob", "HELP_CATALOG", "PdfArtifact", "PdfFile",
+  "Range", "SpreadsheetFile", "Workbook", "Worksheet", "WorksheetDataTableCollection",
+  "clearOfficeFontDesignMetrics", "helpArtifact",
   "registerScopedOfficeFontDesignMetrics", "renderArtifact", "resolveOfficeFontDesignMetrics",
-  "row", "rule", "run", "setOfficeFontDesignMetrics", "shape", "skiaPaintBaselineCompensationPx",
-  "table", "text", "verifyArtifact", "visualQaArtifact", "reviewArtifact",
+  "setOfficeFontDesignMetrics", "skiaPaintBaselineCompensationPx", "verifyArtifact",
+  "visualQaArtifact", "reviewArtifact",
 ].sort(), "root public export contract changed");
 assert.strictEqual(HELP_CATALOG, LEAF_HELP_CATALOG, "root must re-export the help catalog binding");
-assert.strictEqual(node, leafNode, "root must re-export the Compose binding");
-assert.strictEqual(text, leafText, "root must re-export the reference-compatible text Compose binding");
 assert.strictEqual(FileBlob, LeafFileBlob, "root must re-export the FileBlob constructor binding");
-for (const name of ["Presentation", "PresentationFile", "Slide", "SlideAnimations", "SlideMorph", "SlideTransition", "Shape", "TableElement", "ChartElement", "ImageElement", "GroupShape"]) {
-  assert.strictEqual(rootApi[name], presentationApi[name], `root must re-export the ${name} constructor binding`);
+for (const name of ["Presentation", "PresentationFile", "Slide", "SlideAnimations", "SlideMorph", "SlideTransition", "Shape", "TableElement", "ChartElement", "ImageElement", "GroupShape", "box", "node", "text"]) {
+  assert.equal(name in rootApi, false, `root must not expose legacy Presentation authoring binding ${name}`);
 }
 for (const name of ["Workbook", "Worksheet", "WorksheetDataTableCollection", "Range", "SpreadsheetFile"]) {
   assert.strictEqual(rootApi[name], spreadsheetApi[name], `root must re-export the ${name} constructor binding`);
@@ -940,7 +932,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.patchDocx")
 assert.equal(HELP_CATALOG.find((item) => item.name === "DocumentFile.patchDocx")?.schema?.parameters?.recipe?.type, "string|object");
 
 const workbook = Workbook.create();
-const presentation = Presentation.create();
+const presentation = presentationApi.Presentation.create();
 const document = DocumentModel.create({ paragraphs: ["Doc"] });
 const pdf = PdfArtifact.create({ text: "PDF" });
 

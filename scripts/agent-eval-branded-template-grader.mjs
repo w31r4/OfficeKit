@@ -4,7 +4,8 @@ import path from "node:path";
 
 import JSZip from "jszip";
 
-import { FileBlob, PresentationFile } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 import { renderOfficeFile } from "./agent-eval-office-native-render.mjs";
 import { extractCompletedCommands, summarizeCaseScore } from "./agent-eval-pdf-graders.mjs";
 import { BRANDED_TEMPLATE_FIXTURE } from "./agent-eval-branded-template.mjs";

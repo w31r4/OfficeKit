@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
-import { FileBlob, Presentation, PresentationFile } from "../src/index.mjs";
+import { FileBlob } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const pngBytes = Buffer.from(PNG.split(",")[1], "base64");

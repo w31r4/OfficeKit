@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { Presentation, PresentationFile } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 function svgDataUrl(source) {
   return `data:image/svg+xml;base64,${Buffer.from(source, "utf8").toString("base64")}`;

@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 
-import { DocumentFile, FileBlob, PresentationFile, SpreadsheetFile } from "../src/index.mjs";
+import { DocumentFile, FileBlob, SpreadsheetFile } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
 import {
   DOCX_CLASSIC_COMMENT_FIXTURE,
   DOCX_COMPLEX_TABLE_TOPOLOGY_FIXTURE,

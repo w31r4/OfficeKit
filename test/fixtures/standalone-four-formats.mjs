@@ -5,8 +5,6 @@ import {
   DocumentModel,
   PdfArtifact,
   PdfFile,
-  Presentation,
-  PresentationFile,
   reviewArtifact,
   SpreadsheetFile,
   Workbook,
@@ -18,9 +16,6 @@ const publicSpecifiers = [
   "office-kit/live/protocol",
   "office-kit/live/adapters/powerpoint",
   "office-kit/powerpoint-live",
-  "office-kit/presentation-jsx",
-  "office-kit/presentation-jsx/jsx-runtime",
-  "office-kit/presentation-jsx/jsx-dev-runtime",
   "office-kit/renderers/playwright",
   "office-kit/renderers/sharp",
   "office-kit/renderers/canvas",
@@ -71,18 +66,6 @@ if (
   process.exit(12);
 }
 
-const presentation = Presentation.create();
-presentation.slides.add({ name: "Standalone" }).shapes.add({
-  geometry: "textbox",
-  text: "standalone PPTX",
-  position: { left: 40, top: 40, width: 400, height: 80 },
-});
-const pptx = await PresentationFile.exportPptx(presentation);
-await pptx.save("standalone.pptx");
-if ((await PresentationFile.importPptx(pptx)).slides.count !== 1) {
-  process.exit(13);
-}
-
 const pdf = await PdfFile.exportPdf(
   PdfArtifact.create({ pages: [{ text: "standalone PDF" }] }),
 );
@@ -94,7 +77,6 @@ if (!(await PdfFile.importPdf(pdf)).extractText().includes("standalone PDF")) {
 for (const filename of [
   "standalone.docx",
   "standalone.xlsx",
-  "standalone.pptx",
   "standalone.pdf",
 ]) {
   if ((await fs.stat(filename)).size < 100) process.exit(15);

@@ -64,7 +64,6 @@ const fastSteps = [
   nodeStep("test/pptx-source-derived-companion.mjs"),
   nodeStep("test/pptx-programmable-import-baseline.mjs"),
   nodeStep("test/pptx-programmable-import-candidate-evidence.mjs"),
-  nodeStep("test/presentation-jsx.mjs"),
   nodeStep("test/document.mjs"),
   nodeStep("test/pdf.mjs"),
   nodeStep("test/office-kit-skill.mjs"),
@@ -79,8 +78,6 @@ const fastSteps = [
   nodeStep("test/review.mjs"),
   nodeStep("test/help.mjs"),
   nodeStep("test/help-adoption.mjs"),
-  nodeStep("test/presentation-authoring-eval-manifest.mjs"),
-  nodeStep("test/presentation-authoring-pilot.mjs"),
   nodeStep("test/package-contents.mjs"),
 ];
 
@@ -113,8 +110,6 @@ const slowSteps = [
   nodeStep("test/pptx-template-generation-agent-blackbox.mjs"),
   nodeStep("test/pptx-template-generation-agent-multipage.mjs"),
   nodeStep("test/presentation-custom-geometry-render.mjs"),
-  nodeStep("test/presentation-jsx.mjs"),
-  npmStep("test:presentation:workflows"),
   nodeStep("test/default-template-library.mjs", "--shard", "documents-a"),
   nodeStep("test/default-template-library.mjs", "--shard", "documents-b"),
   nodeStep("test/default-template-library.mjs", "--shard", "spreadsheets-a"),
@@ -176,8 +171,6 @@ const slowSteps = [
   nodeStep("test/standalone-distribution.mjs"),
   nodeStep("test/help.mjs"),
   nodeStep("test/help-adoption.mjs"),
-  nodeStep("test/presentation-authoring-eval-manifest.mjs"),
-  nodeStep("test/presentation-authoring-packed.mjs"),
 ];
 
 const slowSegments = Object.freeze({

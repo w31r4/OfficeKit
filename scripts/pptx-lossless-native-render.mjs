@@ -7,7 +7,9 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { FileBlob, PresentationFile, visualQaArtifact } from "../src/index.mjs";
+import { visualQaArtifact } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 import { createLibreOfficeRenderer } from "../src/renderers/libreoffice.mjs";
 import { createPopplerRenderer } from "../src/renderers/poppler.mjs";
 

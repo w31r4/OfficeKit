@@ -9,7 +9,8 @@ import { fileURLToPath } from "node:url";
 
 import JSZip from "jszip";
 
-import { FileBlob, PresentationFile } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 import { TEMPLATE_GENERATION_SOURCES } from "./pptx-template-generation.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";

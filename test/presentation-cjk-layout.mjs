@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import JSZip from "jszip";
 
-import { Presentation, PresentationFile } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 const cjkDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 cjkDeck.slides.add().shapes.add({

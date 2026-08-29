@@ -10,11 +10,10 @@ import JSZip from "jszip";
 import {
   DocumentFile,
   DocumentModel,
-  Presentation,
-  PresentationFile,
   SpreadsheetFile,
   Workbook,
 } from "office-kit";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 const packageRoot = path.resolve(import.meta.dirname, "..");
 const creatorPath = path.join(

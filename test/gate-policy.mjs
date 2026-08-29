@@ -16,7 +16,7 @@ assert.equal(packageJson.scripts["test:fast"], packageJson.scripts.test);
 assert.equal(packageJson.scripts["test:slow"], "node scripts/run-test-gate.mjs slow");
 assert.equal(packageJson.scripts["test:slow:templates"], "node test/default-template-library.mjs");
 assert.equal(packageJson.scripts["test:slow:promptbench"], "node test/agent-evals.mjs");
-assert.equal(packageJson.scripts["eval:presentation-authoring-expansion"], "node scripts/presentation-authoring-expansion.mjs");
+assert.equal(packageJson.scripts["eval:presentation-authoring-expansion"], undefined);
 assert.match(packageJson.scripts["test:presentation"], /presentation-svg-leaves\.mjs/);
 assert.equal(packageJson.scripts["test:pptx-svg-leaf-benchmark"], "node test/pptx-svg-leaf-benchmark.mjs");
 

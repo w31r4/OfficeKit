@@ -1,6 +1,5 @@
 import { DocumentFile, DocumentModel } from "./document/index.mjs";
 import { PdfArtifact, PdfFile } from "./pdf/index.mjs";
-import { ChartElement, GroupShape, ImageElement, Presentation, PresentationFile, Shape, Slide, SlideAnimations, SlideMorph, SlideTransition, TableElement } from "./presentation/index.mjs";
 import { Range, SpreadsheetFile, Workbook, Worksheet, WorksheetDataTableCollection } from "./spreadsheet/index.mjs";
 import { queryHelpRecords } from "./help/index.mjs";
 import { createArtifactVisualQaApi } from "./qa/artifact-visual.mjs";
@@ -16,14 +15,16 @@ export {
   skiaPaintBaselineCompensationPx,
 } from "./shared/font-design-metrics.mjs";
 export { HELP_CATALOG } from "./help/index.mjs";
-export { box, chart, column, grid, image, layers, node, paragraph, row, rule, run, shape, table, text } from "./presentation/compose.mjs";
-export { ChartElement, DocumentFile, DocumentModel, GroupShape, ImageElement, PdfArtifact, PdfFile, Presentation, PresentationFile, Range, Shape, Slide, SlideAnimations, SlideMorph, SlideTransition, SpreadsheetFile, TableElement, Workbook, Worksheet, WorksheetDataTableCollection };
+export { DocumentFile, DocumentModel, PdfArtifact, PdfFile, Range, SpreadsheetFile, Workbook, Worksheet, WorksheetDataTableCollection };
 
 function inferArtifactKind(artifact) {
   if (artifact instanceof Workbook) return "workbook";
-  if (artifact instanceof Presentation) return "presentation";
   if (artifact instanceof DocumentModel) return "document";
   if (artifact instanceof PdfArtifact) return "pdf";
+  // The Presentation object model is an internal codec implementation in 2.0.
+  // Keep generic QA useful for repository-internal presentation values without
+  // importing or re-exporting that authoring surface from the public root.
+  if (artifact?.slides?.items && artifact?.slideSize && typeof artifact?.toProto === "function") return "presentation";
   return "unknown";
 }
 

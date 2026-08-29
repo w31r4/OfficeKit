@@ -5,7 +5,8 @@ import { spawnSync } from "node:child_process";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { FileBlob, PresentationFile } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 import { createLibreOfficeRenderer } from "../src/renderers/libreoffice.mjs";
 import { createPopplerRenderer } from "../src/renderers/poppler.mjs";
 import { SOURCES } from "./pptx-six-sample-import.mjs";

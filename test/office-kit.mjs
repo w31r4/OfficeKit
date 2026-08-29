@@ -3,11 +3,10 @@ import JSZip from "jszip";
 import {
   DocumentFile,
   DocumentModel,
-  Presentation,
-  PresentationFile,
   SpreadsheetFile,
   Workbook,
 } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 import {
   addDocxTrackedReplacementWithOfficeKit,
   exportDocxWithOfficeKit,

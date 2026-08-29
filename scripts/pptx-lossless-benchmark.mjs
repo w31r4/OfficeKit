@@ -7,7 +7,8 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import JSZip from "jszip";
 
-import { FileBlob, PresentationFile } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 
 const MANIFEST_SCHEMA = "office-kit/pptx-lossless-benchmark/v1";
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";

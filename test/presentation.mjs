@@ -3,20 +3,9 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
 
-import {
-  column,
-  DocumentFile,
-  DocumentModel,
-  FileBlob,
-  paragraph,
-  Presentation,
-  PresentationFile,
-  row,
-  run,
-  shape as composeShape,
-  SpreadsheetFile,
-  Workbook,
-} from "../src/index.mjs";
+import { DocumentFile, DocumentModel, FileBlob, SpreadsheetFile, Workbook } from "../src/index.mjs";
+import { column, paragraph, row, run, shape as composeShape } from "../src/presentation/compose.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 import {
   effectivePresentationImageCrop,
   presentationImageDataUrlDimensions,

@@ -5,7 +5,8 @@ import path from "node:path";
 import JSZip from "jszip";
 
 import { buildPptxDesignProfile } from "../scripts/pptx-design-profile.mjs";
-import { FileBlob, Presentation, PresentationFile } from "../src/index.mjs";
+import { FileBlob } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 const fixture = path.resolve(import.meta.dirname, "../evals/assets/presentations/strategy-review.pptx");
 const sourceBytes = await readFile(fixture);

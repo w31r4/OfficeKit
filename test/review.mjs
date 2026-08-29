@@ -9,12 +9,11 @@ import {
   DocumentModel,
   FileBlob,
   PdfArtifact,
-  Presentation,
-  PresentationFile,
   reviewArtifact,
   Workbook,
 } from "../src/index.mjs";
 import { normalizePresentationAuthoringPlan } from "../src/cli/authoring-plan.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 function authoringPlan(pageCount = 3, overrides = {}) {
   return {

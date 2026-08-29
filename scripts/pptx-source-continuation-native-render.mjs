@@ -5,7 +5,9 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { FileBlob, PresentationFile, visualQaArtifact } from "../src/index.mjs";
+import { visualQaArtifact } from "../src/index.mjs";
+import { PresentationFile } from "../src/presentation/index.mjs";
+import { FileBlob } from "../src/shared/file-blob.mjs";
 import { createLibreOfficeRenderer } from "../src/renderers/libreoffice.mjs";
 import { createPopplerRenderer } from "../src/renderers/poppler.mjs";
 import { applyContinuation, verifyContinuation } from "./pptx-source-continuation-benchmark.mjs";

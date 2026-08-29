@@ -19,6 +19,10 @@ assert.equal(
 );
 assert.equal(packageMetadata.exports["./codecs/office-kit"], undefined);
 assert.equal(packageMetadata.exports["./codecs/openxml-wasm"], undefined);
+assert.equal(packageMetadata.exports["./presentation"], undefined);
+assert.equal(packageMetadata.exports["./presentation-jsx"], undefined);
+assert.equal(packageMetadata.exports["./presentation-jsx/jsx-runtime"], undefined);
+assert.equal(packageMetadata.exports["./presentation-jsx/jsx-dev-runtime"], undefined);
 assert.deepEqual(packageMetadata.bin, {
   officekit: "./bin/officekit.mjs",
 });

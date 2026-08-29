@@ -8,12 +8,11 @@ import {
   DocumentModel,
   PdfArtifact,
   PdfFile,
-  Presentation,
-  PresentationFile,
   reviewArtifact,
   SpreadsheetFile,
   Workbook,
 } from "../src/index.mjs";
+import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 import { createReplSession } from "../src/cli/repl.mjs";
 
 const workspace = await mkdtemp(path.join(os.tmpdir(), "officekit-task-artifacts-"));

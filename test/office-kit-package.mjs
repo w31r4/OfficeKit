@@ -42,7 +42,7 @@ try {
 
     import {
       DocumentFile, DocumentModel, FileBlob, PdfArtifact, PdfFile, reviewArtifact,
-      Presentation, PresentationFile, SpreadsheetFile, Workbook,
+      SpreadsheetFile, Workbook,
     } from "office-kit";
 
     const canonicalCodec = await import("office-kit/codec");
@@ -385,17 +385,6 @@ try {
       imageAltTextRoundTrip.blocks[1]?.alt !== "Packaged accessible chart description"
     ) process.exit(74);
 
-    const presentation = Presentation.create();
-    presentation.slides.add({ name: "Packaged" }).shapes.add({
-      name: "Title", geometry: "roundRect", text: "clean install PPTX",
-      position: { left: 40, top: 40, width: 520, height: 80 },
-    });
-    const pptx = await PresentationFile.exportPptx(presentation);
-    if (pptx.metadata.codec !== "office-kit" || pptx.bytes[0] !== 0x50 || pptx.bytes[1] !== 0x4b) process.exit(20);
-    const importedPresentation = await PresentationFile.importPptx(pptx);
-    if (importedPresentation.slides.getItem(0).shapes.items[0].text.value !== "clean install PPTX") process.exit(21);
-    if ((await PresentationFile.importPptx(await PresentationFile.exportPptx(importedPresentation))).slides.count !== 1) process.exit(22);
-
     const installedPackage = path.join(process.cwd(), "node_modules", "office-kit");
     const installedBin = path.join(
       process.cwd(),
@@ -405,6 +394,42 @@ try {
     );
     const installedCliModule = path.join(installedPackage, "bin", "officekit.mjs");
     if (!fs.existsSync(installedBin) || !fs.existsSync(installedCliModule)) process.exit(62);
+    const ppjPath = path.join(process.cwd(), "packed.ppj");
+    const pptxPath = path.join(process.cwd(), "packed.pptx");
+    const recoveredPpjPath = path.join(process.cwd(), "packed-recovered.ppj");
+    fs.writeFileSync(ppjPath, JSON.stringify({
+      schema: "office-kit/ppj/v1",
+      meta: { id: "packed", title: "Packed PPJ", language: "en-US", version: 1 },
+      intent: {},
+      design: {},
+      pages: [{
+        id: "page-1",
+        elements: [{
+          type: "text",
+          id: "title",
+          frame: { x: 40, y: 40, width: 520, height: 80 },
+          text: "clean install PPTX",
+        }],
+      }],
+    }, null, 2) + "\n");
+    const ppjBuild = spawnSync(process.execPath, [installedCliModule, "ppj", "build", ppjPath, "-o", pptxPath, "--json"], {
+      cwd: process.cwd(), encoding: "utf8",
+    });
+    if (ppjBuild.status !== 0) {
+      process.stderr.write(ppjBuild.stderr);
+      process.exit(20);
+    }
+    const ppjReceipt = JSON.parse(ppjBuild.stdout);
+    if (!ppjReceipt.ok || !/^[0-9a-f]{64}$/.test(ppjReceipt.outputSha256) || !fs.existsSync(pptxPath)) process.exit(21);
+    const ppjImport = spawnSync(process.execPath, [installedCliModule, "ppj", "import", pptxPath, "-o", recoveredPpjPath, "--json"], {
+      cwd: process.cwd(), encoding: "utf8",
+    });
+    if (ppjImport.status !== 0) {
+      process.stderr.write(ppjImport.stderr);
+      process.exit(22);
+    }
+    const recoveredPpj = JSON.parse(fs.readFileSync(recoveredPpjPath, "utf8"));
+    if (recoveredPpj.pages[0]?.elements[0]?.id !== "title" || recoveredPpj.pages[0]?.elements[0]?.text !== "clean install PPTX") process.exit(23);
     const initializedProject = path.join(process.cwd(), "officekit-initialized-project");
     const initialized = spawnSync(
       process.execPath,
@@ -440,88 +465,6 @@ try {
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-template-creator", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "powerpoint-live-control", "SKILL.md"))
     ) process.exit(61);
-
-    const duplicateWorkflowPath = path.join(
-      installedPackage,
-      "skills", "presentations", "skills", "presentations", "examples", "officekit-slide-duplicate-workflow.mjs",
-    );
-    if (!fs.existsSync(duplicateWorkflowPath)) process.exit(23);
-    const cloneFixture = Presentation.create({ slideSize: { width: 640, height: 360 } });
-    const cloneSource = cloneFixture.slides.add({
-      name: "Packed clone source",
-      notes: "Packaged closed-leaf clone notes.",
-    });
-    const cloneGroup = cloneSource.addGroup({
-      name: "packed-cluster",
-      position: { left: 48, top: 40, width: 320, height: 120 },
-      childFrame: { left: 0, top: 0, width: 320, height: 120 },
-    });
-    const cloneLeft = cloneGroup.shapes.add({ name: "left", position: { left: 0, top: 20, width: 90, height: 42 }, text: "Left" });
-    const cloneRight = cloneGroup.shapes.add({ name: "right", position: { left: 210, top: 20, width: 90, height: 42 }, text: "Right" });
-    cloneGroup.connectors.add({
-      name: "join", from: cloneLeft, to: cloneRight,
-      start: { x: 90, y: 41 }, end: { x: 210, y: 41 }, line: { fill: "#64748B", width: 1 },
-    });
-    cloneSource.shapes.add({
-      name: "packed-clone-links",
-      geometry: "textbox",
-      position: { left: 48, top: 190, width: 420, height: 64 },
-      fill: "transparent",
-      line: { fill: "transparent", width: 0 },
-      text: [{ runs: [
-        { text: "Guide ", link: { uri: "https://example.com/packed-clone" } },
-        { text: "Next ", link: { action: "nextSlide" } },
-        { text: "Review route", link: { customShow: "Packed route", returnToSlide: true } },
-      ] }],
-    });
-    cloneFixture.customShows.add({ name: "Packed route", nativeId: 23, slides: [cloneSource] });
-    cloneSource.comments.addThread(undefined, "Packaged closed-leaf clone comment.", {
-      author: "Package QA",
-      created: "2026-07-18T03:05:00Z",
-      position: { x: 360, y: 240 },
-    });
-    const cloneInput = path.join(process.cwd(), "packed-clone-source.pptx");
-    const cloneOutput = path.join(process.cwd(), "packed-clone-output.pptx");
-    const cloneAudit = path.join(process.cwd(), "packed-clone-audit.json");
-    await (await PresentationFile.exportPptx(cloneFixture)).save(cloneInput);
-    const { duplicatePptxSlide } = await import(pathToFileURL(duplicateWorkflowPath).href);
-    const cloneResult = await duplicatePptxSlide({
-      inputPath: cloneInput,
-      outputPath: cloneOutput,
-      auditPath: cloneAudit,
-      expectedName: "Packed clone source",
-      allowClosedLeaves: true,
-    });
-    if (
-      !/^ppt\/slides\/slide\d+\.xml$/.test(cloneResult.audit.operation.clonePart) ||
-      cloneResult.audit.operation.clonePart === cloneResult.audit.operation.sourcePart ||
-      cloneResult.audit.operation.runHyperlinks.relationshipCount !== 1 ||
-      cloneResult.audit.operation.runHyperlinks.actionOnlyCount !== 2 ||
-      cloneResult.audit.operation.runHyperlinks.customShowCount !== 1 ||
-      !cloneResult.audit.validation.package.runHyperlinks.exactSourceGraphRetained ||
-      !cloneResult.audit.validation.package.customShows.exactSourceMembershipRetained ||
-      !cloneResult.audit.validation.reimport.customShowMembershipRetained ||
-      !cloneResult.audit.operation.closedLeaves.speakerNotes ||
-      !cloneResult.audit.operation.closedLeaves.legacyComments ||
-      !cloneResult.audit.validation.package.retainedSourcePartsByteIdentical ||
-      !cloneResult.audit.validation.package.closedLeaves.speakerNotes?.notesXmlByteIdentical ||
-      !cloneResult.audit.validation.package.closedLeaves.legacyComments?.commentsXmlByteIdentical ||
-      !cloneResult.audit.validation.reimport.sourceAndCloneSemanticsEqual ||
-      !cloneResult.audit.validation.reimport.sourceAndCloneClosedLeavesEqual ||
-      !cloneResult.audit.validation.modelRender.visualEquivalent
-    ) process.exit(24);
-    const packedClone = await PresentationFile.importPptx(new FileBlob(await fs.promises.readFile(cloneOutput), {
-      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      name: "packed-clone-output.pptx",
-    }));
-    if (
-      packedClone.slides.count !== 2 ||
-      packedClone.slides.getItem(1).groups.items[0].connectors.items[0].startTargetId !== packedClone.slides.getItem(1).groups.items[0].shapes.items[0].id ||
-      packedClone.slides.getItem(1).speakerNotes.text !== "Packaged closed-leaf clone notes." ||
-      packedClone.slides.getItem(1).comments.items[0].comments[0].text !== "Packaged closed-leaf clone comment." ||
-      packedClone.slides.getItem(1).shapes.items.find((shape) => shape.name === "packed-clone-links").text.paragraphs[0].runs[2].link.customShow !== "Packed route" ||
-      JSON.stringify(packedClone.customShows.getItem("Packed route").slideIds) !== JSON.stringify([packedClone.slides.getItem(0).id])
-    ) process.exit(25);
 
     const pdf = PdfArtifact.create({ pages: [{ text: "clean install PDF" }] });
     const pdfFile = await PdfFile.exportPdf(pdf);
@@ -897,8 +840,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
   fs.writeFileSync(taskPath, [
     'import fs from "node:fs/promises";',
     'import {',
-    '  DocumentFile, DocumentModel, PdfArtifact, PdfFile, Presentation,',
-    '  PresentationFile, SpreadsheetFile, Workbook,',
+    '  DocumentFile, DocumentModel, PdfArtifact, PdfFile, SpreadsheetFile, Workbook,',
     '} from "office-kit";',
     `const publicSpecifiers = ${JSON.stringify(publicSpecifiers)};`,
     "for (const specifier of publicSpecifiers) await import(specifier);",
@@ -911,18 +853,10 @@ function testGlobalCli({ temporary, nativePackageName }) {
     "const xlsx = await SpreadsheetFile.exportXlsx(workbook);",
     'await xlsx.save("global.xlsx");',
     "if ((await SpreadsheetFile.importXlsx(xlsx)).worksheets.getItem('Data').getRange('B2').values[0][0] !== 7) process.exit(12);",
-    "const presentation = Presentation.create();",
-    'presentation.slides.add({ name: "Global CLI" }).shapes.add({',
-    '  geometry: "textbox", text: "global CLI PPTX",',
-    '  position: { left: 40, top: 40, width: 400, height: 80 },',
-    "});",
-    "const pptx = await PresentationFile.exportPptx(presentation);",
-    'await pptx.save("global.pptx");',
-    "if ((await PresentationFile.importPptx(pptx)).slides.count !== 1) process.exit(13);",
     'const pdf = await PdfFile.exportPdf(PdfArtifact.create({ pages: [{ text: "global CLI PDF" }] }));',
     'await pdf.save("global.pdf");',
     "if (!(await PdfFile.importPdf(pdf)).extractText().includes('global CLI PDF')) process.exit(14);",
-    "for (const filename of ['global.docx', 'global.xlsx', 'global.pptx', 'global.pdf']) {",
+    "for (const filename of ['global.docx', 'global.xlsx', 'global.pdf']) {",
     "  if ((await fs.stat(filename)).size < 100) process.exit(15);",
     "}",
     "console.log(JSON.stringify({",
@@ -932,6 +866,21 @@ function testGlobalCli({ temporary, nativePackageName }) {
     "}));",
     "",
   ].join("\n"));
+  fs.writeFileSync(path.join(project, "global.ppj"), `${JSON.stringify({
+    schema: "office-kit/ppj/v1",
+    meta: { id: "global", title: "Global CLI", language: "en-US", version: 1 },
+    intent: {},
+    design: {},
+    pages: [{
+      id: "page-1",
+      elements: [{
+        type: "text",
+        id: "title",
+        frame: { x: 40, y: 40, width: 400, height: 80 },
+        text: "global CLI PPTX",
+      }],
+    }],
+  }, null, 2)}\n`);
   assert.equal(
     fs.existsSync(path.join(project, "node_modules")),
     false,
@@ -943,6 +892,11 @@ function testGlobalCli({ temporary, nativePackageName }) {
   assert.deepEqual(taskResult.argv, ["alpha", "two words"]);
   assert.equal(taskResult.cwd, fs.realpathSync(project));
   assert.equal(taskResult.publicSubpaths, publicSpecifiers.length);
+  const ppjBuild = JSON.parse(expectSuccess([
+    "ppj", "build", "global.ppj", "-o", "global.pptx", "--json",
+  ], project).stdout);
+  assert.equal(ppjBuild.ok, true);
+  assert.ok(fs.statSync(path.join(project, "global.pptx")).size > 100);
   assert.equal(
     fs.existsSync(path.join(project, "node_modules")),
     false,

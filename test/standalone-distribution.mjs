@@ -382,68 +382,36 @@ try {
   assert.equal(await fs.realpath(taskResult.cwd), await fs.realpath(project));
   assert.equal(taskResult.publicSubpaths, Object.keys(packageMetadata.exports).length);
   assert.equal(taskResult.anydoc, "ready");
+  await fs.writeFile(path.join(project, "standalone.ppj"), `${JSON.stringify({
+    schema: "office-kit/ppj/v1",
+    meta: { id: "standalone", title: "Standalone", language: "en-US", version: 1 },
+    intent: {},
+    design: {},
+    pages: [{
+      id: "page-1",
+      elements: [{
+        type: "text",
+        id: "title",
+        frame: { x: 40, y: 40, width: 400, height: 80 },
+        text: "standalone PPTX",
+      }],
+    }],
+  }, null, 2)}\n`);
+  const ppjBuild = JSON.parse(runOfficeKit([
+    "ppj", "build", "standalone.ppj", "-o", "standalone.pptx", "--json",
+  ], project).stdout);
+  assert.equal(ppjBuild.ok, true);
   for (const extension of ["docx", "xlsx", "pptx", "pdf"]) {
     assert.ok((await fs.stat(path.join(project, `standalone.${extension}`))).size > 100);
   }
 
-  // A clean-installed task must be able to inspect imported presentation
-  // components without reaching into source files or a local node_modules.
-  // Keep this deliberately small: the real design-profile fixtures exercise
-  // richer graphs, while this assertion proves the public source-bound API is
-  // present in the installed runtime and remains no-op byte stable.
-  const componentTask = path.join(project, "component-candidates.mjs");
-  await fs.writeFile(componentTask, `
-import { Presentation, PresentationFile } from "office-kit";
-
-const source = Presentation.create();
-for (const index of [1, 2]) {
-  const slide = source.slides.add({ name: "Component " + index });
-  slide.shapes.add({
-    geometry: "textbox",
-    text: "reusable component",
-    position: { left: 40, top: 40, width: 400, height: 80 },
-  });
-  slide.shapes.add({
-    geometry: "rect",
-    text: "sibling " + index,
-    position: { left: 520, top: 40, width: 240, height: 80 },
-  });
-}
-const sourceBlob = await PresentationFile.exportPptx(source);
-const imported = await PresentationFile.importPptx(sourceBlob);
-const records = imported.inspect({ kind: "componentCandidate", maxChars: Infinity }).ndjson
-  .split("\\n").filter(Boolean).map((line) => JSON.parse(line));
-const candidate = records.find((record) => record.status === "inspect-only");
-if (!candidate || !/^pc_[0-9a-f]{32}$/.test(candidate.candidateId)) process.exit(17);
-if (candidate.mutationCapability?.supported !== false) process.exit(18);
-if (imported.resolveComponentCandidate(candidate.candidateId)?.candidateId !== candidate.candidateId) process.exit(19);
-const roundTrip = await PresentationFile.exportPptx(imported);
-if (roundTrip.bytes.length !== sourceBlob.bytes.length || roundTrip.bytes.some((value, index) => value !== sourceBlob.bytes[index])) process.exit(20);
-const sourceSlide = imported.slides.items[0];
-const cloneCapability = sourceSlide.cloneCapability;
-if (cloneCapability.sourceRevisionSha256 !== candidate.sourceRevisionSha256) process.exit(21);
-const reusedSlide = imported.reuseSourceSlide({
-  slideId: sourceSlide.id,
-  sourceRevisionSha256: candidate.sourceRevisionSha256,
-  expectedCloneCapability: cloneCapability,
-});
-const reused = await PresentationFile.exportPptx(imported);
-if (reusedSlide.index !== 1 || (await PresentationFile.importPptx(reused)).slides.count !== 3) process.exit(22);
-const componentImported = await PresentationFile.importPptx(sourceBlob);
-const componentSlide = componentImported.reuseSourceComponent({ candidateId: candidate.candidateId, expectedCandidate: candidate });
-if (componentSlide.shapes.items.length !== 1) process.exit(23);
-const component = await PresentationFile.exportPptx(componentImported);
-if ((await PresentationFile.importPptx(component)).slides.items[1].shapes.items.length !== 1) process.exit(24);
-console.log(JSON.stringify({ candidateCount: records.length, status: candidate.status, sourceRevisionSha256: candidate.sourceRevisionSha256, reusedSlideCount: 3, componentSlideShapeCount: 1 }));
-`, "utf8");
-  const componentResult = JSON.parse(
-    runOfficeKit(["run", "component-candidates.mjs"], project).stdout,
-  );
-  assert.ok(componentResult.candidateCount >= 1);
-  assert.equal(componentResult.status, "inspect-only");
-  assert.match(componentResult.sourceRevisionSha256, /^[0-9a-f]{64}$/u);
-  assert.equal(componentResult.reusedSlideCount, 3);
-  assert.equal(componentResult.componentSlideShapeCount, 1);
+  const recovered = JSON.parse(runOfficeKit([
+    "ppj", "import", "standalone.pptx", "-o", "standalone-recovered.ppj", "--json",
+  ], project).stdout);
+  assert.equal(recovered.ok, true);
+  const recoveredProgram = JSON.parse(await fs.readFile(path.join(project, "standalone-recovered.ppj"), "utf8"));
+  assert.equal(recoveredProgram.pages[0]?.elements[0]?.id, "title");
+  assert.equal(recoveredProgram.pages[0]?.elements[0]?.text, "standalone PPTX");
 
   const dependencyProject = path.join(temporary, "task-local-dependency");
   const dependencyRoot = path.join(

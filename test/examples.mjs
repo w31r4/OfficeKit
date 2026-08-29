@@ -9,7 +9,6 @@ const outputDir = await fs.mkdtemp(path.join(os.tmpdir(), "office-kit-examples-"
 const examples = [
   "create-docx-report.mjs",
   "create-xlsx-dashboard.mjs",
-  "create-pptx-compose.mjs",
   "parse-render-pdf.mjs",
   "render-via-playwright.mjs",
   "render-via-native-office.mjs",
@@ -27,7 +26,6 @@ for (const example of examples) {
 const outputs = await fs.readdir(outputDir);
 assert.ok(outputs.includes("docx-report.docx"));
 assert.ok(outputs.includes("xlsx-dashboard.xlsx"));
-assert.ok(outputs.includes("pptx-compose.pptx"));
 assert.ok(outputs.includes("modeled-report.pdf"));
 assert.ok(outputs.includes("modeled-report.svg"));
 await fs.rm(outputDir, { recursive: true, force: true });

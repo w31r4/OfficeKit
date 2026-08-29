@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import {
   clearOfficeFontDesignMetrics,
   DocumentModel,
-  Presentation,
   registerScopedOfficeFontDesignMetrics,
   resolveOfficeFontDesignMetrics,
   setOfficeFontDesignMetrics,
   skiaPaintBaselineCompensationPx,
   Workbook,
 } from "office-kit";
+import { Presentation } from "../src/presentation/index.mjs";
 
 const metric = (family, weight, ascent, extra = {}) => ({
   family,
