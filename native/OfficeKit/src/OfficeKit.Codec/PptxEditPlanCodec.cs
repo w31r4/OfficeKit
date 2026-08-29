@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -293,6 +293,13 @@ internal static partial class PptxEditPlanCodec
                 var requested = ParseTextBodyColumnDirectionToken(operation.Value, operation);
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body column direction.");
+            }
+            if (leafKind == "textBodyVerticalText")
+            {
+                var expected = ParseTextBodyVerticalTextToken(operation.ExpectedValue, operation);
+                var requested = ParseTextBodyVerticalTextToken(operation.Value, operation);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body vertical text mode.");
             }
             if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
@@ -463,7 +470,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -616,6 +623,13 @@ internal static partial class PptxEditPlanCodec
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyColumnDirection target has the wrong native element type.", operation.SlidePartPath);
                 patches.Add(CompileTextBodyColumnDirectionXmlPatch(xml, range, proof));
+                continue;
+            }
+            if (leafKind == "textBodyVerticalText")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyVerticalText target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextBodyVerticalTextXmlPatch(xml, range, proof));
                 continue;
             }
             if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb")
@@ -1016,6 +1030,15 @@ internal static partial class PptxEditPlanCodec
             if (direction is not { } value)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body column direction.", operation.SlidePartPath);
             return value ? "1" : "0";
+        }
+        if (kind == "textBodyVerticalText")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyVerticalText target is not a shape.", operation.SlidePartPath);
+            var mode = TextBodyVerticalTextName(shape.TextBody?.BodyProperties?.Vertical?.Value);
+            if (mode.Length == 0)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body vertical text mode.", operation.SlidePartPath);
+            return mode;
         }
         if (kind == "fontSizePoints")
         {
@@ -1456,6 +1479,34 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextBodyVerticalTextXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var shapeRange = new XmlRange(0, elementXml.Length, "sp");
+        var txBody = DirectChildRange(elementXml, shapeRange, "sp", "txBody", operation);
+        var bodyPr = DirectChildRange(elementXml, txBody, "txBody", "bodyPr", operation);
+        var bodyPrXml = elementXml[bodyPr.Start..bodyPr.End];
+        var startTag = XmlTokenPattern().Matches(bodyPrXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == "bodyPr")
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} body properties tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "vert")
+            .ToArray();
+        if (attributes.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} text-body vertical text attribute is missing or ambiguous.", operation.SlidePartPath);
+        var valueGroup = attributes[0].Groups["value"];
+        var actual = TextBodyVerticalTextName(System.Net.WebUtility.HtmlDecode(valueGroup.Value));
+        if (actual.Length == 0 || actual != operation.ExpectedValue)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw text-body vertical text mode does not match the expected value.", operation.SlidePartPath);
+        var replacement = TextBodyVerticalTextToken(operation.Value);
+        var start = elementRange.Start + bodyPr.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static string TextBodyInsetAttribute(string leafKind) => leafKind switch
     {
         "textBodyInsetLeftEmu" => "lIns",
@@ -1483,6 +1534,30 @@ internal static partial class PptxEditPlanCodec
         "square" => "square",
         "none" => "none",
         _ => throw new CodecException("invalid_presentation_edit_target", $"Unsupported Presentation text-body wrap mode {value}."),
+    };
+
+    private static string TextBodyVerticalTextName(A.TextVerticalValues? value) => value is { } current && current == A.TextVerticalValues.Horizontal
+        ? "horizontal"
+        : value is { } vertical && vertical == A.TextVerticalValues.Vertical
+            ? "vertical"
+            : value is { } vertical270 && vertical270 == A.TextVerticalValues.Vertical270
+                ? "vertical270"
+                : string.Empty;
+
+    private static string TextBodyVerticalTextName(string value) => value switch
+    {
+        "horz" => "horizontal",
+        "vert" => "vertical",
+        "vert270" => "vertical270",
+        _ => string.Empty,
+    };
+
+    private static string TextBodyVerticalTextToken(string value) => value switch
+    {
+        "horizontal" => "horz",
+        "vertical" => "vert",
+        "vertical270" => "vert270",
+        _ => throw new CodecException("invalid_presentation_edit_target", $"Unsupported Presentation text-body vertical text mode {value}."),
     };
 
     private static string TextBodyAutoFitName(OpenXmlElement element) => element switch
@@ -1522,6 +1597,13 @@ internal static partial class PptxEditPlanCodec
     {
         if (value is not ("0" or "1"))
             throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} text-body column direction must use canonical 0 or 1.", operation.SlidePartPath);
+        return value;
+    }
+
+    private static string ParseTextBodyVerticalTextToken(string value, PresentationEditOperation operation)
+    {
+        if (value is not ("horizontal" or "vertical" or "vertical270"))
+            throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} text-body vertical text mode must be horizontal, vertical, or vertical270.", operation.SlidePartPath);
         return value;
     }
 

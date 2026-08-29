@@ -2368,7 +2368,9 @@ message PresentationTextBody {
 // percentages retain native thousandths-of-a-percent units and attribute
 // presence so omitted schema defaults are not materialized accidentally. A
 // direct canonical rtlCol token may likewise be exposed as a source-bound
-// textBodyColumnDirection leaf.
+// textBodyColumnDirection leaf. Supported direct vert values may be exposed
+// as a source-bound textBodyVerticalText leaf without materializing other
+// bodyPr defaults.
 message PresentationTextBodyProperties {
   oneof left_inset {
     int64 left_inset_emu = 1;

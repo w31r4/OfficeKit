@@ -76,6 +76,7 @@ const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
 ]);
 const PRESENTATION_TEXT_BODY_WRAPS = new Set(["square", "none"]);
 const PRESENTATION_TEXT_BODY_AUTOFITS = new Set(["none", "shrinkText", "resizeShape"]);
+const PRESENTATION_TEXT_BODY_VERTICAL_TEXT = new Set(["horizontal", "vertical", "vertical270"]);
 const MIN_TEXT_BODY_COLUMNS = 1;
 const MAX_TEXT_BODY_COLUMNS = 16;
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
@@ -4546,6 +4547,28 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 ...(model.text.bodyProperties || {}),
                 columns: { ...(model.text.bodyProperties?.columns || {}), rightToLeft: next === "1" },
               };
+            },
+          });
+        }
+        const verticalText = bodyProperties?.verticalText;
+        if (verticalText?.case === "verticalTextMode" && PRESENTATION_TEXT_BODY_VERTICAL_TEXT.has(String(verticalText.value))) {
+          const mode = String(verticalText.value);
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyVerticalText",
+            expectedValue: mode,
+            value: mode,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_TEXT_BODY_VERTICAL_TEXT.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyVerticalText native leaf requires horizontal, vertical, or vertical270.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === mode; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), verticalText: next };
             },
           });
         }
