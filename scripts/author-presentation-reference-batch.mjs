@@ -880,6 +880,9 @@ function makeCover(presentation, style) {
   if (style.family === "finance-ledger" && (style.darkPages || style.sourceRelative === "finance/black-gold-ledger")) {
     return makeFinanceCover(presentation, style);
   }
+  if (style.sourceRelative === "work/blue-flame-brand" && style.hasPhotoPool) {
+    return makeBlueFlameCover(presentation, style);
+  }
   if (style.family === "promotion-editorial" && (style.coverImage || style.bodyImage)) {
     return makeEditorialCover(presentation, style);
   }
@@ -907,6 +910,83 @@ function makeCover(presentation, style) {
   addText(slide, "cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 100, 768, 950, 24, { fontSize: 14, color: c.rule });
   addText(slide, "page-number", "1 / 6", 1400, 820, 100, 22, { fontSize: 14, color: c.rule, alignment: "right" });
   addAnchor(slide, style, 1180, 160);
+  return slide;
+}
+
+// Blue Flame's source grammar uses one documentary image as a wide evidence
+// band on the cover, not as a full-slide background.  Keep that boundary
+// explicit: the image is an editable cover asset, while the title, KPI row
+// and footer remain native text.  This also prevents the generic abstract
+// anchor from replacing the style's actual visual carrier.
+function makeBlueFlameCover(presentation, style) {
+  const slide = presentation.slides.add({ name: "Opening claim" });
+  const { palette: c } = style;
+  const field = c.paper || "#070A10";
+  const light = c.ink || "#F5F7FA";
+  addRect(slide, "blue-flame-cover-field", 0, 0, WIDTH, HEIGHT, field, {
+    fill: field,
+    line: { fill: field, width: 0 },
+  });
+  addLine(slide, "blue-flame-cover-top-rule", 96, 44, 1504, 44, c.accent, 3);
+  addText(slide, "blue-flame-cover-eyebrow", "WORK · OFFICEKIT CALIBRATION", 96, 66, 760, 22, {
+    fontSize: 14,
+    bold: true,
+    color: c.accent,
+  });
+  addText(slide, "cover-title", "Blue Flame Operations: a claim worth testing", 96, 106, 1120, 64, {
+    fontSize: 38,
+    bold: true,
+    color: light,
+  });
+  addText(slide, "blue-flame-cover-basis", "A late-night operating review turns signal into a bounded next move.", 100, 174, 920, 26, {
+    fontSize: 17,
+    color: c.rule,
+  });
+  const kpis = [
+    ["3.26m", "orders observed", c.accent],
+    ["31m", "avg. handoff", light],
+    ["5.1m", "cost variance", c.accent],
+  ];
+  kpis.forEach(([value, label, color], index) => {
+    const x = 100 + index * 270;
+    addText(slide, `blue-flame-kpi-value-${index}`, value, x, 218, 210, 38, {
+      fontSize: 28,
+      bold: true,
+      color,
+    });
+    addText(slide, `blue-flame-kpi-label-${index}`, label, x, 258, 210, 20, {
+      fontSize: 13,
+      color: c.rule,
+    });
+    if (index < kpis.length - 1) addLine(slide, `blue-flame-kpi-rule-${index}`, x + 232, 214, x + 232, 278, c.rule, 1);
+  });
+  const image = imageProps(style, "cover");
+  slide.images.add({
+    name: "blue-flame-cover-photo",
+    ...image,
+    position: { left: 96, top: 326, width: 1408, height: 218 },
+    fit: "cover",
+    accessibility: { description: "Documentary operating scene used as the cover evidence band" },
+  });
+  addRect(slide, "blue-flame-photo-frame", 96, 326, 1408, 218, c.accent, {
+    fill: "transparent",
+    line: { fill: c.accent, width: 1 },
+  });
+  addLine(slide, "blue-flame-cover-footer-rule", 96, 688, 1504, 688, c.rule, 1);
+  addText(slide, "blue-flame-cover-thesis", "A visible operating signal creates a shared next action.", 96, 714, 1060, 30, {
+    fontSize: 21,
+    bold: true,
+    color: light,
+  });
+  addText(slide, "blue-flame-cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 96, 822, 1150, 22, {
+    fontSize: 14,
+    color: c.rule,
+  });
+  addText(slide, "blue-flame-cover-page-number", "1 / 6", 1400, 822, 100, 22, {
+    fontSize: 14,
+    color: c.rule,
+    alignment: "right",
+  });
   return slide;
 }
 

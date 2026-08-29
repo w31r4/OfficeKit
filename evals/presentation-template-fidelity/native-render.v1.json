@@ -87,21 +87,21 @@
     },
     {
       "id": "artifact-template-blue-flame-operations",
-      "referenceSha256": "8b53924bd1394d6966cf2e1da81b3ebf61a36cd7e1f0cea5c48224c39ad6669a",
+      "referenceSha256": "6daa7a55a61afd2641cd6bd29f12f7b2a708ebc757023bbd46a066724f0bdbba",
       "mediaCount": 1,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 315042,
-      "pdfSha256": "57fc11271a204bea7d9a2dbc7c153ee4575db21280d96918a8c839d8f02a5095",
+      "pdfBytes": 304323,
+      "pdfSha256": "f83b0b610b0a1bbba288a33bc4272e768f3a95d6ac362e8f0933d75d2bf2df0e",
       "firstPageRendered": true,
-      "firstPageSha256": "087ea993d7c5a0606fac507214f0d993e408e9c46030d0421a5b55f92614ee66",
+      "firstPageSha256": "9d6c1524a2f7c1a99cb56d8bb607c30884123d01eb2564af12dea261b8cbf6e0",
       "pageSha256": [
-        "087ea993d7c5a0606fac507214f0d993e408e9c46030d0421a5b55f92614ee66",
-        "e7a92146c095d872658a74309e6bdde302a887d8bbdf6a143a74cd0f32c76f12",
-        "4f2dc801001fe0f7323adc1ae14fffa823b96ff5695c8197bf94ee95c54e9cdb",
-        "7507598e0c4d985509ddcbfbf8f109e981c05b5644cdc7c027af685a2a333d85",
-        "b451635b4bdc4b8685defe3fd99fa67bd67d8ed1023123eaa6ad85c6997a8843",
-        "9a617fd2dfebd6a87f04041212a49eb656496a711d865afe32eef4f84202bfb5"
+        "9d6c1524a2f7c1a99cb56d8bb607c30884123d01eb2564af12dea261b8cbf6e0",
+        "2cae89d1b4c9b293690e177f7cc6249b2f24819d417eb0d4496c28f7584216f8",
+        "3a6c451a79c138939bbc314d538599d3e1b72c317ffc22cc597d6fa7ced284fd",
+        "b1bf046ce29bac79c6dff48d0d74d6434f74e81b4a80caf95c3c76f95895c0c5",
+        "f861109315c235f2f6e7f468aaab0f32227476716f896c821f301a0b6ce1e948",
+        "2c010d955569d067f1b397b68570de4588e3a8e1dff80b9bf0d2e78b9e1cee21"
       ],
       "allPagesRendered": true
     },
