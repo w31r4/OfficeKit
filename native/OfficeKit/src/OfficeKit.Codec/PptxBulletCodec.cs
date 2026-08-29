@@ -71,6 +71,8 @@ internal static class PptxBulletCodec
     internal static bool HasModeledBullet(PresentationTextParagraph paragraph) =>
         paragraph.BulletCase != PresentationTextParagraph.BulletOneofCase.None;
 
+    internal static bool IsAutoNumberScheme(string value) => AutoNumberSchemes.Contains(value);
+
     internal static void Append(A.TextParagraphPropertiesType target, PresentationTextParagraph source, PptxPartContext? context)
     {
         if (!HasModeledBullet(source)) return;

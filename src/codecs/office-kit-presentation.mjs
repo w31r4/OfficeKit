@@ -4699,6 +4699,64 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 });
               }
             }
+            if (bullet?.case === "autoNumber") {
+              const scheme = String(bullet.value?.scheme ?? "");
+              if (isPresentationAutoNumberType(scheme)) {
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletAutoNumberScheme",
+                  expectedValue: scheme,
+                  value: scheme,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "").trim();
+                    if (!isPresentationAutoNumberType(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletAutoNumberScheme native leaf requires a supported auto-number scheme.");
+                    }
+                    return { raw: normalized, publicValue: normalized };
+                  },
+                  isNoop(next) { return next === scheme; },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation auto-number scheme native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.autoNumber = { ...(target.autoNumber || {}), type: next };
+                  },
+                });
+              }
+              const startAt = Number(bullet.value?.startAt);
+              if (Number.isInteger(startAt) && startAt >= 1 && startAt <= 32767) {
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletAutoNumberStartAt",
+                  expectedValue: String(startAt),
+                  value: startAt,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "").trim();
+                    if (!/^[1-9][0-9]{0,4}$/u.test(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletAutoNumberStartAt native leaf requires an integer from 1 through 32767.");
+                    }
+                    const candidate = Number(normalized);
+                    if (candidate < 1 || candidate > 32767) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletAutoNumberStartAt native leaf requires an integer from 1 through 32767.");
+                    }
+                    return { raw: normalized, publicValue: candidate };
+                  },
+                  isNoop(next) { return next === String(startAt); },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation auto-number start native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.autoNumber = { ...(target.autoNumber || {}), startAt: Number(next) };
+                  },
+                });
+              }
+            }
             const paragraphLevel = Number(paragraph.level);
             // The scalar wire field cannot distinguish an omitted level from
             // an explicit lvl="0".  Issue a source-bound leaf only for

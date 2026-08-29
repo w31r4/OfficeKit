@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -319,6 +319,20 @@ internal static partial class PptxEditPlanCodec
             {
                 if (!TryBulletCharacter(operation.ExpectedValue) || !TryBulletCharacter(operation.Value) || operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} paragraphBulletCharacter must change one Unicode scalar value.");
+            }
+            if (leafKind == "paragraphBulletAutoNumberScheme")
+            {
+                if (!PptxBulletCodec.IsAutoNumberScheme(operation.ExpectedValue) ||
+                    !PptxBulletCodec.IsAutoNumberScheme(operation.Value) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} paragraphBulletAutoNumberScheme must change a supported auto-number scheme.");
+            }
+            if (leafKind == "paragraphBulletAutoNumberStartAt")
+            {
+                var expected = ParseParagraphAutoNumberStartAtToken(operation.ExpectedValue, operation);
+                var requested = ParseParagraphAutoNumberStartAtToken(operation.Value, operation);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its auto-number start.");
             }
             if (leafKind == "paragraphLevel")
             {
@@ -544,7 +558,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                  ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -683,6 +697,13 @@ internal static partial class PptxEditPlanCodec
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} paragraphLevel target has the wrong native element type.", operation.SlidePartPath);
                 patches.Add(CompileTextParagraphLevelXmlPatch(xml, range, proof));
+                continue;
+            }
+            if (leafKind is "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextParagraphAutoNumberXmlPatch(xml, range, proof));
                 continue;
             }
             if (leafKind == "verticalAnchor")
@@ -1161,6 +1182,21 @@ internal static partial class PptxEditPlanCodec
             if (bullets.Length != 1 || !TryReadBulletCharacter(bullets[0], out var character))
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct character bullet.", operation.SlidePartPath);
             return character;
+        }
+        if (kind is "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
+            var paragraphs = shape.Descendants<A.Paragraph>().ToArray();
+            if (operation.NativeLeafIndex >= (uint)paragraphs.Length)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph auto-number index is out of range.", operation.SlidePartPath);
+            var paragraphProperties = paragraphs[operation.NativeLeafIndex].ParagraphProperties;
+            var autoNumbers = paragraphProperties?.ChildElements.OfType<A.AutoNumberedBullet>().ToArray() ?? [];
+            if (autoNumbers.Length != 1 || !TryReadAutoNumber(autoNumbers[0], out var scheme, out var startAt))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct auto-number marker.", operation.SlidePartPath);
+            return kind == "paragraphBulletAutoNumberScheme"
+                ? scheme
+                : startAt ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no explicit auto-number start.", operation.SlidePartPath);
         }
         if (kind == "paragraphLevel")
         {
@@ -1742,6 +1778,67 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextParagraphAutoNumberXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var paragraphs = ShapeElementRanges(elementXml, "txBody")
+            .Where(range => range.LocalName == "p")
+            .ToArray();
+        if (operation.NativeLeafIndex >= (uint)paragraphs.Length)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph auto-number index is out of range.", operation.SlidePartPath);
+        var paragraph = paragraphs[operation.NativeLeafIndex];
+        var pPr = DirectChildRange(elementXml, paragraph, "p", "pPr", operation);
+        var markers = DirectChildRanges(elementXml, pPr)
+            .Where(range => range.LocalName == "buAutoNum")
+            .ToArray();
+        if (markers.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct buAutoNum child under pPr.", operation.SlidePartPath);
+        var marker = markers[0];
+        var markerXml = elementXml[marker.Start..marker.End];
+        var startTag = XmlTokenPattern().Matches(markerXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == "buAutoNum")
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} auto-number tag was not found.", operation.SlidePartPath);
+        if (!startTag.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) || DirectChildRanges(markerXml, new XmlRange(0, markerXml.Length, "buAutoNum")).Count != 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires a bare self-closing buAutoNum element.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>().ToArray();
+        var invalidAttribute = attributes.Any(attribute => LocalAttributeName(attribute.Groups["name"].Value) is not ("type" or "startAt"));
+        var typeAttributes = attributes.Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "type").ToArray();
+        var startAttributes = attributes.Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "startAt").ToArray();
+        if (invalidAttribute || typeAttributes.Length != 1 || startAttributes.Length > 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} auto-number attributes are missing or ambiguous.", operation.SlidePartPath);
+        var typeValue = System.Net.WebUtility.HtmlDecode(typeAttributes[0].Groups["value"].Value);
+        if (!PptxBulletCodec.IsAutoNumberScheme(typeValue))
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no supported auto-number scheme.", operation.SlidePartPath);
+        var kind = LeafKind(operation);
+        Match selected;
+        string expected;
+        string replacement;
+        if (kind == "paragraphBulletAutoNumberScheme")
+        {
+            selected = typeAttributes[0];
+            expected = operation.ExpectedValue;
+            replacement = operation.Value;
+            if (!PptxBulletCodec.IsAutoNumberScheme(expected) || !PptxBulletCodec.IsAutoNumberScheme(replacement) || !typeValue.Equals(expected, StringComparison.Ordinal))
+                throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw auto-number scheme does not match the expected value.", operation.SlidePartPath);
+        }
+        else
+        {
+            selected = startAttributes.FirstOrDefault() ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no explicit auto-number start.", operation.SlidePartPath);
+            expected = ParseParagraphAutoNumberStartAtToken(operation.ExpectedValue, operation).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            replacement = ParseParagraphAutoNumberStartAtToken(operation.Value, operation).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var actual = ParseParagraphAutoNumberStartAtToken(System.Net.WebUtility.HtmlDecode(selected.Groups["value"].Value), operation);
+            if (actual.ToString(System.Globalization.CultureInfo.InvariantCulture) != expected)
+                throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw auto-number start does not match the expected value.", operation.SlidePartPath);
+        }
+        var valueGroup = selected.Groups["value"];
+        var start = elementRange.Start + marker.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, EscapeXmlAttribute(replacement), proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static PptxXmlPatch CompileTextParagraphLevelXmlPatch(
         string xml,
         XmlRange elementRange,
@@ -2121,6 +2218,19 @@ internal static partial class PptxEditPlanCodec
             attributes[0].LocalName == "char" && TryBulletCharacter(value);
     }
 
+    private static bool TryReadAutoNumber(A.AutoNumberedBullet source, out string scheme, out string? startAt)
+    {
+        scheme = source.Type?.InnerText ?? string.Empty;
+        startAt = source.StartAt?.Value is { } start ? start.ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+        var attributes = source.GetAttributes();
+        var validAttributes = attributes.All(attribute => attribute.LocalName is "type" or "startAt") &&
+            attributes.Count(attribute => attribute.LocalName == "type") == 1 &&
+            attributes.Count(attribute => attribute.LocalName == "startAt") <= 1;
+        return source.ChildElements.Count == 0 && validAttributes &&
+            PptxBulletCodec.IsAutoNumberScheme(scheme) &&
+            (startAt is null || ParseParagraphAutoNumberStartAtToken(startAt, null) > 0);
+    }
+
     private static bool TryBulletCharacter(string? value) =>
         !string.IsNullOrEmpty(value) &&
         value.EnumerateRunes().Count() == 1 &&
@@ -2131,6 +2241,14 @@ internal static partial class PptxEditPlanCodec
         if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
             parsed is < 0 or > 8 || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
             throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} paragraphLevel must use a canonical integer from 0 through 8.", operation.SlidePartPath);
+        return parsed;
+    }
+
+    private static int ParseParagraphAutoNumberStartAtToken(string value, PresentationEditOperation? operation)
+    {
+        if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
+            parsed is < 1 or > 32_767 || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
+            throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation?.OperationId ?? "(probe)"} auto-number start must be a canonical integer from 1 through 32767.", operation?.SlidePartPath);
         return parsed;
     }
 
