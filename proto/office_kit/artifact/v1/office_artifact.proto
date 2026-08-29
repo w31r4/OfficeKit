@@ -2362,7 +2362,9 @@ message PresentationTextBody {
 // explicit no_* choice removes only the modeled attribute or AutoFit child.
 // Insets and column spacing use DrawingML EMUs; rotation retains native
 // 1/60000-degree units. WordArt vertical modes, paragraph compatibility flags,
-// warp/3D and noncanonical AutoFit markup remain source-bound. Normal AutoFit
+// warp/3D and noncanonical AutoFit markup remain source-bound. Direct bare
+// noAutofit, normAutofit, and spAutoFit children may be exposed as a
+// source-bound textBodyAutoFit leaf. Normal AutoFit
 // percentages retain native thousandths-of-a-percent units and attribute
 // presence so omitted schema defaults are not materialized accidentally.
 message PresentationTextBodyProperties {

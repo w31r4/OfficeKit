@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -279,6 +279,13 @@ internal static partial class PptxEditPlanCodec
                 var requested = ParseTextBodyColumnCountToken(operation.Value, operation);
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body column count.");
+            }
+            if (leafKind == "textBodyAutoFit")
+            {
+                var expected = ParseTextBodyAutoFitToken(operation.ExpectedValue, operation);
+                var requested = ParseTextBodyAutoFitToken(operation.Value, operation);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its text-body AutoFit mode.");
             }
             if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
@@ -449,7 +456,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -588,6 +595,13 @@ internal static partial class PptxEditPlanCodec
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyColumnCount target has the wrong native element type.", operation.SlidePartPath);
                 patches.Add(CompileTextBodyColumnCountXmlPatch(xml, range, proof));
+                continue;
+            }
+            if (leafKind == "textBodyAutoFit")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyAutoFit target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextBodyAutoFitXmlPatch(xml, range, proof));
                 continue;
             }
             if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb")
@@ -966,6 +980,20 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body column count.", operation.SlidePartPath);
             return boundedCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        if (kind == "textBodyAutoFit")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyAutoFit target is not a shape.", operation.SlidePartPath);
+            var choices = shape.TextBody?.BodyProperties?.ChildElements
+                .Where(child => child is A.NoAutoFit or A.NormalAutoFit or A.ShapeAutoFit)
+                .ToArray() ?? [];
+            if (choices.Length != 1 || !IsBareAutoFitChoice(choices[0]))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body AutoFit mode.", operation.SlidePartPath);
+            var mode = TextBodyAutoFitName(choices[0]);
+            if (mode.Length == 0)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body AutoFit mode.", operation.SlidePartPath);
+            return mode;
+        }
         if (kind == "fontSizePoints")
         {
             if (element is not P.Shape shape)
@@ -1342,6 +1370,41 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextBodyAutoFitXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var shapeRange = new XmlRange(0, elementXml.Length, "sp");
+        var txBody = DirectChildRange(elementXml, shapeRange, "sp", "txBody", operation);
+        var bodyPr = DirectChildRange(elementXml, txBody, "txBody", "bodyPr", operation);
+        var choices = DirectChildRanges(elementXml, bodyPr)
+            .Where(child => child.LocalName is "noAutofit" or "normAutofit" or "spAutoFit")
+            .ToArray();
+        if (choices.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct canonical AutoFit child.", operation.SlidePartPath);
+        var choice = choices[0];
+        var choiceXml = elementXml[choice.Start..choice.End];
+        var startTag = XmlTokenPattern().Matches(choiceXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == choice.LocalName)
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} AutoFit child tag was not found.", operation.SlidePartPath);
+        if (!startTag.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) || DirectChildRanges(choiceXml, new XmlRange(0, choiceXml.Length, choice.LocalName)).Count != 0 ||
+            XmlAttributePattern().Matches(startTag.Value).Count != 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires a bare self-closing AutoFit child.", operation.SlidePartPath);
+        var actual = TextBodyAutoFitName(choice.LocalName);
+        if (actual.Length == 0 || actual != operation.ExpectedValue)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw text-body AutoFit mode does not match the expected value.", operation.SlidePartPath);
+        var replacement = TextBodyAutoFitElementName(operation.Value);
+        var localMarker = $":{choice.LocalName}";
+        var localMarkerIndex = startTag.Value.IndexOf(localMarker, StringComparison.Ordinal);
+        if (localMarkerIndex < 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} AutoFit child has no bounded namespace-qualified local name.", operation.SlidePartPath);
+        var start = elementRange.Start + choice.Start + startTag.Index + localMarkerIndex + 1;
+        return new PptxXmlPatch(operation, start, start + choice.LocalName.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static string TextBodyInsetAttribute(string leafKind) => leafKind switch
     {
         "textBodyInsetLeftEmu" => "lIns",
@@ -1370,6 +1433,39 @@ internal static partial class PptxEditPlanCodec
         "none" => "none",
         _ => throw new CodecException("invalid_presentation_edit_target", $"Unsupported Presentation text-body wrap mode {value}."),
     };
+
+    private static string TextBodyAutoFitName(OpenXmlElement element) => element switch
+    {
+        A.NoAutoFit => "none",
+        A.NormalAutoFit => "shrinkText",
+        A.ShapeAutoFit => "resizeShape",
+        _ => string.Empty,
+    };
+
+    private static string TextBodyAutoFitName(string elementLocalName) => elementLocalName switch
+    {
+        "noAutofit" => "none",
+        "normAutofit" => "shrinkText",
+        "spAutoFit" => "resizeShape",
+        _ => string.Empty,
+    };
+
+    private static string TextBodyAutoFitElementName(string value) => value switch
+    {
+        "none" => "noAutofit",
+        "shrinkText" => "normAutofit",
+        "resizeShape" => "spAutoFit",
+        _ => throw new CodecException("invalid_presentation_edit_target", $"Unsupported Presentation text-body AutoFit mode {value}."),
+    };
+
+    private static bool IsBareAutoFitChoice(OpenXmlElement element) => element.GetAttributes().Count == 0 && element.ChildElements.Count == 0;
+
+    private static string ParseTextBodyAutoFitToken(string value, PresentationEditOperation operation)
+    {
+        if (value is not ("none" or "shrinkText" or "resizeShape"))
+            throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} text-body AutoFit mode must be none, shrinkText, or resizeShape.", operation.SlidePartPath);
+        return value;
+    }
 
     private static int ParseTextBodyColumnCountToken(string value, PresentationEditOperation operation)
     {

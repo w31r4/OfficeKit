@@ -75,6 +75,7 @@ const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
   Object.freeze(["bottom", "textBodyInsetBottomEmu", "bottomInset"]),
 ]);
 const PRESENTATION_TEXT_BODY_WRAPS = new Set(["square", "none"]);
+const PRESENTATION_TEXT_BODY_AUTOFITS = new Set(["none", "shrinkText", "resizeShape"]);
 const MIN_TEXT_BODY_COLUMNS = 1;
 const MAX_TEXT_BODY_COLUMNS = 16;
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
@@ -4499,6 +4500,30 @@ function createPresentationNativeLeafCapability(presentation, state) {
               },
             });
           }
+        }
+        const autoFit = bodyProperties?.autoFit;
+        const normalAutoFit = bodyProperties?.normalAutoFit;
+        const hasNormalAutoFitSettings = normalAutoFit && Object.keys(normalAutoFit).length > 0;
+        if (autoFit?.case === "autoFitMode" && PRESENTATION_TEXT_BODY_AUTOFITS.has(String(autoFit.value)) && !hasNormalAutoFitSettings) {
+          const raw = String(autoFit.value);
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyAutoFit",
+            expectedValue: raw,
+            value: raw,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_TEXT_BODY_AUTOFITS.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyAutoFit native leaf requires none, shrinkText, or resizeShape.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === raw; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), autoFit: next };
+            },
+          });
         }
         const anchor = model.text.bodyProperties?.anchor;
         if (PRESENTATION_VERTICAL_ANCHORS.has(anchor)) {
