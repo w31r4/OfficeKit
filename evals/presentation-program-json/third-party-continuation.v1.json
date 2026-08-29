@@ -1,0 +1,89 @@
+{
+  "schema": "office-kit/ppj-third-party-continuation/v1",
+  "recordedAt": "2026-08-30",
+  "source": {
+    "name": "b34ddad8cf8b_012_算秩未来2026_0127_极致技术&长期主义.pptx",
+    "sha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+    "bytes": 6114228,
+    "pages": 21,
+    "parts": 595,
+    "relationshipParts": 82,
+    "relationships": 660,
+    "projectedTopLevelObjects": 538,
+    "projectedVisibleObjects": 731,
+    "materializedAssets": 22,
+    "opaquePartsAndRelationshipsRetained": 1115,
+    "projectedProgramSha256": "123caaa5eac5f5a369397a20ce6820ba99fb759c0cf4dfeead594dcb3c5cd1c1"
+  },
+  "noOp": {
+    "outputSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+    "byteEqual": true,
+    "changedParts": [],
+    "changedNodeIds": []
+  },
+  "typedEdit": {
+    "pageId": "page-presentation-slide-1",
+    "targetId": "page-presentation-slide-1-presentation-slide-1-element-1",
+    "type": "placeholder",
+    "before": "极致技术，长期主义",
+    "after": "极致技术，久久为功",
+    "outputSha256": "f8784bddb78926db03c16365cf40b9e0ef32bceab3eee9cd5ac32a45f34ef414",
+    "changedParts": [
+      "ppt/slides/slide1.xml"
+    ],
+    "partSetEqual": true,
+    "nonTargetPartsByteEqual": true,
+    "relationshipsByteEqual": true,
+    "targetXmlEqualAfterDeclaredTextMask": true,
+    "secondImportStableId": true,
+    "secondImportValueEqual": true,
+    "targetPageRenderBeforeSha256": "e4eb3d95a24235f22616bf2539dd4fa5708900a907a51ffbc1ba1040b0bde970",
+    "targetPageRenderAfterSha256": "4dd7b6cb4262e9f5477938003cc041d04bd730da762cc469b969f09ab6a8eb86",
+    "nonTargetPageRenderByteEqual": true,
+    "nonTargetPageRenderSha256": "a2280216a1ff2abc8ff7d2273cfa756534a326c1fa5275c5637fed238e5a2597",
+    "humanVisualReview": "passed"
+  },
+  "nativeRefEdit": {
+    "pageId": "page-presentation-slide-10",
+    "targetId": "page-presentation-slide-10-presentation-slide-10-element-33",
+    "type": "opaque",
+    "before": [
+      "训练",
+      "微调",
+      "推理"
+    ],
+    "after": [
+      "模型训练",
+      "高效微调",
+      "在线推理"
+    ],
+    "outputSha256": "a55cf31e0759422c1a00b2772abfdb1e164d4b549debac6830bd420afc0b8a32",
+    "changedParts": [
+      "ppt/slides/slide10.xml"
+    ],
+    "partSetEqual": true,
+    "nonTargetPartsByteEqual": true,
+    "relationshipsByteEqual": true,
+    "targetXmlEqualAfterDeclaredTextMask": true,
+    "secondImportStableId": true,
+    "secondImportValueEqual": true,
+    "targetPageRenderBeforeSha256": "5b1d51beb72bc5b27502a2e8ae5bb1d40f4757ce461abec17ad1c603f5c08f44",
+    "targetPageRenderAfterSha256": "9008ce6fc19e0ef7e773d2eb507c01ae1d74144b596e3c7e5f90604a72193521",
+    "nonTargetPageRenderByteEqual": true,
+    "nonTargetPageRenderSha256": "a2280216a1ff2abc8ff7d2273cfa756534a326c1fa5275c5637fed238e5a2597",
+    "humanVisualReview": "passed"
+  },
+  "reviewIntervention": {
+    "initialTypedValue": "极致技术，坚持长期主义",
+    "result": "rejected",
+    "reason": "The longer title wrapped into the subtitle region despite a structurally valid and package-safe edit.",
+    "correction": "The final edit uses an equal-width claim and was rendered again before acceptance."
+  },
+  "validation": {
+    "secondImport": "passed",
+    "renderer": "libreoffice-poppler",
+    "preExistingOffice2021Warnings": 10,
+    "introducedOffice2021Warnings": 0,
+    "windowsPowerPoint": "unverified"
+  }
+}
