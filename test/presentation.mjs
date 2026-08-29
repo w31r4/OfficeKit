@@ -116,6 +116,10 @@ function paragraphAlignmentToken(value) {
   return ({ left: "l", center: "ctr", right: "r", justify: "just" })[value] || value;
 }
 
+function verticalAnchorToken(value) {
+  return ({ top: "t", center: "ctr", bottom: "b" })[value] || value;
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -131,8 +135,16 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
     const sourceStart = Number(item.footprint.sourceStartOffset);
     const sourceEnd = Number(item.footprint.sourceEndOffset);
     const outputEnd = Number(item.footprint.outputEndOffset);
-    const expectedValue = item.leafKind === "paragraphAlignment" ? paragraphAlignmentToken(item.expectedValue) : String(item.expectedValue);
-    const replacementValue = item.leafKind === "paragraphAlignment" ? paragraphAlignmentToken(item.value) : String(item.value);
+    const expectedValue = item.leafKind === "paragraphAlignment"
+      ? paragraphAlignmentToken(item.expectedValue)
+      : item.leafKind === "verticalAnchor"
+        ? verticalAnchorToken(item.expectedValue)
+        : String(item.expectedValue);
+    const replacementValue = item.leafKind === "paragraphAlignment"
+      ? paragraphAlignmentToken(item.value)
+      : item.leafKind === "verticalAnchor"
+        ? verticalAnchorToken(item.value)
+        : String(item.value);
     const expected = Buffer.from(expectedValue, "utf8");
     const replacement = Buffer.from(replacementValue, "utf8");
     const textLike = item.leafKind === "text" || item.leafKind === "tableCellText";
@@ -878,8 +890,12 @@ const paragraphAlignmentAccessibilityZip = await JSZip.loadAsync(shapeAccessibil
 const paragraphAlignmentAccessibilityXml = irregularShapeAccessibilityXml.replace(
   /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:p\b[^>]*>)(<a:r>)/u,
   '$1<a:pPr algn="ctr"/>$2',
+).replace(
+  /(<a:bodyPr\b[^>]*\banchor=")([^"]*)(")/u,
+  '$1ctr$3',
 );
 assert.match(paragraphAlignmentAccessibilityXml, /<a:pPr algn="ctr"\s*\/>/);
+assert.match(paragraphAlignmentAccessibilityXml, /<a:bodyPr\b[^>]*\banchor="ctr"/);
 paragraphAlignmentAccessibilityZip.file("ppt/slides/slide1.xml", paragraphAlignmentAccessibilityXml);
 const paragraphAlignmentAccessibilityFile = new FileBlob(
   await paragraphAlignmentAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
@@ -913,6 +929,35 @@ const paragraphAlignmentRoundTripLeaf = paragraphAlignmentRoundTrip.inspect({ in
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "paragraphAlignment");
 assert.equal(paragraphAlignmentRoundTripLeaf.value, "right");
+
+const verticalAnchorImported = await PresentationFile.importPptx(paragraphAlignmentAccessibilityFile);
+const verticalAnchorShape = itemByName(verticalAnchorImported.slides.getItem(0).shapes.items, "decision-status");
+const verticalAnchorLeaf = verticalAnchorImported.inspect({ includeNativeLeaves: true, target: verticalAnchorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "verticalAnchor");
+assert.ok(verticalAnchorLeaf, "source-bound shapes should expose a direct text vertical-anchor leaf");
+assert.equal(verticalAnchorLeaf.value, "center");
+verticalAnchorImported.editNativeLeaf(verticalAnchorLeaf.targetId, verticalAnchorLeaf.leafId, {
+  expectedHash: verticalAnchorLeaf.expectedHash,
+  value: "bottom",
+});
+const verticalAnchorOutput = await PresentationFile.exportPptx(verticalAnchorImported);
+const verticalAnchorOperation = verticalAnchorOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "verticalAnchor");
+assert.ok(verticalAnchorOperation);
+await assertOnlyDeclaredPptxFootprintChanged(paragraphAlignmentAccessibilityFile, verticalAnchorOutput, verticalAnchorOperation);
+const verticalAnchorXml = await (await JSZip.loadAsync(verticalAnchorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(verticalAnchorXml, /<a:bodyPr\b[^>]*\banchor="b"/);
+assert.match(verticalAnchorXml, /fixture:opaque="kept"/);
+const verticalAnchorRoundTrip = await PresentationFile.importPptx(verticalAnchorOutput);
+const verticalAnchorRoundTripLeaf = verticalAnchorRoundTrip.inspect({ includeNativeLeaves: true, target: verticalAnchorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "verticalAnchor");
+assert.equal(verticalAnchorRoundTripLeaf.value, "bottom");
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
@@ -3530,7 +3575,7 @@ const groupedScalarLeaves = groupedColorLeafImported.inspect({ includeNativeLeav
   .filter(Boolean)
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
-assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "fillRgb", "lineRgb", "lineWidthEmu"]));
+assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "verticalAnchor", "fillRgb", "lineRgb", "lineWidthEmu"]));
 const groupedFillLeaf = groupedScalarLeaves.find((record) => record.leafKind === "fillRgb");
 assert.ok(groupedFillLeaf);
 assert.equal(groupedFillLeaf.value, "#dbeafe");

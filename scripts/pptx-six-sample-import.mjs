@@ -100,6 +100,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeFontColor = await verifyNativeFontColorEdit(bytes);
     const nativeFontDecoration = await verifyNativeFontDecorationEdit(bytes);
     const nativeParagraphAlignment = await verifyNativeParagraphAlignmentEdit(bytes);
+    const nativeVerticalAnchor = await verifyNativeVerticalAnchorEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -140,6 +141,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFontColor,
       nativeFontDecoration,
       nativeParagraphAlignment,
+      nativeVerticalAnchor,
       svgStyle,
       animatedText,
       tableCell,
@@ -179,6 +181,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFontColorEdits: results.filter((result) => result.nativeFontColor.status === "passed").length,
       nativeFontDecorationEdits: results.filter((result) => result.nativeFontDecoration.status === "passed").length,
       nativeParagraphAlignmentEdits: results.filter((result) => result.nativeParagraphAlignment.status === "passed").length,
+      nativeVerticalAnchorEdits: results.filter((result) => result.nativeVerticalAnchor.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -483,6 +486,28 @@ async function verifyNativeParagraphAlignmentEdit(bytes) {
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
     throw new Error(`Native paragraph-alignment edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeVerticalAnchorEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "verticalAnchor");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body vertical-anchor leaf was discovered" };
+  const value = target.value === "top" ? "center" : "top";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "verticalAnchor" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native vertical-anchor edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native vertical-anchor edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
 }
