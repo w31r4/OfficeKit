@@ -1,0 +1,967 @@
+{
+  "schema": "office-kit/ppj/v1",
+  "meta": {
+    "id": "evidence-ledger-canonical",
+    "title": "Signal Integrity Pilot",
+    "language": "en-US",
+    "version": 1,
+    "description": "Canonical PPJ fixture for schema, rich text, z-order, data graphics, and finite component expansion."
+  },
+  "intent": {
+    "brief": {
+      "primaryJob": "decide",
+      "supportingJobs": [
+        "explain"
+      ],
+      "purpose": "Decide whether a bounded reliability pilot should proceed.",
+      "expectedOutcome": "The review board can accept, revise, or reject the pilot using explicit evidence gates.",
+      "durationMinutes": 8,
+      "evidenceBoundary": "All values in this fixture are illustrative and explicitly labelled as such.",
+      "constraints": [
+        "Keep the evidence relationship visible.",
+        "Do not hide chart labels behind marks."
+      ]
+    },
+    "audience": {
+      "description": "Technical review board with operational and statistical literacy.",
+      "knowledgeLevel": "expert",
+      "decisionRole": "Approve the next bounded pilot.",
+      "needs": [
+        "A falsifiable claim",
+        "A readable effect estimate",
+        "A clear decision gate"
+      ]
+    },
+    "narrative": {
+      "thesis": "A short controlled pilot can reduce incident hours without weakening protected workload.",
+      "arc": [
+        {
+          "id": "arc-claim",
+          "purpose": "State the claim and measurement boundary.",
+          "claim": "The intervention reduces incident hours while workload rises."
+        },
+        {
+          "id": "arc-decision",
+          "purpose": "Expose the measured result and decision rule.",
+          "claim": "Proceed only if the confidence interval clears the preset gate."
+        }
+      ]
+    },
+    "editorial": {
+      "tone": [
+        "precise",
+        "evidence-led"
+      ],
+      "titleMode": "conclusion",
+      "lockedFacts": [
+        "Illustrative values must remain labelled illustrative."
+      ],
+      "avoid": [
+        "decorative cards",
+        "unsupported causality"
+      ],
+      "sourceStyle": "footnote"
+    },
+    "delivery": {
+      "mode": "hybrid",
+      "afterUse": "Decision record and pilot handoff.",
+      "mediumFit": "strong"
+    }
+  },
+  "design": {
+    "canvas": {
+      "width": 960,
+      "height": 540,
+      "unit": "pt"
+    },
+    "theme": {
+      "name": "Evidence Ledger",
+      "colors": [
+        {
+          "id": "paper",
+          "value": "#F7F4EC",
+          "role": "primary surface"
+        },
+        {
+          "id": "ink",
+          "value": "#17324D",
+          "role": "primary text and structure"
+        },
+        {
+          "id": "signal",
+          "value": "#0B8F8F",
+          "role": "measured signal"
+        },
+        {
+          "id": "decision",
+          "value": "#D9A514",
+          "role": "decision emphasis"
+        },
+        {
+          "id": "muted",
+          "value": "#C9CDD1",
+          "role": "baseline evidence"
+        }
+      ]
+    },
+    "fonts": [
+      {
+        "id": "sans",
+        "family": "Arial",
+        "fallbacks": [
+          "Helvetica",
+          "sans-serif"
+        ],
+        "language": "en-US",
+        "weight": 400,
+        "style": "normal"
+      }
+    ],
+    "styles": {
+      "text": [
+        {
+          "id": "title",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 30,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "body",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 13,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text"
+          }
+        }
+      ],
+      "shape": [
+        {
+          "id": "decision-band",
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            },
+            "opacity": 1
+          }
+        }
+      ],
+      "chart": [
+        {
+          "id": "evidence-chart",
+          "style": {
+            "legend": "bottom",
+            "stacking": "none",
+            "gapWidth": 90,
+            "showCategoryAxis": true,
+            "showValueAxis": true,
+            "showGridlines": false,
+            "showDataLabels": true,
+            "dataLabelPosition": "outside-end",
+            "chartAreaFill": {
+              "type": "none"
+            },
+            "plotAreaFill": {
+              "type": "none"
+            }
+          }
+        }
+      ],
+      "table": [
+        {
+          "id": "method-table",
+          "style": {
+            "headerRows": 1,
+            "bandedRows": false,
+            "bandedColumns": false,
+            "firstColumnEmphasis": true,
+            "lastColumnEmphasis": false,
+            "defaultCellFill": {
+              "type": "none"
+            },
+            "defaultTextStyle": {
+              "defaultText": {
+                "font": "sans",
+                "size": 10,
+                "color": {
+                  "token": "ink"
+                }
+              },
+              "verticalAlignment": "middle"
+            }
+          }
+        }
+      ]
+    },
+    "grammar": {
+      "name": "Measured field note",
+      "rationale": "A technical board needs dense evidence with an explicit reading order and no dashboard ornament.",
+      "visualThesis": "Quiet paper surfaces, one signal color, and one decision color keep measurement and judgment distinct.",
+      "surfaceHierarchy": [
+        "Use the paper surface as the default field.",
+        "Use rules and alignment instead of nested cards."
+      ],
+      "typographyRhythm": [
+        "Large declarative titles lead; sources remain small but readable."
+      ],
+      "geometryRules": [
+        "Geometry must encode thresholds, sequence, or measured magnitude."
+      ],
+      "densityRhythm": [
+        "Alternate a spacious framing page with a dense evidence page."
+      ],
+      "carrierRules": [
+        "Charts carry quantitative claims; tables carry audit detail."
+      ],
+      "imageRules": [
+        "Use imagery only as evidence or identity, never as filler."
+      ],
+      "chartRules": [
+        "Keep labels outside data marks and preserve truthful shared axes."
+      ],
+      "diagramRules": [
+        "Connectors must express an actual dependency or decision path."
+      ],
+      "motifs": [
+        "A short ochre rule marks decision thresholds."
+      ],
+      "forbiddenPatterns": [
+        "No card wall.",
+        "No meaningless ring or floating decorative node.",
+        "No line, marker, bar, or label may obscure another required value."
+      ]
+    },
+    "motionPolicy": "adaptive"
+  },
+  "assets": [
+    {
+      "id": "evidence-mark",
+      "uri": "ppj-assets/evidence-mark.svg",
+      "mimeType": "image/svg+xml",
+      "sha256": "5c1744cece1fb611cebfd054a2f144bd6fc370bcd10918688b088f8b609c5155",
+      "widthPx": 160,
+      "heightPx": 160,
+      "rights": {
+        "status": "internal",
+        "author": "OfficeKit",
+        "licenseName": "AGPL-3.0-or-later",
+        "creditLine": "Original OfficeKit fixture artwork."
+      },
+      "accessibility": {
+        "decorative": false,
+        "description": "A rising teal evidence line ending in an ochre decision point."
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "evidence-row",
+      "description": "A repeated label and value separated by a measured rule.",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 240,
+        "height": 34
+      },
+      "parameters": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "emphasis",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "allowed": [
+            false,
+            true
+          ]
+        }
+      ],
+      "bindings": [
+        {
+          "target": "row-label",
+          "field": "text",
+          "parameter": "label"
+        },
+        {
+          "target": "row-value",
+          "field": "text",
+          "parameter": "value"
+        }
+      ],
+      "variants": [
+        {
+          "id": "decision",
+          "when": {
+            "argument": "emphasis",
+            "operator": "equals",
+            "value": true
+          },
+          "set": [
+            {
+              "target": "row-rule",
+              "field": "fill",
+              "value": {
+                "color": {
+                  "token": "decision"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "elements": [
+        {
+          "id": "row-rule",
+          "type": "shape",
+          "frame": {
+            "x": 0,
+            "y": 32,
+            "width": 240,
+            "height": 1
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "row-label",
+          "type": "text",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 150,
+            "height": 26
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Evidence label"
+          },
+          "text": "Label",
+          "styleRef": "body"
+        },
+        {
+          "id": "row-value",
+          "type": "text",
+          "frame": {
+            "x": 160,
+            "y": 0,
+            "width": 80,
+            "height": 26
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Evidence value"
+          },
+          "text": "Value",
+          "styleRef": "body"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-claim",
+      "name": "Claim",
+      "role": "Frame the falsifiable claim",
+      "claim": "The pilot must reduce incident hours without reducing protected workload.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "State the decision boundary before showing the result.",
+      "transition": {
+        "type": "fade",
+        "durationMs": 350
+      },
+      "elements": [
+        {
+          "id": "claim-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 42,
+            "width": 864,
+            "height": 2
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "ink"
+              }
+            }
+          }
+        },
+        {
+          "id": "claim-title",
+          "type": "text",
+          "role": "title",
+          "frame": {
+            "x": 48,
+            "y": 64,
+            "width": 610,
+            "height": 104
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Main decision claim"
+          },
+          "text": {
+            "paragraphs": [
+              {
+                "id": "claim-title-paragraph",
+                "runs": [
+                  {
+                    "id": "claim-title-run-1",
+                    "text": "Reduce incident hours ",
+                    "style": {
+                      "font": "sans",
+                      "size": 30,
+                      "bold": true,
+                      "color": {
+                        "token": "ink"
+                      }
+                    }
+                  },
+                  {
+                    "id": "claim-title-run-2",
+                    "text": "without weakening workload",
+                    "style": {
+                      "font": "sans",
+                      "size": 30,
+                      "bold": true,
+                      "color": {
+                        "token": "signal"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "styleRef": "title"
+        },
+        {
+          "id": "claim-mark",
+          "type": "image",
+          "role": "evidence identity",
+          "frame": {
+            "x": 728,
+            "y": 64,
+            "width": 144,
+            "height": 144
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Rising evidence line"
+          },
+          "asset": "evidence-mark",
+          "fit": "contain"
+        },
+        {
+          "id": "claim-band",
+          "type": "shape",
+          "role": "decision rule",
+          "frame": {
+            "x": 48,
+            "y": 404,
+            "width": 864,
+            "height": 58
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Preset decision threshold"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "styleRef": "decision-band",
+          "text": "Decision gate · 95% CI must remain above zero and workload index must not decline",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 15,
+              "bold": true,
+              "color": "#FFFFFF"
+            },
+            "verticalAlignment": "middle",
+            "margins": {
+              "left": 18,
+              "top": 8,
+              "right": 18,
+              "bottom": 8
+            }
+          }
+        }
+      ],
+      "animations": [
+        {
+          "id": "claim-reveal",
+          "target": "claim-band",
+          "phase": "entrance",
+          "effect": "wipe",
+          "direction": "right",
+          "start": "afterPrevious",
+          "durationMs": 500,
+          "delayMs": 100
+        }
+      ]
+    },
+    {
+      "id": "page-evidence",
+      "name": "Evidence",
+      "role": "Compare incident hours with protected workload",
+      "claim": "Incident hours fall while protected workload rises.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": {
+        "paragraphs": [
+          {
+            "runs": [
+              {
+                "text": "All data are illustrative fixture values."
+              }
+            ]
+          }
+        ]
+      },
+      "elements": [
+        {
+          "id": "evidence-title",
+          "type": "text",
+          "role": "title",
+          "frame": {
+            "x": 48,
+            "y": 42,
+            "width": 864,
+            "height": 60
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Evidence conclusion"
+          },
+          "text": "Incident hours −38%; protected workload +27%",
+          "styleRef": "title"
+        },
+        {
+          "id": "evidence-chart-main",
+          "type": "chart",
+          "role": "primary evidence",
+          "frame": {
+            "x": 48,
+            "y": 124,
+            "width": 560,
+            "height": 292
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Incident hours decline from 69 to 43 while protected workload index rises from 100 to 127."
+          },
+          "chartType": "combo",
+          "styleRef": "evidence-chart",
+          "data": {
+            "categories": [
+              "24H1",
+              "24H2",
+              "25H1",
+              "25H2",
+              "26H1",
+              "26H2",
+              "27H1",
+              "27H2"
+            ],
+            "series": [
+              {
+                "id": "incident-hours",
+                "name": "P1 incident hours",
+                "values": [
+                  69,
+                  64,
+                  61,
+                  58,
+                  55,
+                  50,
+                  47,
+                  43
+                ],
+                "chartType": "column",
+                "axis": "primary",
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "token": "muted"
+                  }
+                }
+              },
+              {
+                "id": "workload-index",
+                "name": "Protected workload index",
+                "values": [
+                  100,
+                  104,
+                  108,
+                  111,
+                  116,
+                  120,
+                  123,
+                  127
+                ],
+                "chartType": "line",
+                "axis": "secondary",
+                "color": {
+                  "token": "ink"
+                },
+                "stroke": {
+                  "color": {
+                    "token": "ink"
+                  },
+                  "width": 2.5,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "marker": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "id": "method-table-main",
+          "type": "table",
+          "role": "method audit",
+          "frame": {
+            "x": 638,
+            "y": 124,
+            "width": 274,
+            "height": 132
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Pilot method table"
+          },
+          "styleRef": "method-table",
+          "columns": [
+            {
+              "id": "method-label-column",
+              "width": 116
+            },
+            {
+              "id": "method-value-column",
+              "width": 158
+            }
+          ],
+          "rows": [
+            {
+              "id": "method-header",
+              "height": 28,
+              "cells": [
+                {
+                  "id": "method-header-label",
+                  "text": "Protocol"
+                },
+                {
+                  "id": "method-header-value",
+                  "text": "Fixture value"
+                }
+              ]
+            },
+            {
+              "id": "method-sites",
+              "height": 28,
+              "cells": [
+                {
+                  "id": "method-sites-label",
+                  "text": "Sites"
+                },
+                {
+                  "id": "method-sites-value",
+                  "text": "6 control / 6 pilot"
+                }
+              ]
+            },
+            {
+              "id": "method-window",
+              "height": 28,
+              "cells": [
+                {
+                  "id": "method-window-label",
+                  "text": "Window"
+                },
+                {
+                  "id": "method-window-value",
+                  "text": "28 days"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "decision-flow-start",
+          "type": "shape",
+          "frame": {
+            "x": 638,
+            "y": 292,
+            "width": 88,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Measured result"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "flowChartProcess"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "Measure",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 11,
+              "bold": true,
+              "color": "#FFFFFF"
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "decision-flow-gate",
+          "type": "shape",
+          "frame": {
+            "x": 806,
+            "y": 284,
+            "width": 70,
+            "height": 70
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Decision threshold"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "flowChartDecision"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            }
+          },
+          "text": "Pass?",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 10,
+              "bold": true,
+              "color": "#FFFFFF"
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "decision-flow-link",
+          "type": "connector",
+          "frame": {
+            "x": 726,
+            "y": 310,
+            "width": 80,
+            "height": 18
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Measured evidence flows into the decision gate"
+          },
+          "connectorType": "straight",
+          "from": {
+            "element": "decision-flow-start",
+            "anchor": "right"
+          },
+          "to": {
+            "element": "decision-flow-gate",
+            "anchor": "left"
+          },
+          "stroke": {
+            "color": {
+              "token": "ink"
+            },
+            "width": 1.5,
+            "dash": "solid"
+          },
+          "endArrow": "triangle"
+        },
+        {
+          "id": "evidence-rows",
+          "type": "component",
+          "role": "read-through",
+          "frame": {
+            "x": 638,
+            "y": 380,
+            "width": 240,
+            "height": 78
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Repeated evidence read-through"
+          },
+          "component": "evidence-row",
+          "variant": "decision",
+          "arguments": {
+            "label": "Result",
+            "value": "Pass",
+            "emphasis": true
+          },
+          "repeat": {
+            "items": [
+              {
+                "key": "hours",
+                "arguments": {
+                  "label": "Incident hours",
+                  "value": "−38%",
+                  "emphasis": false
+                }
+              },
+              {
+                "key": "workload",
+                "arguments": {
+                  "label": "Workload index",
+                  "value": "+27%",
+                  "emphasis": true
+                }
+              }
+            ],
+            "layout": {
+              "direction": "vertical",
+              "gap": 8
+            }
+          }
+        }
+      ],
+      "animations": [
+        {
+          "id": "chart-rise",
+          "target": "evidence-chart-main",
+          "phase": "entrance",
+          "effect": "wipe",
+          "direction": "up",
+          "start": "onClick",
+          "durationMs": 700,
+          "delayMs": 0,
+          "chartBuild": "category-element",
+          "staggerMs": 80,
+          "animateChartBackground": false
+        },
+        {
+          "id": "decision-pulse",
+          "target": "decision-flow-gate",
+          "phase": "emphasis",
+          "effect": "pulse",
+          "start": "afterPrevious",
+          "durationMs": 450,
+          "delayMs": 120
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-pilot",
+      "name": "Pilot decision",
+      "pages": [
+        "page-claim",
+        "page-evidence"
+      ]
+    }
+  ],
+  "customShows": [
+    {
+      "id": "show-board",
+      "name": "Board review",
+      "pages": [
+        "page-claim",
+        "page-evidence"
+      ]
+    }
+  ],
+  "comments": [
+    {
+      "id": "comment-source",
+      "page": "page-evidence",
+      "target": "evidence-chart-main",
+      "author": "OfficeKit fixture",
+      "text": "Replace illustrative values before external use.",
+      "createdAt": "2026-08-29T00:00:00Z",
+      "resolved": false,
+      "position": {
+        "x": 600,
+        "y": 118
+      }
+    }
+  ]
+}

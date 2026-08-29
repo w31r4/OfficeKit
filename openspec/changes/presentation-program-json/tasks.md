@@ -1,10 +1,10 @@
 ## 1. Language foundation
 
 - [x] 1.1 Add synchronized English and Chinese documentation explaining PPJ, Turing completeness, finite artifact state, browser control, and authored/imported authority.
-- [ ] 1.2 Add `office-kit/ppj/v1` JSON Schema with strict root metadata, intent, design, assets, source, components, pages, sections, custom shows, and comments.
-- [ ] 1.3 Define shared identity, frame, accessibility, style, color, asset, source, nativeRef, and opaque descriptor schemas.
-- [ ] 1.4 Define typed text, shape, image, chart, table, connector, group, media, placeholder, SmartArt, and OLE element schemas.
-- [ ] 1.5 Define bounded component parameters, slots, variants, repeats, conditions, stable expansion IDs, and hard budgets.
+- [x] 1.2 Add `office-kit/ppj/v1` JSON Schema with strict root metadata, intent, design, assets, source, components, pages, sections, custom shows, and comments.
+- [x] 1.3 Define shared identity, frame, accessibility, style, color, asset, source, nativeRef, and opaque descriptor schemas.
+- [x] 1.4 Define typed text, shape, image, chart, table, connector, group, media, placeholder, SmartArt, and OLE element schemas.
+- [x] 1.5 Define bounded component parameters, slots, variants, repeats, conditions, stable expansion IDs, and hard budgets.
 - [ ] 1.6 Add one canonical authored PPJ fixture and path-specific schema validation coverage in the existing Presentation test surface.
 
 ## 2. Native PPJ model and validation
