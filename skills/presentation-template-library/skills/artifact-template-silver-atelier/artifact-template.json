@@ -63,7 +63,7 @@
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
     "guideSha256": "49a1f7b72d781e873a915bed48fb32917981a28ce8172073f8e89f383064717d",
-    "referenceSha256": "6613901957536646f4caa085f9a9da658e55b4dc3951573c2a712d0a35b58687",
-    "previewSha256": "e4ec09c2ccec62dd9df4532f1b9c97cffe2193cb309d5c3ed5dda16a71673d88"
+    "referenceSha256": "b69ff1295eb8dc5a75bd49f724884ea30f3603a8f7cd0b6402a57498cc8e6da9",
+    "previewSha256": "652034d9ca3a0afd8c179fe4d48af1f5672f3e688c820acbad7458ebc83632e5"
   }
 }

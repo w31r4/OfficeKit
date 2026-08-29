@@ -24,7 +24,7 @@
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "f1d1fdbee60f3ca9084e06a6dd764400c71c9a9b7ceb21a1a8a9e2764a3f9461"
+      "sha256": "a76b14d2f7ac0aa7a40150247adfef648e11717026eae855e863c9c3b7662621"
     }
   ],
   "useWhen": [
@@ -63,7 +63,7 @@
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
     "guideSha256": "a877ad6b106036dcf9fcb4dfbb2c82002b63c643b7cd1fb610d7be2542526ca5",
-    "referenceSha256": "ff9f05f543db8562efd477d14b4bfd38295ce8d57347cac4f3bfdb211dbc2300",
-    "previewSha256": "716c9fe6f84de3b6de3b18c7861c985e9375de7f716876fb9d156c7574f438da"
+    "referenceSha256": "7ded2459e08bf78dedc45c20e9c958b84f025400114947387e39b0fcfd37b4ba",
+    "previewSha256": "c390349e120b9dae757a3632d1e31d9b5bb1622063138c206bee2a450eba4d44"
   }
 }

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-jade-annual-brief/assets/reference.pptx",
-    "sha256": "40f648367180841e87461652e8a2a78cdba1ea0bc9c79e7aab3659b198838e2b"
+    "sha256": "74eb17a12a4af21b8f17289cc5fd8fcd51680685332fdce7bb49e400d5a7305f"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:40f648367180841e87461652e8a2a78cdba1ea0bc9c79e7aab3659b198838e2b"
+      "reference-sha256:74eb17a12a4af21b8f17289cc5fd8fcd51680685332fdce7bb49e400d5a7305f"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:194cae5cb71c2944cf006d7ebc2f541c16359944dc4bed9d9dccb9a74fb57962",
+        "native-pdf-sha256:818ec7d46e6c1ba7e2d8212ab7ee7d24b48021634952964593829450687ae167",
         "pages:6",
         "all-pages-rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 94.9); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 84.8, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

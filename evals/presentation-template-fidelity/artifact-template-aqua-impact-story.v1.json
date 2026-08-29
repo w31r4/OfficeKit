@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/reference.pptx",
-    "sha256": "3a7ba070244d3082478ac54dd161a6948b26ce86c9a11799b28b23de93112fc8"
+    "sha256": "b66158f422aad6cd084c770f4aa6da1781b6b56e3bb17eeb1c254ef60cc137f0"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:3a7ba070244d3082478ac54dd161a6948b26ce86c9a11799b28b23de93112fc8"
+      "reference-sha256:b66158f422aad6cd084c770f4aa6da1781b6b56e3bb17eeb1c254ef60cc137f0"
     ]
   },
   "visual": {
@@ -165,7 +165,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:a1e412c97471cc24c035dcfe70a9737da8329b0059b615b2a0539869448ac628",
+        "native-pdf-sha256:2523453bf9e7c504a8f9e4788390f86a4a4760d1e41acec0f9aaf55a38bd9a29",
         "pages:6",
         "all-pages-rendered"
       ]
@@ -196,7 +196,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 80.0, functional 94.9); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 80.0, functional 94.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
