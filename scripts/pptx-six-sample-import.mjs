@@ -96,6 +96,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeLineWidth = await verifyNativeLineWidthEdit(bytes);
     const nativeFontSize = await verifyNativeFontSizeEdit(bytes);
     const nativeFontFamily = await verifyNativeFontFamilyEdit(bytes);
+    const nativeFontStyle = await verifyNativeFontStyleEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -132,6 +133,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeLineWidth,
       nativeFontSize,
       nativeFontFamily,
+      nativeFontStyle,
       svgStyle,
       animatedText,
       tableCell,
@@ -167,6 +169,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeLineWidthEdits: results.filter((result) => result.nativeLineWidth.status === "passed").length,
       nativeFontSizeEdits: results.filter((result) => result.nativeFontSize.status === "passed").length,
       nativeFontFamilyEdits: results.filter((result) => result.nativeFontFamily.status === "passed").length,
+      nativeFontStyleEdits: results.filter((result) => result.nativeFontStyle.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -381,6 +384,28 @@ async function verifyNativeFontFamilyEdit(bytes) {
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
     throw new Error(`Native font-family edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFontStyleEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontBold" || record.leafKind === "fontItalic");
+  if (!target) return { status: "blocked", reason: "no bounded explicit text run bold/italic leaf was discovered" };
+  const value = !target.value;
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind);
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native font-style edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-style edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
 }

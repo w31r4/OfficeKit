@@ -3312,6 +3312,12 @@ function assertNativeLeafFontFamilyValue(value) {
   }
 }
 
+function assertNativeLeafBooleanValue(value) {
+  if (typeof value !== "boolean") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native font-style leaf value must be a boolean.");
+  }
+}
+
 function hasUnpairedUtf16Surrogate(value) {
   for (let index = 0; index < value.length; index += 1) {
     const unit = value.charCodeAt(index);
@@ -4237,6 +4243,30 @@ function createPresentationNativeLeafCapability(presentation, state) {
                   throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-family native leaf no longer resolves to the imported text run.");
                 }
                 run.style = { ...(run.style || {}), [field]: next };
+              },
+            });
+          }
+          for (const [field, leafKind] of [["bold", "fontBold"], ["italic", "fontItalic"]]) {
+            const enabled = leaf.run[field];
+            if (typeof enabled !== "boolean") continue;
+            const expectedValue = enabled ? "1" : "0";
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+              expectedValue,
+              value: enabled,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                assertNativeLeafBooleanValue(next);
+                return { raw: next ? "1" : "0", publicValue: next };
+              },
+              isNoop(next) { return next === expectedValue; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-style native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), [field]: next === "1" };
               },
             });
           }

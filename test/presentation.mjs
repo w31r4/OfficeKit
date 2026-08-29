@@ -724,6 +724,54 @@ const fontFamilyRoundTripLeaf = fontFamilyRoundTrip.inspect({ includeNativeLeave
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontFamily");
 assert.equal(fontFamilyRoundTripLeaf.value, "OfficeKit Sans");
 
+// Explicit run bold/italic flags use the same leaf-only contract. Keep the
+// source fixture's run topology and change only the two boolean attributes.
+const fontStyleAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontStyleAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b)/u,
+  '$1 b="1" i="0"',
+);
+assert.match(fontStyleAccessibilityXml, /<a:rPr\b[^>]*\bb="1"[^>]*\bi="0"/);
+fontStyleAccessibilityZip.file("ppt/slides/slide1.xml", fontStyleAccessibilityXml);
+const fontStyleAccessibilityFile = new FileBlob(
+  await fontStyleAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontStyleImported = await PresentationFile.importPptx(fontStyleAccessibilityFile);
+const fontStyleShape = itemByName(fontStyleImported.slides.getItem(0).shapes.items, "decision-status");
+const fontStyleLeaves = fontStyleImported.inspect({ includeNativeLeaves: true, target: fontStyleShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontBold", "fontItalic"].includes(record.leafKind));
+const fontBoldLeaf = fontStyleLeaves.find((record) => record.leafKind === "fontBold");
+const fontItalicLeaf = fontStyleLeaves.find((record) => record.leafKind === "fontItalic");
+assert.ok(fontBoldLeaf, "source-bound shapes should expose an explicit run bold leaf");
+assert.ok(fontItalicLeaf, "source-bound shapes should expose an explicit run italic leaf");
+fontStyleImported.editNativeLeaf(fontBoldLeaf.targetId, fontBoldLeaf.leafId, {
+  expectedHash: fontBoldLeaf.expectedHash,
+  value: false,
+});
+fontStyleImported.editNativeLeaf(fontItalicLeaf.targetId, fontItalicLeaf.leafId, {
+  expectedHash: fontItalicLeaf.expectedHash,
+  value: true,
+});
+const fontStyleOutput = await PresentationFile.exportPptx(fontStyleImported);
+const fontStyleOperations = fontStyleOutput.metadata.editPlan.operations;
+assert.deepEqual(fontStyleOperations.map((operation) => operation.leafKind).sort(), ["fontBold", "fontItalic"]);
+await assertOnlyDeclaredPptxFootprintChanged(fontStyleAccessibilityFile, fontStyleOutput, fontStyleOperations);
+const fontStyleXml = await (await JSZip.loadAsync(fontStyleOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontStyleXml, /<a:rPr\b[^>]*\bb="0"[^>]*\bi="1"/);
+assert.match(fontStyleXml, /fixture:opaque="kept"/);
+const fontStyleRoundTrip = await PresentationFile.importPptx(fontStyleOutput);
+const fontStyleRoundTripLeaves = fontStyleRoundTrip.inspect({ includeNativeLeaves: true, target: fontStyleShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontBold", "fontItalic"].includes(record.leafKind));
+assert.equal(fontStyleRoundTripLeaves.find((record) => record.leafKind === "fontBold").value, false);
+assert.equal(fontStyleRoundTripLeaves.find((record) => record.leafKind === "fontItalic").value, true);
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
