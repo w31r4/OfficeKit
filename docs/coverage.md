@@ -42,6 +42,12 @@ to `romanLcPeriod`; only `ppt/slides/slide4.xml` changes and the new scheme
 survives second import. An explicit `@startAt` leaf is issued only when the
 source contains a canonical `1..32767` value; inherited, shared, child-bearing,
 or ambiguous numbering graphs remain opaque.
+Active direct marker styles now expose separate source-bound leaves for literal
+`a:buFont/@typeface`, `a:buClr` RGB/theme tokens, and `a:buSzPts`/`a:buSzPct`
+values. A targeted Professional Minimalist edit changed its bullet font, RGB
+color, and point size together, changed only `ppt/slides/slide4.xml`, and
+survived second import; latent styles on `noBullet` paragraphs and follow-text,
+effect-bearing, or ambiguous style graphs remain source-owned.
 Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
 one bounded `a:pPr/@lvl` edit with second import. Because the current wire
 scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero
