@@ -3999,18 +3999,18 @@ function createPresentationNativeLeafCapability(presentation, state) {
             value: sourceLeaf.value,
             details: { nativeLeafIndex: index },
             normalize(next) {
-              if (leafKind === "fillScheme") {
+              if (leafKind === "fillScheme" || leafKind === "lineScheme") {
                 const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
-                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style scheme native leaf requires a supported theme color token.");
                 return { raw: canonical, publicValue: canonical };
               }
               const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
-              if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillRgb native leaf requires a six-digit RGB color.");
+              if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style RGB native leaf requires a six-digit RGB color.");
               const normalized = match[1].toUpperCase();
               return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
             },
             isNoop(next) {
-              return leafKind === "fillScheme"
+              return leafKind === "fillScheme" || leafKind === "lineScheme"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },

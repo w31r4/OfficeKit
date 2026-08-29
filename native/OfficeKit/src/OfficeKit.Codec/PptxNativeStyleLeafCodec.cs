@@ -18,7 +18,8 @@ internal static class PptxNativeStyleLeafCodec
         leaves = Array.Empty<PptxNativeStyleLeaf>();
         if (source is not P.GroupShape group) return false;
 
-        var described = new List<PptxNativeStyleLeaf>();
+        var fillLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         foreach (var shape in group.Descendants<P.Shape>())
         {
             var properties = shape.ShapeProperties;
@@ -26,28 +27,21 @@ internal static class PptxNativeStyleLeafCodec
             var fills = properties.ChildElements
                 .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
                 .ToArray();
-            if (fills.Length != 1 || fills[0] is not A.SolidFill solid) continue;
-            if (solid.ChildElements.Count != 1 || solid.FirstChild is null || solid.FirstChild.ChildElements.Count != 0) continue;
+            if (fills.Length == 1 && fills[0] is A.SolidFill solid && TryReadColor(solid, "fill", out var fillKind, out var fillValue))
+                fillLeaves.Add((fillKind, fillValue, shape));
 
-            if (solid.FirstChild is A.SchemeColor scheme &&
-                scheme.Val?.Value is { } schemeValue &&
-                scheme.GetAttributes().All(attribute => attribute.LocalName == "val") &&
-                PptxColor.TrySchemeToken(schemeValue, out var schemeToken))
-            {
-                described.Add(new PptxNativeStyleLeaf(checked((uint)described.Count), "fillScheme", schemeToken, shape));
-            }
-            else if (solid.FirstChild is A.RgbColorModelHex rgb &&
-                     rgb.Val?.Value is { Length: 6 } rgbValue && rgbValue.All(Uri.IsHexDigit) &&
-                     rgb.GetAttributes().All(attribute => attribute.LocalName == "val"))
-            {
-                described.Add(new PptxNativeStyleLeaf(checked((uint)described.Count), "fillRgb", rgbValue.ToUpperInvariant(), shape));
-            }
-
-            if (described.Count > MaxLeaves) return false;
+            var outlines = properties.Elements<A.Outline>().ToArray();
+            if (outlines.Length != 1) continue;
+            var lineFills = outlines[0].ChildElements
+                .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
+                .ToArray();
+            if (lineFills.Length == 1 && lineFills[0] is A.SolidFill lineSolid && TryReadColor(lineSolid, "line", out var lineKind, out var lineValue))
+                lineLeaves.Add((lineKind, lineValue, shape));
         }
 
-        if (described.Count == 0) return false;
-        leaves = described;
+        var described = fillLeaves.Concat(lineLeaves).ToArray();
+        if (described.Length == 0 || described.Length > MaxLeaves) return false;
+        leaves = described.Select((item, index) => new PptxNativeStyleLeaf(checked((uint)index), item.Kind, item.Value, item.Shape)).ToArray();
         return true;
     }
 
@@ -57,5 +51,30 @@ internal static class PptxNativeStyleLeafCodec
         if (!TryDescribe(source, out var leaves) || index >= (uint)leaves.Count) return false;
         leaf = leaves[(int)index];
         return true;
+    }
+
+    private static bool TryReadColor(A.SolidFill solid, string prefix, out string kind, out string value)
+    {
+        kind = string.Empty;
+        value = string.Empty;
+        if (solid.ChildElements.Count != 1 || solid.FirstChild is null || solid.FirstChild.ChildElements.Count != 0) return false;
+        if (solid.FirstChild is A.SchemeColor scheme &&
+            scheme.Val?.Value is { } schemeValue &&
+            scheme.GetAttributes().All(attribute => attribute.LocalName == "val") &&
+            PptxColor.TrySchemeToken(schemeValue, out var schemeToken))
+        {
+            kind = $"{prefix}Scheme";
+            value = schemeToken;
+            return true;
+        }
+        if (solid.FirstChild is A.RgbColorModelHex rgb &&
+            rgb.Val?.Value is { Length: 6 } rgbValue && rgbValue.All(Uri.IsHexDigit) &&
+            rgb.GetAttributes().All(attribute => attribute.LocalName == "val"))
+        {
+            kind = $"{prefix}Rgb";
+            value = rgbValue.ToUpperInvariant();
+            return true;
+        }
+        return false;
     }
 }

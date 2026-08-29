@@ -425,7 +425,7 @@ internal static partial class PptxEditPlanCodec
             }
             else if (element is P.GroupShape group &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
-                     (LeafKind(operation) is "fillRgb" or "fillScheme") &&
+                     (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme") &&
                      PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var styleLeaf) &&
                      styleLeaf.Kind == LeafKind(operation))
             {
@@ -815,10 +815,10 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} nativeText target is not a bounded DrawingML text leaf.", operation.SlidePartPath);
             return leaf.Text;
         }
-        if ((kind is "fillRgb" or "fillScheme") && element is P.GroupShape group)
+        if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme") && element is P.GroupShape group)
         {
             if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
-                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} target is not a bounded opaque-group fill leaf.", operation.SlidePartPath);
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} target is not a bounded opaque-group style leaf.", operation.SlidePartPath);
             return leaf.Value;
         }
         var properties = element switch
@@ -865,7 +865,7 @@ internal static partial class PptxEditPlanCodec
     {
         var operation = proof.Operation;
         var owner = elementRange.LocalName;
-        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme"))
+        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme"))
             return CompileNativeStyleXmlPatch(xml, elementRange, proof);
         var properties = DirectChildRange(xml, elementRange, owner, "spPr", operation);
         XmlRange leaf;
@@ -983,7 +983,8 @@ internal static partial class PptxEditPlanCodec
 
     private static IReadOnlyList<NativeStyleXmlRange> NativeStyleXmlLeaves(string xml, XmlRange groupRange)
     {
-        var leaves = new List<NativeStyleXmlRange>();
+        var fillLeaves = new List<NativeStyleXmlRange>();
+        var lineLeaves = new List<NativeStyleXmlRange>();
         var fillNames = new HashSet<string>(StringComparer.Ordinal) { "noFill", "solidFill", "gradFill", "blipFill", "pattFill" };
 
         void VisitGroup(XmlRange current)
@@ -999,24 +1000,40 @@ internal static partial class PptxEditPlanCodec
                 var properties = DirectChildRanges(xml, child).Where(entry => entry.LocalName == "spPr").ToArray();
                 if (properties.Length != 1) continue;
                 var fills = DirectChildRanges(xml, properties[0]).Where(entry => fillNames.Contains(entry.LocalName)).ToArray();
-                if (fills.Length != 1 || fills[0].LocalName != "solidFill") continue;
-                var colors = DirectChildRanges(xml, fills[0])
-                    .Where(entry => entry.LocalName is "schemeClr" or "srgbClr")
-                    .ToArray();
-                if (colors.Length != 1 || DirectChildRanges(xml, colors[0]).Count != 0) continue;
-                var value = NativeStyleXmlAttribute(xml, colors[0]);
-                if (value is null) continue;
-                if (colors[0].LocalName == "schemeClr" && PptxColor.TrySchemeToken(value, out _))
-                    leaves.Add(new NativeStyleXmlRange("fillScheme", colors[0]));
-                else if (colors[0].LocalName == "srgbClr" && value.Length == 6 && value.All(Uri.IsHexDigit))
-                    leaves.Add(new NativeStyleXmlRange("fillRgb", colors[0]));
-                if (leaves.Count > 4_096)
+                if (fills.Length == 1 && fills[0].LocalName == "solidFill" && TryNativeStyleXmlColor(xml, fills[0], "fill", out var fill))
+                    fillLeaves.Add(fill);
+                var outlines = DirectChildRanges(xml, properties[0]).Where(entry => entry.LocalName == "ln").ToArray();
+                if (outlines.Length != 1) continue;
+                var lineFills = DirectChildRanges(xml, outlines[0]).Where(entry => fillNames.Contains(entry.LocalName)).ToArray();
+                if (lineFills.Length == 1 && lineFills[0].LocalName == "solidFill" && TryNativeStyleXmlColor(xml, lineFills[0], "line", out var line))
+                    lineLeaves.Add(line);
+                if (fillLeaves.Count + lineLeaves.Count > 4_096)
                     throw new CodecException("presentation_item_budget_exceeded", "PPTX native opaque-group style leaves exceed the bounded style profile.");
             }
         }
 
         VisitGroup(groupRange);
-        return leaves;
+        return fillLeaves.Concat(lineLeaves).ToArray();
+    }
+
+    private static bool TryNativeStyleXmlColor(string xml, XmlRange solidFill, string prefix, out NativeStyleXmlRange color)
+    {
+        color = null!;
+        var colors = DirectChildRanges(xml, solidFill).Where(entry => entry.LocalName is "schemeClr" or "srgbClr").ToArray();
+        if (colors.Length != 1 || DirectChildRanges(xml, colors[0]).Count != 0) return false;
+        var value = NativeStyleXmlAttribute(xml, colors[0]);
+        if (value is null) return false;
+        if (colors[0].LocalName == "schemeClr" && PptxColor.TrySchemeToken(value, out _))
+        {
+            color = new NativeStyleXmlRange($"{prefix}Scheme", colors[0]);
+            return true;
+        }
+        if (colors[0].LocalName == "srgbClr" && value.Length == 6 && value.All(Uri.IsHexDigit))
+        {
+            color = new NativeStyleXmlRange($"{prefix}Rgb", colors[0]);
+            return true;
+        }
+        return false;
     }
 
     private static string? NativeStyleXmlAttribute(string xml, XmlRange range)

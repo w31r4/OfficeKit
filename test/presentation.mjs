@@ -3506,6 +3506,33 @@ const opaqueGroupStyleRoundTripLeaves = opaqueGroupStyleRoundTrip.inspect({ incl
   .filter((record) => record.kind === "nativeLeaf");
 assert.equal(opaqueGroupStyleRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupFillLeaf.nativeLeafIndex)?.value, "#a1b2c3");
 
+const opaqueGroupLinePresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupLine = itemByName(opaqueGroupLinePresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupLineLeaves = opaqueGroupLinePresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupLine.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupLineLeaf = opaqueGroupLineLeaves.find((record) => record.leafKind === "lineRgb");
+assert.ok(opaqueGroupLineLeaf, "opaque groups should expose an unambiguous descendant line color leaf");
+opaqueGroupLinePresentation.editNativeLeaf(opaqueGroupLineLeaf.targetId, opaqueGroupLineLeaf.leafId, {
+  expectedHash: opaqueGroupLineLeaf.expectedHash,
+  value: "#C3B2A1",
+});
+const opaqueGroupLineOutput = await PresentationFile.exportPptx(opaqueGroupLinePresentation);
+const opaqueGroupLineOperation = opaqueGroupLineOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupLineOperation.leafKind, "lineRgb");
+assert.equal(opaqueGroupLineOperation.nativeLeafIndex ?? 0, opaqueGroupLineLeaf.nativeLeafIndex);
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupLineOutput, opaqueGroupLineOperation);
+const opaqueGroupLineRoundTrip = await PresentationFile.importPptx(opaqueGroupLineOutput);
+const opaqueGroupLineRoundTripObject = itemByName(opaqueGroupLineRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupLineRoundTripLeaves = opaqueGroupLineRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupLineRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupLineRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupLineLeaf.nativeLeafIndex)?.value, "#c3b2a1");
+
 // Office 2019+ decorative classification is one presence-aware accessibility
 // value across every modeled drawing object. Explicit false remains distinct
 // from absence, and true cannot coexist with title/description.

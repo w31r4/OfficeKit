@@ -125,6 +125,10 @@ function presentationEditPlanMetadata(editPlan, result) {
         expectedTextSha256: operation.expectedTextSha256,
         expectedValue: operation.expectedValue,
         value: operation.value,
+        ...(operation.leafKind === "fillRgb" || operation.leafKind === "fillScheme" ||
+            operation.leafKind === "lineRgb" || operation.leafKind === "lineScheme"
+          ? { nativeLeafIndex: operation.nativeLeafIndex }
+          : {}),
         ...(operation.targetPartPath ? {
           targetPartPath: operation.targetPartPath,
           expectedTargetPartSha256: operation.expectedTargetPartSha256,

@@ -152,7 +152,8 @@ message PresentationEditOperation {
   // shape_tree_index; an empty path retains the original top-level profile.
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
-  // v1 values: text, tableCellText, fillRgb, lineRgb, leftEmu, topEmu,
+  // v1 values: text, tableCellText, fillRgb, fillScheme, lineRgb, lineScheme,
+  // leftEmu, topEmu,
   // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
   // diagramText, deleteElement.
   string leaf_kind = 14;

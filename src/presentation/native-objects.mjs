@@ -153,14 +153,15 @@ function nativeLineEditableFields(leaves) {
 }
 
 // A group that the semantic importer cannot model can still expose a tiny,
-// source-bound style surface.  Walk only direct PresentationML children and
-// issue leaves for unambiguous solid fills on descendant p:sp nodes.  This
-// keeps the group topology, effects, and every unsupported fill opaque while
-// making common theme-driven template shapes reusable.
+// source-bound style surface. Walk only direct PresentationML children and
+// issue leaves for unambiguous solid fills and outline colors on descendant
+// p:sp nodes. This keeps the group topology, effects, and every unsupported
+// paint opaque while making common theme-driven template shapes reusable.
 function deriveNativeStyleLeaves(rawXml, nativeKind) {
   if (nativeKind !== "group") return undefined;
-  const leaves = [];
-  const colorLeaf = (solid) => {
+  const fillLeaves = [];
+  const lineLeaves = [];
+  const colorLeaf = (solid, prefix) => {
     const colors = directPresentationChildren(solid.xml, "solidFill")
       .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
     if (colors.length !== 1) return undefined;
@@ -171,10 +172,10 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
     if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val" || !attributes[0].value) return undefined;
     if (color.localName === "schemeClr") {
       const value = nativeSchemeColorToken(attributes[0].value);
-      return value ? { leafKind: "fillScheme", value } : undefined;
+      return value ? { leafKind: `${prefix}Scheme`, value } : undefined;
     }
     if (!/^[0-9a-f]{6}$/iu.test(attributes[0].value)) return undefined;
-    return { leafKind: "fillRgb", value: attributes[0].value.toUpperCase() };
+    return { leafKind: `${prefix}Rgb`, value: attributes[0].value.toUpperCase() };
   };
   const visitGroup = (xml) => {
     for (const child of directPresentationChildren(xml, "grpSp")) {
@@ -187,13 +188,25 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
       if (!shapeProperties) continue;
       const fillNodes = directPresentationChildren(shapeProperties.xml, "spPr")
         .filter((entry) => ["noFill", "solidFill", "gradFill", "blipFill", "pattFill"].includes(entry.localName));
-      if (fillNodes.length !== 1 || fillNodes[0].localName !== "solidFill") continue;
-      const leaf = colorLeaf(fillNodes[0]);
-      if (!leaf) continue;
-      leaves.push({ nativeLeafIndex: leaves.length, ...leaf, expectedHash: sha256(leaf.value) });
+      if (fillNodes.length === 1 && fillNodes[0].localName === "solidFill") {
+        const leaf = colorLeaf(fillNodes[0], "fill");
+        if (leaf) fillLeaves.push(leaf);
+      }
+      const outlines = directPresentationChildren(shapeProperties.xml, "spPr").filter((entry) => entry.localName === "ln");
+      if (outlines.length !== 1) continue;
+      const lineFills = directPresentationChildren(outlines[0].xml, "ln")
+        .filter((entry) => ["noFill", "solidFill", "gradFill", "blipFill", "pattFill"].includes(entry.localName));
+      if (lineFills.length !== 1 || lineFills[0].localName !== "solidFill") continue;
+      const lineLeaf = colorLeaf(lineFills[0], "line");
+      if (lineLeaf) lineLeaves.push(lineLeaf);
     }
   };
   visitGroup(String(rawXml || ""));
+  const leaves = [...fillLeaves, ...lineLeaves].map((leaf, nativeLeafIndex) => ({
+    nativeLeafIndex,
+    ...leaf,
+    expectedHash: sha256(leaf.value),
+  }));
   return leaves.length && leaves.length <= MAX_NATIVE_STYLE_LEAVES ? Object.freeze(leaves) : undefined;
 }
 
@@ -201,7 +214,7 @@ function nativeStyleRecord(leaves) {
   return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
     nativeLeafIndex: leaf.nativeLeafIndex,
     leafKind: leaf.leafKind,
-    value: leaf.leafKind === "fillScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -827,14 +840,14 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native style leaf ${index}.`);
       }
       const leafKind = this._nativeStyleBinding[index].leafKind;
-      if (leafKind === "fillScheme") {
+      if (leafKind === "fillScheme" || leafKind === "lineScheme") {
         const token = nativeSchemeColorToken(String(value ?? "").trim());
-        if (!token) throw new RangeError("Native fill scheme color must be a supported theme token.");
+        if (!token) throw new RangeError("Native style scheme color must be a supported theme token.");
         this._nativeStyleLeaves[index].value = token;
         return;
       }
       const color = String(value ?? "").trim().replace(/^#/u, "");
-      if (!/^[0-9a-f]{6}$/iu.test(color)) throw new RangeError("Native fill color must be a six-digit RGB value.");
+      if (!/^[0-9a-f]{6}$/iu.test(color)) throw new RangeError("Native style color must be a six-digit RGB value.");
       this._nativeStyleLeaves[index].value = color.toUpperCase();
     }
 
