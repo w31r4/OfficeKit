@@ -79,6 +79,9 @@ function normalizeRunStyle(style = {}) {
   const rawFontBaseline = style.fontBaseline == null ? undefined : String(style.fontBaseline).trim();
   const fontBaseline = rawFontBaseline == null ? undefined : finiteNumber(rawFontBaseline.replace(/%$/i, ""));
   if (fontBaseline != null && !(fontBaseline >= -400 && fontBaseline <= 400)) throw new RangeError("Presentation run fontBaseline must be between -400% and 400%.");
+  const rawFontSpacing = style.fontSpacing == null ? undefined : String(style.fontSpacing).trim();
+  const fontSpacing = rawFontSpacing == null ? undefined : finiteNumber(rawFontSpacing.replace(/pt$/i, ""));
+  if (fontSpacing != null && !(fontSpacing >= -768 && fontSpacing <= 768)) throw new RangeError("Presentation run fontSpacing must be between -768 and 768 points.");
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
@@ -87,6 +90,7 @@ function normalizeRunStyle(style = {}) {
     ...(fontSize == null ? {} : { fontSize }),
     ...(fontKerning == null ? {} : { fontKerning }),
     ...(fontBaseline == null ? {} : { fontBaseline }),
+    ...(fontSpacing == null ? {} : { fontSpacing }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),

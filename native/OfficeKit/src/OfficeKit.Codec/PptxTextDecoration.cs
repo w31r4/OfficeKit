@@ -8,6 +8,8 @@ namespace OfficeKit.Codec;
 internal static class PptxTextDecoration
 {
     private const int MaxKerningHundredthsPoints = 76_800;
+    private const int MinSpacingHundredthsPoints = -76_800;
+    private const int MaxSpacingHundredthsPoints = 76_800;
     private const int MinBaselineThousandthsPercent = -400_000;
     private const int MaxBaselineThousandthsPercent = 400_000;
     private static readonly HashSet<string> UnderlineValues = new(StringComparer.Ordinal)
@@ -90,6 +92,39 @@ internal static class PptxTextDecoration
         try
         {
             _ = NormalizeKerning(value);
+            return true;
+        }
+        catch (CodecException)
+        {
+            return false;
+        }
+    }
+
+    internal static bool TrySpacing(A.TextCharacterPropertiesType? source, out string value)
+    {
+        if (source?.Spacing?.Value is { } raw && raw >= MinSpacingHundredthsPoints && raw <= MaxSpacingHundredthsPoints)
+        {
+            value = raw.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return true;
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    internal static string NormalizeSpacing(string value)
+    {
+        if (!int.TryParse(value, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var raw) ||
+            raw < MinSpacingHundredthsPoints || raw > MaxSpacingHundredthsPoints ||
+            raw.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
+            throw new CodecException("invalid_presentation_text", $"Unsupported Presentation character spacing token {value}.");
+        return raw.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    internal static bool IsSpacingToken(string value)
+    {
+        try
+        {
+            _ = NormalizeSpacing(value);
             return true;
         }
         catch (CodecException)

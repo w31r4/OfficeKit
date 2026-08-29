@@ -1032,6 +1032,47 @@ const fontBaselineRoundTripLeaf = fontBaselineRoundTrip.inspect({ includeNativeL
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontBaselinePercent" && record.value === -25);
 assert.equal(fontBaselineRoundTripLeaf.value, -25);
 
+// Direct DrawingML character spacing is a source-bound signed scalar. Keep
+// the vendor extension beside the run while changing only a:rPr/@spc, then
+// prove the public point value survives a second import.
+const fontSpacingAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontSpacingAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)\s*(?=<a:t>Decision)/u,
+  '$1 spc="200"$2',
+);
+assert.match(fontSpacingAccessibilityXml, /<a:rPr\b[^>]*\bspc="200"/);
+fontSpacingAccessibilityZip.file("ppt/slides/slide1.xml", fontSpacingAccessibilityXml);
+const fontSpacingAccessibilityFile = new FileBlob(
+  await fontSpacingAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontSpacingImported = await PresentationFile.importPptx(fontSpacingAccessibilityFile);
+const fontSpacingShape = itemByName(fontSpacingImported.slides.getItem(0).shapes.items, "decision-status");
+const fontSpacingLeaf = fontSpacingImported.inspect({ includeNativeLeaves: true, target: fontSpacingShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSpacingPoints");
+assert.ok(fontSpacingLeaf, "source-bound shapes should expose a direct run character-spacing leaf");
+assert.equal(fontSpacingLeaf.value, 2);
+fontSpacingImported.editNativeLeaf(fontSpacingLeaf.targetId, fontSpacingLeaf.leafId, {
+  expectedHash: fontSpacingLeaf.expectedHash,
+  value: -1.5,
+});
+const fontSpacingOutput = await PresentationFile.exportPptx(fontSpacingImported);
+assert.equal(fontSpacingOutput.metadata.editPlan.operations[0].leafKind, "fontSpacingPoints");
+await assertOnlyDeclaredPptxFootprintChanged(fontSpacingAccessibilityFile, fontSpacingOutput, fontSpacingOutput.metadata.editPlan.operations);
+const fontSpacingXml = await (await JSZip.loadAsync(fontSpacingOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontSpacingXml, /<a:rPr\b[^>]*\bspc="-150"/);
+assert.match(fontSpacingXml, /fixture:opaque="kept"/);
+const fontSpacingRoundTrip = await PresentationFile.importPptx(fontSpacingOutput);
+const fontSpacingRoundTripLeaf = fontSpacingRoundTrip.inspect({ includeNativeLeaves: true, target: fontSpacingShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSpacingPoints" && record.value === -1.5);
+assert.equal(fontSpacingRoundTripLeaf.value, -1.5);
+
 // Direct paragraph alignment is a source-bound token leaf.  The fixture adds
 // one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
 // it must splice only that attribute and retain the vendor cNvPr extension.

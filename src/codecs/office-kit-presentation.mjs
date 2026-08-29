@@ -117,7 +117,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontFamily", "fontFamilyEastAsia", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -930,6 +930,10 @@ function wireTextStyle(style = {}, shapeId) {
   if (fontBaseline !== undefined && (!Number.isFinite(fontBaseline) || fontBaseline < -400 || fontBaseline > 400)) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font baseline outside the supported -400% to 400% range.`, [], { code: "invalid_presentation_text" });
   }
+  const fontSpacing = style.fontSpacing == null ? undefined : Number(style.fontSpacing);
+  if (fontSpacing !== undefined && (!Number.isFinite(fontSpacing) || fontSpacing < -768 || fontSpacing > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
+  }
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
@@ -948,6 +952,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
     ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
+    ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
@@ -1018,6 +1023,10 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   if (fontBaseline !== undefined && (!Number.isFinite(fontBaseline) || fontBaseline < -400 || fontBaseline > 400)) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font baseline outside the supported -400% to 400% range.`, [], { code: "invalid_presentation_text" });
   }
+  const fontSpacing = style.fontSpacing == null ? undefined : Number(style.fontSpacing);
+  if (fontSpacing !== undefined && (!Number.isFinite(fontSpacing) || fontSpacing < -768 || fontSpacing > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
+  }
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
   const colorToken = style.color == null ? undefined : String(style.color).trim();
@@ -1040,6 +1049,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
     ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
+    ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
@@ -3479,6 +3489,22 @@ function normalizeNativeLeafBaselineValue(value) {
   return { raw: String(thousandths), publicValue: thousandths / 1000 };
 }
 
+function normalizeNativeLeafSpacingValue(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontSpacingPoints leaf requires a finite point value.");
+  }
+  const token = String(value).trim().replace(/pt$/iu, "");
+  if (!/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontSpacingPoints leaf requires at most two decimal places.");
+  }
+  const points = Number(token);
+  if (!Number.isFinite(points) || points < -768 || points > 768) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontSpacingPoints leaf is outside the safe -768 to 768 point range.");
+  }
+  const hundredths = Math.round(points * 100);
+  return { raw: String(hundredths), publicValue: hundredths / 100 };
+}
+
 function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
   if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
@@ -4621,6 +4647,33 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontBaselinePercent native leaf no longer resolves to the imported text run.");
               }
               run.style = { ...(run.style || {}), fontBaseline: Number(next) / 1000 };
+            },
+          });
+        }
+        const fontSpacingPoints = Number(leaf.run.fontSpacingPoints);
+        // Character spacing is a signed hundredths-of-a-point scalar. Like
+        // kerning and baseline, only direct non-placeholder run tokens receive
+        // a capability; inherited and effect-bearing style graphs stay opaque.
+        if (!model.placeholder && Number.isFinite(fontSpacingPoints) && fontSpacingPoints >= -768 && fontSpacingPoints <= 768) {
+          const expectedValue = String(Math.round(fontSpacingPoints * 100));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontSpacingPoints",
+            expectedValue,
+            value: fontSpacingPoints,
+            unit: "pt",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              const normalized = normalizeNativeLeafSpacingValue(next);
+              return { raw: normalized.raw, publicValue: normalized.publicValue };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontSpacingPoints native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontSpacing: Number(next) / 100 };
             },
           });
         }
@@ -6006,6 +6059,7 @@ function modelRun(run, customShowLinks) {
       ...(run.fontSizePoints === undefined ? {} : { fontSize: run.fontSizePoints / POINTS_PER_PIXEL }),
       ...(run.fontKerningPoints === undefined ? {} : { fontKerning: run.fontKerningPoints }),
       ...(run.fontBaselinePercent === undefined ? {} : { fontBaseline: run.fontBaselinePercent }),
+      ...(run.fontSpacingPoints === undefined ? {} : { fontSpacing: run.fontSpacingPoints }),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
       ...(run.underline === undefined ? {} : { underline: run.underline }),
@@ -6093,6 +6147,7 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.fontSizePoints === undefined ? {} : { fontSize: style.fontSizePoints / POINTS_PER_PIXEL }),
     ...(style.fontKerningPoints === undefined ? {} : { fontKerning: style.fontKerningPoints }),
     ...(style.fontBaselinePercent === undefined ? {} : { fontBaseline: style.fontBaselinePercent }),
+    ...(style.fontSpacingPoints === undefined ? {} : { fontSpacing: style.fontSpacingPoints }),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
     ...(style.underline === undefined ? {} : { underline: style.underline }),
