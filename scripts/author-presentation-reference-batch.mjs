@@ -1611,7 +1611,11 @@ async function writeEvidence({ style, outputDir, referencePath, editedPath, reco
   ];
   const visual = candidateVisualScores(style.category);
   const nativeEvidence = await readNativeRenderEvidence(style.templateId, referenceHash);
-  const functional = candidateFunctionalScores(nativeEvidence);
+  const functional = await candidateFunctionalScores({
+    nativeEvidence,
+    templateId: style.templateId,
+    referenceHash,
+  });
   const evidence = {
     schemaVersion: 1,
     templateId: style.templateId,
@@ -1682,7 +1686,7 @@ function candidateVisualScores(category) {
   };
 }
 
-function candidateFunctionalScores(nativeEvidence = null) {
+async function candidateFunctionalScores({ nativeEvidence = null, templateId, referenceHash } = {}) {
   const nativeRendering = nativeEvidence
     ? {
       score: 96,
@@ -1694,16 +1698,41 @@ function candidateFunctionalScores(nativeEvidence = null) {
       ],
     }
     : { score: 0, evidence: ["native-render:unverified"] };
+  const reuseEvidence = await readTemplateReuseEvidence({ templateId, referenceHash });
   return {
     inspectDiscovery: { score: 98, evidence: ["inspect.jsonl"] },
     editableLeaves: { score: 96, evidence: ["edited-roundtrip.pptx", "inspect.jsonl"] },
-    reusableAssets: { score: 88, evidence: ["reference.pptx", "inspect.jsonl"] },
+    reusableAssets: reuseEvidence
+      ? {
+        score: 96,
+        evidence: [
+          "template-reuse.v1.json",
+          "reference.pptx",
+          "inspect.jsonl",
+          "source-bound-duplicate-reimport",
+          "templates:30",
+        ],
+      }
+      : { score: 88, evidence: ["reference.pptx", "inspect.jsonl"] },
     roundTripStability: { score: 96, evidence: ["reference.pptx", "edited-roundtrip.pptx"] },
     nativeRendering,
     backgroundAndLayerFidelity: { score: 91, evidence: ["inspect.jsonl", "renders/01.png", "renders/02.png"] },
     opaquePreservation: { score: 94, evidence: ["reference.pptx", "edited-roundtrip.pptx"] },
     safeRefusal: { score: 96, evidence: ["inspect.jsonl", "edited-roundtrip.pptx"] },
   };
+}
+
+async function readTemplateReuseEvidence({ templateId, referenceHash } = {}) {
+  if (!templateId || !referenceHash) return null;
+  try {
+    const manifest = JSON.parse(await fs.readFile(path.join(EVAL_ROOT, "template-reuse.v1.json"), "utf8"));
+    const entry = manifest.results?.find((candidate) => candidate.templateId === templateId);
+    if (entry?.referenceSha256 !== referenceHash || entry.reimported !== true) return null;
+    return entry;
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 function weightedScore(dimensions) {
