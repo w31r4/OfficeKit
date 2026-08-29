@@ -76,7 +76,7 @@
 ## 10. Real acceptance and legacy removal
 
 - [x] 10.1 Complete one high-quality authored Evidence Ledger deck and record structural plus page-by-page visual review evidence.
-- [ ] 10.2 In a fresh context, recover its embedded PPJ, continue editing, and preserve stable identity, design grammar, and non-target pages.
+- [x] 10.2 In a fresh context, recover its embedded PPJ, continue editing, and preserve stable identity, design grammar, and non-target pages.
 - [ ] 10.3 Project the complex 算秩未来 PPTX and complete one typed edit plus one nativeRef edit with no-op and non-target package proof.
 - [ ] 10.4 Repeat the three workflows in a packed clean install without relying on the repository source tree.
 - [ ] 10.5 Remove public Presentation/MJS/Compose authoring exports, legacy Skill routes, obsolete examples, and incompatible tests only after PPJ acceptance passes.

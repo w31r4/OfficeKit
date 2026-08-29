@@ -1,0 +1,65 @@
+{
+  "schema": "office-kit/ppj-embedded-continuation/v1",
+  "recordedAt": "2026-08-30",
+  "setup": {
+    "context": "A new isolated directory contained only the compiled reference.pptx; the authored PPJ was not supplied separately.",
+    "inputPptxSha256": "7027e8f56d1e7c6cb46ae9c1148ef1513514f601c46b2b3333a57de2402a94f6",
+    "importedRawPpjSha256": "607c5f382868307b60dd11d23a615d51ff857b8f17e620a761e43fa3c1eef005",
+    "importedNormalizedPpjSha256": "1c8105d78ba4d2b560ed3d13d96de22a7c76ab7f24e29365862593932c52f4f9",
+    "restoredEmbeddedProgram": true,
+    "sourceBound": false,
+    "pageCount": 10
+  },
+  "edit": {
+    "targetId": "p01-subtitle",
+    "pageId": "page-01-cover",
+    "path": "$.pages[0].elements[2].text",
+    "before": "From peak-risk hypothesis to measured, reversible rollout",
+    "after": "From peak-risk hypothesis to measured, reviewable rollout",
+    "semanticChangeCount": 1,
+    "stablePageIds": true,
+    "stableElementIds": true,
+    "designGrammarStable": true
+  },
+  "output": {
+    "editedRawPpjSha256": "d81fab2e0914083535be94ff271d680ac0ff5246259ff335422afe37935bf489",
+    "editedNormalizedPpjSha256": "47b3e43422769f40a64819984385246b2f1e9963733c74d727f7a814629fa3b4",
+    "pptxSha256": "be97f821c4abcb12113fe2d3cf9e1006326e7447ba5fc87f49a6cf174668752c",
+    "reopenedRawPpjSha256": "d81fab2e0914083535be94ff271d680ac0ff5246259ff335422afe37935bf489",
+    "reopenedRawPpjByteEqual": true,
+    "reopenedEmbeddedProgram": true,
+    "changedParts": [
+      "officeKit/program-map.json",
+      "officeKit/program.ppj",
+      "ppt/slides/slide1.xml"
+    ],
+    "nonTargetSlidePartsByteEqual": true
+  },
+  "render": {
+    "renderer": "libreoffice-poppler",
+    "targetPageChanged": true,
+    "beforeTargetPageSha256": "0bd555742143388d3e5402d50a1efaf77f0e482a1dd6856fc1947640af890bd5",
+    "afterTargetPageSha256": "cf65a0cf6c85ed3db9ec94431d17cdcaa4a3bebb84db0aaee44d5542cd985abc",
+    "nonTargetPagesByteEqual": true,
+    "nonTargetPageSha256": [
+      "86326acaf73be725ed4d518c2920a1f3928743f308c2de66dc5c125455a896b6",
+      "51cc1429dc4ad4b2cab34f10ec93aebc2e342601e932d7c0c94c85887345a050",
+      "7b262540f485ba340c5943ae5c328fc14f7ef1369d541c323ee9af18935a8203",
+      "a88cc65a8d93ef660d1911d72c42e7ba053cb49a946454e466fdddbf9f9b184d",
+      "d061df156f691165abff7595ada15e11596798ff78fdfaf6386e5432d33a4293",
+      "27b16bc0ed6d744e18e7e294a87c99289a4b043c405ef0a329b636898fdf6cdf",
+      "1e90e87876db70ad3aea8f1cf846521466141b04bc69facc6cc07f972d83ac53",
+      "ef391d85c7ba4b5408b8434a10d6f72eb45a1ebb679ba754250f5279facb89bc",
+      "5e62ace21d3e8a1bcd157cbb8e48f02b7be21c4184f3c52f813b4dc7d5c3a39c"
+    ]
+  },
+  "review": {
+    "verdict": "passed-with-limitations",
+    "semantic": "passed",
+    "structural": "passed",
+    "layout": "passed",
+    "motion": "passed",
+    "playbackEvidence": "structural",
+    "windowsPowerPoint": "unverified"
+  }
+}
