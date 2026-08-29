@@ -110,6 +110,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeParagraphMargin = await verifyNativeParagraphLayoutEdit(bytes, "paragraphMarginLeftEmu");
     const nativeParagraphIndent = await verifyNativeParagraphLayoutEdit(bytes, "paragraphIndentEmu");
     const nativeParagraphBullet = await verifyNativeParagraphBulletEdit(bytes);
+    const nativeParagraphAutoNumberScheme = await verifyNativeParagraphAutoNumberEdit(bytes, "paragraphBulletAutoNumberScheme");
+    const nativeParagraphAutoNumberStartAt = await verifyNativeParagraphAutoNumberEdit(bytes, "paragraphBulletAutoNumberStartAt");
     const nativeParagraphLevel = await verifyNativeParagraphLevelEdit(bytes);
     const nativeVerticalAnchor = await verifyNativeVerticalAnchorEdit(bytes);
     const nativeTextBodyInset = await verifyNativeTextBodyInsetEdit(bytes);
@@ -171,6 +173,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeParagraphMargin,
       nativeParagraphIndent,
       nativeParagraphBullet,
+      nativeParagraphAutoNumberScheme,
+      nativeParagraphAutoNumberStartAt,
       nativeParagraphLevel,
       nativeVerticalAnchor,
       nativeTextBodyInset,
@@ -231,6 +235,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeParagraphMarginEdits: results.filter((result) => result.nativeParagraphMargin.status === "passed").length,
       nativeParagraphIndentEdits: results.filter((result) => result.nativeParagraphIndent.status === "passed").length,
       nativeParagraphBulletEdits: results.filter((result) => result.nativeParagraphBullet.status === "passed").length,
+      nativeParagraphAutoNumberSchemeEdits: results.filter((result) => result.nativeParagraphAutoNumberScheme.status === "passed").length,
+      nativeParagraphAutoNumberStartAtEdits: results.filter((result) => result.nativeParagraphAutoNumberStartAt.status === "passed").length,
       nativeParagraphLevelEdits: results.filter((result) => result.nativeParagraphLevel.status === "passed").length,
       nativeVerticalAnchorEdits: results.filter((result) => result.nativeVerticalAnchor.status === "passed").length,
       nativeTextBodyInsetEdits: results.filter((result) => result.nativeTextBodyInset.status === "passed").length,
@@ -750,6 +756,32 @@ async function verifyNativeParagraphBulletEdit(bytes) {
     throw new Error(`Native character-bullet edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphAutoNumberEdit(bytes, leafKind) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === leafKind);
+  if (!target) return { status: "blocked", reason: `no bounded direct ${leafKind} leaf was discovered` };
+  const oldValue = leafKind === "paragraphBulletAutoNumberScheme" ? String(target.value) : Number(target.value);
+  const value = leafKind === "paragraphBulletAutoNumberScheme"
+    ? (oldValue === "arabicPeriod" ? "romanLcPeriod" : "arabicPeriod")
+    : (oldValue < 32767 ? oldValue + 1 : oldValue - 1);
+  if (value === oldValue) return { status: "blocked", reason: `discovered ${leafKind} has no safe alternate value` };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || (leafKind === "paragraphBulletAutoNumberScheme" ? rebound.value !== value : Number(rebound.value) !== value)) {
+    throw new Error(`Native ${leafKind} edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native ${leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
 }
 
 async function verifyNativeParagraphLevelEdit(bytes) {
