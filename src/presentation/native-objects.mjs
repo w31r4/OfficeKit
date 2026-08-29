@@ -56,6 +56,13 @@ const NATIVE_LINE_STYLES = Object.freeze({
   lgDashDotDot: "dash-dot-dot",
   "dash-dot-dot": "dash-dot-dot",
 });
+const NATIVE_LINE_CAPS = Object.freeze({
+  flat: "flat",
+  rnd: "round",
+  round: "round",
+  sq: "square",
+  square: "square",
+});
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -111,6 +118,10 @@ function nativeLineStyleToken(value) {
   return NATIVE_LINE_STYLES[String(value || "").trim()];
 }
 
+function nativeLineCapToken(value) {
+  return NATIVE_LINE_CAPS[String(value || "").trim().toLowerCase()];
+}
+
 function deriveNativeLineLeaves(rawXml, nativeKind) {
   if (nativeKind !== "connector") return undefined;
   const source = String(rawXml || "");
@@ -158,6 +169,12 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
       if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineStyle", value, expectedHash: sha256(value) });
     }
   }
+  const capAttributes = nativeTagAttributes(line.groups?.attributes || "")
+    .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "cap");
+  if (capAttributes.length === 1 && solidMatches.length === 1) {
+    const value = nativeLineCapToken(capAttributes[0].value);
+    if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineCap", value, expectedHash: sha256(value) });
+  }
   return leaves.length ? Object.freeze(leaves) : undefined;
 }
 
@@ -167,7 +184,7 @@ function nativeLineRecord(leaves) {
     leafKind: leaf.leafKind || "lineRgb",
     value: leaf.leafKind === "lineWidthEmu"
       ? Number(leaf.value)
-      : leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+      : leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" ? leaf.value : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -189,6 +206,7 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
   const lineLeaves = [];
   const lineWidthLeaves = [];
   const lineStyleLeaves = [];
+  const lineCapLeaves = [];
   const colorLeaf = (solid, prefix) => {
     const colors = directPresentationChildren(solid.xml, "solidFill")
       .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
@@ -246,11 +264,16 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
           if (value) lineStyleLeaves.push({ leafKind: "lineStyle", value });
         }
       }
+      const capAttributes = nativeTagAttributes(lineOpen || "")
+        .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "cap");
+      if (capAttributes.length === 1 && nativeLineCapToken(capAttributes[0].value) && lineLeaf) {
+        lineCapLeaves.push({ leafKind: "lineCap", value: nativeLineCapToken(capAttributes[0].value) });
+      }
     }
   };
   visitGroup(String(rawXml || ""));
   // Keep prior color indexes stable; append line widths as a separate family.
-  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves, ...lineStyleLeaves].map((leaf, nativeLeafIndex) => ({
+  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves, ...lineStyleLeaves, ...lineCapLeaves].map((leaf, nativeLeafIndex) => ({
     nativeLeafIndex,
     ...leaf,
     expectedHash: sha256(leaf.value),
@@ -262,7 +285,7 @@ function nativeStyleRecord(leaves) {
   return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
     nativeLeafIndex: leaf.nativeLeafIndex,
     leafKind: leaf.leafKind,
-    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle"
+    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap"
       ? leaf.value
       : leaf.leafKind === "lineWidthEmu" ? Number(leaf.value) : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
@@ -870,6 +893,12 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         this._nativeLineLeaves[index].value = style;
         return;
       }
+      if (leafKind === "lineCap") {
+        const cap = nativeLineCapToken(color);
+        if (!cap || cap !== color) throw new RangeError("Native line cap requires flat, round, or square.");
+        this._nativeLineLeaves[index].value = cap;
+        return;
+      }
       if (leafKind === "lineWidthEmu") {
         if (!/^\d+$/u.test(color)) throw new RangeError("Native line width requires a non-negative integer EMU value.");
         const width = Number(color);
@@ -900,6 +929,13 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         const style = nativeLineStyleToken(String(value ?? "").trim());
         if (!style || style !== String(value ?? "").trim()) throw new RangeError("Native style line style requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
         this._nativeStyleLeaves[index].value = style;
+        return;
+      }
+      if (leafKind === "lineCap") {
+        const token = String(value ?? "").trim();
+        const cap = nativeLineCapToken(token);
+        if (!cap || cap !== token) throw new RangeError("Native style line cap requires flat, round, or square.");
+        this._nativeStyleLeaves[index].value = cap;
         return;
       }
       if (leafKind === "lineWidthEmu") {

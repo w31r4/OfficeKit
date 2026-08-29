@@ -90,6 +90,41 @@ internal static class PptxLineStyleCodec
         return token.Length > 0;
     }
 
+    internal static bool TryReadCapValue(string? value, out string cap)
+    {
+        cap = value?.Trim().ToLowerInvariant() switch
+        {
+            "flat" => "flat",
+            "rnd" or "round" => "round",
+            "sq" or "square" => "square",
+            _ => string.Empty,
+        };
+        return cap.Length > 0;
+    }
+
+    internal static bool TryReadCap(A.Outline? outline, out string cap)
+    {
+        cap = string.Empty;
+        if (outline is null) return false;
+        var attributes = outline.GetAttributes()
+            .Where(attribute => attribute.LocalName == "cap")
+            .ToArray();
+        return attributes.Length == 1 && HasOnlyAttributes(outline, "w", "cap", "cmpd", "algn") &&
+            TryReadCapValue(attributes[0].Value, out cap);
+    }
+
+    internal static bool TryCapToken(string cap, out string token)
+    {
+        token = cap switch
+        {
+            "flat" => "flat",
+            "round" => "rnd",
+            "square" => "sq",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
     internal static bool TryRead(A.Outline? outline, out Profile profile)
     {
         if (outline is null)

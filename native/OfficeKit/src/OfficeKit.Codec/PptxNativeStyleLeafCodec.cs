@@ -7,7 +7,7 @@ namespace OfficeKit.Codec;
 internal sealed record PptxNativeStyleLeaf(uint Index, string Kind, string Value, P.Shape Shape);
 
 // Describes only the smallest style surface that can be proven without
-// rebuilding an opaque group.  The group remains source-bound; this codec
+// rebuilding a source-bound group.  The group remains source-bound; this codec
 // never edits geometry, effects, children, or unsupported fill topologies.
 internal static class PptxNativeStyleLeafCodec
 {
@@ -22,6 +22,7 @@ internal static class PptxNativeStyleLeafCodec
         var lineLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineWidthLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineStyleLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineCapLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         foreach (var shape in group.Descendants<P.Shape>())
         {
             var properties = shape.ShapeProperties;
@@ -38,6 +39,8 @@ internal static class PptxNativeStyleLeafCodec
                 lineWidthLeaves.Add(("lineWidthEmu", widthValue, shape));
             if (TryReadStyle(outlines[0], out var styleValue))
                 lineStyleLeaves.Add(("lineStyle", styleValue, shape));
+            if (TryReadCap(outlines[0], out var capValue))
+                lineCapLeaves.Add(("lineCap", capValue, shape));
             var lineFills = outlines[0].ChildElements
                 .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
                 .ToArray();
@@ -48,7 +51,7 @@ internal static class PptxNativeStyleLeafCodec
         // Keep existing fill/line color/width indexes stable; append the dash
         // family so adding this capability cannot retarget a prior
         // source-bound leaf.
-        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).ToArray();
+        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).ToArray();
         if (described.Length == 0 || described.Length > MaxLeaves) return false;
         leaves = described.Select((item, index) => new PptxNativeStyleLeaf(checked((uint)index), item.Kind, item.Value, item.Shape)).ToArray();
         return true;
@@ -128,6 +131,38 @@ internal static class PptxNativeStyleLeafCodec
         }
         else return false;
         value = style;
+        return true;
+    }
+
+    private static bool TryReadCap(A.Outline outline, out string value)
+    {
+        value = string.Empty;
+        var attributes = outline.GetAttributes()
+            .Where(attribute => attribute.LocalName == "cap")
+            .ToArray();
+        if (attributes.Length != 1 || !outline.GetAttributes().All(attribute => attribute.LocalName is "w" or "cap" or "cmpd" or "algn")) return false;
+        if (!PptxLineStyleCodec.TryReadCapValue(attributes[0].Value, out var cap)) return false;
+
+        // A cap token is useful only when the outline paint is a simple
+        // explicit solid color. Preserve effect-bearing and inherited line
+        // graphs as opaque rather than exposing a misleading partial style.
+        var fills = outline.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
+        if (fills.Length != 1 || fills[0] is not A.SolidFill solid || solid.ChildElements.Count != 1)
+            return false;
+        if (solid.FirstChild is A.RgbColorModelHex rgb)
+        {
+            if (rgb.Val?.Value is not { Length: 6 } token || !token.All(Uri.IsHexDigit) ||
+                rgb.ChildElements.Any() || !rgb.GetAttributes().All(attribute => attribute.LocalName == "val"))
+                return false;
+        }
+        else if (solid.FirstChild is A.SchemeColor scheme)
+        {
+            if (scheme.Val?.Value is not { } token || !PptxColor.TrySchemeToken(token, out _) ||
+                scheme.ChildElements.Any() || !scheme.GetAttributes().All(attribute => attribute.LocalName == "val"))
+                return false;
+        }
+        else return false;
+        value = cap;
         return true;
     }
 }
