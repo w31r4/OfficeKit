@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/reference.pptx",
-    "sha256": "79f13f2d5dddde397d9c998659bdec8ad8a01d85864b112b2f00689654f95c56"
+    "sha256": "af1dd966792f4f5cb6a7c378db7f8e9473925c8e83e9034cc375424555ae9cfa"
   },
   "evidence": {
     "source": [
@@ -27,7 +27,9 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render.v1.json"
+      "native-render.v1.json",
+      "native-pdf-sha256:0fec6a4adbb84054bb71a4f0b22aef729e827540718ebbbd022bb82f6494bbb8",
+      "native-pages:6"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -40,11 +42,14 @@
     ],
     "reimport": [
       "edited-roundtrip.pptx",
-      "assertion:cover-title-survives-second-import"
+      "assertion:cover-title-survives-second-import",
+      "template-reuse.v1.json",
+      "source-bound-slide-reuse:0",
+      "reimported-slides:7"
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:79f13f2d5dddde397d9c998659bdec8ad8a01d85864b112b2f00689654f95c56"
+      "reference-sha256:af1dd966792f4f5cb6a7c378db7f8e9473925c8e83e9034cc375424555ae9cfa"
     ]
   },
   "visual": {
@@ -152,9 +157,8 @@
       "evidence": [
         "template-reuse.v1.json",
         "reference.pptx",
-        "inspect.jsonl",
-        "source-bound-duplicate-reimport",
-        "templates:30"
+        "source-bound-duplicate:0",
+        "second-import:passed"
       ]
     },
     "roundTripStability": {
@@ -168,9 +172,8 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:f5a9f49a0083f63a468401c07d108cc8ac6dd902acfc67c8bd017e61092d9635",
-        "pages:6",
-        "all-pages-rendered"
+        "native-pdf-sha256:0fec6a4adbb84054bb71a4f0b22aef729e827540718ebbbd022bb82f6494bbb8",
+        "all-pages-rendered:6"
       ]
     },
     "backgroundAndLayerFidelity": {
@@ -199,7 +202,8 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 89.6, functional 95.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 89.6, functional 95.4); keep this template pending and iterate its style-specific carriers.",
+    "Native LibreOffice render and source-bound slide reuse were re-run against the tracked reference.pptx; visual restoration remains a separate, honest score."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

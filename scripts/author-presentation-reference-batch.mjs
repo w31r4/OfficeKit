@@ -358,6 +358,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const name = sidecar.displayName || templateId.replace(/^artifact-template-/u, "");
   const backdropSvg = makeBackdropSvg({ palette, category, dark });
   const backdropPng = await sharp(Buffer.from(backdropSvg, "utf8")).png().toBuffer();
+  const layoutTraits = parseLayoutTraits(signatureGuide);
   const needsPhoto = Boolean(bodyImage || coverImage || sectionImage || photoBand || eventImage);
   // A template-specific pool sets the opening art direction, but it should
   // not cap the rest of the deck at four or five photographs.  When the
@@ -416,6 +417,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     fixedNavigation,
     dense,
     darkPages,
+    layoutTraits,
     family,
     fontFamily,
     name,
@@ -436,6 +438,34 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     imageTransform: imageSources[0].transform,
     sidecar,
     coverTitle: `${name}: a claim worth testing`,
+  };
+}
+
+// The source guides describe page types in prose.  Turn only those explicit
+// design signals into a small routing vocabulary so the reference author does
+// not collapse every style into the same chart / card / photo skeleton.  This
+// is a clean-room interpretation of the guide, not a parser for the source
+// screenshots and not a new template DSL.
+function parseLayoutTraits(signatureGuide) {
+  const text = String(signatureGuide || "");
+  const start = text.search(/(?:【|#+\s*)Slide Types and Layouts/iu);
+  const end = text.search(/(?:【|#+\s*)Density Baseline/iu);
+  const layoutText = start >= 0 ? text.slice(start, end > start ? end : undefined) : text;
+  const chartStart = text.search(/(?:【|#+\s*)Chart Language/iu);
+  const chartEnd = text.search(/(?:【|#+\s*)(?:Signature Components|Prohibited|Slide Types and Layouts|Density Baseline)/iu);
+  const chartText = chartStart >= 0 ? text.slice(chartStart, chartEnd > chartStart ? chartEnd : undefined) : "";
+  const all = `${layoutText}\n${chartText}`;
+  return {
+    map: /\bmap(?:s|[- ]paired)?\b/iu.test(all),
+    timeline: /\b(?:timeline|roadmap|milestone|evolution|transition|serialized)\b/iu.test(all),
+    composition: /\b(?:pie chart|composition breakdown|stacked column|composition data)\b/iu.test(all),
+    imageMatrix: /\b(?:image matrix|gallery|dual[- ]case|photographic evidence[- ]band|sample anatomy)\b/iu.test(all),
+    fullBleedPhoto: /\bfull[- ]bleed (?:photograph|photographic|photo|imagery|image)/iu.test(all),
+    threeColumn: /\b(?:three[- ]column|three chart|multi[- ]column|six[- ]module)\b/iu.test(all),
+    table: /\b(?:table|audit|matrix|financial model|model\/comps)\b/iu.test(all),
+    galleryMat: /\b(?:gallery[- ]mat|inset composition|stable white gallery)/iu.test(text),
+    arc: /\b(?:arc|wave|curve)\b/iu.test(text),
+    horizontalBands: /\b(?:horizontal bands?|hairline|short rules?|horizontal rules?)\b/iu.test(text),
   };
 }
 
@@ -607,6 +637,108 @@ function wrapHeading(value, maxChars) {
   }
   if (current) lines.push(current);
   return lines.join("\n");
+}
+
+function addGalleryMat(slide, style) {
+  if (!style.layoutTraits?.galleryMat || style.bodyImage) return;
+  // The source guides use a gallery-mat as a compositional boundary. Keep it
+  // as one quiet surface rather than a stack of panels; all authored content
+  // remains inside the inset and the outer field stays visible in the render.
+  addRect(slide, "gallery-mat", 34, 30, WIDTH - 68, HEIGHT - 60, "#FFFFFF", {
+    fill: "#FFFFFF",
+    line: { fill: style.palette.rule, width: 1 },
+  });
+}
+
+function mapEvidence(slide, style) {
+  const { palette: c } = style;
+  addText(slide, "map-label", "DIRECT-LABELLED DISTRIBUTION", 112, 330, 540, 22, { fontSize: 14, bold: true, color: c.accent });
+  const mapSurface = mixHex(c.paper, c.secondary, 0.14);
+  addRect(slide, "map-field", 112, 370, 790, 278, mapSurface, { fill: mapSurface, line: { fill: c.rule, width: 1 } });
+  // A deliberately abstract, editable map-like field: the relationship is
+  // carried by connected regions and labels, not a rasterized screenshot.
+  const regions = [
+    [170, 454, 150, 74, c.secondary], [346, 416, 188, 92, c.accent],
+    [556, 468, 126, 70, c.secondary], [704, 404, 130, 100, c.accent],
+    [272, 548, 204, 62, c.rule], [514, 560, 152, 54, c.secondary],
+  ];
+  regions.forEach(([left, top, width, height, fill], index) => addRect(slide, `map-region-${index}`, left, top, width, height, fill, {
+    fill: { color: fill, opacity: index % 2 ? 0.76 : 0.48 },
+    line: { fill: c.paper, width: 2 },
+  }));
+  const labels = [["North", 192, 430], ["Central", 374, 390], ["East", 716, 380], ["South", 298, 638]];
+  labels.forEach(([label, left, top], index) => {
+    addLine(slide, `map-leader-${index}`, left + 12, top + 28, left + 34, top + 52, c.ink, 1);
+    addText(slide, `map-label-${index}`, `${label} · ${[42, 68, 55, 31][index]}%`, left + 38, top, 150, 24, { fontSize: 15, bold: true, color: c.ink });
+  });
+  addText(slide, "map-read-label", "READ-THROUGH", 1040, 350, 320, 24, { fontSize: 15, bold: true, color: c.accent });
+  addText(slide, "map-read-title", "The geography changes the decision.", 1040, 402, 360, 76, { fontSize: 28, bold: true, color: c.ink });
+  addText(slide, "map-read-body", "Use a map only when position, distribution, or concentration carries the argument. Direct labels stay next to the region they qualify.", 1040, 520, 360, 94, { fontSize: 17, color: c.rule });
+}
+
+function compositionEvidence(slide, style) {
+  const { palette: c } = style;
+  slide.charts.add("pie", {
+    name: "composition-pie",
+    title: "Composition",
+    position: { left: 112, top: 340, width: 520, height: 330 },
+    categories: ["Core", "Adjacent", "Other"],
+    series: [{ name: "Share", values: [54, 31, 15], color: c.accent }],
+    legend: true,
+    dataLabels: { showCategoryName: true, showValue: true, position: "bestFit" },
+  });
+  addText(slide, "composition-label", "COMPOSITION BREAKDOWN", 710, 350, 410, 24, { fontSize: 15, bold: true, color: c.accent });
+  addText(slide, "composition-title", "One large share changes the read-through.", 710, 400, 430, 68, { fontSize: 28, bold: true, color: c.ink });
+  const rows = [["Core", "54%", c.accent], ["Adjacent", "31%", c.secondary], ["Other", "15%", c.rule]];
+  rows.forEach(([label, value, color], index) => {
+    const y = 520 + index * 52;
+    addText(slide, `composition-row-label-${index}`, label, 710, y, 190, 24, { fontSize: 17, bold: true, color: c.ink });
+    addRect(slide, `composition-row-bar-${index}`, 910, y + 5, 250, 16, color, { fill: color, line: { fill: color, width: 0 } });
+    addText(slide, `composition-row-value-${index}`, value, 1180, y, 100, 24, { fontSize: 17, bold: true, color: c.ink, alignment: "right" });
+  });
+  addText(slide, "composition-note", "Direct labels carry the parts; the sidebar carries the implication.", 710, 690, 560, 24, { fontSize: 15, color: c.rule });
+}
+
+function timelineEvidence(slide, style) {
+  const { palette: c } = style;
+  addText(slide, "timeline-label", "EVOLUTION / TRANSITION", 112, 340, 420, 24, { fontSize: 15, bold: true, color: c.accent });
+  const points = [["01", "Frame", "Name the question"], ["02", "Test", "Hold the rule"], ["03", "Read", "Separate signal"], ["04", "Move", "Set the next gate"], ["05", "Scale", "Repeat what held"]];
+  const left = 128;
+  const step = 270;
+  const y = 500;
+  addLine(slide, "timeline-axis", left, y, left + step * (points.length - 1), y, c.rule, 3);
+  points.forEach(([number, label, text], index) => {
+    const x = left + step * index;
+    slide.shapes.add({ name: `timeline-node-${index}`, geometry: "ellipse", position: { left: x - 16, top: y - 16, width: 32, height: 32 }, fill: index === points.length - 1 ? c.accent : c.paper, line: { fill: index === points.length - 1 ? c.accent : c.ink, width: 2 } });
+    addText(slide, `timeline-number-${index}`, number, x - 28, y - 72, 56, 20, { fontSize: 13, bold: true, color: c.accent, alignment: "center" });
+    addText(slide, `timeline-label-${index}`, label, x - 72, y + 34, 144, 24, { fontSize: 18, bold: true, color: c.ink, alignment: "center" });
+    addText(slide, `timeline-text-${index}`, text, x - 94, y + 66, 188, 38, { fontSize: 14, color: c.rule, alignment: "center" });
+  });
+  addText(slide, "timeline-read-label", "READ-THROUGH", 112, 700, 240, 22, { fontSize: 14, bold: true, color: c.accent });
+  addText(slide, "timeline-read", "A sequence is useful when each handoff changes what can happen next.", 350, 696, 860, 28, { fontSize: 19, bold: true, color: c.ink });
+}
+
+function imageMatrixEvidence(slide, style) {
+  const { palette: c } = style;
+  const crops = [
+    { left: 112, top: 350, width: 380, height: 260 },
+    { left: 514, top: 350, width: 190, height: 122 },
+    { left: 722, top: 350, width: 190, height: 122 },
+    { left: 514, top: 488, width: 190, height: 122 },
+    { left: 722, top: 488, width: 190, height: 122 },
+  ];
+  crops.forEach((position, index) => slide.images.add({ name: `evidence-matrix-${index}`, ...imageProps(style, `evidence-matrix-${index}`), position, fit: "cover", accessibility: { decorative: true } }));
+  addText(slide, "matrix-label", "IMAGE EVIDENCE", 1010, 360, 360, 24, { fontSize: 15, bold: true, color: c.accent });
+  addText(slide, "matrix-title", "The same subject can carry several proofs.", 1010, 414, 380, 76, { fontSize: 27, bold: true, color: c.ink });
+  addText(slide, "matrix-body", "Use a dominant frame for context and smaller crops for comparable detail. Every image needs a role, source, and readable caption.", 1010, 530, 380, 90, { fontSize: 17, color: c.rule });
+}
+
+function mapVisualCarrier(slide, style) {
+  mapEvidence(slide, style);
+}
+
+function compositionVisualCarrier(slide, style) {
+  compositionEvidence(slide, style);
 }
 
 // Finance signatures use dark pages as a deliberate change of temperature:
@@ -861,6 +993,7 @@ function makeArgument(presentation, style) {
   if (style.bodyImage) addImageLedSurface(slide, style, "argument");
   else addRect(slide, "background", 0, 0, WIDTH, HEIGHT, c.paper);
   addFixedNavigation(slide, style, 1);
+  addGalleryMat(slide, style);
   addPageHeading(slide, style, {
     role: "argument",
     eyebrow: `${style.name.toUpperCase()} · ARGUMENT`,
@@ -885,6 +1018,7 @@ function makeEvidence(presentation, style) {
   if (style.bodyImage) addImageLedSurface(slide, style, "evidence");
   else addRect(slide, "background", 0, 0, WIDTH, HEIGHT, c.paper);
   addFixedNavigation(slide, style, 2);
+  addGalleryMat(slide, style);
   addPageHeading(slide, style, {
     role: "evidence",
     eyebrow: `${style.name.toUpperCase()} · EVIDENCE`,
@@ -899,7 +1033,15 @@ function makeEvidence(presentation, style) {
       line: { fill: c.paper, width: 0 },
     });
   }
-  if (style.tableLed) {
+  if (style.layoutTraits?.map) {
+    mapEvidence(slide, style);
+  } else if (style.layoutTraits?.composition) {
+    compositionEvidence(slide, style);
+  } else if (style.layoutTraits?.timeline) {
+    timelineEvidence(slide, style);
+  } else if (style.layoutTraits?.imageMatrix && style.hasPhotoPool) {
+    imageMatrixEvidence(slide, style);
+  } else if (style.tableLed) {
     // Finance guides explicitly make the ledger the protagonist. Keep the
     // table as the primary carrier instead of reducing every style to the
     // generic line/bar chart page.
@@ -958,6 +1100,7 @@ function makeDetail(presentation, style) {
   const { palette: c } = style;
   addRect(slide, "background", 0, 0, WIDTH, HEIGHT, c.paper);
   addFixedNavigation(slide, style, 3);
+  addGalleryMat(slide, style);
   addPageHeading(slide, style, {
     role: "detail",
     eyebrow: `${style.name.toUpperCase()} · DETAIL`,
@@ -966,7 +1109,8 @@ function makeDetail(presentation, style) {
     titleName: "detail-title",
     basisName: "detail-basis",
   });
-  if (style.eventImage && style.hasPhotoPool) detailEventColumns(slide, style);
+  if (style.layoutTraits?.imageMatrix && style.hasPhotoPool) detailImageMatrix(slide, style);
+  else if (style.eventImage && style.hasPhotoPool) detailEventColumns(slide, style);
   else if (style.processLed) detailProcess(slide, style);
   else if (style.category === "finance" || style.category === "academic") detailTable(slide, style);
   else if (style.category === "consulting") detailDecision(slide, style);
@@ -1009,6 +1153,7 @@ function makeVisual(presentation, style) {
   const slide = presentation.slides.add({ name: "Visual carrier" });
   const { palette: c } = style;
   addFixedNavigation(slide, style, 2);
+  addGalleryMat(slide, style);
   if (style.bodyImage) {
     setFullSlideImageBackground(slide, style, "visual");
     addRect(slide, "visual-scrim", 0, 0, 720, HEIGHT, c.paper, {
@@ -1046,7 +1191,13 @@ function makeVisual(presentation, style) {
       titleName: "visual-title",
       basisName: "visual-body",
     });
-    if (style.noCharts) {
+    if (style.layoutTraits?.map) {
+      mapVisualCarrier(slide, style);
+    } else if (style.layoutTraits?.composition) {
+      compositionVisualCarrier(slide, style);
+    } else if (style.layoutTraits?.timeline) {
+      processVisualCarrier(slide, style);
+    } else if (style.noCharts) {
       // Styles that explicitly avoid data charts still need a visual carrier;
       // use an authored native composition rather than an invented photograph.
       addNativeVisualCarrier(slide, style, { left: 96, top: 318, width: 780, height: 388 });
@@ -1088,6 +1239,7 @@ function makeClose(presentation, style) {
   if (style.bodyImage) addImageLedSurface(slide, style, "close");
   else addRect(slide, "background", 0, 0, WIDTH, HEIGHT, c.paper);
   addFixedNavigation(slide, style, 4);
+  addGalleryMat(slide, style);
   addPageHeading(slide, style, {
     role: "close",
     eyebrow: `${style.name.toUpperCase()} · CLOSE`,
