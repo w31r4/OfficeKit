@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-saffron-editorial/assets/reference.pptx",
-    "sha256": "1e2444ba98374ea800116a898b1ff31bfc933240d6124716baa0f1c0efc026d5"
+    "sha256": "63196ebcb5e1f20719fef04dfdba7c6d2fdb5364c63ee353c8ba762a1aef6309"
   },
   "evidence": {
     "source": [
@@ -28,13 +28,13 @@
       "renders/05.png",
       "renders/06.png",
       "native-render.v1.json",
-      "native-pdf-sha256:71f383fdb34d2d003a52080b21d904ad8b8d8abd6ca6fc3f565e6d7cc16ffe6c",
+      "native-pdf-sha256:c842d3c50a5f6fae990faa6223bb5ef3a2fee2556c05fcc0d427d07141909d73",
       "native-pages:6",
-      "native-media:18"
+      "native-media:6"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:186",
+      "records:314",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -47,7 +47,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:1e2444ba98374ea800116a898b1ff31bfc933240d6124716baa0f1c0efc026d5"
+      "reference-sha256:63196ebcb5e1f20719fef04dfdba7c6d2fdb5364c63ee353c8ba762a1aef6309"
     ]
   },
   "visual": {
@@ -168,9 +168,10 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:71f383fdb34d2d003a52080b21d904ad8b8d8abd6ca6fc3f565e6d7cc16ffe6c",
-        "all-pages-rendered:6",
-        "media-count:18"
+        "native-pdf-sha256:c842d3c50a5f6fae990faa6223bb5ef3a2fee2556c05fcc0d427d07141909d73",
+        "native-pages:6",
+        "native-media:6",
+        "all-pages-rendered"
       ]
     },
     "backgroundAndLayerFidelity": {
@@ -199,7 +200,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Asset refresh v2: 18 embedded media assets across 6 natively rendered pages; visual restoration remains below the 95/95 bar (visual 80.0, functional 94.4) and this candidate stays pending."
+    "Initial category review was below the 95/95 restoration bar (visual 80.0, functional 82.4); the style-specific magazine sequence now has native render evidence, while visual and reuse scores remain pending further review."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

@@ -891,6 +891,9 @@ function makeCover(presentation, style) {
   if (style.family === "finance-ledger" && (style.darkPages || style.sourceRelative === "finance/black-gold-ledger")) {
     return makeFinanceCover(presentation, style);
   }
+  if (style.sourceRelative === "promotion/silk-yellow-magazine") {
+    return makeSilkYellowCover(presentation, style);
+  }
   if (style.sourceRelative === "work/blue-flame-brand" && style.hasPhotoPool) {
     return makeBlueFlameCover(presentation, style);
   }
@@ -924,6 +927,206 @@ function makeCover(presentation, style) {
   addText(slide, "cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 100, 768, 950, 24, { fontSize: 14, color: c.rule });
   addText(slide, "page-number", "1 / 6", 1400, 820, 100, 22, { fontSize: 14, color: c.rule, alignment: "right" });
   addAnchor(slide, style, 1180, 160);
+  return slide;
+}
+
+// Silk Yellow's source grammar is a magazine sequence, not a recoloured
+// dashboard.  Keep its clean-room reference faithful to the observed rhythm:
+// image-led opening, six-beat index, one metric with a documentary frame, a
+// measured time band, a three-case gallery, and a black action close.  The
+// copy and imagery are original; only the communication structure is carried
+// over from the written guide and visual evidence.
+function silkYellowColors(style) {
+  const c = style.palette;
+  return {
+    paper: c.paper || "#E9E6DF",
+    ink: c.ink || "#111111",
+    accent: c.accent || "#E4B91E",
+    coral: c.secondary || "#D64055",
+    sage: "#99BBBD",
+    blue: "#6E8EBE",
+    lime: "#E2FDBE",
+    rule: c.rule || "#77726B",
+  };
+}
+
+function silkYellowMeta(slide, style, section, page) {
+  const c = silkYellowColors(style);
+  addText(slide, "silk-meta", `${style.name.toUpperCase()}  ·  ${section.toUpperCase()}`, 104, 52, 760, 20, { fontSize: 13, bold: true, color: c.rule });
+  addText(slide, "silk-page", `${String(page).padStart(2, "0")} / 06`, 1390, 52, 120, 20, { fontSize: 13, color: c.rule, alignment: "right" });
+}
+
+function silkYellowTab(slide, label, color) {
+  addRect(slide, "silk-tab", 96, 104, 190, 26, color, { fill: color, line: { fill: color, width: 0 } });
+  addText(slide, "silk-tab-label", label.toUpperCase(), 108, 111, 166, 14, { fontSize: 10, bold: true, color: contrast(color), alignment: "center" });
+}
+
+function makeSilkYellowCover(presentation, style) {
+  const slide = presentation.slides.add({ name: "Opening proposition" });
+  const c = silkYellowColors(style);
+  setFullSlideImageBackground(slide, style, "cover");
+  addRect(slide, "silk-cover-paper", 0, 0, 950, 704, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  addText(slide, "silk-cover-eyebrow", "2026  ·  FIELD NOTE  ·  OFFICEKIT CALIBRATION", 104, 88, 700, 22, { fontSize: 14, bold: true, color: c.coral });
+  addText(slide, "cover-title", style.coverTitle, 104, 174, 770, 150, { fontSize: 48, bold: true, color: c.ink });
+  addText(slide, "silk-cover-subtitle", "An editorial reference for evidence, identity, and measured activation.", 108, 350, 680, 30, { fontSize: 21, color: c.ink });
+  addLine(slide, "silk-cover-rule", 108, 426, 826, 426, c.rule, 1);
+  addText(slide, "silk-cover-basis", "One visual language · six page roles · native editable content", 108, 452, 700, 25, { fontSize: 17, color: c.rule });
+  addRect(slide, "silk-cover-band", 0, 704, WIDTH, 100, c.ink, { fill: c.ink, line: { fill: c.ink, width: 0 } });
+  addText(slide, "silk-cover-band-text", "FIELD NOTE  ·  A visual idea is useful when the evidence can travel with it.", 108, 742, 1030, 28, { fontSize: 18, bold: true, color: c.paper });
+  addRect(slide, "silk-cover-signal", 1330, 704, 174, 100, c.accent, { fill: c.accent, line: { fill: c.accent, width: 0 } });
+  addText(slide, "silk-cover-signal-text", "01  /  06", 1352, 744, 130, 24, { fontSize: 15, bold: true, color: contrast(c.accent), alignment: "center" });
+  addText(slide, "silk-cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 108, 836, 1150, 20, { fontSize: 13, color: c.rule });
+  return slide;
+}
+
+function makeSilkYellowArgument(presentation, style) {
+  const slide = presentation.slides.add({ name: "Argument" });
+  const c = silkYellowColors(style);
+  addRect(slide, "silk-index-field", 0, 0, WIDTH, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  silkYellowMeta(slide, style, "chapter index", 2);
+  silkYellowTab(slide, "contents · six shifts", c.ink);
+  addText(slide, "argument-title", "A campaign becomes memorable when each chapter changes the question.", 104, 166, 1200, 64, { fontSize: 34, bold: true, color: c.ink });
+  addText(slide, "argument-basis", "Six beats · each one carries a proposition, a proof, and a direction.", 108, 248, 1000, 24, { fontSize: 17, color: c.rule });
+  const blocks = [
+    ["01", "Signal", "Name the audience tension.", c.lime, c.ink],
+    ["02", "Context", "Show where the pattern lives.", "#F9B3A7", c.ink],
+    ["03", "Choice", "Make the proposition concrete.", c.blue, "#FFFFFF"],
+    ["04", "Proof", "Attach a measure to the claim.", c.coral, "#FFFFFF"],
+    ["05", "System", "Turn one idea into repeatable moves.", c.sage, c.ink],
+    ["06", "Next", "Give the audience one action.", c.accent, c.ink],
+  ];
+  blocks.forEach(([number, label, text, fill, textColor], index) => {
+    const col = index % 3;
+    const row = Math.floor(index / 3);
+    const x = 108 + col * 458;
+    const y = 338 + row * 152;
+    addRect(slide, `silk-index-block-${index}`, x, y, 420, 124, fill, { fill, line: { fill, width: 0 } });
+    addText(slide, `silk-index-number-${index}`, number, x + 22, y + 18, 46, 24, { fontSize: 17, bold: true, color: textColor });
+    addText(slide, `silk-index-label-${index}`, label, x + 86, y + 16, 290, 28, { fontSize: 22, bold: true, color: textColor });
+    addText(slide, `silk-index-text-${index}`, text, x + 22, y + 62, 370, 40, { fontSize: 15, color: textColor });
+  });
+  addText(slide, "silk-index-source", "OfficeKit original clean-room calibration · chapter colors are a visual index, not data", 108, 836, 1180, 20, { fontSize: 13, color: c.rule });
+  return slide;
+}
+
+function makeSilkYellowEvidence(presentation, style) {
+  const slide = presentation.slides.add({ name: "Evidence" });
+  const c = silkYellowColors(style);
+  addRect(slide, "silk-evidence-field", 0, 0, WIDTH, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  silkYellowMeta(slide, style, "market base", 3);
+  silkYellowTab(slide, "market base", c.ink);
+  addText(slide, "evidence-title", "The signal is useful only when the audience can see the behavior behind it.", 104, 166, 1230, 64, { fontSize: 34, bold: true, color: c.ink });
+  addText(slide, "evidence-basis", "Illustrative cohort read · every number carries a unit, period, and measurement note.", 108, 248, 1100, 24, { fontSize: 17, color: c.rule });
+  addText(slide, "silk-evidence-metric", "31%", 112, 350, 330, 90, { fontSize: 72, bold: true, color: c.ink });
+  addText(slide, "silk-evidence-metric-label", "repeat visits become the growth signal", 116, 438, 430, 26, { fontSize: 17, color: c.rule });
+  const rows = [
+    ["SCALE", "46,000", "paired visits in the measured window", c.accent],
+    ["TIME", "24%", "of visits land after the first encounter", c.coral],
+    ["SPEND", "91 min", "median dwell time for returning visitors", c.sage],
+  ];
+  rows.forEach(([label, value, text, color], index) => {
+    const y = 536 + index * 70;
+    addLine(slide, `silk-evidence-rule-${index}`, 116, y - 12, 840, y - 12, c.rule, 1);
+    addText(slide, `silk-evidence-row-label-${index}`, label, 116, y, 100, 22, { fontSize: 13, bold: true, color });
+    addText(slide, `silk-evidence-row-value-${index}`, value, 246, y - 4, 170, 30, { fontSize: 23, bold: true, color: c.ink });
+    addText(slide, `silk-evidence-row-text-${index}`, text, 442, y, 390, 24, { fontSize: 15, color: c.rule });
+  });
+  slide.images.add({ name: "silk-evidence-photo", ...imageProps(style, "evidence"), position: { left: 1010, top: 328, width: 404, height: 364 }, fit: "cover", accessibility: { description: "Documentary image carrying the market context" } });
+  addRect(slide, "silk-evidence-photo-caption", 1010, 700, 404, 42, c.ink, { fill: c.ink, line: { fill: c.ink, width: 0 } });
+  addText(slide, "silk-evidence-photo-caption-text", "ONE FRAME · THREE BEHAVIORS", 1030, 714, 360, 18, { fontSize: 12, bold: true, color: c.paper });
+  addText(slide, "silk-evidence-source", "Source: illustrative calibration brief · values are fictional", 108, 836, 1150, 20, { fontSize: 13, color: c.rule });
+  return slide;
+}
+
+function makeSilkYellowDetail(presentation, style) {
+  const slide = presentation.slides.add({ name: "Detail" });
+  const c = silkYellowColors(style);
+  addRect(slide, "silk-detail-field", 0, 0, WIDTH, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  silkYellowMeta(slide, style, "time-block economics", 4);
+  silkYellowTab(slide, "time-block economics", c.ink);
+  addText(slide, "detail-title", "A measured rhythm turns one proposition into repeatable behavior.", 104, 166, 1240, 64, { fontSize: 34, bold: true, color: c.ink });
+  addText(slide, "detail-basis", "Four moments · the same unit · one comparison rule.", 108, 248, 1000, 24, { fontSize: 17, color: c.rule });
+  const cells = [
+    ["AM", "19%", "first-use rate", c.paper],
+    ["DAY", "64%", "midday repeat", "#D6E7E7"],
+    ["EVE", "47%", "return window", "#F9B3A7"],
+    ["NIGHT", "38%", "highest margin", c.accent],
+  ];
+  cells.forEach(([label, value, text, fill], index) => {
+    const x = 108 + index * 226;
+    addRect(slide, `silk-time-cell-${index}`, x, 372, 204, 172, fill, { fill, line: { fill: c.rule, width: 1 } });
+    addText(slide, `silk-time-label-${index}`, label, x + 20, 392, 160, 20, { fontSize: 13, bold: true, color: c.rule });
+    addText(slide, `silk-time-value-${index}`, value, x + 20, 432, 160, 46, { fontSize: 36, bold: true, color: c.ink });
+    addText(slide, `silk-time-text-${index}`, text, x + 20, 494, 164, 24, { fontSize: 14, color: c.ink });
+  });
+  addLine(slide, "silk-time-axis", 126, 602, 1004, 602, c.ink, 2);
+  ["07:00", "10:00", "17:00", "20:00"].forEach((label, index) => {
+    const x = 126 + index * 282;
+    addLine(slide, `silk-time-tick-${index}`, x, 594, x, 612, c.ink, 2);
+    addText(slide, `silk-time-tick-label-${index}`, label, x - 26, 624, 70, 18, { fontSize: 12, color: c.rule, alignment: "center" });
+  });
+  addRect(slide, "silk-time-insight", 1088, 370, 350, 300, c.ink, { fill: c.ink, line: { fill: c.ink, width: 0 } });
+  addText(slide, "silk-time-insight-label", "INSIGHT", 1120, 404, 280, 20, { fontSize: 13, bold: true, color: c.accent });
+  addText(slide, "silk-time-insight-value", "52%", 1120, 450, 280, 70, { fontSize: 56, bold: true, color: c.paper });
+  addText(slide, "silk-time-insight-text", "median repeat share\nwhen the proposition\narrives after dark", 1120, 542, 270, 74, { fontSize: 17, color: c.paper });
+  addText(slide, "silk-time-source", "Source: illustrative calibration brief · values are fictional", 108, 836, 1150, 20, { fontSize: 13, color: c.rule });
+  return slide;
+}
+
+function makeSilkYellowVisual(presentation, style) {
+  const slide = presentation.slides.add({ name: "Visual carrier" });
+  const c = silkYellowColors(style);
+  addRect(slide, "silk-gallery-field", 0, 0, WIDTH, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  silkYellowMeta(slide, style, "case book", 5);
+  silkYellowTab(slide, "case book", c.ink);
+  addText(slide, "visual-title", "Three spaces, one repeatable proposition.", 104, 166, 1140, 62, { fontSize: 36, bold: true, color: c.ink });
+  addText(slide, "visual-body", "Like-for-like cases make the creative system legible without flattening the context.", 108, 248, 1100, 24, { fontSize: 17, color: c.rule });
+  const cases = [
+    ["NORTH ISLE", "24/7 STUDY", "Small interventions create a reason to return."],
+    ["ROOFTOP FARM", "ROOF LOUNGE", "The same ritual holds in a different setting."],
+    ["MIDNIGHT MUSEUM", "NIGHT GALLERY", "The proposition survives a new audience cue."],
+  ];
+  cases.forEach(([label, tag, text], index) => {
+    const x = 108 + index * 462;
+    slide.images.add({ name: `silk-case-photo-${index}`, ...imageProps(style, `case-${index}`), position: { left: x, top: 348, width: 418, height: 222 }, fit: "cover", accessibility: { description: `${label} documentary case image` } });
+    addRect(slide, `silk-case-band-${index}`, x, 570, 418, 42, index === 2 ? c.ink : c.accent, { fill: index === 2 ? c.ink : c.accent, line: { fill: index === 2 ? c.ink : c.accent, width: 0 } });
+    addText(slide, `silk-case-tag-${index}`, tag, x + 18, 583, 150, 16, { fontSize: 11, bold: true, color: contrast(index === 2 ? c.ink : c.accent) });
+    addText(slide, `silk-case-label-${index}`, label, x, 642, 418, 20, { fontSize: 14, bold: true, color: c.ink });
+    addText(slide, `silk-case-text-${index}`, text, x, 674, 404, 44, { fontSize: 15, color: c.rule });
+  });
+  addLine(slide, "silk-gallery-rule", 108, 770, 1432, 770, c.rule, 1);
+  addText(slide, "silk-gallery-note", "The image carries context; the caption carries the comparable field.", 108, 790, 920, 22, { fontSize: 16, bold: true, color: c.ink });
+  addText(slide, "silk-gallery-source", "Source: illustrative calibration brief · cases are fictional", 108, 836, 1150, 20, { fontSize: 13, color: c.rule });
+  return slide;
+}
+
+function makeSilkYellowClose(presentation, style) {
+  const slide = presentation.slides.add({ name: "Decision close" });
+  const c = silkYellowColors(style);
+  addRect(slide, "silk-close-field", 0, 0, WIDTH, HEIGHT, c.ink, { fill: c.ink, line: { fill: c.ink, width: 0 } });
+  silkYellowMeta(slide, style, "next moves", 6);
+  silkYellowTab(slide, "action · next moves", c.accent);
+  // Keep the closing proposition inside the text lane; the image and action
+  // panel occupy the right lane and must never cover a title or row label.
+  addText(slide, "close-title", "Make the invitation impossible to miss.", 104, 174, 930, 118, { fontSize: 44, bold: true, color: c.paper });
+  addText(slide, "close-basis", "The close is a decision surface: promise, proof, and one move.", 108, 326, 760, 28, { fontSize: 19, color: c.paper });
+  const rows = [
+    ["01", "PROMISE", "The proposition is legible.", c.accent],
+    ["02", "PROOF", "The response is measurable.", c.sage],
+    ["03", "MOVE", "Give the audience one action.", c.coral],
+  ];
+  rows.forEach(([number, label, text, color], index) => {
+    const y = 456 + index * 78;
+    addText(slide, `silk-close-number-${index}`, number, 112, y, 52, 24, { fontSize: 16, bold: true, color });
+    addText(slide, `silk-close-label-${index}`, label, 190, y, 160, 24, { fontSize: 15, bold: true, color: c.paper });
+    addLine(slide, `silk-close-rule-${index}`, 360, y + 13, 920, y + 13, c.rule, 1);
+    addText(slide, `silk-close-text-${index}`, text, 840, y, 230, 24, { fontSize: 15, color: c.paper });
+  });
+  slide.images.add({ name: "silk-close-photo", ...imageProps(style, "close"), position: { left: 1110, top: 160, width: 394, height: 220 }, fit: "cover", accessibility: { description: "Documentary image for the closing action" } });
+  addRect(slide, "silk-close-signal", 1110, 414, 394, 188, c.accent, { fill: c.accent, line: { fill: c.accent, width: 0 } });
+  addText(slide, "silk-close-signal-label", "NEXT MOVE", 1142, 448, 260, 20, { fontSize: 13, bold: true, color: contrast(c.accent) });
+  addText(slide, "silk-close-signal-text", "Publish the invitation.", 1142, 490, 310, 54, { fontSize: 30, bold: true, color: contrast(c.accent) });
+  addText(slide, "silk-close-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 108, 836, 1150, 20, { fontSize: 13, color: c.rule });
   return slide;
 }
 
@@ -1138,6 +1341,9 @@ function makeBackdropSvg({ palette: c, category, dark }) {
 }
 
 function makeArgument(presentation, style) {
+  if (style.sourceRelative === "promotion/silk-yellow-magazine") {
+    return makeSilkYellowArgument(presentation, style);
+  }
   if (style.family === "finance-ledger" && style.darkPages) {
     return makeFinanceStance(presentation, style);
   }
@@ -1166,6 +1372,9 @@ function makeArgument(presentation, style) {
 }
 
 function makeEvidence(presentation, style) {
+  if (style.sourceRelative === "promotion/silk-yellow-magazine") {
+    return makeSilkYellowEvidence(presentation, style);
+  }
   const slide = presentation.slides.add({ name: "Evidence" });
   const { palette: c } = style;
   if (style.bodyImage) addImageLedSurface(slide, style, "evidence");
@@ -1249,6 +1458,9 @@ function makeEvidence(presentation, style) {
 }
 
 function makeDetail(presentation, style) {
+  if (style.sourceRelative === "promotion/silk-yellow-magazine") {
+    return makeSilkYellowDetail(presentation, style);
+  }
   const slide = presentation.slides.add({ name: "Detail" });
   const { palette: c } = style;
   addRect(slide, "background", 0, 0, WIDTH, HEIGHT, c.paper);
@@ -1303,6 +1515,9 @@ function detailEventColumns(slide, style) {
 }
 
 function makeVisual(presentation, style) {
+  if (style.sourceRelative === "promotion/silk-yellow-magazine") {
+    return makeSilkYellowVisual(presentation, style);
+  }
   const slide = presentation.slides.add({ name: "Visual carrier" });
   const { palette: c } = style;
   addFixedNavigation(slide, style, 2);
@@ -1384,6 +1599,9 @@ function makeVisual(presentation, style) {
 }
 
 function makeClose(presentation, style) {
+  if (style.sourceRelative === "promotion/silk-yellow-magazine") {
+    return makeSilkYellowClose(presentation, style);
+  }
   if (style.family === "finance-ledger" && style.darkPages) {
     return makeFinanceClose(presentation, style);
   }
