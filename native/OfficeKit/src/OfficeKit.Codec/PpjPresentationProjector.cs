@@ -234,8 +234,9 @@ internal static partial class PpjPresentationProjector
         var pageCapabilities = new List<CapabilitySpec>();
         if (slide.Source?.DeletionCapability?.Supported == true)
             pageCapabilities.Add(new("delete", ["element"]));
-        if (slide.Source?.CloneCapability?.Supported == true)
-            pageCapabilities.Add(new("duplicate", ["element"]));
+        // A native slide clone needs fresh page/element identities and a
+        // complete source-owned subtree mapping. Do not issue the underlying
+        // codec capability until PPJ can represent that bounded clone request.
 
         var elements = new JsonArray();
         foreach (var element in slide.Elements)

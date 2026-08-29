@@ -248,17 +248,32 @@ internal static class PpjSourceBoundPresentationCompiler
         ISet<string> changedNodeIds,
         MutationState mutations)
     {
-        if (baseline.Pages.Count != requested.Pages.Count || baseline.Pages.Count != presentation.Slides.Count)
-            throw Unsupported("$.pages", "source-bound page insertion or deletion requires an explicit page capability");
-        var changed = false;
-        for (var index = 0; index < baseline.Pages.Count; index++)
+        if (baseline.Pages.Count != presentation.Slides.Count || requested.Pages.Count > baseline.Pages.Count)
+            throw Unsupported("$.pages", "source-bound page insertion or inconsistent source topology");
+        var sourcePages = baseline.Pages.Select((page, index) => new
         {
-            var before = baseline.Pages[index];
+            Program = page,
+            Wire = presentation.Slides[index],
+        }).ToDictionary(item => item.Program.Id, StringComparer.Ordinal);
+        var requestedPageIds = requested.Pages.Select(page => page.Id).ToArray();
+        if (requestedPageIds.Distinct(StringComparer.Ordinal).Count() != requestedPageIds.Length ||
+            requestedPageIds.Any(id => !sourcePages.ContainsKey(id)))
+            throw Unsupported("$.pages", "source-bound page insertion or identity change");
+        var retainedPageSourceOrder = baseline.Pages
+            .Where(page => requestedPageIds.Contains(page.Id, StringComparer.Ordinal))
+            .Select(page => page.Id);
+        if (!retainedPageSourceOrder.SequenceEqual(requestedPageIds, StringComparer.Ordinal))
+            throw Unsupported("$.pages", "source-bound page reorder requires a dedicated capability");
+
+        var changed = false;
+        var requestedSlides = new List<PresentationSlide>(requested.Pages.Count);
+        for (var index = 0; index < requested.Pages.Count; index++)
+        {
             var after = requested.Pages[index];
-            var slide = presentation.Slides[index];
+            var sourcePage = sourcePages[after.Id];
+            var before = sourcePage.Program;
+            var slide = sourcePage.Wire;
             var path = $"$.pages[{index}]";
-            if (!before.Id.Equals(after.Id, StringComparison.Ordinal))
-                throw Unsupported(path, "source-bound page reorder or identity change");
             RequireNativeRef(before.Raw, after.Raw, path);
             RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "elements");
             if (before.Elements.Count != slide.Elements.Count || after.Elements.Count > before.Elements.Count)
@@ -320,7 +335,21 @@ internal static class PpjSourceBoundPresentationCompiler
             }
             slide.Elements.Clear();
             slide.Elements.Add(requestedWire);
+            requestedSlides.Add(slide);
         }
+
+        foreach (var deleted in baseline.Pages.Where(page => !requestedPageIds.Contains(page.Id, StringComparer.Ordinal)))
+        {
+            RequireCapability(deleted.NativeRef, "delete", "$.pages");
+            var slide = sourcePages[deleted.Id].Wire;
+            if (slide.Source?.DeletionCapability?.Supported != true)
+                throw Unsupported("$.pages", $"deleting {deleted.Id} without a re-proven native deletion profile");
+            changedNodeIds.Add(deleted.Id);
+            mutations.SemanticChanges = true;
+            changed = true;
+        }
+        presentation.Slides.Clear();
+        presentation.Slides.Add(requestedSlides);
         return changed;
     }
 
@@ -910,9 +939,14 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void RequireCapability(PpjElementModel element, string operation, string path)
     {
-        var nativeRef = element.NativeRef ?? throw new CodecException("ppj.nativeRef.missing", "Source-bound edits require a nativeRef.", path);
-        var capability = nativeRef.Capabilities.FirstOrDefault(item => item.Operation.Equals(operation, StringComparison.Ordinal));
-        if (capability is null || !capability.ExpectedHash.Equals(nativeRef.ObjectHash, StringComparison.OrdinalIgnoreCase))
+        RequireCapability(element.NativeRef, operation, path);
+    }
+
+    private static void RequireCapability(PpjNativeRefModel? nativeRef, string operation, string path)
+    {
+        var reference = nativeRef ?? throw new CodecException("ppj.nativeRef.missing", "Source-bound edits require a nativeRef.", path);
+        var capability = reference.Capabilities.FirstOrDefault(item => item.Operation.Equals(operation, StringComparison.Ordinal));
+        if (capability is null || !capability.ExpectedHash.Equals(reference.ObjectHash, StringComparison.OrdinalIgnoreCase))
             throw new CodecException(
                 "ppj.nativeRef.capabilityMissing",
                 $"The exact source object did not issue the {operation} capability required by this edit.",

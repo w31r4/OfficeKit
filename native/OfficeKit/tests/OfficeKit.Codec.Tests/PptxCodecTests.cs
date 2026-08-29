@@ -315,6 +315,50 @@ public sealed class PptxCodecTests
         Assert.Contains(deletedElementId, deletion.PresentationProgram.ChangedNodeIds);
         Assert.Equal(deletionProjection.PresentationProgram.ExpandedElementCount - 1, deletion.PresentationProgram.ExpandedElementCount);
 
+        var pageDeletionSourceRequest = ExportRequest();
+        var secondPage = pageDeletionSourceRequest.Artifact.Presentation.Slides[0].Clone();
+        secondPage.Id = "presentation/slide/2";
+        secondPage.Name = "Companion";
+        secondPage.Elements[0].Id = "presentation/slide/2/title";
+        pageDeletionSourceRequest.Artifact.Presentation.Slides.Add(secondPage);
+        var pageDeletionSource = Invoke(pageDeletionSourceRequest);
+        Assert.True(pageDeletionSource.Ok, Diagnostics(pageDeletionSource));
+        var pageDeletionProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = pageDeletionSource.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/page-deletion-source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(pageDeletionProjection.Ok, Diagnostics(pageDeletionProjection));
+        var pageDeletionProgram = JsonNode.Parse(pageDeletionProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var pageDeletionPages = pageDeletionProgram["pages"]!.AsArray();
+        var deletedPageId = pageDeletionPages[1]!["id"]!.GetValue<string>();
+        Assert.Contains(pageDeletionPages[1]!["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "delete");
+        pageDeletionPages.RemoveAt(1);
+        var pageDeletion = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = pageDeletionSource.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(pageDeletionProgram.ToJsonString()),
+            },
+        });
+        Assert.True(pageDeletion.Ok, Diagnostics(pageDeletion));
+        Assert.Contains(deletedPageId, pageDeletion.PresentationProgram.ChangedNodeIds);
+        var pageDeletionRoundTrip = Import(pageDeletion.File.ToByteArray());
+        Assert.True(pageDeletionRoundTrip.Ok, Diagnostics(pageDeletionRoundTrip));
+        Assert.Single(pageDeletionRoundTrip.Artifact.Presentation.Slides);
+
         var repeated = Invoke(request);
         Assert.True(repeated.Ok, Diagnostics(repeated));
         Assert.Equal(first.PresentationProgram.ProgramSha256, repeated.PresentationProgram.ProgramSha256);
