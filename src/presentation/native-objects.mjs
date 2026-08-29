@@ -24,6 +24,7 @@ const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S
 const NATIVE_TEXT_SHAPE = /<(?<prefix>[A-Za-z_][\w.-]*:)?sp\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?sp\s*>/giu;
 const NATIVE_SPPR_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?spPr\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?spPr\s*>/giu;
 const NATIVE_LINE_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?ln\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?ln\s*>/giu;
+const NATIVE_PRESET_DASH_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?prstDash\b(?<attributes>[^>]*)\s*\/\s*>/giu;
 const NATIVE_SOLID_FILL_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?solidFill\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?solidFill\s*>/giu;
 const NATIVE_COLOR_OPEN_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?(?<name>[A-Za-z_][\w.-]*Clr)\b(?<attributes>[^>]*)>/giu;
 const NATIVE_SCHEME_COLORS = Object.freeze({
@@ -43,6 +44,17 @@ const NATIVE_SCHEME_COLORS = Object.freeze({
   lt1: "lt1",
   dk2: "dk2",
   lt2: "lt2",
+});
+const NATIVE_LINE_STYLES = Object.freeze({
+  solid: "solid",
+  dash: "dashed",
+  dashed: "dashed",
+  dot: "dotted",
+  dotted: "dotted",
+  dashDot: "dash-dot",
+  "dash-dot": "dash-dot",
+  lgDashDotDot: "dash-dot-dot",
+  "dash-dot-dot": "dash-dot-dot",
 });
 
 function sha256(value) {
@@ -95,6 +107,10 @@ function nativeSchemeColorToken(value) {
   return NATIVE_SCHEME_COLORS[String(value || "").trim().toLowerCase()];
 }
 
+function nativeLineStyleToken(value) {
+  return NATIVE_LINE_STYLES[String(value || "").trim()];
+}
+
 function deriveNativeLineLeaves(rawXml, nativeKind) {
   if (nativeKind !== "connector") return undefined;
   const source = String(rawXml || "");
@@ -133,6 +149,15 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
       }
     }
   }
+  const dashMatches = [...(line.groups?.value || "").matchAll(NATIVE_PRESET_DASH_TAG)]
+    .filter((match) => (match.groups?.prefix || "") === linePrefix);
+  if (dashMatches.length === 1 && solidMatches.length === 1) {
+    const attributes = nativeTagAttributes(dashMatches[0].groups?.attributes || "");
+    if (attributes.length === 1 && attributes[0].name.split(":").pop()?.toLowerCase() === "val") {
+      const value = nativeLineStyleToken(attributes[0].value);
+      if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineStyle", value, expectedHash: sha256(value) });
+    }
+  }
   return leaves.length ? Object.freeze(leaves) : undefined;
 }
 
@@ -142,7 +167,7 @@ function nativeLineRecord(leaves) {
     leafKind: leaf.leafKind || "lineRgb",
     value: leaf.leafKind === "lineWidthEmu"
       ? Number(leaf.value)
-      : leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+      : leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" ? leaf.value : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -163,6 +188,7 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
   const fillLeaves = [];
   const lineLeaves = [];
   const lineWidthLeaves = [];
+  const lineStyleLeaves = [];
   const colorLeaf = (solid, prefix) => {
     const colors = directPresentationChildren(solid.xml, "solidFill")
       .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
@@ -210,11 +236,21 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
       if (lineFills.length !== 1 || lineFills[0].localName !== "solidFill") continue;
       const lineLeaf = colorLeaf(lineFills[0], "line");
       if (lineLeaf) lineLeaves.push(lineLeaf);
+      const dashNodes = directPresentationChildren(outlines[0].xml, "ln")
+        .filter((entry) => entry.localName === "prstDash");
+      if (dashNodes.length === 1) {
+        const open = /^<[^>]+>/u.exec(dashNodes[0].xml)?.[0] || "";
+        const attributes = nativeTagAttributes(open);
+        if (attributes.length === 1 && attributes[0].name.split(":").pop()?.toLowerCase() === "val") {
+          const value = nativeLineStyleToken(attributes[0].value);
+          if (value) lineStyleLeaves.push({ leafKind: "lineStyle", value });
+        }
+      }
     }
   };
   visitGroup(String(rawXml || ""));
   // Keep prior color indexes stable; append line widths as a separate family.
-  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves].map((leaf, nativeLeafIndex) => ({
+  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves, ...lineStyleLeaves].map((leaf, nativeLeafIndex) => ({
     nativeLeafIndex,
     ...leaf,
     expectedHash: sha256(leaf.value),
@@ -226,7 +262,7 @@ function nativeStyleRecord(leaves) {
   return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
     nativeLeafIndex: leaf.nativeLeafIndex,
     leafKind: leaf.leafKind,
-    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme"
+    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle"
       ? leaf.value
       : leaf.leafKind === "lineWidthEmu" ? Number(leaf.value) : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
@@ -828,6 +864,12 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       }
       const color = String(value ?? "").trim();
       const leafKind = this._nativeLineBinding[index].leafKind || "lineRgb";
+      if (leafKind === "lineStyle") {
+        const style = nativeLineStyleToken(color);
+        if (!style || style !== color) throw new RangeError("Native line style requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+        this._nativeLineLeaves[index].value = style;
+        return;
+      }
       if (leafKind === "lineWidthEmu") {
         if (!/^\d+$/u.test(color)) throw new RangeError("Native line width requires a non-negative integer EMU value.");
         const width = Number(color);
@@ -854,6 +896,12 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native style leaf ${index}.`);
       }
       const leafKind = this._nativeStyleBinding[index].leafKind;
+      if (leafKind === "lineStyle") {
+        const style = nativeLineStyleToken(String(value ?? "").trim());
+        if (!style || style !== String(value ?? "").trim()) throw new RangeError("Native style line style requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+        this._nativeStyleLeaves[index].value = style;
+        return;
+      }
       if (leafKind === "lineWidthEmu") {
         const token = String(value ?? "").trim();
         if (!/^(?:0|[1-9]\d*)$/u.test(token)) throw new RangeError("Native style line width requires a non-negative integer EMU value.");

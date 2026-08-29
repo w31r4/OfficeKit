@@ -21,6 +21,7 @@ internal static class PptxNativeStyleLeafCodec
         var fillLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineWidthLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineStyleLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         foreach (var shape in group.Descendants<P.Shape>())
         {
             var properties = shape.ShapeProperties;
@@ -35,6 +36,8 @@ internal static class PptxNativeStyleLeafCodec
             if (outlines.Length != 1) continue;
             if (TryReadWidth(outlines[0], out var widthValue))
                 lineWidthLeaves.Add(("lineWidthEmu", widthValue, shape));
+            if (TryReadStyle(outlines[0], out var styleValue))
+                lineStyleLeaves.Add(("lineStyle", styleValue, shape));
             var lineFills = outlines[0].ChildElements
                 .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
                 .ToArray();
@@ -42,10 +45,10 @@ internal static class PptxNativeStyleLeafCodec
                 lineLeaves.Add((lineKind, lineValue, shape));
         }
 
-        // Keep existing fill/line color indexes stable; append widths as a
-        // separate family so adding this capability cannot retarget a prior
+        // Keep existing fill/line color/width indexes stable; append the dash
+        // family so adding this capability cannot retarget a prior
         // source-bound leaf.
-        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).ToArray();
+        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).ToArray();
         if (described.Length == 0 || described.Length > MaxLeaves) return false;
         leaves = described.Select((item, index) => new PptxNativeStyleLeaf(checked((uint)index), item.Kind, item.Value, item.Shape)).ToArray();
         return true;
@@ -101,6 +104,30 @@ internal static class PptxNativeStyleLeafCodec
         var canonical = width.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (!string.Equals(attributes[0].Value, canonical, StringComparison.Ordinal) || width == 0) return false;
         value = canonical;
+        return true;
+    }
+
+    private static bool TryReadStyle(A.Outline outline, out string value)
+    {
+        value = string.Empty;
+        var dashes = outline.Elements<A.PresetDash>().ToArray();
+        if (dashes.Length != 1 || !PptxLineStyleCodec.TryReadPresetDash(dashes[0], out var style)) return false;
+        // A dash token on a no-fill outline has no useful visible editing
+        // meaning; only expose it when the outline has one simple solid paint.
+        var fills = outline.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
+        if (fills.Length != 1 || fills[0] is not A.SolidFill solid || solid.ChildElements.Count != 1) return false;
+        if (solid.FirstChild is A.RgbColorModelHex rgb)
+        {
+            if (rgb.Val?.Value is not { Length: 6 } token || !token.All(Uri.IsHexDigit) ||
+                rgb.ChildElements.Any() || !rgb.GetAttributes().All(attribute => attribute.LocalName == "val")) return false;
+        }
+        else if (solid.FirstChild is A.SchemeColor scheme)
+        {
+            if (scheme.Val?.Value is not { } token || !PptxColor.TrySchemeToken(token, out _) ||
+                scheme.ChildElements.Any() || !scheme.GetAttributes().All(attribute => attribute.LocalName == "val")) return false;
+        }
+        else return false;
+        value = style;
         return true;
     }
 }

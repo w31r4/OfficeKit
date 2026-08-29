@@ -45,6 +45,51 @@ internal static class PptxLineStyleCodec
         "", "round", "bevel", "miter",
     };
 
+    // Keep the source-bound native leaf vocabulary in semantic terms while
+    // retaining the exact DrawingML token for the final token splice.
+    internal static bool TryReadPresetDash(A.PresetDash? source, out string style)
+    {
+        style = string.Empty;
+        if (source is null || source.ChildElements.Any() || !HasOnlyAttributes(source, "val") || source.Val?.Value is not { } value)
+            return false;
+        style = value.Equals(A.PresetLineDashValues.Solid) ? "solid" :
+            value.Equals(A.PresetLineDashValues.Dash) ? "dashed" :
+            value.Equals(A.PresetLineDashValues.Dot) ? "dotted" :
+            value.Equals(A.PresetLineDashValues.DashDot) ? "dash-dot" :
+            value.Equals(A.PresetLineDashValues.LargeDashDotDot) ? "dash-dot-dot" :
+            string.Empty;
+        return style.Length > 0;
+    }
+
+    internal static bool TryReadPresetDashValue(string? value, out string style)
+    {
+        var normalized = value?.Trim().ToLowerInvariant();
+        style = normalized switch
+        {
+            "solid" => "solid",
+            "dash" => "dashed",
+            "dot" => "dotted",
+            "dashdot" => "dash-dot",
+            "lgdashdotdot" => "dash-dot-dot",
+            _ => string.Empty,
+        };
+        return style.Length > 0;
+    }
+
+    internal static bool TryPresetDashToken(string style, out string token)
+    {
+        token = style switch
+        {
+            "solid" => "solid",
+            "dashed" => "dash",
+            "dotted" => "dot",
+            "dash-dot" => "dashDot",
+            "dash-dot-dot" => "lgDashDotDot",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
     internal static bool TryRead(A.Outline? outline, out Profile profile)
     {
         if (outline is null)

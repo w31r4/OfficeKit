@@ -158,7 +158,7 @@ message PresentationEditOperation {
   // fontSizePoints, fontFamily,
   // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
   // fontColorRgb, fillRgb, fillScheme,
-  // lineRgb, lineScheme, lineWidthEmu,
+  // lineRgb, lineScheme, lineStyle, lineWidthEmu,
   // leftEmu, topEmu,
   // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
   // diagramText, deleteElement.

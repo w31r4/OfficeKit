@@ -66,6 +66,13 @@ const PRESENTATION_SCHEME_COLORS = new Set([
 const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
   [...PRESENTATION_SCHEME_COLORS].map((token) => [token.toLowerCase(), token]),
 ));
+const NATIVE_LINE_STYLE_CANONICAL = Object.freeze({
+  solid: "solid",
+  dashed: "dashed",
+  dotted: "dotted",
+  "dash-dot": "dash-dot",
+  "dash-dot-dot": "dash-dot-dot",
+});
 const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
 const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
@@ -4205,13 +4212,19 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineScheme native leaf requires a supported theme color token.");
                 return { raw: canonical, publicValue: canonical };
               }
+              if (leafKind === "lineStyle") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_STYLE_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineStyle native leaf requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+                return { raw: canonical, publicValue: canonical };
+              }
               const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
               if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineRgb native leaf requires a six-digit RGB color.");
               const normalized = match[1].toUpperCase();
               return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
             },
             isNoop(next) {
-              return leafKind === "lineScheme"
+              return leafKind === "lineScheme" || leafKind === "lineStyle"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },
@@ -4262,6 +4275,12 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style scheme native leaf requires a supported theme color token.");
                 return { raw: canonical, publicValue: canonical };
               }
+              if (leafKind === "lineStyle") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_STYLE_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style lineStyle native leaf requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+                return { raw: canonical, publicValue: canonical };
+              }
               const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
               if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style RGB native leaf requires a six-digit RGB color.");
               const normalized = match[1].toUpperCase();
@@ -4270,7 +4289,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
             isNoop(next) {
               return leafKind === "lineWidthEmu"
                 ? next === sourceLeaf.expectedValue
-                : leafKind === "fillScheme" || leafKind === "lineScheme"
+                : leafKind === "fillScheme" || leafKind === "lineScheme" || leafKind === "lineStyle"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },

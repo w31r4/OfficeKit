@@ -132,6 +132,10 @@ function textBodyVerticalTextToken(value) {
   return ({ horizontal: "horz", vertical: "vert", vertical270: "vert270" })[value] || String(value);
 }
 
+function lineStyleToken(value) {
+  return ({ solid: "solid", dashed: "dash", dotted: "dot", "dash-dot": "dashDot", "dash-dot-dot": "lgDashDotDot" })[value] || String(value);
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -157,6 +161,8 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
           ? textBodyColumnDirectionToken(item.expectedValue)
         : item.leafKind === "textBodyVerticalText"
           ? textBodyVerticalTextToken(item.expectedValue)
+        : item.leafKind === "lineStyle"
+          ? lineStyleToken(item.expectedValue)
         : String(item.expectedValue);
     const replacementValue = item.leafKind === "paragraphAlignment"
       ? paragraphAlignmentToken(item.value)
@@ -168,6 +174,8 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
           ? textBodyColumnDirectionToken(item.value)
         : item.leafKind === "textBodyVerticalText"
           ? textBodyVerticalTextToken(item.value)
+        : item.leafKind === "lineStyle"
+          ? lineStyleToken(item.value)
         : String(item.value);
     const expected = Buffer.from(expectedValue, "utf8");
     const replacement = Buffer.from(replacementValue, "utf8");
@@ -4262,6 +4270,36 @@ const opaqueGroupLineRoundTripLeaves = opaqueGroupLineRoundTrip.inspect({ includ
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
 assert.equal(opaqueGroupLineRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupLineLeaf.nativeLeafIndex)?.value, "#c3b2a1");
+
+// The same opaque group exposes one existing preset dash token as a semantic
+// lineStyle leaf. This contract sample proves token-splice, scope, and
+// re-import without introducing a separate effect matrix.
+const opaqueGroupStyleLinePresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupStyleLine = itemByName(opaqueGroupStyleLinePresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleLineLeaves = opaqueGroupStyleLinePresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupStyleLine.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupLineStyleLeaf = opaqueGroupStyleLineLeaves.find((record) => record.leafKind === "lineStyle");
+assert.ok(opaqueGroupLineStyleLeaf, "opaque groups should expose an existing preset dash leaf");
+assert.equal(opaqueGroupLineStyleLeaf.value, "solid");
+opaqueGroupStyleLinePresentation.editNativeLeaf(opaqueGroupLineStyleLeaf.targetId, opaqueGroupLineStyleLeaf.leafId, {
+  expectedHash: opaqueGroupLineStyleLeaf.expectedHash,
+  value: "dashed",
+});
+const opaqueGroupStyleLineOutput = await PresentationFile.exportPptx(opaqueGroupStyleLinePresentation);
+const opaqueGroupStyleLineOperation = opaqueGroupStyleLineOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupStyleLineOperation.leafKind, "lineStyle");
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupStyleLineOutput, opaqueGroupStyleLineOperation);
+const opaqueGroupStyleLineRoundTrip = await PresentationFile.importPptx(opaqueGroupStyleLineOutput);
+const opaqueGroupStyleLineRoundTripObject = itemByName(opaqueGroupStyleLineRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleLineRoundTripLeaves = opaqueGroupStyleLineRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupStyleLineRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupStyleLineRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupLineStyleLeaf.nativeLeafIndex)?.value, "dashed");
 
 const opaqueGroupWidthPresentation = await PresentationFile.importPptx(irregularGroupFile);
 const opaqueGroupWidth = itemByName(opaqueGroupWidthPresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
