@@ -362,6 +362,18 @@ async function readTemplate({ expectedId, root, templatePath }) {
           `examples[${index}]`,
         )),
     );
+    const referenceProgramPath = metadata.referenceProgram == null ? null : await resolveAsset(
+      templatePath,
+      metadata.referenceProgram.path,
+      metadata.referenceProgram.sha256,
+      "referenceProgram",
+    );
+    const referencePptxPath = metadata.referencePptx == null ? null : await resolveAsset(
+      templatePath,
+      metadata.referencePptx.path,
+      metadata.referencePptx.sha256,
+      "referencePptx",
+    );
     return {
       ...shared,
       examples: metadata.examples.map((example, index) => ({
@@ -371,6 +383,14 @@ async function readTemplate({ expectedId, root, templatePath }) {
         absolutePath: examplePaths[index],
       })),
       examplePaths,
+      referenceProgram: metadata.referenceProgram == null ? null : {
+        ...metadata.referenceProgram,
+        absolutePath: referenceProgramPath,
+      },
+      referencePptx: metadata.referencePptx == null ? null : {
+        ...metadata.referencePptx,
+        absolutePath: referencePptxPath,
+      },
     };
   }
 
@@ -513,6 +533,8 @@ function validatePresentationMetadata(value, expectedId) {
       "contentShapes",
       "visualTraits",
       "visualCommitment",
+      "referenceProgram",
+      "referencePptx",
       "provenance",
     ],
   );
@@ -555,6 +577,8 @@ function validatePresentationMetadata(value, expectedId) {
     roles.add(example.role);
   }
   if (roles.size < 3) throw new Error("examples must cover at least 3 distinct roles");
+  validatePresentationReference(value.referenceProgram, "referenceProgram", ".ppj");
+  validatePresentationReference(value.referencePptx, "referencePptx", ".pptx");
   if (value.provenance == null || typeof value.provenance !== "object" || Array.isArray(value.provenance)) {
     throw new Error("provenance must be an object");
   }
@@ -567,6 +591,18 @@ function validatePresentationMetadata(value, expectedId) {
   assertShortString(value.provenance.source, "provenance.source", 500);
   assertHash(value.provenance.guideSha256, "provenance.guideSha256");
   assertHash(value.provenance.previewSha256, "provenance.previewSha256");
+}
+
+function validatePresentationReference(value, label, extension) {
+  if (value == null) return;
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
+  assertObjectKeys(value, label, ["path", "sha256", "license", "source"]);
+  assertRelativeAssetPath(value.path, `${label}.path`);
+  if (!value.path.startsWith("assets/references/")) throw new Error(`${label}.path must be under assets/references/`);
+  if (path.posix.extname(value.path).toLowerCase() !== extension) throw new Error(`${label}.path must use ${extension}`);
+  assertHash(value.sha256, `${label}.sha256`);
+  assertShortString(value.license, `${label}.license`, 120);
+  assertShortString(value.source, `${label}.source`, 500);
 }
 
 function validateVisualMetadata(value) {
@@ -647,11 +683,14 @@ async function assertPresentationTemplateSurface(templatePath, metadata) {
   }
   const assetsPath = path.join(templatePath, "assets");
   const assetEntries = await fs.readdir(assetsPath, { withFileTypes: true });
-  if (assetEntries.length !== 2 ||
+  const hasReferences = metadata.referenceProgram != null || metadata.referencePptx != null;
+  const expectedAssetCount = hasReferences ? 3 : 2;
+  if (assetEntries.length !== expectedAssetCount ||
       !assetEntries.some((entry) => entry.name === "preview.png" && entry.isFile()) ||
       !assetEntries.some((entry) => entry.name === "examples" && entry.isDirectory()) ||
+      (hasReferences && !assetEntries.some((entry) => entry.name === "references" && entry.isDirectory())) ||
       assetEntries.some((entry) => entry.isSymbolicLink())) {
-    throw new Error("presentation template assets must contain only preview.png and examples/");
+    throw new Error("presentation template assets must match preview, examples, and declared references");
   }
   const examplesPath = path.join(assetsPath, "examples");
   const exampleEntries = await fs.readdir(examplesPath, { withFileTypes: true });
@@ -660,6 +699,19 @@ async function assertPresentationTemplateSurface(templatePath, metadata) {
       exampleEntries.some((entry) =>
         !entry.isFile() || entry.isSymbolicLink() || !expectedFiles.has(entry.name))) {
     throw new Error("presentation template examples/ must match metadata exactly");
+  }
+  if (hasReferences) {
+    const referencesPath = path.join(assetsPath, "references");
+    const referenceEntries = await fs.readdir(referencesPath, { withFileTypes: true });
+    const expectedReferences = new Set([
+      ...(metadata.referenceProgram == null ? [] : [path.posix.basename(metadata.referenceProgram.path)]),
+      ...(metadata.referencePptx == null ? [] : [path.posix.basename(metadata.referencePptx.path)]),
+    ]);
+    if (referenceEntries.length !== expectedReferences.size ||
+        referenceEntries.some((entry) =>
+          !entry.isFile() || entry.isSymbolicLink() || !expectedReferences.has(entry.name))) {
+      throw new Error("presentation template references/ must match metadata exactly");
+    }
   }
 }
 
