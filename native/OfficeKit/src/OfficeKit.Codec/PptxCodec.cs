@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
@@ -362,10 +363,76 @@ internal static class PptxCodec
         using var stream = new MemoryStream();
         using (var package = PresentationDocument.Create(stream, PresentationDocumentType.Presentation, autoSave: true))
             BuildPresentation(package, envelope.Presentation, assetCatalog);
-        var bytes = stream.ToArray();
+        var bytes = NormalizeSourceFreePackage(stream.ToArray());
         ValidateOutputBudget(bytes, limits);
         ValidateOffice2021(bytes);
         return new PptxExportResult(bytes, diagnostics);
+    }
+
+    private static byte[] NormalizeSourceFreePackage(byte[] bytes)
+    {
+        var parts = new List<(string Path, byte[] Data)>();
+        using (var source = new MemoryStream(bytes, writable: false))
+        using (var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: false))
+        {
+            foreach (var entry in archive.Entries)
+            {
+                using var entryStream = entry.Open();
+                using var copy = new MemoryStream();
+                entryStream.CopyTo(copy);
+                parts.Add((entry.FullName, copy.ToArray()));
+            }
+        }
+
+        var rootRelationshipsIndex = parts.FindIndex(part =>
+            part.Path.Equals("_rels/.rels", StringComparison.OrdinalIgnoreCase));
+        if (rootRelationshipsIndex < 0)
+            throw new CodecException("missing_package_relationships", "Generated PPTX has no package relationship part.", "_rels/.rels");
+        XDocument rootRelationships;
+        using (var rootRelationshipsStream = new MemoryStream(parts[rootRelationshipsIndex].Data, writable: false))
+            rootRelationships = XDocument.Load(rootRelationshipsStream, LoadOptions.PreserveWhitespace);
+        XNamespace relationshipsNamespace = "http://schemas.openxmlformats.org/package/2006/relationships";
+        var officeDocumentRelationship = rootRelationships.Root?
+            .Elements(relationshipsNamespace + "Relationship")
+            .SingleOrDefault(relationship =>
+                relationship.Attribute("Type")?.Value.EndsWith("/officeDocument", StringComparison.Ordinal) == true) ??
+            throw new CodecException("missing_presentation_relationship", "Generated PPTX has no officeDocument package relationship.", "_rels/.rels");
+        var reservedIds = rootRelationships.Root!
+            .Elements(relationshipsNamespace + "Relationship")
+            .Where(relationship => !ReferenceEquals(relationship, officeDocumentRelationship))
+            .Select(relationship => relationship.Attribute("Id")?.Value ?? string.Empty)
+            .ToHashSet(StringComparer.Ordinal);
+        var relationshipId = "rIdOfficeKitPresentation";
+        for (var suffix = 1; reservedIds.Contains(relationshipId); suffix++)
+            relationshipId = $"rIdOfficeKitPresentation{suffix}";
+        officeDocumentRelationship.SetAttributeValue("Id", relationshipId);
+        using (var normalized = new MemoryStream())
+        using (var writer = XmlWriter.Create(normalized, new XmlWriterSettings
+        {
+            Encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            Indent = false,
+            NewLineHandling = NewLineHandling.None,
+            OmitXmlDeclaration = false,
+        }))
+        {
+            rootRelationships.Save(writer);
+            writer.Flush();
+            parts[rootRelationshipsIndex] = (parts[rootRelationshipsIndex].Path, normalized.ToArray());
+        }
+
+        using var output = new MemoryStream();
+        using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var timestamp = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
+            foreach (var part in parts.OrderBy(part => part.Path, StringComparer.Ordinal))
+            {
+                var entry = archive.CreateEntry(part.Path, CompressionLevel.Optimal);
+                entry.LastWriteTime = timestamp;
+                using var target = entry.Open();
+                target.Write(part.Data);
+            }
+        }
+        return output.ToArray();
     }
 
     private static bool RequiresSourcePreservation(ArtifactEnvelope envelope)
@@ -1846,7 +1913,7 @@ internal static class PptxCodec
         var masterPart = presentationPart.AddNewPart<SlideMasterPart>("rIdMaster1");
         var themePart = masterPart.AddNewPart<ThemePart>("rIdTheme1");
 
-        themePart.Theme = BasicTheme();
+        themePart.Theme = BasicTheme(artifact.AuthoredTheme);
         var sourceLayouts = artifact.Layouts.ToList();
         PresentationLayout? fallbackLayout = null;
         if (sourceLayouts.Count == 0 || artifact.Slides.Any(slide => string.IsNullOrWhiteSpace(slide.LayoutId)))
@@ -2381,24 +2448,35 @@ internal static class PptxCodec
         FollowedHyperlink = A.ColorSchemeIndexValues.FollowedHyperlink,
     };
 
-    private static A.Theme BasicTheme() => new(
+    private static A.Theme BasicTheme(PresentationThemeArtifact? authored = null)
+    {
+        var defaults = new[] { "4F81BD", "C0504D", "9BBB59", "8064A2", "4BACC6", "F79646" };
+        var accents = defaults
+            .Select((value, index) => authored is not null && index < authored.AccentRgb.Count
+                ? PptxColor.Normalize(authored.AccentRgb[index])
+                : value)
+            .ToArray();
+        var majorFont = authored?.HasMajorFontFamily == true ? authored.MajorFontFamily : "Arial";
+        var minorFont = authored?.HasMinorFontFamily == true ? authored.MinorFontFamily : majorFont;
+        var themeName = authored?.HasName == true ? authored.Name : "Office Clean Room";
+        return new A.Theme(
         new A.ThemeElements(
             new A.ColorScheme(
                 new A.Dark1Color(new A.SystemColor { Val = A.SystemColorValues.WindowText, LastColor = "000000" }),
                 new A.Light1Color(new A.SystemColor { Val = A.SystemColorValues.Window, LastColor = "FFFFFF" }),
                 new A.Dark2Color(new A.RgbColorModelHex { Val = "1F497D" }),
                 new A.Light2Color(new A.RgbColorModelHex { Val = "EEECE1" }),
-                new A.Accent1Color(new A.RgbColorModelHex { Val = "4F81BD" }),
-                new A.Accent2Color(new A.RgbColorModelHex { Val = "C0504D" }),
-                new A.Accent3Color(new A.RgbColorModelHex { Val = "9BBB59" }),
-                new A.Accent4Color(new A.RgbColorModelHex { Val = "8064A2" }),
-                new A.Accent5Color(new A.RgbColorModelHex { Val = "4BACC6" }),
-                new A.Accent6Color(new A.RgbColorModelHex { Val = "F79646" }),
+                new A.Accent1Color(new A.RgbColorModelHex { Val = accents[0] }),
+                new A.Accent2Color(new A.RgbColorModelHex { Val = accents[1] }),
+                new A.Accent3Color(new A.RgbColorModelHex { Val = accents[2] }),
+                new A.Accent4Color(new A.RgbColorModelHex { Val = accents[3] }),
+                new A.Accent5Color(new A.RgbColorModelHex { Val = accents[4] }),
+                new A.Accent6Color(new A.RgbColorModelHex { Val = accents[5] }),
                 new A.Hyperlink(new A.RgbColorModelHex { Val = "0000FF" }),
                 new A.FollowedHyperlinkColor(new A.RgbColorModelHex { Val = "800080" })) { Name = "Office" },
             new A.FontScheme(
-                new A.MajorFont(new A.LatinFont { Typeface = "Arial" }, new A.EastAsianFont { Typeface = string.Empty }, new A.ComplexScriptFont { Typeface = string.Empty }),
-                new A.MinorFont(new A.LatinFont { Typeface = "Arial" }, new A.EastAsianFont { Typeface = string.Empty }, new A.ComplexScriptFont { Typeface = string.Empty })) { Name = "Office" },
+                new A.MajorFont(new A.LatinFont { Typeface = majorFont }, new A.EastAsianFont { Typeface = majorFont }, new A.ComplexScriptFont { Typeface = majorFont }),
+                new A.MinorFont(new A.LatinFont { Typeface = minorFont }, new A.EastAsianFont { Typeface = minorFont }, new A.ComplexScriptFont { Typeface = minorFont })) { Name = themeName },
             new A.FormatScheme(
                 new A.FillStyleList(
                     new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }),
@@ -2415,8 +2493,9 @@ internal static class PptxCodec
                 new A.BackgroundFillStyleList(
                     new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }),
                     new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }),
-                    new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }))) { Name = "Office" }))
-    { Name = "Office Clean Room" };
+                    new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }))) { Name = themeName }))
+        { Name = themeName };
+    }
 
     private static A.Outline BasicThemeOutline(int width) => new(
         new A.SolidFill(new A.SchemeColor { Val = A.SchemeColorValues.PhColor }),

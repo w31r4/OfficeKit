@@ -1535,6 +1535,19 @@ message PresentationArtifact {
   // bounded canonical profile. Its exact XML stays in the validated source
   // package; no semantic sections are exposed and replacement fails closed.
   bool sections_opaque = 12;
+  // Source-free compiler theme metadata. Existing source-bound presentation
+  // theme graphs remain preserved by their source package and are not
+  // projected into this bounded writer profile.
+  PresentationThemeArtifact authored_theme = 13;
+}
+
+message PresentationThemeArtifact {
+  optional string name = 1;
+  // Ordered authored palette. The first six values populate accent1..accent6;
+  // missing entries retain the canonical Office clean-room defaults.
+  repeated string accent_rgb = 2;
+  optional string major_font_family = 3;
+  optional string minor_font_family = 4;
 }
 
 message PresentationViewProperties {
@@ -2325,6 +2338,16 @@ message PresentationTable {
   // Non-visible alternative text stored on p:nvGraphicFramePr/p:cNvPr. This
   // does not add a visible caption or change the table grid/layout.
   PresentationNonVisualAccessibility accessibility = 10;
+  optional bool banded_columns = 11;
+  optional bool first_column = 12;
+  optional bool last_column = 13;
+  oneof default_cell_fill {
+    string default_cell_fill_rgb = 14;
+    bool no_default_cell_fill = 15;
+  }
+  // Source-free PPJ authoring applies this direct style to the single run in
+  // every visible cell. Imported table formatting remains source-owned.
+  PresentationTextStyle default_text_style = 16;
 }
 
 message PresentationTableRow {

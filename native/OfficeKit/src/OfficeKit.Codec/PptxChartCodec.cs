@@ -72,9 +72,9 @@ internal static partial class PptxChartCodec
     internal static P.GraphicFrame Build(PresentationElement element, uint nativeId, SlidePart slidePart)
     {
         Validate(element.Chart, element.Id, element.Name);
-        var chartPart = slidePart.AddNewPart<ChartPart>();
+        var relationshipId = $"rIdOfficeKitChart{nativeId}";
+        var chartPart = slidePart.AddNewPart<ChartPart>(relationshipId);
         WriteXml(chartPart, BuildPresentationChartDocument(element.Chart, element.Id, element.Name));
-        var relationshipId = slidePart.GetIdOfPart(chartPart);
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, element.Chart.Accessibility);
         return new P.GraphicFrame(

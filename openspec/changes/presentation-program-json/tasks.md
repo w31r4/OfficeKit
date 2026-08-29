@@ -17,11 +17,11 @@
 
 ## 3. Authored PPJ compilation
 
-- [ ] 3.1 Map PPJ deck size, theme, design styles, sections, custom shows, comments, and page metadata into native Presentation state.
-- [ ] 3.2 Compile page backgrounds, ordered typed elements, groups, connectors, notes, transitions, and motion into existing native writer profiles.
+- [x] 3.1 Map PPJ deck size, theme, design styles, sections, custom shows, comments, and page metadata into native Presentation state.
+- [x] 3.2 Compile page backgrounds, ordered typed elements, groups, connectors, notes, transitions, and motion into existing native writer profiles.
 - [ ] 3.3 Compile rich text, local assets, crops, masks, charts, tables, data labels, and accessibility fields without a JavaScript Presentation model.
-- [ ] 3.4 Return a build receipt with PPJ hash, output hash, stable node mapping, asset mapping, expanded components, and package footprint.
-- [ ] 3.5 Prove deterministic authored build and second import with one comprehensive fixture.
+- [x] 3.4 Return a build receipt with PPJ hash, output hash, stable node mapping, asset mapping, expanded components, and package footprint.
+- [x] 3.5 Prove deterministic authored build and second import with one comprehensive fixture.
 
 ## 4. PPTX projection and lossless lowering
 

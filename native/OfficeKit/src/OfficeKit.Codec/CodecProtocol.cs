@@ -126,6 +126,16 @@ public static class CodecProtocol
                     response.Diagnostics.Add(result.Diagnostics);
                     break;
                 }
+                case CodecOperation.CompilePpjToPptx:
+                {
+                    var result = PpjAuthoredPresentationCompiler.Compile(
+                        request.PresentationProgram,
+                        limits);
+                    response.File = ByteString.CopyFrom(result.File);
+                    response.PresentationProgram = result.Program;
+                    response.Diagnostics.Add(result.Diagnostics);
+                    break;
+                }
                 default:
                     throw new CodecException("unsupported_operation", $"Codec operation {request.Operation} is not implemented.");
             }
@@ -162,18 +172,19 @@ public static class CodecProtocol
         {
             CodecOperation.ImportXlsx or CodecOperation.ExportXlsx => ArtifactFamily.Workbook,
             CodecOperation.ImportDocx or CodecOperation.ExportDocx or CodecOperation.FinalizeDocxRevisions or CodecOperation.AddDocxTrackedReplacement => ArtifactFamily.Document,
-            CodecOperation.ImportPptx or CodecOperation.ExportPptx or CodecOperation.ApplyPptxEditPlan => ArtifactFamily.Presentation,
+            CodecOperation.ImportPptx or CodecOperation.ExportPptx or CodecOperation.ApplyPptxEditPlan or CodecOperation.ProjectPptxToPpj or CodecOperation.CompilePpjToPptx => ArtifactFamily.Presentation,
             _ => throw new CodecException("unsupported_operation", $"Codec operation {request.Operation} is not implemented."),
         };
         if (request.Family != expectedFamily)
             throw new CodecException("artifact_family_mismatch", $"Codec operation {request.Operation} requires artifact family {expectedFamily}, not {request.Family}.");
-        if (request.Operation is CodecOperation.ImportXlsx or CodecOperation.ImportDocx or CodecOperation.ImportPptx or CodecOperation.FinalizeDocxRevisions or CodecOperation.AddDocxTrackedReplacement or CodecOperation.ApplyPptxEditPlan && request.File.IsEmpty)
+        if (request.Operation is CodecOperation.ImportXlsx or CodecOperation.ImportDocx or CodecOperation.ImportPptx or CodecOperation.FinalizeDocxRevisions or CodecOperation.AddDocxTrackedReplacement or CodecOperation.ApplyPptxEditPlan or CodecOperation.ProjectPptxToPpj && request.File.IsEmpty)
         {
             var message = request.Operation switch
             {
                 CodecOperation.FinalizeDocxRevisions => "DOCX revision finalization requires non-empty file bytes.",
                 CodecOperation.AddDocxTrackedReplacement => "DOCX tracked replacement requires non-empty file bytes.",
                 CodecOperation.ApplyPptxEditPlan => "PPTX edit plan requires non-empty file bytes.",
+                CodecOperation.ProjectPptxToPpj => "PPTX projection requires non-empty file bytes.",
                 _ => $"{expectedFamily} import requires non-empty file bytes.",
             };
             throw new CodecException("empty_input", message);
@@ -186,6 +197,10 @@ public static class CodecProtocol
             throw new CodecException("missing_tracked_replacement", "DOCX tracked replacement requires tracked_replacement options.");
         if (request.Operation == CodecOperation.ApplyPptxEditPlan && request.PresentationEditPlan is null)
             throw new CodecException("missing_presentation_edit_plan", "PPTX edit plan requires presentation_edit_plan options.");
+        if (request.Operation is CodecOperation.ProjectPptxToPpj or CodecOperation.CompilePpjToPptx && request.PresentationProgram is null)
+            throw new CodecException("missing_presentation_program", "PPJ operations require presentation_program options.");
+        if (request.Operation == CodecOperation.CompilePpjToPptx && request.PresentationProgram.ProgramJson.IsEmpty)
+            throw new CodecException("empty_ppj", "PPJ compilation requires non-empty program_json bytes.");
         if (request.ThinPresentationImportResponse && request.Operation != CodecOperation.ImportPptx)
             throw new CodecException("invalid_request", "thin_presentation_import_response is valid only for PPTX import.");
     }

@@ -70,6 +70,65 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void PpjV1CompilesCanonicalPresentationProgramDeterministically()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixtureDirectory = Path.Combine(root!.FullName, "test", "fixtures", "presentation");
+        var programBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "evidence-ledger-canonical.ppj"));
+        var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
+        var request = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFrom(programBytes),
+                IncludeNodeMap = true,
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "evidence-mark",
+                        FileName = "evidence-mark.svg",
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(assetBytes),
+                        Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant(),
+                    },
+                },
+            },
+        };
+
+        var first = Invoke(request);
+        Assert.True(first.Ok, Diagnostics(first));
+        Assert.Equal(16U, first.PresentationProgram.ExpandedElementCount);
+        Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
+        using (var stream = new MemoryStream(first.File.ToByteArray(), writable: false))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var imported = Import(first.File.ToByteArray());
+        Assert.True(imported.Ok, Diagnostics(imported));
+        Assert.Equal(2, imported.Artifact.Presentation.Slides.Count);
+        Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+
+        var repeated = Invoke(request);
+        Assert.True(repeated.Ok, Diagnostics(repeated));
+        Assert.Equal(first.PresentationProgram.ProgramSha256, repeated.PresentationProgram.ProgramSha256);
+        Assert.Equal(ZipPartPaths(first.File.ToByteArray()), ZipPartPaths(repeated.File.ToByteArray()));
+        var differingParts = ZipPartPaths(first.File.ToByteArray())
+            .Where(path => !ZipBytes(first.File.ToByteArray(), path).SequenceEqual(ZipBytes(repeated.File.ToByteArray(), path)))
+            .ToArray();
+        Assert.True(differingParts.Length == 0, $"Non-deterministic OPC parts: {string.Join(", ", differingParts)}");
+        Assert.Equal(first.PresentationProgram.OutputSha256, repeated.PresentationProgram.OutputSha256);
+        Assert.Equal(first.File, repeated.File);
+    }
+
+    [Fact]
     public void ImportedSlideBindingRequiresValidatedSourcePackageSnapshot()
     {
         var authored = Invoke(ExportRequest());

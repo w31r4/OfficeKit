@@ -245,11 +245,14 @@ internal sealed record PpjAnimationModel(
     string TargetId,
     string Phase,
     string Effect,
+    string? Direction,
     string Start,
     int DurationMs,
+    int DelayMs,
     string? TextBuild,
     string? ChartBuild,
-    int StaggerMs);
+    int StaggerMs,
+    bool? AnimateChartBackground);
 
 internal sealed record PpjTransitionModel(
     string Type,
@@ -407,11 +410,16 @@ internal static class PpjProgramParser
         animation.GetProperty("target").GetString()!,
         animation.GetProperty("phase").GetString()!,
         animation.GetProperty("effect").GetString()!,
+        OptionalString(animation, "direction"),
         animation.GetProperty("start").GetString()!,
         animation.GetProperty("durationMs").GetInt32(),
+        OptionalInt(animation, "delayMs"),
         OptionalString(animation, "textBuild"),
         OptionalString(animation, "chartBuild"),
-        OptionalInt(animation, "staggerMs"));
+        OptionalInt(animation, "staggerMs"),
+        animation.TryGetProperty("animateChartBackground", out var animateChartBackground)
+            ? animateChartBackground.GetBoolean()
+            : null);
 
     private static PpjTransitionModel ParseTransition(JsonElement transition) => new(
         transition.GetProperty("type").GetString()!,

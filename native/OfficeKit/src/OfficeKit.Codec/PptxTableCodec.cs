@@ -121,6 +121,9 @@ internal static class PptxTableCodec
         var properties = new A.TableProperties();
         if (table.HasFirstRow) properties.FirstRow = table.FirstRow;
         if (table.HasBandedRows) properties.BandRow = table.BandedRows;
+        if (table.HasBandedColumns) properties.BandColumn = table.BandedColumns;
+        if (table.HasFirstColumn) properties.FirstColumn = table.FirstColumn;
+        if (table.HasLastColumn) properties.LastColumn = table.LastColumn;
         var grid = new A.TableGrid();
         foreach (var width in table.ColumnWidthsEmu) grid.Append(new A.GridColumn { Width = width });
         var nativeTable = new A.Table(properties, grid);
@@ -131,7 +134,7 @@ internal static class PptxTableCodec
             for (var columnIndex = 0; columnIndex < sourceRow.Cells.Count; columnIndex++)
             {
                 var sourceCell = sourceRow.Cells[columnIndex];
-                var cell = BuildCell(sourceCell.Text, table.HasFirstRow && table.FirstRow && rowIndex == 0);
+                var cell = BuildCell(sourceCell.Text, table.HasFirstRow && table.FirstRow && rowIndex == 0, table);
                 if (mergePlan.TryGetValue((rowIndex, columnIndex), out var merge))
                 {
                     if (merge.IsOrigin)
@@ -216,6 +219,16 @@ internal static class PptxTableCodec
             if (cell.Text.Length > MaxCellTextLength || cell.Text.Any(character => char.IsControl(character) && character is not '\t' and not '\n' and not '\r'))
                 throw Invalid(elementId, $"cell text must contain at most {MaxCellTextLength} characters and no unsupported controls");
         PptxNonVisualAccessibilityCodec.Validate(table.Accessibility, elementId, "table");
+        if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.DefaultCellFillRgb)
+            PptxColor.Normalize(table.DefaultCellFillRgb);
+        if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.NoDefaultCellFill && !table.NoDefaultCellFill)
+            throw Invalid(elementId, "no_default_cell_fill must be true when selected");
+        if (table.DefaultTextStyle is not null)
+        {
+            if (table.DefaultTextStyle.HasFontSizePoints && table.DefaultTextStyle.FontSizePoints is <= 0 or > 1000)
+                throw Invalid(elementId, "default text font size must be from 0 through 1000 points");
+            if (table.DefaultTextStyle.HasColorRgb) PptxColor.Normalize(table.DefaultTextStyle.ColorRgb);
+        }
         _ = CreateMergePlan(table, elementId);
     }
 
@@ -421,12 +434,36 @@ internal static class PptxTableCodec
         return plan;
     }
 
-    private static A.TableCell BuildCell(string text, bool header)
+    private static A.TableCell BuildCell(string text, bool header, PresentationTable table)
     {
-        var runProperties = new A.RunProperties { Language = "en-US", FontSize = 1_350, Bold = header };
-        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex { Val = header ? "000000" : "0F172A" }));
-        var cellProperties = new A.TableCellProperties(
-            new A.SolidFill(new A.RgbColorModelHex { Val = header ? "EDEDED" : "FFFFFF" }));
+        var style = table.DefaultTextStyle;
+        var runProperties = new A.RunProperties
+        {
+            Language = "en-US",
+            FontSize = style?.HasFontSizePoints == true
+                ? checked((int)Math.Round(style.FontSizePoints * 100))
+                : 1_350,
+            Bold = style?.HasBold == true ? style.Bold || header : header,
+            Italic = style?.HasItalic == true ? style.Italic : null,
+        };
+        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex
+        {
+            Val = style?.HasColorRgb == true ? style.ColorRgb : header ? "000000" : "0F172A",
+        }));
+        if (style?.HasFontFamily == true)
+        {
+            runProperties.Append(new A.LatinFont { Typeface = style.FontFamily });
+            runProperties.Append(new A.EastAsianFont { Typeface = style.HasFontFamilyEastAsia ? style.FontFamilyEastAsia : style.FontFamily });
+        }
+        var cellProperties = new A.TableCellProperties();
+        if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.NoDefaultCellFill)
+            cellProperties.Append(new A.NoFill());
+        else cellProperties.Append(new A.SolidFill(new A.RgbColorModelHex
+        {
+            Val = table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.DefaultCellFillRgb
+                ? table.DefaultCellFillRgb
+                : header ? "EDEDED" : "FFFFFF",
+        }));
         return new A.TableCell(
             new A.TextBody(
                 new A.BodyProperties(),
