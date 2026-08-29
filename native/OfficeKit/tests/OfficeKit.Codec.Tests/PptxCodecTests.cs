@@ -107,6 +107,13 @@ public sealed class PptxCodecTests
         Assert.True(first.Ok, Diagnostics(first));
         Assert.Equal(16U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
+        var validationOnlyRequest = request.Clone();
+        validationOnlyRequest.PresentationProgram.ValidationOnly = true;
+        var validationOnly = Invoke(validationOnlyRequest);
+        Assert.True(validationOnly.Ok, Diagnostics(validationOnly));
+        Assert.Empty(validationOnly.File);
+        Assert.Equal(first.PresentationProgram.ProgramSha256, validationOnly.PresentationProgram.ProgramSha256);
+        Assert.Empty(validationOnly.PresentationProgram.OutputSha256);
         using (var stream = new MemoryStream(first.File.ToByteArray(), writable: false))
         using (var package = PresentationDocument.Open(stream, false))
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
@@ -185,6 +192,24 @@ public sealed class PptxCodecTests
         Assert.Equal(first.File, sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+        var sourceValidationRequest = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = first.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = projected.PresentationProgram.ProgramJson,
+                IncludeNodeMap = true,
+                ValidationOnly = true,
+            },
+        };
+        var sourceValidation = Invoke(sourceValidationRequest);
+        Assert.True(sourceValidation.Ok, Diagnostics(sourceValidation));
+        Assert.Empty(sourceValidation.File);
+        Assert.True(sourceValidation.PresentationProgram.SourceBound);
+        Assert.Equal(projected.PresentationProgram.ProgramSha256, sourceValidation.PresentationProgram.ProgramSha256);
 
         var editedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var editableText = editedProgram["pages"]!.AsArray()

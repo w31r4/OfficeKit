@@ -21,6 +21,25 @@ internal static class PpjAuthoredPresentationCompiler
 {
     private const double EmuPerPoint = 12_700d;
 
+    internal static PpjCompileResult ValidateOnly(
+        PresentationProgramRequest request,
+        PpjValidationResult validation)
+    {
+        var program = validation.Program!;
+        var assets = ValidateAssets(program, request.Assets);
+        var receipt = new PresentationProgramResult
+        {
+            ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+            ProgramSha256 = validation.ProgramSha256,
+            SourceBound = false,
+            ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
+        };
+        if (request.IncludeNodeMap)
+            receipt.NodeMapJson = ByteString.CopyFrom(validation.Expansion.NodeMapJson);
+        receipt.Assets.Add(assets.Select(asset => asset.Clone()));
+        return new([], receipt, []);
+    }
+
     internal static PpjCompileResult Compile(
         PresentationProgramRequest request,
         EffectiveCodecLimits limits)

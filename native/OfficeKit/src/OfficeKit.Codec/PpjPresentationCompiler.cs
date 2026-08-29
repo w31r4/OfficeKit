@@ -34,6 +34,8 @@ internal static class PpjPresentationCompiler
                     "ppj.unexpectedSource",
                     "A source-free PPJ compile cannot attach a PPTX source package.",
                     "$.source");
+            if (request.ValidationOnly)
+                return PpjAuthoredPresentationCompiler.ValidateOnly(request, validation);
             return PpjAuthoredPresentationCompiler.Compile(request, limits);
         }
 
@@ -115,6 +117,22 @@ internal static class PpjSourceBoundPresentationCompiler
         var changedNodeIds = new HashSet<string>(StringComparer.Ordinal);
         var mutations = new MutationState();
         var physicalChanges = ApplyPages(baseline, requested, presentation, assetIds, changedNodeIds, mutations);
+
+        if (request.ValidationOnly)
+        {
+            var validationReceipt = new PresentationProgramResult
+            {
+                ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+                ProgramSha256 = validation.ProgramSha256,
+                NodeMapJson = request.IncludeNodeMap ? projected.Program.NodeMapJson : ByteString.Empty,
+                SourceSha256 = sourceSha256,
+                SourceBound = true,
+                ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
+            };
+            validationReceipt.Assets.Add(projected.Program.Assets.Select(asset => asset.Clone()));
+            validationReceipt.ChangedNodeIds.Add(changedNodeIds.OrderBy(id => id, StringComparer.Ordinal));
+            return new([], validationReceipt, projected.Diagnostics);
+        }
 
         byte[] output;
         IReadOnlyList<Diagnostic> diagnostics;

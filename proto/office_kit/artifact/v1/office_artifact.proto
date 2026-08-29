@@ -140,6 +140,10 @@ message PresentationProgramRequest {
   string source_uri = 4;
   // Projection-only relative directory for materialized semantic assets.
   string asset_root_uri = 5;
+  // Validate and lower the complete program without serializing a PPTX. This
+  // keeps check/inspect on the same native semantic path as compilation while
+  // preserving the two-operation PPJ wire boundary.
+  bool validation_only = 6;
 }
 
 // Typed receipt shared by projection and compilation. Projection returns

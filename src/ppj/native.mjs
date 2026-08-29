@@ -85,6 +85,7 @@ export async function compilePpjToPptx(program, {
   source = new Uint8Array(),
   assets = [],
   includeNodeMap = true,
+  validationOnly = false,
   limits = {},
 } = {}) {
   const file = bytes(source, "PPTX source");
@@ -108,6 +109,7 @@ export async function compilePpjToPptx(program, {
       programJson: programBytes(program),
       assets: suppliedAssets,
       includeNodeMap: Boolean(includeNodeMap),
+      validationOnly: Boolean(validationOnly),
     },
   }), {
     fileSidecar: true,
