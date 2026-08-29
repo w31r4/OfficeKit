@@ -3917,7 +3917,8 @@ function createPresentationNativeLeafCapability(presentation, state) {
       const nativeLineBinding = model?._nativeLineSourceBinding?.();
       const currentNativeLineLeaves = model?._nativeLineRecords?.();
       if (Array.isArray(nativeLineBinding) || Array.isArray(currentNativeLineLeaves)) {
-        if (wire.content.value.nativeKind !== "connector" || !Array.isArray(nativeLineBinding) ||
+        const nativeKind = wire.content.value.nativeKind || model?.nativeKind;
+        if (nativeKind !== "connector" || !Array.isArray(nativeLineBinding) ||
             !Array.isArray(currentNativeLineLeaves) || nativeLineBinding.length !== currentNativeLineLeaves.length) return;
         for (let index = 0; index < nativeLineBinding.length; index += 1) {
           const sourceLeaf = nativeLineBinding[index];
@@ -3938,6 +3939,19 @@ function createPresentationNativeLeafCapability(presentation, state) {
             value: sourceLeaf.value,
             details: { lineLeafIndex: index },
             normalize(next) {
+              if (leafKind === "lineWidthEmu") {
+                if (typeof next !== "string" && typeof next !== "number") {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value.");
+                }
+                const token = String(next).trim();
+                let integer;
+                try { integer = BigInt(token); }
+                catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value."); }
+                if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf is outside the safe EMU range.");
+                }
+                return { raw: String(integer), publicValue: Number(integer) };
+              }
               if (leafKind === "lineScheme") {
                 const token = String(next ?? "").trim();
                 const canonical = NATIVE_SCHEME_COLOR_CANONICAL[token.toLowerCase()];

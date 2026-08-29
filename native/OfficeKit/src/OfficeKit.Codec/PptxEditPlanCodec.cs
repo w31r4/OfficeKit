@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fillRgb" or "lineRgb" or "lineScheme" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fillRgb" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -262,6 +262,8 @@ internal static partial class PptxEditPlanCodec
                     !long.TryParse(operation.Value, System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var requested) ||
                     (leafKind is "widthEmu" or "heightEmu" && requested <= 0))
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} has an invalid geometry scalar.");
+                if (leafKind == "lineWidthEmu" && (requested < 0 || requested > 20_116_800))
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} has an invalid line width.");
             }
             textBudget = checked(textBudget + (ulong)operation.ExpectedValue.Length + (ulong)operation.Value.Length);
             if (textBudget > limits.MaxCells)
@@ -415,7 +417,7 @@ internal static partial class PptxEditPlanCodec
             }
             else if (element is P.ConnectionShape connector &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
-                     (LeafKind(operation) is "lineRgb" or "lineScheme") &&
+                     (LeafKind(operation) is "lineRgb" or "lineScheme" or "lineWidthEmu") &&
                      PptxNativeObjectCatalog.Classify(connector) == "connector" &&
                      HasSafeNativeConnectorLine(connector, LeafKind(operation)))
             {
@@ -717,6 +719,8 @@ internal static partial class PptxEditPlanCodec
     {
         var outline = connector.ShapeProperties?.Elements<A.Outline>().ToArray();
         if (outline is not { Length: 1 }) return false;
+        if (kind == "lineWidthEmu")
+            return outline[0].Width?.Value is { } width && width is >= 0 and <= 20_116_800;
         var solidFill = outline[0].Elements<A.SolidFill>().ToArray();
         if (solidFill.Length != 1) return false;
         if (solidFill[0].ChildElements.Count != 1) return false;
@@ -764,7 +768,7 @@ internal static partial class PptxEditPlanCodec
         var properties = element switch
         {
             P.Shape shape => shape.ShapeProperties,
-            P.ConnectionShape connector when kind is "lineRgb" or "lineScheme" => connector.ShapeProperties,
+            P.ConnectionShape connector when kind is "lineRgb" or "lineScheme" or "lineWidthEmu" => connector.ShapeProperties,
             P.Picture picture when IsGeometryLeaf(kind) => picture.ShapeProperties,
             _ => null,
         } ??
@@ -775,6 +779,9 @@ internal static partial class PptxEditPlanCodec
             "fillRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.SolidFill>()), operation),
             "lineRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>()), operation),
             "lineScheme" => RequiredLeafValue(NativeSchemeToken(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>(), operation), operation),
+            "lineWidthEmu" => RequiredLeafValue(properties.GetFirstChild<A.Outline>()?.Width is { } width
+                ? width.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : string.Empty, operation),
             "leftEmu" => transform?.Offset?.X?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
             "topEmu" => transform?.Offset?.Y?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
             "widthEmu" => transform?.Extents?.Cx?.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? MissingLeaf(operation),
@@ -822,6 +829,11 @@ internal static partial class PptxEditPlanCodec
                 var schemeOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, schemeOutline, "ln", "solidFill", operation), "solidFill", "schemeClr", operation);
                 attribute = "val";
+                break;
+            case "lineWidthEmu":
+                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineWidthEmu.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, properties, "spPr", "ln", operation);
+                attribute = "w";
                 break;
             case "leftEmu":
             case "topEmu":

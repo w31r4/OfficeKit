@@ -11,6 +11,7 @@ const MAX_EMBEDDED_WORKBOOK_BYTES = 16 * 1024 * 1024;
 const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
 const MAX_DIAGRAM_NODE_TEXT_LENGTH = 32_767;
 const MAX_NATIVE_TEXT_LENGTH = 32_767;
+const MAX_NATIVE_LINE_WIDTH_EMU = 20_116_800;
 const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
@@ -20,7 +21,7 @@ const NATIVE_TEXT_RUN = /<(?<prefix>[A-Za-z_][\w.-]*:)?r\b[^>]*>(?<value>[\s\S]*
 const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?tc\s*>/giu;
 const NATIVE_TEXT_SHAPE = /<(?<prefix>[A-Za-z_][\w.-]*:)?sp\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?sp\s*>/giu;
 const NATIVE_SPPR_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?spPr\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?spPr\s*>/giu;
-const NATIVE_LINE_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?ln\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?ln\s*>/giu;
+const NATIVE_LINE_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?ln\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?ln\s*>/giu;
 const NATIVE_SOLID_FILL_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?solidFill\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?solidFill\s*>/giu;
 const NATIVE_COLOR_OPEN_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?(?<name>[A-Za-z_][\w.-]*Clr)\b(?<attributes>[^>]*)>/giu;
 const NATIVE_SCHEME_COLORS = Object.freeze({
@@ -101,34 +102,45 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
   const lineMatches = [...(spPr.groups?.value || "").matchAll(NATIVE_LINE_TAG)];
   if (lineMatches.length !== 1) return undefined;
   const line = lineMatches[0];
+  const leaves = [];
+  const width = nativeTagAttributes(line.groups?.attributes || "")
+    .find((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "w")?.value;
+  if (width !== undefined && /^\d+$/u.test(width)) {
+    const numericWidth = Number(width);
+    if (Number.isSafeInteger(numericWidth) && numericWidth <= MAX_NATIVE_LINE_WIDTH_EMU) {
+      leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineWidthEmu", value: width, expectedHash: sha256(width) });
+    }
+  }
   const linePrefix = line.groups?.prefix || "";
   const solidMatches = [...(line.groups?.value || "").matchAll(NATIVE_SOLID_FILL_TAG)]
     .filter((match) => (match.groups?.prefix || "") === linePrefix);
-  if (solidMatches.length !== 1) return undefined;
-  const colors = [...(solidMatches[0].groups?.value || "").matchAll(NATIVE_COLOR_OPEN_TAG)];
-  if (colors.length !== 1 || (colors[0].groups?.prefix || "") !== linePrefix) return undefined;
-  const attributes = nativeTagAttributes(colors[0].groups?.attributes || "");
-  if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val" ||
-      !attributes[0].value) return undefined;
-  const colorName = colors[0].groups?.name?.toLowerCase();
-  if (colorName === "srgbclr") {
-    if (!/^[0-9a-f]{6}$/iu.test(attributes[0].value)) return undefined;
-    const value = attributes[0].value.toUpperCase();
-    return Object.freeze([{ lineLeafIndex: 0, leafKind: "lineRgb", value, expectedHash: sha256(value) }]);
+  if (solidMatches.length === 1) {
+    const colors = [...(solidMatches[0].groups?.value || "").matchAll(NATIVE_COLOR_OPEN_TAG)]
+      .filter((match) => (match.groups?.prefix || "") === linePrefix);
+    if (colors.length === 1) {
+      const attributes = nativeTagAttributes(colors[0].groups?.attributes || "");
+      if (attributes.length === 1 && attributes[0].name.split(":").pop()?.toLowerCase() === "val" && attributes[0].value) {
+        const colorName = colors[0].groups?.name?.toLowerCase();
+        if (colorName === "srgbclr" && /^[0-9a-f]{6}$/iu.test(attributes[0].value)) {
+          const value = attributes[0].value.toUpperCase();
+          leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineRgb", value, expectedHash: sha256(value) });
+        } else if (colorName === "schemeclr") {
+          const value = nativeSchemeColorToken(attributes[0].value);
+          if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineScheme", value, expectedHash: sha256(value) });
+        }
+      }
+    }
   }
-  if (colorName === "schemeclr") {
-    const value = nativeSchemeColorToken(attributes[0].value);
-    if (!value) return undefined;
-    return Object.freeze([{ lineLeafIndex: 0, leafKind: "lineScheme", value, expectedHash: sha256(value) }]);
-  }
-  return undefined;
+  return leaves.length ? Object.freeze(leaves) : undefined;
 }
 
 function nativeLineRecord(leaves) {
   return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
     lineLeafIndex: leaf.lineLeafIndex,
     leafKind: leaf.leafKind || "lineRgb",
-    value: leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+    value: leaf.leafKind === "lineWidthEmu"
+      ? Number(leaf.value)
+      : leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -702,6 +714,15 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       }
       const color = String(value ?? "").trim();
       const leafKind = this._nativeLineBinding[index].leafKind || "lineRgb";
+      if (leafKind === "lineWidthEmu") {
+        if (!/^\d+$/u.test(color)) throw new RangeError("Native line width requires a non-negative integer EMU value.");
+        const width = Number(color);
+        if (!Number.isSafeInteger(width) || width > MAX_NATIVE_LINE_WIDTH_EMU) {
+          throw new RangeError("Native line width is outside the safe EMU range.");
+        }
+        this._nativeLineLeaves[index].value = color;
+        return;
+      }
       if (leafKind === "lineScheme") {
         const token = nativeSchemeColorToken(color);
         if (!token) throw new RangeError("Native line scheme color must be a supported theme token.");
