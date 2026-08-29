@@ -587,21 +587,21 @@
     },
     {
       "id": "artifact-template-violet-operations",
-      "referenceSha256": "9d5ff7cf7237979eb0a7fe51db5780bb832647989bc83195ada57210c46f2b3c",
+      "referenceSha256": "28e2e947c9c8a26f1df8d421441e584ef7eb9c93296625fdded2a7372ab104e6",
       "mediaCount": 10,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 885969,
-      "pdfSha256": "a106e5ebc21579803da539490c9b614c566a17121eb712ef8ed1096348d8180a",
+      "pdfBytes": 888417,
+      "pdfSha256": "27cd61c0573d6090ff9e87a57260424c2654ca76210b66cbfbff7af83b4db5a0",
       "firstPageRendered": true,
-      "firstPageSha256": "a8e0670f641d0c12b5b9a345d11429c401f5e949b03fa5cc48664247ff83e8a8",
+      "firstPageSha256": "3ddb4cb7c08180aef66d56e53244616edf34fd5b881b6b4c19cec74910ecfd20",
       "pageSha256": [
-        "a8e0670f641d0c12b5b9a345d11429c401f5e949b03fa5cc48664247ff83e8a8",
-        "2bd4bfe047d5a16ce903903c62c59cf2a031355239c470f41364048252b6405b",
-        "22811ed3bdda5f767eaa92a6148741fcd36cbc52ad163e2fcf0109584b6e544b",
-        "f250ea144b0bab674aceff64ac01c0839b18b182637db0cf4df3589fd7d49d27",
-        "161f94b45dbf969ff35dbc6edd960dc4d257d051a61abd294386c255b2b1b21f",
-        "2937e33f1b9725309fca8bf92cd6fd4434e78ffe110b4ec3f34b4c1917992855"
+        "3ddb4cb7c08180aef66d56e53244616edf34fd5b881b6b4c19cec74910ecfd20",
+        "7d60d0b89482985594cff5f257a5c3ad2749f2d6dd650e75de74890332c4c26c",
+        "fa0fdf23d02f542c429864260cca2960975ec3207baae83fc23121f3ffbd2ebe",
+        "3f330b69af2d3eacfcc32747fe76d3d2dc31904a622b59e6d035a1a156f8443a",
+        "5f13b0db33d35f36a83f14c51e356f15ddf3295ab37382afc43f003f7e62601d",
+        "d5ebfe3cb54808cf431f3b5d621ebd1b24089a5e39b1dc213c11b3ad637605df"
       ],
       "allPagesRendered": true
     }

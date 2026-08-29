@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-violet-operations/assets/reference.pptx",
-    "sha256": "9d5ff7cf7237979eb0a7fe51db5780bb832647989bc83195ada57210c46f2b3c"
+    "sha256": "28e2e947c9c8a26f1df8d421441e584ef7eb9c93296625fdded2a7372ab104e6"
   },
   "evidence": {
     "source": [
@@ -28,12 +28,12 @@
       "renders/05.png",
       "renders/06.png",
       "native-render.v1.json",
-      "native-pdf-sha256:a106e5ebc21579803da539490c9b614c566a17121eb712ef8ed1096348d8180a",
+      "native-pdf-sha256:27cd61c0573d6090ff9e87a57260424c2654ca76210b66cbfbff7af83b4db5a0",
       "native-pages:6"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:246",
+      "records:224",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -49,7 +49,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:9d5ff7cf7237979eb0a7fe51db5780bb832647989bc83195ada57210c46f2b3c"
+      "reference-sha256:28e2e947c9c8a26f1df8d421441e584ef7eb9c93296625fdded2a7372ab104e6"
     ]
   },
   "visual": {
@@ -172,7 +172,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:a106e5ebc21579803da539490c9b614c566a17121eb712ef8ed1096348d8180a",
+        "native-pdf-sha256:27cd61c0573d6090ff9e87a57260424c2654ca76210b66cbfbff7af83b4db5a0",
         "all-pages-rendered:6"
       ]
     },

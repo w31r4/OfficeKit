@@ -883,6 +883,9 @@ function makeCover(presentation, style) {
   if (style.sourceRelative === "work/blue-flame-brand" && style.hasPhotoPool) {
     return makeBlueFlameCover(presentation, style);
   }
+  if (style.sourceRelative === "work/electric-violet-business" && style.hasPhotoPool) {
+    return makeElectricVioletCover(presentation, style);
+  }
   if (style.family === "promotion-editorial" && (style.coverImage || style.bodyImage)) {
     return makeEditorialCover(presentation, style);
   }
@@ -985,6 +988,61 @@ function makeBlueFlameCover(presentation, style) {
   addText(slide, "blue-flame-cover-page-number", "1 / 6", 1400, 822, 100, 22, {
     fontSize: 14,
     color: c.rule,
+    alignment: "right",
+  });
+  return slide;
+}
+
+// Electric Violet keeps the cover deliberately split: a near-black statement
+// field on top and one square-corner documentary photograph below.  The
+// source guide reserves the violet accent for the rule and the current-period
+// cue, so the photo remains the carrier instead of becoming a decorative
+// purple panel.
+function makeElectricVioletCover(presentation, style) {
+  const slide = presentation.slides.add({ name: "Opening claim" });
+  const field = "#121212";
+  const white = "#FFFFFF";
+  const violet = style.palette.accent || "#5114F6";
+  addRect(slide, "electric-violet-cover-field", 0, 0, WIDTH, HEIGHT, field, {
+    fill: field,
+    line: { fill: field, width: 0 },
+  });
+  const image = imageProps(style, "cover");
+  slide.images.add({
+    name: "electric-violet-cover-photo",
+    ...image,
+    position: { left: 0, top: 442, width: WIDTH, height: 458 },
+    fit: "cover",
+    accessibility: { description: "Documentary work scene used as the cover visual" },
+  });
+  addLine(slide, "electric-violet-cover-rule", 96, 54, 1504, 54, violet, 3);
+  addText(slide, "electric-violet-cover-eyebrow", "WORK · OFFICEKIT CALIBRATION", 96, 82, 760, 22, {
+    fontSize: 14,
+    bold: true,
+    color: violet,
+  });
+  addText(slide, "cover-title", "Violet Operations: a claim worth testing", 96, 138, 1220, 78, {
+    fontSize: 42,
+    bold: true,
+    color: white,
+  });
+  addText(slide, "electric-violet-cover-basis", "A documentary operating review turns status into a decision.", 100, 258, 920, 28, {
+    fontSize: 19,
+    color: "#B9B9B9",
+  });
+  addLine(slide, "electric-violet-cover-photo-rule", 96, 408, 1504, 408, violet, 2);
+  addText(slide, "electric-violet-cover-photo-label", "MEASURED WORK · VISIBLE CONSEQUENCE", 96, 418, 820, 20, {
+    fontSize: 13,
+    bold: true,
+    color: "#B9B9B9",
+  });
+  addText(slide, "electric-violet-cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 96, 822, 1150, 22, {
+    fontSize: 14,
+    color: "#B9B9B9",
+  });
+  addText(slide, "electric-violet-cover-page-number", "1 / 6", 1400, 822, 100, 22, {
+    fontSize: 14,
+    color: "#B9B9B9",
     alignment: "right",
   });
   return slide;
