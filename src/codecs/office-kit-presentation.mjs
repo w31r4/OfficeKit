@@ -2062,7 +2062,15 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
-  const fillRgb = presentationRgb(shape.fill, `${shape.id}.fill`);
+  const sourceFillScheme = String(originalShape?.fillScheme || "");
+  const preserveSourceFillScheme = sourceFillScheme && typeof shape.fill === "string" &&
+    shape.fill.toLowerCase() === sourceFillScheme.toLowerCase();
+  // Imported theme fills such as dk1/dk2 are valid DrawingML but are not
+  // authoring color tokens. Keep an unchanged source-bound scheme token in the
+  // wire instead of forcing presentationRgb() to interpret it as RGB. This is
+  // needed when an unrelated source-bound leaf (for example a run font size)
+  // causes the owner shape to be serialized for an edit plan.
+  const fillRgb = preserveSourceFillScheme ? "" : presentationRgb(shape.fill, `${shape.id}.fill`);
   const fillOpacityThousandthPercent = presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
   return {
     id: original?.id || shape.id,
@@ -2079,6 +2087,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         text: shape.text?.value || "",
         textBody,
         fillRgb,
+        ...(preserveSourceFillScheme ? { fillScheme: sourceFillScheme } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
@@ -4153,6 +4162,49 @@ function createPresentationNativeLeafCapability(presentation, state) {
             model.text.paragraphs = paragraphs;
           },
         });
+        const fontSizePoints = Number(leaf.run.fontSizePoints);
+        // Slide placeholders keep their owner-local paragraph topology under a
+        // stricter source-bound contract; do not issue a font leaf that would
+        // make the placeholder exporter mistake an authorized style change for
+        // an unapproved topology rewrite. Ordinary shapes remain supported.
+        if (!model.placeholder && Number.isFinite(fontSizePoints) && fontSizePoints > 0 && fontSizePoints <= 768) {
+          const expectedValue = String(Math.round(fontSizePoints * 100));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontSizePoints",
+            expectedValue,
+            value: fontSizePoints,
+            unit: "pt",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              if (typeof next !== "string" && typeof next !== "number") {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontSizePoints native leaf requires a finite positive point value.");
+              }
+              const token = String(next).trim();
+              if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontSizePoints native leaf requires at most two decimal places.");
+              }
+              const points = Number(token);
+              if (!Number.isFinite(points) || points <= 0 || points > 768) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontSizePoints native leaf is outside the safe point range.");
+              }
+              const hundredths = Math.round(points * 100);
+              return { raw: String(hundredths), publicValue: hundredths / 100 };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              // Mutate the imported local paragraph graph in place.  Using the
+              // public getter/setter here would normalize inherited placeholder
+              // formatting and turn a leaf-only edit into a false topology
+              // change during source-bound export.
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontSizePoints native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontSize: (Number(next) / 100) / POINTS_PER_PIXEL };
+            },
+          });
+        }
       }
     }
     if (wire.source.editable !== true) {
