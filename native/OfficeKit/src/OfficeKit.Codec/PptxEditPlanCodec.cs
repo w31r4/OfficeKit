@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -314,6 +314,12 @@ internal static partial class PptxEditPlanCodec
                 if (!ValidBooleanToken(operation.ExpectedValue) || !ValidBooleanToken(operation.Value) ||
                     operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} {leafKind} must use a changed canonical boolean token 0 or 1.");
+            }
+            if (leafKind == "fillOpacityThousandthPercent")
+            {
+                if (!ValidOpacityToken(operation.ExpectedValue) || !ValidOpacityToken(operation.Value) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} fillOpacityThousandthPercent must use a changed canonical value from 0 through 100000.");
             }
             if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
@@ -482,8 +488,8 @@ internal static partial class PptxEditPlanCodec
             }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
-                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
+                ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
+                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
                  (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
@@ -908,11 +914,13 @@ internal static partial class PptxEditPlanCodec
     {
         var properties = shape.ShapeProperties;
         if (properties is null) return false;
-        if (kind is "fillRgb" or "fillScheme")
+        if (kind is "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme")
         {
             var fills = properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
             return fills.Length == 1 && fills[0] is A.SolidFill solid &&
-                (kind == "fillRgb" ? HasSafeNativeRgbFill(solid) : HasSafeNativeSchemeFill(solid));
+                (kind == "fillRgb" ? HasSafeNativeRgbFill(solid) :
+                 kind == "fillOpacityThousandthPercent" ? HasSafeNativeRgbFillOpacity(solid) :
+                 HasSafeNativeSchemeFill(solid));
         }
         var outlines = properties.Elements<A.Outline>().ToArray();
         if (outlines.Length != 1) return false;
@@ -929,6 +937,17 @@ internal static partial class PptxEditPlanCodec
             color.ChildElements.Count != 0 || color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit))
             return false;
         return true;
+    }
+
+    private static bool HasSafeNativeRgbFillOpacity(A.SolidFill fill)
+    {
+        if (fill.ChildElements.Count != 1 || fill.FirstChild is not A.RgbColorModelHex color ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.Alpha alpha ||
+            color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit) ||
+            color.GetAttributes().Any(attribute => attribute.LocalName != "val") ||
+            alpha.GetAttributes().Any(attribute => attribute.LocalName != "val"))
+            return false;
+        return alpha.Val?.Value is >= 0 and <= 100_000;
     }
 
     private static bool HasSafeNativeSchemeFill(A.SolidFill fill)
@@ -1142,6 +1161,7 @@ internal static partial class PptxEditPlanCodec
         return kind switch
         {
             "fillRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.SolidFill>()), operation),
+            "fillOpacityThousandthPercent" => ReadFillOpacity(properties.GetFirstChild<A.SolidFill>(), operation),
             "fillScheme" => RequiredLeafValue(PptxColor.SolidScheme(properties.GetFirstChild<A.SolidFill>()), operation),
             "lineRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>()), operation),
             "lineScheme" => RequiredLeafValue(NativeSchemeToken(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>(), operation), operation),
@@ -1161,6 +1181,18 @@ internal static partial class PptxEditPlanCodec
 
     private static string RequiredLeafValue(string value, PresentationEditOperation operation) =>
         string.IsNullOrEmpty(value) ? MissingLeaf(operation) : value;
+
+    private static string ReadFillOpacity(A.SolidFill? fill, PresentationEditOperation operation)
+    {
+        if (fill?.ChildElements.Count != 1 || fill.FirstChild is not A.RgbColorModelHex color ||
+            color.ChildElements.Count != 1 || color.FirstChild is not A.Alpha alpha ||
+            color.Val?.Value is not { Length: 6 } value || !IsRgbToken(value) ||
+            alpha.Val?.Value is not { } opacity || opacity is < 0 or > 100_000 ||
+            color.GetAttributes().Any(attribute => attribute.LocalName != "val") ||
+            alpha.GetAttributes().Any(attribute => attribute.LocalName != "val"))
+            return MissingLeaf(operation);
+        return opacity.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
 
     private static string NativeSchemeToken(A.SolidFill? fill, PresentationEditOperation operation)
     {
@@ -1238,6 +1270,12 @@ internal static partial class PptxEditPlanCodec
             case "fillRgb":
                 if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} picture targets do not expose fillRgb.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "srgbClr", operation);
+                attribute = "val";
+                break;
+            case "fillOpacityThousandthPercent":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose fillOpacityThousandthPercent.", operation.SlidePartPath);
+                var solidFill = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "srgbClr", operation);
+                leaf = DirectChildRange(xml, solidFill, "srgbClr", "alpha", operation);
                 attribute = "val";
                 break;
             case "fillScheme":
@@ -2334,6 +2372,10 @@ internal static partial class PptxEditPlanCodec
     }
     private static bool IsRgbToken(string value) => value.Length == 6 && value.All(Uri.IsHexDigit);
     private static bool ValidBooleanToken(string value) => value is "0" or "1";
+    private static bool ValidOpacityToken(string value) =>
+        uint.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var opacity) &&
+        opacity <= 100_000 &&
+        opacity.ToString(System.Globalization.CultureInfo.InvariantCulture) == value;
     private static bool TryCanonicalBoolean(string value, out string canonical)
     {
         switch (System.Net.WebUtility.HtmlDecode(value).ToLowerInvariant())

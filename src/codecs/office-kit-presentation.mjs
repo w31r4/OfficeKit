@@ -3950,6 +3950,46 @@ function createPresentationNativeLeafCapability(presentation, state) {
       }
     };
     registerImportedFlipLeaves();
+    const registerImportedFillOpacityLeaf = () => {
+      if (wire.content.case !== "shape") return;
+      const fillRgb = String(wire.content.value.fillRgb ?? "");
+      const raw = String(wire.content.value.fillOpacityThousandthPercent ?? "");
+      if (!/^[0-9A-F]{6}$/u.test(fillRgb) || !/^[0-9]+$/u.test(raw)) return;
+      let opacity;
+      try { opacity = BigInt(raw); }
+      catch { return; }
+      if (opacity < 0n || opacity > 100_000n) return;
+      if (wire.source?.editable !== true && wire.source?.textEditable !== true) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "fillOpacityThousandthPercent",
+        expectedValue: raw,
+        value: Number(opacity) / 100_000,
+        unit: "fraction",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillOpacity native leaf requires a finite number from 0 through 1.");
+          }
+          const token = String(Math.round(candidate * 100_000));
+          return { raw: token, publicValue: Number(token) / 100_000 };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) {
+          const color = typeof model.fill === "object" && model.fill !== null
+            ? model.fill.color
+            : (model.fill || `#${fillRgb.toLowerCase()}`);
+          model.fill = { color, opacity: Number(next) / 100_000 };
+        },
+      });
+    };
+    registerImportedFillOpacityLeaf();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
@@ -4319,9 +4359,8 @@ function createPresentationNativeLeafCapability(presentation, state) {
       if (wire.source?.textEditable !== true) return;
       for (const [field, leafKind] of [["fillRgb", "fillRgb"], ["lineRgb", "lineRgb"]]) {
         // The semantic projection carries opacity separately when the native
-        // color token has an alpha/effect child. The codec deliberately keeps
-        // those source-bound paints opaque: do not issue a leaf that the
-        // export-time proof will reject after the Agent has selected it.
+        // color token has an alpha/effect child. Its RGB and alpha tokens have
+        // separate source-bound leaves so changing one cannot discard the other.
         if (leafKind === "fillRgb" && wire.content.value.fillOpacityThousandthPercent !== undefined) continue;
         const raw = String(wire.content.value[field] ?? "");
         if (!/^[0-9A-F]{6}$/iu.test(raw)) continue;
@@ -4745,6 +4784,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       : PRESENTATION_SCALAR_LEAF_FIELDS;
     for (const [field, leafKind] of scalarFields) {
       if (leafKind !== "lineWidthEmu" && leafKind.endsWith("Emu") && connectedTargetIds.has(wire.id)) continue;
+      if (leafKind === "fillRgb" && wire.content.value.fillOpacityThousandthPercent !== undefined) continue;
       const raw = String(wire.content.value[field] ?? "");
       if (leafKind === "lineWidthEmu" && /^[1-9][0-9]*$/u.test(raw) && BigInt(raw) <= 20_116_800n) {
         registerLeaf({
@@ -4991,6 +5031,7 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
 
 const PRESENTATION_SCALAR_LEAF_FIELDS = Object.freeze([
   Object.freeze(["fillRgb", "fillRgb"]),
+  Object.freeze(["fillOpacityThousandthPercent", "fillOpacityThousandthPercent"]),
   Object.freeze(["lineRgb", "lineRgb"]),
   Object.freeze(["lineWidthEmu", "lineWidthEmu"]),
   Object.freeze(["leftEmu", "leftEmu"]),
@@ -5028,6 +5069,8 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const expectedValue = String(beforeElement[field] ?? "");
   const value = String(afterElement[field] ?? "");
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
+  if (leafKind === "fillOpacityThousandthPercent" &&
+      (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value[field] = beforeElement[field];

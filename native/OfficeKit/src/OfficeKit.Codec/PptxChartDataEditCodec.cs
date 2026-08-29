@@ -267,7 +267,7 @@ internal static partial class PptxEditPlanCodec
         {
             "chartDataValue" => $"{operation.ChartSeriesIndex}:{operation.ChartPointIndex}",
             "diagramText" => $"{operation.DiagramModelId}:{operation.DiagramRunIndex}",
-            "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" => $"native:{operation.NativeLeafIndex}",
+            "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" => $"native:{operation.NativeLeafIndex}",
             _ => operation.TextLeafIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 
