@@ -60,6 +60,10 @@ exposed as `textBodyAutoFit` when they carry no attributes or nested markup;
 the six-sample corpus can switch these modes with one local-name splice and
 second import. Normal AutoFit percentages, duplicate choices, inherited
 forms, and malformed children remain opaque.
+Direct canonical `a:bodyPr/@rtlCol` flags are exposed as
+`textBodyColumnDirection` (`false`/`true`) and splice only the `0`/`1` token;
+three of the six samples contain the explicit flag and pass the same
+source-bound round-trip. Missing or inherited column direction remains opaque.
 
 | Surface | Status | Boundary |
 | --- | --- | --- |
