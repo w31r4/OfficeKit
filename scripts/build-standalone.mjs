@@ -365,7 +365,14 @@ function findInstalledPackage(name, fromDirectory, repositoryRoot) {
   let cursor = path.resolve(fromDirectory);
   const boundary = path.resolve(repositoryRoot);
   while (cursor === boundary || cursor.startsWith(`${boundary}${path.sep}`)) {
-    const candidate = path.join(cursor, "node_modules", ...name.split("/"));
+    // Match Node's lookup order without inventing a node_modules/node_modules
+    // level when the current ancestor is already the dependency directory.
+    // The old path could accidentally resolve a duplicate package there and
+    // copy it to an unreachable location in the standalone bundle.
+    const modulesDirectory = path.basename(cursor) === "node_modules"
+      ? cursor
+      : path.join(cursor, "node_modules");
+    const candidate = path.join(modulesDirectory, ...name.split("/"));
     if (existsSync(path.join(candidate, "package.json"))) return candidate;
     const parent = path.dirname(cursor);
     if (parent === cursor) break;
