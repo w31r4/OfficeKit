@@ -87,10 +87,10 @@ export function buildAssetDepreciationWorkbook() {
   inputs.getRange("G3:G6").format.columnWidthPx = 254;
   inputs.freezePanes.freezeRows(4);
 
-  styleTitle(depreciation, "A1:G1", 7, "Annual Depreciation Schedule");
-  styleSection(depreciation, "A3:G3", 7, "Five-Year Asset Profile");
-  depreciation.getRange("A4:G4").values = [["Year", "DDB open", "SLN", "DB", "DDB", "DDB close", "DB close"]];
-  depreciation.getRange("A4:G4").format = { fill: HEADER_FILL, font: { bold: true, color: "#FFFFFF" }, alignment: { horizontal: "center" } };
+  styleTitle(depreciation, "A1:H1", 8, "Annual Depreciation Schedule");
+  styleSection(depreciation, "A3:H3", 8, "Five-Year Asset Profile");
+  depreciation.getRange("A4:H4").values = [["Year", "DDB open", "SLN", "DB", "DDB", "DDB close", "DB close", "SYD"]];
+  depreciation.getRange("A4:H4").format = { fill: HEADER_FILL, font: { bold: true, color: "#FFFFFF" }, alignment: { horizontal: "center" } };
   depreciation.getRange("A5:A9").values = [[1], [2], [3], [4], [5]];
   depreciation.getRange("B5").formulas = [["='Inputs'!$B$5"]];
   depreciation.getRange("B6").formulas = [["=F5"]];
@@ -106,70 +106,77 @@ export function buildAssetDepreciationWorkbook() {
   depreciation.getRange("G5").formulas = [["='Inputs'!$B$5-D5"]];
   depreciation.getRange("G6").formulas = [["=G5-D6"]];
   depreciation.getRange("G6:G9").fillDown();
+  depreciation.getRange("H5").formulas = [["=SYD('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5)"]];
+  depreciation.getRange("H5:H9").fillDown();
   depreciation.getRange("B5:E9").format = { font: { color: "#008000" } };
+  depreciation.getRange("H5:H9").format = { font: { color: "#008000" } };
   depreciation.getRange("B6:B9").format = { font: { color: "#000000" } };
   depreciation.getRange("F5:G9").format = { font: { color: "#000000" } };
   depreciation.getRange("A5:A9").format.numberFormat = COUNT_FORMAT;
-  depreciation.getRange("B5:G9").format.numberFormat = MONEY_FORMAT;
+  depreciation.getRange("B5:H9").format.numberFormat = MONEY_FORMAT;
   depreciation.getRange("A1:A9").format.columnWidthPx = 60;
-  depreciation.getRange("B1:G9").format.columnWidthPx = 96;
+  depreciation.getRange("B1:H9").format.columnWidthPx = 96;
   depreciation.freezePanes.freezeRows(4);
 
   styleTitle(checks, "A1:F1", 6, "Model Checks");
   checks.getRange("A3:F3").values = [["Check", "Actual", "Expected / minimum", "Difference", "Status", "Notes"]];
   checks.getRange("A3:F3").format = { fill: HEADER_FILL, font: { bold: true, color: "#FFFFFF" }, alignment: { horizontal: "center" } };
-  checks.getRange("A4:F9").values = [
+  checks.getRange("A4:F10").values = [
     ["DDB final book value", null, null, null, null, "DDB caps the final expense at the visible salvage value."],
     ["DDB total depreciation", null, null, null, null, "DDB recovers the visible depreciable basis."],
     ["SLN total depreciation", null, null, null, null, "Straight-line expense times life equals the same basis."],
+    ["SYD total depreciation", null, null, null, null, "Sum-of-years-digits expense recovers the same depreciable basis."],
     ["DB final book value floor", null, null, null, null, "Fixed-balance DB does not fall below salvage in this model."],
     ["Modeled depreciation periods", null, null, null, null, "Schedule rows match the visible useful-life input."],
     ["Overall model status", null, 0, null, null, "Zero failed checks required."],
   ];
-  checks.getRange("B4:B9").formulas = [
+  checks.getRange("B4:B10").formulas = [
     ["='Depreciation'!$F$9"],
     ["=SUM('Depreciation'!$E$5:$E$9)"],
     ["=SUM('Depreciation'!$C$5:$C$9)"],
+    ["=SUM('Depreciation'!$H$5:$H$9)"],
     ["='Depreciation'!$G$9"],
     ["=COUNTIF('Depreciation'!$A$5:$A$9,\">0\")"],
-    ["=COUNTIF(E4:E8,\"CHECK\")"],
+    ["=COUNTIF(E4:E9,\"CHECK\")"],
   ];
   checks.getRange("C4").formulas = [["='Inputs'!$B$6"]];
-  checks.getRange("C5:C6").formulas = [["='Inputs'!$B$11"], ["='Inputs'!$B$11"]];
-  checks.getRange("C7").formulas = [["='Inputs'!$B$6"]];
-  checks.getRange("C8").formulas = [["='Inputs'!$B$7"]];
-  checks.getRange("D4:D9").formulas = [
+  checks.getRange("C5:C7").formulas = [["='Inputs'!$B$11"], ["='Inputs'!$B$11"], ["='Inputs'!$B$11"]];
+  checks.getRange("C8").formulas = [["='Inputs'!$B$6"]];
+  checks.getRange("C9").formulas = [["='Inputs'!$B$7"]];
+  checks.getRange("D4:D10").formulas = [
     ["=B4-C4"],
     ["=B5-C5"],
     ["=B6-C6"],
     ["=B7-C7"],
     ["=B8-C8"],
     ["=B9-C9"],
+    ["=B10-C10"],
   ];
-  checks.getRange("E4:E9").formulas = [
+  checks.getRange("E4:E10").formulas = [
     ["=IF(ABS(D4)<0.01,\"OK\",\"CHECK\")"],
     ["=IF(ABS(D5)<0.01,\"OK\",\"CHECK\")"],
     ["=IF(ABS(D6)<0.01,\"OK\",\"CHECK\")"],
-    ["=IF(B7>=C7,\"OK\",\"CHECK\")"],
-    ["=IF(B8=C8,\"OK\",\"CHECK\")"],
+    ["=IF(ABS(D7)<0.01,\"OK\",\"CHECK\")"],
+    ["=IF(B8>=C8,\"OK\",\"CHECK\")"],
     ["=IF(B9=C9,\"OK\",\"CHECK\")"],
+    ["=IF(B10=C10,\"OK\",\"CHECK\")"],
   ];
-  checks.getRange("B4:C9").format = { font: { color: "#008000" } };
-  checks.getRange("D4:D9").format = { font: { color: "#000000" } };
+  checks.getRange("B4:C10").format = { font: { color: "#008000" } };
+  checks.getRange("D4:D10").format = { font: { color: "#000000" } };
   checks.getRange("B4:D8").format.numberFormat = MONEY_FORMAT;
-  checks.getRange("B9:D9").format.numberFormat = COUNT_FORMAT;
-  checks.getRange("E4:E9").conditionalFormats.add("containsText", {
+  checks.getRange("B9:D10").format.numberFormat = COUNT_FORMAT;
+  checks.getRange("E4:E10").conditionalFormats.add("containsText", {
     text: "OK",
     format: { fill: "#DCFCE7", font: { bold: true, color: "#166534" } },
   });
-  checks.getRange("E4:E9").conditionalFormats.add("containsText", {
+  checks.getRange("E4:E10").conditionalFormats.add("containsText", {
     text: "CHECK",
     format: { fill: "#FEE2E2", font: { bold: true, color: "#B91C1C" } },
   });
-  checks.getRange("A1:A9").format.columnWidthPx = 210;
-  checks.getRange("B1:D9").format.columnWidthPx = 146;
-  checks.getRange("E1:E9").format.columnWidthPx = 94;
-  checks.getRange("F1:F9").format.columnWidthPx = 318;
+  checks.getRange("A1:A10").format.columnWidthPx = 210;
+  checks.getRange("B1:D10").format.columnWidthPx = 146;
+  checks.getRange("E1:E10").format.columnWidthPx = 94;
+  checks.getRange("F1:F10").format.columnWidthPx = 318;
   checks.freezePanes.freezeRows(3);
 
   workbook.worksheets.setActiveWorksheet("Depreciation");
@@ -185,23 +192,26 @@ export async function createAssetDepreciationWorkbook(outputPath) {
   assert.equal(depreciation.getRange("C5").values[0][0], 18000);
   assert.equal(depreciation.getRange("D5").values[0][0], 36900);
   assert.equal(depreciation.getRange("E5").values[0][0], 40000);
+  assert.equal(depreciation.getRange("H5").values[0][0], 30000);
+  assert.equal(depreciation.getRange("H9").values[0][0], 6000);
   assertClose(depreciation.getRange("E9").values[0][0], 2960);
   assert.equal(depreciation.getRange("F9").values[0][0], 10000);
   assert.ok(depreciation.getRange("G9").values[0][0] >= 10000);
-  assert.deepEqual(checks.getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
+  assert.deepEqual(checks.getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
 
   const inspection = workbook.inspect({
     kind: "workbook,sheet,formula",
     sheetName: "Depreciation",
-    range: "A1:G9",
+    range: "A1:H9",
     maxChars: 16_000,
   });
   assert.match(inspection.ndjson, /SLN/);
   assert.match(inspection.ndjson, /DB/);
   assert.match(inspection.ndjson, /DDB/);
+  assert.match(inspection.ndjson, /SYD/);
   const verification = workbook.verify({ visualQa: true });
   assert.equal(verification.ok, true, verification.ndjson);
-  const previewSvg = await workbook.render({ sheetName: "Depreciation", range: "A1:G9", autoCrop: "all", format: "svg" });
+  const previewSvg = await workbook.render({ sheetName: "Depreciation", range: "A1:H9", autoCrop: "all", format: "svg" });
   assert.equal(previewSvg.type, "image/svg+xml");
   const previewText = await previewSvg.text();
   assert.match(previewText, /Annual Depreciation Schedule/);
@@ -212,13 +222,14 @@ export async function createAssetDepreciationWorkbook(outputPath) {
   imported.recalculate();
   assert.equal(imported.worksheets.getItem("Depreciation").getRange("D5").formulas[0][0], "=DB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$8)");
   assert.equal(imported.worksheets.getItem("Depreciation").getRange("E5").formulas[0][0], "=DDB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$9)");
+  assert.equal(imported.worksheets.getItem("Depreciation").getRange("H5").formulas[0][0], "=SYD('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5)");
   assert.equal(imported.worksheets.getItem("Depreciation").getRange("F9").values[0][0], 10000);
-  assert.deepEqual(imported.worksheets.getItem("Checks").getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
+  assert.deepEqual(imported.worksheets.getItem("Checks").getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
   const final = await SpreadsheetFile.exportXlsx(imported, { recalculate: false });
   const roundTrip = await SpreadsheetFile.importXlsx(final);
   roundTrip.recalculate();
   assert.equal(roundTrip.worksheets.getItem("Depreciation").getRange("F9").values[0][0], 10000);
-  assert.deepEqual(roundTrip.worksheets.getItem("Checks").getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
+  assert.deepEqual(roundTrip.worksheets.getItem("Checks").getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
 
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await final.save(outputPath);

@@ -799,14 +799,17 @@ try {
   assert.equal(assetDepreciationResult.verification.ok, true);
   assert.match(assetDepreciationResult.inspection.ndjson, /SLN/);
   assert.match(assetDepreciationResult.inspection.ndjson, /DDB/);
+  assert.match(assetDepreciationResult.inspection.ndjson, /SYD/);
   const assetDepreciationWorkbook = await SpreadsheetFile.importXlsx(await FileBlob.load(assetDepreciationPath));
   assetDepreciationWorkbook.recalculate();
   const assetDepreciation = assetDepreciationWorkbook.worksheets.getItem("Depreciation");
   const assetDepreciationChecks = assetDepreciationWorkbook.worksheets.getItem("Checks");
   assert.equal(assetDepreciation.getRange("D5").formulas[0][0], "=DB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$8)");
   assert.equal(assetDepreciation.getRange("E5").formulas[0][0], "=DDB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$9)");
+  assert.equal(assetDepreciation.getRange("H5").formulas[0][0], "=SYD('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5)");
+  assert.equal(assetDepreciation.getRange("H5").values[0][0], 30000);
   assert.equal(assetDepreciation.getRange("F9").values[0][0], 10000);
-  assert.deepEqual(assetDepreciationChecks.getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
+  assert.deepEqual(assetDepreciationChecks.getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
   const assetDepreciationQa = await verifyWorkbookFile(assetDepreciationPath, {
     outputDir: path.join(outputDir, "officekit-asset-depreciation-native-qa"),
     sheetName: "Depreciation",

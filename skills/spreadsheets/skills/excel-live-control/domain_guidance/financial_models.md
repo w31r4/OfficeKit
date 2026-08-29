@@ -99,7 +99,7 @@ For period-based models:
 In additional to the formula rules already specified in SKILL.md, follow these rules:
 - No harcoded numbers inside calculation areas unless explicitly allowed. Always ensure color formatting conventions are properly applied.
 - Legible formulas that is **easily auditable** and follow industry guidelines for the task and end user is important. Instead of dense nested formulas for complex logic, prefer helper rows and Excel formulas to simplify. Users should be able to trace the model from inputs to outputs.
-- Use standard Excel functions and common financial functions when they improve auditability: NPV/XNPV, IRR/XIRR/MIRR, PMT/IPMT, SLN/DB/DDB, and exact-match lookups such as INDEX/MATCH or XLOOKUP where appropriate. Keep formulas readable and source assumptions from input cells.
+- Use standard Excel functions and common financial functions when they improve auditability: NPV/XNPV, IRR/XIRR/MIRR, PMT/IPMT, SLN/SYD/DB/DDB, and exact-match lookups such as INDEX/MATCH or XLOOKUP where appropriate. Keep formulas readable and source assumptions from input cells.
 - Calculations must be formula driven, and a single formula pattern across forecast periods where possible.
 - Avoid volatile functions (**INDIRECT, OFFSET**) unless required.
 - Time series logic should be **copy-across consistent** (same formula pattern across periods).

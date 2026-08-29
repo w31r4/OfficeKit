@@ -688,12 +688,15 @@ try {
   assert.equal(authoredAssetDepreciation.verification.ok, true);
   assert.match(authoredAssetDepreciation.inspection.ndjson, /SLN/);
   assert.match(authoredAssetDepreciation.inspection.ndjson, /DDB/);
+  assert.match(authoredAssetDepreciation.inspection.ndjson, /SYD/);
   const assetDepreciationRoundTrip = await SpreadsheetFile.importXlsx(await FileBlob.load(assetDepreciationPath));
   assetDepreciationRoundTrip.recalculate();
   assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("D5").formulas[0][0], "=DB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$8)");
   assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("E5").formulas[0][0], "=DDB('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5,'Inputs'!$B$9)");
+  assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("H5").formulas[0][0], "=SYD('Inputs'!$B$5,'Inputs'!$B$6,'Inputs'!$B$7,A5)");
+  assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("H5").values[0][0], 30000);
   assert.equal(assetDepreciationRoundTrip.worksheets.getItem("Depreciation").getRange("F9").values[0][0], 10000);
-  assert.deepEqual(assetDepreciationRoundTrip.worksheets.getItem("Checks").getRange("E4:E9").values, [["OK"], ["OK"], ["OK"], ["OK"], ["OK"], ["OK"]]);
+  assert.deepEqual(assetDepreciationRoundTrip.worksheets.getItem("Checks").getRange("E4:E10").values, Array.from({ length: 7 }, () => ["OK"]));
 
   const { createStatisticalAnalysisWorkbook } = await import(
     "../skills/spreadsheets/skills/spreadsheets/examples/officekit-statistical-analysis-workflow.mjs"

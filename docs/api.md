@@ -9068,6 +9068,7 @@ Render an artifact, compare PNG/JPEG/WebP/PPM decoded pixels against a baseline 
 | `fx.SUMPRODUCT` | formula | Multiply corresponding numeric values in equally sized arrays and return the sum of those products; bounded same-shape direct-range predicate factors support comparisons, unary signs, and scalar arithmetic within SUMPRODUCT. |
 | `fx.SUMSQ` | formula | Sum the squares of numeric values across arguments and bounded ranges; overflow returns #NUM! and formula errors propagate. |
 | `fx.SWITCH` | formula | Match an expression against ordered value/result pairs and return an optional default or #N/A when no value matches. |
+| `fx.SYD` | formula | Calculate sum-of-years-digits depreciation for one bounded useful-life period. |
 | `fx.T` | formula | Return text unchanged, convert non-text scalars to empty text, and propagate formula errors; multi-cell or matrix input fails closed as #VALUE!. |
 | `fx.TAKE` | formula | Take rows and optional columns from the start or end of an array and spill the result. |
 | `fx.TAN` | formula | Return the tangent of a finite radian value. |
@@ -12126,6 +12127,27 @@ Match an expression against ordered value/result pairs and return an optional de
 **Schema returns:**
 
 - `value` (boolean) — Calculated cell value or an Excel-style formula error string.
+
+#### `fx.SYD`
+
+Calculate sum-of-years-digits depreciation for one bounded useful-life period.
+
+**Examples:**
+
+- =SYD(B1,B2,B3,A2)
+
+**Schema parameters:**
+
+- `formula` (string) required — Excel-style cell formula beginning with =SYD(...).
+- `arguments` (unknown[]) required — Function arguments may contain literals, cell references, ranges, arrays, or nested formulas as supported by the clean-room evaluator.
+
+**Schema returns:**
+
+- `value` (number) — Calculated cell value or an Excel-style formula error string.
+
+**Notes:**
+
+- The bounded evaluator requires nonnegative cost and salvage, salvage no greater than cost, and integer life and period from 1 through 9,999. The period cannot exceed life; invalid inputs return #VALUE! or #NUM! rather than being coerced.
 
 #### `fx.T`
 

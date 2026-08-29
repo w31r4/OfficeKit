@@ -32,6 +32,7 @@ import {
   calculatePv,
   calculateRate,
   calculateSln,
+  calculateSyd,
   calculateXirr,
   calculateXnpv,
 } from "./financial-formulas.mjs";
@@ -2647,6 +2648,9 @@ function evaluateFormulaFunctionProfile(sheet, fnName, args, context = {}) {
     case "FLOOR": return Math.floor(formulaNumber(scalar(0, 0)) / Math.max(1, formulaNumber(scalar(1, 1)))) * Math.max(1, formulaNumber(scalar(1, 1)));
     case "SLN": return args.length === 3
       ? calculateSln({ cost: scalar(0), salvage: scalar(1), life: scalar(2) }, financialHelpers)
+      : "#VALUE!";
+    case "SYD": return args.length === 4
+      ? calculateSyd({ cost: scalar(0), salvage: scalar(1), life: scalar(2), period: scalar(3) }, financialHelpers)
       : "#VALUE!";
     case "DB": return args.length >= 4 && args.length <= 5
       ? calculateDb({ cost: scalar(0), salvage: scalar(1), life: scalar(2), period: scalar(3), month: scalar(4, 12) }, financialHelpers)

@@ -379,6 +379,18 @@ export function calculateSln({ cost, salvage, life }, helpers) {
   return Number.isFinite(depreciation) ? depreciation : "#NUM!";
 }
 
+export function calculateSyd({ cost, salvage, life, period }, helpers) {
+  const terms = depreciationTerms({ cost, salvage, life, period }, helpers);
+  if (terms.error) return terms.error;
+  if (terms.period > terms.life) return "#NUM!";
+  if (terms.cost === terms.salvage) return 0;
+  const depreciation = (terms.cost - terms.salvage)
+    * (terms.life - terms.period + 1)
+    * 2
+    / (terms.life * (terms.life + 1));
+  return Number.isFinite(depreciation) ? depreciation : "#NUM!";
+}
+
 export function calculateDb({ cost, salvage, life, period, month = 12 }, helpers) {
   const terms = depreciationTerms({ cost, salvage, life, period }, helpers);
   if (terms.error) return terms.error;

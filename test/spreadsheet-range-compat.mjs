@@ -171,6 +171,27 @@ assert.equal(ddbValues[3], 300);
 assert.ok(Math.abs(ddbValues[4] - 72.03) < 1e-10);
 assert.deepEqual(ddbValues.slice(5, 9), ["#NUM!", "#NUM!", "#NUM!", "#NUM!"]);
 assert.equal(ddbValues[9], 0);
+financialSheet.getRange("AC1:AC12").formulas = [
+  ["=SYD(30000,7500,10,1)"],
+  ["=SYD(30000,7500,10,10)"],
+  ["=SYD(1000,100,5,1)"],
+  ["=SYD(1000,100,5,2)"],
+  ["=SYD(1000,100,5,5)"],
+  ["=SYD(1000,100,5,6)"],
+  ["=SYD(1000,100,5,0)"],
+  ["=SYD(1000,1200,5,1)"],
+  ["=SYD(-1000,100,5,1)"],
+  ["=SYD(0,0,5,1)"],
+  ["=SYD(1000,100,5.5,1)"],
+  ["=SYD(1000,100,5)"],
+];
+const sydValues = financialSheet.getRange("AC1:AC12").values.flat();
+assert.ok(Math.abs(sydValues[0] - 4090.909090909091) < 1e-10);
+assert.ok(Math.abs(sydValues[1] - 409.09090909090907) < 1e-10);
+assert.deepEqual(sydValues.slice(2, 5), [300, 240, 60]);
+assert.deepEqual(sydValues.slice(5, 9), ["#NUM!", "#NUM!", "#NUM!", "#NUM!"]);
+assert.equal(sydValues[9], 0);
+assert.deepEqual(sydValues.slice(10), ["#NUM!", "#VALUE!"]);
 financialSheet.getRange("Y1:Y17").formulas = [
   ["=PV(0.01,12,-8884.878867834168)"],
   ["=FV(0.01,12,-8884.878867834168,100000)"],
@@ -291,6 +312,7 @@ assert.deepEqual(financialRoundTrip.worksheets.getItem("Cash Flows").getRange("U
 assert.deepEqual(financialRoundTrip.worksheets.getItem("Cash Flows").getRange("V1:X10").formulas, financialSheet.getRange("V1:X10").formulas);
 assert.deepEqual(financialRoundTrip.worksheets.getItem("Cash Flows").getRange("Y1:Z15").formulas, financialSheet.getRange("Y1:Z15").formulas);
 assert.deepEqual(financialRoundTrip.worksheets.getItem("Cash Flows").getRange("AB1:AB11").formulas, financialSheet.getRange("AB1:AB11").formulas);
+assert.deepEqual(financialRoundTrip.worksheets.getItem("Cash Flows").getRange("AC1:AC12").formulas, financialSheet.getRange("AC1:AC12").formulas);
 const financialLimitWorkbook = Workbook.create();
 const financialLimitSheet = financialLimitWorkbook.worksheets.add("Cash flow limit");
 financialLimitSheet.getRange("A1:A10001").values = Array.from({ length: 10_001 }, (_, index) => [index === 0 ? -100 : 1]);

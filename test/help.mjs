@@ -540,7 +540,7 @@ assert.ok(HELP_CATALOG.find((item) => item.name === "PdfFile.importPdf")?.schema
 assert.ok(HELP_CATALOG.find((item) => item.name === "renderArtifact")?.returns?.includes("FileBlob"));
 assert.ok(HELP_CATALOG.find((item) => item.name === "visualQaArtifact")?.examples?.some((example) => example.includes("pixelDiff")));
 const formulaCatalog = HELP_CATALOG.filter((item) => item.name.startsWith("fx."));
-assert.equal(formulaCatalog.length, 207);
+assert.equal(formulaCatalog.length, 208);
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.formula?.required));
 assert.ok(formulaCatalog.every((item) => item.schema?.parameters?.arguments?.type === "unknown[]"));
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.AND")?.schema?.returns?.value?.type, "boolean");
@@ -595,6 +595,7 @@ assert.equal(HELP_CATALOG.find((item) => item.name === "fx.NPER")?.schema?.retur
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.RATE")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.MIRR")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.SLN")?.schema?.returns?.value?.type, "number");
+assert.equal(HELP_CATALOG.find((item) => item.name === "fx.SYD")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.DB")?.schema?.returns?.value?.type, "number");
 assert.equal(HELP_CATALOG.find((item) => item.name === "fx.DDB")?.schema?.returns?.value?.type, "number");
 const sharedCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "shared");
@@ -805,7 +806,7 @@ assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /absolute uri.*slideId.*relative action/);
 assert.match(HELP_CATALOG.find((item) => item.name === "shape.text.set")?.schema?.parameters?.text?.description || "", /customShow.*survives the bounded slide clone.*without adding the clone to show membership/i);
 const workbookCatalog = HELP_CATALOG.filter((item) => item.artifactKind === "workbook");
-assert.equal(workbookCatalog.length, 303);
+assert.equal(workbookCatalog.length, 304);
 assert.ok(workbookCatalog.every((item) => item.schema?.parameters && item.schema?.returns));
 assert.equal(HELP_CATALOG.find((item) => item.name === "workbook.trace")?.schema?.parameters?.reference?.required, true);
 assert.equal(HELP_CATALOG.find((item) => item.name === "Workbook.create")?.schema?.parameters?.dateSystem?.type, "string");
@@ -1001,6 +1002,7 @@ assert.match(workbook.help("fx.FV").ndjson, /future value/i);
 assert.match(workbook.help("fx.NPER").ndjson, /period count/i);
 assert.match(workbook.help("fx.RATE").ndjson, /periodic interest rate/i);
 assert.match(workbook.help("fx.SLN").ndjson, /straight-line depreciation/i);
+assert.match(workbook.help("fx.SYD").ndjson, /sum-of-years-digits depreciation.*integer life and period/is);
 assert.match(workbook.help("fx.DB").ndjson, /fixed-declining-balance/i);
 assert.match(workbook.help("fx.DDB").ndjson, /double-declining-balance/i);
 assert.match(workbook.help("fx.XNPV").ndjson, /365-day year/i);

@@ -530,6 +530,36 @@ handle/streaming-wire task rather than a lossy change to Office preservation.
 No full, slow, packaging, release, or cross-platform suite was run for this
 local migration pass.
 
+## Current 0.6.0 milestone (2026-08-14): Bounded SYD depreciation
+
+OfficeKit's formula model now evaluates Excel-visible
+`SYD(cost, salvage, life, per)` through the existing financial-formula leaf.
+The bounded profile accepts nonnegative cost/salvage with salvage no greater
+than cost, integer useful-life and period values through 9,999, and a period in
+the modeled schedule. Invalid arity, fractional or out-of-range periods, and
+invalid financial terms return explicit formula errors rather than relying on
+host-only recalculation.
+
+The regression includes Microsoft's public first- and last-period examples,
+additional complete-schedule values, negative boundaries, and canonical XLSX
+formula roundtrip. The runnable three-sheet asset-depreciation workflow now
+shows `SLN`, `SYD`, `DB`, and `DDB` together and adds a seventh visible check
+that the SYD schedule recovers the depreciable basis. Help, the native
+Spreadsheet Skill, API quick start, financial-model guidance, coverage, and
+reference-compatibility evidence are updated without changing the Office wire
+protocol.
+
+This atomic formula slice remains in the rolling release-candidate cooldown
+lane. It uses affected formula, Help, Spreadsheet Skill, portability,
+reference-sync, package-content, generated-doc, and fast gates only. The next
+complete candidate may start no earlier than 2026-08-14 17:58:14 UTC
+(2026-08-15 01:58:14 Beijing), twelve hours after the previous candidate
+started; no slow, pack, .NET/WASM, or hosted candidate lane is started here.
+The functional source/Skill addition brings the dry-run package to 53,702,185
+unpacked bytes, so the audited ceiling moves narrowly from 53,700,000 to
+53,710,000 bytes rather than hiding the expected growth or admitting a broad
+payload increase.
+
 ## Current 0.6.0 milestone (2026-08-14): Bounded area-review revision
 
 Freshly inspected native Square and Circle annotations now advertise a
