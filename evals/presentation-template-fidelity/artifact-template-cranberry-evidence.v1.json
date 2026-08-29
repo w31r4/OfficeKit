@@ -148,10 +148,13 @@
       ]
     },
     "reusableAssets": {
-      "score": 88,
+      "score": 96,
       "evidence": [
+        "template-reuse.v1.json",
         "reference.pptx",
-        "inspect.jsonl"
+        "inspect.jsonl",
+        "source-bound-duplicate-reimport",
+        "templates:30"
       ]
     },
     "roundTripStability": {
@@ -196,7 +199,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 88.2, functional 94.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 88.2, functional 95.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

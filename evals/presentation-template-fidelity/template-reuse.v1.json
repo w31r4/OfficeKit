@@ -1,0 +1,307 @@
+{
+  "schema": "office-kit/presentation-template-reuse-evidence/v1",
+  "generatedAt": "2026-08-29T00:54:49.514Z",
+  "count": 30,
+  "results": [
+    {
+      "templateId": "artifact-template-amber-committee-memo",
+      "referenceSha256": "79f13f2d5dddde397d9c998659bdec8ad8a01d85864b112b2f00689654f95c56",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/0008",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-apricot-dossier",
+      "referenceSha256": "7ff37c38aa9cfeb72c590216a24a3e2007c456f6c8ce590da78354089ab02a5e",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/001d",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-aqua-impact-story",
+      "referenceSha256": "b66158f422aad6cd084c770f4aa6da1781b6b56e3bb17eeb1c254ef60cc137f0",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/002o",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-axis-atlas",
+      "referenceSha256": "dae63aa14403487c80aa28ef82525078851e83e02166c6dc33023cceadf5d122",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 3,
+      "cloneSlideId": "sl/003i",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-blue-flame-operations",
+      "referenceSha256": "b40f8445913c92964c356e393023782d2f894eaaaa760bdb3db1918ae4d3bd2c",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/004p",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-blueprint-lecture",
+      "referenceSha256": "a8c63137ddd9a6723da051cc20ca33832a55f4faca35d21c60e4699318909f87",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/0061",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-clay-craft-review",
+      "referenceSha256": "643dae13ac94cad57912420f21c8e58e0a3660f63191f0757d9d30bd442ef041",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/0072",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-coastal-analysis",
+      "referenceSha256": "ea8f0d4529a16362c814c91038d0a888b3e249ad0df45d0fb2740fc962865ca0",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/0083",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-coral-growth-brief",
+      "referenceSha256": "e0a17a0f4051694f100a3ddc4fbf548f029c9b56eb352bbe89ec49acf73e01b1",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/008x",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-cranberry-evidence",
+      "referenceSha256": "d720f9e219097c67cbbb59424e967c5ab262cfc4926601c77f691dcbde115e70",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/009r",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-cream-civic-collage",
+      "referenceSha256": "45dc2f0f0637f5cc87bd806a4712a76a9518ee636a59400869d4c225a9a38439",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00as",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-ebony-investment-review",
+      "referenceSha256": "533e7b4140764d79c4fb22cf992ac03f7abe098d6343e9dac46c285b964730aa",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/00bx",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-forest-strategy",
+      "referenceSha256": "af46a781c10c3a5c89977d086b16909bd98e5b4762ba0f675b8f16bc5ac3b4a4",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00cr",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-gilt-market-ledger",
+      "referenceSha256": "973b162e13d764a123235f342561cce6c048849bbcb5f87808f32928fc8ecfd4",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00ed",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-indigo-verdict",
+      "referenceSha256": "4b0357e9aa8ab05adad762c220d534cf5ebc5f9d20cddc7e7f93e71d8b02d472",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/00fh",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-jade-annual-brief",
+      "referenceSha256": "74eb17a12a4af21b8f17289cc5fd8fcd51680685332fdce7bb49e400d5a7305f",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 4,
+      "cloneSlideId": "sl/00gb",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-lake-research-journal",
+      "referenceSha256": "e824d8c2e38387a862ff186f8fbff4eb69d6d2b640d006116b3522a359d5d9ac",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00hv",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-midnight-prospectus",
+      "referenceSha256": "159d9861fdd3b7287a13d6f2032a6a5c769d9bc283cb2ef1fc9063de7651e3da",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00iz",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-moonlit-work-report",
+      "referenceSha256": "7ded2459e08bf78dedc45c20e9c958b84f025400114947387e39b0fcfd37b4ba",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00k3",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-moss-transformation",
+      "referenceSha256": "4a49bb996570edcd918ebbdd077ec6dd19329c6eea0f89ea4e54115a167f50eb",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/00l5",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-noir-field-pictorial",
+      "referenceSha256": "eda2418884aa3ec00e6d06a53e2fde93c148cd081f026ae50ad3351bd417b4a5",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00ma",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-paper-seminar",
+      "referenceSha256": "fab0506bccae05895a08511c9653662133ce9c749cae645f8fe46737ea5ec49b",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 4,
+      "cloneSlideId": "sl/00ng",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-rice-paper-yearbook",
+      "referenceSha256": "66c468afdedeb2c0d1ca8c6c9390451f5c87324a4d84e5fe78b2de70bacf61ae",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/00os",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-river-handbook",
+      "referenceSha256": "5b41429cfe889865b62962c9c4630b5d2db82308f0072e07dc70e3b16f40f56e",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00pm",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-saffron-editorial",
+      "referenceSha256": "b8edd2d7c7e069557505329402243f516527d04e2393e63fc3a2757ea3930c33",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00qh",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-silver-atelier",
+      "referenceSha256": "b69ff1295eb8dc5a75bd49f724884ea30f3603a8f7cd0b6402a57498cc8e6da9",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 2,
+      "cloneSlideId": "sl/00rb",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-skyline-wayfinding",
+      "referenceSha256": "d58b1b2f2f9614531aff74a114e8f1f4b4a26608e122b220d4e9cf20f20b5799",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 3,
+      "cloneSlideId": "sl/00s5",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-soft-proof",
+      "referenceSha256": "c2f35961a87358f4c3551475ade00e19143cbb3115129681f7c6cd56f44ebdd2",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 3,
+      "cloneSlideId": "sl/00t1",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-tidal-research",
+      "referenceSha256": "b4a34cb7baad6e06131916ff2fc0932c11ae174e9580eda8b55eba8dd14ac3d7",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/00tx",
+      "outputSlides": 7,
+      "reimported": true
+    },
+    {
+      "templateId": "artifact-template-violet-operations",
+      "referenceSha256": "3f1f205b1ecd7330b8d2f8a3022f94c28a54a0023d70ea17012b175c83d5fab4",
+      "sourceSlides": 6,
+      "plannedPages": 3,
+      "sourceSlideOrdinal": 1,
+      "cloneSlideId": "sl/00uy",
+      "outputSlides": 7,
+      "reimported": true
+    }
+  ]
+}
