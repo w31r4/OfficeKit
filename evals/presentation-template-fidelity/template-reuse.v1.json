@@ -1,6 +1,6 @@
 {
   "schema": "office-kit/presentation-template-reuse-evidence/v1",
-  "generatedAt": "2026-08-29T00:54:49.514Z",
+  "generatedAt": "2026-08-29T01:16:45.809Z",
   "count": 30,
   "results": [
     {
@@ -205,11 +205,11 @@
     },
     {
       "templateId": "artifact-template-noir-field-pictorial",
-      "referenceSha256": "eda2418884aa3ec00e6d06a53e2fde93c148cd081f026ae50ad3351bd417b4a5",
+      "referenceSha256": "8450311bdb7958c7893b390270478dc1aa89a3813711b1268d119869409b3478",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/00ma",
+      "cloneSlideId": "presentation/slide/3",
       "outputSlides": 7,
       "reimported": true
     },
@@ -245,11 +245,11 @@
     },
     {
       "templateId": "artifact-template-saffron-editorial",
-      "referenceSha256": "b8edd2d7c7e069557505329402243f516527d04e2393e63fc3a2757ea3930c33",
+      "referenceSha256": "218685f771c629531d286658b4de0fba41dea6e40455625e3f83b4154bba9adb",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/00qh",
+      "cloneSlideId": "presentation/slide/3",
       "outputSlides": 7,
       "reimported": true
     },

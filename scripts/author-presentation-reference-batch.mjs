@@ -148,8 +148,38 @@ const TEMPLATE_PHOTO_POOLS = Object.freeze({
   "artifact-template-amber-committee-memo": ["brass-ledger-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "financial-ledger-calibration-v1.jpg"],
   "artifact-template-lake-research-journal": ["archival-research-table-calibration-v1.jpg", "brass-ledger-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "archive-reading-calibration-v1.jpg"],
   "artifact-template-aqua-impact-story": ["community-table-calibration-v1.jpg", "civic-courtyard-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg", "annual-team-calibration-v1.jpg"],
-  "artifact-template-noir-field-pictorial": ["prototype-bench-calibration-v1.jpg", "community-table-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "industrial-technician-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg", "city-wayfinding-calibration-v1.jpg"],
-  "artifact-template-saffron-editorial": ["glasshouse-light-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "editorial-archive-calibration-v1.jpg", "community-table-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg", "craft-studio-calibration-v1.jpg"],
+  // These two promotion signatures use enough distinct authored photographs
+  // to cover every image role in the six-page calibration deck without
+  // wrapping back to the cover image. Repetition is a deliberate editorial
+  // choice only when the source guide calls for a recurring subject.
+  "artifact-template-noir-field-pictorial": [
+    "prototype-bench-calibration-v1.jpg",
+    "community-table-calibration-v1.jpg",
+    "field-archive-calibration-v1.jpg",
+    "industrial-technician-calibration-v1.jpg",
+    "gallery-installation-calibration-v1.jpg",
+    "city-wayfinding-calibration-v1.jpg",
+    "noir-cinematic-calibration-v1.jpg",
+    "operations-control-room-calibration-v1.jpg",
+    "coastal-instrument-calibration-v1.jpg",
+    "archive-reading-calibration-v1.jpg",
+    "architectural-staircase-calibration-v1.jpg",
+    "river-infrastructure-calibration-v1.jpg",
+  ],
+  "artifact-template-saffron-editorial": [
+    "glasshouse-light-calibration-v1.jpg",
+    "crafted-still-life-calibration-v1.jpg",
+    "editorial-archive-calibration-v1.jpg",
+    "community-table-calibration-v1.jpg",
+    "gallery-installation-calibration-v1.jpg",
+    "craft-studio-calibration-v1.jpg",
+    "annual-team-calibration-v1.jpg",
+    "city-wayfinding-calibration-v1.jpg",
+    "coastal-instrument-calibration-v1.jpg",
+    "civic-courtyard-calibration-v1.jpg",
+    "wetland-instrument-calibration-v1.jpg",
+    "research-studio-calibration-v1.jpg",
+  ],
   "artifact-template-silver-atelier": ["civic-courtyard-calibration-v1.jpg", "architectural-staircase-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "craft-studio-calibration-v1.jpg"],
   "artifact-template-river-handbook": ["river-infrastructure-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "city-wayfinding-calibration-v1.jpg"],
   "artifact-template-violet-operations": ["operations-floor-calibration-v1.jpg", "data-center-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "night-lab-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg", "operations-control-calibration-v1.jpg"],
@@ -646,18 +676,24 @@ function makeFinanceClose(presentation, style) {
 function makeEditorialCover(presentation, style) {
   const slide = presentation.slides.add({ name: "Opening claim" });
   const { palette: c } = style;
+  // A dark pictorial signature uses its paper field (#111214) as the reading
+  // plane. Using `ink` here would invert the cover into a pale block because
+  // the guide's light type is intentionally stored as the ink role.
+  const readingPlane = style.dark ? c.paper : c.ink;
+  const titleColor = style.dark ? c.ink : "#FFFFFF";
+  const bodyColor = style.dark ? c.ink : "#F0F2F2";
   setFullSlideImageBackground(slide, style, "cover");
-  addRect(slide, "editorial-cover-scrim", 0, 0, 760, HEIGHT, c.ink, {
-    fill: { color: c.ink, opacity: 0.84 },
-    line: { fill: c.ink, width: 0 },
+  addRect(slide, "editorial-cover-scrim", 0, 0, 760, HEIGHT, readingPlane, {
+    fill: { color: readingPlane, opacity: 0.84 },
+    line: { fill: readingPlane, width: 0 },
   });
   addText(slide, "eyebrow", `${style.category.toUpperCase()} · OFFICEKIT CALIBRATION`, 96, 84, 740, 24, { fontSize: 15, bold: true, color: c.accent });
-  addText(slide, "cover-title", style.coverTitle, 96, 206, 610, 140, { fontSize: 52, bold: true, color: "#FFFFFF" });
-  addText(slide, "cover-subtitle", "A clean-room reference for a visual proposition.", 100, 382, 560, 34, { fontSize: 22, color: "#F0F2F2" });
+  addText(slide, "cover-title", style.coverTitle, 96, 206, 610, 140, { fontSize: 52, bold: true, color: titleColor });
+  addText(slide, "cover-subtitle", "A clean-room reference for a visual proposition.", 100, 382, 560, 34, { fontSize: 22, color: bodyColor });
   addLine(slide, "cover-photo-rule", 96, 476, 610, 476, c.accent, 3);
-  addText(slide, "cover-thesis", coverThesis(style), 100, 514, 600, 68, { fontSize: 26, bold: true, color: "#FFFFFF" });
-  addText(slide, "cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 100, 770, 950, 24, { fontSize: 14, color: "#F0F2F2" });
-  addText(slide, "page-number", "1 / 6", 1400, 820, 100, 22, { fontSize: 14, color: "#F0F2F2", alignment: "right" });
+  addText(slide, "cover-thesis", coverThesis(style), 100, 514, 600, 68, { fontSize: 26, bold: true, color: titleColor });
+  addText(slide, "cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 100, 770, 950, 24, { fontSize: 14, color: bodyColor });
+  addText(slide, "page-number", "1 / 6", 1400, 820, 100, 22, { fontSize: 14, color: bodyColor, alignment: "right" });
   return slide;
 }
 
