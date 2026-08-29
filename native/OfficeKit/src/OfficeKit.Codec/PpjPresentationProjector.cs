@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -374,13 +375,13 @@ internal static partial class PpjPresentationProjector
         output["chartType"] = type;
         if (!string.IsNullOrEmpty(chart.Title)) output["title"] = chart.Title;
         var categories = new JsonArray();
-        foreach (var value in chart.Categories) categories.Add((JsonNode)value);
+        foreach (var value in chart.Categories) categories.Add(StringNode(value));
         var seriesJson = new JsonArray();
         for (var index = 0; index < series.Length; index++)
         {
             var item = series[index];
             var values = new JsonArray();
-            foreach (var value in item.Values) values.Add((JsonNode)value);
+            foreach (var value in item.Values) values.Add(NumberNode(value));
             var entry = new JsonObject
             {
                 ["id"] = $"series-{index + 1}",
@@ -515,18 +516,18 @@ internal static partial class PpjPresentationProjector
         if (string.IsNullOrWhiteSpace(nativeKind)) nativeKind = element.ContentCase.ToString();
         var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
         output["type"] = "opaque";
-        output["nativeKind"] = nativeKind;
-        output["summary"] = summary ?? $"Preserved source-owned {nativeKind} object; only issued nativeRef capabilities are editable.";
+        output["nativeKind"] = StringNode(nativeKind);
+        output["summary"] = StringNode(summary ?? $"Preserved source-owned {nativeKind} object; only issued nativeRef capabilities are editable.");
         if (opaque is not null && PpjNativeTextProjection.TryRead(opaque.RawXml, out var nativeLeaves))
         {
             var visible = new JsonArray();
-            foreach (var leaf in nativeLeaves) visible.Add(leaf);
+            foreach (var leaf in nativeLeaves) visible.Add(StringNode(leaf));
             output["visibleText"] = visible;
         }
         else if (!string.IsNullOrWhiteSpace(opaque?.Text))
         {
             var visible = new JsonArray();
-            foreach (var line in opaque.Text.Split('\n').Where(line => line.Length > 0)) visible.Add((JsonNode)line);
+            foreach (var line in opaque.Text.Split('\n').Where(line => line.Length > 0)) visible.Add(StringNode(line));
             if (visible.Count > 0) output["visibleText"] = visible;
         }
         return output;
@@ -545,7 +546,7 @@ internal static partial class PpjPresentationProjector
             ["frame"] = frame,
             ["nativeRef"] = nativeRef,
         };
-        if (!string.IsNullOrWhiteSpace(name)) output["name"] = name;
+        if (!string.IsNullOrWhiteSpace(name)) output["name"] = StringNode(name);
         if (accessibility is not null) output["accessibility"] = accessibility;
         return output;
     }
@@ -571,7 +572,7 @@ internal static partial class PpjPresentationProjector
         if (body is null || body.Paragraphs.Count == 0 ||
             body.Paragraphs.Any(paragraph => paragraph.Runs.Count == 0 ||
                 paragraph.Runs.Any(run => run.ContentCase != PresentationTextRun.ContentOneofCase.Text)))
-            return (JsonNode)(fallback ?? string.Empty);
+            return StringNode(fallback ?? string.Empty);
 
         var paragraphs = new JsonArray();
         for (var paragraphIndex = 0; paragraphIndex < body.Paragraphs.Count; paragraphIndex++)
@@ -727,7 +728,7 @@ internal static partial class PpjPresentationProjector
         {
             var pages = new JsonArray();
             foreach (var id in section.SlideIds)
-                if (context.TryPageId(id, out var pageId)) pages.Add((JsonNode)pageId);
+                if (context.TryPageId(id, out var pageId)) pages.Add(StringNode(pageId));
             if (pages.Count == 0) continue;
             output.Add(new JsonObject
             {
@@ -746,7 +747,7 @@ internal static partial class PpjPresentationProjector
         {
             var pages = new JsonArray();
             foreach (var id in show.SlideIds)
-                if (context.TryPageId(id, out var pageId)) pages.Add((JsonNode)pageId);
+                if (context.TryPageId(id, out var pageId)) pages.Add(StringNode(pageId));
             if (pages.Count == 0) continue;
             output.Add(new JsonObject
             {
@@ -865,7 +866,7 @@ internal static partial class PpjPresentationProjector
                      .ThenBy(item => string.Join("\0", item.Fields), StringComparer.Ordinal))
         {
             var fields = new JsonArray();
-            foreach (var field in capability.Fields) fields.Add((JsonNode)field);
+            foreach (var field in capability.Fields) fields.Add(StringNode(field));
             capabilityArray.Add(new JsonObject
             {
                 ["id"] = $"cap-{capability.Operation}-{Sha256(Encoding.UTF8.GetBytes(scope + capability.Operation))[..10]}",
@@ -960,9 +961,9 @@ internal static partial class PpjPresentationProjector
             ["width"] = Math.Max(0, Points(widthEmu)),
         };
         var dash = Dash(style);
-        if (dash is not null) output["dash"] = dash;
-        if (cap is "flat" or "round" or "square") output["cap"] = cap;
-        if (join is "miter" or "round" or "bevel") output["join"] = join;
+        if (dash is not null) output["dash"] = StringNode(dash);
+        if (cap is "flat" or "round" or "square") output["cap"] = StringNode(cap);
+        if (join is "miter" or "round" or "bevel") output["join"] = StringNode(join);
         if (opacity is not null) output["opacity"] = opacity.Value;
         return output;
     }
@@ -1067,6 +1068,22 @@ internal static partial class PpjPresentationProjector
     {
         using var document = JsonDocument.Parse(node.ToJsonString());
         return PpjCanonicalJson.Write(document.RootElement);
+    }
+
+    private static JsonNode StringNode(string value)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+            writer.WriteStringValue(value);
+        return JsonNode.Parse(buffer.WrittenSpan) ?? throw new InvalidOperationException("String JSON primitive could not be created.");
+    }
+
+    private static JsonNode NumberNode(double value)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+            writer.WriteNumberValue(value);
+        return JsonNode.Parse(buffer.WrittenSpan) ?? throw new InvalidOperationException("Number JSON primitive could not be created.");
     }
 
     private static string Sha256(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
