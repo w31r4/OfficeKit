@@ -4587,6 +4587,7 @@ immutable nativeLeafEdit receipt
 **Notes:**
 
 - A fillOpacityThousandthPercent leaf is available for a direct solid RGB fill with one bounded alpha token. Pass a 0..1 fraction; only that alpha token changes and irregular or effect-bearing fills remain blocked.
+- An imported opaque connector or group descendant may expose a lineStyle leaf when one existing prstDash token and simple solid outline are proven. Use solid, dashed, dotted, dash-dot, or dash-dot-dot; only that token changes, while custom dash/effect graphs stay opaque.
 
 #### `presentation.export`
 
