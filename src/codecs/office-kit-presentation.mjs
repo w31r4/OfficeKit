@@ -2329,7 +2329,7 @@ function presentationElement(element, original, assetCatalog, sourceIdByCloneId,
   throw new OfficeKitCodecError(`Presentation element ${element?.id || "<unknown>"} has no supported OfficeKit wire projection.`, [], { code: "unsupported_presentation_element" });
 }
 
-function markPresentationImportedGroupSnapshots(group, source) {
+function markPresentationImportedGroupSnapshots(group, source, sourceRevisionSha256) {
   const children = source?.content?.case === "group" ? source.content.value.children || [] : [];
   for (let index = 0; index < group.children.length; index += 1) {
     const child = group.children[index];
@@ -2341,7 +2341,19 @@ function markPresentationImportedGroupSnapshots(group, source) {
       writable: false,
       value: Object.freeze({ wire, snapshot: presentationCloneElementSnapshot(child) }),
     });
-    if (child instanceof GroupShape && wire.content?.case === "group") markPresentationImportedGroupSnapshots(child, wire);
+    const capability = wire.source?.zOrderCapability;
+    Object.defineProperty(child, PRESENTATION_ELEMENT_ORDER_CAPABILITY, {
+      value: Object.freeze({
+        sourceBound: true,
+        known: Boolean(capability),
+        editable: capability?.supported === true,
+        blockedReason: capability
+          ? capability.blockedReason || ""
+          : "Imported group-child order capability is unavailable.",
+        ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
+      }),
+    });
+    if (child instanceof GroupShape && wire.content?.case === "group") markPresentationImportedGroupSnapshots(child, wire, sourceRevisionSha256);
   }
 }
 
@@ -2404,7 +2416,7 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
         children: group.children.map((child, index) => {
           const imported = child[PRESENTATION_IMPORTED_GROUP_CHILD];
           if (imported && presentationCloneElementSnapshot(child) === imported.snapshot) return imported.wire;
-          return presentationElement(child, originalGroup?.children[index], assetCatalog, sourceIdByCloneId, customShowLinks);
+          return presentationElement(child, imported?.wire || originalGroup?.children[index], assetCatalog, sourceIdByCloneId, customShowLinks);
         }),
         ...(accessibility ? { accessibility } : {}),
       },
@@ -5568,7 +5580,7 @@ export async function presentationFromEnvelope(envelope, options = {}) {
         });
       } else if (element.content.case === "group") {
         model = slide.groups.add(modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGraph, sourcePart));
-        markPresentationImportedGroupSnapshots(model, element);
+        markPresentationImportedGroupSnapshots(model, element, sourceRevisionSha256);
       } else if (element.content.case === "opaque") {
         const opaque = element.content.value;
         model = slide.nativeObjects.add({
@@ -5663,19 +5675,6 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
         }),
       });
-      if (model instanceof GroupShape) {
-        for (const sourceBoundModel of model.allElements().slice(1)) {
-          Object.defineProperty(sourceBoundModel, PRESENTATION_ELEMENT_ORDER_CAPABILITY, {
-            value: Object.freeze({
-              sourceBound: true,
-              known: true,
-              editable: false,
-              blockedReason: "Nested imported group-child reordering is not part of the direct slide scene-stack capability.",
-              ...(sourceRevisionSha256 ? { sourceRevisionSha256 } : {}),
-            }),
-          });
-        }
-      }
       Object.defineProperty(model, PRESENTATION_ELEMENT_DELETION_CAPABILITY, {
         value: Object.freeze({
           sourceBound: true,

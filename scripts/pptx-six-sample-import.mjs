@@ -430,9 +430,26 @@ async function verifyZOrderEdit(bytes) {
     }
     if (target) break;
   }
-  if (!target) return { status: "blocked", reason: "no adjacent direct elements exposed a safe z-order capability" };
-  const identity = (element) => `${element.nativeId ?? ""}\0${element.name || ""}`;
-  const before = target.slide.elements.items.map(identity);
+  if (!target) {
+    for (const slide of presentation.slides.items) {
+      for (const group of slide.groups?.items || []) {
+        const items = group.children || [];
+        for (let index = 0; index + 1 < items.length; index += 1) {
+          if (items[index].zOrderCapability?.editable === true && items[index + 1].zOrderCapability?.editable === true) {
+            target = { slide, group, first: items[index], second: items[index + 1] };
+            break;
+          }
+        }
+        if (target) break;
+      }
+      if (target) break;
+    }
+  }
+  if (!target) return { status: "blocked", reason: "no adjacent direct or grouped elements exposed a safe z-order capability" };
+  const identity = (element) => target.group
+    ? `${element.kind || ""}\0${element.name || ""}\0${element.text?.value || ""}`
+    : `${element.nativeId ?? ""}\0${element.name || ""}`;
+  const before = (target.group ? target.group.children : target.slide.elements.items).map(identity);
   target.first.moveAfter(target.second);
   const expected = [...before];
   const firstIndex = expected.indexOf(identity(target.first));
@@ -441,16 +458,19 @@ async function verifyZOrderEdit(bytes) {
   expected.splice(secondIndex, 0, identity(target.first));
   const output = await PresentationFile.exportPptx(presentation);
   const reopened = await importPresentation(output.bytes);
-  const after = reopened.slides.items[target.slide.index].elements.items.map(identity);
+  const reopenedOwner = target.group
+    ? reopened.resolve(target.group.id)
+    : reopened.slides.items[target.slide.index].elements;
+  const after = (target.group ? reopenedOwner.children : reopenedOwner.items).map(identity);
   if (JSON.stringify(after) !== JSON.stringify(expected)) {
-    throw new Error(`Z-order edit did not survive re-import for slide ${target.slide.index + 1}.`);
+    throw new Error(`Z-order edit did not survive re-import for ${target.group ? `group ${target.group.id}` : `slide ${target.slide.index + 1}`}.`);
   }
   const changedParts = await changedPackageParts(bytes, output.bytes);
   const expectedPart = `ppt/slides/slide${target.slide.index + 1}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
-    throw new Error(`Z-order edit changed unexpected parts for slide ${target.slide.index + 1}: ${changedParts.join(", ")}`);
+    throw new Error(`Z-order edit changed unexpected parts for ${target.group ? `group ${target.group.id}` : `slide ${target.slide.index + 1}`}: ${changedParts.join(", ")}`);
   }
-  return { status: "passed", slide: target.slide.index + 1, movedId: target.first.id, before, after, changedParts };
+  return { status: "passed", scope: target.group ? "group" : "slide", slide: target.slide.index + 1, ...(target.group ? { groupId: target.group.id } : {}), movedId: target.first.id, before, after, changedParts };
 }
 
 async function verifyOneSlideReuse(bytes) {

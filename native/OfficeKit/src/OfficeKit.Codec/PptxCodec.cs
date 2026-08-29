@@ -1407,6 +1407,25 @@ internal static class PptxCodec
         }
     }
 
+    private static void ApplyGroupElementZOrder(
+        P.GroupShape group,
+        IReadOnlyList<OpenXmlElement> sourceElements,
+        IReadOnlyList<int> requestedSourceOrder)
+    {
+        if (sourceElements.Count != requestedSourceOrder.Count || requestedSourceOrder.Distinct().Count() != sourceElements.Count ||
+            requestedSourceOrder.Any(index => index < 0 || index >= sourceElements.Count))
+            throw new CodecException("presentation_group_topology_changed", "Presentation group-child reorder must be a complete permutation of the local source shape tree.");
+        OpenXmlElement anchor = group.GetFirstChild<P.GroupShapeProperties>() ??
+            throw new CodecException("missing_group_shape_properties", "Presentation group has no group-shape properties anchor.");
+        foreach (var sourceElement in sourceElements) sourceElement.Remove();
+        foreach (var sourceIndex in requestedSourceOrder)
+        {
+            var sourceElement = sourceElements[sourceIndex];
+            group.InsertAfter(sourceElement, anchor);
+            anchor = sourceElement;
+        }
+    }
+
     private static void AssertElementBinding(
         string requestedId,
         PresentationElementSourceBinding binding,
@@ -1491,6 +1510,7 @@ internal static class PptxCodec
         group.Accessibility = PptxNonVisualAccessibilityCodec.Read(drawing);
         var children = GroupElements(source);
         if (children.Length == 0) return false;
+        var zOrderPlan = AnalyzeElementZOrder(children);
         for (var index = 0; index < children.Length; index++)
         {
             var child = ReadElement(children[index], groupId, index, slideContext, elementIdsByNativeId: elementIdsByNativeId);
@@ -1502,6 +1522,7 @@ internal static class PptxCodec
             if (child.ContentCase is PresentationElement.ContentOneofCase.None ||
                 child.Source is null)
                 return false;
+            SetElementZOrderCapability(child, zOrderPlan);
             group.Children.Add(child);
         }
         return true;
@@ -2185,6 +2206,29 @@ internal static class PptxCodec
         var sourceChildren = GroupElements(source);
         if (sourceChildren.Length != original.Group.Children.Count || sourceChildren.Length != requested.Group.Children.Count)
             throw new CodecException("presentation_group_topology_changed", $"Presentation slide {slideIndex + 1} {location} changed its fixed group topology.", PartPath(slideContext.Owner));
+        var zOrderPlan = AnalyzeElementZOrder(sourceChildren);
+        var requestedSourceOrder = new int[requested.Group.Children.Count];
+        var requestedSourceIndexes = new HashSet<int>();
+        for (var requestedIndex = 0; requestedIndex < requested.Group.Children.Count; requestedIndex++)
+        {
+            var requestedChild = requested.Group.Children[requestedIndex];
+            var binding = requestedChild.Source ?? throw new CodecException(
+                "missing_presentation_element_binding",
+                $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} is missing its source binding.",
+                PartPath(slideContext.Owner));
+            if (binding.ShapeTreeIndex >= (uint)sourceChildren.Length || !requestedSourceIndexes.Add((int)binding.ShapeTreeIndex))
+                throw new CodecException(
+                    "presentation_group_topology_changed",
+                    $"Presentation slide {slideIndex + 1} {location} children must identify a unique local source order.",
+                    PartPath(slideContext.Owner));
+            requestedSourceOrder[requestedIndex] = (int)binding.ShapeTreeIndex;
+        }
+        var sourceOrderChanged = !requestedSourceOrder.SequenceEqual(Enumerable.Range(0, sourceChildren.Length));
+        if (sourceOrderChanged && !zOrderPlan.Supported)
+            throw new CodecException(
+                "unsupported_presentation_element_reorder",
+                $"Presentation slide {slideIndex + 1} {location} cannot safely reorder its group children: {zOrderPlan.BlockedReason}.",
+                PartPath(slideContext.Owner));
 
         var changed = !Equals(original.Group.Accessibility, requested.Group.Accessibility);
         PptxNonVisualAccessibilityCodec.ApplyBound(
@@ -2210,30 +2254,39 @@ internal static class PptxCodec
             changed = true;
         }
 
-        for (var index = 0; index < sourceChildren.Length; index++)
+        for (var requestedIndex = 0; requestedIndex < sourceChildren.Length; requestedIndex++)
         {
-            var sourceChild = sourceChildren[index];
-            var originalChild = original.Group.Children[index];
-            var requestedChild = requested.Group.Children[index];
+            var sourceIndex = requestedSourceOrder[requestedIndex];
+            var sourceChild = sourceChildren[sourceIndex];
+            var originalChild = original.Group.Children[sourceIndex];
+            var requestedChild = requested.Group.Children[requestedIndex];
             var binding = requestedChild.Source ?? throw new CodecException(
                 "missing_presentation_element_binding",
-                $"Presentation slide {slideIndex + 1} {location} child {index + 1} is missing its source binding.",
+                $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} is missing its source binding.",
                 PartPath(slideContext.Owner));
-            if (requestedChild.Id != originalChild.Id || binding.ShapeTreeIndex != index ||
+            if (requestedChild.Id != originalChild.Id || binding.ShapeTreeIndex != (uint)sourceIndex ||
                 !binding.ElementSha256.Equals(HashElement(sourceChild), StringComparison.OrdinalIgnoreCase) ||
                 binding.Editable != originalChild.Source?.Editable ||
                 binding.TextEditable != originalChild.Source?.TextEditable ||
                 binding.AccessibilityEditable != originalChild.Source?.AccessibilityEditable ||
+                binding.ZOrderCapability is null ||
+                binding.ZOrderCapability.Supported != zOrderPlan.Supported ||
+                !binding.ZOrderCapability.BlockedReason.Equals(zOrderPlan.BlockedReason, StringComparison.Ordinal) ||
                 !binding.SemanticSha256.Equals(originalChild.Source?.SemanticSha256 ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
                 !SemanticHash(originalChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException(
                     "presentation_element_binding_mismatch",
-                    $"Presentation slide {slideIndex + 1} {location} child {index + 1} does not match its owner-local source binding.",
+                    $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} does not match its owner-local source binding.",
                     PartPath(slideContext.Owner));
             if (SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
             if (!binding.Editable)
-                throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} child {index + 1} is read-only.", PartPath(slideContext.Owner));
-            ApplyGroupChild(sourceChild, originalChild, requestedChild, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"{location} child {index + 1}");
+                throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} is read-only.", PartPath(slideContext.Owner));
+            ApplyGroupChild(sourceChild, originalChild, requestedChild, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"{location} child {requestedIndex + 1}");
+            changed = true;
+        }
+        if (sourceOrderChanged)
+        {
+            ApplyGroupElementZOrder(source, sourceChildren, requestedSourceOrder);
             changed = true;
         }
         return changed;
@@ -3351,46 +3404,59 @@ internal static class PptxCodec
         var afterChildren = GroupElements(after);
         if (beforeChildren.Length != request.Group.Children.Count || afterChildren.Length != request.Group.Children.Count)
             throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} {location} group topology changed during export.", PartPath(outputContext.Owner));
+        var requestedSourceOrder = new int[request.Group.Children.Count];
+        var requestedSourceIndexes = new HashSet<int>();
+        for (var requestedIndex = 0; requestedIndex < request.Group.Children.Count; requestedIndex++)
+        {
+            var binding = request.Group.Children[requestedIndex].Source ??
+                throw new CodecException("missing_presentation_element_binding", $"PPTX slide {slideIndex + 1} {location} child {requestedIndex + 1} is missing its source binding.", PartPath(outputContext.Owner));
+            if (binding.ShapeTreeIndex >= (uint)beforeChildren.Length || !requestedSourceIndexes.Add((int)binding.ShapeTreeIndex))
+                throw new CodecException("presentation_postwrite_topology_changed", $"PPTX slide {slideIndex + 1} {location} child order is not a complete source permutation.", PartPath(outputContext.Owner));
+            requestedSourceOrder[requestedIndex] = (int)binding.ShapeTreeIndex;
+        }
 
         for (var index = 0; index < request.Group.Children.Count; index++)
         {
             var child = request.Group.Children[index];
             var binding = child.Source ?? throw new CodecException("missing_presentation_element_binding", $"PPTX slide {slideIndex + 1} {location} child {index + 1} is missing its source binding.", PartPath(outputContext.Owner));
+            var sourceIndex = requestedSourceOrder[index];
+            var beforeChild = beforeChildren[sourceIndex];
+            var afterChild = afterChildren[index];
             var changed = !SemanticHash(child).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase);
             if (!changed)
             {
-                if (!HashElement(beforeChildren[index]).Equals(HashElement(afterChildren[index]), StringComparison.OrdinalIgnoreCase))
+                if (!HashElement(beforeChild).Equals(HashElement(afterChild), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unchanged_element_modified", $"PPTX slide {slideIndex + 1} {location} unchanged child {index + 1} was modified during export.", PartPath(outputContext.Owner));
                 continue;
             }
 
             if (child.ContentCase == PresentationElement.ContentOneofCase.Group)
             {
-                if (beforeChildren[index] is not P.GroupShape beforeGroup || afterChildren[index] is not P.GroupShape afterGroup)
+                if (beforeChild is not P.GroupShape beforeGroup || afterChild is not P.GroupShape afterGroup)
                     throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} {location} child group {index + 1} changed native element type.", PartPath(outputContext.Owner));
                 ValidateGroupOutput(beforeGroup, afterGroup, child, sourceContext, outputContext, afterIds, slideIndex, $"{location} child {index + 1}");
             }
             else if (child.ContentCase == PresentationElement.ContentOneofCase.Image)
             {
-                if (beforeChildren[index] is not P.Picture beforePicture || afterChildren[index] is not P.Picture afterPicture ||
+                if (beforeChild is not P.Picture beforePicture || afterChild is not P.Picture afterPicture ||
                     !PictureResidualHash(beforePicture).Equals(PictureResidualHash(afterPicture), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_picture_content_changed", $"PPTX slide {slideIndex + 1} {location} child image {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
             }
             else if (child.ContentCase == PresentationElement.ContentOneofCase.Table)
             {
-                if (beforeChildren[index] is not P.GraphicFrame beforeTable || afterChildren[index] is not P.GraphicFrame afterTable ||
+                if (beforeChild is not P.GraphicFrame beforeTable || afterChild is not P.GraphicFrame afterTable ||
                     !TableResidualHash(beforeTable).Equals(TableResidualHash(afterTable), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_table_content_changed", $"PPTX slide {slideIndex + 1} {location} child table {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
             }
             else if (child.ContentCase == PresentationElement.ContentOneofCase.Connector)
             {
-                if (beforeChildren[index] is not P.ConnectionShape beforeConnector || afterChildren[index] is not P.ConnectionShape afterConnector ||
+                if (beforeChild is not P.ConnectionShape beforeConnector || afterChild is not P.ConnectionShape afterConnector ||
                     !ConnectorResidualHash(beforeConnector).Equals(ConnectorResidualHash(afterConnector), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_connector_content_changed", $"PPTX slide {slideIndex + 1} {location} child connector {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
             }
             else if (child.ContentCase == PresentationElement.ContentOneofCase.Chart)
             {
-                if (beforeChildren[index] is not P.GraphicFrame beforeChart || afterChildren[index] is not P.GraphicFrame afterChart ||
+                if (beforeChild is not P.GraphicFrame beforeChart || afterChild is not P.GraphicFrame afterChart ||
                     !ChartFrameResidualHash(beforeChart).Equals(ChartFrameResidualHash(afterChart), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_chart_frame_changed", $"PPTX slide {slideIndex + 1} {location} child chart {index + 1} changed unmodeled frame content.", PartPath(outputContext.Owner));
             }
@@ -3401,22 +3467,22 @@ internal static class PptxCodec
                 // their descendants and relationships source-bound while
                 // checking only the frame/name that this bounded operation is
                 // allowed to change.
-                if (!NativeObjectResidualHash(beforeChildren[index]).Equals(NativeObjectResidualHash(afterChildren[index]), StringComparison.OrdinalIgnoreCase))
+                if (!NativeObjectResidualHash(beforeChild).Equals(NativeObjectResidualHash(afterChild), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_native_content_changed", $"PPTX slide {slideIndex + 1} {location} child native object {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
-                var outputFrame = ReadFrame(afterChildren[index]);
-                if (!ElementName(afterChildren[index], index).Equals(child.Name, StringComparison.Ordinal) ||
+                var outputFrame = ReadFrame(afterChild);
+                if (!ElementName(afterChild, index).Equals(child.Name, StringComparison.Ordinal) ||
                     outputFrame.Left != child.Opaque.LeftEmu || outputFrame.Top != child.Opaque.TopEmu ||
                     outputFrame.Width != child.Opaque.WidthEmu || outputFrame.Height != child.Opaque.HeightEmu)
                     throw new CodecException("presentation_postwrite_semantics_mismatch", $"PPTX slide {slideIndex + 1} {location} child native object {index + 1} does not match requested name/frame.", PartPath(outputContext.Owner));
             }
             else
             {
-                if (beforeChildren[index] is not P.Shape beforeShape || afterChildren[index] is not P.Shape afterShape ||
+                if (beforeChild is not P.Shape beforeShape || afterChild is not P.Shape afterShape ||
                     !ShapeResidualHash(beforeShape, sourceContext).Equals(ShapeResidualHash(afterShape, outputContext), StringComparison.OrdinalIgnoreCase))
                     throw new CodecException("presentation_unmodeled_shape_content_changed", $"PPTX slide {slideIndex + 1} {location} child shape {index + 1} changed unmodeled content.", PartPath(outputContext.Owner));
             }
 
-            var outputSemantic = ReadElement(afterChildren[index], request.Id, index, outputContext, elementIdsByNativeId: afterIds);
+            var outputSemantic = ReadElement(afterChild, request.Id, index, outputContext, elementIdsByNativeId: afterIds);
             if (!SemanticHash(outputSemantic).Equals(SemanticHash(child), StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("presentation_postwrite_semantics_mismatch", $"PPTX slide {slideIndex + 1} {location} child {index + 1} does not match requested semantics after export.", PartPath(outputContext.Owner));
         }
