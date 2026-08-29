@@ -818,12 +818,7 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
             case PresentationElement.ContentOneofCase.Opaque:
-                if (source.TextEditable) output.Add(new("replaceText", ["text"]));
                 if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
-                if (element.Opaque.DiagramText is not null) output.Add(new("setSmartArtText", ["smartArt.text"]));
-                if (element.Opaque.OleWorkbook is not null || element.Opaque.OleOfficePackage is not null)
-                    output.Add(new("setOlePayload", ["ole.payload"]));
-                if (element.Opaque.NativeChart is not null) output.Add(new("setChartTitle", ["chart.title"]));
                 break;
         }
         if (source.DeletionCapability?.Supported == true) output.Add(new("delete", ["element"]));
@@ -845,13 +840,10 @@ internal static partial class PpjPresentationProjector
             PpjNativeTextProjection.TryRead(element.Opaque.RawXml, out _))
             output.Add(new("replaceText", ["visibleText"]));
         if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
-        if (element.ContentCase == PresentationElement.ContentOneofCase.Opaque)
-        {
-            if (element.Opaque.DiagramText is not null) output.Add(new("setSmartArtText", ["smartArt.text"]));
-            if (element.Opaque.OleWorkbook is not null || element.Opaque.OleOfficePackage is not null)
-                output.Add(new("setOlePayload", ["ole.payload"]));
-            if (element.Opaque.NativeChart is not null) output.Add(new("setChartTitle", ["chart.title"]));
-        }
+        // Diagram, OLE, and source-owned chart payloads stay opaque until the
+        // corresponding PPJ typed state is projected. A runtime can edit such
+        // objects only after the public language has somewhere to represent
+        // both the old and requested value.
         if (source.DeletionCapability?.Supported == true) output.Add(new("delete", ["element"]));
         if (source.ZOrderCapability?.Supported == true) output.Add(new("reorder", ["zOrder"]));
         return output;

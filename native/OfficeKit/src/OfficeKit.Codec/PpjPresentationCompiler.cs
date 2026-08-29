@@ -261,19 +261,65 @@ internal static class PpjSourceBoundPresentationCompiler
                 throw Unsupported(path, "source-bound page reorder or identity change");
             RequireNativeRef(before.Raw, after.Raw, path);
             RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "elements");
-            if (before.Elements.Count != after.Elements.Count || before.Elements.Count != slide.Elements.Count)
-                throw Unsupported(path + ".elements", "source-bound element insertion or deletion requires an explicit capability");
-            for (var elementIndex = 0; elementIndex < before.Elements.Count; elementIndex++)
+            if (before.Elements.Count != slide.Elements.Count || after.Elements.Count > before.Elements.Count)
+                throw Unsupported(path + ".elements", "source-bound element insertion or inconsistent source topology");
+            var sourceElements = before.Elements.Select((element, elementIndex) => new
+            {
+                Program = element,
+                Wire = slide.Elements[elementIndex],
+            }).ToDictionary(item => item.Program.Id, StringComparer.Ordinal);
+            var requestedIds = after.Elements.Select(element => element.Id).ToArray();
+            if (requestedIds.Distinct(StringComparer.Ordinal).Count() != requestedIds.Length ||
+                requestedIds.Any(id => !sourceElements.ContainsKey(id)))
+                throw Unsupported(path + ".elements", "source-bound element insertion or identity change");
+
+            var requestedWire = new List<PresentationElement>(after.Elements.Count);
+            for (var elementIndex = 0; elementIndex < after.Elements.Count; elementIndex++)
             {
                 var elementPath = $"{path}.elements[{elementIndex}]";
-                var wireElement = slide.Elements[elementIndex];
+                var beforeElement = sourceElements[after.Elements[elementIndex].Id];
+                var wireElement = beforeElement.Wire;
                 var shapeTreePath = new[] { wireElement.Source?.ShapeTreeIndex ?? checked((uint)elementIndex) };
-                if (ApplyElement(before.Elements[elementIndex], after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, changedNodeIds, mutations, elementPath))
+                if (ApplyElement(beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, changedNodeIds, mutations, elementPath))
                 {
                     changed = true;
                     changedNodeIds.Add(after.Id);
                 }
+                requestedWire.Add(wireElement);
             }
+
+            foreach (var deleted in before.Elements.Where(element => !requestedIds.Contains(element.Id, StringComparer.Ordinal)))
+            {
+                RequireCapability(deleted, "delete", path + ".elements");
+                var wire = sourceElements[deleted.Id].Wire;
+                if (wire.Source?.DeletionCapability?.Supported != true)
+                    throw Unsupported(path + ".elements", $"deleting {deleted.Id} without a re-proven native deletion profile");
+                slide.ElementDeletions.Add(new PresentationElementDeletion
+                {
+                    Id = wire.Id,
+                    Source = wire.Source.Clone(),
+                });
+                changedNodeIds.Add(deleted.Id);
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+
+            var retainedSourceOrder = before.Elements.Where(element => requestedIds.Contains(element.Id, StringComparer.Ordinal)).Select(element => element.Id).ToArray();
+            if (!retainedSourceOrder.SequenceEqual(requestedIds, StringComparer.Ordinal))
+            {
+                for (var elementIndex = 0; elementIndex < after.Elements.Count; elementIndex++)
+                {
+                    if (retainedSourceOrder[elementIndex] == requestedIds[elementIndex]) continue;
+                    RequireCapability(after.Elements[elementIndex], "reorder", $"{path}.elements[{elementIndex}]");
+                    changedNodeIds.Add(after.Elements[elementIndex].Id);
+                }
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            slide.Elements.Clear();
+            slide.Elements.Add(requestedWire);
         }
         return changed;
     }
@@ -504,12 +550,38 @@ internal static class PpjSourceBoundPresentationCompiler
         if (changed) mutations.SemanticChanges = true;
         if (before.Elements.Count != after.Elements.Count || before.Elements.Count != target.Children.Count)
             throw Unsupported(path + ".elements", "source-bound group child insertion or deletion");
-        for (var index = 0; index < before.Elements.Count; index++)
+        var sourceChildren = before.Elements.Select((element, index) => new
         {
-            var child = target.Children[index];
+            Program = element,
+            Wire = target.Children[index],
+        }).ToDictionary(item => item.Program.Id, StringComparer.Ordinal);
+        var requestedIds = after.Elements.Select(element => element.Id).ToArray();
+        if (requestedIds.Distinct(StringComparer.Ordinal).Count() != requestedIds.Length ||
+            requestedIds.Any(id => !sourceChildren.ContainsKey(id)))
+            throw Unsupported(path + ".elements", "source-bound group child identity change");
+        var requestedChildren = new List<PresentationElement>(after.Elements.Count);
+        for (var index = 0; index < after.Elements.Count; index++)
+        {
+            var sourceChild = sourceChildren[after.Elements[index].Id];
+            var child = sourceChild.Wire;
             var childPath = shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray();
-            changed |= ApplyElement(before.Elements[index], after.Elements[index], child, slide, childPath, assets, changedNodeIds, mutations, $"{path}.elements[{index}]");
+            changed |= ApplyElement(sourceChild.Program, after.Elements[index], child, slide, childPath, assets, changedNodeIds, mutations, $"{path}.elements[{index}]");
+            requestedChildren.Add(child);
         }
+        var sourceOrder = before.Elements.Select(element => element.Id).ToArray();
+        if (!sourceOrder.SequenceEqual(requestedIds, StringComparer.Ordinal))
+        {
+            for (var index = 0; index < after.Elements.Count; index++)
+            {
+                if (sourceOrder[index] == requestedIds[index]) continue;
+                RequireCapability(after.Elements[index], "reorder", $"{path}.elements[{index}]");
+                changedNodeIds.Add(after.Elements[index].Id);
+            }
+            mutations.SemanticChanges = true;
+            changed = true;
+        }
+        target.Children.Clear();
+        target.Children.Add(requestedChildren);
         return changed;
     }
 

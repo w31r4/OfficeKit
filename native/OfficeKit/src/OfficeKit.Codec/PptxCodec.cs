@@ -918,7 +918,9 @@ internal static class PptxCodec
                 var requestedSourceOrder = retainedElements
                     .Select(element => checked((int)element.Source!.ShapeTreeIndex))
                     .ToArray();
-                var sourceOrderChanged = !requestedSourceOrder.SequenceEqual(Enumerable.Range(0, sourceElements.Length));
+                var retainedSourceOrder = Enumerable.Range(0, sourceElements.Length)
+                    .Where(index => !deletionsBySourceIndex.ContainsKey(index));
+                var sourceOrderChanged = !requestedSourceOrder.SequenceEqual(retainedSourceOrder);
                 if (sourceOrderChanged && (authoredElements.Length > 0 || deletionsBySourceIndex.Count > 0))
                     throw new CodecException(
                         "unsupported_presentation_element_reorder",

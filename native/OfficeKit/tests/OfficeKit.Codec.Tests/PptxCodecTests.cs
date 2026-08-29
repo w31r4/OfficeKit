@@ -272,6 +272,49 @@ public sealed class PptxCodecTests
         var opaqueOutputXml = Encoding.UTF8.GetString(ZipBytes(opaqueTextEdit.File.ToByteArray(), tableSlidePath));
         Assert.Equal(opaqueSourceXml, opaqueOutputXml.Replace(newNativeText, oldNativeText, StringComparison.Ordinal));
 
+        var deletionSource = ReplaceZipText(first.File.ToByteArray(), "ppt/slides/slide1.xml", xml => Regex.Replace(
+            xml,
+            "<p:timing\\b.*?</p:timing>",
+            string.Empty,
+            RegexOptions.Singleline | RegexOptions.CultureInvariant));
+        var deletionProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(deletionSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/deletion-source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(deletionProjection.Ok, Diagnostics(deletionProjection));
+        var deletionProgram = JsonNode.Parse(deletionProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var deletionPage = deletionProgram["pages"]!.AsArray().Select(page => page!.AsObject()).First(page =>
+            page["elements"]!.AsArray().Any(element => element!["nativeRef"]!["capabilities"]!.AsArray().Any(capability =>
+                capability!["operation"]!.GetValue<string>() == "delete")));
+        var deletionElements = deletionPage["elements"]!.AsArray();
+        var deletionIndex = deletionElements.Select((element, index) => (element, index)).First(item =>
+            item.element!["nativeRef"]!["capabilities"]!.AsArray().Any(capability =>
+                capability!["operation"]!.GetValue<string>() == "delete")).index;
+        var deletedElementId = deletionElements[deletionIndex]!["id"]!.GetValue<string>();
+        deletionElements.RemoveAt(deletionIndex);
+        var deletion = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(deletionSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(deletionProgram.ToJsonString()),
+            },
+        });
+        Assert.True(deletion.Ok, Diagnostics(deletion));
+        Assert.Contains(deletedElementId, deletion.PresentationProgram.ChangedNodeIds);
+        Assert.Equal(deletionProjection.PresentationProgram.ExpandedElementCount - 1, deletion.PresentationProgram.ExpandedElementCount);
+
         var repeated = Invoke(request);
         Assert.True(repeated.Ok, Diagnostics(repeated));
         Assert.Equal(first.PresentationProgram.ProgramSha256, repeated.PresentationProgram.ProgramSha256);
