@@ -61,7 +61,6 @@ const fastSteps = [
   nodeStep("test/pptx-template-generation.mjs"),
   nodeStep("test/presentation-design-profile.mjs"),
   nodeStep("test/pptx-source-continuation.mjs"),
-  nodeStep("test/pptx-source-derived-companion.mjs"),
   nodeStep("test/pptx-programmable-import-baseline.mjs"),
   nodeStep("test/pptx-programmable-import-candidate-evidence.mjs"),
   nodeStep("test/document.mjs"),
@@ -105,7 +104,6 @@ const slowSteps = [
   nodeStep("test/pptx-import-object-classification.mjs"),
   nodeStep("test/pptx-import-object-classification-evidence.mjs"),
   nodeStep("test/pptx-source-continuation-native.mjs"),
-  nodeStep("test/pptx-source-derived-companion.mjs"),
   nodeStep("test/pptx-source-agent-continuation.mjs"),
   nodeStep("test/pptx-template-generation-agent-blackbox.mjs"),
   nodeStep("test/pptx-template-generation-agent-multipage.mjs"),
@@ -175,15 +173,15 @@ const slowSteps = [
 
 const slowSegments = Object.freeze({
   foundation: Object.freeze({ start: 0, end: 16 }),
-  presentation: Object.freeze({ start: 16, end: 31 }),
-  templates: Object.freeze({ start: 31, end: 38 }),
-  officekit: Object.freeze({ start: 38, end: 45 }),
-  documents: Object.freeze({ start: 45, end: 54 }),
-  "pdf-packs": Object.freeze({ start: 54, end: 63 }),
-  "pdf-providers": Object.freeze({ start: 63, end: 72 }),
-  "pdf-specialists": Object.freeze({ start: 72, end: 81 }),
-  qa: Object.freeze({ start: 81, end: 88 }),
-  release: Object.freeze({ start: 88, end: 93 }),
+  presentation: Object.freeze({ start: 16, end: 28 }),
+  templates: Object.freeze({ start: 28, end: 35 }),
+  officekit: Object.freeze({ start: 35, end: 42 }),
+  documents: Object.freeze({ start: 42, end: 51 }),
+  "pdf-packs": Object.freeze({ start: 51, end: 60 }),
+  "pdf-providers": Object.freeze({ start: 60, end: 69 }),
+  "pdf-specialists": Object.freeze({ start: 69, end: 78 }),
+  qa: Object.freeze({ start: 78, end: 85 }),
+  release: Object.freeze({ start: 85, end: 88 }),
 });
 
 const segmentRanges = Object.values(slowSegments);

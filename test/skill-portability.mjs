@@ -80,6 +80,7 @@ try {
     "excel-live-control",
     "presentations",
     "presentation-editorial-trim",
+    "presentation-skill-maintainer",
     "powerpoint-live-control",
     "pdf",
     "template-creator",
@@ -91,7 +92,7 @@ try {
     for (const [pattern, label] of forbidden) {
       assert.doesNotMatch(text, pattern, `installed ${label}: ${skillId}`);
     }
-    if (!skillId.endsWith("template-creator")) {
+    if (!skillId.endsWith("template-creator") && !["presentations", "presentation-skill-maintainer"].includes(skillId)) {
       assert.match(text, /officekit repl|references\/repl\.md/i, `installed REPL guidance: ${skillId}`);
     }
   }
@@ -162,7 +163,6 @@ for (const [name, relative] of [
   ["documents", ["documents", "skills", "documents", "SKILL.md"]],
   ["spreadsheets", ["spreadsheets", "skills", "spreadsheets", "SKILL.md"]],
   ["excel-live-control", ["spreadsheets", "skills", "excel-live-control", "SKILL.md"]],
-  ["presentations", ["presentations", "skills", "presentations", "SKILL.md"]],
   ["pdf", ["pdf", "skills", "pdf", "SKILL.md"]],
 ]) {
   const skillPath = path.join(repoRoot, "skills", ...relative);
@@ -174,11 +174,18 @@ for (const [name, relative] of [
 for (const [name, relative] of [
   ["documents", ["documents", "skills", "documents", "SKILL.md"]],
   ["spreadsheets", ["spreadsheets", "skills", "spreadsheets", "SKILL.md"]],
-  ["presentations", ["presentations", "skills", "presentations", "SKILL.md"]],
   ["pdf", ["pdf", "skills", "pdf", "SKILL.md"]],
 ]) {
   const skillText = await fs.readFile(path.join(repoRoot, "skills", ...relative), "utf8");
   assert.match(skillText, /\.\.\/office-kit\/references\/review\.md/, `${name} must use the shared review contract`);
 }
+
+const presentationsSkill = await fs.readFile(
+  path.join(repoRoot, "skills", "presentations", "skills", "presentations", "SKILL.md"),
+  "utf8",
+);
+assert.match(presentationsSkill, /references\/ppj\.md/);
+assert.match(presentationsSkill, /references\/review-and-delivery\.md/);
+assert.doesNotMatch(presentationsSkill, /officekit repl|references\/repl\.md/i);
 
 console.log(`Skill portability ok: ${files.length} host-neutral files checked`);

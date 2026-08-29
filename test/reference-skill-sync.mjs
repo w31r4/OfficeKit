@@ -28,8 +28,7 @@ assert.deepEqual([...REPLACED_REFERENCE_SKILL_PATHS].sort(), [
   "spreadsheets/skills/excel-live-control/officejs.md",
 ]);
 assert.deepEqual(RETIRED_REFERENCE_SKILL_PATH_PREFIXES, [
-  "presentations/skills/presentations/assets/builtin_templates/grid-layout-library/",
-  "presentations/skills/presentations/builtin_templates_support/",
+  "presentations/skills/presentations/",
   "default-template-library/skills/artifact-template-business-review/",
   "default-template-library/skills/artifact-template-market-trends-report/",
   "default-template-library/skills/artifact-template-operating-review/",

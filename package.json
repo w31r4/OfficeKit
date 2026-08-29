@@ -115,7 +115,6 @@
     "test:pptx-design-profile": "node test/pptx-design-profile.mjs",
     "test:pptx-source-continuation": "node test/pptx-source-continuation.mjs",
     "test:pptx-source-continuation-native": "node test/pptx-source-continuation-native.mjs",
-    "test:pptx-source-derived-companion": "node test/pptx-source-derived-companion.mjs",
     "test:pptx-source-agent-continuation": "node test/pptx-source-agent-continuation.mjs",
     "test:default-template-library": "node test/default-template-library.mjs",
     "test:template-creator": "node test/template-creator.mjs",

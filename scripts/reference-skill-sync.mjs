@@ -31,13 +31,14 @@ export const REPLACED_REFERENCE_SKILL_PATHS = new Set([
   "spreadsheets/skills/excel-live-control/officejs.md",
 ]);
 
-// OfficeKit 1.1 replaced the reference repository's source-backed presentation
-// templates with clean-room schema-v3 Template Skills. Keep the pinned source
-// digest for provenance, but do not require the retired executable Grid assets
-// or the seven PPTX-backed template bundles to reappear in the project surface.
+// OfficeKit 2.0 replaces the reference repository's JavaScript Presentation
+// authoring tree with the independently maintained PPJ language and Skill.
+// Keep the complete pinned source digest for provenance and comparison, but do
+// not reintroduce its legacy authoring files through the path-sync gate. The
+// seven source-backed presentation templates were separately replaced by
+// clean-room schema-v3 Template Skills in OfficeKit 1.1.
 export const RETIRED_REFERENCE_SKILL_PATH_PREFIXES = Object.freeze([
-  "presentations/skills/presentations/assets/builtin_templates/grid-layout-library/",
-  "presentations/skills/presentations/builtin_templates_support/",
+  "presentations/skills/presentations/",
   "default-template-library/skills/artifact-template-business-review/",
   "default-template-library/skills/artifact-template-market-trends-report/",
   "default-template-library/skills/artifact-template-operating-review/",
