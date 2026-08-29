@@ -122,6 +122,11 @@ export async function runOfficeKitCli(
     await runTemplateCommand(commandArguments, { output });
     return;
   }
+  if (command === "ppj") {
+    const { runPpjCommand } = await import("../ppj/cli.mjs");
+    await runPpjCommand(commandArguments, { output });
+    return;
+  }
   if (command === "excel") {
     const { runExcelCommand } = await import("../excel-live/cli.mjs");
     await runExcelCommand(commandArguments, { input, output });
@@ -721,6 +726,7 @@ Usage:
   officekit repl --new <goal> [--workspace <path>]
   officekit repl <task-id> [--workspace <path>]
   officekit template search [search options] [--json]
+  officekit ppj <import|inspect|check|build|render|review> [options]
   officekit excel <command> [options]
   officekit live <command> --app <excel|powerpoint> [options]
   officekit --version
@@ -732,6 +738,7 @@ Commands:
   repl       Run a persistent JSONL JavaScript task session
   tasks      List or inspect durable OfficeKit tasks in this workspace
   template   Search the bundled and project template catalogs
+  ppj        Create, inspect, check, build, render, and review .ppj programs
   excel      Connect an open Microsoft Excel workbook to local OfficeKit control
   live       Connect a supported open Office document to local OfficeKit control
 
@@ -754,6 +761,7 @@ Examples:
   officekit tasks
   officekit repl --new "Create a quarterly business review"
   officekit template search --kind presentation --purpose "quarterly business review"
+  officekit ppj import input.pptx -o deck.ppj
   officekit excel install
   officekit excel sessions --json
   officekit live install --app powerpoint

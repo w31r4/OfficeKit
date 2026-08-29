@@ -26,7 +26,7 @@
 ## 4. PPTX projection and lossless lowering
 
 - [x] 4.1 Project trusted imported PPTX deck/page state and every visible object into typed PPJ or an opaque descriptor.
-- [ ] 4.2 Vendor the read-only source into `<deck>.assets/source/<sha256>.pptx` and bind only relative URI plus SHA-256 in PPJ.
+- [x] 4.2 Vendor the read-only source into `<deck>.assets/source/<sha256>.pptx` and bind only relative URI plus SHA-256 in PPJ.
 - [x] 4.3 Translate existing imported edit capabilities into revision-bound nativeRef descriptors without exposing raw package identities.
 - [x] 4.4 Reproject the source at build time and compute a semantic old/new PPJ diff with stable changed-node and mutation-footprint evidence.
 - [x] 4.5 Lower supported differences into the existing source-bound Edit Plan and reject unsupported, ambiguous, stale, or cross-object mutations.
@@ -42,7 +42,7 @@
 
 ## 6. Standalone PPJ CLI
 
-- [ ] 6.1 Add lazy `officekit ppj` routing and common bounded file/path/output handling without loading the codec on root import.
+- [x] 6.1 Add lazy `officekit ppj` routing and common bounded file/path/output handling without loading the codec on root import.
 - [ ] 6.2 Implement `ppj import` and `ppj inspect`, including fuzzy multi-result discovery with stable IDs and no implicit mutation.
 - [ ] 6.3 Implement `ppj check` and deterministic `--fix` formatting/default repair without semantic rewriting.
 - [ ] 6.4 Implement `ppj build` with mandatory check, distinct output enforcement, build receipts, and no automatic render/review.
