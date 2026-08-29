@@ -1,18 +1,14 @@
-import { createHash, randomUUID } from "node:crypto";
-import {
-  chmod,
-  link,
-  lstat,
-  mkdir,
-  readFile,
-  realpath,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
 import { projectPptxToPpj } from "./native.mjs";
+import {
+  resolveRegularFile,
+  sha256,
+  writeExclusiveFile,
+  writeImmutableContent,
+} from "./workspace.mjs";
 
 export const PPJ_USAGE = `Usage:
   officekit ppj import <input.pptx> -o <deck.ppj> [--json]
@@ -75,12 +71,11 @@ export async function importPptxAsPpj(
   { inputPath, outputPath },
   { cwd = process.cwd(), project = projectPptxToPpj } = {},
 ) {
-  const input = await regularFile(path.resolve(cwd, inputPath), "PPTX input");
+  const input = await resolveRegularFile(path.resolve(cwd, inputPath), "PPTX input");
   const destination = path.resolve(cwd, outputPath);
   if (path.extname(input).toLowerCase() !== ".pptx") throw new Error(`PPJ import input must be a .pptx file: ${input}`);
   if (path.extname(destination).toLowerCase() !== ".ppj") throw new Error(`PPJ import output must be a .ppj file: ${destination}`);
   if (input === destination) throw new Error("PPJ import cannot overwrite its PPTX input.");
-  if (await statOrNull(destination)) throw new Error(`PPJ output already exists: ${destination}`);
 
   const sourceBytes = await readFile(input);
   const sourceSha256 = sha256(sourceBytes);
@@ -123,7 +118,12 @@ export async function importPptxAsPpj(
       sha256: asset.sha256,
     }));
   }
-  await writeExclusive(destination, projected.programJson, 0o644);
+  try {
+    await writeExclusiveFile(destination, projected.programJson, 0o644);
+  } catch (error) {
+    if (error?.code === "EEXIST") throw new Error(`PPJ output already exists: ${destination}`);
+    throw error;
+  }
   return Object.freeze({
     ok: true,
     command: "import",
@@ -137,53 +137,6 @@ export async function importPptxAsPpj(
     assets: Object.freeze(assets),
     diagnostics: projected.diagnostics,
   });
-}
-
-async function regularFile(target, label) {
-  const resolved = await realpath(target).catch((error) => {
-    if (error?.code === "ENOENT") throw new Error(`${label} does not exist: ${target}`);
-    throw error;
-  });
-  const stat = await lstat(resolved);
-  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${label} must be a regular file: ${resolved}`);
-  return resolved;
-}
-
-async function writeImmutableContent(target, data, expectedSha256) {
-  const existing = await statOrNull(target);
-  if (existing) {
-    if (!existing.isFile() || existing.isSymbolicLink() || sha256(await readFile(target)) !== expectedSha256) {
-      throw new Error(`Content-addressed PPJ asset conflicts with existing path: ${target}`);
-    }
-    await chmod(target, 0o444);
-    return;
-  }
-  await mkdir(path.dirname(target), { recursive: true });
-  await writeExclusive(target, data, 0o444);
-}
-
-async function writeExclusive(target, data, mode) {
-  const temporary = path.join(path.dirname(target), `.${path.basename(target)}.${process.pid}-${randomUUID()}.tmp`);
-  try {
-    await writeFile(temporary, data, { flag: "wx", mode });
-    await chmod(temporary, mode);
-    await link(temporary, target);
-  } finally {
-    await rm(temporary, { force: true });
-  }
-}
-
-async function statOrNull(target) {
-  try {
-    return await lstat(target);
-  } catch (error) {
-    if (error?.code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-function sha256(value) {
-  return createHash("sha256").update(value).digest("hex");
 }
 
 function programPageCount(bytes) {
