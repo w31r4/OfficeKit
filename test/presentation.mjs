@@ -896,6 +896,7 @@ const paragraphAlignmentAccessibilityXml = irregularShapeAccessibilityXml.replac
 );
 assert.match(paragraphAlignmentAccessibilityXml, /<a:pPr algn="ctr"\s*\/>/);
 assert.match(paragraphAlignmentAccessibilityXml, /<a:bodyPr\b[^>]*\banchor="ctr"/);
+assert.match(paragraphAlignmentAccessibilityXml, /<a:bodyPr\b[^>]*\blIns="0"[^>]*\btIns="0"[^>]*\brIns="0"[^>]*\bbIns="0"/);
 paragraphAlignmentAccessibilityZip.file("ppt/slides/slide1.xml", paragraphAlignmentAccessibilityXml);
 const paragraphAlignmentAccessibilityFile = new FileBlob(
   await paragraphAlignmentAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
@@ -958,6 +959,47 @@ const verticalAnchorRoundTripLeaf = verticalAnchorRoundTrip.inspect({ includeNat
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "verticalAnchor");
 assert.equal(verticalAnchorRoundTripLeaf.value, "bottom");
+
+// Direct text-body insets are source-bound EMU token leaves.  Keep the
+// fixture intentionally simple so one edit changes only the selected
+// a:bodyPr/@lIns token while the remaining inset tokens and vendor metadata
+// stay untouched.
+const textBodyInsetImported = await PresentationFile.importPptx(paragraphAlignmentAccessibilityFile);
+const textBodyInsetShape = itemByName(textBodyInsetImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyInsetLeaves = textBodyInsetImported.inspect({ includeNativeLeaves: true, target: textBodyInsetShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind.startsWith("textBodyInset"));
+assert.deepEqual(new Set(textBodyInsetLeaves.map((record) => record.leafKind)), new Set([
+  "textBodyInsetLeftEmu",
+  "textBodyInsetTopEmu",
+  "textBodyInsetRightEmu",
+  "textBodyInsetBottomEmu",
+]));
+const textBodyInsetLeft = textBodyInsetLeaves.find((record) => record.leafKind === "textBodyInsetLeftEmu");
+assert.ok(textBodyInsetLeft, "source-bound shapes should expose direct text-body inset leaves");
+assert.equal(textBodyInsetLeft.unit, "emu");
+const textBodyInsetNext = Number(textBodyInsetLeft.value) + 1;
+textBodyInsetImported.editNativeLeaf(textBodyInsetLeft.targetId, textBodyInsetLeft.leafId, {
+  expectedHash: textBodyInsetLeft.expectedHash,
+  value: textBodyInsetNext,
+});
+const textBodyInsetOutput = await PresentationFile.exportPptx(textBodyInsetImported);
+const textBodyInsetOperation = textBodyInsetOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyInsetLeftEmu");
+assert.ok(textBodyInsetOperation);
+await assertOnlyDeclaredPptxFootprintChanged(paragraphAlignmentAccessibilityFile, textBodyInsetOutput, textBodyInsetOperation);
+const textBodyInsetXml = await (await JSZip.loadAsync(textBodyInsetOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyInsetXml, /<a:bodyPr\b[^>]*\blIns="1"[^>]*\btIns="0"[^>]*\brIns="0"[^>]*\bbIns="0"/);
+assert.match(textBodyInsetXml, /fixture:opaque="kept"/);
+const textBodyInsetRoundTrip = await PresentationFile.importPptx(textBodyInsetOutput);
+const textBodyInsetRoundTripLeaf = textBodyInsetRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyInsetShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyInsetLeftEmu");
+assert.equal(textBodyInsetRoundTripLeaf.value, textBodyInsetNext);
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
@@ -3575,7 +3617,17 @@ const groupedScalarLeaves = groupedColorLeafImported.inspect({ includeNativeLeav
   .filter(Boolean)
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
-assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "verticalAnchor", "fillRgb", "lineRgb", "lineWidthEmu"]));
+assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set([
+  "text",
+  "textBodyInsetLeftEmu",
+  "textBodyInsetTopEmu",
+  "textBodyInsetRightEmu",
+  "textBodyInsetBottomEmu",
+  "verticalAnchor",
+  "fillRgb",
+  "lineRgb",
+  "lineWidthEmu",
+]));
 const groupedFillLeaf = groupedScalarLeaves.find((record) => record.leafKind === "fillRgb");
 assert.ok(groupedFillLeaf);
 assert.equal(groupedFillLeaf.value, "#dbeafe");
