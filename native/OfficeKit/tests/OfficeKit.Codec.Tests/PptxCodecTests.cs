@@ -50,6 +50,18 @@ public sealed class PptxCodecTests
         Assert.Equal(result.ProgramSha256, repeated.ProgramSha256);
         Assert.Equal(result.Expansion.NodeMapSha256, repeated.Expansion!.NodeMapSha256);
 
+        var widePlaceholderIndex = JsonNode.Parse(bytes)!.AsObject();
+        widePlaceholderIndex["pages"]!.AsArray()[0]!.AsObject()["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "source-placeholder",
+            ["type"] = "placeholder",
+            ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 100, ["height"] = 40 },
+            ["placeholderType"] = "other",
+            ["index"] = uint.MaxValue,
+        });
+        var widePlaceholderResult = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(widePlaceholderIndex.ToJsonString()));
+        Assert.True(widePlaceholderResult.IsValid, string.Join(Environment.NewLine, widePlaceholderResult.Diagnostics));
+
         var unknownField = JsonNode.Parse(bytes)!.AsObject();
         unknownField["pages"]!.AsArray()[0]!.AsObject()["elements"]!.AsArray()[0]!.AsObject()["rawOoxml"] = "forbidden";
         var rejectedField = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(unknownField.ToJsonString()));
