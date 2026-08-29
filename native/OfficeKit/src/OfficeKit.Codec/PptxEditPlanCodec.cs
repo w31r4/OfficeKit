@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -333,6 +333,25 @@ internal static partial class PptxEditPlanCodec
                 var requested = ParseParagraphAutoNumberStartAtToken(operation.Value, operation);
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its auto-number start.");
+            }
+            if (leafKind == "paragraphBulletFontFamily")
+            {
+                if (!ValidFontFamilyToken(operation.ExpectedValue) || !ValidFontFamilyToken(operation.Value) || operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} paragraphBulletFontFamily must change a trimmed literal typeface name.");
+            }
+            if (leafKind is "paragraphBulletColorRgb" or "paragraphBulletColorScheme")
+            {
+                var expected = leafKind == "paragraphBulletColorRgb" ? PptxColor.Normalize(operation.ExpectedValue) : PptxColor.NormalizeScheme(operation.ExpectedValue);
+                var requested = leafKind == "paragraphBulletColorRgb" ? PptxColor.Normalize(operation.Value) : PptxColor.NormalizeScheme(operation.Value);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its paragraph bullet color.");
+            }
+            if (leafKind is "paragraphBulletSizePoints" or "paragraphBulletSizePercent")
+            {
+                var expected = ParseParagraphBulletSizeToken(operation.ExpectedValue, leafKind, operation);
+                var requested = ParseParagraphBulletSizeToken(operation.Value, leafKind, operation);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its paragraph bullet size.");
             }
             if (leafKind == "paragraphLevel")
             {
@@ -558,7 +577,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                  ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -704,6 +723,13 @@ internal static partial class PptxEditPlanCodec
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
                 patches.Add(CompileTextParagraphAutoNumberXmlPatch(xml, range, proof));
+                continue;
+            }
+            if (leafKind is "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextParagraphBulletStyleXmlPatch(xml, range, proof));
                 continue;
             }
             if (leafKind == "verticalAnchor")
@@ -1197,6 +1223,18 @@ internal static partial class PptxEditPlanCodec
             return kind == "paragraphBulletAutoNumberScheme"
                 ? scheme
                 : startAt ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no explicit auto-number start.", operation.SlidePartPath);
+        }
+        if (kind is "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
+            var paragraphs = shape.Descendants<A.Paragraph>().ToArray();
+            if (operation.NativeLeafIndex >= (uint)paragraphs.Length)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph bullet-style index is out of range.", operation.SlidePartPath);
+            var paragraphProps = paragraphs[operation.NativeLeafIndex].ParagraphProperties;
+            if (paragraphProps is null)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no direct paragraph properties.", operation.SlidePartPath);
+            return ReadParagraphBulletStyleValue(paragraphProps, kind, operation);
         }
         if (kind == "paragraphLevel")
         {
@@ -1839,6 +1877,113 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, EscapeXmlAttribute(replacement), proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextParagraphBulletStyleXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var paragraphs = ShapeElementRanges(elementXml, "txBody")
+            .Where(range => range.LocalName == "p")
+            .ToArray();
+        if (operation.NativeLeafIndex >= (uint)paragraphs.Length)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} paragraph bullet-style index is out of range.", operation.SlidePartPath);
+        var paragraph = paragraphs[operation.NativeLeafIndex];
+        var pPr = DirectChildRange(elementXml, paragraph, "p", "pPr", operation);
+        var kind = LeafKind(operation);
+        var markerName = kind switch
+        {
+            "paragraphBulletFontFamily" => "buFont",
+            "paragraphBulletColorRgb" or "paragraphBulletColorScheme" => "buClr",
+            "paragraphBulletSizePoints" => "buSzPts",
+            "paragraphBulletSizePercent" => "buSzPct",
+            _ => throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an unsupported paragraph bullet-style leaf.", operation.SlidePartPath),
+        };
+        var markers = DirectChildRanges(elementXml, pPr)
+            .Where(range => range.LocalName == markerName)
+            .ToArray();
+        if (markers.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct {markerName} child under pPr.", operation.SlidePartPath);
+        var marker = markers[0];
+        var markerXml = elementXml[marker.Start..marker.End];
+        var markerTag = XmlTokenPattern().Matches(markerXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == markerName)
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} bullet-style tag was not found.", operation.SlidePartPath);
+        var markerAttributes = XmlAttributePattern().Matches(markerTag.Value).Cast<Match>().ToArray();
+        Match selected;
+        string expected;
+        string replacement;
+        int valueStart;
+        if (kind == "paragraphBulletFontFamily" || kind is "paragraphBulletSizePoints" or "paragraphBulletSizePercent")
+        {
+            if (!markerTag.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) || DirectChildRanges(markerXml, new XmlRange(0, markerXml.Length, markerName)).Count != 0)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires a bare self-closing {markerName} element.", operation.SlidePartPath);
+            var attributeName = kind == "paragraphBulletFontFamily" ? "typeface" : "val";
+            var attributes = markerAttributes.Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == attributeName).ToArray();
+            if (markerAttributes.Any(attribute => LocalAttributeName(attribute.Groups["name"].Value) != attributeName) || attributes.Length != 1)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {markerName} attributes are missing or ambiguous.", operation.SlidePartPath);
+            selected = attributes[0];
+            expected = kind == "paragraphBulletFontFamily"
+                ? operation.ExpectedValue
+                : ParseParagraphBulletSizeToken(operation.ExpectedValue, kind, operation).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            replacement = kind == "paragraphBulletFontFamily"
+                ? operation.Value
+                : ParseParagraphBulletSizeToken(operation.Value, kind, operation).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var actual = System.Net.WebUtility.HtmlDecode(selected.Groups["value"].Value);
+            if (kind == "paragraphBulletFontFamily")
+            {
+                if (!ValidFontFamilyToken(actual) || !actual.Equals(expected, StringComparison.Ordinal))
+                    throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw bullet font does not match the expected value.", operation.SlidePartPath);
+            }
+            else if (ParseParagraphBulletSizeToken(actual, kind, operation).ToString(System.Globalization.CultureInfo.InvariantCulture) != expected)
+            {
+                throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw bullet size does not match the expected value.", operation.SlidePartPath);
+            }
+            valueStart = marker.Start + markerTag.Index;
+        }
+        else
+        {
+            if (!markerTag.Value.EndsWith(">", StringComparison.Ordinal) || markerTag.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) || markerAttributes.Length != 0)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires an attribute-free {markerName} wrapper.", operation.SlidePartPath);
+            var children = DirectChildRanges(elementXml, marker);
+            if (children.Count != 1)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct color child under buClr.", operation.SlidePartPath);
+            var child = children[0];
+            var childName = kind == "paragraphBulletColorRgb" ? "srgbClr" : "schemeClr";
+            if (child.LocalName != childName)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} bullet color uses the wrong color model.", operation.SlidePartPath);
+            var childXml = elementXml[child.Start..child.End];
+            var childTag = XmlTokenPattern().Matches(childXml).Cast<Match>()
+                .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == childName)
+                ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} bullet color child tag was not found.", operation.SlidePartPath);
+            if (!childTag.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal))
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires a bare self-closing bullet color child.", operation.SlidePartPath);
+            var valueAttributes = XmlAttributePattern().Matches(childTag.Value).Cast<Match>()
+                .Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "val").ToArray();
+            var allAttributes = XmlAttributePattern().Matches(childTag.Value).Cast<Match>().ToArray();
+            if (allAttributes.Length != 1 || valueAttributes.Length != 1)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} bullet color value is missing or ambiguous.", operation.SlidePartPath);
+            selected = valueAttributes[0];
+            expected = kind == "paragraphBulletColorRgb" ? PptxColor.Normalize(operation.ExpectedValue) : PptxColor.NormalizeScheme(operation.ExpectedValue);
+            replacement = kind == "paragraphBulletColorRgb" ? PptxColor.Normalize(operation.Value) : PptxColor.NormalizeScheme(operation.Value);
+            var actual = System.Net.WebUtility.HtmlDecode(selected.Groups["value"].Value);
+            if (kind == "paragraphBulletColorRgb")
+            {
+                if (PptxColor.Normalize(actual) != expected)
+                    throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw bullet color does not match the expected value.", operation.SlidePartPath);
+            }
+            else if (!PptxColor.TrySchemeToken(actual, out var actualScheme) || actualScheme != expected)
+            {
+                throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw bullet color does not match the expected value.", operation.SlidePartPath);
+            }
+            valueStart = child.Start + childTag.Index;
+        }
+        var valueGroup = selected.Groups["value"];
+        var start = elementRange.Start + valueStart + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, EscapeXmlAttribute(replacement), proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static PptxXmlPatch CompileTextParagraphLevelXmlPatch(
         string xml,
         XmlRange elementRange,
@@ -2231,6 +2376,42 @@ internal static partial class PptxEditPlanCodec
             (startAt is null || ParseParagraphAutoNumberStartAtToken(startAt, null) > 0);
     }
 
+    private static string ReadParagraphBulletStyleValue(
+        A.TextParagraphPropertiesType properties,
+        string kind,
+        PresentationEditOperation operation)
+    {
+        if (kind == "paragraphBulletFontFamily")
+        {
+            var fonts = properties.ChildElements.OfType<A.BulletFont>().ToArray();
+            if (fonts.Length != 1 || fonts[0].ChildElements.Count != 0 || fonts[0].GetAttributes().Count != 1 ||
+                fonts[0].GetAttributes()[0].LocalName != "typeface" || fonts[0].Typeface?.Value is not { } family || !ValidFontFamilyToken(family))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct bullet font family.", operation.SlidePartPath);
+            return family;
+        }
+        if (kind is "paragraphBulletColorRgb" or "paragraphBulletColorScheme")
+        {
+            var colors = properties.ChildElements.OfType<A.BulletColor>().ToArray();
+            if (colors.Length != 1 || colors[0].GetAttributes().Count != 0 || colors[0].ChildElements.Count != 1)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct bullet color.", operation.SlidePartPath);
+            var child = colors[0].FirstChild!;
+            if (child.ChildElements.Count != 0 || child.GetAttributes().Count != 1 || child.GetAttributes()[0].LocalName != "val")
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has an unbounded direct bullet color.", operation.SlidePartPath);
+            var value = child.GetAttributes()[0].Value ?? string.Empty;
+            if (kind == "paragraphBulletColorRgb" && child is A.RgbColorModelHex)
+                return PptxColor.Normalize(value);
+            if (kind == "paragraphBulletColorScheme" && child is A.SchemeColor && PptxColor.TrySchemeToken(value, out var scheme))
+                return scheme;
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has the wrong direct bullet color model.", operation.SlidePartPath);
+        }
+        var sizeKind = kind == "paragraphBulletSizePoints" ? typeof(A.BulletSizePoints) : typeof(A.BulletSizePercentage);
+        var sizes = properties.ChildElements.Where(child => child.GetType() == sizeKind).ToArray();
+        if (sizes.Length != 1 || sizes[0].ChildElements.Count != 0 || sizes[0].GetAttributes().Count != 1 || sizes[0].GetAttributes()[0].LocalName != "val")
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct bullet size.", operation.SlidePartPath);
+        return ParseParagraphBulletSizeToken(sizes[0].GetAttributes()[0].Value ?? string.Empty, kind, operation)
+            .ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static bool TryBulletCharacter(string? value) =>
         !string.IsNullOrEmpty(value) &&
         value.EnumerateRunes().Count() == 1 &&
@@ -2249,6 +2430,15 @@ internal static partial class PptxEditPlanCodec
         if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
             parsed is < 1 or > 32_767 || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
             throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation?.OperationId ?? "(probe)"} auto-number start must be a canonical integer from 1 through 32767.", operation?.SlidePartPath);
+        return parsed;
+    }
+
+    private static int ParseParagraphBulletSizeToken(string value, string kind, PresentationEditOperation operation)
+    {
+        var (minimum, maximum) = kind == "paragraphBulletSizePoints" ? (100, 76_800) : (25_000, 400_000);
+        if (!int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsed) ||
+            parsed < minimum || parsed > maximum || parsed.ToString(System.Globalization.CultureInfo.InvariantCulture) != value)
+            throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} {kind} must use a canonical bullet-size token.", operation.SlidePartPath);
         return parsed;
     }
 

@@ -4757,6 +4757,168 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 });
               }
             }
+            // Direct bullet styling is useful when it is part of an active
+            // marker.  Latent buFont/buClr/buSz children on a noBullet
+            // paragraph are presentation defaults, not visible leaves, and
+            // remain source-owned until a higher-level style contract exists.
+            if (bullet?.case !== "noBullet") {
+              const bulletFont = paragraph.bulletFont;
+              if (bulletFont?.case === "bulletFontFamily") {
+                const family = String(bulletFont.value ?? "");
+                if (family.length >= 1 && family.length <= 255 && family.trim() === family && !family.startsWith("+") && !/[\u0000-\u001f\u007f]/u.test(family) && !hasUnpairedUtf16Surrogate(family)) {
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletFontFamily",
+                    expectedValue: family,
+                    value: family,
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      assertNativeLeafFontFamilyValue(next);
+                      return { raw: next, publicValue: next };
+                    },
+                    isNoop(next) { return next === family; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-font native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletFont = next;
+                    },
+                  });
+                }
+              }
+              const bulletColor = paragraph.bulletColor;
+              if (bulletColor?.case === "bulletColorRgb") {
+                const rgb = String(bulletColor.value ?? "").toUpperCase();
+                if (/^[0-9A-F]{6}$/u.test(rgb)) {
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletColorRgb",
+                    expectedValue: rgb,
+                    value: `#${rgb.toLowerCase()}`,
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      assertNativeLeafRgbValue(next, "paragraphBulletColorRgb");
+                      const normalized = String(next).trim().replace(/^#/u, "").toUpperCase();
+                      return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+                    },
+                    isNoop(next) { return next.toUpperCase() === rgb; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-color native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletColor = `#${next.toLowerCase()}`;
+                    },
+                  });
+                }
+              }
+              if (bulletColor?.case === "bulletColorScheme" && PRESENTATION_SCHEME_COLORS.has(String(bulletColor.value))) {
+                const scheme = String(bulletColor.value);
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletColorScheme",
+                  expectedValue: scheme,
+                  value: scheme,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "").trim();
+                    if (!PRESENTATION_SCHEME_COLORS.has(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletColorScheme native leaf requires a supported theme color token.");
+                    }
+                    return { raw: normalized, publicValue: normalized };
+                  },
+                  isNoop(next) { return next === scheme; },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-color native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.bulletColor = next;
+                  },
+                });
+              }
+              const bulletSize = paragraph.bulletSize;
+              if (bulletSize?.case === "bulletSizePoints") {
+                const points = Number(bulletSize.value);
+                if (Number.isFinite(points) && points >= 1 && points <= 768) {
+                  const expectedValue = String(Math.round(points * 100));
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletSizePoints",
+                    expectedValue,
+                    value: points,
+                    unit: "pt",
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      if (typeof next !== "string" && typeof next !== "number") {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePoints native leaf requires a finite positive point value.");
+                      }
+                      const token = String(next).trim();
+                      if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePoints native leaf requires at most two decimal places.");
+                      }
+                      const candidate = Number(token);
+                      if (!Number.isFinite(candidate) || candidate < 1 || candidate > 768) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePoints native leaf is outside the safe point range.");
+                      }
+                      const hundredths = Math.round(candidate * 100);
+                      return { raw: String(hundredths), publicValue: hundredths / 100 };
+                    },
+                    isNoop(next) { return next === expectedValue; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-size native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletSize = (Number(next) / 100) / POINTS_PER_PIXEL;
+                    },
+                  });
+                }
+              }
+              if (bulletSize?.case === "bulletSizePercent") {
+                const percent = Number(bulletSize.value);
+                if (Number.isFinite(percent) && percent >= 0.25 && percent <= 4) {
+                  const expectedValue = String(Math.round(percent * 100_000));
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletSizePercent",
+                    expectedValue,
+                    value: percent,
+                    unit: "ratio",
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      if (typeof next !== "string" && typeof next !== "number") {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePercent native leaf requires a finite ratio.");
+                      }
+                      const token = String(next).trim();
+                      if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/u.test(token)) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePercent native leaf requires a decimal ratio.");
+                      }
+                      const candidate = Number(token);
+                      if (!Number.isFinite(candidate) || candidate < 0.25 || candidate > 4) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePercent native leaf is outside the safe ratio range.");
+                      }
+                      const hundredThousandths = Math.round(candidate * 100_000);
+                      return { raw: String(hundredThousandths), publicValue: hundredThousandths / 100_000 };
+                    },
+                    isNoop(next) { return next === expectedValue; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-size native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletSizePercent = Number(next) / 100_000;
+                    },
+                  });
+                }
+              }
+            }
             const paragraphLevel = Number(paragraph.level);
             // The scalar wire field cannot distinguish an omitted level from
             // an explicit lvl="0".  Issue a source-bound leaf only for
