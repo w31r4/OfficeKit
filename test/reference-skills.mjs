@@ -26,7 +26,6 @@ const pluginNames = [
   "presentation-template-creator",
   "default-template-library",
   "presentation-template-library",
-  "skill-update",
 ];
 const defaultTemplateSkills = [
   "artifact-template-analytics-dashboard",
@@ -86,12 +85,11 @@ const presentationTemplateSkills = [
 const expectedSkills = new Map([
   ["documents", ["documents"]],
   ["spreadsheets", ["excel-live-control", "spreadsheets"]],
-  ["presentations", ["powerpoint-live-control", "presentation-editorial-trim", "presentations"]],
+  ["presentations", ["powerpoint-live-control", "presentation-editorial-trim", "presentation-skill-maintainer", "presentations"]],
   ["pdf", ["pdf"]],
   ["office-kit", ["office-kit"]],
   ["template-creator", ["template-creator"]],
   ["presentation-template-creator", ["presentation-template-creator"]],
-  ["skill-update", ["skill-update"]],
   ["default-template-library", defaultTemplateSkills],
   ["presentation-template-library", presentationTemplateSkills],
 ]);
@@ -101,12 +99,12 @@ const expectedDeclaredSkillNames = new Map([
   ["spreadsheets", "Spreadsheets"],
   ["presentations", "Presentations"],
   ["presentation-editorial-trim", "presentation-editorial-trim"],
+  ["presentation-skill-maintainer", "presentation-skill-maintainer"],
   ["powerpoint-live-control", "powerpoint-live-control"],
   ["pdf", "pdf"],
   ["office-kit", "office-kit"],
   ["template-creator", "template-creator"],
   ["presentation-template-creator", "presentation-template-creator"],
-  ["skill-update", "skill-update"],
 ]);
 for (const skillName of defaultTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
 for (const skillName of presentationTemplateSkills) expectedDeclaredSkillNames.set(skillName, skillName);
@@ -141,7 +139,6 @@ for (const pluginName of pluginNames) {
     "presentation-template-library",
     "presentations",
     "template-creator",
-    "skill-update",
   ]).has(pluginName) ? "1.1.0" : "0.2.0";
   assert.equal(manifest.version, expectedVersion);
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
@@ -157,7 +154,7 @@ for (const pluginName of pluginNames) {
     assert.deepEqual(
       neutralManifest.skills,
       pluginName === "presentations"
-        ? ["skills/presentations", "skills/presentation-editorial-trim", "skills/powerpoint-live-control"]
+        ? ["skills/presentations", "skills/presentation-editorial-trim", "skills/presentation-skill-maintainer", "skills/powerpoint-live-control"]
         : [`skills/${pluginName}`],
     );
     assert.ok(await exists(path.join(pluginRoot, neutralManifest.assets.icon)));

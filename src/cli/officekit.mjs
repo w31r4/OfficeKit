@@ -26,11 +26,11 @@ const SKILLS = Object.freeze([
   ["excel-live-control", "skills/spreadsheets/skills/excel-live-control"],
   ["presentations", "skills/presentations/skills/presentations"],
   ["presentation-editorial-trim", "skills/presentations/skills/presentation-editorial-trim"],
+  ["presentation-skill-maintainer", "skills/presentations/skills/presentation-skill-maintainer"],
   ["powerpoint-live-control", "skills/presentations/skills/powerpoint-live-control"],
   ["pdf", "skills/pdf/skills/pdf"],
   ["template-creator", "skills/template-creator/skills/template-creator"],
   ["presentation-template-creator", "skills/presentation-template-creator/skills/presentation-template-creator"],
-  ["skill-update", "skills/skill-update/skills/skill-update"],
 ].map(([id, source]) => Object.freeze({ id, source })));
 
 // These project-local Skill roots follow the same cross-agent layout used by

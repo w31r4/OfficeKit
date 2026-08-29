@@ -13,10 +13,10 @@ Use the public `office-kit` package for OfficeKit work. Never import or use
 `@oai/artifact-tool`: it is a different host-bundled runtime, not an OfficeKit
 alias or fallback, and its output must never be attributed to OfficeKit.
 
-When maintaining a capability rather than producing an artifact, load the
-read-only `skill-update` Skill first. It maps the changed primitive or workflow
-to its owning Help records, consumer Skills, examples, focused tests, and
-release evidence; it does not replace the domain owner.
+When maintaining a Presentation capability rather than producing an artifact,
+load `presentation-skill-maintainer`. It keeps PPJ Schema, native compiler
+ownership, Help, Agent guidance, review rules, and examples synchronized.
+Other formats continue to follow their owning Skill and repository guide.
 
 For a multi-step task, use the portable [task REPL workflow](references/repl.md).
 Inspect `officekit tasks --json` before continuing prior work; open the matched
@@ -90,9 +90,9 @@ this coordination layer.
 
 ## Keep net-new PPT work conversational
 
-For a net-new PPTX or a broad deck redesign, load the Presentations Skill and its
-selected `tasks/create*.md` route. Persist its communication brief, narrative,
-per-deck design grammar, page jobs, and editorial rules with `ctx.plan()`.
+For a net-new PPTX or a broad deck redesign, load the Presentations Skill and
+author one `.ppj` program. Keep its communication brief, narrative, per-deck
+design grammar, page jobs, and editorial rules in that program.
 Return the first checked deck as a guided working draft, revise the latest
 inspected draft in natural language, and publish only after acceptance unless
 the user requested one-pass final delivery. Read-only and narrow edits stay

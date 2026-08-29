@@ -656,10 +656,12 @@ has a short route, a compact primitive index, and role-based typography advice;
 the detailed API/spec files remain the source of truth for behavior. The
 versioned `primitive-impact.json` map covers all presentation Help APIs and
 names the owning runtime/protocol paths, consumer Skills, examples, focused
-tests, and release evidence. The read-only `skill-update` checker validates
-that map and reports the surfaces affected by a Git diff without initializing a
-codec, provider, renderer, or bridge. This changes discovery and maintenance
-only; it does not claim new PPTX codec coverage or replace visual/host review.
+tests, and release evidence. PPJ 2.0 replaces that transitional map with the
+explicit `src/ppj/capability-registry.json` registry. The bundled
+`presentation-skill-maintainer` checks every Presentation Help record, keeps
+PowerPoint Live host-only, and regenerates the PPJ language manual without
+initializing a codec, provider, renderer, or bridge. This proves discoverability
+only; it does not replace visual or host review.
 
 ### PPTX template-conditioned generation
 

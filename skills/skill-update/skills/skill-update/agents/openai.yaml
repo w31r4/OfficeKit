@@ -1,7 +1,0 @@
-interface:
-  display_name: "Skill Update"
-  short_description: "Propagate capability changes through Skills"
-  icon_small: "assets/icon.svg"
-  icon_large: "assets/icon.svg"
-  brand_color: "#2563EB"
-  default_prompt: "Check which Skills and docs a capability change must update."

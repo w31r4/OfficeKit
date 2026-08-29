@@ -78,7 +78,6 @@ notes and a recipe. The generated `docs/api.md` is derived from Help; edit the
 catalog rather than hand-editing generated docs.
 
 When a runtime primitive, wire field, Help record, example or review invariant
-changes, run the repository's `skill-update` checker. Its impact manifest lists
+changes, run `presentation-skill-maintainer`. Its capability registry lists
 the owning source paths, consumer Skills, examples, focused tests and release
 evidence that must be considered together.
-

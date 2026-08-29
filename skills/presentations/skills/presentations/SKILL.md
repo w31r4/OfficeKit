@@ -115,9 +115,8 @@ steps are in [Continue](tasks/continue.md).
 - Motion loads only for a speaking or explicit animation requirement.
 - Review and continuation each have one authoritative task document; do not
   copy their mechanics into another route.
-- A runtime, protocol, Help, example, or review change loads the
-  `skill-update` maintenance Skill and its impact map before the change is
-  considered complete.
+- A runtime, protocol, Help, example, or review change loads
+  `presentation-skill-maintainer` before the change is considered complete.
 
 Avoid preloading the complete API, all scenario guides, every template, and all
 advanced object references. Progressive loading is part of the workflow.

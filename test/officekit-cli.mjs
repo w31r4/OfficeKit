@@ -87,11 +87,11 @@ try {
       "excel-live-control",
       "presentations",
       "presentation-editorial-trim",
+      "presentation-skill-maintainer",
       "powerpoint-live-control",
       "pdf",
       "template-creator",
       "presentation-template-creator",
-      "skill-update",
     ]) {
       assert.ok(fs.existsSync(path.join(project, toolRoot, "skills", skill, "SKILL.md")));
     }
@@ -133,7 +133,7 @@ try {
     run(["update", project, "--force", "--json"]).stdout,
   );
   assert.equal(restored.updated, 1);
-  assert.equal(restored.unchanged, 19);
+  assert.equal(restored.unchanged, 21);
   assert.equal(
     sha256(fs.readFileSync(managedSkill)),
     sha256(fs.readFileSync(sourceSkill)),

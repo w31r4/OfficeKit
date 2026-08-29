@@ -76,9 +76,10 @@ the original source available for independent verification.
 
 ## Route boundaries
 
-For repository maintenance, use `skill-update` as the change-impact index
-before editing Skills or Help. The domain Skill remains the owner of the
-behavior; `skill-update` only reports the surfaces that must be reviewed.
+For Presentation repository maintenance, use `presentation-skill-maintainer`
+before editing PPJ, native compiler capabilities, Help, or Agent guidance. The
+Presentations Skill remains the artifact owner; the maintainer keeps its
+language and discoverability surfaces synchronized.
 
 - A read-only request still loads the format owner, but it does not trigger
   template selection.

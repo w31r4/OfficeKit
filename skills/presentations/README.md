@@ -14,13 +14,11 @@ This installable Skill bundle is distributed with `office-kit`.
 
 Use this plugin for presentation-oriented terms from the file-type naming model: slides, deck, PowerPoint, Google Slides, presentation, presentations, PPT, and `.pptx`. Choose the Live Skill only when the user explicitly refers to the currently open desktop deck. Use Presentation Editorial Trim directly for copy-only work; the Presentations Skill also invokes it during creation and bounded edits.
 
-The Presentation route is intentionally small. Load `references/primitives.md`
-for the semantic capability map, `references/imported-capabilities.md` for
-source-bound edits, `references/source-continuation.md` for reused source
-slides, and `references/fonts.md` for role-based typography/fallback decisions.
-The detailed API references and Help catalog own signatures and source-bound
-limits. Repository maintainers use the separate `skill-update` Skill to trace
-primitive changes to these consumers.
+The Presentation route is intentionally small. It sends authors to the PPJ
+language manual and then to one focused design or source-bound reference. The
+JSON Schema and native compiler own behavior; repository maintainers use the
+bundled `presentation-skill-maintainer` to keep PPJ, Help, Agent guidance,
+review rules, and examples synchronized.
 
 ## Source
 

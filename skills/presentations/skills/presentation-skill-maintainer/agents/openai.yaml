@@ -1,0 +1,7 @@
+interface:
+  display_name: "Presentation Skill Maintainer"
+  short_description: "Keep PPJ and presentation guidance synchronized"
+  icon_small: "assets/icon.svg"
+  icon_large: "assets/icon.svg"
+  brand_color: "#2563EB"
+  default_prompt: "Check and propagate an OfficeKit presentation capability change through PPJ and Agent guidance."
