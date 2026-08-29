@@ -1,0 +1,77 @@
+{
+  "schema": "office-kit/ppj-packed-clean-install/v1",
+  "recordedAt": "2026-08-30",
+  "environment": {
+    "platform": "darwin-arm64",
+    "installation": "npm tarball clean install",
+    "repositorySourceUsedAtRuntime": false,
+    "candidateVersionBeforeFinalBump": "1.1.0"
+  },
+  "packages": {
+    "officeKit": {
+      "file": "office-kit-1.1.0.tgz",
+      "bytes": 29217411,
+      "sha256": "71ba34466528b6e42ded3693c6994cbc840982ddd0f80fede929c04ff5b526f4"
+    },
+    "codec": {
+      "file": "office-kit-codec-darwin-arm64-1.1.0.tgz",
+      "bytes": 18678647,
+      "sha256": "9aa2ea6f60ee9144634af0324cc241ccb40ef9ba8c4050b6b201b2869d8dc4ec"
+    }
+  },
+  "authoredBuild": {
+    "input": "packaged Evidence Ledger reference.ppj",
+    "check": "passed",
+    "pages": 10,
+    "expandedElements": 133,
+    "programSha256": "1c8105d78ba4d2b560ed3d13d96de22a7c76ab7f24e29365862593932c52f4f9",
+    "outputSha256": "7027e8f56d1e7c6cb46ae9c1148ef1513514f601c46b2b3333a57de2402a94f6",
+    "embeddedRecoveryByteEqual": true,
+    "restoredEmbeddedProgram": true
+  },
+  "embeddedContinuation": {
+    "targetId": "p01-subtitle",
+    "after": "From peak-risk hypothesis to measured, auditable rollout",
+    "outputSha256": "e6a8b0b0663bacf1fe9d4442542a46385c0809dad3fd4b6a31591289b7bef575",
+    "secondImportStableId": true,
+    "secondImportValueEqual": true,
+    "changedSlideParts": [
+      "ppt/slides/slide1.xml"
+    ],
+    "nonTargetSlidePartsByteEqual": true
+  },
+  "thirdPartyContinuation": {
+    "sourceSha256": "b34ddad8cf8bbd083b60e07f8488267b1a0e4199db422468faa0eeb5d83e1762",
+    "pages": 21,
+    "expandedElements": 731,
+    "noOpByteEqual": true,
+    "typed": {
+      "targetId": "page-presentation-slide-1-presentation-slide-1-element-1",
+      "outputSha256": "f8784bddb78926db03c16365cf40b9e0ef32bceab3eee9cd5ac32a45f34ef414",
+      "changedParts": [
+        "ppt/slides/slide1.xml"
+      ],
+      "partSetEqual": true,
+      "nonTargetPartsByteEqual": true,
+      "relationshipsByteEqual": true,
+      "targetXmlEqualAfterDeclaredTextMask": true,
+      "secondImportStableIdAndValue": true
+    },
+    "nativeRef": {
+      "targetId": "page-presentation-slide-10-presentation-slide-10-element-33",
+      "outputSha256": "a55cf31e0759422c1a00b2772abfdb1e164d4b549debac6830bd420afc0b8a32",
+      "changedParts": [
+        "ppt/slides/slide10.xml"
+      ],
+      "partSetEqual": true,
+      "nonTargetPartsByteEqual": true,
+      "relationshipsByteEqual": true,
+      "targetXmlEqualAfterDeclaredTextMask": true,
+      "secondImportStableIdAndValue": true
+    }
+  },
+  "boundaries": [
+    "The clean-install run reused host LibreOffice evidence only by reproducing byte-identical PPTX output hashes; it did not run a second redundant render.",
+    "The candidate still reported version 1.1.0 because the breaking-version update is intentionally reserved for the release milestone."
+  ]
+}
