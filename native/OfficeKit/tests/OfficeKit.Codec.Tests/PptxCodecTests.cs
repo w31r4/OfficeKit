@@ -325,6 +325,9 @@ public sealed class PptxCodecTests
             .First(element => element["nativeRef"]!["capabilities"]!.AsArray()
                 .Any(capability => capability!["operation"]!.GetValue<string>() == "replaceText"));
         const string sourceBoundReplacement = "PPJ source-bound evidence";
+        var sourceBoundOriginal = editableText["text"] is JsonValue textValue
+            ? textValue.GetValue<string>()
+            : editableText["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>();
         if (editableText["text"] is JsonValue)
             editableText["text"] = sourceBoundReplacement;
         else
@@ -344,8 +347,14 @@ public sealed class PptxCodecTests
         });
         Assert.True(sourceEdit.Ok, Diagnostics(sourceEdit));
         Assert.NotEqual(ByteString.CopyFrom(thirdPartySource), sourceEdit.File);
-        Assert.NotEmpty(sourceEdit.PresentationProgram.ChangedParts);
+        var changedTextPart = Assert.Single(sourceEdit.PresentationProgram.ChangedParts);
         Assert.Contains(editedTextId, sourceEdit.PresentationProgram.ChangedNodeIds);
+        var sourceTextXml = Encoding.UTF8.GetString(ZipBytes(thirdPartySource, changedTextPart));
+        var editedTextXml = Encoding.UTF8.GetString(ZipBytes(sourceEdit.File.ToByteArray(), changedTextPart));
+        Assert.Equal(sourceTextXml, editedTextXml.Replace(
+            $"<a:t>{sourceBoundReplacement}</a:t>",
+            $"<a:t>{sourceBoundOriginal}</a:t>",
+            StringComparison.Ordinal));
         var sourceEditRoundTrip = Import(sourceEdit.File.ToByteArray());
         Assert.True(sourceEditRoundTrip.Ok, Diagnostics(sourceEditRoundTrip));
         Assert.Contains(sourceEditRoundTrip.Artifact.Presentation.Slides.SelectMany(slide => slide.Elements), element =>
