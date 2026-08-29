@@ -1,0 +1,208 @@
+{
+  "schema": "office-kit/pptx-six-sample-resume-evidence/v1",
+  "protocol": {
+    "repl": 2,
+    "visualReview": "unavailable",
+    "package": "public-office-kit"
+  },
+  "sources": [
+    {
+      "id": "nasa-froste-thermal-design",
+      "fileName": "nasa-froste-thermal-design.pptx",
+      "sourceSha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "taskId": "t_<redacted>",
+      "taskIdValidated": true,
+      "sessions": 3,
+      "commits": [
+        {
+          "commitId": "c0001",
+          "revisionSha256": "8d9c88fad943d5eec3a545050159299c570a8bda7745912cec6810590b3d356b",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        {
+          "commitId": "c0002",
+          "revisionSha256": "a902a1b4dcc4e203d5bd05c14de1be0502cc40bbc363714915a3117ad1deeb50",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        }
+      ],
+      "verification": {
+        "slideCount": 13,
+        "targetId": "presentation/slide/1/element/1",
+        "observedLength": 87,
+        "observedTextSha256": "7b8bd9c08c2f7cb4bd64e91b3d8ea9eda367a4eaa8b5c2d5327d27b210d17188",
+        "expectedLength": 14,
+        "expectedTextSha256": "d6b85f40da79c809cd61505de4a8430f23a95680d18a4a385f129c31e2d31970",
+        "found": true
+      },
+      "publishedSha256": "a902a1b4dcc4e203d5bd05c14de1be0502cc40bbc363714915a3117ad1deeb50",
+      "sourceUnchanged": true
+    },
+    {
+      "id": "nasa-mms-machine-learning",
+      "fileName": "nasa-mms-machine-learning.pptx",
+      "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "taskId": "t_<redacted>",
+      "taskIdValidated": true,
+      "sessions": 3,
+      "commits": [
+        {
+          "commitId": "c0001",
+          "revisionSha256": "59e4125fecf5942c2a7df50c86c16309d7611ec681cf9d3bd7e0f24daae494c2",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        {
+          "commitId": "c0002",
+          "revisionSha256": "c36652ced6053401aaa17d69fa3d9c3ce9b343f169db45ac427b4b7eeeb3b6b4",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        }
+      ],
+      "verification": {
+        "slideCount": 21,
+        "targetId": "presentation/slide/1/element/1",
+        "observedLength": 12,
+        "observedTextSha256": "0661cc29778876562c2230790b21ccb935edd4e504ad836fefbb4fbf1bbb4416",
+        "expectedLength": 12,
+        "expectedTextSha256": "0661cc29778876562c2230790b21ccb935edd4e504ad836fefbb4fbf1bbb4416",
+        "found": true
+      },
+      "publishedSha256": "c36652ced6053401aaa17d69fa3d9c3ce9b343f169db45ac427b4b7eeeb3b6b4",
+      "sourceUnchanged": true
+    },
+    {
+      "id": "slidescarnival-business-infographic",
+      "fileName": "slidescarnival-business-infographic.pptx",
+      "sourceSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "taskId": "t_<redacted>",
+      "taskIdValidated": true,
+      "sessions": 3,
+      "commits": [
+        {
+          "commitId": "c0001",
+          "revisionSha256": "1a2d03df7d3d1b0d1fc26b8984e650a9b5f6062d1246368ff0f133eb00955ecd",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        {
+          "commitId": "c0002",
+          "revisionSha256": "681e5c5fc753c8bf0c0c623b0cf7d1bd2cf9c59e74a454a9e09313457d8ef5f7",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        }
+      ],
+      "verification": {
+        "slideCount": 25,
+        "targetId": "presentation/slide/1/element/6",
+        "observedLength": 29,
+        "observedTextSha256": "933380232bc479cc893079075ddda283e6b83b6e772c181be5bab6b2eb65ab33",
+        "expectedLength": 20,
+        "expectedTextSha256": "06b90abbc95265a0dd735f2e8fb901bfecf9f229f983c5309caacecc44f69e59",
+        "found": true
+      },
+      "publishedSha256": "681e5c5fc753c8bf0c0c623b0cf7d1bd2cf9c59e74a454a9e09313457d8ef5f7",
+      "sourceUnchanged": true
+    },
+    {
+      "id": "slidescarnival-data-particles",
+      "fileName": "slidescarnival-data-particles.pptx",
+      "sourceSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "taskId": "t_<redacted>",
+      "taskIdValidated": true,
+      "sessions": 3,
+      "commits": [
+        {
+          "commitId": "c0001",
+          "revisionSha256": "9eef034ea698a6edbb1e13e76881aeb5be312d47009daa39212f4aa009304156",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        {
+          "commitId": "c0002",
+          "revisionSha256": "20213fa50a7f90d66f5dd34eb2f301a031ed79c932ec7bb34c10ecc5e7131a14",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        }
+      ],
+      "verification": {
+        "slideCount": 39,
+        "targetId": "presentation/slide/1/element/1",
+        "observedLength": 31,
+        "observedTextSha256": "8e3dfbb9aeab11b268affa8cf546951c5bd350744d6cf251eb081c9f312d19a8",
+        "expectedLength": 31,
+        "expectedTextSha256": "8e3dfbb9aeab11b268affa8cf546951c5bd350744d6cf251eb081c9f312d19a8",
+        "found": true
+      },
+      "publishedSha256": "20213fa50a7f90d66f5dd34eb2f301a031ed79c932ec7bb34c10ecc5e7131a14",
+      "sourceUnchanged": true
+    },
+    {
+      "id": "slidescarnival-minimal-business",
+      "fileName": "slidescarnival-minimal-business.pptx",
+      "sourceSha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "taskId": "t_<redacted>",
+      "taskIdValidated": true,
+      "sessions": 3,
+      "commits": [
+        {
+          "commitId": "c0001",
+          "revisionSha256": "d4cb9a747d1b24215562fc7c25c87d1270e8f40d3e7e6bc9e2a51c8199a5e18b",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        {
+          "commitId": "c0002",
+          "revisionSha256": "d658d2f9a89d2d3177e5492723e8fd9484211e2572577592a9be10f579212cd2",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        }
+      ],
+      "verification": {
+        "slideCount": 39,
+        "targetId": "presentation/slide/1/element/1",
+        "observedLength": 31,
+        "observedTextSha256": "bcf27ba77f2d39c44e39a3468eff1fb11651ab76d85faf7f8d498d154dbabab7",
+        "expectedLength": 31,
+        "expectedTextSha256": "bcf27ba77f2d39c44e39a3468eff1fb11651ab76d85faf7f8d498d154dbabab7",
+        "found": true
+      },
+      "publishedSha256": "d658d2f9a89d2d3177e5492723e8fd9484211e2572577592a9be10f579212cd2",
+      "sourceUnchanged": true
+    },
+    {
+      "id": "slidescarnival-professional-minimalist",
+      "fileName": "slidescarnival-professional-minimalist.pptx",
+      "sourceSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "taskId": "t_<redacted>",
+      "taskIdValidated": true,
+      "sessions": 3,
+      "commits": [
+        {
+          "commitId": "c0001",
+          "revisionSha256": "6a7a8ddaf2905fe6f8c86b88ce676b924f492bb01e9ca32f11fd0e08d9de0d10",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        },
+        {
+          "commitId": "c0002",
+          "revisionSha256": "5cd624ac18070ba1ad84aab83909b0bdf323413b05cb9389772505ee146942ae",
+          "reviewVerdict": "passed-with-limitations",
+          "visualReview": "unavailable"
+        }
+      ],
+      "verification": {
+        "slideCount": 20,
+        "targetId": "presentation/slide/1/element/1",
+        "observedLength": 10,
+        "observedTextSha256": "959f9d9e19215cf9c0f70e7514ef46ae6a175e22413ae75d6ee56b2b6ca765de",
+        "expectedLength": 10,
+        "expectedTextSha256": "959f9d9e19215cf9c0f70e7514ef46ae6a175e22413ae75d6ee56b2b6ca765de",
+        "found": true
+      },
+      "publishedSha256": "5cd624ac18070ba1ad84aab83909b0bdf323413b05cb9389772505ee146942ae",
+      "sourceUnchanged": true
+    }
+  ]
+}

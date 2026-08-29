@@ -11,6 +11,13 @@ Run from a checkout with the reference inputs available:
 node scripts/pptx-six-sample-import.mjs
 ```
 
+The durable continuation rehearsal is intentionally separate from the normal
+runner. Run it once when task/resume behavior needs fresh evidence:
+
+```sh
+node scripts/pptx-six-sample-resume.mjs --force
+```
+
 The runner verifies the frozen source hashes, counts visible slide roots and
 their recursive group children, requires a byte-identical no-op export, builds a source-bound design profile,
 and performs one fresh text edit, placement edit, z-order edit, same-format image
@@ -45,6 +52,11 @@ rather than treated as a skipped or successful edit.
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
 the same six inputs and a bounded placement edit. It includes per-slide PNG
 hashes so non-target pages can be checked without storing the rendered images.
+
+`resume-evidence.v1.json` records one three-session `input → review/commit →
+resume/edit/commit → resume/verify/publish` rehearsal for every sample. It
+stores only source, revision, and published hashes plus compact commit data;
+task directories and reference files remain disposable.
 
 This is structural/package evidence.  Windows desktop PowerPoint open/save and
 playback remain a separate, not-yet-run host validation.
