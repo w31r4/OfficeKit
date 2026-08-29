@@ -43,9 +43,9 @@
 ## 6. Standalone PPJ CLI
 
 - [x] 6.1 Add lazy `officekit ppj` routing and common bounded file/path/output handling without loading the codec on root import.
-- [ ] 6.2 Implement `ppj import` and `ppj inspect`, including fuzzy multi-result discovery with stable IDs and no implicit mutation.
-- [ ] 6.3 Implement `ppj check` and deterministic `--fix` formatting/default repair without semantic rewriting.
-- [ ] 6.4 Implement `ppj build` with mandatory check, distinct output enforcement, build receipts, and no automatic render/review.
+- [x] 6.2 Implement `ppj import` and `ppj inspect`, including fuzzy multi-result discovery with stable IDs and no implicit mutation.
+- [x] 6.3 Implement `ppj check` and deterministic `--fix` formatting/default repair without semantic rewriting.
+- [x] 6.4 Implement `ppj build` with mandatory check, distinct output enforcement, build receipts, and no automatic render/review.
 - [ ] 6.5 Implement separate `ppj render` and `ppj review` commands with bounded page selection and honest evidence labels.
 - [ ] 6.6 Add concise human output and stable `--json` contracts for all six commands.
 
