@@ -288,7 +288,8 @@ internal static partial class PpjPresentationProjector
     {
         var shape = element.Shape;
         var frame = ShapeFrame(shape);
-        var text = shape.Text ?? string.Empty;
+        var text = TextContent(shape.TextBody, shape.Text);
+        var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
         if (!isPlaceholder && !isTextBox && !PresetGeometries.Contains(shape.Geometry))
@@ -300,7 +301,7 @@ internal static partial class PpjPresentationProjector
             common["type"] = "placeholder";
             common["placeholderType"] = PlaceholderType(shape.Placeholder.Type);
             common["index"] = shape.Placeholder.Index;
-            if (text.Length > 0) common["text"] = text;
+            if (hasText) common["text"] = text;
             return common;
         }
         if (shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry))
@@ -312,7 +313,7 @@ internal static partial class PpjPresentationProjector
         }
         common["type"] = "shape";
         common["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
-        if (text.Length > 0) common["text"] = text;
+        if (hasText) common["text"] = text;
         var style = ShapeStyle(shape);
         if (style.Count > 0) common["style"] = style;
         return common;
@@ -553,6 +554,77 @@ internal static partial class PpjPresentationProjector
             style["shadow"] = Shadow(shape.Shadow);
         return style;
     }
+
+    private static JsonNode TextContent(PresentationTextBody? body, string? fallback)
+    {
+        if (body is null || body.Paragraphs.Count == 0 ||
+            body.Paragraphs.Any(paragraph => paragraph.Runs.Count == 0 ||
+                paragraph.Runs.Any(run => run.ContentCase != PresentationTextRun.ContentOneofCase.Text)))
+            return JsonValue.Create(fallback ?? string.Empty)!;
+
+        var paragraphs = new JsonArray();
+        for (var paragraphIndex = 0; paragraphIndex < body.Paragraphs.Count; paragraphIndex++)
+        {
+            var source = body.Paragraphs[paragraphIndex];
+            var paragraph = new JsonObject
+            {
+                ["id"] = $"paragraph-{paragraphIndex + 1}",
+            };
+            var paragraphStyle = new JsonObject();
+            if (source.HasLevel) paragraphStyle["level"] = checked((int)source.Level);
+            if (source.HasAlignment && ParagraphAlignment(source.Alignment) is { } alignment)
+                paragraphStyle["alignment"] = alignment;
+            if (source.LeftMarginCase == PresentationTextParagraph.LeftMarginOneofCase.MarginLeftEmu)
+                paragraphStyle["indent"] = Points(source.MarginLeftEmu);
+            if (source.IndentationCase == PresentationTextParagraph.IndentationOneofCase.IndentEmu)
+                paragraphStyle["hanging"] = -Points(source.IndentEmu);
+            if (source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints)
+                paragraphStyle["lineSpacing"] = Math.Max(0.001, source.LineSpacingPoints);
+            if (source.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforePoints)
+                paragraphStyle["spaceBefore"] = Math.Max(0, source.SpaceBeforePoints);
+            if (source.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterPoints)
+                paragraphStyle["spaceAfter"] = Math.Max(0, source.SpaceAfterPoints);
+            if (paragraphStyle.Count > 0) paragraph["style"] = paragraphStyle;
+
+            var runs = new JsonArray();
+            for (var runIndex = 0; runIndex < source.Runs.Count; runIndex++)
+            {
+                var sourceRun = source.Runs[runIndex];
+                var run = new JsonObject
+                {
+                    ["id"] = $"run-{paragraphIndex + 1}-{runIndex + 1}",
+                    ["text"] = sourceRun.Text,
+                };
+                var style = RunStyle(sourceRun);
+                if (style.Count > 0) run["style"] = style;
+                runs.Add(run);
+            }
+            paragraph["runs"] = runs;
+            paragraphs.Add(paragraph);
+        }
+        return new JsonObject { ["paragraphs"] = paragraphs };
+    }
+
+    private static JsonObject RunStyle(PresentationTextRun run)
+    {
+        var style = new JsonObject();
+        if (run.HasFontFamily) style["fontFamily"] = run.FontFamily;
+        if (run.HasFontSizePoints && run.FontSizePoints > 0) style["size"] = run.FontSizePoints;
+        if (run.HasBold) style["bold"] = run.Bold;
+        if (run.HasItalic) style["italic"] = run.Italic;
+        if (run.HasColorRgb && !string.IsNullOrEmpty(run.ColorRgb)) style["color"] = Color(run.ColorRgb);
+        return style;
+    }
+
+    private static string? ParagraphAlignment(string value) => value switch
+    {
+        "l" or "left" => "left",
+        "ctr" or "center" => "center",
+        "r" or "right" => "right",
+        "just" or "justify" => "justify",
+        "dist" or "distributed" => "distributed",
+        _ => null,
+    };
 
     private static void ApplyTextContainerStyle(JsonObject output, PresentationShape shape)
     {
