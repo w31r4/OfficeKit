@@ -3306,6 +3306,12 @@ function assertNativeLeafTextValue(value) {
   }
 }
 
+function assertNativeLeafFontFamilyValue(value) {
+  if (typeof value !== "string" || value.length < 1 || value.length > 255 || value.trim() !== value || value.startsWith("+") || /[\u0000-\u001f\u007f]/u.test(value) || hasUnpairedUtf16Surrogate(value)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native font-family leaf value must be a trimmed literal typeface name of 1 through 255 characters.");
+  }
+}
+
 function hasUnpairedUtf16Surrogate(value) {
   for (let index = 0; index < value.length; index += 1) {
     const unit = value.charCodeAt(index);
@@ -4204,6 +4210,36 @@ function createPresentationNativeLeafCapability(presentation, state) {
               run.style = { ...(run.style || {}), fontSize: (Number(next) / 100) / POINTS_PER_PIXEL };
             },
           });
+        }
+        // A run family is issued only when the imported wire contains an
+        // explicit, literal typeface. Theme tokens (for example +mn-lt) and
+        // malformed/inherited font graphs remain source-owned. Like the
+        // font-size leaf above, skip placeholders so an inherited owner style
+        // cannot be mistaken for a local run token during source-bound export.
+        if (!model.placeholder) {
+          for (const [field, leafKind] of [["fontFamily", "fontFamily"], ["fontFamilyEastAsia", "fontFamilyEastAsia"]]) {
+            const family = leaf.run[field];
+            if (typeof family !== "string" || family.length < 1 || family.length > 255 || family.trim() !== family || family.startsWith("+") || /[\u0000-\u001f\u007f]/u.test(family) || hasUnpairedUtf16Surrogate(family)) continue;
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+              expectedValue: family,
+              value: family,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                assertNativeLeafFontFamilyValue(next);
+                return { raw: next, publicValue: next };
+              },
+              isNoop(next) { return next === family; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-family native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), [field]: next };
+              },
+            });
+          }
         }
       }
     }

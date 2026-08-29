@@ -683,6 +683,47 @@ const roundTripFontSizeLeaf = irregularFontSizeRoundTrip.inspect({ includeNative
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSizePoints");
 assert.equal(roundTripFontSizeLeaf.value, 30);
 
+// Explicit run font family follows the same source-bound token splice. Add a
+// literal typeface to the fixture without changing the public construction
+// path, then replace only its a:latin/@typeface token.
+const fontFamilyAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontFamilyAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:r><a:rPr\b[^>]*)(\/>)((?:<a:t>)Decision)/u,
+  '$1><a:latin typeface="Aptos"/></a:rPr>$3',
+);
+assert.match(fontFamilyAccessibilityXml, /<a:latin\s+typeface="Aptos"\s*\/>/);
+fontFamilyAccessibilityZip.file("ppt/slides/slide1.xml", fontFamilyAccessibilityXml);
+const fontFamilyAccessibilityFile = new FileBlob(
+  await fontFamilyAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontFamilyImported = await PresentationFile.importPptx(fontFamilyAccessibilityFile);
+const fontFamilyShape = itemByName(fontFamilyImported.slides.getItem(0).shapes.items, "decision-status");
+const fontFamilyLeaf = fontFamilyImported.inspect({ includeNativeLeaves: true, target: fontFamilyShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontFamily");
+assert.ok(fontFamilyLeaf, "source-bound shapes should expose an explicit run font-family leaf");
+fontFamilyImported.editNativeLeaf(fontFamilyLeaf.targetId, fontFamilyLeaf.leafId, {
+  expectedHash: fontFamilyLeaf.expectedHash,
+  value: "OfficeKit Sans",
+});
+const fontFamilyOutput = await PresentationFile.exportPptx(fontFamilyImported);
+const fontFamilyOperation = fontFamilyOutput.metadata.editPlan.operations[0];
+assert.equal(fontFamilyOperation.leafKind, "fontFamily");
+await assertOnlyDeclaredPptxFootprintChanged(fontFamilyAccessibilityFile, fontFamilyOutput, fontFamilyOperation);
+const fontFamilyXml = await (await JSZip.loadAsync(fontFamilyOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontFamilyXml, /<a:latin\s+typeface="OfficeKit Sans"\s*\/>/);
+assert.match(fontFamilyXml, /fixture:opaque="kept"/);
+const fontFamilyRoundTrip = await PresentationFile.importPptx(fontFamilyOutput);
+const fontFamilyRoundTripLeaf = fontFamilyRoundTrip.inspect({ includeNativeLeaves: true, target: fontFamilyShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontFamily");
+assert.equal(fontFamilyRoundTripLeaf.value, "OfficeKit Sans");
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.

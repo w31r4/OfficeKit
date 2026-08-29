@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fontSizePoints" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -241,6 +241,11 @@ internal static partial class PptxEditPlanCodec
                     !uint.TryParse(operation.Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var requestedFontSize) ||
                     expectedFontSize == 0 || expectedFontSize > 76_800 || requestedFontSize == 0 || requestedFontSize > 76_800)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} font size must be an integer from 1 through 76800 hundredths of a point.");
+            }
+            if (leafKind is "fontFamily" or "fontFamilyEastAsia")
+            {
+                if (!ValidFontFamilyToken(operation.ExpectedValue) || !ValidFontFamilyToken(operation.Value))
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} font family must be a trimmed literal typeface name of 1 through 255 characters.");
             }
             if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
@@ -411,7 +416,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "fontSizePoints") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -517,11 +522,13 @@ internal static partial class PptxEditPlanCodec
             }
             if (range.LocalName is not ("sp" or "pic" or "graphicFrame" or "cxnSp" or "grpSp"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, p:graphicFrame, p:cxnSp, or p:grpSp.", operation.SlidePartPath);
-            if (leafKind == "fontSizePoints")
+            if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia")
             {
                 if (range.LocalName != "sp")
-                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} fontSizePoints target has the wrong native element type.", operation.SlidePartPath);
-                patches.Add(CompileTextFontSizeXmlPatch(xml, range, proof, drawingPrefixes));
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(leafKind == "fontSizePoints"
+                    ? CompileTextFontSizeXmlPatch(xml, range, proof, drawingPrefixes)
+                    : CompileTextFontFamilyXmlPatch(xml, range, proof, drawingPrefixes));
                 continue;
             }
             if (leafKind is not ("text" or "tableCellText" or "nativeText"))
@@ -841,6 +848,24 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font size.", operation.SlidePartPath);
             return fontSize.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        if (kind is "fontFamily" or "fontFamilyEastAsia")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
+            var leaves = shape.Descendants<A.Text>().ToArray();
+            if (operation.TextLeafIndex >= (uint)leaves.Length || leaves[operation.TextLeafIndex].Parent is not A.Run run)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font family.", operation.SlidePartPath);
+            var runProperties = run.RunProperties;
+            OpenXmlElement[] fonts = kind == "fontFamily"
+                ? runProperties?.Elements<A.LatinFont>().Cast<OpenXmlElement>().ToArray() ?? []
+                : runProperties?.Elements<A.EastAsianFont>().Cast<OpenXmlElement>().ToArray() ?? [];
+            var typeface = kind == "fontFamily"
+                ? (fonts.FirstOrDefault() as A.LatinFont)?.Typeface?.Value
+                : (fonts.FirstOrDefault() as A.EastAsianFont)?.Typeface?.Value;
+            if (fonts.Length != 1 || !ValidFontFamilyToken(typeface ?? string.Empty))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font family.", operation.SlidePartPath);
+            return typeface!;
+        }
         if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu") && element is P.GroupShape group)
         {
             if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
@@ -989,6 +1014,48 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw run font size does not match the expected value.", operation.SlidePartPath);
         var start = elementRange.Start + properties.Start + startTag.Index + valueGroup.Index;
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
+    private static PptxXmlPatch CompileTextFontFamilyXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof,
+        IReadOnlySet<string> drawingPrefixes)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var leaves = TextLeafPattern().Matches(elementXml)
+            .Where(IsNonSelfClosingTextLeaf)
+            .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
+            .ToArray();
+        if (operation.TextLeafIndex >= (uint)leaves.Length)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw text-leaf index is out of range.", operation.SlidePartPath);
+        var leaf = leaves[operation.TextLeafIndex];
+        var run = TextRunPattern().Matches(elementXml).Cast<Match>()
+            .SingleOrDefault(match => match.Index <= leaf.Index && leaf.Index < match.Index + match.Length);
+        if (run is null)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {LeafKind(operation)} leaf is not owned by an editable text run.", operation.SlidePartPath);
+        var runRange = new XmlRange(run.Index, run.Index + run.Length, "r");
+        var properties = DirectChildRange(elementXml, runRange, "r", "rPr", operation);
+        var fontName = LeafKind(operation) == "fontFamily" ? "latin" : "ea";
+        var fonts = DirectChildRanges(elementXml, properties).Where(entry => entry.LocalName == fontName).ToArray();
+        if (fonts.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run {fontName} font is missing or ambiguous.", operation.SlidePartPath);
+        var font = fonts[0];
+        var fragment = elementXml[font.Start..font.End];
+        var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == fontName) ??
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} run {fontName} font tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "typeface")
+            .ToArray();
+        if (attributes.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run {fontName} typeface attribute is missing or ambiguous.", operation.SlidePartPath);
+        var valueGroup = attributes[0].Groups["value"];
+        if (System.Net.WebUtility.HtmlDecode(valueGroup.Value) != operation.ExpectedValue)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw run font family does not match the expected value.", operation.SlidePartPath);
+        var start = elementRange.Start + font.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, EscapeAttribute(operation.Value), proof.SourceElementSha256, proof.MutationPartPath);
     }
 
     private static PptxXmlPatch CompileNativeStyleXmlPatch(string xml, XmlRange groupRange, PptxEditPlanProof proof)
@@ -1481,6 +1548,21 @@ internal static partial class PptxEditPlanCodec
     }
 
     private static string EscapeText(string value) => new XText(value).ToString(SaveOptions.DisableFormatting);
+    private static bool ValidFontFamilyToken(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > 255 || value.Trim() != value || value.StartsWith("+", StringComparison.Ordinal) || value.Any(char.IsControl)) return false;
+        for (var index = 0; index < value.Length; index++)
+        {
+            var unit = value[index];
+            if (char.IsHighSurrogate(unit))
+            {
+                if (index + 1 >= value.Length || !char.IsLowSurrogate(value[index + 1])) return false;
+                index++;
+            }
+            else if (char.IsLowSurrogate(unit)) return false;
+        }
+        return true;
+    }
     private static bool NeedsPreserve(string value) => value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]));
     private static IReadOnlyList<uint> ShapeTreePath(PresentationEditOperation operation) =>
         operation.ShapeTreePath.Count > 0 ? operation.ShapeTreePath : [operation.ShapeTreeIndex];
