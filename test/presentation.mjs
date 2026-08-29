@@ -814,6 +814,57 @@ const fontColorRoundTripLeaf = fontColorRoundTrip.inspect({ includeNativeLeaves:
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorRgb");
 assert.equal(fontColorRoundTripLeaf.value, "#aabbcc");
 
+// Plain DrawingML run decorations are source-bound leaves.  The fixture keeps
+// the vendor attribute so the contract proves a token-only splice instead of
+// rebuilding the surrounding run-properties element.
+const fontDecorationAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontDecorationAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 u="sng" strike="noStrike"$2',
+);
+assert.match(fontDecorationAccessibilityXml, /<a:rPr\b[^>]*\bu="sng"[^>]*\bstrike="noStrike"/);
+fontDecorationAccessibilityZip.file("ppt/slides/slide1.xml", fontDecorationAccessibilityXml);
+const fontDecorationAccessibilityFile = new FileBlob(
+  await fontDecorationAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontDecorationImported = await PresentationFile.importPptx(fontDecorationAccessibilityFile);
+const fontDecorationShape = itemByName(fontDecorationImported.slides.getItem(0).shapes.items, "decision-status");
+const fontDecorationLeaves = fontDecorationImported.inspect({ includeNativeLeaves: true, target: fontDecorationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontUnderline", "fontStrike"].includes(record.leafKind));
+const fontUnderlineLeaf = fontDecorationLeaves.find((record) => record.leafKind === "fontUnderline");
+const fontStrikeLeaf = fontDecorationLeaves.find((record) => record.leafKind === "fontStrike");
+assert.ok(fontUnderlineLeaf, "source-bound shapes should expose a plain run underline leaf");
+assert.ok(fontStrikeLeaf, "source-bound shapes should expose a plain run strike leaf");
+assert.equal(fontUnderlineLeaf.value, "sng");
+assert.equal(fontStrikeLeaf.value, "noStrike");
+fontDecorationImported.editNativeLeaf(fontUnderlineLeaf.targetId, fontUnderlineLeaf.leafId, {
+  expectedHash: fontUnderlineLeaf.expectedHash,
+  value: "dbl",
+});
+fontDecorationImported.editNativeLeaf(fontStrikeLeaf.targetId, fontStrikeLeaf.leafId, {
+  expectedHash: fontStrikeLeaf.expectedHash,
+  value: "sngStrike",
+});
+const fontDecorationOutput = await PresentationFile.exportPptx(fontDecorationImported);
+const fontDecorationOperations = fontDecorationOutput.metadata.editPlan.operations;
+assert.deepEqual(fontDecorationOperations.map((operation) => operation.leafKind).sort(), ["fontStrike", "fontUnderline"]);
+await assertOnlyDeclaredPptxFootprintChanged(fontDecorationAccessibilityFile, fontDecorationOutput, fontDecorationOperations);
+const fontDecorationXml = await (await JSZip.loadAsync(fontDecorationOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontDecorationXml, /<a:rPr\b[^>]*\bu="dbl"[^>]*\bstrike="sngStrike"/);
+assert.match(fontDecorationXml, /fixture:opaque="kept"/);
+const fontDecorationRoundTrip = await PresentationFile.importPptx(fontDecorationOutput);
+const fontDecorationRoundTripLeaves = fontDecorationRoundTrip.inspect({ includeNativeLeaves: true, target: fontDecorationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontUnderline", "fontStrike"].includes(record.leafKind));
+assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontUnderline").value, "dbl");
+assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontStrike").value, "sngStrike");
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
