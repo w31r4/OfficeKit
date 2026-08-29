@@ -138,8 +138,9 @@ public static class CodecProtocol
                 }
                 case CodecOperation.CompilePpjToPptx:
                 {
-                    var result = PpjAuthoredPresentationCompiler.Compile(
+                    var result = PpjPresentationCompiler.Compile(
                         request.PresentationProgram,
+                        RequestFileBytes(request.File),
                         limits);
                     response.File = ByteString.CopyFrom(result.File);
                     response.PresentationProgram = result.Program;

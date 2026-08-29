@@ -169,6 +169,56 @@ public sealed class PptxCodecTests
         Assert.Equal(projected.PresentationProgram.ProgramJson, repeatedProjection.PresentationProgram.ProgramJson);
         Assert.Equal(projected.PresentationProgram.NodeMapJson, repeatedProjection.PresentationProgram.NodeMapJson);
 
+        var sourceNoOp = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = first.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = projected.PresentationProgram.ProgramJson,
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceNoOp.Ok, Diagnostics(sourceNoOp));
+        Assert.Equal(first.File, sourceNoOp.File);
+        Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
+        Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var editedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var editableText = editedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .First(element => element["nativeRef"]!["capabilities"]!.AsArray()
+                .Any(capability => capability!["operation"]!.GetValue<string>() == "replaceText"));
+        const string sourceBoundReplacement = "PPJ source-bound evidence";
+        if (editableText["text"] is JsonValue)
+            editableText["text"] = sourceBoundReplacement;
+        else
+            editableText["text"]!["paragraphs"]![0]!["runs"]![0]!["text"] = sourceBoundReplacement;
+        var editedTextId = editableText["id"]!.GetValue<string>();
+        var sourceEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = first.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceEdit.Ok, Diagnostics(sourceEdit));
+        Assert.NotEqual(first.File, sourceEdit.File);
+        Assert.NotEmpty(sourceEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(editedTextId, sourceEdit.PresentationProgram.ChangedNodeIds);
+        var sourceEditRoundTrip = Import(sourceEdit.File.ToByteArray());
+        Assert.True(sourceEditRoundTrip.Ok, Diagnostics(sourceEditRoundTrip));
+        Assert.Contains(sourceEditRoundTrip.Artifact.Presentation.Slides.SelectMany(slide => slide.Elements), element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Text.Contains(sourceBoundReplacement, StringComparison.Ordinal));
+
         var repeated = Invoke(request);
         Assert.True(repeated.Ok, Diagnostics(repeated));
         Assert.Equal(first.PresentationProgram.ProgramSha256, repeated.PresentationProgram.ProgramSha256);

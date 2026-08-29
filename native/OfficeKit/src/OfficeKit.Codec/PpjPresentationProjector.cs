@@ -10,7 +10,8 @@ namespace OfficeKit.Codec;
 
 internal sealed record PpjProjectionResult(
     PresentationProgramResult Program,
-    IReadOnlyList<Diagnostic> Diagnostics);
+    IReadOnlyList<Diagnostic> Diagnostics,
+    ArtifactEnvelope SourceArtifact);
 
 /// <summary>
 /// Projects a validated PPTX package into the bounded public PPJ language.
@@ -130,7 +131,7 @@ internal static partial class PpjPresentationProjector
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         result.Assets.Add(context.ResultAssets.Select(asset => asset.Clone()));
-        return new(result, imported.Diagnostics);
+        return new(result, imported.Diagnostics, envelope);
     }
 
     private static JsonObject ImportedIntent() => new()
@@ -779,13 +780,13 @@ internal static partial class PpjPresentationProjector
         switch (element.ContentCase)
         {
             case PresentationElement.ContentOneofCase.Shape:
-                if (source.TextEditable || source.Editable) output.Add(new("replaceText", ["text"]));
+                if (source.TextEditable && TextTopologyRepresentable(element.Shape.TextBody))
+                    output.Add(new("replaceText", ["text"]));
                 if (source.Editable)
                 {
                     output.Add(new("setFill", ["fill"]));
                     output.Add(new("setStroke", ["stroke"]));
                     output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
-                    output.Add(new("setOpacity", ["opacity"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:
@@ -823,6 +824,11 @@ internal static partial class PpjPresentationProjector
         if (source.ZOrderCapability?.Supported == true) output.Add(new("reorder", ["zOrder"]));
         return output;
     }
+
+    private static bool TextTopologyRepresentable(PresentationTextBody? body) =>
+        body is not null && body.Paragraphs.Count > 0 &&
+        body.Paragraphs.All(paragraph => paragraph.Runs.Count > 0 &&
+            paragraph.Runs.All(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Text));
 
     private static IReadOnlyList<CapabilitySpec> OpaqueCapabilities(PresentationElement element)
     {

@@ -28,9 +28,9 @@
 - [x] 4.1 Project trusted imported PPTX deck/page state and every visible object into typed PPJ or an opaque descriptor.
 - [ ] 4.2 Vendor the read-only source into `<deck>.assets/source/<sha256>.pptx` and bind only relative URI plus SHA-256 in PPJ.
 - [x] 4.3 Translate existing imported edit capabilities into revision-bound nativeRef descriptors without exposing raw package identities.
-- [ ] 4.4 Reproject the source at build time and compute a semantic old/new PPJ diff with stable changed-node and mutation-footprint evidence.
+- [x] 4.4 Reproject the source at build time and compute a semantic old/new PPJ diff with stable changed-node and mutation-footprint evidence.
 - [ ] 4.5 Lower supported differences into the existing source-bound Edit Plan and reject unsupported, ambiguous, stale, or cross-object mutations.
-- [ ] 4.6 Return source bytes exactly for an unchanged projected PPJ and retain every unknown part, relationship, and opaque graph for edited output.
+- [x] 4.6 Return source bytes exactly for an unchanged projected PPJ and retain every unknown part, relationship, and opaque graph for edited output.
 
 ## 5. Embedded authored-program recovery
 
