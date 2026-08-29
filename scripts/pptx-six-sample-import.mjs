@@ -94,6 +94,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeFill = await verifyNativeFillEdit(bytes);
     const nativeLine = await verifyNativeLineEdit(bytes);
     const nativeLineWidth = await verifyNativeLineWidthEdit(bytes);
+    const nativeFontSize = await verifyNativeFontSizeEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -128,6 +129,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFill,
       nativeLine,
       nativeLineWidth,
+      nativeFontSize,
       svgStyle,
       animatedText,
       tableCell,
@@ -161,6 +163,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFillEdits: results.filter((result) => result.nativeFill.status === "passed").length,
       nativeLineEdits: results.filter((result) => result.nativeLine.status === "passed").length,
       nativeLineWidthEdits: results.filter((result) => result.nativeLineWidth.status === "passed").length,
+      nativeFontSizeEdits: results.filter((result) => result.nativeFontSize.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -331,6 +334,30 @@ async function verifyNativeLineWidthEdit(bytes) {
     throw new Error(`Native line-width edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, oldValue, value, changedParts };
+}
+
+async function verifyNativeFontSizeEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontSizePoints");
+  if (!target) return { status: "blocked", reason: "no bounded explicit text run font-size leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue + 1 <= 768 ? Math.round((oldValue + 1) * 100) / 100 : Math.round((oldValue - 1) * 100) / 100;
+  if (!Number.isFinite(oldValue) || value <= 0 || value === oldValue) return { status: "blocked", reason: "discovered font size is outside the safe edit range" };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "fontSizePoints");
+  if (!rebound || Math.abs(Number(rebound.value) - value) > 0.001) {
+    throw new Error(`Native font-size edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-size edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, textLeafIndex: target.textLeafIndex, oldValue, value, changedParts };
 }
 
 async function verifySvgStyleEdit(bytes) {

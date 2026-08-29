@@ -430,7 +430,7 @@ const shapeAccessibilityShape = shapeAccessibilitySlide.shapes.add({
   name: "decision-status",
   position: { left: 48, top: 72, width: 360, height: 88 },
   fill: "#DBEAFE",
-  text: "Decision: controlled rollout",
+  text: [{ runs: [{ text: "Decision: controlled rollout", style: { fontSize: 32 } }] }],
   accessibility: {
     title: "Controlled rollout decision",
     description: "Status box explaining that the rollout is controlled.",
@@ -651,6 +651,37 @@ assert.equal(irregularWidthOperation.leafKind, "lineWidthEmu");
 await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, irregularWidthOutput, irregularWidthOperation);
 const irregularWidthRoundTrip = await PresentationFile.importPptx(irregularWidthOutput);
 assert.equal(irregularWidthRoundTrip.resolve(irregularWidthShape.id).line.width, irregularNextWidth / 12_700);
+
+// Explicit run font size is a source-bound text leaf. Change only the sz token
+// so vendor attributes and all other slide/package bytes remain untouched.
+const irregularFontSizeImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularFontSizeShape = itemByName(irregularFontSizeImported.slides.getItem(0).shapes.items, "decision-status");
+const irregularFontSizeLeaf = irregularFontSizeImported.inspect({ includeNativeLeaves: true, target: irregularFontSizeShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSizePoints");
+assert.ok(irregularFontSizeLeaf, "source-bound shapes should expose an explicit run font-size leaf");
+assert.equal(irregularFontSizeLeaf.value, 24);
+irregularFontSizeImported.editNativeLeaf(irregularFontSizeLeaf.targetId, irregularFontSizeLeaf.leafId, {
+  expectedHash: irregularFontSizeLeaf.expectedHash,
+  value: 30,
+});
+const irregularFontSizeOutput = await PresentationFile.exportPptx(irregularFontSizeImported);
+const irregularFontSizeOperation = irregularFontSizeOutput.metadata.editPlan.operations[0];
+assert.equal(irregularFontSizeOperation.leafKind, "fontSizePoints");
+await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, irregularFontSizeOutput, irregularFontSizeOperation);
+const irregularFontSizeXml = await (await JSZip.loadAsync(irregularFontSizeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularFontSizeXml, /<a:rPr\b[^>]*\bsz="3000"/);
+assert.match(irregularFontSizeXml, /fixture:opaque="kept"/);
+const irregularFontSizeRoundTrip = await PresentationFile.importPptx(irregularFontSizeOutput);
+const roundTripFontSizeShape = itemByName(irregularFontSizeRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+const roundTripFontSizeLeaf = irregularFontSizeRoundTrip.inspect({ includeNativeLeaves: true, target: roundTripFontSizeShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSizePoints");
+assert.equal(roundTripFontSizeLeaf.value, 30);
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
@@ -1050,7 +1081,7 @@ const nativeDiagramRoundTripLeaf = nativeDiagramRoundTrip.inspect({ includeNativ
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "diagramText" && record.nodeId === nativeDiagramLeaf.nodeId);
 assert.equal(nativeDiagramRoundTripLeaf.value, "Scale");
 
-irregularAccessibilityShape.text.set("Decision: reviewed rollout");
+irregularAccessibilityShape.text.paragraphs = [{ runs: [{ text: "Decision: reviewed rollout", style: { fontSize: 32 } }] }];
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.equal(irregularOtherEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
 assert.equal(irregularOtherEdit.metadata.editPlan?.operations.length, 1);

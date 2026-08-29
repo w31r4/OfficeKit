@@ -15,9 +15,10 @@
     "nativeTextEdits": 4,
     "imageReplacements": 6,
     "imageCropEdits": 6,
-    "nativeFillEdits": 3,
-    "nativeLineEdits": 4,
-    "nativeLineWidthEdits": 4,
+    "nativeFillEdits": 5,
+    "nativeLineEdits": 5,
+    "nativeLineWidthEdits": 5,
+    "nativeFontSizeEdits": 6,
     "svgStyleEdits": 1,
     "animatedTextEdits": 1,
     "tableCellEdits": 4,
@@ -66,10 +67,12 @@
         "typed-editable": 17
       },
       "nativeLeafKinds": {
+        "fillScheme": 12,
+        "fontSizePoints": 20,
         "heightEmu": 22,
         "leftEmu": 22,
-        "lineScheme": 1,
-        "lineWidthEmu": 1,
+        "lineScheme": 13,
+        "lineWidthEmu": 42,
         "nativeText": 1,
         "text": 59,
         "topEmu": 22,
@@ -158,20 +161,30 @@
       },
       "nativeLine": {
         "status": "passed",
-        "targetId": "presentation/slide/4/element/1/element/4",
-        "oldValue": "tx1",
+        "targetId": "presentation/slide/2/element/8",
+        "oldValue": "bg1",
         "value": "accent1",
         "changedParts": [
-          "ppt/slides/slide4.xml"
+          "ppt/slides/slide2.xml"
         ]
       },
       "nativeLineWidth": {
         "status": "passed",
-        "targetId": "presentation/slide/4/element/1/element/4",
-        "oldValue": 19050,
-        "value": 28575,
+        "targetId": "presentation/slide/1/element/1",
+        "oldValue": 9525,
+        "value": 19050,
         "changedParts": [
-          "ppt/slides/slide4.xml"
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "nativeFontSize": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "textLeafIndex": 0,
+        "oldValue": 18,
+        "value": 19,
+        "changedParts": [
+          "ppt/slides/slide1.xml"
         ]
       },
       "svgStyle": {
@@ -203,9 +216,9 @@
         "reopenedSlides": 14,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 298,
-      "nativeNestedLeafCount": 72,
-      "nativeTextLeafCount": 15,
+      "nativeLeafCount": 466,
+      "nativeNestedLeafCount": 91,
+      "nativeTextLeafCount": 17,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -269,10 +282,14 @@
         "typed-editable": 99
       },
       "nativeLeafKinds": {
+        "fillRgb": 1,
+        "fillScheme": 10,
+        "fontSizePoints": 70,
         "heightEmu": 41,
         "leftEmu": 41,
+        "lineRgb": 4,
         "lineScheme": 35,
-        "lineWidthEmu": 35,
+        "lineWidthEmu": 80,
         "text": 120,
         "topEmu": 41,
         "widthEmu": 41
@@ -351,8 +368,13 @@
         ]
       },
       "nativeFill": {
-        "status": "blocked",
-        "reason": "no bounded fill color leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/6/element/3/element/5/element/1/element/1",
+        "oldValue": "#ffffff",
+        "value": "#aabbcc",
+        "changedParts": [
+          "ppt/slides/slide6.xml"
+        ]
       },
       "nativeLine": {
         "status": "passed",
@@ -365,11 +387,21 @@
       },
       "nativeLineWidth": {
         "status": "passed",
-        "targetId": "presentation/slide/3/element/5",
+        "targetId": "presentation/slide/1/element/3",
         "oldValue": 9525,
         "value": 19050,
         "changedParts": [
-          "ppt/slides/slide3.xml"
+          "ppt/slides/slide1.xml"
+        ]
+      },
+      "nativeFontSize": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/3",
+        "textLeafIndex": 0,
+        "oldValue": 12,
+        "value": 13,
+        "changedParts": [
+          "ppt/slides/slide1.xml"
         ]
       },
       "svgStyle": {
@@ -411,8 +443,8 @@
         "reopenedSlides": 22,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 666,
-      "nativeNestedLeafCount": 360,
+      "nativeLeafCount": 917,
+      "nativeNestedLeafCount": 446,
       "nativeTextLeafCount": 0,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -476,7 +508,8 @@
         "typed-editable": 374
       },
       "nativeLeafKinds": {
-        "fillRgb": 150,
+        "fillRgb": 170,
+        "fontSizePoints": 143,
         "heightEmu": 339,
         "leftEmu": 339,
         "nativeText": 1,
@@ -578,7 +611,17 @@
       },
       "nativeLineWidth": {
         "status": "blocked",
-        "reason": "no bounded imported connector line-width leaf was discovered"
+        "reason": "no bounded imported line-width leaf was discovered"
+      },
+      "nativeFontSize": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/2/element/2",
+        "textLeafIndex": 0,
+        "oldValue": 21,
+        "value": 22,
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
       },
       "svgStyle": {
         "status": "passed",
@@ -622,8 +665,8 @@
         "reopenedSlides": 26,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 1971,
-      "nativeNestedLeafCount": 1132,
+      "nativeLeafCount": 2306,
+      "nativeNestedLeafCount": 1325,
       "nativeTextLeafCount": 16,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -689,11 +732,13 @@
         "typed-editable": 663
       },
       "nativeLeafKinds": {
-        "fillRgb": 12,
+        "fillRgb": 20,
+        "fillScheme": 214,
+        "fontSizePoints": 84,
         "heightEmu": 67,
         "leftEmu": 67,
         "lineScheme": 42,
-        "lineWidthEmu": 42,
+        "lineWidthEmu": 60,
         "nativeText": 3,
         "text": 349,
         "topEmu": 67,
@@ -803,6 +848,16 @@
           "ppt/slides/slide12.xml"
         ]
       },
+      "nativeFontSize": {
+        "status": "passed",
+        "targetId": "presentation/slide/12/element/3",
+        "textLeafIndex": 0,
+        "oldValue": 10,
+        "value": 11,
+        "changedParts": [
+          "ppt/slides/slide12.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -837,9 +892,9 @@
         "reopenedSlides": 40,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 1574,
-      "nativeNestedLeafCount": 1043,
-      "nativeTextLeafCount": 34,
+      "nativeLeafCount": 2422,
+      "nativeNestedLeafCount": 1754,
+      "nativeTextLeafCount": 56,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -852,7 +907,7 @@
         "layoutFamilies": 49,
         "slideArchetypes": 39,
         "reusableComponents": 0,
-        "componentCandidates": 30,
+        "componentCandidates": 31,
         "sourceTheme": {
           "id": "theme/source/b39f0976c9654dec",
           "name": "Imported theme",
@@ -904,12 +959,14 @@
         "typed-editable": 847
       },
       "nativeLeafKinds": {
-        "fillRgb": 2,
+        "fillRgb": 20,
+        "fillScheme": 103,
+        "fontSizePoints": 81,
         "heightEmu": 62,
         "leftEmu": 62,
-        "lineRgb": 6,
+        "lineRgb": 39,
         "lineScheme": 30,
-        "lineWidthEmu": 36,
+        "lineWidthEmu": 159,
         "nativeText": 1,
         "text": 350,
         "topEmu": 62,
@@ -990,29 +1047,39 @@
       },
       "nativeFill": {
         "status": "passed",
-        "targetId": "presentation/slide/37/element/52/element/1",
-        "oldValue": "#f1c232",
+        "targetId": "presentation/slide/14/element/4/element/1",
+        "oldValue": "#39c0ba",
         "value": "#aabbcc",
         "changedParts": [
-          "ppt/slides/slide37.xml"
+          "ppt/slides/slide14.xml"
         ]
       },
       "nativeLine": {
         "status": "passed",
-        "targetId": "presentation/slide/14/element/4/element/2",
-        "oldValue": "#999fa9",
+        "targetId": "presentation/slide/7/element/4/element/1",
+        "oldValue": "#ffffff",
         "value": "#aabbcc",
         "changedParts": [
-          "ppt/slides/slide14.xml"
+          "ppt/slides/slide7.xml"
         ]
       },
       "nativeLineWidth": {
         "status": "passed",
-        "targetId": "presentation/slide/14/element/4/element/2",
-        "oldValue": 9525,
-        "value": 19050,
+        "targetId": "presentation/slide/7/element/1",
+        "oldValue": 28575,
+        "value": 38100,
         "changedParts": [
-          "ppt/slides/slide14.xml"
+          "ppt/slides/slide7.xml"
+        ]
+      },
+      "nativeFontSize": {
+        "status": "passed",
+        "targetId": "presentation/slide/2/element/2",
+        "textLeafIndex": 0,
+        "oldValue": 12,
+        "value": 13,
+        "changedParts": [
+          "ppt/slides/slide2.xml"
         ]
       },
       "svgStyle": {
@@ -1049,9 +1116,9 @@
         "reopenedSlides": 40,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 1674,
-      "nativeNestedLeafCount": 1158,
-      "nativeTextLeafCount": 6,
+      "nativeLeafCount": 2782,
+      "nativeNestedLeafCount": 2101,
+      "nativeTextLeafCount": 12,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -1109,8 +1176,12 @@
         "typed-editable": 18
       },
       "nativeLeafKinds": {
+        "fillRgb": 2,
+        "fontSizePoints": 106,
         "heightEmu": 124,
         "leftEmu": 124,
+        "lineRgb": 8,
+        "lineWidthEmu": 8,
         "text": 115,
         "topEmu": 124,
         "widthEmu": 124
@@ -1177,16 +1248,41 @@
         ]
       },
       "nativeFill": {
-        "status": "blocked",
-        "reason": "no bounded fill color leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/19/element/6/element/1",
+        "oldValue": "#ffffff",
+        "value": "#aabbcc",
+        "changedParts": [
+          "ppt/slides/slide19.xml"
+        ]
       },
       "nativeLine": {
-        "status": "blocked",
-        "reason": "no bounded imported connector line-color leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/19/element/1/element/1",
+        "oldValue": "#ffffff",
+        "value": "#aabbcc",
+        "changedParts": [
+          "ppt/slides/slide19.xml"
+        ]
       },
       "nativeLineWidth": {
-        "status": "blocked",
-        "reason": "no bounded imported connector line-width leaf was discovered"
+        "status": "passed",
+        "targetId": "presentation/slide/19/element/1/element/1",
+        "oldValue": 19050,
+        "value": 28575,
+        "changedParts": [
+          "ppt/slides/slide19.xml"
+        ]
+      },
+      "nativeFontSize": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "textLeafIndex": 0,
+        "oldValue": 200,
+        "value": 201,
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
       },
       "svgStyle": {
         "status": "blocked",
@@ -1217,8 +1313,8 @@
         "reopenedSlides": 21,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 633,
-      "nativeNestedLeafCount": 18,
+      "nativeLeafCount": 768,
+      "nativeNestedLeafCount": 36,
       "nativeTextLeafCount": 0,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",

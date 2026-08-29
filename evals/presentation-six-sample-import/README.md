@@ -44,9 +44,9 @@ editable leaves.
 The current six-sample pass exercises imported-edit paths across the corpus:
 six z-order edits, six image-crop edits, three bounded fill-color edits, four
 connector line-color edits, four connector line-width edits, five bounded direct
-shape line-width edits, one SVG style edit, one text edit on a slide with an
-existing animation graph, four table-cell edits, and six source-component
-continuations. A `blocked` status means that the source
+shape line-width edits, five explicit text-run font-size edits, one SVG style
+edit, one text edit on a slide with an existing animation graph, four table-cell
+edits, and six source-component continuations. A `blocked` status means that the source
 sample does not contain a safe leaf of that kind; it is retained as evidence
 rather than treated as a skipped or successful edit.
 
