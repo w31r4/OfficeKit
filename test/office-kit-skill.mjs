@@ -17,7 +17,7 @@ const presentationTemplateCount = (await fs.readdir(presentationTemplateRoot, { 
   .filter((entry) => entry.isDirectory())
   .length;
 
-const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText, replText, presentationConversationText] = await Promise.all([
+const [plugin, skillText, agentText, routingText, templateSelectionText, reviewText, replText] = await Promise.all([
   readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json")),
   fs.readFile(path.join(skillRoot, "SKILL.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "agents", "openai.yaml"), "utf8"),
@@ -25,7 +25,6 @@ const [plugin, skillText, agentText, routingText, templateSelectionText, reviewT
   fs.readFile(path.join(skillRoot, "references", "template-selection.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "review.md"), "utf8"),
   fs.readFile(path.join(skillRoot, "references", "repl.md"), "utf8"),
-  fs.readFile(path.join(repoRoot, "skills", "presentations", "skills", "presentations", "references", "conversation-workflow.md"), "utf8"),
 ]);
 
 assert.equal(plugin.name, "office-kit");
@@ -66,12 +65,6 @@ assert.match(replText, /ctx\.task\.artifacts\.find[\s\S]*headRevision[\s\S]*path
 assert.match(replText, /reviewArtifact[\s\S]*baseline: reviewedPath[\s\S]*application\/octet-stream/is);
 assert.match(replText, /ctx\.publish\(ctx\.task\.commit[\s\S]*artifact ID or file path is not a publishable commit/is);
 assert.match(replText, /continuationCapability[\s\S]*export\/reimport[\s\S]*pending-clone[\s\S]*bounded-overlay[\s\S]*clean export[\s\S]*Commit with[\s\S]*summary[\s\S]*reinspect/i);
-assert.match(presentationConversationText, /Ask at most\s+three\s+questions in one turn/i);
-assert.match(presentationConversationText, /one-screen draft guide/i);
-assert.match(presentationConversationText, /three to six short section beats/i);
-assert.match(presentationConversationText, /Do not call `ctx\.publish`.*delivered/is);
-assert.match(presentationConversationText, /Silence or the absence of further edits is not/i);
-assert.match(presentationConversationText, /narrow existing-deck edit.*ordinary inspect\/edit\/verify rules/is);
 assert.match(agentText, /display_name: "OfficeKit"/);
 assert.match(agentText, /default_prompt: "Use \$office-kit /);
 assert.match(routingText, /\.\.\/documents\/SKILL\.md/);

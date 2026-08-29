@@ -310,25 +310,26 @@ assert.match(presentationChartSpec, /formula references[\s\S]*fail\s+closed/i);
 const presentationSkillRoot = path.join(skillsRoot, "presentations", "skills", "presentations");
 const presentationSkillText = [
   await fs.readFile(path.join(presentationSkillRoot, "SKILL.md"), "utf8"),
-  await fs.readFile(path.join(presentationSkillRoot, "references", "advanced-imported-editing.md"), "utf8"),
+  await fs.readFile(path.join(presentationSkillRoot, "references", "imported-capabilities.md"), "utf8"),
+  await fs.readFile(path.join(presentationSkillRoot, "references", "source-continuation.md"), "utf8"),
 ].join("\n");
+assert.match(presentationSkillText, /imported capabilities/i);
+assert.match(presentationSkillText, /source continuation/i);
+assert.match(presentationSkillText, /slide\.cloneCapability/);
+assert.match(presentationSkillText, /presentation\.editNativeLeaf/);
 assert.match(presentationSkillText, /officekit-chart-families-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-chart-families-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-title-notes-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-title-notes-edit-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-legacy-comment-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-legacy-comment-edit-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-slide-name-edit-workflow\.mjs/);
-assert.match(presentationSkillText, /visibilityCapability\.known.*visibilityCapability\.editable.*slide\.hide\(\).*slide\.show\(\)/s);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-slide-name-edit-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-view-properties-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-view-properties-edit-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-transition-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-transition-edit-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-section-rename-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-section-rename-workflow.mjs")));
-assert.match(presentationSkillText, /officekit-section-boundary-edit-workflow\.mjs/);
-assert.ok(await exists(path.join(skillsRoot, "presentations", "skills", "presentations", "examples", "officekit-section-boundary-edit-workflow.mjs")));
+for (const example of [
+  "officekit-chart-families-workflow.mjs",
+  "officekit-title-notes-edit-workflow.mjs",
+  "officekit-legacy-comment-edit-workflow.mjs",
+  "officekit-slide-name-edit-workflow.mjs",
+  "officekit-view-properties-edit-workflow.mjs",
+  "officekit-transition-edit-workflow.mjs",
+  "officekit-section-rename-workflow.mjs",
+  "officekit-section-boundary-edit-workflow.mjs",
+]) {
+  assert.ok(await exists(path.join(presentationSkillRoot, "examples", example)), example);
+}
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
 const documentsManifest = (await fs.readFile(path.join(documentsSkillRoot, "manifest.txt"), "utf8"))

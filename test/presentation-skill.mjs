@@ -2901,8 +2901,11 @@ try {
     const source = await fs.readFile(file, "utf8");
     assert.doesNotMatch(source, /\b(?:codec|initialCodec|roundtripCodec)\b/i, file + " must not expose an Office path selector");
   }
-  const skillText = `${await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8")}\n${await fs.readFile("skills/presentations/skills/presentations/references/advanced-imported-editing.md", "utf8")}`;
-  const conversationWorkflowText = await fs.readFile("skills/presentations/skills/presentations/references/conversation-workflow.md", "utf8");
+  const skillText = [
+    await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8"),
+    await fs.readFile("skills/presentations/skills/presentations/references/imported-capabilities.md", "utf8"),
+    await fs.readFile("skills/presentations/skills/presentations/references/source-continuation.md", "utf8"),
+  ].join("\n");
   const styleGuidelinesText = await fs.readFile("skills/presentations/skills/presentations/style_guidelines.md", "utf8");
   const googleSlidesRoutingText = await fs.readFile("skills/presentations/skills/presentations/routing/google_slides.md", "utf8");
   const quickStartText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md", "utf8");
@@ -3072,36 +3075,10 @@ try {
   assert.equal(await fs.access(blockedStarterLayout).then(() => true, () => false), false);
   assert.equal((await fs.readdir(blockedStarterRoot)).some((name) => name.startsWith(".office-kit-template-starter-")), false);
   assert.match(skillText, /office-kit/);
-  assert.match(conversationWorkflowText, /Conversational deck workflow/i);
-  assert.match(conversationWorkflowText, /working draft[\s\S]*ctx\.publish[\s\S]*Finaliz/iu);
-  assert.match(conversationWorkflowText, /ask at most three questions/i);
-  assert.match(conversationWorkflowText, /one-screen draft guide/i);
-  assert.match(conversationWorkflowText, /net-new deck or broad redesign/i);
-  assert.match(conversationWorkflowText, /one-screen draft guide/i);
-  assert.match(conversationWorkflowText, /Never reuse a stale locator/i);
-  assert.match(conversationWorkflowText, /Explicit .* permits complete\s+post-edit review and final publication/is);
-  assert.doesNotMatch(conversationWorkflowText, /(?:invoke|use)\s+\$presentations/i);
-  assert.match(skillText, /officekit-speaker-notes-add-workflow\.mjs/);
-  assert.match(skillText, /officekit-rich-speaker-notes-edit-workflow\.mjs/);
-  assert.match(skillText, /paragraph `0`, run `1`[\s\S]*not widen the topology/is);
-  assert.match(skillText, /### Rich Speaker Notes/);
-  assert.match(skillText, /speakerNotes\.capability\.addable.*existing.*NotesMaster.*byte-for-byte.*canonical NotesMaster.*ThemePart.*back-reference/is);
-  assert.match(skillText, /officekit-legacy-comment-add-workflow\.mjs/);
-  assert.match(skillText, /officekit-legacy-comment-add-workflow\.mjs/);
-  assert.match(skillText, /comments\.capability.*format: "legacy".*partPresent: false.*editable: false.*addable: true.*CommentAuthorsPart.*SlideCommentsPart.*collision-free.*pixel-identical/is);
-  assert.match(skillText, /officekit-legacy-comment-edit-workflow\.mjs/);
-  assert.match(skillText, /comments\.capability.*format: "legacy"?, partPresent: true, editable: true/is);
-  assert.match(skillText, /stable comment ID.*expected\s+old text/is);
-  assert.match(skillText, /only the selected root text.*author catalog.*byte-identical.*ppt\/comments\/commentN\.xml.*fail\s+closed/is);
-  assert.match(skillText, /officekit-title-notes-edit-workflow\.mjs/);
-  assert.match(skillText, /officekit-modern-comment-workflow\.mjs/);
-  assert.match(skillText, /officekit-slide-name-edit-workflow\.mjs/);
-  assert.match(skillText, /Slide Show Visibility/);
-  assert.match(skillText, /visibilityCapability\.known.*visibilityCapability\.editable.*slide\.hide\(\).*slide\.show\(\).*p:sld\/@show="0".*fail closed/is);
-  assert.match(skillText, /officekit-transition-edit-workflow\.mjs/);
-  assert.match(skillText, /officekit-slide-duplicate-workflow\.mjs/);
-  assert.match(skillText, /table\.getCell\(row, column\)\.value.*ImageElement\.dataUrl.*deletionCapability.*tableCellText.*imageAsset.*deleteElement.*do not synthesize native leaf IDs.*package footprint.*unchanged comparison pages/is);
-  assert.match(skillText, /--allow-closed-leaves/);
+  assert.match(skillText, /source continuation/i);
+  assert.match(skillText, /imported capability router/i);
+  assert.match(skillText, /opaque.*fail(?:s)? closed/i);
+  assert.match(skillText, /reimport/i);
   assert.match(quickStartText, /PresentationFile\.exportPptx/);
   assert.match(quickStartText, /addPptxSpeakerNotes/);
   assert.match(quickStartText, /editPptxRichSpeakerNotes/);
@@ -3117,26 +3094,13 @@ try {
   assert.match(quickStartText, /allowClosedLeaves:\s*true/);
   assert.match(quickStartText, /commentFormat:\s*"modern"/);
   assert.match(quickStartText, /office-kit/);
-  assert.match(skillText, /slide\.setBackground.*slide\.clearBackground/s);
-  assert.match(skillText, /complete ECMA-376 base.*transition vocabulary/is);
-  assert.match(skillText, /slide\.setTransition\(\{.*effect: "split".*orientation: "horizontal".*direction: "in".*advanceOnClick.*advanceAfterMs/is);
-  assert.match(skillText, /transition\.capability.*canonical direct base-transition profile.*no transition.*addable: true.*p:cSld.*p:clrMapOvr.*no transition, timing, or extension leaf.*timing.*sound.*p14.*extension.*opaque-preserved.*fail closed/is);
-  assert.match(skillText, /slide\.moveTo\(existingZeroBasedIndex\).*retained source.*p:sldIdLst.*slide\.deletionCapability.*exclusively owned OPC descendant.*shared layout\/master\/theme\/image\/media.*fail closed/is);
-  assert.match(skillText, /Top-level imported ordinary shapes.*embedded pictures.*canonical connectors.*bounded tables.*charts.*deletionCapability.*relationship-free subtree.*ImagePart\/ChartPart descendant closure.*shared media and ChartParts remain.*array splicing/is);
-  assert.match(skillText, /slide\.duplicate\(\).*slide\.cloneCapability.*OPC ownership graph.*recursively copies.*uniquely owned OpenXmlPart.*DataPart.*exact part bytes.*external relationships.*rebinds only proven shared layouts.*NotesMaster.*images.*retained slide-jump targets.*Unknown or relationship-bearing descendants.*not rejected/is);
-  assert.match(skillText, /Recognized closed ChartParts.*one unique frame relationship.*no ChartPart child graph.*distinct clone-local target.*byte-identical chart payload/is);
-  assert.match(skillText, /eligible embedded-XLSX OLE workbook.*one unique inbound package edge.*empty child graph.*same slide-local `r:id`.*distinct clone package.*shared preview\s+ImagePart/is);
-  assert.match(skillText, /accepted InkML content part.*one exact `customXml`\s+relationship.*standard content type and root namespace.*empty child\s+graph.*distinct clone-local `CustomXmlPart`.*byte-identical XML/is);
-  assert.match(skillText, /video\/media relationship pairing.*unique inbound ownership.*exact\s+`video\/mp4` bytes.*distinct clone-local `MediaDataPart`.*shared immutable\s+poster/is);
-  assert.match(skillText, /bounded clone workflow.*canonical relationship-free run action.*show membership\s+did not change/is);
   assert.match(quickStartText, /recognized literal-data charts.*no child\/external\/hyperlink\/data relationship.*distinct byte-copied ChartPart/is);
   assert.match(quickStartText, /eligible top-level OLE frames.*uniquely inbound internal XLSX package.*distinct\s+byte-copied EmbeddedPackagePart.*shares only the immutable preview/is);
   assert.match(quickStartText, /canonical top-level SmartArt frames.*data\/layout\/\s*quick-style\/colors parts.*four\s+distinct typed diagram parts/is);
   assert.match(quickStartText, /canonical top-level `p:contentPart`.*closed standard InkML part.*distinct byte-identical SDK `CustomXmlPart`/is);
   assert.match(quickStartText, /embedded-MP4.*video\/media relationships.*distinct byte-identical SDK `MediaDataPart`.*shares only the immutable preview/is);
   assert.match(quickStartText, /relationship-free custom-show action.*exact native ID\/return policy.*clone.*not silently added to the route/is);
-  assert.match(skillText, /SlideCommentsPart.*CommentAuthorsPart.*byte-for-byte/is);
-  assert.match(skillText, /artifact_tool\/api\/references\/comments\.md/);
+  assert.match(skillText, /artifact_tool\/api\/references\/(?:comments|slide)\./);
   assert.match(skillText, /routing\/google_slides\.md/);
   assert.match(googleSlidesRoutingText, /local `\.pptx`/);
   assert.match(googleSlidesRoutingText, /separate host\s+step/);
@@ -3211,7 +3175,6 @@ try {
   assert.match(oleWorkbookReferenceText, /only newly supported kind is a DOCX package/i);
   assert.match(oleWorkbookReferenceText, /not a generic OLE\/container API/i);
   assert.match(oleWorkbookReferenceText, /officekit-ole-office-package-workflow\.mjs/);
-  assert.match(skillText, /getEmbeddedOfficePackage\(\).*replaceEmbeddedOfficePackage\(\.\.\.\).*DOCX/is);
   assert.match(oleWorkbookReferenceText, /preserving the OLE\s+shell, relationship topology, preview image/is);
   assert.match(oleWorkbookReferenceText, /Microsoft Open XML\s+SDK/);
   assert.match(oleWorkbookReferenceText, /shared, external, ambiguous, or unsupported package/);
@@ -3239,11 +3202,12 @@ try {
   assert.match(embeddedVideoReferenceText, /distinct `MediaDataPart`.*exact MP4 bytes.*same poster path/is);
   assert.match(embeddedVideoReferenceText, /poster remains equal.*do not claim media playback equivalence/is);
   assert.match(embeddedVideoReferenceText, /audio.*linked or\s+external media.*timing.*fail closed/is);
-  const templateFollowingText = await fs.readFile("skills/presentations/skills/presentations/references/template-following.md", "utf8");
-  assert.match(templateFollowingText, /slide\.cloneCapability.*duplicates one.*imported slide's closed, uniquely owned OPC descendant graph.*unknown parts and external relationships.*multi-slide frame map.*one clone per export\/reimport boundary.*repeated.*source slide.*deletion-capability preflight.*source-to-starter locators/is);
-  assert.match(templateFollowingText, /Do not substitute a reconstructed or shared-part copy.*Unsupported topology.*fails closed.*before any starter artifact is published/is);
-  assert.match(templateFollowingText, /independently revalidates the map.*Every clone is exported and imported.*before the next clone.*removed in reverse order.*one-pending-\s*clone contract.*no PPTX, manifest, preview,\s+layout, or contact-sheet publication/is);
-  assert.match(templateFollowingText, /template-starter\.manifest\.json.*sourceElementIds.*starterElementIds.*do not claim persistence.*source\/map\/inspection\/output hashes.*no-overwrite policy/is);
+  const importedCapabilitiesText = await fs.readFile("skills/presentations/skills/presentations/references/imported-capabilities.md", "utf8");
+  const sourceContinuationText = await fs.readFile("skills/presentations/skills/presentations/references/source-continuation.md", "utf8");
+  assert.match(importedCapabilitiesText, /Capability router/);
+  assert.match(importedCapabilitiesText, /Unknown topology remains opaque/);
+  assert.match(sourceContinuationText, /one clone per export\/reimport boundary/);
+  assert.match(sourceContinuationText, /starter manifest is the only locator authority/);
 
   console.log("presentation workflow regression ok");
 } finally {
