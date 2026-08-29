@@ -3905,6 +3905,51 @@ function createPresentationNativeLeafCapability(presentation, state) {
       });
     };
     registerImportedRotationLeaf();
+    const registerImportedFlipLeaves = () => {
+      const isShape = wire.content.case === "shape";
+      const isPicture = wire.content.case === "image" ||
+        (wire.content.case === "opaque" && wire.content.value.nativeKind === "picture");
+      if ((!isShape && !isPicture) ||
+          (isShape
+            ? wire.source?.editable !== true && wire.source?.textEditable !== true
+            : wire.source?.editable !== true)) return;
+      if (isPicture) {
+        const frame = wire.content.value;
+        const frameTokens = [frame.leftEmu, frame.topEmu, frame.widthEmu, frame.heightEmu].map(String);
+        if (!frameTokens.every((token) => /^-?[0-9]+$/u.test(token))) return;
+        const [left, top, width, height] = frameTokens.map((token) => BigInt(token));
+        if (left < 0n || top < 0n || width <= 0n || height <= 0n) return;
+      }
+      const transform = wire.content.value?.transform;
+      if (!transform || typeof transform !== "object") return;
+      for (const [field, leafKind] of [["flipHorizontal", "flipHorizontal"], ["flipVertical", "flipVertical"]]) {
+        if (!Object.hasOwn(transform, field) || typeof transform[field] !== "boolean") continue;
+        const raw = transform[field] ? "1" : "0";
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind,
+          expectedValue: raw,
+          value: transform[field],
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            if (typeof next !== "boolean") {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a boolean value.`);
+            }
+            return { raw: next ? "1" : "0", publicValue: next };
+          },
+          isNoop(next) { return next === raw; },
+          apply(next) {
+            model.transform = { ...(model.transform || {}), [field]: next === "1" };
+          },
+        });
+      }
+    };
+    registerImportedFlipLeaves();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
