@@ -73,18 +73,15 @@ function runInstaller(env, expect = 0) {
 }
 
 async function countTemplateCards(packageRoot) {
-  const skillsRoot = path.join(
-    packageRoot,
-    "skills",
-    "default-template-library",
-    "skills",
-  );
-  const children = await fs.readdir(skillsRoot, { withFileTypes: true });
   let count = 0;
-  for (const child of children) {
-    if (!child.isDirectory() || !child.name.startsWith("artifact-template-")) continue;
-    await fs.access(path.join(skillsRoot, child.name, "artifact-template.json"));
-    count += 1;
+  for (const catalog of ["default-template-library", "presentation-template-library"]) {
+    const skillsRoot = path.join(packageRoot, "skills", catalog, "skills");
+    const children = await fs.readdir(skillsRoot, { withFileTypes: true });
+    for (const child of children) {
+      if (!child.isDirectory() || !child.name.startsWith("artifact-template-")) continue;
+      await fs.access(path.join(skillsRoot, child.name, "artifact-template.json"));
+      count += 1;
+    }
   }
   return count;
 }
@@ -315,9 +312,11 @@ try {
   assert.ok(sbom.components.some((component) => component.name === "mupdf"));
   assert.ok(sbom.components.some((component) => component.name === "@firecrawl/anydoc"));
   assert.ok(sbom.components.some((component) => component.name === anydocNativePackage));
+  assert.ok(sbom.components.some((component) => component.name === "setimmediate"));
+  await fs.access(path.join(activeRoot, "app", "node_modules", "setimmediate", "package.json"));
   await fs.access(path.join(activeRoot, "licenses", "OFFICEKIT-LICENSE.txt"));
   await fs.access(path.join(activeRoot, "licenses", "NODE-LICENSE.txt"));
-  assert.equal(await countTemplateCards(installedPackage), 21);
+  assert.equal(await countTemplateCards(installedPackage), 52);
 
   const project = path.join(temporary, "empty-project");
   await fs.mkdir(project);
@@ -327,7 +326,7 @@ try {
     { NODE_DEBUG: "esm" },
   );
   const initialized = JSON.parse(initializationProbe.stdout);
-  assert.equal(initialized.created, 9);
+  assert.equal(initialized.created, 11);
   assert.doesNotMatch(
     initializationProbe.stderr,
     /node_modules\/mupdf|src\/pdf\/mupdf|runtime\/office-kit\/main|src\/codecs\//iu,
@@ -343,7 +342,7 @@ try {
   for (const [kind, expected] of [
     ["document", 7],
     ["spreadsheet", 6],
-    ["presentation", 8],
+    ["presentation", 20],
   ]) {
     const searchProbe = runOfficeKit(
       ["template", "search", "--kind", kind, "--max", "20", "--json"],
@@ -362,7 +361,7 @@ try {
     );
     templateCount += search.candidates.length;
   }
-  assert.equal(templateCount, 21);
+  assert.equal(templateCount, 33);
   assert.equal(
     await fs
       .access(path.join(project, ".open-office-artifact-tool", "providers"))
@@ -383,21 +382,19 @@ try {
   assert.equal(await fs.realpath(taskResult.cwd), await fs.realpath(project));
   assert.equal(taskResult.publicSubpaths, Object.keys(packageMetadata.exports).length);
   assert.equal(taskResult.anydoc, "ready");
-  await fs.writeFile(path.join(project, "standalone.ppj"), `${JSON.stringify({
-    schema: "office-kit/ppj/v1",
-    meta: { id: "standalone", title: "Standalone", language: "en-US", version: 1 },
-    intent: {},
-    design: {},
-    pages: [{
-      id: "page-1",
-      elements: [{
-        type: "text",
-        id: "title",
-        frame: { x: 40, y: 40, width: 400, height: 80 },
-        text: "standalone PPTX",
-      }],
-    }],
-  }, null, 2)}\n`);
+  const standaloneProgram = JSON.parse(await fs.readFile(
+    path.join(installedPackage, "examples", "ppj", "minimum.ppj"),
+    "utf8",
+  ));
+  standaloneProgram.meta.id = "standalone";
+  standaloneProgram.meta.title = "Standalone";
+  standaloneProgram.pages[0].id = "page-1";
+  standaloneProgram.pages[0].elements[0].id = "title";
+  standaloneProgram.pages[0].elements[0].text = "standalone PPTX";
+  await fs.writeFile(
+    path.join(project, "standalone.ppj"),
+    `${JSON.stringify(standaloneProgram, null, 2)}\n`,
+  );
   const ppjBuild = JSON.parse(runOfficeKit([
     "ppj", "build", "standalone.ppj", "-o", "standalone.pptx", "--json",
   ], project).stdout);
