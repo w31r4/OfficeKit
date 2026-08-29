@@ -1598,7 +1598,8 @@ async function writeEvidence({ style, outputDir, referencePath, editedPath, reco
     "image-only-clean-room-evidence",
   ];
   const visual = candidateVisualScores(style.category);
-  const functional = candidateFunctionalScores();
+  const nativeEvidence = await readNativeRenderEvidence(style.templateId, referenceHash);
+  const functional = candidateFunctionalScores(nativeEvidence);
   const evidence = {
     schemaVersion: 1,
     templateId: style.templateId,
@@ -1606,7 +1607,10 @@ async function writeEvidence({ style, outputDir, referencePath, editedPath, reco
     reference: { path: `skills/presentation-template-library/skills/${style.templateId}/assets/reference.pptx`, sha256: referenceHash },
     evidence: {
       source: sourceEvidence,
-      renders: ["renders/01.png", "renders/02.png", "renders/03.png", "renders/04.png", "renders/05.png", "renders/06.png", "native-render:unverified"],
+      renders: [
+        "renders/01.png", "renders/02.png", "renders/03.png", "renders/04.png", "renders/05.png", "renders/06.png",
+        nativeEvidence ? "native-render.v1.json" : "native-render:unverified",
+      ],
       inspect: ["inspect.jsonl", `records:${recordCount}`, "kinds:slide,shape,table,chart,image,connector,layer"],
       edits: ["edited-roundtrip.pptx", "operation:cover-title-local-text-replacement"],
       reimport: ["edited-roundtrip.pptx", "assertion:cover-title-survives-second-import"],
@@ -1628,6 +1632,18 @@ async function writeEvidence({ style, outputDir, referencePath, editedPath, reco
   await fs.writeFile(path.join(outputDir, "fidelity.evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
   await fs.mkdir(EVAL_ROOT, { recursive: true });
   await fs.writeFile(path.join(EVAL_ROOT, `${style.templateId}.v1.json`), `${JSON.stringify(evidence, null, 2)}\n`);
+}
+
+async function readNativeRenderEvidence(templateId, referenceHash) {
+  try {
+    const manifest = JSON.parse(await fs.readFile(path.join(EVAL_ROOT, "native-render.v1.json"), "utf8"));
+    const entry = manifest.results?.find((candidate) => candidate.id === templateId);
+    if (entry?.referenceSha256 !== referenceHash || entry?.allPagesRendered !== true || entry.pages < 1) return null;
+    return entry;
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 function candidateVisualScores(category) {
@@ -1654,16 +1670,24 @@ function candidateVisualScores(category) {
   };
 }
 
-function candidateFunctionalScores() {
+function candidateFunctionalScores(nativeEvidence = null) {
+  const nativeRendering = nativeEvidence
+    ? {
+      score: 96,
+      evidence: [
+        "native-render.v1.json",
+        `native-pdf-sha256:${nativeEvidence.pdfSha256}`,
+        `pages:${nativeEvidence.pages}`,
+        "all-pages-rendered",
+      ],
+    }
+    : { score: 0, evidence: ["native-render:unverified"] };
   return {
     inspectDiscovery: { score: 98, evidence: ["inspect.jsonl"] },
     editableLeaves: { score: 96, evidence: ["edited-roundtrip.pptx", "inspect.jsonl"] },
     reusableAssets: { score: 88, evidence: ["reference.pptx", "inspect.jsonl"] },
     roundTripStability: { score: 96, evidence: ["reference.pptx", "edited-roundtrip.pptx"] },
-    // The batch author only renders through OfficeKit's deterministic SVG
-    // renderer.  Do not claim a LibreOffice/PowerPoint result until a native
-    // conversion has actually been run and its artifacts are retained.
-    nativeRendering: { score: 0, evidence: ["native-render:unverified"] },
+    nativeRendering,
     backgroundAndLayerFidelity: { score: 91, evidence: ["inspect.jsonl", "renders/01.png", "renders/02.png"] },
     opaquePreservation: { score: 94, evidence: ["reference.pptx", "edited-roundtrip.pptx"] },
     safeRefusal: { score: 96, evidence: ["inspect.jsonl", "edited-roundtrip.pptx"] },

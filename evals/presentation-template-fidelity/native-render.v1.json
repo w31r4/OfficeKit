@@ -7,33 +7,63 @@
   "results": [
     {
       "id": "artifact-template-amber-committee-memo",
-      "referenceSha256": "9f7a20c0f96d6de4ee5df67ccde58895c986fe8c60b2da0941264acbc6ac4c68",
+      "referenceSha256": "0fe0cd5a4d34aa75fc87ccf50def400d276ff2cc5a6790ba8bfded46be542a25",
       "mediaCount": 1,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 388047,
-      "pdfSha256": "7d989092ecdf910a667ae7e873767aa1080ab5578072d84cdfff6c2a19e0bd82",
-      "firstPageRendered": true
+      "pdfBytes": 600376,
+      "pdfSha256": "0036762c5149dedc4bbe1d2641ca1ca6e5904f412e2a962d5869b2eecd1eea76",
+      "firstPageRendered": true,
+      "firstPageSha256": "258ad277b091ca0a2aeda616c75bd2a3b9c542fc6931508df6e67016276eb1e7",
+      "pageSha256": [
+        "258ad277b091ca0a2aeda616c75bd2a3b9c542fc6931508df6e67016276eb1e7",
+        "7af32db2725a1fdf042e5faab171a4a998765c5d725824464b67b52444cad759",
+        "f0c9e5155e3b3658a45e254759c442a1b85f5e58d293eafb7af7bdd86185258a",
+        "5c94dd5927ede0e98dfd4fba7fa5115217f031e5632e3f75dfd65053c725ebfe",
+        "bc2d1be1dfe24171b77ccd537fb716109cd2970564eeae5afef54fe228d98bea",
+        "f7d67d24560c8949cae8234c4e7d12b3ca2ce1cdd8888c03ea7477c9d762831d"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-apricot-dossier",
-      "referenceSha256": "981db37649b4cdc51929bd8b44b67c153fc0b2ece26dca0d002db4c3af01ac3d",
-      "mediaCount": 6,
+      "referenceSha256": "d86957fdc5d17d9d461edcb75e89e20ed3968bf7400e3126f54bfa2a00b88b57",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1112084,
-      "pdfSha256": "d920780083a90f70430eb03ba0b9bbf06cb0d211583cfbd2fb64f571dc701ca9",
-      "firstPageRendered": true
+      "pdfBytes": 1204282,
+      "pdfSha256": "4f4aab8f9ffbdde8e96ac8561762e362479fb761cee14a1416e7020ef094c9b8",
+      "firstPageRendered": true,
+      "firstPageSha256": "aab733d892be2d5cb4b8c436f6c17c00dccfb878e2411a3c7e1913bc89528b2a",
+      "pageSha256": [
+        "aab733d892be2d5cb4b8c436f6c17c00dccfb878e2411a3c7e1913bc89528b2a",
+        "32c04ed46e2ac624ab9307e4b39be9b26d3bfeb80b468a92b1c08e481a0777e9",
+        "4c36012076fe23daffe339463e971b8c5798bd6c51dfd2d179bafa7a5585d2e5",
+        "05acfd8e99977da5260f6e925703d8286b5603e9404fad61fe74224c1eb16145",
+        "d3d9b6baa3555534371b46558fb718a14f1914327d4031cad2e0686bd124babb",
+        "0a92f43268191941aba253b7c7f67beef2cc3b6838a302533e2bd1177cc708f6"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-aqua-impact-story",
-      "referenceSha256": "67d9f11f8d1cd4c701b298846dd30e4fc4ede1cc35b2c60d1776703baf4baa88",
-      "mediaCount": 11,
+      "referenceSha256": "3a7ba070244d3082478ac54dd161a6948b26ce86c9a11799b28b23de93112fc8",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1538481,
-      "pdfSha256": "db6c6e8a635d01073c8cf2f5659428e9eee324c258ace6ea7fa34d54c10c0ec2",
-      "firstPageRendered": true
+      "pdfBytes": 1916252,
+      "pdfSha256": "a1e412c97471cc24c035dcfe70a9737da8329b0059b615b2a0539869448ac628",
+      "firstPageRendered": true,
+      "firstPageSha256": "f49bc7810dc7d049e2eeb675b988d13202b964dac805209bca11fd31d5c63203",
+      "pageSha256": [
+        "f49bc7810dc7d049e2eeb675b988d13202b964dac805209bca11fd31d5c63203",
+        "3e1a64548061248352d922687606457eee9771199c481ad9b9bd6edb28ff089f",
+        "f451f8a9234f0b36cb60fad02a2c4d40d2aa74e043188833608723238654b23b",
+        "717a2745441a8c749702a991e8a626b778efc9fcf81b3681b3e0d4259d06e964",
+        "0004f62fc7c6d057e790d776aa03612483f04af7da007cc0fb744cabb3dc7317",
+        "a5bdb8d6a749db68b3209c0f4d236d6e40691ae33ebe2f78bb8b114ec4bc2008"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-axis-atlas",
@@ -57,13 +87,23 @@
     },
     {
       "id": "artifact-template-blueprint-lecture",
-      "referenceSha256": "39de1dd3222af41ab22ded2dce3fbe392be696a3c99fe87d304979b8de55ff16",
+      "referenceSha256": "363245dd0b7295ea99c6bc5fa7bc71a2541be81a34dfba88170ad818217c1af0",
       "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1036156,
-      "pdfSha256": "157eafaae1ec14ae24ffec21d3d441757e4476a9a2a957122fcb521b78555dad",
-      "firstPageRendered": true
+      "pdfBytes": 1093221,
+      "pdfSha256": "b1ac26e2b478dbe7a67e3381c1ba4bf92f9b298ff8c2473bdf883c23ff94f739",
+      "firstPageRendered": true,
+      "firstPageSha256": "6bc61676ff3c9d0972bdbc7f17673a908d5471e466b3b1203f4edfaa5d65763f",
+      "pageSha256": [
+        "6bc61676ff3c9d0972bdbc7f17673a908d5471e466b3b1203f4edfaa5d65763f",
+        "8930f7aaa571722a15af7e821d7f2721b5a14dd62468185a81ca590c0561836e",
+        "3ccc57c14e8dfa295d163be0337cffa30bfd7072611c5602adcf6933d715f609",
+        "d87040a88425e4e3b615e0d86454f6c61a7f36aa703c5827d77db4d9ffb121ae",
+        "d59d090a5c976951e873d69b0dec2caa906da3cfc73807206be5f9bd60d699b4",
+        "ea703ef9364f8cae50ecf160a91bc1a405e32c5e57bc39122a10a591d8fb8bee"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-clay-craft-review",
@@ -77,13 +117,23 @@
     },
     {
       "id": "artifact-template-coastal-analysis",
-      "referenceSha256": "d088d713946b2e2db31a143cabbcf14ad3f203fe810a0bf4983b5fe9a9403abf",
-      "mediaCount": 1,
+      "referenceSha256": "702b411b713f2224ea4a48a0493ac35c2bdd68083b68e818e02345011c4d75b9",
+      "mediaCount": 2,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 346070,
-      "pdfSha256": "bade295d646595eba64b4d1a5a1993d5254c6ad559aabe966cd2469ccd060f3e",
-      "firstPageRendered": true
+      "pdfBytes": 895801,
+      "pdfSha256": "1c8a9c747e2217ebf09dff074e5a92787a5683a8c9c98c15a595e7404c26d0ce",
+      "firstPageRendered": true,
+      "firstPageSha256": "9e3d32c4b5760683cda760db25e7d4d83ceb0414fb58e8b526241bd075de3b2b",
+      "pageSha256": [
+        "9e3d32c4b5760683cda760db25e7d4d83ceb0414fb58e8b526241bd075de3b2b",
+        "94ba9e7fbc530073afd7326b054ed372e3dd99e00dd5c4337e4f6b9bd3fb41af",
+        "0251a58db72ebd515fd4a98f9eedce69c121c4c06a9bc641b2b2155b562f615c",
+        "45403ecdc4f2c86e080a8420d178ae7cc2c9eb6fb793dfb408c660f047e6108c",
+        "8f02fd639aa70fd639198d2a6574584cbfe0443c3d2fdd5aefde65f5c9978b6f",
+        "86b3509d5b2e6412011ec6ea5070152227268a5729bc752b9137f03f683ec3b9"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-coral-growth-brief",
@@ -127,13 +177,23 @@
     },
     {
       "id": "artifact-template-forest-strategy",
-      "referenceSha256": "4ec6e6e12b6fd263d53da64689f63620bc5718239206604821b1215606a773b4",
-      "mediaCount": 6,
+      "referenceSha256": "787a13bfe43b3b0304fc23db99eef60dcbeb4e00359fd1e0328a9d2be0e8f9e6",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1152011,
-      "pdfSha256": "892ba643dcfeab7e47b34d826a149cbdab829f4ec63497179d4f376e1b7408c2",
-      "firstPageRendered": true
+      "pdfBytes": 1279310,
+      "pdfSha256": "55f73396c262cfb5d0dac5a475dbe3eb041223d9ace8fdc5b1b8aec221a1946b",
+      "firstPageRendered": true,
+      "firstPageSha256": "7706ea0855b2dc3f62bad274010be6a7d20c8d0b029c6a26ea9721d54c88aadd",
+      "pageSha256": [
+        "7706ea0855b2dc3f62bad274010be6a7d20c8d0b029c6a26ea9721d54c88aadd",
+        "d0603fc265a681c646eb4b1a573508991fdfe9618404e0aecf1fc3dfd848f72e",
+        "20aa122129be42805363c62bcc15cc65e20de0919107c46eb76d1b0a8fa78f7b",
+        "ea9392f98bc4f273376906c9ca8583d6890cdb5b7a91ae323bd55156bd9f5e73",
+        "470ee7ab272141e2769cc4a05e8483be6fdc5058f7674fca429e711aa83c022a",
+        "b581c1023347d4ab9ddc70cde52c254e21ef86666693aa17dd5ea0ce3a44b245"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-gilt-market-ledger",
@@ -157,23 +217,43 @@
     },
     {
       "id": "artifact-template-jade-annual-brief",
-      "referenceSha256": "9b047c52d2c677c8044a3d8988c964a6efeb95abfc3c1db40a68f169c2031fd7",
-      "mediaCount": 1,
+      "referenceSha256": "40f648367180841e87461652e8a2a78cdba1ea0bc9c79e7aab3659b198838e2b",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 351152,
-      "pdfSha256": "53b6b5720e15d64963ccaea7367ec4c53a407d9ef9da6983b54ec4b786cc528b",
-      "firstPageRendered": true
+      "pdfBytes": 1023173,
+      "pdfSha256": "194cae5cb71c2944cf006d7ebc2f541c16359944dc4bed9d9dccb9a74fb57962",
+      "firstPageRendered": true,
+      "firstPageSha256": "fd12c185e5a6ddce7f62591c9ec11bf8f670c5692fec31316b9e3c08a015a83b",
+      "pageSha256": [
+        "fd12c185e5a6ddce7f62591c9ec11bf8f670c5692fec31316b9e3c08a015a83b",
+        "f5de7eb722bb885d353ab6f32ec5f51ae8dd2ba5cfbbe92980475077ed4d32d6",
+        "1eba7f2a5f52dc8563cb4da434d005c4b62d296930282ca93dab1924d2f1d988",
+        "29885adfc6bde775cba5a2ae0a859c2d5622c43c2c4fb007997bb23d984e6a84",
+        "7529bcef7e9abb674e6ee9560e8314c402c4e63a9b063aabc6e6ead2405a1c6d",
+        "1091d8e126b957d220b1addb415247086be842264dbaa1ba5c62856805a58a1b"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-lake-research-journal",
-      "referenceSha256": "30b53a96aab06fcf0dd28e10cac0f1e9df135e0e4898c78b15a168833d6c2f5b",
-      "mediaCount": 0,
+      "referenceSha256": "1aa4eff9760ebb7148c55ec094446baf42ff12effd12552190a7145cf5343147",
+      "mediaCount": 1,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 233295,
-      "pdfSha256": "85b19212ca0bce16f6fb5044dcf82678fee5c34042bcaa5a56ed6b7a4f4abda7",
-      "firstPageRendered": true
+      "pdfBytes": 655824,
+      "pdfSha256": "66d4079a215e8fe0b44d565a2e7379dce4356c30af174ad127bc4c8da70a8659",
+      "firstPageRendered": true,
+      "firstPageSha256": "70052cc6fa75266b80b79f1dd493a321d12235a2bb7088d51bd967fd01fc0692",
+      "pageSha256": [
+        "70052cc6fa75266b80b79f1dd493a321d12235a2bb7088d51bd967fd01fc0692",
+        "03508097aa2033e1113a3f3b2808e3ce61e158908ee767c77d246dc7c2eb1cd1",
+        "d2c401ae53131ca826b0fba8c7d56715ac51a1ee5c5d86eab43ce26f45d7a2a3",
+        "b2641a63fe466f492dd2501cfb31c7c2ae13dfee49436be75ab353d711565591",
+        "0f6af5c5935fc22c6297ff3a1be5711c06218f64cdd190526aaeac4fadcb7f8a",
+        "43617fab07b365687820d21873547c8f640bdf6b344149e384f08fd1ef226784"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-midnight-prospectus",
@@ -187,13 +267,23 @@
     },
     {
       "id": "artifact-template-moonlit-work-report",
-      "referenceSha256": "f9b191e4dc438a58fcf4de04bd4375e4bad52249313c8ff53d9a6add83143018",
-      "mediaCount": 9,
+      "referenceSha256": "ff9f05f543db8562efd477d14b4bfd38295ce8d57347cac4f3bfdb211dbc2300",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1547642,
-      "pdfSha256": "fa185646e9bb60fd1b8c6fffaf4fdad86ff140c524f5f2a41f0394b4e06ddf42",
-      "firstPageRendered": true
+      "pdfBytes": 1374452,
+      "pdfSha256": "7d762725a530b21cdbf3d1681d9455255b80420738deaff94ed5cd7f6cbfb5d0",
+      "firstPageRendered": true,
+      "firstPageSha256": "105ce55020058b073201e85a858770c97cb6cb4e3d4f4ab51550b7df2c7ed08d",
+      "pageSha256": [
+        "105ce55020058b073201e85a858770c97cb6cb4e3d4f4ab51550b7df2c7ed08d",
+        "253170abc1e708eeb227bf7abf229ee322779572eb73805fee178d2f5f43ba99",
+        "0e7c0cf8afb6495351d57a090a1c29bae1ec984f6a9e90b45e0423b14293c662",
+        "5b9356ece418bc9127d39ee5ba9f71e871dfb698c9a1aae39176f00ac50ba1fc",
+        "71aa0fd4a7bc95d123e434066ffb9287952481ffda5360d097d8c78f4a321485",
+        "394277a1476e68ff4434b67253f7045a07d779d33795d608bb127bb2e1f3449d"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-moss-transformation",
@@ -207,23 +297,43 @@
     },
     {
       "id": "artifact-template-noir-field-pictorial",
-      "referenceSha256": "e3e563d8d37b0f9737d1f5007ff324f8c5770dd37ab755dac3c42a0e04e109b4",
-      "mediaCount": 12,
-      "pages": 6,
-      "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1854209,
-      "pdfSha256": "50ad9d11bc9dd0989dd86dcda5588eb913c9a493d66a3cb3447630553b5cd4b4",
-      "firstPageRendered": true
-    },
-    {
-      "id": "artifact-template-paper-seminar",
-      "referenceSha256": "872595a42e85728e0c2005c819cc6f957d38aad5eedeac1c27f7afc766d1b71a",
+      "referenceSha256": "a436f697e0763780f4c9ee9dfc7e91f5141c7f39f27338415287f7332bbb1135",
       "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1001897,
-      "pdfSha256": "f309d60fcbd7cf94cf2dcbf7d233b87e237a10f1486ba6aaa31d30e4355242f6",
-      "firstPageRendered": true
+      "pdfBytes": 1385573,
+      "pdfSha256": "e838095971aea5f1000d4809edec076c44e7eaa1bc691e79a7b5e68967c270c5",
+      "firstPageRendered": true,
+      "firstPageSha256": "c695bb207aefe477b1ecd79c4d6b6b42a00e9dda1d73ce7d7488139283c9c301",
+      "pageSha256": [
+        "c695bb207aefe477b1ecd79c4d6b6b42a00e9dda1d73ce7d7488139283c9c301",
+        "f32bca525ec9427a7607347498ce384c4fae58979fbd9a97b534b961bf6d5de7",
+        "ec1d6c4d0e3a59484d1a8e609a09ccdf357b679ea4f644abd0edf9703025bd67",
+        "6b206b1ae05993131b1070d3164fa991e61395d328e52b45365944f3091d75ca",
+        "e6886a4542238b11414435143243170caf0c4de2da227cdae8df0a08451cf176",
+        "1dccd204c13baf3c5fae2eff921bf5f3035b465aac52f3c46acf61c42ebf4f15"
+      ],
+      "allPagesRendered": true
+    },
+    {
+      "id": "artifact-template-paper-seminar",
+      "referenceSha256": "97b8bdff4236225d1656ee4c8c9604d50fc9ee1dc68be0ca2776d629b8cbdde2",
+      "mediaCount": 4,
+      "pages": 6,
+      "pageSize": "1199.99 x 675.014 pts",
+      "pdfBytes": 790917,
+      "pdfSha256": "720d6c13e521f156faf6c6e543b7222e77193bdb437d66bd3ee0a35d6f046466",
+      "firstPageRendered": true,
+      "firstPageSha256": "b45006ecb55a76df1376ac4617f74d1cd9f3d5aea7caf1a6e83efbeded2e4aed",
+      "pageSha256": [
+        "b45006ecb55a76df1376ac4617f74d1cd9f3d5aea7caf1a6e83efbeded2e4aed",
+        "c29d98a748af808eb33c4aa7daaca8015b0d6bf2445ddbaf9eae403670f1fec8",
+        "c763276f864aefcc8e06e929bd1f9cd2d3ae3e9082763a92af222a0d849e3f14",
+        "3475933030335febf4f5e0745e0ab04c5d1ffdf4ca273112b4cf739c28622a0a",
+        "19212acec9cecfba8e6c628790b3722c0c6b6e97a53f0295ede84a1ef38b0934",
+        "e8c8ec8cf836d1c8c59d956a979f152a1b8bd4bc0c10760efbe2913c17be63da"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-rice-paper-yearbook",
@@ -237,43 +347,83 @@
     },
     {
       "id": "artifact-template-river-handbook",
-      "referenceSha256": "8f10d9e74706e5824fb1d4af19843206b1e07e027e7e0e26981b561fcbb55aea",
-      "mediaCount": 7,
+      "referenceSha256": "f6a4ba48a0fbe4dca0534fcf160c016b759a20e7b4d3a757fcf004e989db3af1",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1693695,
-      "pdfSha256": "551d20aba058dabd1be5004a3bbfee674180bb34f0b1d1da75e83cbeb31105d9",
-      "firstPageRendered": true
+      "pdfBytes": 2023618,
+      "pdfSha256": "d834664c588dab43cbd0d533bce2e8003d7319d866cc16fd3b0df71b06f9f9d6",
+      "firstPageRendered": true,
+      "firstPageSha256": "a3af37c366bccf53a9b21e9b3def85db4abbbde811732be0d8bce262c2cf6e99",
+      "pageSha256": [
+        "a3af37c366bccf53a9b21e9b3def85db4abbbde811732be0d8bce262c2cf6e99",
+        "68b08eacaf30229f45c2323b9a965bbd7f2ba1b3491cc3b1e26f027e879998e6",
+        "04a2647658fea633048e6fc0975acae609f8445b68656ce1b4a6823a10495ce8",
+        "0d54b050730ea34e6066035b4cd48dbe27aa7c4930e75cff644fc6d56f1887ca",
+        "bb023f8eca605c2b2cbe598a4b6300df77a518d575f7cf73e8363a18dac5765e",
+        "c0f1dbf5c31e84e1bf811bcc45d4614171c82e566861f6c42e5f03039d76c2b6"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-saffron-editorial",
-      "referenceSha256": "9d3f3f3dcc717bb3c068db96b0a1680e1b49fc47114109f958e4cf8361643189",
-      "mediaCount": 11,
+      "referenceSha256": "decb71fcf4709b743b5370eac34113978070596cefb490592b6d5e83f3664040",
+      "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1405441,
-      "pdfSha256": "08fd2b3a30f9772f2e5620b22e443e751217201540e143b73d03c0308e3782dd",
-      "firstPageRendered": true
+      "pdfBytes": 1703416,
+      "pdfSha256": "1d8a374ee1d80d4782ce2ea8b38dfcc0369a61165844fd4a6db794332ff4ac37",
+      "firstPageRendered": true,
+      "firstPageSha256": "5c637d655dcebf2cefb8ebb734ddc085c25579a4ddf5da0513cea779a04f6b30",
+      "pageSha256": [
+        "5c637d655dcebf2cefb8ebb734ddc085c25579a4ddf5da0513cea779a04f6b30",
+        "3a020044e02c9efc5df2842d3585c81b47e47e3e50f9b717635946986a5a96db",
+        "bf54fd2fa547339b2873396a3f845c371fd501ff09e15934ccfa74fa5b526e02",
+        "3eacffc4d95f7ac0afa6a4b6788ff3b49b4ab982546c5db3d6f63126387f7c56",
+        "3b23fa6eaef80423b3413e183fc24dd94c2f876340769e2e6a3b3ba1c5da99a0",
+        "66e4867adf9bb8623539e954a899c4baccf48d9cac1022aca8189d26b2f16bf1"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-silver-atelier",
-      "referenceSha256": "8100fa9346e4a9cad54333ae5a0fd3c56f42551774ef02419eb8a85722c3cd22",
-      "mediaCount": 6,
+      "referenceSha256": "6613901957536646f4caa085f9a9da658e55b4dc3951573c2a712d0a35b58687",
+      "mediaCount": 4,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1002450,
-      "pdfSha256": "413d32046237c8d3d580405ed4bc41dc640c901d2db563156ce17fc7497c807d",
-      "firstPageRendered": true
+      "pdfBytes": 1227942,
+      "pdfSha256": "5ad329c2f567ef14250a7c1f6cce0e8597966324e15345192bb2edfc5c10ae73",
+      "firstPageRendered": true,
+      "firstPageSha256": "1f87ffd13ff8877c96f662617a1db9401b1423d65647ab0bcea4493f13d45fac",
+      "pageSha256": [
+        "1f87ffd13ff8877c96f662617a1db9401b1423d65647ab0bcea4493f13d45fac",
+        "0e4151b95ddb26d7931ac052d820b2af03027f3a05710932d30dd75efb1b9667",
+        "38070b5acf4e70aadb1850decd2376b521041aed80c5af9b6121dae8dbbaac0b",
+        "993b624747cb0fcd170fc5e9d08c9f66d878d485392f5b1411a08b6094be0b8b",
+        "9331e6686fb21206770617e7851f46cd4f5f454c2d78c584987f01145f2386d1",
+        "d15a77de9f5108b6be320c03a7893ce20bc1b97f026216a179793c8bb08fab68"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-skyline-wayfinding",
-      "referenceSha256": "c66068b0b64a70f81cada43b35083c7dea0af41a14ea8c1d7f1d3f4c7623adc0",
-      "mediaCount": 1,
+      "referenceSha256": "aecc6c49ca2f5dce5c85b5da38b5533b25dc4c7147d3514f9db2d6777b6f391c",
+      "mediaCount": 2,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 481455,
-      "pdfSha256": "deb5b8c0a3ccde3a8eb0fd9fc57a8a504661aeaab33c6b6266e028cd7df4a50d",
-      "firstPageRendered": true
+      "pdfBytes": 730326,
+      "pdfSha256": "7184e01ad3a1d6a54035def5de9f800ce4a86fd5ddc64cba162923bdcf86d4e3",
+      "firstPageRendered": true,
+      "firstPageSha256": "e9055001d522a80ed3d494e2841fa48de737f4997730530d995a5e68f189ead9",
+      "pageSha256": [
+        "e9055001d522a80ed3d494e2841fa48de737f4997730530d995a5e68f189ead9",
+        "f1ae7d9a6ff8f216b58e1e14433429b5769e3a36b0a691322573219aa60ad60b",
+        "1fb0dd31cef4a7316d2210ac58b06a2bf064647e9fb75c214607f4038e8f964e",
+        "051b33e88e74d8926adae780c19f34ce6c1a2790921f772cd9af9a95ec0807a9",
+        "102d8e7e9f20e328513f091f800ff3fd81b34b21e661fd68b07c99717f240492",
+        "412703cf4baf7c7cf7eb2d333a0f06ac06548988b55c9c220f268484940ee8e3"
+      ],
+      "allPagesRendered": true
     },
     {
       "id": "artifact-template-soft-proof",
@@ -297,13 +447,24 @@
     },
     {
       "id": "artifact-template-violet-operations",
-      "referenceSha256": "da7d7bf022f8cb84f5dcd6b69309bd71f7d60522fc74458b852a71aaf34def0e",
+      "referenceSha256": "29f60a5196d52183d8e1696c7510e10a607b9b74fab6f0950365bd4b9d859a27",
       "mediaCount": 5,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 947852,
-      "pdfSha256": "cca9629ca423d8e5fb3b083db3edb68e0dd1cc5a44d57ce1b0f7fcf28a4660a3",
-      "firstPageRendered": true
+      "pdfBytes": 1017151,
+      "pdfSha256": "f8c2ad8427e12548ecf0f26ce2dad2b6ce534d2c86b37507c42f17ef037d4140",
+      "firstPageRendered": true,
+      "firstPageSha256": "3cf23805798757f6bb6d5feab7a7c0159ca6f53c21aa675a72e382704f500218",
+      "pageSha256": [
+        "3cf23805798757f6bb6d5feab7a7c0159ca6f53c21aa675a72e382704f500218",
+        "13357c42c089fdb072bce6997d66a46922d946acd198873d649c0dad6c048191",
+        "49569e75f249d1d3de096bae357c8c43d96b0fad65bd76b02445ec4b2e54ba8d",
+        "68c304794f4e1f39ff7cbaddaae9bbcf0c797433c0780029dd03428ae37a22b5",
+        "0ee79fcced787e7ca4e22512910dbe5427c8d8d7af888373da5311b0eb61eae1",
+        "d9321868000d8fbd6c82a8cc581eba79e066af23007b0d60aab1c0dd8a21502a"
+      ],
+      "allPagesRendered": true
     }
-  ]
+  ],
+  "generatedAt": "2026-08-29T00:10:00Z"
 }
