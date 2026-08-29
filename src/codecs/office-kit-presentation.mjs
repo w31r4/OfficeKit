@@ -1002,7 +1002,9 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   const fontFamilyEastAsia = explicitEastAsianFamily ?? (fontFamily && containsEastAsianText(runText) ? fontFamily : undefined);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
-  const colorRgb = style.color == null ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
+  const colorToken = style.color == null ? undefined : String(style.color).trim();
+  const colorScheme = colorToken != null && PRESENTATION_SCHEME_COLORS.has(colorToken) ? colorToken : undefined;
+  const colorRgb = style.color == null || colorScheme !== undefined ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
   if (colorRgb === "") {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
   }
@@ -1021,6 +1023,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
+    ...(colorScheme === undefined ? {} : { colorScheme }),
     ...(hyperlink ? { hyperlink } : {}),
   };
 }
@@ -4623,6 +4626,34 @@ function createPresentationNativeLeafCapability(presentation, state) {
               },
             });
           }
+          const colorScheme = leaf.run.colorScheme;
+          if (typeof colorScheme === "string") {
+            const expectedValue = NATIVE_SCHEME_COLOR_CANONICAL[colorScheme.toLowerCase()];
+            if (expectedValue) {
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontColorScheme",
+                expectedValue,
+                value: expectedValue,
+                details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+                normalize(next) {
+                  const normalized = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+                  if (!normalized) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontColorScheme leaf requires a supported theme color token.");
+                  }
+                  return { raw: normalized, publicValue: normalized };
+                },
+                isNoop(next) { return next === expectedValue; },
+                apply(next) {
+                  const paragraphs = model.text._paragraphs;
+                  const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                  if (!run || typeof run !== "object" || run.break || run.field) {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-color native leaf no longer resolves to the imported text run.");
+                  }
+                  run.style = { ...(run.style || {}), color: next };
+                },
+              });
+            }
+          }
         }
         // Direct paragraph alignment is a safe source-bound token when the
         // imported run topology is otherwise editable.  Use the paragraph
@@ -5871,6 +5902,7 @@ function modelRun(run, customShowLinks) {
       ...(run.underline === undefined ? {} : { underline: run.underline }),
       ...(run.strike === undefined ? {} : { strike: run.strike }),
       ...(run.colorRgb === undefined ? {} : { color: `#${run.colorRgb}` }),
+      ...(run.colorScheme === undefined ? {} : { color: run.colorScheme }),
     },
     ...(hyperlink ? { link: hyperlink } : {}),
   };

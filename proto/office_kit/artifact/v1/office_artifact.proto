@@ -164,7 +164,7 @@ message PresentationEditOperation {
   // textBodyWrap, textBodyColumnCount,
   // fontSizePoints, fontFamily,
   // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
-  // fontColorRgb, fillRgb, fillScheme,
+  // fontColorRgb, fontColorScheme, fillRgb, fillScheme,
   // lineRgb, lineScheme, lineStyle, lineCap, lineJoin, lineStartArrow,
   // lineEndArrow, lineWidthEmu,
   // leftEmu, topEmu,
@@ -2584,6 +2584,10 @@ message PresentationTextRun {
   // properties remain source-bound.
   optional string underline = 12;
   optional string strike = 13;
+  // Direct DrawingML a:schemeClr token (for example accent1 or tx1). This is
+  // kept separate from color_rgb so source-bound edits can preserve theme
+  // semantics instead of resolving them to a lossy RGB value.
+  optional string color_scheme = 14;
 }
 
 message PresentationTextField {

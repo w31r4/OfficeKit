@@ -110,7 +110,10 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", "Presentation run font family must contain 1 through 255 characters.");
                 if (run.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(run.FontFamilyEastAsia) || run.FontFamilyEastAsia.Length > 255))
                     throw new CodecException("invalid_presentation_text", "Presentation run East Asian font family must contain 1 through 255 characters.");
+                if (run.HasColorRgb && run.HasColorScheme)
+                    throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
+                if (run.HasColorScheme) PptxColor.NormalizeScheme(run.ColorScheme);
                 if (run.HasUnderline) PptxTextDecoration.NormalizeUnderline(run.Underline);
                 if (run.HasStrike) PptxTextDecoration.NormalizeStrike(run.Strike);
                 PptxHyperlinkCodec.Validate(run);
@@ -267,6 +270,7 @@ internal static class PptxTextCodec
         var eastAsianFonts = properties?.Elements<A.EastAsianFont>().Take(2).ToArray() ?? [];
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) run.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
         if (PptxColor.TryDirectSolidRgb(properties?.GetFirstChild<A.SolidFill>(), out var rgb)) run.ColorRgb = rgb;
+        else if (PptxColor.TryDirectSolidScheme(properties?.GetFirstChild<A.SolidFill>(), out var scheme)) run.ColorScheme = scheme;
         if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
         if (PptxTextDecoration.TryStrike(properties, out var strike)) run.Strike = strike;
         PptxHyperlinkCodec.Read(run, properties, slideContext);
@@ -490,7 +494,7 @@ internal static class PptxTextCodec
     };
 
     private static bool HasStyle(PresentationTextRun run) =>
-        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasColorRgb ||
+        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasColorRgb || run.HasColorScheme ||
         run.HasUnderline || run.HasStrike;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
@@ -524,12 +528,20 @@ internal static class PptxTextCodec
             eastAsianFonts[0].Remove();
         }
         var fill = properties.GetFirstChild<A.SolidFill>();
+        if (requested.HasColorRgb && requested.HasColorScheme)
+            throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
         if (requested.HasColorRgb)
         {
             fill?.Remove();
             properties.PrependChild(new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(requested.ColorRgb) }));
         }
+        else if (requested.HasColorScheme)
+        {
+            fill?.Remove();
+            properties.PrependChild(new A.SolidFill(new A.SchemeColor { Val = PptxColor.SchemeValue(requested.ColorScheme) }));
+        }
         else if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
+        else if (PptxColor.TryDirectSolidScheme(fill, out _)) fill!.Remove();
     }
 
     private static void ScrubRunProperties(A.RunProperties? properties, PptxPartContext? slideContext)
@@ -543,6 +555,7 @@ internal static class PptxTextCodec
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
         var fill = properties.GetFirstChild<A.SolidFill>();
         if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
+        else if (PptxColor.TryDirectSolidScheme(fill, out _)) fill!.Remove();
         PptxHyperlinkCodec.Scrub(properties, slideContext);
     }
 

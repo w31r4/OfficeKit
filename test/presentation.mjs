@@ -864,6 +864,40 @@ const fontColorRoundTripLeaf = fontColorRoundTrip.inspect({ includeNativeLeaves:
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorRgb");
 assert.equal(fontColorRoundTripLeaf.value, "#aabbcc");
 
+// Bare run theme colors retain their source token instead of being resolved
+// to RGB. The edit changes only the issued a:schemeClr/@val token.
+const fontSchemeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontSchemeAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:r><a:rPr\b[^>]*)(\/>)((?:<a:t>)Decision)/u,
+  '$1><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:rPr>$3',
+);
+fontSchemeAccessibilityZip.file("ppt/slides/slide1.xml", fontSchemeAccessibilityXml);
+const fontSchemeAccessibilityFile = new FileBlob(
+  await fontSchemeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontSchemeImported = await PresentationFile.importPptx(fontSchemeAccessibilityFile);
+const fontSchemeShape = itemByName(fontSchemeImported.slides.getItem(0).shapes.items, "decision-status");
+const fontSchemeLeaf = fontSchemeImported.inspect({ includeNativeLeaves: true, target: fontSchemeShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorScheme");
+assert.ok(fontSchemeLeaf, "source-bound shapes should expose an explicit run theme-color leaf");
+assert.equal(fontSchemeLeaf.value, "accent2");
+fontSchemeImported.editNativeLeaf(fontSchemeLeaf.targetId, fontSchemeLeaf.leafId, {
+  expectedHash: fontSchemeLeaf.expectedHash,
+  value: "accent1",
+});
+const fontSchemeOutput = await PresentationFile.exportPptx(fontSchemeImported);
+assert.equal(fontSchemeOutput.metadata.editPlan.operations[0].leafKind, "fontColorScheme");
+await assertOnlyDeclaredPptxFootprintChanged(fontSchemeAccessibilityFile, fontSchemeOutput, fontSchemeOutput.metadata.editPlan.operations);
+const fontSchemeXml = await (await JSZip.loadAsync(fontSchemeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontSchemeXml, /<a:solidFill\b[^>]*><a:schemeClr val="accent1"\s*\/><\/a:solidFill>/);
+const fontSchemeRoundTrip = await PresentationFile.importPptx(fontSchemeOutput);
+const fontSchemeRoundTripLeaf = fontSchemeRoundTrip.inspect({ includeNativeLeaves: true, target: fontSchemeShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorScheme");
+assert.equal(fontSchemeRoundTripLeaf.value, "accent1");
+
 // Plain DrawingML run decorations are source-bound leaves.  The fixture keeps
 // the vendor attribute so the contract proves a token-only splice instead of
 // rebuilding the surrounding run-properties element.

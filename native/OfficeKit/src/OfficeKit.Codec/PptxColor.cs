@@ -43,6 +43,20 @@ internal static class PptxColor
         return true;
     }
 
+    // Source-bound run color edits can also preserve a bare theme token. Keep
+    // this strict: scheme colors with transforms or extra attributes remain
+    // source-owned rather than being rebuilt from a lossy semantic value.
+    internal static bool TryDirectSolidScheme(A.SolidFill? fill, out string scheme)
+    {
+        scheme = string.Empty;
+        if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
+        if (fill.FirstChild is not A.SchemeColor color || color.ChildElements.Count != 0 ||
+            !HasOnlyAttributes(color, "val") || color.Val?.Value is not { } value ||
+            !TrySchemeToken(value, out var token)) return false;
+        scheme = token;
+        return true;
+    }
+
     internal static string SolidScheme(A.SolidFill? fill)
     {
         if (fill is null || fill.ChildElements.Count != 1 ||
