@@ -396,6 +396,7 @@ internal static partial class PptxEditPlanCodec
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
+                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "lineRgb") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
                  (projectedElement.Source.TextEditable && LeafKind(operation) == "text" && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
@@ -735,6 +736,30 @@ internal static partial class PptxEditPlanCodec
             return colors.Length == 1 && colors[0].Val?.Value is { } value && PptxColor.TrySchemeToken(value, out _);
         }
         return false;
+    }
+
+    private static bool HasSafeNativeShapeStyle(P.Shape shape, string kind)
+    {
+        var properties = shape.ShapeProperties;
+        if (properties is null) return false;
+        if (kind == "fillRgb")
+        {
+            var fills = properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
+            return fills.Length == 1 && fills[0] is A.SolidFill solid && HasSafeNativeRgbFill(solid);
+        }
+        if (kind != "lineRgb") return false;
+        var outlines = properties.Elements<A.Outline>().ToArray();
+        if (outlines.Length != 1) return false;
+        var fillsOnLine = outlines[0].ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
+        return fillsOnLine.Length == 1 && fillsOnLine[0] is A.SolidFill lineSolid && HasSafeNativeRgbFill(lineSolid);
+    }
+
+    private static bool HasSafeNativeRgbFill(A.SolidFill fill)
+    {
+        if (fill.ChildElements.Count != 1 || fill.FirstChild is not A.RgbColorModelHex color ||
+            color.ChildElements.Count != 0 || color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit))
+            return false;
+        return true;
     }
 
     private static string ReadLeafValue(OpenXmlElement element, PresentationEditOperation operation)

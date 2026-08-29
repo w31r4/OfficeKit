@@ -605,6 +605,30 @@ assert.throws(
   (error) => error?.code === "presentation_native_leaf_not_issued",
 );
 
+// A shape with otherwise safe text and paint can become source-bound when a
+// vendor adds an unknown cNvPr attribute. Its RGB fill remains a narrow,
+// token-spliceable native leaf; editing it must retain that attribute and
+// avoid reserializing the surrounding shape.
+const irregularStyleImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularStyleLeaves = irregularStyleImported.inspect({ includeNativeLeaves: true, target: irregularAccessibilityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const irregularFillLeaf = irregularStyleLeaves.find((record) => record.leafKind === "fillRgb");
+assert.ok(irregularFillLeaf, "source-bound text shapes should expose a safe RGB fill leaf");
+irregularStyleImported.editNativeLeaf(irregularFillLeaf.targetId, irregularFillLeaf.leafId, {
+  expectedHash: irregularFillLeaf.expectedHash,
+  value: "#A1B2C3",
+});
+const irregularStyleOutput = await PresentationFile.exportPptx(irregularStyleImported);
+assert.equal(irregularStyleOutput.metadata.editPlan.operations[0].leafKind, "fillRgb");
+const irregularStyleXml = await (await JSZip.loadAsync(irregularStyleOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularStyleXml, /fixture:opaque="kept"/);
+assert.equal(irregularStyleXml.replace("A1B2C3", "DBEAFE"), irregularShapeAccessibilityXml);
+const irregularStyleRoundTrip = await PresentationFile.importPptx(irregularStyleOutput);
+assert.equal(itemByName(irregularStyleRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill.toLowerCase(), "#a1b2c3");
+
 const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
 const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
 const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeNativeLeaves: true, target: nativeImageGeometry.id }).ndjson

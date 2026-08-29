@@ -4007,6 +4007,29 @@ function createPresentationNativeLeafCapability(presentation, state) {
     if ((!isShape && !isImage) || (isShape
       ? wire.source?.editable !== true && wire.source?.textEditable !== true
       : wire.source?.editable !== true)) return;
+    const registerImportedShapeColorLeaves = () => {
+      if (!isShape || wire.source?.editable === true || wire.source?.textEditable !== true) return;
+      for (const [field, leafKind] of [["fillRgb", "fillRgb"], ["lineRgb", "lineRgb"]]) {
+        const raw = String(wire.content.value[field] ?? "");
+        if (!/^[0-9A-F]{6}$/iu.test(raw)) continue;
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+          expectedValue: raw,
+          value: `#${raw.toLowerCase()}`,
+          normalize(next) {
+            const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+            if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a six-digit RGB color.`);
+            const normalized = match[1].toUpperCase();
+            return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+          },
+          isNoop(next) { return next.toUpperCase() === raw.toUpperCase(); },
+          apply(next) {
+            if (leafKind === "fillRgb") model.fill = `#${next.toLowerCase()}`;
+            else model.line = { ...(model.line || {}), fill: `#${next.toLowerCase()}` };
+          },
+        });
+      }
+    };
     if (isShape) {
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
         const value = leaf.run.content.value;
@@ -4024,7 +4047,10 @@ function createPresentationNativeLeafCapability(presentation, state) {
         });
       }
     }
-    if (wire.source.editable !== true) return;
+    if (wire.source.editable !== true) {
+      registerImportedShapeColorLeaves();
+      return;
+    }
     const scalarFields = isImage
       ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
       : PRESENTATION_SCALAR_LEAF_FIELDS;
