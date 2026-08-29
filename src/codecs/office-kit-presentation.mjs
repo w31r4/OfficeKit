@@ -68,6 +68,12 @@ const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
 ));
 const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
+const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
+  Object.freeze(["left", "textBodyInsetLeftEmu", "leftInset"]),
+  Object.freeze(["top", "textBodyInsetTopEmu", "topInset"]),
+  Object.freeze(["right", "textBodyInsetRightEmu", "rightInset"]),
+  Object.freeze(["bottom", "textBodyInsetBottomEmu", "bottomInset"]),
+]);
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -4399,6 +4405,41 @@ function createPresentationNativeLeafCapability(presentation, state) {
         }
       }
       if (!model.placeholder && wire.source?.textEditable === true) {
+        const bodyProperties = wire.content.value.textBody?.bodyProperties;
+        for (const [side, leafKind, wireField] of PRESENTATION_TEXT_BODY_INSETS) {
+          const choice = bodyProperties?.[wireField];
+          if (choice?.case !== `${wireField}Emu`) continue;
+          const raw = String(choice.value ?? "");
+          if (!/^[0-9]+$/u.test(raw) || BigInt(raw) > 2_147_483_647n) continue;
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind,
+            expectedValue: raw,
+            value: Number(raw),
+            unit: "emu",
+            details: { nativeLeafIndex: 0, inset: side },
+            normalize(next) {
+              if (typeof next !== "string" && typeof next !== "number") {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a non-negative integer EMU value.`);
+              }
+              const token = String(next).trim();
+              let integer;
+              try { integer = BigInt(token); }
+              catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a non-negative integer EMU value.`); }
+              if (String(integer) !== token || integer < 0n || integer > 2_147_483_647n) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the safe EMU range.`);
+              }
+              return { raw: String(integer), publicValue: Number(integer) };
+            },
+            isNoop(next) { return next === raw; },
+            apply(next) {
+              model.text.bodyProperties = {
+                ...(model.text.bodyProperties || {}),
+                insets: { ...(model.text.bodyProperties?.insets || {}), [side]: Number(next) / EMU_PER_PIXEL },
+              };
+            },
+          });
+        }
         const anchor = model.text.bodyProperties?.anchor;
         if (PRESENTATION_VERTICAL_ANCHORS.has(anchor)) {
           registerLeaf({
