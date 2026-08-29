@@ -66,6 +66,7 @@ const PRESENTATION_SCHEME_COLORS = new Set([
 const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
   [...PRESENTATION_SCHEME_COLORS].map((token) => [token.toLowerCase(), token]),
 ));
+const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -4190,6 +4191,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       }
     };
     if (isShape) {
+      const paragraphAlignmentIndices = new Set();
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
         const value = leaf.run.content.value;
         registerLeaf({
@@ -4356,6 +4358,43 @@ function createPresentationNativeLeafCapability(presentation, state) {
               },
             });
           }
+        }
+        // Direct paragraph alignment is a safe source-bound token when the
+        // imported run topology is otherwise editable.  Use the paragraph
+        // ordinal as the native leaf index so the codec can splice only the
+        // existing a:pPr/@algn attribute and leave inherited/list properties
+        // untouched.
+        if (!model.placeholder && wire.source?.textEditable === true) {
+          const paragraphs = wire.content.value.textBody?.paragraphs || [];
+          paragraphs.forEach((paragraph, paragraphIndex) => {
+            const alignment = paragraph.alignment;
+            if (!PRESENTATION_PARAGRAPH_ALIGNMENTS.has(alignment)) return;
+            if (paragraphAlignmentIndices.has(paragraphIndex)) return;
+            paragraphAlignmentIndices.add(paragraphIndex);
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+              leafKind: "paragraphAlignment",
+              expectedValue: alignment,
+              value: alignment,
+              details: { nativeLeafIndex: paragraphIndex },
+              normalize(next) {
+                const normalized = String(next ?? "").trim();
+                if (!PRESENTATION_PARAGRAPH_ALIGNMENTS.has(normalized)) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphAlignment native leaf requires left, center, right, or justify.");
+                }
+                return { raw: normalized, publicValue: normalized };
+              },
+              isNoop(next) { return next === alignment; },
+              apply(next) {
+                const current = model.text._paragraphs;
+                const target = current[paragraphIndex];
+                if (!target || typeof target !== "object") {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-alignment native leaf no longer resolves to the imported paragraph.");
+                }
+                target.alignment = next;
+              },
+            });
+          });
         }
       }
     }
