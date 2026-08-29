@@ -4636,6 +4636,10 @@ function createPresentationNativeLeafCapability(presentation, state) {
             { property: "spaceBefore", pointsKind: "paragraphSpaceBeforePoints", multiplierKind: "paragraphSpaceBeforeMultiplier", pointsModel: "spaceBefore", multiplierModel: "spaceBeforePercent", allowZero: true },
             { property: "spaceAfter", pointsKind: "paragraphSpaceAfterPoints", multiplierKind: "paragraphSpaceAfterMultiplier", pointsModel: "spaceAfter", multiplierModel: "spaceAfterPercent", allowZero: true },
           ];
+          const paragraphLayoutSlots = [
+            { property: "leftMargin", sourceCase: "marginLeftEmu", leafKind: "paragraphMarginLeftEmu", modelField: "marginLeft", minimum: 0, maximum: 51_206_400 },
+            { property: "indentation", sourceCase: "indentEmu", leafKind: "paragraphIndentEmu", modelField: "indent", minimum: -51_206_400, maximum: 51_206_400 },
+          ];
           paragraphs.forEach((paragraph, paragraphIndex) => {
             const alignment = paragraph.alignment;
             if (PRESENTATION_PARAGRAPH_ALIGNMENTS.has(alignment) && !paragraphAlignmentIndices.has(paragraphIndex)) {
@@ -4661,6 +4665,45 @@ function createPresentationNativeLeafCapability(presentation, state) {
                     throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-alignment native leaf no longer resolves to the imported paragraph.");
                   }
                   target.alignment = next;
+                },
+              });
+            }
+            for (const slot of paragraphLayoutSlots) {
+              const choice = paragraph[slot.property];
+              if (choice?.case !== slot.sourceCase) continue;
+              const raw = String(choice.value ?? "");
+              if (!/^-?(?:0|[1-9][0-9]*)$/u.test(raw)) continue;
+              const sourceValue = Number(raw);
+              if (!Number.isSafeInteger(sourceValue) || String(sourceValue) !== raw || sourceValue < slot.minimum || sourceValue > slot.maximum) continue;
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind: slot.leafKind,
+                expectedValue: raw,
+                value: sourceValue,
+                unit: "emu",
+                details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                normalize(next) {
+                  if (typeof next !== "string" && typeof next !== "number") {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${slot.leafKind} native leaf requires a bounded integer EMU value.`);
+                  }
+                  const token = String(next).trim();
+                  if (!/^-?(?:0|[1-9][0-9]*)$/u.test(token)) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${slot.leafKind} native leaf requires a canonical integer EMU value.`);
+                  }
+                  const candidate = Number(token);
+                  if (!Number.isSafeInteger(candidate) || String(candidate) !== token || candidate < slot.minimum || candidate > slot.maximum) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${slot.leafKind} native leaf is outside the safe EMU range.`);
+                  }
+                  return { raw: token, publicValue: candidate };
+                },
+                isNoop(next) { return next === raw; },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", `Presentation ${slot.leafKind} native leaf no longer resolves to the imported paragraph.`);
+                  }
+                  target[slot.modelField] = Number(next) / EMU_PER_PIXEL;
                 },
               });
             }
