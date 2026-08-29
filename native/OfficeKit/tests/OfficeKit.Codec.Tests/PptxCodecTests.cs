@@ -143,7 +143,7 @@ public sealed class PptxCodecTests
         Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart);
 
-        var projected = Invoke(new CodecRequest
+        var recovered = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.ProjectPptxToPpj,
@@ -156,9 +156,68 @@ public sealed class PptxCodecTests
                 AssetRootUri = "deck.assets/media",
             },
         });
+        Assert.True(recovered.Ok, Diagnostics(recovered));
+        Assert.True(recovered.PresentationProgram.RestoredEmbeddedProgram);
+        Assert.False(recovered.PresentationProgram.SourceBound);
+        Assert.Empty(recovered.PresentationProgram.SourceSha256);
+        Assert.Equal(first.PresentationProgram.ProgramJson, recovered.PresentationProgram.ProgramJson);
+        Assert.Equal(first.PresentationProgram.NodeMapJson, recovered.PresentationProgram.NodeMapJson);
+        var recoveredAsset = Assert.Single(recovered.PresentationProgram.Assets);
+        Assert.Equal("evidence-mark", recoveredAsset.Id);
+        Assert.Equal("ppj-assets/evidence-mark.svg", recoveredAsset.FileName);
+        Assert.Equal(assetBytes, recoveredAsset.Data.ToByteArray());
+
+        var nativeDrift = ReplaceZipText(first.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            xml.Replace("</p:sld>", "<!-- external native drift --></p:sld>", StringComparison.Ordinal));
+        var driftRecovery = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeDrift),
+            PresentationProgram = new PresentationProgramRequest { IncludeNodeMap = true },
+        });
+        Assert.True(driftRecovery.Ok, Diagnostics(driftRecovery));
+        Assert.True(driftRecovery.PresentationProgram.RestoredEmbeddedProgram);
+        Assert.Equal(first.PresentationProgram.ProgramJson, driftRecovery.PresentationProgram.ProgramJson);
+        Assert.Contains(driftRecovery.Diagnostics, diagnostic => diagnostic.Code == "ppj.embedded.nativeDriftIgnored");
+
+        var corruptSnapshot = ReplaceZipText(first.File.ToByteArray(), "officeKit/program-map.json", _ => "{}");
+        var corruptFallback = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(corruptSnapshot),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/corrupt-snapshot.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(corruptFallback.Ok, Diagnostics(corruptFallback));
+        Assert.False(corruptFallback.PresentationProgram.RestoredEmbeddedProgram);
+        Assert.True(corruptFallback.PresentationProgram.SourceBound);
+
+        var thirdPartySource = RemoveEmbeddedPpj(first.File.ToByteArray());
+        var thirdPartySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(thirdPartySource)).ToLowerInvariant();
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                IncludeNodeMap = true,
+                SourceUri = "deck.assets/source/source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
         Assert.True(projected.Ok, Diagnostics(projected));
         Assert.True(projected.PresentationProgram.SourceBound);
-        Assert.Equal(first.PresentationProgram.OutputSha256, projected.PresentationProgram.SourceSha256);
+        Assert.False(projected.PresentationProgram.RestoredEmbeddedProgram);
+        Assert.Equal(thirdPartySha256, projected.PresentationProgram.SourceSha256);
         Assert.NotEmpty(projected.PresentationProgram.Assets);
         using (var projectedJson = JsonDocument.Parse(projected.PresentationProgram.ProgramJson.ToByteArray()))
         {
@@ -177,7 +236,7 @@ public sealed class PptxCodecTests
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.ProjectPptxToPpj,
             Family = ArtifactFamily.Presentation,
-            File = first.File,
+            File = ByteString.CopyFrom(thirdPartySource),
             PresentationProgram = new PresentationProgramRequest
             {
                 IncludeNodeMap = true,
@@ -194,7 +253,7 @@ public sealed class PptxCodecTests
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.CompilePpjToPptx,
             Family = ArtifactFamily.Presentation,
-            File = first.File,
+            File = ByteString.CopyFrom(thirdPartySource),
             PresentationProgram = new PresentationProgramRequest
             {
                 ProgramJson = projected.PresentationProgram.ProgramJson,
@@ -202,7 +261,7 @@ public sealed class PptxCodecTests
             },
         });
         Assert.True(sourceNoOp.Ok, Diagnostics(sourceNoOp));
-        Assert.Equal(first.File, sourceNoOp.File);
+        Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
         var sourceValidationRequest = new CodecRequest
@@ -210,7 +269,7 @@ public sealed class PptxCodecTests
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.CompilePpjToPptx,
             Family = ArtifactFamily.Presentation,
-            File = first.File,
+            File = ByteString.CopyFrom(thirdPartySource),
             PresentationProgram = new PresentationProgramRequest
             {
                 ProgramJson = projected.PresentationProgram.ProgramJson,
@@ -241,7 +300,7 @@ public sealed class PptxCodecTests
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.CompilePpjToPptx,
             Family = ArtifactFamily.Presentation,
-            File = first.File,
+            File = ByteString.CopyFrom(thirdPartySource),
             PresentationProgram = new PresentationProgramRequest
             {
                 ProgramJson = ByteString.CopyFromUtf8(editedProgram.ToJsonString()),
@@ -249,7 +308,7 @@ public sealed class PptxCodecTests
             },
         });
         Assert.True(sourceEdit.Ok, Diagnostics(sourceEdit));
-        Assert.NotEqual(first.File, sourceEdit.File);
+        Assert.NotEqual(ByteString.CopyFrom(thirdPartySource), sourceEdit.File);
         Assert.NotEmpty(sourceEdit.PresentationProgram.ChangedParts);
         Assert.Contains(editedTextId, sourceEdit.PresentationProgram.ChangedNodeIds);
         var sourceEditRoundTrip = Import(sourceEdit.File.ToByteArray());
@@ -257,10 +316,10 @@ public sealed class PptxCodecTests
         Assert.Contains(sourceEditRoundTrip.Artifact.Presentation.Slides.SelectMany(slide => slide.Elements), element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Text.Contains(sourceBoundReplacement, StringComparison.Ordinal));
 
-        var tableSlidePath = ZipPartPaths(first.File.ToByteArray()).Single(path =>
+        var tableSlidePath = ZipPartPaths(thirdPartySource).Single(path =>
             Regex.IsMatch(path, "^ppt/slides/slide[0-9]+\\.xml$", RegexOptions.CultureInvariant) &&
-            Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), path)).Contains("<a:tbl", StringComparison.Ordinal));
-        var opaqueTextSource = ReplaceZipText(first.File.ToByteArray(), tableSlidePath, xml =>
+            Encoding.UTF8.GetString(ZipBytes(thirdPartySource, path)).Contains("<a:tbl", StringComparison.Ordinal));
+        var opaqueTextSource = ReplaceZipText(thirdPartySource, tableSlidePath, xml =>
         {
             var tableStart = xml.IndexOf("<a:tbl", StringComparison.Ordinal);
             var tableEnd = xml.IndexOf("</a:tbl>", tableStart, StringComparison.Ordinal);
@@ -310,7 +369,7 @@ public sealed class PptxCodecTests
         var opaqueOutputXml = Encoding.UTF8.GetString(ZipBytes(opaqueTextEdit.File.ToByteArray(), tableSlidePath));
         Assert.Equal(opaqueSourceXml, opaqueOutputXml.Replace(newNativeText, oldNativeText, StringComparison.Ordinal));
 
-        var deletionSource = ReplaceZipText(first.File.ToByteArray(), "ppt/slides/slide1.xml", xml => Regex.Replace(
+        var deletionSource = ReplaceZipText(thirdPartySource, "ppt/slides/slide1.xml", xml => Regex.Replace(
             xml,
             "<p:timing\\b.*?</p:timing>",
             string.Empty,
@@ -12010,6 +12069,36 @@ public sealed class PptxCodecTests
         stream.Position = 0;
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
             (archive.GetEntry(path) ?? throw new InvalidOperationException($"Missing fixture entry {path}.")).Delete();
+        return stream.ToArray();
+    }
+
+    private static byte[] RemoveEmbeddedPpj(byte[] bytes)
+    {
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
+        {
+            foreach (var entry in archive.Entries.Where(entry =>
+                         entry.FullName.StartsWith("officeKit/", StringComparison.OrdinalIgnoreCase)).ToArray())
+                entry.Delete();
+            ReplaceZipText(archive, "_rels/.rels", xml =>
+            {
+                var document = XDocument.Parse(xml);
+                document.Descendants().Where(element =>
+                    element.Name.LocalName == "Relationship" &&
+                    element.Attribute("Type")?.Value == "https://schemas.officekit.dev/relationships/presentation-program").Remove();
+                return document.ToString(SaveOptions.DisableFormatting);
+            });
+            ReplaceZipText(archive, "[Content_Types].xml", xml =>
+            {
+                var document = XDocument.Parse(xml);
+                document.Descendants().Where(element =>
+                    element.Name.LocalName == "Override" &&
+                    element.Attribute("PartName")?.Value.StartsWith("/officeKit/", StringComparison.OrdinalIgnoreCase) == true).Remove();
+                return document.ToString(SaveOptions.DisableFormatting);
+            });
+        }
         return stream.ToArray();
     }
 

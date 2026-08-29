@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Xml;
 using System.Xml.Linq;
+using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 
 namespace OfficeKit.Codec;
@@ -45,6 +46,98 @@ internal static class PpjEmbeddedProgramCodec
         string Type,
         string PartPath,
         uint NativeId);
+
+    internal sealed record Recovery(
+        PresentationProgramResult Program,
+        IReadOnlyList<Diagnostic> Diagnostics);
+
+    internal static Recovery? TryRecover(
+        byte[] pptx,
+        PresentationProgramRequest request,
+        EffectiveCodecLimits limits)
+    {
+        _ = PackageGuards.ValidateAndCollectOpaque(pptx, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
+        try
+        {
+            var parts = ReadParts(pptx);
+            if (!HasExactRelationship(
+                    parts[RootRelationshipsPath],
+                    ProgramRelationshipType,
+                    ProgramPath,
+                    requireSingle: true))
+                return null;
+            if (!parts.TryGetValue(ProgramPath, out var programBytes) ||
+                !parts.TryGetValue(ProgramMapPath, out var mapBytes) ||
+                !parts.TryGetValue(ProgramRelationshipsPath, out var relationshipBytes))
+                return null;
+
+            var contentTypes = ContentTypeOverrides(parts[ContentTypesPath]);
+            if (!HasContentType(contentTypes, ProgramPath, ProgramContentType) ||
+                !HasContentType(contentTypes, ProgramMapPath, ProgramMapContentType) ||
+                !HasExactRelationship(
+                    relationshipBytes,
+                    ProgramMapRelationshipType,
+                    "program-map.json",
+                    requireSingle: true))
+                return null;
+
+            var validation = PpjProgramValidator.Validate(programBytes);
+            if (!validation.IsValid || validation.Program is null || validation.Program.Source is not null || validation.Expansion is null)
+                return null;
+
+            using var map = JsonDocument.Parse(mapBytes, new JsonDocumentOptions
+            {
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow,
+                MaxDepth = 96,
+            });
+            var root = map.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                root.GetProperty("schema").GetString() != "office-kit/ppj-map/v1" ||
+                !Hash(root.GetProperty("programSha256").GetString()).Equals(validation.ProgramSha256, StringComparison.OrdinalIgnoreCase) ||
+                root.GetProperty("expandedElementCount").GetInt32() != validation.Expansion.ExpandedElementCount)
+                return null;
+
+            var nodeMap = Encoding.UTF8.GetBytes(root.GetProperty("nodeMap").GetRawText());
+            var nodeMapSha256 = Hash(root.GetProperty("nodeMapSha256").GetString());
+            if (!Sha256(nodeMap).Equals(nodeMapSha256, StringComparison.OrdinalIgnoreCase) ||
+                !nodeMapSha256.Equals(validation.Expansion.NodeMapSha256, StringComparison.OrdinalIgnoreCase) ||
+                !nodeMap.AsSpan().SequenceEqual(validation.Expansion.NodeMapJson))
+                return null;
+
+            if (!ValidateNativeBindings(root.GetProperty("nativeBindings"), validation.Expansion, parts))
+                return null;
+
+            var assets = RecoverAssets(
+                validation.Program,
+                root.GetProperty("assets"),
+                parts,
+                contentTypes,
+                relationshipBytes);
+            if (assets is null) return null;
+
+            var diagnostics = NativeDriftDiagnostics(root.GetProperty("nativePackage"), parts);
+            var result = new PresentationProgramResult
+            {
+                ProgramJson = ByteString.CopyFrom(programBytes),
+                ProgramSha256 = validation.ProgramSha256,
+                NodeMapJson = request.IncludeNodeMap ? ByteString.CopyFrom(nodeMap) : ByteString.Empty,
+                RestoredEmbeddedProgram = true,
+                SourceBound = false,
+                ExpandedElementCount = checked((uint)validation.Expansion.ExpandedElementCount),
+            };
+            result.Assets.Add(assets);
+            return new(result, diagnostics);
+        }
+        catch (Exception exception) when (exception is JsonException or XmlException or InvalidDataException or
+                                          KeyNotFoundException or InvalidOperationException or FormatException or
+                                          OverflowException or ArgumentException or CodecException)
+        {
+            // An unusable snapshot is not write authority. Ordinary PPTX
+            // projection below will preserve it as opaque source-owned data.
+            return null;
+        }
+    }
 
     internal static byte[] Embed(
         byte[] pptx,
@@ -223,6 +316,152 @@ internal static class PpjEmbeddedProgramCodec
             writer.WriteEndObject();
         }
         return stream.ToArray();
+    }
+
+    private static bool ValidateNativeBindings(
+        JsonElement bindings,
+        PpjExpansionResult expansion,
+        IReadOnlyDictionary<string, byte[]> parts)
+    {
+        if (bindings.ValueKind != JsonValueKind.Array) return false;
+        var expected = expansion.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var nativeSlots = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var binding in bindings.EnumerateArray())
+        {
+            if (binding.ValueKind != JsonValueKind.Object) return false;
+            var id = binding.GetProperty("id").GetString();
+            var page = binding.GetProperty("page").GetString();
+            var type = binding.GetProperty("type").GetString();
+            var part = binding.GetProperty("part").GetString();
+            var nativeId = binding.GetProperty("nativeId").GetUInt32();
+            if (id is null || page is null || type is null || part is null || nativeId < 2 ||
+                !expected.Contains(id) || !seen.Add(id) || !parts.ContainsKey(part) ||
+                !nativeSlots.Add($"{part}\0{nativeId}"))
+                return false;
+        }
+        return seen.SetEquals(expected);
+    }
+
+    private static IReadOnlyList<Asset>? RecoverAssets(
+        PpjProgramModel program,
+        JsonElement mapAssets,
+        IReadOnlyDictionary<string, byte[]> parts,
+        IReadOnlyDictionary<string, string> contentTypes,
+        byte[] relationshipBytes)
+    {
+        if (mapAssets.ValueKind != JsonValueKind.Array || mapAssets.GetArrayLength() != program.Assets.Count)
+            return null;
+        var records = mapAssets.EnumerateArray().ToDictionary(
+            item => item.GetProperty("id").GetString() ?? string.Empty,
+            item => item,
+            StringComparer.Ordinal);
+        if (records.Count != program.Assets.Count) return null;
+        var relationshipTargets = RelationshipTargets(relationshipBytes, ProgramAssetRelationshipType);
+        var output = new List<Asset>(program.Assets.Count);
+        foreach (var declaration in program.Assets)
+        {
+            if (!records.TryGetValue(declaration.Id, out var record)) return null;
+            var uri = record.GetProperty("uri").GetString();
+            var mimeType = record.GetProperty("mimeType").GetString();
+            var sha256 = Hash(record.GetProperty("sha256").GetString());
+            var part = record.GetProperty("part").GetString();
+            if (uri != declaration.Uri || mimeType is null ||
+                !mimeType.Equals(declaration.MimeType, StringComparison.OrdinalIgnoreCase) ||
+                !sha256.Equals(declaration.Sha256, StringComparison.OrdinalIgnoreCase) ||
+                part is null || !part.Equals($"officeKit/assets/{sha256}.bin", StringComparison.Ordinal) ||
+                !parts.TryGetValue(part, out var data) || !Sha256(data).Equals(sha256, StringComparison.OrdinalIgnoreCase) ||
+                !HasContentType(contentTypes, part, mimeType) ||
+                !relationshipTargets.Contains($"assets/{sha256}.bin"))
+                return null;
+            output.Add(new Asset
+            {
+                Id = declaration.Id,
+                FileName = declaration.Uri,
+                ContentType = declaration.MimeType,
+                Data = ByteString.CopyFrom(data),
+                Sha256 = sha256,
+            });
+        }
+        var expectedRelationships = program.Assets.Select(asset => $"assets/{asset.Sha256.ToLowerInvariant()}.bin").ToHashSet(StringComparer.Ordinal);
+        return relationshipTargets.SetEquals(expectedRelationships) ? output : null;
+    }
+
+    private static IReadOnlyList<Diagnostic> NativeDriftDiagnostics(
+        JsonElement nativePackage,
+        IReadOnlyDictionary<string, byte[]> parts)
+    {
+        if (nativePackage.ValueKind != JsonValueKind.Object ||
+            nativePackage.GetProperty("parts").ValueKind != JsonValueKind.Array)
+            throw new InvalidDataException("Embedded PPJ native package map is invalid.");
+        var changed = 0;
+        foreach (var record in nativePackage.GetProperty("parts").EnumerateArray())
+        {
+            var path = record.GetProperty("path").GetString();
+            var expected = Hash(record.GetProperty("sha256").GetString());
+            if (path is null || !parts.TryGetValue(path, out var bytes) ||
+                !Sha256(bytes).Equals(expected, StringComparison.OrdinalIgnoreCase))
+                changed++;
+        }
+        if (changed == 0) return [];
+        return
+        [
+            new Diagnostic
+            {
+                Severity = DiagnosticSeverity.Warning,
+                Code = "ppj.embedded.nativeDriftIgnored",
+                Message = $"Restored the authoritative embedded PPJ and ignored native drift in {changed} mapped PPTX part(s).",
+                SourcePath = ProgramMapPath,
+            },
+        ];
+    }
+
+    private static IReadOnlyDictionary<string, string> ContentTypeOverrides(byte[] bytes)
+    {
+        var document = LoadXml(bytes, ContentTypesPath);
+        XNamespace ns = ContentTypesNamespace;
+        var root = document.Root ?? throw new InvalidDataException("PPTX content types have no root element.");
+        return root.Elements(ns + "Override").ToDictionary(
+            item => (item.Attribute("PartName")?.Value ?? string.Empty).TrimStart('/'),
+            item => item.Attribute("ContentType")?.Value ?? string.Empty,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool HasContentType(
+        IReadOnlyDictionary<string, string> overrides,
+        string part,
+        string expected) =>
+        overrides.TryGetValue(part, out var actual) && actual.Equals(expected, StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasExactRelationship(byte[] bytes, string type, string target, bool requireSingle)
+    {
+        var targets = RelationshipTargets(bytes, type);
+        return targets.Contains(target) && (!requireSingle || targets.Count == 1);
+    }
+
+    private static HashSet<string> RelationshipTargets(byte[] bytes, string type)
+    {
+        var document = LoadXml(bytes, "relationships");
+        XNamespace ns = RelationshipsNamespace;
+        var root = document.Root ?? throw new InvalidDataException("Relationship part has no root element.");
+        var targets = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var relationship in root.Elements(ns + "Relationship").Where(item =>
+                     string.Equals(item.Attribute("Type")?.Value, type, StringComparison.Ordinal)))
+        {
+            if (string.Equals(relationship.Attribute("TargetMode")?.Value, "External", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Embedded PPJ relationships must be internal.");
+            var target = relationship.Attribute("Target")?.Value;
+            if (string.IsNullOrWhiteSpace(target) || !targets.Add(target))
+                throw new InvalidDataException("Embedded PPJ relationship target is invalid.");
+        }
+        return targets;
+    }
+
+    private static string Hash(string? value)
+    {
+        if (value is null || value.Length != 64 || !value.All(char.IsAsciiHexDigit))
+            throw new InvalidDataException("Embedded PPJ map contains an invalid SHA-256 value.");
+        return value.ToLowerInvariant();
     }
 
     private static byte[] AddContentTypes(byte[] bytes, IReadOnlyList<EmbeddedAsset> assets)

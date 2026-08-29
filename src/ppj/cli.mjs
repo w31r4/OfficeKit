@@ -204,7 +204,11 @@ export async function importPptxAsPpj(
     assetRootUri: mediaRelative,
     includeNodeMap: true,
   });
-  if (!projected.sourceBound || projected.sourceSha256 !== sourceSha256) {
+  const restored = projected.restoredEmbeddedProgram === true;
+  if (restored && (projected.sourceBound || projected.sourceSha256)) {
+    throw new Error("OfficeKit embedded PPJ recovery returned contradictory source authority.");
+  }
+  if (!restored && (!projected.sourceBound || projected.sourceSha256 !== sourceSha256)) {
     throw new Error("OfficeKit projection did not bind the exact PPTX source revision.");
   }
   if (!/^[a-f0-9]{64}$/u.test(projected.programSha256) || sha256(projected.programJson) !== projected.programSha256) {
@@ -213,18 +217,28 @@ export async function importPptxAsPpj(
 
   const root = path.dirname(destination);
   await mkdir(root, { recursive: true });
-  const sourceTarget = path.join(root, ...sourceRelative.split("/"));
-  await writeImmutableContent(sourceTarget, sourceBytes, sourceSha256);
+  const sourceTarget = restored ? null : path.join(root, ...sourceRelative.split("/"));
+  if (sourceTarget) await writeImmutableContent(sourceTarget, sourceBytes, sourceSha256);
+  const restoredDeclarations = restored
+    ? new Map((JSON.parse(Buffer.from(projected.programJson).toString("utf8")).assets ?? [])
+      .map((asset) => [asset.id, asset]))
+    : null;
   const assets = [];
   for (const asset of projected.assets) {
     if (!/^[a-f0-9]{64}$/u.test(asset.sha256) || sha256(asset.data) !== asset.sha256) {
       throw new Error(`Projected PPJ asset ${asset.id} failed its content hash.`);
     }
-    if (!asset.fileName || path.basename(asset.fileName) !== asset.fileName) {
+    const declaration = restoredDeclarations?.get(asset.id);
+    if (restored && (!declaration || declaration.uri !== asset.fileName ||
+        declaration.mimeType !== asset.mimeType || declaration.sha256 !== asset.sha256)) {
+      throw new Error(`Recovered PPJ asset ${asset.id} does not match its embedded declaration.`);
+    }
+    if (!restored && (!asset.fileName || path.basename(asset.fileName) !== asset.fileName)) {
       throw new Error(`Projected PPJ asset ${asset.id} has an unsafe file name.`);
     }
-    const relative = `${mediaRelative}/${asset.fileName}`;
-    const target = path.join(root, ...relative.split("/"));
+    const relative = restored ? asset.fileName : `${mediaRelative}/${asset.fileName}`;
+    const target = materializedPpjPath(root, relative, `PPJ asset ${asset.id}`);
+    if (target === destination || target === input) throw new Error(`PPJ asset ${asset.id} conflicts with an input or output file.`);
     await writeImmutableContent(target, asset.data, asset.sha256);
     assets.push(Object.freeze({
       id: asset.id,
@@ -246,8 +260,9 @@ export async function importPptxAsPpj(
     input,
     output: destination,
     programSha256: projected.programSha256,
-    source: Object.freeze({ path: sourceTarget, uri: sourceRelative, sha256: sourceSha256 }),
-    sourceBound: true,
+    source: sourceTarget ? Object.freeze({ path: sourceTarget, uri: sourceRelative, sha256: sourceSha256 }) : null,
+    sourceBound: projected.sourceBound,
+    restoredEmbeddedProgram: restored,
     pages: programPageCount(projected.programJson),
     expandedElementCount: projected.expandedElementCount,
     assets: Object.freeze(assets),
@@ -475,6 +490,19 @@ function normalizeSearch(value) {
   return String(value ?? "").normalize("NFKC").toLocaleLowerCase("en-US").replace(/[^\p{L}\p{N}._:-]+/gu, " ").trim();
 }
 
+function materializedPpjPath(root, uri, label) {
+  if (!uri || uri.includes("\\") || uri.includes("\0") || uri.startsWith("/") ||
+      /^[A-Za-z][A-Za-z0-9+.-]*:/u.test(uri) || uri.split("/").some((segment) => segment === "..")) {
+    throw new Error(`${label} URI must stay relative to the PPJ output: ${uri}`);
+  }
+  const target = path.resolve(root, ...uri.split("/"));
+  const relative = path.relative(root, target);
+  if (relative === "" || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error(`${label} URI escapes the PPJ output directory: ${uri}`);
+  }
+  return target;
+}
+
 async function pathExists(target) {
   try {
     await lstat(target);
@@ -489,7 +517,7 @@ function formatResult(result) {
   if (result.command === "import") return [
     `OfficeKit imported ${result.input}`,
     `PPJ       ${result.output}`,
-    `Source    ${result.source.path}`,
+    `Source    ${result.source?.path ?? "embedded PPJ restored"}`,
     `Revision  ${result.programSha256}`,
     `Pages     ${result.pages}`,
     `Assets    ${result.assets.length}`,

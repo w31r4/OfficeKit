@@ -11,7 +11,7 @@ namespace OfficeKit.Codec;
 internal sealed record PpjProjectionResult(
     PresentationProgramResult Program,
     IReadOnlyList<Diagnostic> Diagnostics,
-    ArtifactEnvelope SourceArtifact);
+    ArtifactEnvelope? SourceArtifact);
 
 /// <summary>
 /// Projects a validated PPTX package into the bounded public PPJ language.
@@ -42,6 +42,9 @@ internal static partial class PpjPresentationProjector
         PresentationProgramRequest request,
         EffectiveCodecLimits limits)
     {
+        if (PpjEmbeddedProgramCodec.TryRecover(sourceBytes, request, limits) is { } recovered)
+            return new(recovered.Program, recovered.Diagnostics, null);
+
         var imported = PptxCodec.Import(sourceBytes, limits);
         var envelope = imported.Artifact;
         var presentation = envelope.Presentation ??

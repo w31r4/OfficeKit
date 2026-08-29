@@ -36,9 +36,9 @@
 
 - [x] 5.1 Define reserved OPC content types and relationships for `/officeKit/program.ppj` and `/officeKit/program-map.json`.
 - [x] 5.2 Embed canonical authored PPJ, stable native IDs, asset hashes, and relevant fingerprints during source-free compilation.
-- [ ] 5.3 Recover exact PPJ and assets when the embedded program/map are present and structurally valid.
-- [ ] 5.4 Apply the PPJ-authoritative native-drift policy without prompting, merging drift, or overwriting the input artifact.
-- [ ] 5.5 Fall back to ordinary projected import when the embedded program is absent or unusable.
+- [x] 5.3 Recover exact PPJ and assets when the embedded program/map are present and structurally valid.
+- [x] 5.4 Apply the PPJ-authoritative native-drift policy without prompting, merging drift, or overwriting the input artifact.
+- [x] 5.5 Fall back to ordinary projected import when the embedded program is absent or unusable.
 
 ## 6. Standalone PPJ CLI
 

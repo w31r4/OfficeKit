@@ -110,7 +110,8 @@ internal static class PpjSourceBoundPresentationCompiler
         RequireBaselineAssets(baseline, requested);
         RequireRootTopology(baseline, requested);
 
-        var artifact = projected.SourceArtifact;
+        var artifact = projected.SourceArtifact ??
+            throw new CodecException("ppj.source.projection", "Source-bound projection did not return its native source artifact.", "$.source");
         var presentation = artifact.Presentation ??
             throw new CodecException("ppj.source.presentation", "The exact source did not import as a Presentation artifact.", "$.source");
         var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact);
