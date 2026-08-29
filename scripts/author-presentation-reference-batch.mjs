@@ -129,19 +129,21 @@ const PHOTO_ASSET_POOLS = Object.freeze({
 // pictures.
 const TEMPLATE_PHOTO_POOLS = Object.freeze({
   "artifact-template-blueprint-lecture": ["night-lab-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "research-studio-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg"],
-  "artifact-template-paper-seminar": ["night-lab-calibration-v1.jpg", "library-quiet-study-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "field-archive-calibration-v1.jpg"],
+  "artifact-template-paper-seminar": ["library-quiet-study-calibration-v1.jpg", "night-lab-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "field-archive-calibration-v1.jpg"],
   "artifact-template-apricot-dossier": ["archive-map-calibration-v1.jpg", "stakeholder-room-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg", "research-studio-calibration-v1.jpg"],
   "artifact-template-coastal-analysis": ["coastal-survey-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg", "archive-map-calibration-v1.jpg"],
   "artifact-template-forest-strategy": ["data-center-calibration-v1.jpg", "industrial-control-room-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "operations-control-room-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg"],
   "artifact-template-amber-committee-memo": ["brass-ledger-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg"],
-  "artifact-template-lake-research-journal": ["brass-ledger-calibration-v1.jpg", "archival-research-table-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg"],
+  "artifact-template-lake-research-journal": ["archival-research-table-calibration-v1.jpg", "brass-ledger-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg"],
   "artifact-template-aqua-impact-story": ["community-table-calibration-v1.jpg", "civic-courtyard-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg"],
   "artifact-template-noir-field-pictorial": ["prototype-bench-calibration-v1.jpg", "community-table-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "industrial-technician-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg"],
   "artifact-template-saffron-editorial": ["glasshouse-light-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "editorial-archive-calibration-v1.jpg", "community-table-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg"],
   "artifact-template-silver-atelier": ["civic-courtyard-calibration-v1.jpg", "architectural-staircase-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg"],
-  "artifact-template-river-handbook": ["coastal-survey-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg"],
-  "artifact-template-violet-operations": ["data-center-calibration-v1.jpg", "operations-floor-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "night-lab-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg"],
+  "artifact-template-river-handbook": ["river-infrastructure-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg"],
+  "artifact-template-violet-operations": ["operations-floor-calibration-v1.jpg", "data-center-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "night-lab-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg"],
   "artifact-template-moonlit-work-report": ["night-lab-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "research-studio-calibration-v1.jpg", "library-lounge-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg"],
+  "artifact-template-skyline-wayfinding": ["architectural-staircase-calibration-v1.jpg", "operations-floor-calibration-v1.jpg", "civic-courtyard-calibration-v1.jpg"],
+  "artifact-template-jade-annual-brief": ["civic-workshop-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg"],
 });
 
 const SOURCE_MAP = Object.freeze([
@@ -318,7 +320,13 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   if (imageSources.length === 0) {
     imageSources.push({ blob: new FileBlob(backdropPng, { type: "image/png" }), asset: null });
   }
-  const imageOffset = stableIndex(templateId, imageSources.length);
+  // A style-specific pool has deliberate first-image art direction. Keep its
+  // first image as the cover/section anchor, then rotate through the rest in
+  // call order. Only category fallbacks use a stable hash offset; otherwise
+  // unrelated templates can accidentally share the same opening photograph.
+  const imageOffset = Object.hasOwn(TEMPLATE_PHOTO_POOLS, templateId)
+    ? 0
+    : stableIndex(templateId, imageSources.length);
   const hasPhotoPool = imageSources.some((source) => Boolean(source.asset));
   return {
     templateId,

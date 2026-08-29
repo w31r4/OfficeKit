@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-lake-research-journal/assets/reference.pptx",
-    "sha256": "dc08104fe1a53ca079742eb102e4eef048a4aa65baef144fefbaf1b492101241"
+    "sha256": "1aa4eff9760ebb7148c55ec094446baf42ff12effd12552190a7145cf5343147"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:dc08104fe1a53ca079742eb102e4eef048a4aa65baef144fefbaf1b492101241"
+      "reference-sha256:1aa4eff9760ebb7148c55ec094446baf42ff12effd12552190a7145cf5343147"
     ]
   },
   "visual": {

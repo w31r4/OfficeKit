@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-paper-seminar/assets/reference.pptx",
-    "sha256": "d6999d02e082e20190b355febad90866af4d4311c67184ee6fde63495b8acaac"
+    "sha256": "97b8bdff4236225d1656ee4c8c9604d50fc9ee1dc68be0ca2776d629b8cbdde2"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:d6999d02e082e20190b355febad90866af4d4311c67184ee6fde63495b8acaac"
+      "reference-sha256:97b8bdff4236225d1656ee4c8c9604d50fc9ee1dc68be0ca2776d629b8cbdde2"
     ]
   },
   "visual": {

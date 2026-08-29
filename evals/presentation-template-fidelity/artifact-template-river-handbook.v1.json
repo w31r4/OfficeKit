@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-river-handbook/assets/reference.pptx",
-    "sha256": "3e9eb3962a144f1f697d4959630ca4f59ece335d957bcb5f45ffda9fc448d075"
+    "sha256": "f6a4ba48a0fbe4dca0534fcf160c016b759a20e7b4d3a757fcf004e989db3af1"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:3e9eb3962a144f1f697d4959630ca4f59ece335d957bcb5f45ffda9fc448d075"
+      "reference-sha256:f6a4ba48a0fbe4dca0534fcf160c016b759a20e7b4d3a757fcf004e989db3af1"
     ]
   },
   "visual": {

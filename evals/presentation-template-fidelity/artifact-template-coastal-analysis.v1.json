@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-coastal-analysis/assets/reference.pptx",
-    "sha256": "ef90dfc9cbbf6ac99d5b7b7e785cf34387a76c67ed33d33df1845f24438590e1"
+    "sha256": "702b411b713f2224ea4a48a0493ac35c2bdd68083b68e818e02345011c4d75b9"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:ef90dfc9cbbf6ac99d5b7b7e785cf34387a76c67ed33d33df1845f24438590e1"
+      "reference-sha256:702b411b713f2224ea4a48a0493ac35c2bdd68083b68e818e02345011c4d75b9"
     ]
   },
   "visual": {

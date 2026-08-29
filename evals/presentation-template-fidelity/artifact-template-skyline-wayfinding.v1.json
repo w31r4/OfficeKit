@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-skyline-wayfinding/assets/reference.pptx",
-    "sha256": "f427a2e15eb7fb3af6fafce79039f06ac3538d80175116a70fc8ad9e01a41d4a"
+    "sha256": "aecc6c49ca2f5dce5c85b5da38b5533b25dc4c7147d3514f9db2d6777b6f391c"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:f427a2e15eb7fb3af6fafce79039f06ac3538d80175116a70fc8ad9e01a41d4a"
+      "reference-sha256:aecc6c49ca2f5dce5c85b5da38b5533b25dc4c7147d3514f9db2d6777b6f391c"
     ]
   },
   "visual": {

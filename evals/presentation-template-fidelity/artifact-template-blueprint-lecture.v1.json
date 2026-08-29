@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-blueprint-lecture/assets/reference.pptx",
-    "sha256": "fdec571daa9e19da8e66706dab7f7e2292711f02d8d1e88bacf50cd5d5770474"
+    "sha256": "363245dd0b7295ea99c6bc5fa7bc71a2541be81a34dfba88170ad818217c1af0"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:fdec571daa9e19da8e66706dab7f7e2292711f02d8d1e88bacf50cd5d5770474"
+      "reference-sha256:363245dd0b7295ea99c6bc5fa7bc71a2541be81a34dfba88170ad818217c1af0"
     ]
   },
   "visual": {

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-apricot-dossier/assets/reference.pptx",
-    "sha256": "d244a7bcce468e21c584b7bf78144e4e7f640d302640cf54a8be12d5647c2db8"
+    "sha256": "d86957fdc5d17d9d461edcb75e89e20ed3968bf7400e3126f54bfa2a00b88b57"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:d244a7bcce468e21c584b7bf78144e4e7f640d302640cf54a8be12d5647c2db8"
+      "reference-sha256:d86957fdc5d17d9d461edcb75e89e20ed3968bf7400e3126f54bfa2a00b88b57"
     ]
   },
   "visual": {

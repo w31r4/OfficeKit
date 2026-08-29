@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-noir-field-pictorial/assets/reference.pptx",
-    "sha256": "72a8389ff60d89b9acbf88f6d810072d5a9e5506615e9cc8f4b7d806e7110e35"
+    "sha256": "a436f697e0763780f4c9ee9dfc7e91f5141c7f39f27338415287f7332bbb1135"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:72a8389ff60d89b9acbf88f6d810072d5a9e5506615e9cc8f4b7d806e7110e35"
+      "reference-sha256:a436f697e0763780f4c9ee9dfc7e91f5141c7f39f27338415287f7332bbb1135"
     ]
   },
   "visual": {

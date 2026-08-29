@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-forest-strategy/assets/reference.pptx",
-    "sha256": "ba3ec02a71f7cca750bd779e138432fc02c22665d19f3e8f652a417b4501cefb"
+    "sha256": "787a13bfe43b3b0304fc23db99eef60dcbeb4e00359fd1e0328a9d2be0e8f9e6"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:ba3ec02a71f7cca750bd779e138432fc02c22665d19f3e8f652a417b4501cefb"
+      "reference-sha256:787a13bfe43b3b0304fc23db99eef60dcbeb4e00359fd1e0328a9d2be0e8f9e6"
     ]
   },
   "visual": {

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/reference.pptx",
-    "sha256": "bba538be488a33a4d2eaf32e446ed22397b96eb6b2d3b2fe005d7f522ab91f46"
+    "sha256": "6613901957536646f4caa085f9a9da658e55b4dc3951573c2a712d0a35b58687"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:bba538be488a33a4d2eaf32e446ed22397b96eb6b2d3b2fe005d7f522ab91f46"
+      "reference-sha256:6613901957536646f4caa085f9a9da658e55b4dc3951573c2a712d0a35b58687"
     ]
   },
   "visual": {
