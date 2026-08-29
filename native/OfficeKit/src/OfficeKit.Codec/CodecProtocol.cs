@@ -126,6 +126,16 @@ public static class CodecProtocol
                     response.Diagnostics.Add(result.Diagnostics);
                     break;
                 }
+                case CodecOperation.ProjectPptxToPpj:
+                {
+                    var result = PpjPresentationProjector.Project(
+                        RequestFileBytes(request.File),
+                        request.PresentationProgram,
+                        limits);
+                    response.PresentationProgram = result.Program;
+                    response.Diagnostics.Add(result.Diagnostics);
+                    break;
+                }
                 case CodecOperation.CompilePpjToPptx:
                 {
                     var result = PpjAuthoredPresentationCompiler.Compile(

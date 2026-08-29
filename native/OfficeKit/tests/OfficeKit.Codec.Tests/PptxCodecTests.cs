@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Validation;
 using Google.Protobuf;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -121,6 +122,52 @@ public sealed class PptxCodecTests
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart);
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = first.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                IncludeNodeMap = true,
+                SourceUri = "deck.assets/source/source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        Assert.True(projected.PresentationProgram.SourceBound);
+        Assert.Equal(first.PresentationProgram.OutputSha256, projected.PresentationProgram.SourceSha256);
+        Assert.NotEmpty(projected.PresentationProgram.Assets);
+        using (var projectedJson = JsonDocument.Parse(projected.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var projectedRoot = projectedJson.RootElement;
+            Assert.Equal("office-kit/ppj/v1", projectedRoot.GetProperty("schema").GetString());
+            Assert.Equal(projected.PresentationProgram.SourceSha256, projectedRoot.GetProperty("source").GetProperty("sha256").GetString());
+            Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
+            Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("type").GetString() == "image");
+            Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
+            Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
+            Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
+        }
+        var repeatedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = first.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                IncludeNodeMap = true,
+                SourceUri = "deck.assets/source/source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(repeatedProjection.Ok, Diagnostics(repeatedProjection));
+        Assert.Equal(projected.PresentationProgram.ProgramJson, repeatedProjection.PresentationProgram.ProgramJson);
+        Assert.Equal(projected.PresentationProgram.NodeMapJson, repeatedProjection.PresentationProgram.NodeMapJson);
 
         var repeated = Invoke(request);
         Assert.True(repeated.Ok, Diagnostics(repeated));

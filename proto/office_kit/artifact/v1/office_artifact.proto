@@ -135,6 +135,11 @@ message PresentationProgramRequest {
   bytes program_json = 1;
   repeated Asset assets = 2;
   bool include_node_map = 3;
+  // Projection-only relative URI written into source.uri. The CLI supplies a
+  // path beside the output PPJ; the codec never receives an absolute path.
+  string source_uri = 4;
+  // Projection-only relative directory for materialized semantic assets.
+  string asset_root_uri = 5;
 }
 
 // Typed receipt shared by projection and compilation. Projection returns
