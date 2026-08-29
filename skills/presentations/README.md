@@ -14,6 +14,12 @@ This installable Skill bundle is distributed with `office-kit`.
 
 Use this plugin for presentation-oriented terms from the file-type naming model: slides, deck, PowerPoint, Google Slides, presentation, presentations, PPT, and `.pptx`. Choose the Live Skill only when the user explicitly refers to the currently open desktop deck. Use Presentation Editorial Trim directly for copy-only work; the Presentations Skill also invokes it during creation and bounded edits.
 
+The Presentation route is intentionally small. Load `references/primitives.md`
+for the semantic capability map and `references/fonts.md` for role-based
+typography/fallback decisions; the detailed API references and Help catalog own
+signatures and source-bound limits. Repository maintainers use the separate
+`skill-update` Skill to trace primitive changes to these consumers.
+
 ## Source
 
 The plugin tree is versioned directly under `skills/presentations` in the public repository.

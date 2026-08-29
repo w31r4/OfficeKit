@@ -12,6 +12,12 @@ skeleton, source component, or authoring script in the template.
 Read [references/template-format.md](references/template-format.md) before
 packaging a template.
 
+During calibration, use the Presentations primitive and typography references
+(`skills/presentations/skills/presentations/references/primitives.md` and
+`.../references/fonts.md`) as shared capability guidance. Record which native
+capabilities and render evidence were exercised in the task; publish only
+style decisions and original visual examples, never the implementation map.
+
 ## Workflow
 
 1. Put all references in the current task as read-only inputs. A PPTX is a

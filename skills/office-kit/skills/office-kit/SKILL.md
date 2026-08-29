@@ -13,6 +13,11 @@ Use the public `office-kit` package for OfficeKit work. Never import or use
 `@oai/artifact-tool`: it is a different host-bundled runtime, not an OfficeKit
 alias or fallback, and its output must never be attributed to OfficeKit.
 
+When maintaining a capability rather than producing an artifact, load the
+read-only `skill-update` Skill first. It maps the changed primitive or workflow
+to its owning Help records, consumer Skills, examples, focused tests, and
+release evidence; it does not replace the domain owner.
+
 For a multi-step task, use the portable [task REPL workflow](references/repl.md).
 Inspect `officekit tasks --json` before continuing prior work; open the matched
 task or create one explicitly. Import only the selected domain API with

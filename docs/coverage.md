@@ -649,6 +649,18 @@ still produce descriptive profiles, but never receive source-bound candidate
 authority. This profile is evidence for template-conditioned generation; it is
 not a mutation or universal AST surface.
 
+### Presentation Skill architecture and primitive impact map
+
+Status: **implemented as a maintenance contract**. Presentation guidance now
+has a short route, a compact primitive index, and role-based typography advice;
+the detailed API/spec files remain the source of truth for behavior. The
+versioned `primitive-impact.json` map covers all presentation Help APIs and
+names the owning runtime/protocol paths, consumer Skills, examples, focused
+tests, and release evidence. The read-only `skill-update` checker validates
+that map and reports the surfaces affected by a Git diff without initializing a
+codec, provider, renderer, or bridge. This changes discovery and maintenance
+only; it does not claim new PPTX codec coverage or replace visual/host review.
+
 ### PPTX template-conditioned generation
 
 Status: **partial, portable evidence complete**. The public

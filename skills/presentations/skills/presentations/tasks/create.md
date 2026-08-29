@@ -23,6 +23,11 @@ Read, in this order:
 4. exactly one primary scenario guide, plus one secondary guide only when a
    named section truly serves a different audience task.
 
+Read [typography guidance](../references/fonts.md) when the language, data
+labels, or target host makes font coverage or fallback material. Use the
+[primitive surface](../references/primitives.md) to choose an existing
+capability; do not create a helper or DSL to fill a discovery gap.
+
 Record `primaryJob`, `expectedOutcome`, `mediumFit`, `afterUse`, and the selected
 scenario. If slides are a weak fit, record the limitation and mitigation, then
 continue rather than pretending the medium has no boundary.

@@ -76,6 +76,10 @@ the original source available for independent verification.
 
 ## Route boundaries
 
+For repository maintenance, use `skill-update` as the change-impact index
+before editing Skills or Help. The domain Skill remains the owner of the
+behavior; `skill-update` only reports the surfaces that must be reviewed.
+
 - A read-only request still loads the format owner, but it does not trigger
   template selection.
 - Existing-file edits use the existing file as their design reference.

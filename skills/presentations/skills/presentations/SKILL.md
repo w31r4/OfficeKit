@@ -83,6 +83,11 @@ and load advanced references only for the object or workflow in use. API
 examples prove callability, not visual quality; do not copy their palette,
 helpers, or page silhouettes as a design source.
 
+The [primitive surface](references/primitives.md) is the compact language map;
+the API reference files remain the contract. Load [typography guidance](references/fonts.md)
+when the deck contains CJK, mixed-script data, a supplied font rule, or a
+rendering substitution. Do not invent a new primitive guide in a task.
+
 `review` follows [Review and deliver](tasks/review-deliver.md). Run semantic,
 structural, layout/render, design, optional reading-view, visual/human, and
 delivery checks in that order. Motion is considered only for `live`, `hybrid`,
@@ -107,6 +112,9 @@ steps are in [Continue](tasks/continue.md).
 - Motion loads only for a speaking or explicit animation requirement.
 - Review and continuation each have one authoritative task document; do not
   copy their mechanics into another route.
+- A runtime, protocol, Help, example, or review change loads the
+  `skill-update` maintenance Skill and its impact map before the change is
+  considered complete.
 
 Avoid preloading the complete API, all scenario guides, every template, and all
 advanced object references. Progressive loading is part of the workflow.

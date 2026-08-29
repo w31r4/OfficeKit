@@ -2,7 +2,8 @@
 
 Use this route when one design authority or style source exists. Before drawing,
 read the doctrine, shared visual floor, scenario policy, selected scenario guide,
-and editorial trim Skill.
+typography guidance when mixed-script text is present, and the editorial trim
+Skill.
 
 ## 1. Classify the source
 
