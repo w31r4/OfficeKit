@@ -36,6 +36,12 @@ Two of the six samples also expose a direct character-bullet leaf and pass a
 single source-bound `a:buChar/@char` edit with second import. The edit accepts
 one non-control Unicode scalar and changes only the owning slide XML; inherited,
 auto-numbered, picture, ambiguous, or malformed marker graphs remain opaque.
+The Professional Minimalist sample also exposes a direct self-closing
+`a:buAutoNum/@type` leaf and passes a targeted scheme edit from `arabicPeriod`
+to `romanLcPeriod`; only `ppt/slides/slide4.xml` changes and the new scheme
+survives second import. An explicit `@startAt` leaf is issued only when the
+source contains a canonical `1..32767` value; inherited, shared, child-bearing,
+or ambiguous numbering graphs remain opaque.
 Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
 one bounded `a:pPr/@lvl` edit with second import. Because the current wire
 scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero
