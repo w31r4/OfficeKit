@@ -95,6 +95,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeLine = await verifyNativeLineEdit(bytes);
     const nativeLineWidth = await verifyNativeLineWidthEdit(bytes);
     const nativeLineStyle = await verifyNativeLineStyleEdit(bytes);
+    const nativeLineCap = await verifyNativeLineCapEdit(bytes);
     const nativeFontSize = await verifyNativeFontSizeEdit(bytes);
     const nativeFontFamily = await verifyNativeFontFamilyEdit(bytes);
     const nativeFontStyle = await verifyNativeFontStyleEdit(bytes);
@@ -146,6 +147,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeLine,
       nativeLineWidth,
       nativeLineStyle,
+      nativeLineCap,
       nativeFontSize,
       nativeFontFamily,
       nativeFontStyle,
@@ -196,6 +198,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeLineEdits: results.filter((result) => result.nativeLine.status === "passed").length,
       nativeLineWidthEdits: results.filter((result) => result.nativeLineWidth.status === "passed").length,
       nativeLineStyleEdits: results.filter((result) => result.nativeLineStyle.status === "passed").length,
+      nativeLineCapEdits: results.filter((result) => result.nativeLineCap.status === "passed").length,
       nativeFontSizeEdits: results.filter((result) => result.nativeFontSize.status === "passed").length,
       nativeFontFamilyEdits: results.filter((result) => result.nativeFontFamily.status === "passed").length,
       nativeFontStyleEdits: results.filter((result) => result.nativeFontStyle.status === "passed").length,
@@ -402,6 +405,28 @@ async function verifyNativeLineStyleEdit(bytes) {
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
     throw new Error(`Native line-style edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeLineCapEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "lineCap");
+  if (!target) return { status: "blocked", reason: "no bounded imported line-cap leaf was discovered" };
+  const value = target.value === "flat" ? "round" : "flat";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "lineCap");
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native line-cap edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native line-cap edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, oldValue: target.value, value, changedParts };
 }
