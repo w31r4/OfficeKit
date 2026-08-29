@@ -30,6 +30,7 @@
     "nativeTextBodyColumnCountEdits": 2,
     "nativeTextBodyAutoFitEdits": 6,
     "nativeTextBodyColumnDirectionEdits": 3,
+    "nativeTextBodyVerticalTextEdits": 2,
     "svgStyleEdits": 1,
     "animatedTextEdits": 1,
     "tableCellEdits": 4,
@@ -99,6 +100,7 @@
         "textBodyInsetLeftEmu": 30,
         "textBodyInsetRightEmu": 30,
         "textBodyInsetTopEmu": 30,
+        "textBodyVerticalText": 27,
         "textBodyWrap": 32,
         "topEmu": 22,
         "verticalAnchor": 32,
@@ -325,6 +327,17 @@
           "ppt/slides/slide6.xml"
         ]
       },
+      "nativeTextBodyVerticalText": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/8",
+        "leafKind": "textBodyVerticalText",
+        "nativeLeafIndex": 0,
+        "oldValue": "horizontal",
+        "value": "vertical",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -354,9 +367,9 @@
         "reopenedSlides": 14,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 898,
-      "nativeNestedLeafCount": 178,
-      "nativeTextLeafCount": 25,
+      "nativeLeafCount": 931,
+      "nativeNestedLeafCount": 187,
+      "nativeTextLeafCount": 26,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
         "sourceBound": true,
@@ -442,6 +455,7 @@
         "textBodyInsetLeftEmu": 109,
         "textBodyInsetRightEmu": 109,
         "textBodyInsetTopEmu": 109,
+        "textBodyVerticalText": 109,
         "textBodyWrap": 114,
         "topEmu": 41,
         "verticalAnchor": 109,
@@ -676,6 +690,17 @@
           "ppt/slides/slide3.xml"
         ]
       },
+      "nativeTextBodyVerticalText": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/4",
+        "leafKind": "textBodyVerticalText",
+        "nativeLeafIndex": 0,
+        "oldValue": "horizontal",
+        "value": "vertical",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -715,8 +740,8 @@
         "reopenedSlides": 22,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 2313,
-      "nativeNestedLeafCount": 870,
+      "nativeLeafCount": 2443,
+      "nativeNestedLeafCount": 921,
       "nativeTextLeafCount": 0,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -1011,6 +1036,10 @@
         "changedParts": [
           "ppt/slides/slide1.xml"
         ]
+      },
+      "nativeTextBodyVerticalText": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body vertical-text leaf was discovered"
       },
       "svgStyle": {
         "status": "passed",
@@ -1358,6 +1387,10 @@
         "status": "blocked",
         "reason": "no bounded direct text-body column-direction leaf was discovered"
       },
+      "nativeTextBodyVerticalText": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body vertical-text leaf was discovered"
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -1701,6 +1734,10 @@
         "status": "blocked",
         "reason": "no bounded direct text-body column-direction leaf was discovered"
       },
+      "nativeTextBodyVerticalText": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body vertical-text leaf was discovered"
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -2022,6 +2059,10 @@
       "nativeTextBodyColumnDirection": {
         "status": "blocked",
         "reason": "no bounded direct text-body column-direction leaf was discovered"
+      },
+      "nativeTextBodyVerticalText": {
+        "status": "blocked",
+        "reason": "no bounded direct text-body vertical-text leaf was discovered"
       },
       "svgStyle": {
         "status": "blocked",

@@ -128,6 +128,10 @@ function textBodyColumnDirectionToken(value) {
   return typeof value === "boolean" ? (value ? "1" : "0") : String(value);
 }
 
+function textBodyVerticalTextToken(value) {
+  return ({ horizontal: "horz", vertical: "vert", vertical270: "vert270" })[value] || String(value);
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -151,6 +155,8 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
           ? textBodyAutoFitToken(item.expectedValue)
         : item.leafKind === "textBodyColumnDirection"
           ? textBodyColumnDirectionToken(item.expectedValue)
+        : item.leafKind === "textBodyVerticalText"
+          ? textBodyVerticalTextToken(item.expectedValue)
         : String(item.expectedValue);
     const replacementValue = item.leafKind === "paragraphAlignment"
       ? paragraphAlignmentToken(item.value)
@@ -160,6 +166,8 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
           ? textBodyAutoFitToken(item.value)
         : item.leafKind === "textBodyColumnDirection"
           ? textBodyColumnDirectionToken(item.value)
+        : item.leafKind === "textBodyVerticalText"
+          ? textBodyVerticalTextToken(item.value)
         : String(item.value);
     const expected = Buffer.from(expectedValue, "utf8");
     const replacement = Buffer.from(replacementValue, "utf8");
@@ -1181,6 +1189,49 @@ const textBodyColumnDirectionRoundTripLeaf = textBodyColumnDirectionRoundTrip.in
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnDirection");
 assert.equal(textBodyColumnDirectionRoundTripLeaf.value, true);
+
+// Direct vert values are a source-bound text-body orientation leaf.  Switch
+// the canonical horizontal marker to vertical without reserializing the shape.
+const textBodyVerticalTextAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyVerticalTextAccessibilityXml = (await textBodyVerticalTextAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:bodyPr\b)(?![^>]*\bvert=)([^>]*>)/u,
+    '$1 vert="horz"$2',
+  );
+assert.match(textBodyVerticalTextAccessibilityXml, /<a:bodyPr\b[^>]*\bvert="horz"/);
+textBodyVerticalTextAccessibilityZip.file("ppt/slides/slide1.xml", textBodyVerticalTextAccessibilityXml);
+const textBodyVerticalTextAccessibilityFile = new FileBlob(
+  await textBodyVerticalTextAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyVerticalTextImported = await PresentationFile.importPptx(textBodyVerticalTextAccessibilityFile);
+const textBodyVerticalTextShape = itemByName(textBodyVerticalTextImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyVerticalTextLeaf = textBodyVerticalTextImported.inspect({ includeNativeLeaves: true, target: textBodyVerticalTextShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyVerticalText");
+assert.ok(textBodyVerticalTextLeaf, "source-bound shapes should expose direct text-body vertical-text leaves");
+assert.equal(textBodyVerticalTextLeaf.value, "horizontal");
+textBodyVerticalTextImported.editNativeLeaf(textBodyVerticalTextLeaf.targetId, textBodyVerticalTextLeaf.leafId, {
+  expectedHash: textBodyVerticalTextLeaf.expectedHash,
+  value: "vertical",
+});
+const textBodyVerticalTextOutput = await PresentationFile.exportPptx(textBodyVerticalTextImported);
+const textBodyVerticalTextOperation = textBodyVerticalTextOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyVerticalText");
+assert.ok(textBodyVerticalTextOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyVerticalTextAccessibilityFile, textBodyVerticalTextOutput, textBodyVerticalTextOperation);
+const textBodyVerticalTextXml = await (await JSZip.loadAsync(textBodyVerticalTextOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyVerticalTextXml, /<a:bodyPr\b[^>]*\bvert="vert"/);
+assert.match(textBodyVerticalTextXml, /fixture:opaque="kept"/);
+const textBodyVerticalTextRoundTrip = await PresentationFile.importPptx(textBodyVerticalTextOutput);
+const textBodyVerticalTextRoundTripLeaf = textBodyVerticalTextRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyVerticalTextShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyVerticalText");
+assert.equal(textBodyVerticalTextRoundTripLeaf.value, "vertical");
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
