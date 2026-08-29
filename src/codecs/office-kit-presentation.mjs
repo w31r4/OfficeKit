@@ -3318,6 +3318,12 @@ function assertNativeLeafBooleanValue(value) {
   }
 }
 
+function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
+  if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
+  }
+}
+
 function hasUnpairedUtf16Surrogate(value) {
   for (let index = 0; index < value.length; index += 1) {
     const unit = value.charCodeAt(index);
@@ -4267,6 +4273,30 @@ function createPresentationNativeLeafCapability(presentation, state) {
                   throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-style native leaf no longer resolves to the imported text run.");
                 }
                 run.style = { ...(run.style || {}), [field]: next === "1" };
+              },
+            });
+          }
+          const colorRgb = leaf.run.colorRgb;
+          if (typeof colorRgb === "string" && /^[0-9A-F]{6}$/iu.test(colorRgb)) {
+            const expectedValue = colorRgb.toUpperCase();
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontColorRgb",
+              expectedValue,
+              value: `#${expectedValue.toLowerCase()}`,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                assertNativeLeafRgbValue(next, "fontColorRgb");
+                const normalized = String(next).trim().replace(/^#/u, "").toUpperCase();
+                return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+              },
+              isNoop(next) { return next.toUpperCase() === expectedValue; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-color native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), color: `#${next.toLowerCase()}` };
               },
             });
           }

@@ -28,6 +28,21 @@ internal static class PptxColor
     internal static string SolidRgb(A.SolidFill? fill) =>
         fill?.GetFirstChild<A.RgbColorModelHex>()?.Val?.Value ?? string.Empty;
 
+    // Source-bound run color edits are limited to a bare, direct RGB paint.
+    // Effects, alpha transforms, scheme colors, and extra children remain
+    // source-owned so a native-leaf operation cannot accidentally normalize
+    // the surrounding run properties.
+    internal static bool TryDirectSolidRgb(A.SolidFill? fill, out string rgb)
+    {
+        rgb = string.Empty;
+        if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
+        if (fill.FirstChild is not A.RgbColorModelHex color || color.ChildElements.Count != 0 ||
+            !HasOnlyAttributes(color, "val") || color.Val?.Value is not { Length: 6 } value ||
+            !value.All(Uri.IsHexDigit)) return false;
+        rgb = value.ToUpperInvariant();
+        return true;
+    }
+
     internal static string SolidScheme(A.SolidFill? fill)
     {
         if (fill is null || fill.ChildElements.Count != 1 ||
