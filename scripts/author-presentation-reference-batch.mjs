@@ -366,13 +366,17 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   // category's authored clean-room library in a stable order.  This keeps a
   // style recognizable while preventing the cover photograph from silently
   // reappearing in every later crop.  The cap is deliberately modest so the
-  // reference remains an example deck, not an asset warehouse.
+  // reference remains an example deck, not an asset warehouse.  Image-led
+  // archetypes can legitimately need more than one frame per page (a hero,
+  // detail crops, and a closing field), so keep a larger deterministic pool
+  // and let imageProps spend it in order instead of wrapping back to the
+  // cover after five or six calls.
   const scopedPool = TEMPLATE_PHOTO_POOLS[templateId] || [];
   const categoryPool = PHOTO_ASSET_POOLS[category] || [];
   const photoPool = [...scopedPool, ...categoryPool]
     .map((entry) => typeof entry === "string" ? { file: entry } : entry)
     .filter((entry, index, list) => list.findIndex((candidate) => candidate.file === entry.file) === index)
-    .slice(0, 12);
+    .slice(0, 20);
   const photoSources = needsPhoto ? photoPool : [];
   const imageSources = [];
   for (const source of photoSources) {
@@ -1612,9 +1616,24 @@ function promotionArgument(slide, style) {
   addText(slide, "promotion-kicker", "ONE PROPOSITION", 116, 352, 300, 24, { fontSize: 15, bold: true, color: c.accent });
   addText(slide, "promotion-headline", "Make the next action visible.", 116, 398, 680, 76, { fontSize: 35, bold: true, color: c.ink });
   addText(slide, "promotion-body", "A clear invitation earns attention when evidence and access arrive together.", 116, 500, 650, 48, { fontSize: 21, color: c.ink });
-  slide.images.add({ name: "promotion-hero-frame", ...imageProps(style, "argument-inset"), position: { left: 1000, top: 330, width: 420, height: 270 }, fit: "cover", accessibility: { decorative: true } });
-  addLine(slide, "promotion-image-rule", 1000, 620, 1420, 620, c.accent, 3);
-  addText(slide, "promotion-image-label", "INVITE · PROVE · MOVE", 1000, 646, 420, 26, { fontSize: 17, bold: true, color: c.accent });
+  // Image-matrix signatures are not one-photo signatures.  Use one
+  // documentary anchor plus two distinct detail crops so the template shows
+  // how a visual argument can accumulate evidence without becoming a card
+  // wall.  Other promotion styles keep the single inset treatment.
+  const imageLedPromotion = style.category === "promotion"
+    && style.hasPhotoPool
+    && (style.layoutTraits?.imageMatrix || style.bodyImage || style.coverImage || style.sectionImage);
+  if (imageLedPromotion) {
+    slide.images.add({ name: "promotion-hero-frame", ...imageProps(style, "argument-hero"), position: { left: 1000, top: 330, width: 420, height: 188 }, fit: "cover", accessibility: { decorative: true } });
+    slide.images.add({ name: "promotion-detail-frame-one", ...imageProps(style, "argument-detail-one"), position: { left: 1000, top: 542, width: 202, height: 112 }, fit: "cover", accessibility: { decorative: true } });
+    slide.images.add({ name: "promotion-detail-frame-two", ...imageProps(style, "argument-detail-two"), position: { left: 1218, top: 542, width: 202, height: 112 }, fit: "cover", accessibility: { decorative: true } });
+    addLine(slide, "promotion-image-rule", 1000, 676, 1420, 676, c.accent, 3);
+    addText(slide, "promotion-image-label", "INVITE · PROVE · MOVE", 1000, 700, 420, 26, { fontSize: 17, bold: true, color: c.accent });
+  } else {
+    slide.images.add({ name: "promotion-hero-frame", ...imageProps(style, "argument-inset"), position: { left: 1000, top: 330, width: 420, height: 270 }, fit: "cover", accessibility: { decorative: true } });
+    addLine(slide, "promotion-image-rule", 1000, 620, 1420, 620, c.accent, 3);
+    addText(slide, "promotion-image-label", "INVITE · PROVE · MOVE", 1000, 646, 420, 26, { fontSize: 17, bold: true, color: c.accent });
+  }
 }
 
 function workArgument(slide, style) {

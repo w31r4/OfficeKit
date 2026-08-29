@@ -25,7 +25,7 @@
     },
     {
       "templateId": "artifact-template-aqua-impact-story",
-      "referenceSha256": "ce6e2cc2f5094676b8a98bcafe0d80e1f1bd8d76dcae56032ab15100f044059e",
+      "referenceSha256": "c478166531233aa0bfab8d5f9d66f3a3e81dda92036cb3dc4b41fb51a83527bf",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 1,
@@ -205,7 +205,7 @@
     },
     {
       "templateId": "artifact-template-noir-field-pictorial",
-      "referenceSha256": "797e95f5e377a1e015aea1f540281390c3d43ff94e439daab5f6f04a94badf6b",
+      "referenceSha256": "eecd9b70e49dd211cc9a6a3d42bb94c5f7f491f0550a5813402e64d21a2804a7",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 1,
@@ -235,7 +235,7 @@
     },
     {
       "templateId": "artifact-template-river-handbook",
-      "referenceSha256": "1f80af90588ea0b93ddfda817cbe107e5b23300ec4e36109bf5fca2b6f4b6cc5",
+      "referenceSha256": "1a46362ee0aa9c92aed6e06bbb378e50b0f354f32f75315d3facf27e200800db",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 1,
@@ -245,7 +245,7 @@
     },
     {
       "templateId": "artifact-template-saffron-editorial",
-      "referenceSha256": "75e90cddc350d51829bd8337ae7a0fcbed0d82237acbccf9888bc60dccd56572",
+      "referenceSha256": "fdf35e16a8dd3bb34af5d8c78a5bb9f74d8edf9cac0515e6059fcf2da3d387e5",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 1,
@@ -255,7 +255,7 @@
     },
     {
       "templateId": "artifact-template-silver-atelier",
-      "referenceSha256": "07c77a49ec890f8b7297b3e2dd60f0db3a230523c23075801eef94dd764bd990",
+      "referenceSha256": "b64de719d10f03f6487e79c83e00c066d5f76394908a43b446311400293932fa",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 1,

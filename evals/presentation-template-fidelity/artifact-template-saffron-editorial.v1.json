@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-saffron-editorial/assets/reference.pptx",
-    "sha256": "75e90cddc350d51829bd8337ae7a0fcbed0d82237acbccf9888bc60dccd56572"
+    "sha256": "fdf35e16a8dd3bb34af5d8c78a5bb9f74d8edf9cac0515e6059fcf2da3d387e5"
   },
   "evidence": {
     "source": [
@@ -28,12 +28,12 @@
       "renders/05.png",
       "renders/06.png",
       "native-render.v1.json",
-      "native-pdf-sha256:b9c5dcffd2c9ecf684d1eb9a86db7e165ccdb7f0d400d0401bfeeae1fd1088fa",
+      "native-pdf-sha256:8ea17f096544bfd38c88dde5e803fd6d6f355bca2f9111449269671d43a62a4d",
       "native-pages:6"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:182",
+      "records:186",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -49,7 +49,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:75e90cddc350d51829bd8337ae7a0fcbed0d82237acbccf9888bc60dccd56572"
+      "reference-sha256:fdf35e16a8dd3bb34af5d8c78a5bb9f74d8edf9cac0515e6059fcf2da3d387e5"
     ]
   },
   "visual": {
@@ -157,8 +157,9 @@
       "evidence": [
         "template-reuse.v1.json",
         "reference.pptx",
-        "source-bound-duplicate:1",
-        "second-import:passed"
+        "inspect.jsonl",
+        "source-bound-duplicate-reimport",
+        "templates:30"
       ]
     },
     "roundTripStability": {
@@ -172,8 +173,9 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:b9c5dcffd2c9ecf684d1eb9a86db7e165ccdb7f0d400d0401bfeeae1fd1088fa",
-        "all-pages-rendered:6"
+        "native-pdf-sha256:8ea17f096544bfd38c88dde5e803fd6d6f355bca2f9111449269671d43a62a4d",
+        "native-pages:6",
+        "all-pages-rendered"
       ]
     },
     "backgroundAndLayerFidelity": {
@@ -202,8 +204,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 80.0, functional 95.4); keep this template pending and iterate its style-specific carriers.",
-    "Native LibreOffice render and source-bound slide reuse were re-run against the tracked reference.pptx; visual restoration remains a separate, honest score."
+    "Image-led roles now use a deterministic, style-specific pool with 18 embedded media parts; visual restoration remains below the 95/95 bar and needs further style-specific iteration."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
