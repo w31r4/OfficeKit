@@ -4525,6 +4525,30 @@ function createPresentationNativeLeafCapability(presentation, state) {
             },
           });
         }
+        const columnDirection = bodyProperties?.columnDirection;
+        if (columnDirection?.case === "rightToLeftColumns" && (columnDirection.value === true || columnDirection.value === false)) {
+          const direction = columnDirection.value;
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyColumnDirection",
+            expectedValue: direction ? "1" : "0",
+            value: direction,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              if (typeof next === "boolean") return { raw: next ? "1" : "0", publicValue: next };
+              const normalized = String(next ?? "").trim();
+              if (normalized === "0" || normalized === "1") return { raw: normalized, publicValue: normalized === "1" };
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnDirection native leaf requires a boolean or canonical 0/1 token.");
+            },
+            isNoop(next) { return next === (direction ? "1" : "0"); },
+            apply(next) {
+              model.text.bodyProperties = {
+                ...(model.text.bodyProperties || {}),
+                columns: { ...(model.text.bodyProperties?.columns || {}), rightToLeft: next === "1" },
+              };
+            },
+          });
+        }
         const anchor = model.text.bodyProperties?.anchor;
         if (PRESENTATION_VERTICAL_ANCHORS.has(anchor)) {
           registerLeaf({
