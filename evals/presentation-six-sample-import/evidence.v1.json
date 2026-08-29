@@ -21,6 +21,7 @@
     "nativeFontSizeEdits": 6,
     "nativeFontFamilyEdits": 6,
     "nativeFontStyleEdits": 5,
+    "nativeFontColorEdits": 6,
     "svgStyleEdits": 1,
     "animatedTextEdits": 1,
     "tableCellEdits": 4,
@@ -71,6 +72,7 @@
       "nativeLeafKinds": {
         "fillScheme": 12,
         "fontBold": 21,
+        "fontColorRgb": 2,
         "fontFamily": 3,
         "fontFamilyEastAsia": 4,
         "fontItalic": 2,
@@ -215,6 +217,17 @@
           "ppt/slides/slide1.xml"
         ]
       },
+      "nativeFontColor": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/8",
+        "leafKind": "fontColorRgb",
+        "textLeafIndex": 0,
+        "oldValue": "#ff4605",
+        "value": "#AABBCC",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -244,7 +257,7 @@
         "reopenedSlides": 14,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 589,
+      "nativeLeafCount": 595,
       "nativeNestedLeafCount": 101,
       "nativeTextLeafCount": 18,
       "designProfile": {
@@ -313,6 +326,7 @@
         "fillRgb": 1,
         "fillScheme": 10,
         "fontBold": 13,
+        "fontColorRgb": 4,
         "fontFamily": 19,
         "fontItalic": 47,
         "fontSizePoints": 70,
@@ -457,6 +471,17 @@
           "ppt/slides/slide1.xml"
         ]
       },
+      "nativeFontColor": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/4",
+        "leafKind": "fontColorRgb",
+        "textLeafIndex": 0,
+        "oldValue": "#bad5e4",
+        "value": "#AABBCC",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -496,7 +521,7 @@
         "reopenedSlides": 22,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 1086,
+      "nativeLeafCount": 1099,
       "nativeNestedLeafCount": 446,
       "nativeTextLeafCount": 0,
       "designProfile": {
@@ -562,6 +587,7 @@
       },
       "nativeLeafKinds": {
         "fillRgb": 170,
+        "fontColorRgb": 143,
         "fontFamily": 143,
         "fontSizePoints": 143,
         "heightEmu": 339,
@@ -692,6 +718,17 @@
         "status": "blocked",
         "reason": "no bounded explicit text run bold/italic leaf was discovered"
       },
+      "nativeFontColor": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/2/element/2",
+        "leafKind": "fontColorRgb",
+        "textLeafIndex": 0,
+        "oldValue": "#2c434e",
+        "value": "#AABBCC",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "passed",
         "targetId": "presentation/slide/3/element/2",
@@ -734,8 +771,8 @@
         "reopenedSlides": 26,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 2549,
-      "nativeNestedLeafCount": 1429,
+      "nativeLeafCount": 2786,
+      "nativeNestedLeafCount": 1527,
       "nativeTextLeafCount": 16,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -804,6 +841,7 @@
         "fillRgb": 20,
         "fillScheme": 214,
         "fontBold": 27,
+        "fontColorRgb": 9,
         "fontFamily": 92,
         "fontFamilyEastAsia": 88,
         "fontItalic": 4,
@@ -953,6 +991,17 @@
           "ppt/slides/slide17.xml"
         ]
       },
+      "nativeFontColor": {
+        "status": "passed",
+        "targetId": "presentation/slide/12/element/3",
+        "leafKind": "fontColorRgb",
+        "textLeafIndex": 0,
+        "oldValue": "#ffffff",
+        "value": "#AABBCC",
+        "changedParts": [
+          "ppt/slides/slide12.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -987,8 +1036,8 @@
         "reopenedSlides": 40,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 2718,
-      "nativeNestedLeafCount": 1824,
+      "nativeLeafCount": 2730,
+      "nativeNestedLeafCount": 1832,
       "nativeTextLeafCount": 65,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -1057,6 +1106,7 @@
         "fillRgb": 20,
         "fillScheme": 103,
         "fontBold": 29,
+        "fontColorRgb": 13,
         "fontFamily": 93,
         "fontFamilyEastAsia": 89,
         "fontItalic": 4,
@@ -1203,6 +1253,17 @@
           "ppt/slides/slide2.xml"
         ]
       },
+      "nativeFontColor": {
+        "status": "passed",
+        "targetId": "presentation/slide/2/element/2",
+        "leafKind": "fontColorRgb",
+        "textLeafIndex": 1,
+        "oldValue": "#ffffff",
+        "value": "#AABBCC",
+        "changedParts": [
+          "ppt/slides/slide2.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -1237,8 +1298,8 @@
         "reopenedSlides": 40,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 3115,
-      "nativeNestedLeafCount": 2147,
+      "nativeLeafCount": 3146,
+      "nativeNestedLeafCount": 2155,
       "nativeTextLeafCount": 12,
       "designProfile": {
         "schema": "office-kit/pptx-design-profile/v1",
@@ -1299,6 +1360,7 @@
       "nativeLeafKinds": {
         "fillRgb": 2,
         "fontBold": 106,
+        "fontColorRgb": 106,
         "fontFamily": 106,
         "fontFamilyEastAsia": 106,
         "fontItalic": 106,
@@ -1431,6 +1493,17 @@
           "ppt/slides/slide1.xml"
         ]
       },
+      "nativeFontColor": {
+        "status": "passed",
+        "targetId": "presentation/slide/1/element/1",
+        "leafKind": "fontColorRgb",
+        "textLeafIndex": 0,
+        "oldValue": "#ffffff",
+        "value": "#AABBCC",
+        "changedParts": [
+          "ppt/slides/slide1.xml"
+        ]
+      },
       "svgStyle": {
         "status": "blocked",
         "reason": "no safe SVG style leaf was discovered"
@@ -1460,7 +1533,7 @@
         "reopenedSlides": 21,
         "sourceSlideUnchanged": true
       },
-      "nativeLeafCount": 1234,
+      "nativeLeafCount": 1351,
       "nativeNestedLeafCount": 36,
       "nativeTextLeafCount": 0,
       "designProfile": {

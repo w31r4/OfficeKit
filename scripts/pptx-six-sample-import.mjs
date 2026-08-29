@@ -97,6 +97,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeFontSize = await verifyNativeFontSizeEdit(bytes);
     const nativeFontFamily = await verifyNativeFontFamilyEdit(bytes);
     const nativeFontStyle = await verifyNativeFontStyleEdit(bytes);
+    const nativeFontColor = await verifyNativeFontColorEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -134,6 +135,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFontSize,
       nativeFontFamily,
       nativeFontStyle,
+      nativeFontColor,
       svgStyle,
       animatedText,
       tableCell,
@@ -170,6 +172,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFontSizeEdits: results.filter((result) => result.nativeFontSize.status === "passed").length,
       nativeFontFamilyEdits: results.filter((result) => result.nativeFontFamily.status === "passed").length,
       nativeFontStyleEdits: results.filter((result) => result.nativeFontStyle.status === "passed").length,
+      nativeFontColorEdits: results.filter((result) => result.nativeFontColor.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -406,6 +409,28 @@ async function verifyNativeFontStyleEdit(bytes) {
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
     throw new Error(`Native font-style edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFontColorEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontColorRgb");
+  if (!target) return { status: "blocked", reason: "no bounded bare RGB text-run color leaf was discovered" };
+  const value = target.value.toLowerCase() === "#aabbcc" ? "#C3B2A1" : "#AABBCC";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "fontColorRgb");
+  if (!rebound || rebound.value.toLowerCase() !== value.toLowerCase()) {
+    throw new Error(`Native font-color edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-color edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
 }

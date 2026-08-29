@@ -772,6 +772,48 @@ const fontStyleRoundTripLeaves = fontStyleRoundTrip.inspect({ includeNativeLeave
 assert.equal(fontStyleRoundTripLeaves.find((record) => record.leafKind === "fontBold").value, false);
 assert.equal(fontStyleRoundTripLeaves.find((record) => record.leafKind === "fontItalic").value, true);
 
+// Explicit bare run RGB colors use the same source-bound token contract. The
+// fixture intentionally has no color effects so the edit can splice only the
+// a:srgbClr/@val token and retain the vendor attribute above it.
+const fontColorAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontColorAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:r><a:rPr\b[^>]*)(\/>)((?:<a:t>)Decision)/u,
+  '$1><a:solidFill><a:srgbClr val="DBEAFE"/></a:solidFill></a:rPr>$3',
+);
+assert.match(fontColorAccessibilityXml, /<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE"\s*\/><\/a:solidFill>/);
+fontColorAccessibilityZip.file("ppt/slides/slide1.xml", fontColorAccessibilityXml);
+const fontColorAccessibilityFile = new FileBlob(
+  await fontColorAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontColorImported = await PresentationFile.importPptx(fontColorAccessibilityFile);
+const fontColorShape = itemByName(fontColorImported.slides.getItem(0).shapes.items, "decision-status");
+const fontColorLeaf = fontColorImported.inspect({ includeNativeLeaves: true, target: fontColorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorRgb");
+assert.ok(fontColorLeaf, "source-bound shapes should expose an explicit run font-color leaf");
+assert.equal(fontColorLeaf.value, "#dbeafe");
+fontColorImported.editNativeLeaf(fontColorLeaf.targetId, fontColorLeaf.leafId, {
+  expectedHash: fontColorLeaf.expectedHash,
+  value: "#AABBCC",
+});
+const fontColorOutput = await PresentationFile.exportPptx(fontColorImported);
+const fontColorOperation = fontColorOutput.metadata.editPlan.operations[0];
+assert.equal(fontColorOperation.leafKind, "fontColorRgb");
+await assertOnlyDeclaredPptxFootprintChanged(fontColorAccessibilityFile, fontColorOutput, fontColorOperation);
+const fontColorXml = await (await JSZip.loadAsync(fontColorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontColorXml, /<a:solidFill\b[^>]*><a:srgbClr val="AABBCC"\s*\/><\/a:solidFill>/);
+assert.match(fontColorXml, /fixture:opaque="kept"/);
+const fontColorRoundTrip = await PresentationFile.importPptx(fontColorOutput);
+const fontColorRoundTripLeaf = fontColorRoundTrip.inspect({ includeNativeLeaves: true, target: fontColorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorRgb");
+assert.equal(fontColorRoundTripLeaf.value, "#aabbcc");
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
