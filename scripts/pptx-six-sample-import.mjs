@@ -313,7 +313,7 @@ async function verifyNativeLineWidthEdit(bytes) {
   const presentation = await importPresentation(bytes);
   const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
   const target = records.find((record) => record.leafKind === "lineWidthEmu");
-  if (!target) return { status: "blocked", reason: "no bounded imported connector line-width leaf was discovered" };
+  if (!target) return { status: "blocked", reason: "no bounded imported line-width leaf was discovered" };
   const oldValue = Number(target.value);
   const value = oldValue + 9525 <= 20_116_800 ? oldValue + 9525 : Math.max(0, oldValue - 9525);
   if (!Number.isSafeInteger(oldValue) || value === oldValue) return { status: "blocked", reason: "discovered line width is outside the safe edit range" };
@@ -323,12 +323,12 @@ async function verifyNativeLineWidthEdit(bytes) {
   const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
     .find((record) => record.targetId === target.targetId && record.leafKind === "lineWidthEmu");
   if (!rebound || Number(rebound.value) !== value) {
-    throw new Error(`Native connector line-width edit did not survive re-import for ${target.targetId}.`);
+    throw new Error(`Native line-width edit did not survive re-import for ${target.targetId}.`);
   }
   const changedParts = await changedPackageParts(bytes, output.bytes);
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
-    throw new Error(`Native connector line-width edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+    throw new Error(`Native line-width edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, oldValue, value, changedParts };
 }
