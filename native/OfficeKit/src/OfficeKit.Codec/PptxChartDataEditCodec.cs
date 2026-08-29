@@ -267,6 +267,7 @@ internal static partial class PptxEditPlanCodec
         {
             "chartDataValue" => $"{operation.ChartSeriesIndex}:{operation.ChartPointIndex}",
             "diagramText" => $"{operation.DiagramModelId}:{operation.DiagramRunIndex}",
+            "fillRgb" or "fillScheme" => $"native:{operation.NativeLeafIndex}",
             _ => operation.TextLeafIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
         };
 

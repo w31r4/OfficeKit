@@ -187,6 +187,10 @@ message PresentationEditOperation {
   // comes from the codec-issued deletion capability and is re-proved against
   // the exact source revision; it is not an arbitrary package selector.
   PresentationEditElementDeletion element_deletion = 30;
+  // Compiler-issued index for a bounded native style leaf inside an opaque
+  // group. It is intentionally separate from text_leaf_index so callers and
+  // proof code cannot confuse a style token with a text token.
+  uint32 native_leaf_index = 31;
 }
 
 message PresentationEditPlanResult {

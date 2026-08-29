@@ -3473,6 +3473,39 @@ await assert.rejects(
   (error) => error?.code === "unsupported_presentation_edit",
 );
 
+// An opaque group keeps its unsupported shell, but an unambiguous descendant
+// solid fill is still a bounded source-bound style leaf. This is deliberately
+// one contract sample rather than an effect matrix: the group remains opaque,
+// only the issued color token may change, and the result must re-import.
+const opaqueGroupStylePresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupStyle = itemByName(opaqueGroupStylePresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleLeaves = opaqueGroupStylePresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupStyle.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupFillLeaf = opaqueGroupStyleLeaves.find((record) => record.leafKind === "fillRgb");
+assert.ok(opaqueGroupFillLeaf, "opaque groups should expose an unambiguous descendant fill leaf");
+opaqueGroupStylePresentation.editNativeLeaf(opaqueGroupFillLeaf.targetId, opaqueGroupFillLeaf.leafId, {
+  expectedHash: opaqueGroupFillLeaf.expectedHash,
+  value: "#A1B2C3",
+});
+const opaqueGroupStyleOutput = await PresentationFile.exportPptx(opaqueGroupStylePresentation);
+const opaqueGroupStyleOperation = opaqueGroupStyleOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupStyleOperation.leafKind, "fillRgb");
+assert.equal(opaqueGroupStyleOperation.nativeLeafIndex ?? 0, opaqueGroupFillLeaf.nativeLeafIndex);
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupStyleOutput, opaqueGroupStyleOperation);
+const opaqueGroupStyleXml = await (await JSZip.loadAsync(opaqueGroupStyleOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(opaqueGroupStyleXml, /<p:grpSpPr bwMode="gray">/);
+const opaqueGroupStyleRoundTrip = await PresentationFile.importPptx(opaqueGroupStyleOutput);
+const opaqueGroupStyleRoundTripObject = itemByName(opaqueGroupStyleRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleRoundTripLeaves = opaqueGroupStyleRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupStyleRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupStyleRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupFillLeaf.nativeLeafIndex)?.value, "#a1b2c3");
+
 // Office 2019+ decorative classification is one presence-aware accessibility
 // value across every modeled drawing object. Explicit false remains distinct
 // from absence, and true cannot coexist with title/description.

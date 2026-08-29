@@ -6,12 +6,14 @@ import { FileBlob } from "../shared/file-blob.mjs";
 import { aid } from "../shared/ids.mjs";
 import { attrEscape, xmlEscape } from "../shared/xml.mjs";
 import { presentationElementDeletionCapability } from "./element-deletion.mjs";
+import { directPresentationChildren } from "./group-shapes.mjs";
 
 const MAX_EMBEDDED_WORKBOOK_BYTES = 16 * 1024 * 1024;
 const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
 const MAX_DIAGRAM_NODE_TEXT_LENGTH = 32_767;
 const MAX_NATIVE_TEXT_LENGTH = 32_767;
 const MAX_NATIVE_LINE_WIDTH_EMU = 20_116_800;
+const MAX_NATIVE_STYLE_LEAVES = 4_096;
 const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
@@ -148,6 +150,65 @@ function nativeLineRecord(leaves) {
 
 function nativeLineEditableFields(leaves) {
   return leaves?.length ? [...new Set(leaves.map((leaf) => leaf.leafKind || "lineRgb"))] : [];
+}
+
+// A group that the semantic importer cannot model can still expose a tiny,
+// source-bound style surface.  Walk only direct PresentationML children and
+// issue leaves for unambiguous solid fills on descendant p:sp nodes.  This
+// keeps the group topology, effects, and every unsupported fill opaque while
+// making common theme-driven template shapes reusable.
+function deriveNativeStyleLeaves(rawXml, nativeKind) {
+  if (nativeKind !== "group") return undefined;
+  const leaves = [];
+  const colorLeaf = (solid) => {
+    const colors = directPresentationChildren(solid.xml, "solidFill")
+      .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
+    if (colors.length !== 1) return undefined;
+    const color = colors[0];
+    if (directPresentationChildren(color.xml, color.localName).length !== 0) return undefined;
+    const open = /^<[^>]+>/u.exec(color.xml)?.[0];
+    const attributes = nativeTagAttributes(open || "");
+    if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val" || !attributes[0].value) return undefined;
+    if (color.localName === "schemeClr") {
+      const value = nativeSchemeColorToken(attributes[0].value);
+      return value ? { leafKind: "fillScheme", value } : undefined;
+    }
+    if (!/^[0-9a-f]{6}$/iu.test(attributes[0].value)) return undefined;
+    return { leafKind: "fillRgb", value: attributes[0].value.toUpperCase() };
+  };
+  const visitGroup = (xml) => {
+    for (const child of directPresentationChildren(xml, "grpSp")) {
+      if (child.localName === "grpSp") {
+        visitGroup(child.xml);
+        continue;
+      }
+      if (child.localName !== "sp") continue;
+      const shapeProperties = directPresentationChildren(child.xml, "sp").find((entry) => entry.localName === "spPr");
+      if (!shapeProperties) continue;
+      const fillNodes = directPresentationChildren(shapeProperties.xml, "spPr")
+        .filter((entry) => ["noFill", "solidFill", "gradFill", "blipFill", "pattFill"].includes(entry.localName));
+      if (fillNodes.length !== 1 || fillNodes[0].localName !== "solidFill") continue;
+      const leaf = colorLeaf(fillNodes[0]);
+      if (!leaf) continue;
+      leaves.push({ nativeLeafIndex: leaves.length, ...leaf, expectedHash: sha256(leaf.value) });
+    }
+  };
+  visitGroup(String(rawXml || ""));
+  return leaves.length && leaves.length <= MAX_NATIVE_STYLE_LEAVES ? Object.freeze(leaves) : undefined;
+}
+
+function nativeStyleRecord(leaves) {
+  return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
+    nativeLeafIndex: leaf.nativeLeafIndex,
+    leafKind: leaf.leafKind,
+    value: leaf.leafKind === "fillScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+    expectedValue: leaf.value,
+    expectedHash: sha256(leaf.value),
+  }))) : undefined;
+}
+
+function nativeStyleEditableFields(leaves) {
+  return leaves?.length ? [...new Set(leaves.map((leaf) => leaf.leafKind))] : [];
 }
 
 function normalizeNativeChart(config) {
@@ -470,6 +531,19 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         writable: false,
         value: nativeLineBinding ? nativeLineBinding.map((leaf) => ({ ...leaf })) : undefined,
       });
+      const nativeStyleBinding = deriveNativeStyleLeaves(this.rawXml, this.nativeKind);
+      Object.defineProperty(this, "_nativeStyleBinding", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeStyleBinding,
+      });
+      Object.defineProperty(this, "_nativeStyleLeaves", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeStyleBinding ? nativeStyleBinding.map((leaf) => ({ ...leaf })) : undefined,
+      });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
         enumerable: true,
@@ -484,6 +558,11 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         configurable: false,
         enumerable: true,
         get: () => nativeLineRecord(this._nativeLineLeaves),
+      });
+      Object.defineProperty(this, "nativeStyleLeaves", {
+        configurable: false,
+        enumerable: true,
+        get: () => nativeStyleRecord(this._nativeStyleLeaves),
       });
       Object.defineProperty(this, "_embeddedWorkbookReplacement", {
         configurable: false,
@@ -708,6 +787,14 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return nativeLineRecord(this._nativeLineLeaves);
     }
 
+    _nativeStyleSourceBinding() {
+      return nativeStyleRecord(this._nativeStyleBinding);
+    }
+
+    _nativeStyleRecords() {
+      return nativeStyleRecord(this._nativeStyleLeaves);
+    }
+
     _setNativeLineLeaf(index, value) {
       if (!this._nativeLineBinding || !this._nativeLineLeaves || !this._nativeLineLeaves[index]) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native line leaf ${index}.`);
@@ -733,6 +820,22 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         throw new RangeError("Native line color must be a six-digit RGB value.");
       }
       this._nativeLineLeaves[index].value = color.toUpperCase();
+    }
+
+    _setNativeStyleLeaf(index, value) {
+      if (!this._nativeStyleBinding || !this._nativeStyleLeaves || !this._nativeStyleLeaves[index]) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native style leaf ${index}.`);
+      }
+      const leafKind = this._nativeStyleBinding[index].leafKind;
+      if (leafKind === "fillScheme") {
+        const token = nativeSchemeColorToken(String(value ?? "").trim());
+        if (!token) throw new RangeError("Native fill scheme color must be a supported theme token.");
+        this._nativeStyleLeaves[index].value = token;
+        return;
+      }
+      const color = String(value ?? "").trim().replace(/^#/u, "");
+      if (!/^[0-9a-f]{6}$/iu.test(color)) throw new RangeError("Native fill color must be a six-digit RGB value.");
+      this._nativeStyleLeaves[index].value = color.toUpperCase();
     }
 
     _setNativeTextLeaf(index, value) {
@@ -775,6 +878,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
         ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
         ...nativeLineEditableFields(this._nativeLineLeaves),
+        ...nativeStyleEditableFields(this._nativeStyleLeaves),
         ...(this.placementCapability.supported ? ["position"] : []),
       ];
       return {
@@ -801,6 +905,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         } : undefined,
         nativeTextLeaves: this._nativeTextRecords(),
         nativeLineLeaves: this._nativeLineRecords(),
+        nativeStyleLeaves: this._nativeStyleRecords(),
         ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
         deletionCapability: this.deletionCapability,
         placementCapability: this.placementCapability,
@@ -851,6 +956,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         nativeChart: this._nativeChartCurrentRecord(),
         nativeTextLeaves: this._nativeTextRecords(),
         nativeLineLeaves: this._nativeLineRecords(),
+        nativeStyleLeaves: this._nativeStyleRecords(),
         placementCapability: this.placementCapability,
         editable: false,
         editableFields: [
@@ -861,6 +967,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
           ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
           ...nativeLineEditableFields(this._nativeLineLeaves),
+          ...nativeStyleEditableFields(this._nativeStyleLeaves),
           ...(this.placementCapability.supported ? ["position"] : []),
         ],
       };

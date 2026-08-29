@@ -3702,7 +3702,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
   const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue, value, unit, details, compilerBinding, normalize, isNoop, apply }) => {
     const expectedHash = createHash("sha256").update(expectedValue, "utf8").digest("hex");
     const seed = [revisionSha256, slideState.wire.id, wire.id, shapeTreePath.join("/"), wire.source.elementSha256, leafKind,
-      details?.textLeafIndex ?? "", details?.seriesIndex ?? "", details?.pointIndex ?? "", expectedHash].join("\0");
+      details?.textLeafIndex ?? "", details?.nativeLeafIndex ?? "", details?.seriesIndex ?? "", details?.pointIndex ?? "", expectedHash].join("\0");
     const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
     const record = Object.freeze({
       kind: "nativeLeaf",
@@ -3912,7 +3912,9 @@ function createPresentationNativeLeafCapability(presentation, state) {
             apply(next) { model._setNativeTextLeaf(index, next); },
           });
         }
-        return;
+        // An opaque native object may expose more than one bounded leaf
+        // family (for example group text and child fill tokens). Continue
+        // collecting the other families instead of making the first one win.
       }
       const nativeLineBinding = model?._nativeLineSourceBinding?.();
       const currentNativeLineLeaves = model?._nativeLineRecords?.();
@@ -3971,7 +3973,50 @@ function createPresentationNativeLeafCapability(presentation, state) {
             apply(next) { model._setNativeLineLeaf(index, next); },
           });
         }
-        return;
+        // Continue so a source-bound group can expose both text and style
+        // leaves from the same preserved XML root.
+      }
+      const nativeStyleBinding = model?._nativeStyleSourceBinding?.();
+      const currentNativeStyleLeaves = model?._nativeStyleRecords?.();
+      if (Array.isArray(nativeStyleBinding) || Array.isArray(currentNativeStyleLeaves)) {
+        if (!Array.isArray(nativeStyleBinding) || !Array.isArray(currentNativeStyleLeaves) ||
+            nativeStyleBinding.length !== currentNativeStyleLeaves.length) return;
+        for (let index = 0; index < nativeStyleBinding.length; index += 1) {
+          const sourceLeaf = nativeStyleBinding[index];
+          const currentLeaf = currentNativeStyleLeaves[index];
+          if (sourceLeaf.nativeLeafIndex !== index || currentLeaf.nativeLeafIndex !== index ||
+              sourceLeaf.leafKind !== currentLeaf.leafKind || sourceLeaf.expectedValue !== currentLeaf.expectedValue) return;
+          const leafKind = sourceLeaf.leafKind;
+          registerLeaf({
+            wire,
+            model,
+            slideState,
+            shapeTreePath,
+            parentGroupId,
+            rootEntry,
+            leafKind,
+            expectedValue: sourceLeaf.expectedValue,
+            value: sourceLeaf.value,
+            details: { nativeLeafIndex: index },
+            normalize(next) {
+              if (leafKind === "fillScheme") {
+                const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+              if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillRgb native leaf requires a six-digit RGB color.");
+              const normalized = match[1].toUpperCase();
+              return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+            },
+            isNoop(next) {
+              return leafKind === "fillScheme"
+                ? next === sourceLeaf.expectedValue
+                : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
+            },
+            apply(next) { model._setNativeStyleLeaf(index, next); },
+          });
+        }
       }
       if (wire.content.value.nativeKind === "picture" && wire.source?.editable === true) {
         for (const [field, leafKind] of PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, candidate]) => candidate.endsWith("Emu"))) {
@@ -4233,9 +4278,10 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
   const slideSource = leaf.slideState.wire.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
   const textLeafIndex = leaf.textLeafIndex ?? 0;
+  const nativeLeafIndex = leaf.nativeLeafIndex ?? 0;
   const operationSeed = leaf.leafKind === "text"
     ? [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), textLeafIndex, leaf.expectedValue, value].join("\0")
-    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, JSON.stringify(leaf.compilerBinding || {}), leaf.expectedValue, value].join("\0");
+    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, nativeLeafIndex, JSON.stringify(leaf.compilerBinding || {}), leaf.expectedValue, value].join("\0");
   return {
     operationId: `pptx-${leaf.leafKind}-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
     slideId: leaf.slideState.wire.id,
@@ -4248,6 +4294,7 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
     expectedElementSha256: source.elementSha256,
     expectedSemanticSha256: source.semanticSha256,
     textLeafIndex,
+    nativeLeafIndex,
     expectedTextSha256: createHash("sha256").update(leaf.expectedValue, "utf8").digest("hex"),
     expectedValue: leaf.expectedValue,
     value,
@@ -4628,7 +4675,8 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     left.slidePartPath.localeCompare(right.slidePartPath) ||
     left.shapeTreePath.join("/").localeCompare(right.shapeTreePath.join("/"), undefined, { numeric: true }) ||
     left.leafKind.localeCompare(right.leafKind) ||
-    (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0));
+    (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0) ||
+    (left.nativeLeafIndex ?? 0) - (right.nativeLeafIndex ?? 0));
   const sourceArtifact = state.sourceArtifact;
   if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
   const requestedAssetIds = new Set(operations

@@ -73,4 +73,17 @@ internal static class PptxColor
         token = string.Empty;
         return false;
     }
+
+    internal static bool TrySchemeToken(string value, out string token)
+    {
+        var candidate = value.Trim();
+        foreach (var entry in SchemeColors)
+        {
+            if (!entry.Key.Equals(candidate, StringComparison.OrdinalIgnoreCase)) continue;
+            token = entry.Key;
+            return true;
+        }
+        token = string.Empty;
+        return false;
+    }
 }

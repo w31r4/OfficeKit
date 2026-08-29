@@ -423,6 +423,14 @@ internal static partial class PptxEditPlanCodec
             {
                 ProveLeafValue(element, operation);
             }
+            else if (element is P.GroupShape group &&
+                     projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                     (LeafKind(operation) is "fillRgb" or "fillScheme") &&
+                     PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var styleLeaf) &&
+                     styleLeaf.Kind == LeafKind(operation))
+            {
+                ProveLeafValue(group, operation);
+            }
             else if (element is P.ConnectionShape connector &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
                      (LeafKind(operation) is "lineRgb" or "lineScheme" or "lineWidthEmu") &&
@@ -807,6 +815,12 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} nativeText target is not a bounded DrawingML text leaf.", operation.SlidePartPath);
             return leaf.Text;
         }
+        if ((kind is "fillRgb" or "fillScheme") && element is P.GroupShape group)
+        {
+            if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} target is not a bounded opaque-group fill leaf.", operation.SlidePartPath);
+            return leaf.Value;
+        }
         var properties = element switch
         {
             P.Shape shape => shape.ShapeProperties,
@@ -851,6 +865,8 @@ internal static partial class PptxEditPlanCodec
     {
         var operation = proof.Operation;
         var owner = elementRange.LocalName;
+        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme"))
+            return CompileNativeStyleXmlPatch(xml, elementRange, proof);
         var properties = DirectChildRange(xml, elementRange, owner, "spPr", operation);
         XmlRange leaf;
         string attribute;
@@ -912,6 +928,31 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileNativeStyleXmlPatch(string xml, XmlRange groupRange, PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var styles = NativeStyleXmlLeaves(xml, groupRange);
+        if (operation.NativeLeafIndex >= (uint)styles.Count)
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} native style-leaf index is out of range.", operation.SlidePartPath);
+        var style = styles[(int)operation.NativeLeafIndex];
+        if (style.Kind != LeafKind(operation))
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} native style leaf kind changed after planning.", operation.SlidePartPath);
+        var fragment = xml[style.Color.Start..style.Color.End];
+        var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == style.Color.LocalName) ??
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} native style color tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "val")
+            .ToArray();
+        if (attributes.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} native style color attribute is missing or ambiguous.", operation.SlidePartPath);
+        var valueGroup = attributes[0].Groups["value"];
+        if (!LeafValuesEqual(valueGroup.Value, operation.ExpectedValue, style.Kind))
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw native style value does not match the expected value.", operation.SlidePartPath);
+        var start = style.Color.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static XmlRange DirectChildRange(
         string xml,
         XmlRange parent,
@@ -925,6 +966,69 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct {childLocalName} child under {parentLocalName}.", operation.SlidePartPath);
         var child = children[0];
         return new XmlRange(parent.Start + child.Start, parent.Start + child.End, child.LocalName);
+    }
+
+    private static IReadOnlyList<XmlRange> DirectChildRanges(string xml, XmlRange parent)
+    {
+        var fragment = xml[parent.Start..parent.End];
+        var opening = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal));
+        if (opening is null || opening.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal)) return Array.Empty<XmlRange>();
+        return ShapeElementRanges(fragment, parent.LocalName)
+            .Select(child => new XmlRange(parent.Start + child.Start, parent.Start + child.End, child.LocalName))
+            .ToArray();
+    }
+
+    private sealed record NativeStyleXmlRange(string Kind, XmlRange Color);
+
+    private static IReadOnlyList<NativeStyleXmlRange> NativeStyleXmlLeaves(string xml, XmlRange groupRange)
+    {
+        var leaves = new List<NativeStyleXmlRange>();
+        var fillNames = new HashSet<string>(StringComparer.Ordinal) { "noFill", "solidFill", "gradFill", "blipFill", "pattFill" };
+
+        void VisitGroup(XmlRange current)
+        {
+            foreach (var child in DirectChildRanges(xml, current))
+            {
+                if (child.LocalName == "grpSp")
+                {
+                    VisitGroup(child);
+                    continue;
+                }
+                if (child.LocalName != "sp") continue;
+                var properties = DirectChildRanges(xml, child).Where(entry => entry.LocalName == "spPr").ToArray();
+                if (properties.Length != 1) continue;
+                var fills = DirectChildRanges(xml, properties[0]).Where(entry => fillNames.Contains(entry.LocalName)).ToArray();
+                if (fills.Length != 1 || fills[0].LocalName != "solidFill") continue;
+                var colors = DirectChildRanges(xml, fills[0])
+                    .Where(entry => entry.LocalName is "schemeClr" or "srgbClr")
+                    .ToArray();
+                if (colors.Length != 1 || DirectChildRanges(xml, colors[0]).Count != 0) continue;
+                var value = NativeStyleXmlAttribute(xml, colors[0]);
+                if (value is null) continue;
+                if (colors[0].LocalName == "schemeClr" && PptxColor.TrySchemeToken(value, out _))
+                    leaves.Add(new NativeStyleXmlRange("fillScheme", colors[0]));
+                else if (colors[0].LocalName == "srgbClr" && value.Length == 6 && value.All(Uri.IsHexDigit))
+                    leaves.Add(new NativeStyleXmlRange("fillRgb", colors[0]));
+                if (leaves.Count > 4_096)
+                    throw new CodecException("presentation_item_budget_exceeded", "PPTX native opaque-group style leaves exceed the bounded style profile.");
+            }
+        }
+
+        VisitGroup(groupRange);
+        return leaves;
+    }
+
+    private static string? NativeStyleXmlAttribute(string xml, XmlRange range)
+    {
+        var fragment = xml[range.Start..range.End];
+        var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == range.LocalName);
+        if (startTag is null) return null;
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "val")
+            .ToArray();
+        return attributes.Length == 1 ? attributes[0].Groups["value"].Value : null;
     }
 
     private static byte[] ApplyPatches(
