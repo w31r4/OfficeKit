@@ -55,6 +55,11 @@ It also exposes direct `a:bodyPr/@numCol` values as `textBodyColumnCount` when
 the source declares one through sixteen columns; the two NASA samples with
 explicit column counts completed a token edit and second import. Missing,
 inherited, malformed, and out-of-range column values remain opaque.
+Bare direct `a:noAutofit`, `a:normAutofit`, and `a:spAutoFit` children are
+exposed as `textBodyAutoFit` when they carry no attributes or nested markup;
+the six-sample corpus can switch these modes with one local-name splice and
+second import. Normal AutoFit percentages, duplicate choices, inherited
+forms, and malformed children remain opaque.
 
 | Surface | Status | Boundary |
 | --- | --- | --- |
