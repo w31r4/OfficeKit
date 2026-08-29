@@ -67,6 +67,7 @@ const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
   [...PRESENTATION_SCHEME_COLORS].map((token) => [token.toLowerCase(), token]),
 ));
 const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
+const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -4394,6 +4395,29 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 target.alignment = next;
               },
             });
+          });
+        }
+      }
+      if (!model.placeholder && wire.source?.textEditable === true) {
+        const anchor = model.text.bodyProperties?.anchor;
+        if (PRESENTATION_VERTICAL_ANCHORS.has(anchor)) {
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "verticalAnchor",
+            expectedValue: anchor,
+            value: anchor,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_VERTICAL_ANCHORS.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation verticalAnchor native leaf requires top, center, or bottom.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === anchor; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), anchor: next };
+            },
           });
         }
       }
