@@ -165,9 +165,9 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:3877b1d3eb7dd8a735e6892ad45fbce08f65b5a5386861b44dae901d6680ff56",
+        "native-pdf-sha256:9583b2c37b72027e9f8e7ffe8e91c9c0c8b7d7af861325095d6582bfb63e12d6",
         "pages:6",
-        "first-page:rendered"
+        "all-pages-rendered"
       ]
     },
     "backgroundAndLayerFidelity": {
