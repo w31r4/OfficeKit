@@ -1277,6 +1277,56 @@ const rotationRoundTripLeaf = rotationRoundTrip.inspect({ includeNativeLeaves: t
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "rotationDegrees");
 assert.equal(rotationRoundTripLeaf.value, 12.5);
 
+// Direct flipH/flipV values are source-bound transform leaves. Toggle both
+// booleans while retaining the opaque vendor attribute on the owning shape.
+const flipAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const flipAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<p:spPr[\s\S]*?<a:xfrm\b)(?![^>]*\bflipH=)([^>]*>)/u,
+  '$1 flipH="1" flipV="0"$2',
+);
+assert.match(flipAccessibilityXml, /<a:xfrm\b[^>]*\bflipH="1"[^>]*\bflipV="0"/);
+flipAccessibilityZip.file("ppt/slides/slide1.xml", flipAccessibilityXml);
+const flipAccessibilityFile = new FileBlob(
+  await flipAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const flipImported = await PresentationFile.importPptx(flipAccessibilityFile);
+const flipShape = itemByName(flipImported.slides.getItem(0).shapes.items, "decision-status");
+const flipLeaves = flipImported.inspect({ includeNativeLeaves: true, target: flipShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["flipHorizontal", "flipVertical"].includes(record.leafKind));
+assert.equal(flipLeaves.length, 2, "source-bound shapes should expose direct flipH/flipV leaves");
+const flipHorizontalLeaf = flipLeaves.find((record) => record.leafKind === "flipHorizontal");
+const flipVerticalLeaf = flipLeaves.find((record) => record.leafKind === "flipVertical");
+assert.equal(flipHorizontalLeaf.value, true);
+assert.equal(flipVerticalLeaf.value, false);
+flipImported.editNativeLeaf(flipHorizontalLeaf.targetId, flipHorizontalLeaf.leafId, {
+  expectedHash: flipHorizontalLeaf.expectedHash,
+  value: false,
+});
+flipImported.editNativeLeaf(flipVerticalLeaf.targetId, flipVerticalLeaf.leafId, {
+  expectedHash: flipVerticalLeaf.expectedHash,
+  value: true,
+});
+const flipOutput = await PresentationFile.exportPptx(flipImported);
+const flipOperations = flipOutput.metadata.editPlan.operations
+  .filter((operation) => ["flipHorizontal", "flipVertical"].includes(operation.leafKind));
+assert.equal(flipOperations.length, 2);
+await assertOnlyDeclaredPptxFootprintChanged(flipAccessibilityFile, flipOutput, flipOperations);
+const flipXml = await (await JSZip.loadAsync(flipOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(flipXml, /<a:xfrm\b[^>]*\bflipH="0"[^>]*\bflipV="1"/);
+assert.match(flipXml, /fixture:opaque="kept"/);
+const flipRoundTrip = await PresentationFile.importPptx(flipOutput);
+const flipRoundTripLeaves = flipRoundTrip.inspect({ includeNativeLeaves: true, target: flipShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["flipHorizontal", "flipVertical"].includes(record.leafKind));
+assert.equal(flipRoundTripLeaves.find((record) => record.leafKind === "flipHorizontal").value, false);
+assert.equal(flipRoundTripLeaves.find((record) => record.leafKind === "flipVertical").value, true);
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
