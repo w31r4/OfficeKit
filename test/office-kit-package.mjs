@@ -397,21 +397,16 @@ try {
     const ppjPath = path.join(process.cwd(), "packed.ppj");
     const pptxPath = path.join(process.cwd(), "packed.pptx");
     const recoveredPpjPath = path.join(process.cwd(), "packed-recovered.ppj");
-    fs.writeFileSync(ppjPath, JSON.stringify({
-      schema: "office-kit/ppj/v1",
-      meta: { id: "packed", title: "Packed PPJ", language: "en-US", version: 1 },
-      intent: {},
-      design: {},
-      pages: [{
-        id: "page-1",
-        elements: [{
-          type: "text",
-          id: "title",
-          frame: { x: 40, y: 40, width: 520, height: 80 },
-          text: "clean install PPTX",
-        }],
-      }],
-    }, null, 2) + "\n");
+    const packedProgram = JSON.parse(fs.readFileSync(
+      path.join(installedPackage, "examples", "ppj", "minimum.ppj"),
+      "utf8",
+    ));
+    packedProgram.meta.id = "packed";
+    packedProgram.meta.title = "Packed PPJ";
+    packedProgram.pages[0].id = "page-1";
+    packedProgram.pages[0].elements[0].id = "title";
+    packedProgram.pages[0].elements[0].text = "clean install PPTX";
+    fs.writeFileSync(ppjPath, JSON.stringify(packedProgram, null, 2) + "\n");
     const ppjBuild = spawnSync(process.execPath, [installedCliModule, "ppj", "build", ppjPath, "-o", pptxPath, "--json"], {
       cwd: process.cwd(), encoding: "utf8",
     });
@@ -452,7 +447,7 @@ try {
     }
     const initializedResult = JSON.parse(initialized.stdout);
     if (
-      initializedResult.created !== 10 ||
+      initializedResult.created !== 11 ||
       initializedResult.tools[0]?.id !== "agents" ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "office-kit", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "documents", "SKILL.md")) ||
@@ -460,6 +455,8 @@ try {
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "excel-live-control", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentations", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-editorial-trim", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-skill-maintainer", "SKILL.md")) ||
+      !fs.existsSync(path.join(initializedProject, ".agents", "skills", "powerpoint-live-control", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "pdf", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "template-creator", "SKILL.md")) ||
       !fs.existsSync(path.join(initializedProject, ".agents", "skills", "presentation-template-creator", "SKILL.md")) ||
@@ -571,7 +568,7 @@ try {
       !fs.existsSync(packagedPresentationTemplateRoot) ||
       fs.readdirSync(packagedPresentationTemplateRoot).filter((name) =>
         name.startsWith("artifact-template-")
-      ).length !== 38
+      ).length !== 39
     ) process.exit(55);
     if (
       fs.existsSync(path.join(
@@ -785,7 +782,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
   const initialized = JSON.parse(expectSuccess([
     "init", ".", "--tools", "agents", "--json",
   ], project).stdout);
-  assert.equal(initialized.created, 10);
+  assert.equal(initialized.created, 11);
   assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "office-kit", "SKILL.md")));
   assert.ok(fs.existsSync(path.join(project, ".agents", "skills", "powerpoint-live-control", "SKILL.md")));
   assert.equal(
@@ -796,7 +793,7 @@ function testGlobalCli({ temporary, nativePackageName }) {
   const updated = JSON.parse(expectSuccess([
     "update", ".", "--json",
   ], project).stdout);
-  assert.equal(updated.unchanged, 10);
+  assert.equal(updated.unchanged, 11);
 
   const expectedTemplateCounts = new Map([
     ["document", 7],
@@ -866,21 +863,19 @@ function testGlobalCli({ temporary, nativePackageName }) {
     "}));",
     "",
   ].join("\n"));
-  fs.writeFileSync(path.join(project, "global.ppj"), `${JSON.stringify({
-    schema: "office-kit/ppj/v1",
-    meta: { id: "global", title: "Global CLI", language: "en-US", version: 1 },
-    intent: {},
-    design: {},
-    pages: [{
-      id: "page-1",
-      elements: [{
-        type: "text",
-        id: "title",
-        frame: { x: 40, y: 40, width: 400, height: 80 },
-        text: "global CLI PPTX",
-      }],
-    }],
-  }, null, 2)}\n`);
+  const globalProgram = JSON.parse(fs.readFileSync(
+    path.join(globalModules, "office-kit", "examples", "ppj", "minimum.ppj"),
+    "utf8",
+  ));
+  globalProgram.meta.id = "global";
+  globalProgram.meta.title = "Global CLI";
+  globalProgram.pages[0].id = "page-1";
+  globalProgram.pages[0].elements[0].id = "title";
+  globalProgram.pages[0].elements[0].text = "global CLI PPTX";
+  fs.writeFileSync(
+    path.join(project, "global.ppj"),
+    `${JSON.stringify(globalProgram, null, 2)}\n`,
+  );
   assert.equal(
     fs.existsSync(path.join(project, "node_modules")),
     false,
