@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +10,9 @@ import {
   deleteTask,
   listTasks,
   openTask,
+  recordTaskPpjRevision,
   resolveTaskWorkspace,
+  resumeTaskPpjRevision,
   taskDetail,
 } from "../src/cli/task-store.mjs";
 import { formatTaskList } from "../src/cli/tasks.mjs";
@@ -58,6 +61,61 @@ assert.equal(detail.task.goal, "Task 4");
 assert.equal(detail.task.state, "new");
 assert.equal(detail.task.head, null);
 assert.deepEqual(detail.task.inputs, []);
+
+const ppjProgram = Buffer.from(`${JSON.stringify({
+  schema: "office-kit/ppj/v1",
+  meta: { id: "task-program", title: "Task program", language: "en-US", version: 1 },
+  intent: {},
+  design: {},
+  assets: [],
+  components: [],
+  pages: [{ id: "page-1", elements: [] }],
+})}\n`);
+const digest = (value) => createHash("sha256").update(value).digest("hex");
+const programSha256 = digest(ppjProgram);
+const nodeMap = Buffer.from('{"schema":"office-kit/ppj-node-map/v1","nodes":[]}\n');
+const candidate = Buffer.from("fake deterministic PPTX candidate");
+const outputSha256 = digest(candidate);
+const ppjTask = await openTask({ workspaceRoot: workspace, taskId: selectedId });
+const workspaceState = { program: ppjProgram, source: new Uint8Array(), assets: [] };
+const baseReceipt = {
+  programJson: ppjProgram,
+  programSha256,
+  nodeMapJson: nodeMap,
+  sourceBound: false,
+  restoredEmbeddedProgram: false,
+  sourceSha256: "",
+  expandedElementCount: 0,
+  changedParts: [],
+  changedNodeIds: [],
+  diagnostics: [],
+};
+await recordTaskPpjRevision(ppjTask, workspaceState, { stage: "checked", receipt: baseReceipt });
+await recordTaskPpjRevision(ppjTask, workspaceState, {
+  stage: "built",
+  receipt: { ...baseReceipt, outputSha256 },
+  candidate: { bytes: candidate, outputPath: path.join(workspace, "task-program.pptx") },
+});
+await recordTaskPpjRevision(ppjTask, workspaceState, {
+  stage: "reviewed",
+  receipt: { ...baseReceipt, outputSha256 },
+  candidate: { bytes: candidate },
+  review: {
+    verdict: "passed-with-limitations",
+    visualReview: "unavailable",
+    playbackEvidence: "structural",
+    delivery: { sha256: outputSha256 },
+  },
+});
+const reopenedPpjTask = await openTask({ workspaceRoot: workspace, taskId: selectedId });
+const resumedProgram = await resumeTaskPpjRevision(reopenedPpjTask);
+assert.equal(resumedProgram.status, "reviewed");
+assert.equal(resumedProgram.sha256, programSha256);
+assert.equal(path.isAbsolute(resumedProgram.path), true);
+assert.deepEqual(await readFile(resumedProgram.path), ppjProgram);
+const ppjDetail = await taskDetail({ workspaceRoot: workspace, taskId: selectedId });
+assert.equal(ppjDetail.task.state, "stable");
+assert.equal(ppjDetail.task.program.path, resumedProgram.path);
 
 await assert.rejects(
   openTask({ workspaceRoot: workspace, taskId: "defense-deck" }),

@@ -149,7 +149,7 @@ export async function createReplSession(options = {}) {
     sessionId,
     ...roots,
     checkpointRoot: sessionRootPath,
-    task: Object.freeze(summarizeTask(task.manifest, { detailed: true })),
+    task: Object.freeze(summarizeTask(task.manifest, { detailed: true, taskRoot: task.taskRoot })),
     state,
     import: async (specifier) => {
       const target = resolveWorkspaceSpecifier(resolver, specifier, { workspaceRoot });
@@ -158,7 +158,7 @@ export async function createReplSession(options = {}) {
     },
     input: async (sourcePath, inputOptions = {}) => {
       const descriptor = await stageTaskInput(task, sourcePath, inputOptions);
-      ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+      ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true, taskRoot: task.taskRoot }));
       return descriptor;
     },
     plan: async (...args) => {
@@ -166,14 +166,14 @@ export async function createReplSession(options = {}) {
       try {
         return await writeTaskPlan(task, args[0], args[1] ?? {});
       } finally {
-        ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+        ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true, taskRoot: task.taskRoot }));
       }
     },
     commit: async (value, commitOptions = {}) => {
       try {
         return await commitTaskArtifact(task, value, commitOptions);
       } finally {
-        ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+        ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true, taskRoot: task.taskRoot }));
       }
     },
     publish: async (commitDescriptor, publishOptions = {}) => {
@@ -193,7 +193,7 @@ export async function createReplSession(options = {}) {
         artifacts,
       });
       await recordTaskPublication(task, commitDescriptor, descriptor, committed.artifact.id);
-      ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true }));
+      ctx.task = Object.freeze(summarizeTask(task.manifest, { detailed: true, taskRoot: task.taskRoot }));
       return descriptor;
     },
     recordEvidence: async (target, metadata = {}) => {

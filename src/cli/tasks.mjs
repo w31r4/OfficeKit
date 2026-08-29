@@ -99,6 +99,19 @@ export function formatTaskDetail(result) {
     if (task.plan.deliveryMode) lines.push(`  ${task.plan.deliveryMode} delivery · ${task.plan.motionPolicy} motion · ${task.plan.motionPageCount} motion page${task.plan.motionPageCount === 1 ? "" : "s"}`);
     lines.push(`  ${task.plan.state} · ${task.plan.sha256.slice(0, 12)} · ${formatBytes(task.plan.bytes)}`);
   }
+  if (task.program) {
+    lines.push("", "Program");
+    if (task.program.status === "unsupported") {
+      lines.push(`  unsupported · ${task.program.schema}`);
+      lines.push(`  ${task.program.message}`);
+    } else {
+      lines.push(`  ${task.program.mode} · ${task.program.status} · ${task.program.sha256.slice(0, 12)}`);
+      lines.push(`  ${task.program.path}`);
+      if (task.program.review) {
+        lines.push(`  ${task.program.review.verdict} · visual ${task.program.review.visualReview} · playback ${task.program.review.playbackEvidence}`);
+      }
+    }
+  }
   lines.push("", "Head");
   lines.push(task.head
     ? `  ${task.head.id} · ${task.head.reviewVerdict} · visual ${task.head.visualReview}\n  ${task.head.summary}`

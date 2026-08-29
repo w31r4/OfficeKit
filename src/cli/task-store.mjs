@@ -31,6 +31,7 @@ export const DEFAULT_MAX_TASK_MANIFEST_BYTES = 1_048_576;
 export const DEFAULT_MAX_TASK_ARTIFACT_BYTES = 536_870_912;
 export const DEFAULT_MAX_REVIEW_REPORT_BYTES = 8_388_608;
 export const DEFAULT_MAX_TASK_OPERATION_BYTES = 1_048_576;
+export const DEFAULT_MAX_TASK_PPJ_BYTES = 16_777_216;
 
 const TASK_ID_PATTERN = /^t_[a-f0-9]{12}$/u;
 const ARTIFACT_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
@@ -43,6 +44,11 @@ const PRESENTATION_COMMUNICATION_JOB_SET = new Set(PRESENTATION_COMMUNICATION_JO
 const PRESENTATION_MEDIUM_FIT_SET = new Set(PRESENTATION_MEDIUM_FITS);
 const PRESENTATION_SCENARIO_SET = new Set(PRESENTATION_SCENARIOS);
 const PRESENTATION_STRATEGY_STATUS_SET = new Set(["current", "legacy"]);
+const PPJ_TASK_SCHEMA = "office-kit/ppj-task/v1";
+const PPJ_PROGRAM_SCHEMA = "office-kit/ppj/v1";
+const PPJ_REVISION_STATUSES = new Set(["valid", "candidate", "reviewed", "review-failed"]);
+const PPJ_RECEIPT_STAGES = new Set(["imported", "checked", "built", "reviewed"]);
+const MAX_PPJ_REVISIONS = 256;
 
 export async function resolveTaskWorkspace({ workspaceRoot, cwd = process.cwd() } = {}) {
   if (workspaceRoot != null) return canonicalDirectory(workspaceRoot, "workspace");
@@ -87,7 +93,7 @@ export async function createTask({ workspaceRoot, goal, now = new Date() }) {
     }
   }
   await privateMode(taskRoot, 0o700);
-  for (const directory of ["inputs", "revisions", "candidates", "evidence", "operations", "plans", "sessions"]) {
+  for (const directory of ["inputs", "revisions", "candidates", "evidence", "operations", "plans", "programs", "sessions"]) {
     await ensurePrivateDirectory(path.join(taskRoot, directory), taskRoot);
   }
   const timestamp = now.toISOString();
@@ -106,6 +112,7 @@ export async function createTask({ workspaceRoot, goal, now = new Date() }) {
     publications: [],
     lastSessionId: null,
     plan: null,
+    ppj: null,
   };
   await writeTaskManifest(taskRoot, manifest);
   return { workspaceRoot: workspace, taskRoot, manifest };
@@ -158,7 +165,7 @@ export async function listTasks({ workspaceRoot, all = false, limit = DEFAULT_TA
 
 export async function taskDetail({ workspaceRoot, taskId }) {
   const opened = await openTask({ workspaceRoot, taskId });
-  const summary = summarizeTask(opened.manifest, { detailed: true });
+  const summary = summarizeTask(opened.manifest, { detailed: true, taskRoot: opened.taskRoot });
   summary.storageBytes = await directoryBytes(opened.taskRoot);
   return {
     workspace: opened.workspaceRoot,
@@ -257,6 +264,7 @@ export async function beginTaskSession(opened, { sessionId, now = new Date() }) 
   manifest.lastSessionId = sessionId;
   manifest.updatedAt = now.toISOString();
   await writeTaskManifest(opened.taskRoot, manifest);
+  const program = await resumeTaskPpjRevision({ ...opened, manifest });
   return {
     ...opened,
     manifest,
@@ -266,7 +274,8 @@ export async function beginTaskSession(opened, { sessionId, now = new Date() }) 
     ready: {
       protocol: 3,
       type: "session.ready",
-      task: summarizeTask(manifest, { detailed: true }),
+      task: summarizeTask(manifest, { detailed: true, taskRoot: opened.taskRoot }),
+      program,
       resumedFrom: headCommit ? {
         commitId: headCommit.id,
         summary: headCommit.summary,
@@ -423,6 +432,187 @@ export async function writeTaskPlan(task, value, { expectedSha256, now = new Dat
   return Object.freeze({ ...planDescriptorForManifest(task.manifest), unchanged: false });
 }
 
+export async function recordTaskPpjRevision(task, workspace, {
+  stage,
+  receipt,
+  candidate = null,
+  review = null,
+  now = new Date(),
+} = {}) {
+  if (!PPJ_RECEIPT_STAGES.has(stage)) throw taskError("invalid-ppj-stage", "PPJ task stage is invalid.");
+  if (task.manifest.plan != null) {
+    throw taskError(
+      "unsupported-task-schema",
+      "A legacy ctx.plan presentation task cannot be migrated into a PPJ task. Start a new PPJ task and keep the legacy task read-only.",
+    );
+  }
+  if (!workspace || !receipt || !(receipt.programJson instanceof Uint8Array)) {
+    throw taskError("invalid-ppj-receipt", "PPJ task recording requires a validated native receipt and loaded workspace.");
+  }
+  const programBytes = Buffer.from(receipt.programJson);
+  if (programBytes.byteLength === 0 || programBytes.byteLength > DEFAULT_MAX_TASK_PPJ_BYTES ||
+      !isSha(receipt.programSha256) || sha256(programBytes) !== receipt.programSha256) {
+    throw taskError("invalid-ppj-receipt", "PPJ task receipt does not bind its canonical program bytes.");
+  }
+  let program;
+  try { program = JSON.parse(programBytes.toString("utf8")); }
+  catch { throw taskError("invalid-ppj-receipt", "PPJ task receipt is not valid JSON."); }
+  if (program?.schema !== PPJ_PROGRAM_SCHEMA || !Array.isArray(program.pages)) {
+    throw taskError("invalid-ppj-receipt", "PPJ task receipt does not contain an office-kit/ppj/v1 program.");
+  }
+
+  const revisionRootRelative = toPosix(path.join("programs", receipt.programSha256));
+  await ensurePrivateSubdirectory(task.taskRoot, revisionRootRelative);
+  const programRelative = `${revisionRootRelative}/program.ppj`;
+  await writeImmutable(path.join(task.taskRoot, programRelative), programBytes, 0o400, { allowIdentical: true });
+  const resources = await storePpjResources(task, workspace, program, revisionRootRelative);
+
+  let nodeMap = null;
+  if (receipt.nodeMapJson instanceof Uint8Array && receipt.nodeMapJson.byteLength > 0) {
+    const bytes = Buffer.from(receipt.nodeMapJson);
+    if (bytes.byteLength > DEFAULT_MAX_TASK_PPJ_BYTES) throw taskError("invalid-ppj-receipt", "PPJ node map exceeds its task budget.");
+    const digest = sha256(bytes);
+    const relative = `${revisionRootRelative}/node-map.json`;
+    await writeImmutable(path.join(task.taskRoot, relative), bytes, 0o400, { allowIdentical: true });
+    nodeMap = { path: relative, bytes: bytes.byteLength, sha256: digest };
+  }
+
+  const candidateDescriptor = candidate == null
+    ? null
+    : await storePpjCandidate(task, receipt, candidate);
+  const reviewDescriptor = review == null
+    ? null
+    : await storePpjReview(task, receipt, candidateDescriptor, review);
+  if (stage === "reviewed" && (candidateDescriptor == null || reviewDescriptor == null)) {
+    throw taskError("invalid-ppj-review", "A reviewed PPJ revision requires its exact candidate and review report.");
+  }
+
+  const receiptValue = {
+    schema: "office-kit/ppj-task-receipt/v1",
+    stage,
+    programSha256: receipt.programSha256,
+    sourceBound: Boolean(receipt.sourceBound),
+    restoredEmbeddedProgram: Boolean(receipt.restoredEmbeddedProgram),
+    sourceSha256: isSha(receipt.sourceSha256) ? receipt.sourceSha256 : null,
+    outputSha256: isSha(receipt.outputSha256) ? receipt.outputSha256 : null,
+    expandedElementCount: Number(receipt.expandedElementCount ?? 0),
+    changedParts: [...(receipt.changedParts ?? [])],
+    changedNodeIds: [...(receipt.changedNodeIds ?? [])],
+    nodeMapSha256: nodeMap?.sha256 ?? null,
+    diagnostics: (receipt.diagnostics ?? []).map((diagnostic) => ({
+      severity: diagnostic.severity,
+      code: diagnostic.code,
+      message: diagnostic.message,
+      sourcePath: diagnostic.sourcePath,
+      sourceIdentity: diagnostic.sourceIdentity,
+    })),
+  };
+  const receiptBytes = Buffer.from(`${JSON.stringify(receiptValue, null, 2)}\n`);
+  const receiptSha256 = sha256(receiptBytes);
+  const receiptRelative = toPosix(path.join("evidence", "ppj", receipt.programSha256, `${stage}-${receiptSha256}.json`));
+  await ensurePrivateSubdirectory(task.taskRoot, path.dirname(receiptRelative));
+  await writeImmutable(path.join(task.taskRoot, receiptRelative), receiptBytes, 0o400, { allowIdentical: true });
+  const receiptDescriptor = { stage, path: receiptRelative, bytes: receiptBytes.byteLength, sha256: receiptSha256, recordedAt: now.toISOString() };
+
+  const ppj = task.manifest.ppj ?? { schema: PPJ_TASK_SCHEMA, head: null, reviewed: null, revisions: [] };
+  if (ppj.schema !== PPJ_TASK_SCHEMA || !Array.isArray(ppj.revisions)) throw taskError("invalid-task", "Task PPJ state is invalid.");
+  let revision = ppj.revisions.find((item) => item.sha256 === receipt.programSha256);
+  const identity = {
+    mode: receipt.sourceBound ? "source-bound" : receipt.restoredEmbeddedProgram ? "embedded-authored" : "authored",
+    sourceSha256: isSha(receipt.sourceSha256) ? receipt.sourceSha256 : null,
+  };
+  if (!revision) {
+    if (ppj.revisions.length >= MAX_PPJ_REVISIONS) throw taskError("ppj-revision-budget", `Task exceeds ${MAX_PPJ_REVISIONS} PPJ revisions.`);
+    revision = {
+      sha256: receipt.programSha256,
+      bytes: programBytes.byteLength,
+      path: programRelative,
+      identity,
+      resources,
+      nodeMap,
+      receipts: [],
+      candidate: null,
+      review: null,
+      status: "valid",
+      updatedAt: now.toISOString(),
+    };
+    ppj.revisions.push(revision);
+  } else {
+    if (revision.path !== programRelative || revision.bytes !== programBytes.byteLength ||
+        revision.identity?.mode !== identity.mode || revision.identity?.sourceSha256 !== identity.sourceSha256 ||
+        JSON.stringify(revision.resources) !== JSON.stringify(resources)) {
+      throw taskError("ppj-revision-collision", "Existing PPJ task revision has incompatible immutable bindings.");
+    }
+    if (nodeMap && revision.nodeMap && revision.nodeMap.sha256 !== nodeMap.sha256) {
+      throw taskError("ppj-revision-collision", "Existing PPJ task revision has a different node map.");
+    }
+    revision.nodeMap ??= nodeMap;
+  }
+  const previousReceipt = revision.receipts.find((item) => item.stage === stage);
+  if (previousReceipt && previousReceipt.sha256 !== receiptDescriptor.sha256) {
+    throw taskError("ppj-revision-collision", `PPJ ${stage} receipt changed for the same immutable program revision.`);
+  }
+  if (!previousReceipt) revision.receipts.push(receiptDescriptor);
+  if (candidateDescriptor && revision.candidate && revision.candidate.sha256 !== candidateDescriptor.sha256) {
+    throw taskError("ppj-revision-collision", "PPJ compiler output changed for the same immutable program revision.");
+  }
+  if (candidateDescriptor && candidateDescriptor.outputPath == null && revision.candidate?.outputPath != null) {
+    candidateDescriptor.outputPath = revision.candidate.outputPath;
+  }
+  if (candidateDescriptor) revision.candidate = candidateDescriptor;
+  if (reviewDescriptor) revision.review = reviewDescriptor;
+  revision.status = revision.review
+    ? revision.review.verdict === "failed" ? "review-failed" : "reviewed"
+    : revision.candidate ? "candidate" : "valid";
+  revision.updatedAt = now.toISOString();
+  ppj.head = revision.sha256;
+  if (revision.status === "reviewed") ppj.reviewed = revision.sha256;
+  task.manifest.ppj = ppj;
+  task.manifest.updatedAt = now.toISOString();
+  if (revision.status === "review-failed") {
+    task.manifest.pending.push({
+      type: "ppj-review-failed",
+      summary: `PPJ ${revision.sha256.slice(0, 12)} did not pass review`,
+      programSha256: revision.sha256,
+      at: now.toISOString(),
+    });
+  } else {
+    task.manifest.pending = task.manifest.pending.filter((item) =>
+      item.type !== "ppj-review-failed" || item.programSha256 !== revision.sha256);
+  }
+  await writeTaskManifest(task.taskRoot, task.manifest);
+  return Object.freeze(ppjRevisionDescriptor(task.manifest, task.taskRoot, { detailed: true }));
+}
+
+export async function resumeTaskPpjRevision(task) {
+  if (task.manifest.ppj == null) {
+    if (task.manifest.plan != null) return Object.freeze({
+      status: "unsupported",
+      code: "unsupported-task-schema",
+      schema: task.manifest.plan.schema,
+      message: "Legacy ctx.plan tasks remain listable but are not migrated into PPJ 2.0.",
+    });
+    return null;
+  }
+  const ppj = task.manifest.ppj;
+  const candidates = [...new Set([ppj.head, ppj.reviewed].filter(Boolean))];
+  const failures = [];
+  for (const sha of candidates) {
+    const revision = ppj.revisions.find((item) => item.sha256 === sha);
+    if (!revision) continue;
+    try {
+      await verifyPpjTaskRevision(task.taskRoot, revision);
+      return Object.freeze({
+        ...ppjRevisionDescriptor(task.manifest, task.taskRoot, { detailed: true, revisionSha256: sha }),
+        resumedFromFallback: sha !== ppj.head,
+      });
+    } catch (error) {
+      failures.push({ sha256: sha, message: boundedError(error) });
+    }
+  }
+  throw taskError("ppj-revision-corrupt", "No valid PPJ task revision is available to resume.", { failures });
+}
+
 export async function commitTaskArtifact(task, value, options = {}) {
   const bytes = await readArtifactBytes(value, options.maxBytes);
   const digest = sha256(bytes);
@@ -548,7 +738,7 @@ export async function recordTaskPublication(task, commitDescriptor, publication,
   await writeTaskManifest(task.taskRoot, task.manifest);
 }
 
-export function summarizeTask(manifest, { detailed = false } = {}) {
+export function summarizeTask(manifest, { detailed = false, taskRoot } = {}) {
   validateTaskManifest(manifest, manifest.id);
   const state = deriveTaskState(manifest);
   const headCommit = manifest.head
@@ -565,6 +755,14 @@ export function summarizeTask(manifest, { detailed = false } = {}) {
       committedAt: headCommit.committedAt,
     } : null,
     plan: planDescriptorForManifest(manifest),
+    program: manifest.ppj != null
+      ? ppjRevisionDescriptor(manifest, taskRoot, { detailed })
+      : manifest.plan != null ? {
+        status: "unsupported",
+        code: "unsupported-task-schema",
+        schema: manifest.plan.schema,
+        message: "Legacy ctx.plan tasks remain listable but are not migrated into PPJ 2.0.",
+      } : null,
     state,
     updatedAt: manifest.updatedAt,
   };
@@ -743,6 +941,7 @@ function validateTaskManifest(manifest, expectedId) {
   normalizeConstraints(manifest.constraints);
   if (typeof manifest.createdAt !== "string" || typeof manifest.updatedAt !== "string") throw taskError("invalid-task", "Task timestamps are invalid.");
   if (manifest.plan != null) validateStoredPlanDescriptor(manifest.plan);
+  if (manifest.ppj != null) validatePpjTaskDescriptor(manifest.ppj);
   const artifactIds = new Set();
   for (const artifact of manifest.artifacts) {
     validateArtifactId(artifact?.id);
@@ -773,9 +972,16 @@ function normalizeTaskManifestForRead(manifest, expectedId) {
     const normalized = structuredClone(manifest);
     normalized.schemaVersion = TASK_SCHEMA_VERSION;
     normalized.plan = null;
+    normalized.ppj = null;
     for (const commit of normalized.commits ?? []) {
       if (!("plan" in commit)) commit.plan = null;
     }
+    validateTaskManifest(normalized, expectedId);
+    return normalized;
+  }
+  if (manifest?.schemaVersion === TASK_SCHEMA_VERSION && !("ppj" in manifest)) {
+    const normalized = structuredClone(manifest);
+    normalized.ppj = null;
     validateTaskManifest(normalized, expectedId);
     return normalized;
   }
@@ -804,6 +1010,22 @@ function validateTaskPaths(manifest, taskRoot) {
     if (commit.plan) validateRelativePrefix(commit.plan.path, "plans/", taskRoot, "authoring plan");
   }
   if (manifest.plan) validateRelativePrefix(manifest.plan.path, "plans/", taskRoot, "authoring plan");
+  for (const revision of manifest.ppj?.revisions ?? []) {
+    const root = `programs/${revision.sha256}`;
+    if (revision.path !== `${root}/program.ppj`) throw taskError("invalid-task", "Task PPJ program path is invalid.");
+    validateRelativePrefix(revision.path, `${root}/`, taskRoot, "PPJ revision");
+    for (const resource of revision.resources) {
+      if (resource.path !== `${root}/${resource.uri}`) throw taskError("invalid-task", "Task PPJ resource path does not match its URI.");
+      validateRelativePrefix(resource.path, `${root}/`, taskRoot, "PPJ resource");
+    }
+    if (revision.nodeMap) {
+      if (revision.nodeMap.path !== `${root}/node-map.json`) throw taskError("invalid-task", "Task PPJ node-map path is invalid.");
+      validateRelativePrefix(revision.nodeMap.path, `${root}/`, taskRoot, "PPJ node map");
+    }
+    for (const receipt of revision.receipts) validateRelativePrefix(receipt.path, `evidence/ppj/${revision.sha256}/`, taskRoot, "PPJ receipt");
+    if (revision.candidate) validateRelativePrefix(revision.candidate.path, `candidates/ppj/${revision.sha256}/`, taskRoot, "PPJ candidate");
+    if (revision.review) validateRelativePrefix(revision.review.evidence.path, `evidence/ppj/${revision.sha256}/`, taskRoot, "PPJ review");
+  }
   for (const pending of manifest.pending) {
     if (pending.path != null) validateRelativePrefix(pending.path, "candidates/", taskRoot, "candidate");
     if (pending.review?.evidence?.path != null) validateRelativePrefix(pending.review.evidence.path, "evidence/reviews/", taskRoot, "review evidence");
@@ -820,6 +1042,83 @@ function validateRelativePrefix(value, prefix, taskRoot, label) {
 function validateManagedRecord(record, label) {
   if (!record || !isSha(record.sha256) || !Number.isSafeInteger(record.bytes) || record.bytes < 0 || typeof record.path !== "string" && typeof record.storedPath !== "string") {
     throw taskError("invalid-task", `Task ${label} record is invalid.`);
+  }
+}
+
+function validatePpjTaskDescriptor(ppj) {
+  if (!ppj || typeof ppj !== "object" || Array.isArray(ppj) || ppj.schema !== PPJ_TASK_SCHEMA ||
+      !Array.isArray(ppj.revisions) || ppj.revisions.length === 0 || ppj.revisions.length > MAX_PPJ_REVISIONS ||
+      !isSha(ppj.head) || ppj.reviewed != null && !isSha(ppj.reviewed)) {
+    throw taskError("invalid-task", "Task PPJ descriptor is invalid.");
+  }
+  const revisions = new Map();
+  for (const revision of ppj.revisions) {
+    if (!revision || typeof revision !== "object" || Array.isArray(revision) || !isSha(revision.sha256) ||
+        revisions.has(revision.sha256) || !Number.isSafeInteger(revision.bytes) || revision.bytes <= 0 ||
+        revision.bytes > DEFAULT_MAX_TASK_PPJ_BYTES || typeof revision.path !== "string" ||
+        !PPJ_REVISION_STATUSES.has(revision.status) || typeof revision.updatedAt !== "string" ||
+        !Array.isArray(revision.resources) || !Array.isArray(revision.receipts) || revision.receipts.length === 0 ||
+        revision.receipts.length > PPJ_RECEIPT_STAGES.size) {
+      throw taskError("invalid-task", "Task PPJ revision metadata is invalid.");
+    }
+    const identity = revision.identity;
+    if (!identity || !new Set(["authored", "embedded-authored", "source-bound"]).has(identity.mode) ||
+        (identity.mode === "source-bound" ? !isSha(identity.sourceSha256) : identity.sourceSha256 != null)) {
+      throw taskError("invalid-task", "Task PPJ revision identity is invalid.");
+    }
+    const resourcePaths = new Set();
+    const resourceUris = new Set();
+    let sourceCount = 0;
+    for (const resource of revision.resources) {
+      if (!resource || !new Set(["asset", "source"]).has(resource.kind) ||
+          resource.kind === "asset" && (typeof resource.id !== "string" || resource.id === "") ||
+          resource.kind === "source" && resource.id != null || typeof resource.mimeType !== "string" ||
+          !isSha(resource.sha256) || !Number.isSafeInteger(resource.bytes) || resource.bytes <= 0 ||
+          resource.bytes > DEFAULT_MAX_TASK_ARTIFACT_BYTES || typeof resource.path !== "string" ||
+          safePpjTaskUri(resource.uri) !== resource.uri || resourcePaths.has(resource.path) || resourceUris.has(resource.uri)) {
+        throw taskError("invalid-task", "Task PPJ resource metadata is invalid.");
+      }
+      resourcePaths.add(resource.path);
+      resourceUris.add(resource.uri);
+      if (resource.kind === "source") sourceCount += 1;
+    }
+    if (sourceCount !== (identity.mode === "source-bound" ? 1 : 0)) {
+      throw taskError("invalid-task", "Task PPJ source binding does not match its revision identity.");
+    }
+    if (revision.nodeMap) validateManagedRecord(revision.nodeMap, "PPJ node map");
+    const receiptStages = new Set();
+    for (const receipt of revision.receipts) {
+      validateManagedRecord(receipt, "PPJ receipt");
+      if (!PPJ_RECEIPT_STAGES.has(receipt.stage) || receiptStages.has(receipt.stage) || typeof receipt.recordedAt !== "string") {
+        throw taskError("invalid-task", "Task PPJ receipt metadata is invalid.");
+      }
+      receiptStages.add(receipt.stage);
+    }
+    if (revision.candidate) {
+      validateManagedRecord(revision.candidate, "PPJ candidate");
+      if (revision.candidate.outputPath != null && (typeof revision.candidate.outputPath !== "string" || !path.isAbsolute(revision.candidate.outputPath))) {
+        throw taskError("invalid-task", "Task PPJ candidate output path is invalid.");
+      }
+    }
+    if (revision.review) {
+      if (!new Set(["passed", "passed-with-limitations", "failed"]).has(revision.review.verdict) ||
+          !VISUAL_REVIEW_STATUSES.has(revision.review.visualReview) ||
+          !new Set(["structural", "keynote", "powerpoint"]).has(revision.review.playbackEvidence) ||
+          revision.review.candidateSha256 !== revision.candidate?.sha256) {
+        throw taskError("invalid-task", "Task PPJ review metadata is invalid.");
+      }
+      validateManagedRecord(revision.review.evidence, "PPJ review evidence");
+    }
+    if (new Set(["candidate", "reviewed", "review-failed"]).has(revision.status) !== Boolean(revision.candidate) ||
+        new Set(["reviewed", "review-failed"]).has(revision.status) !== Boolean(revision.review) ||
+        revision.status === "reviewed" && revision.review?.verdict === "failed" ||
+        revision.status === "review-failed" && revision.review?.verdict !== "failed") {
+      throw taskError("invalid-task", "Task PPJ revision state is inconsistent.");
+    }
+    revisions.set(revision.sha256, revision);
+  }
+  if (!revisions.has(ppj.head) || ppj.reviewed != null && revisions.get(ppj.reviewed)?.status !== "reviewed") {
+    throw taskError("invalid-task", "Task PPJ head or reviewed revision is invalid.");
   }
 }
 
@@ -908,6 +1207,10 @@ function artifactDescriptor(artifact, taskRoot) {
 function deriveTaskState(manifest) {
   if (manifest.pending.length > 0) return "attention";
   if (manifest.plan && planDescriptorForManifest(manifest).state === "working") return "working";
+  const ppjHead = manifest.ppj?.revisions.find((revision) => revision.sha256 === manifest.ppj.head);
+  if (ppjHead?.status === "review-failed") return "attention";
+  if (ppjHead && ppjHead.status !== "reviewed") return "working";
+  if (ppjHead?.status === "reviewed") return "stable";
   if (manifest.publications.length > 0) return "published";
   if (manifest.head) return "stable";
   return "new";
@@ -922,7 +1225,174 @@ function taskStorageBytes(manifest) {
   for (const pending of manifest.pending) total += pending.bytes ?? 0;
   for (const commit of manifest.commits) total += commit.operation?.bytes ?? 0;
   total += manifest.plan?.bytes ?? 0;
+  for (const revision of manifest.ppj?.revisions ?? []) {
+    total += revision.bytes ?? 0;
+    total += revision.resources?.reduce((sum, resource) => sum + (resource.bytes ?? 0), 0) ?? 0;
+    total += revision.nodeMap?.bytes ?? 0;
+    total += revision.receipts?.reduce((sum, receipt) => sum + (receipt.bytes ?? 0), 0) ?? 0;
+    total += revision.candidate?.bytes ?? 0;
+    total += revision.review?.evidence?.bytes ?? 0;
+  }
   return total;
+}
+
+async function storePpjResources(task, workspace, program, revisionRootRelative) {
+  const output = [];
+  const occupied = new Set(["program.ppj", "node-map.json"]);
+  const assets = new Map((workspace.assets ?? []).map((asset) => [asset.id, asset]));
+  for (const declaration of program.assets ?? []) {
+    const asset = assets.get(declaration.id);
+    if (!asset || !(asset.data instanceof Uint8Array) ||
+        sha256(asset.data) !== declaration.sha256 || asset.mimeType !== declaration.mimeType) {
+      throw taskError("invalid-ppj-resource", `PPJ asset ${declaration.id} is missing or stale while recording the task revision.`);
+    }
+    output.push(await storePpjResource(task, revisionRootRelative, occupied, {
+      kind: "asset",
+      id: declaration.id,
+      uri: declaration.uri,
+      mimeType: declaration.mimeType,
+      sha256: declaration.sha256,
+      data: asset.data,
+    }));
+  }
+  if (program.source != null) {
+    if (!(workspace.source instanceof Uint8Array) || workspace.source.byteLength === 0 ||
+        sha256(workspace.source) !== program.source.sha256) {
+      throw taskError("invalid-ppj-resource", "PPJ source package is missing or stale while recording the task revision.");
+    }
+    output.push(await storePpjResource(task, revisionRootRelative, occupied, {
+      kind: "source",
+      id: null,
+      uri: program.source.uri,
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      sha256: program.source.sha256,
+      data: workspace.source,
+    }));
+  }
+  return output.sort((left, right) => left.path.localeCompare(right.path));
+}
+
+async function storePpjResource(task, revisionRootRelative, occupied, resource) {
+  const uri = safePpjTaskUri(resource.uri);
+  if (!occupied.add(uri)) throw taskError("invalid-ppj-resource", `PPJ resource URI collides inside the task revision: ${uri}`);
+  const relative = `${revisionRootRelative}/${uri}`;
+  const target = path.join(task.taskRoot, ...relative.split("/"));
+  await ensurePrivateSubdirectory(task.taskRoot, path.dirname(relative));
+  const bytes = Buffer.from(resource.data);
+  if (bytes.byteLength === 0 || bytes.byteLength > DEFAULT_MAX_TASK_ARTIFACT_BYTES || sha256(bytes) !== resource.sha256) {
+    throw taskError("invalid-ppj-resource", `PPJ resource ${uri} exceeds its task budget or has a stale hash.`);
+  }
+  await writeImmutable(target, bytes, 0o400, { allowIdentical: true });
+  return {
+    kind: resource.kind,
+    id: resource.id,
+    uri,
+    mimeType: resource.mimeType,
+    path: toPosix(relative),
+    bytes: bytes.byteLength,
+    sha256: resource.sha256,
+  };
+}
+
+async function storePpjCandidate(task, receipt, candidate) {
+  if (!(candidate.bytes instanceof Uint8Array)) throw taskError("invalid-ppj-candidate", "PPJ task candidate bytes are missing.");
+  const bytes = Buffer.from(candidate.bytes);
+  const digest = sha256(bytes);
+  if (bytes.byteLength === 0 || bytes.byteLength > DEFAULT_MAX_TASK_ARTIFACT_BYTES ||
+      !isSha(receipt.outputSha256) || digest !== receipt.outputSha256) {
+    throw taskError("invalid-ppj-candidate", "PPJ task candidate does not match the native build receipt.");
+  }
+  const relative = toPosix(path.join("candidates", "ppj", receipt.programSha256, `${digest}.pptx`));
+  await ensurePrivateSubdirectory(task.taskRoot, path.dirname(relative));
+  await writeImmutable(path.join(task.taskRoot, relative), bytes, 0o400, { allowIdentical: true });
+  return {
+    path: relative,
+    bytes: bytes.byteLength,
+    sha256: digest,
+    outputPath: typeof candidate.outputPath === "string" ? path.resolve(candidate.outputPath) : null,
+  };
+}
+
+async function storePpjReview(task, receipt, candidate, review) {
+  if (!review || typeof review !== "object" || Array.isArray(review) ||
+      !new Set(["passed", "passed-with-limitations", "failed"]).has(review.verdict) ||
+      review.delivery?.sha256 !== candidate?.sha256) {
+    throw taskError("invalid-ppj-review", "PPJ review must bind the exact task candidate and contain a valid verdict.");
+  }
+  let encoded;
+  try { encoded = Buffer.from(`${JSON.stringify(review, null, 2)}\n`); }
+  catch (error) { throw taskError("invalid-ppj-review", `PPJ review is not serializable: ${boundedError(error)}`); }
+  if (encoded.byteLength > DEFAULT_MAX_REVIEW_REPORT_BYTES) throw taskError("invalid-ppj-review", "PPJ review exceeds its task budget.");
+  const digest = sha256(encoded);
+  const relative = toPosix(path.join("evidence", "ppj", receipt.programSha256, `review-${digest}.json`));
+  await ensurePrivateSubdirectory(task.taskRoot, path.dirname(relative));
+  await writeImmutable(path.join(task.taskRoot, relative), encoded, 0o400, { allowIdentical: true });
+  return {
+    verdict: review.verdict,
+    visualReview: review.visualReview ?? "unavailable",
+    playbackEvidence: review.playbackEvidence ?? "structural",
+    candidateSha256: candidate.sha256,
+    evidence: { path: relative, bytes: encoded.byteLength, sha256: digest },
+  };
+}
+
+async function verifyPpjTaskRevision(taskRoot, revision) {
+  const programPath = resolveManagedFile(taskRoot, revision.path, "PPJ revision");
+  const program = await readRegularBounded(programPath, DEFAULT_MAX_TASK_PPJ_BYTES, "PPJ revision");
+  if (program.byteLength !== revision.bytes || sha256(program) !== revision.sha256) {
+    throw taskError("ppj-revision-corrupt", `PPJ revision ${revision.sha256} failed its program hash.`);
+  }
+  for (const resource of revision.resources) {
+    const target = resolveManagedFile(taskRoot, resource.path, "PPJ resource");
+    const bytes = await readRegularBounded(target, DEFAULT_MAX_TASK_ARTIFACT_BYTES, "PPJ resource");
+    if (bytes.byteLength !== resource.bytes || sha256(bytes) !== resource.sha256) {
+      throw taskError("ppj-revision-corrupt", `PPJ resource ${resource.uri} failed its content hash.`);
+    }
+  }
+  if (revision.nodeMap) await verifyManagedRecord(taskRoot, revision.nodeMap, DEFAULT_MAX_TASK_PPJ_BYTES, "PPJ node map");
+  for (const receipt of revision.receipts) await verifyManagedRecord(taskRoot, receipt, DEFAULT_MAX_TASK_MANIFEST_BYTES, "PPJ receipt");
+  if (revision.candidate) await verifyManagedRecord(taskRoot, revision.candidate, DEFAULT_MAX_TASK_ARTIFACT_BYTES, "PPJ candidate");
+  if (revision.review) await verifyManagedRecord(taskRoot, revision.review.evidence, DEFAULT_MAX_REVIEW_REPORT_BYTES, "PPJ review");
+}
+
+async function verifyManagedRecord(taskRoot, record, maximum, label) {
+  const target = resolveManagedFile(taskRoot, record.path, label);
+  const bytes = await readRegularBounded(target, maximum, label);
+  if (bytes.byteLength !== record.bytes || sha256(bytes) !== record.sha256) throw taskError("ppj-revision-corrupt", `${label} failed its content hash.`);
+}
+
+function ppjRevisionDescriptor(manifest, taskRoot, { detailed = false, revisionSha256 = manifest.ppj?.head } = {}) {
+  const ppj = manifest.ppj;
+  if (ppj == null || revisionSha256 == null) return null;
+  const revision = ppj.revisions.find((item) => item.sha256 === revisionSha256);
+  if (!revision) return null;
+  return {
+    schema: ppj.schema,
+    status: revision.status,
+    sha256: revision.sha256,
+    mode: revision.identity.mode,
+    sourceSha256: revision.identity.sourceSha256,
+    bytes: revision.bytes,
+    path: detailed && taskRoot ? resolveManagedFile(taskRoot, revision.path, "PPJ revision") : revision.path,
+    reviewedSha256: ppj.reviewed,
+    candidate: revision.candidate ? { sha256: revision.candidate.sha256, bytes: revision.candidate.bytes } : null,
+    review: revision.review ? {
+      verdict: revision.review.verdict,
+      visualReview: revision.review.visualReview,
+      playbackEvidence: revision.review.playbackEvidence,
+    } : null,
+    updatedAt: revision.updatedAt,
+  };
+}
+
+function safePpjTaskUri(value) {
+  if (typeof value !== "string" || value === "" || value.includes("\\") || value.includes("\0") || value.startsWith("/") ||
+      /^[A-Za-z][A-Za-z0-9+.-]*:/u.test(value)) throw taskError("invalid-ppj-resource", "PPJ resource URI must be relative.");
+  const segments = value.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw taskError("invalid-ppj-resource", "PPJ resource URI contains an unsafe path segment.");
+  }
+  return segments.join("/");
 }
 
 function validateTaskEditPlan(value, outputSha256) {
@@ -1330,6 +1800,30 @@ async function ensurePrivateDirectory(target, containmentRoot) {
   assertContained(canonical, root, "managed directory");
   await privateMode(canonical, 0o700);
   return canonical;
+}
+
+async function ensurePrivateSubdirectory(root, relative) {
+  if (typeof relative !== "string" || relative === "" || path.isAbsolute(relative) || relative.includes("\\")) {
+    throw taskError("unsafe-path", "Managed subdirectory path must be relative.");
+  }
+  const segments = relative.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw taskError("unsafe-path", "Managed subdirectory path contains an unsafe segment.");
+  }
+  const canonicalRoot = await realpath(root);
+  let current = canonicalRoot;
+  for (const segment of segments) {
+    const next = path.join(current, segment);
+    const existing = await lstatIfExists(next);
+    if (existing?.isSymbolicLink() || existing && !existing.isDirectory()) {
+      throw taskError("unsafe-path", `Managed path must be a regular directory: ${next}`);
+    }
+    if (!existing) await mkdir(next, { mode: 0o700 });
+    current = await realpath(next);
+    assertContained(current, canonicalRoot, "managed subdirectory");
+    await privateMode(current, 0o700);
+  }
+  return current;
 }
 
 async function canonicalDirectory(target, label) {
