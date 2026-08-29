@@ -28,7 +28,12 @@ packaging a template.
    new content and geometry, cover at least three page roles, render every page,
    and review it visually. Recreate any design-defining overlap with real
    editable layers, then reopen the PPTX and verify its stack before describing
-   the relationship in the template Skill.
+   the relationship in the template Skill. For image-led pages, use
+   `slide.setNativeBackgroundImage()` for a true native backdrop, or
+   `slide.setBackgroundImage()` plus the ordered `slide.elements` stack when the
+   image must be movable, cropped, or animated. Use `element.moveBefore()` /
+   `moveAfter()` only after checking the current z-order capability; do not
+   simulate layer order by rebuilding the whole slide.
 5. Save only the guide body, calibration PNGs, and a packaging spec in the task.
    Source files, intermediate PPTX files, extracted media, and QA evidence stay
    outside the published Skill.
@@ -54,5 +59,10 @@ packaging a template.
   templates or select more than one.
 - Existing OfficeKit bundled-template migration always uses recreated examples,
   never old screenshots.
+- The calibration workflow may use the current presentation primitives—native
+  background images, cross-type scene ordering, chart/shape/image composition,
+  motion, and `presentation.inspect()`—but the published template contains only
+  the resulting style guidance and original PNG evidence. A template never
+  promises that a third-party source graph is fully editable.
 - Do not add `STYLE.md`, a retained reference, executable code, SVG page
   skeletons, or undocumented files to a generated template.
