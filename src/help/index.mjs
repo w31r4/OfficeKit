@@ -639,7 +639,7 @@ const HELP_DETAIL_OVERRIDES = {
   },
   "presentation.editNativeLeaf": {
     examples: ["presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: 'Reviewed title' })"],
-    notes: ["A fillOpacityThousandthPercent leaf is available for a direct solid RGB fill with one bounded alpha token. Pass a 0..1 fraction; only that alpha token changes and irregular or effect-bearing fills remain blocked.", "An imported connector or group descendant may expose lineStyle, lineCap, or lineJoin leaves when an existing prstDash/cap/join token and simple solid outline are proven. Use solid, dashed, dotted, dash-dot, dash-dot-dot, flat, round, square, bevel, or miter; only that token changes, while custom dash/effect graphs, miter limits, and other irregular line graphs stay opaque."],
+    notes: ["A fillOpacityThousandthPercent leaf is available for a direct solid RGB fill with one bounded alpha token. Pass a 0..1 fraction; only that alpha token changes and irregular or effect-bearing fills remain blocked.", "An imported connector or group descendant may expose lineStyle, lineCap, lineJoin, lineStartArrow, or lineEndArrow leaves when an existing prstDash/cap/join/endpoint token and simple solid outline are proven. Use solid, dashed, dotted, dash-dot, dash-dot-dot, flat, round, square, bevel, miter, none, triangle, stealth, diamond, oval, or arrow; only the selected token changes, while custom dash/effect graphs, miter limits, endpoint width/length changes, and other irregular line graphs stay opaque."],
     returns: "immutable nativeLeafEdit receipt",
   },
   "presentation.resolveComponentCandidate": {
