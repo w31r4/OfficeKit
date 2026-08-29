@@ -201,7 +201,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 80.0, functional 82.4); keep this template pending and iterate its style-specific carriers."
+    "Current evidence clears the functional threshold (visual 80.0, functional 95.4); keep this template pending while its style-specific visual carriers are iterated."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
