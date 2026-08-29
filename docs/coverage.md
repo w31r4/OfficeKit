@@ -11,8 +11,9 @@ The source-derived reuse slice now also issues a bounded `presentation.reuseSour
 The separate six-sample imported-edit probe covers 157 real slides and 4,065
 classified visible objects with byte-identical no-op exports. On the current
 NativeAOT build, all six samples expose and pass a source-bound direct run
-font-family edit in addition to the existing text, geometry, image, fill,
-line, font-size, table, SVG, animation, and source-reuse probes; the compact
+font-family, and five safe direct run bold/italic edits in addition to the
+ existing text, geometry, image, fill, line, font-size, table, SVG, animation,
+ and source-reuse probes; the compact
 result is `evals/presentation-six-sample-import/evidence.v1.json`. This is
 structural/package evidence on macOS, not a claim of complete OOXML semantics
 or Windows PowerPoint acceptance.
