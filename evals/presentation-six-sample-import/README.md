@@ -61,8 +61,10 @@ Infographic still has no bounded line-width target in this pass. This does not
 alter the frozen baseline totals.
 
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
-the same six inputs and a bounded placement edit. It includes per-slide PNG
-hashes so non-target pages can be checked without storing the rendered images.
+the same six inputs and a bounded placement edit (or a typed text fallback when
+the imported sample exposes no safe placement target). It includes per-slide
+PNG hashes so non-target pages can be checked without storing the rendered
+images.
 
 `resume-evidence.v1.json` records one three-session `input → review/commit →
 resume/edit/commit → resume/verify/publish` rehearsal for every sample. It
