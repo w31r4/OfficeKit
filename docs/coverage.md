@@ -47,6 +47,10 @@ leaves (`textBodyInsetLeftEmu`, `textBodyInsetTopEmu`,
 The six-sample benchmark found these leaves in all six sources and completed a
 single-token edit plus second import for each; inherited, missing, `no*`,
 malformed, and out-of-range forms remain opaque.
+The same source-bound profile now exposes explicit direct `a:bodyPr/@wrap`
+tokens as `textBodyWrap` when the source value is `square` or `none`; all six
+samples completed one token edit and second import, while omitted, inherited,
+and unsupported wrap forms remain opaque.
 
 | Surface | Status | Boundary |
 | --- | --- | --- |
