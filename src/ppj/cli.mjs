@@ -229,13 +229,17 @@ export async function importPptxAsPpj(
   if (!/^[a-f0-9]{64}$/u.test(projected.programSha256) || sha256(projected.programJson) !== projected.programSha256) {
     throw new Error("OfficeKit projection returned a PPJ revision with an invalid content hash.");
   }
+  const outputProgramJson = restored ? projected.originalProgramJson : projected.programJson;
+  if (!(outputProgramJson instanceof Uint8Array) || outputProgramJson.byteLength === 0) {
+    throw new Error("OfficeKit embedded PPJ recovery did not return the exact authored program bytes.");
+  }
 
   const root = path.dirname(destination);
   await mkdir(root, { recursive: true });
   const sourceTarget = restored ? null : path.join(root, ...sourceRelative.split("/"));
   if (sourceTarget) await writeImmutableContent(sourceTarget, sourceBytes, sourceSha256);
   const restoredDeclarations = restored
-    ? new Map((JSON.parse(Buffer.from(projected.programJson).toString("utf8")).assets ?? [])
+    ? new Map((JSON.parse(Buffer.from(outputProgramJson).toString("utf8")).assets ?? [])
       .map((asset) => [asset.id, asset]))
     : null;
   const assets = [];
@@ -264,7 +268,7 @@ export async function importPptxAsPpj(
     }));
   }
   try {
-    await writeExclusiveFile(destination, projected.programJson, 0o644);
+    await writeExclusiveFile(destination, outputProgramJson, 0o644);
   } catch (error) {
     if (error?.code === "EEXIST") throw new Error(`PPJ output already exists: ${destination}`);
     throw error;
@@ -280,7 +284,7 @@ export async function importPptxAsPpj(
     source: sourceTarget ? Object.freeze({ path: sourceTarget, uri: sourceRelative, sha256: sourceSha256 }) : null,
     sourceBound: projected.sourceBound,
     restoredEmbeddedProgram: restored,
-    pages: programPageCount(projected.programJson),
+    pages: programPageCount(outputProgramJson),
     expandedElementCount: projected.expandedElementCount,
     assets: Object.freeze(assets),
     diagnostics: projected.diagnostics,

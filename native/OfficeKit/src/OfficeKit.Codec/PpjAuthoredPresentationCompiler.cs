@@ -64,6 +64,7 @@ internal static class PpjAuthoredPresentationCompiler
         var exported = PptxCodec.Export(envelope, limits);
         var file = PpjEmbeddedProgramCodec.Embed(
             exported.File,
+            request.ProgramJson.Span,
             validation,
             envelope.Presentation,
             assets,

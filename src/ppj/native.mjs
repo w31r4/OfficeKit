@@ -30,6 +30,7 @@ function result(response) {
   return Object.freeze({
     file: response.file,
     programJson: program.programJson,
+    originalProgramJson: program.originalProgramJson,
     programSha256: program.programSha256,
     nodeMapJson: program.nodeMapJson,
     sourceSha256: program.sourceSha256,

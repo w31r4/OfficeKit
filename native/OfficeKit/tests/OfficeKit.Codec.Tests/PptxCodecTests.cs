@@ -110,7 +110,7 @@ public sealed class PptxCodecTests
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
         Assert.Contains("officeKit/program-map.json", authoredParts);
-        Assert.Equal(first.PresentationProgram.ProgramJson.ToByteArray(), ZipBytes(first.File.ToByteArray(), "officeKit/program.ppj"));
+        Assert.Equal(programBytes, ZipBytes(first.File.ToByteArray(), "officeKit/program.ppj"));
         using (var embeddedMap = JsonDocument.Parse(ZipBytes(first.File.ToByteArray(), "officeKit/program-map.json")))
         {
             Assert.Equal("office-kit/ppj-map/v1", embeddedMap.RootElement.GetProperty("schema").GetString());
@@ -165,6 +165,7 @@ public sealed class PptxCodecTests
         Assert.False(recovered.PresentationProgram.SourceBound);
         Assert.Empty(recovered.PresentationProgram.SourceSha256);
         Assert.Equal(first.PresentationProgram.ProgramJson, recovered.PresentationProgram.ProgramJson);
+        Assert.Equal(programBytes, recovered.PresentationProgram.OriginalProgramJson.ToByteArray());
         Assert.Equal(first.PresentationProgram.NodeMapJson, recovered.PresentationProgram.NodeMapJson);
         var recoveredAsset = Assert.Single(recovered.PresentationProgram.Assets);
         Assert.Equal("evidence-mark", recoveredAsset.Id);
@@ -184,6 +185,7 @@ public sealed class PptxCodecTests
         Assert.True(driftRecovery.Ok, Diagnostics(driftRecovery));
         Assert.True(driftRecovery.PresentationProgram.RestoredEmbeddedProgram);
         Assert.Equal(first.PresentationProgram.ProgramJson, driftRecovery.PresentationProgram.ProgramJson);
+        Assert.Equal(programBytes, driftRecovery.PresentationProgram.OriginalProgramJson.ToByteArray());
         Assert.Contains(driftRecovery.Diagnostics, diagnostic => diagnostic.Code == "ppj.embedded.nativeDriftIgnored");
 
         var corruptSnapshot = ReplaceZipText(first.File.ToByteArray(), "officeKit/program-map.json", _ => "{}");

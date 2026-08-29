@@ -119,7 +119,8 @@ internal static class PpjEmbeddedProgramCodec
             var diagnostics = NativeDriftDiagnostics(root.GetProperty("nativePackage"), parts);
             var result = new PresentationProgramResult
             {
-                ProgramJson = ByteString.CopyFrom(programBytes),
+                ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+                OriginalProgramJson = ByteString.CopyFrom(programBytes),
                 ProgramSha256 = validation.ProgramSha256,
                 NodeMapJson = request.IncludeNodeMap ? ByteString.CopyFrom(nodeMap) : ByteString.Empty,
                 RestoredEmbeddedProgram = true,
@@ -141,6 +142,7 @@ internal static class PpjEmbeddedProgramCodec
 
     internal static byte[] Embed(
         byte[] pptx,
+        ReadOnlySpan<byte> originalProgramJson,
         PpjValidationResult validation,
         PresentationArtifact presentation,
         IReadOnlyList<Asset> compiledAssets,
@@ -150,6 +152,8 @@ internal static class PpjEmbeddedProgramCodec
             throw new InvalidOperationException("Only a validated authored PPJ can be embedded.");
         if (validation.Program.Source is not null)
             throw new InvalidOperationException("Source-bound PPJ must never be embedded into third-party output.");
+        if (originalProgramJson.IsEmpty)
+            throw new InvalidOperationException("Authored PPJ source bytes are required for exact recovery.");
 
         var parts = ReadParts(pptx);
         RejectReservedParts(parts);
@@ -166,7 +170,7 @@ internal static class PpjEmbeddedProgramCodec
 
         parts[ContentTypesPath] = AddContentTypes(parts[ContentTypesPath], assets);
         parts[RootRelationshipsPath] = AddRootProgramRelationship(parts[RootRelationshipsPath]);
-        parts[ProgramPath] = validation.CanonicalJson;
+        parts[ProgramPath] = originalProgramJson.ToArray();
         parts[ProgramMapPath] = map;
         parts[ProgramRelationshipsPath] = WriteProgramRelationships(assets);
         foreach (var asset in assets.GroupBy(asset => asset.PartPath, StringComparer.Ordinal).Select(group => group.First()))

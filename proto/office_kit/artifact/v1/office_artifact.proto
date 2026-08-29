@@ -161,6 +161,10 @@ message PresentationProgramResult {
   bool source_bound = 9;
   uint32 expanded_element_count = 10;
   repeated string changed_node_ids = 11;
+  // Exact authored JSON bytes recovered from an embedded PPJ snapshot. The
+  // canonical program_json and program_sha256 remain the semantic revision;
+  // this field preserves whitespace and member ordering for direct AI edits.
+  bytes original_program_json = 12;
 }
 
 // Internal compiler IR for byte-bound source-preserving PresentationML edits.
