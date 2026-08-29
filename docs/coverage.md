@@ -27,6 +27,11 @@ preserving whether the source uses points or percentage multiplier units. Four
 of the six samples completed one line-spacing edit and second import. Five of
 the six samples also completed one direct paragraph space-before or space-after
 edit and second import, using the same points or percentage token boundary.
+All six samples also completed one direct paragraph left-margin and one direct
+paragraph indent edit, changing only the owning slide XML and surviving a
+second import. These leaves expose only canonical bounded `a:pPr/@marL` and
+`a:pPr/@indent` integers; inherited, malformed, or out-of-range layout remains
+blocked.
 Unsupported paragraph topologies and inherited or ambiguous spacing remain
 blocked.
 The compact result is `evals/presentation-six-sample-import/evidence.v1.json`.
