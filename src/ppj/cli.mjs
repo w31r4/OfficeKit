@@ -4,6 +4,7 @@ import process from "node:process";
 
 import { projectPptxToPpj } from "./native.mjs";
 import { renderPpj, reviewPpj } from "./render-review.mjs";
+import { recordPpjTask } from "./task.mjs";
 import {
   resolveRegularFile,
   compilePpjWorkspace,
@@ -17,12 +18,12 @@ import {
 } from "./workspace.mjs";
 
 export const PPJ_USAGE = `Usage:
-  officekit ppj import <input.pptx> -o <deck.ppj> [--json]
+  officekit ppj import <input.pptx> -o <deck.ppj> [--task <id>] [--json]
   officekit ppj inspect <deck.ppj> [--query <text>] [--page <id>] [--json]
-  officekit ppj check <deck.ppj> [--fix] [--json]
-  officekit ppj build <deck.ppj> -o <deck.pptx> [--json]
+  officekit ppj check <deck.ppj> [--fix] [--task <id>] [--json]
+  officekit ppj build <deck.ppj> -o <deck.pptx> [--task <id>] [--json]
   officekit ppj render <deck.ppj> -o <previews/> [--pages <spec>] [--json]
-  officekit ppj review <deck.ppj> [--json]`;
+  officekit ppj review <deck.ppj> [--task <id>] [--json]`;
 
 export async function runPpjCommand(args, {
   output = process.stdout,
@@ -64,6 +65,7 @@ function parseImportArguments(args) {
   let outputPath;
   let json = false;
   let help = false;
+  let taskId;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--json") json = true;
@@ -71,6 +73,8 @@ function parseImportArguments(args) {
     else if (argument === "-o" || argument === "--output") {
       outputPath = requiredValue(args, ++index, argument);
     } else if (argument.startsWith("--output=")) outputPath = argument.slice("--output=".length);
+    else if (argument === "--task") taskId = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--task=")) taskId = argument.slice("--task=".length);
     else if (argument.startsWith("-")) throw new Error(`Unknown PPJ import option "${argument}".`);
     else positional.push(argument);
   }
@@ -78,7 +82,7 @@ function parseImportArguments(args) {
   if (positional.length !== 1 || !outputPath) {
     throw new Error("PPJ import requires one input.pptx and -o <deck.ppj>.");
   }
-  return { inputPath: positional[0], outputPath, json, help };
+  return { inputPath: positional[0], outputPath, taskId, json, help };
 }
 
 function parseInspectArguments(args) {
@@ -109,16 +113,20 @@ function parseCheckArguments(args) {
   let fix = false;
   let json = false;
   let help = false;
-  for (const argument of args) {
+  let taskId;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
     if (argument === "--json") json = true;
     else if (argument === "--fix") fix = true;
+    else if (argument === "--task") taskId = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--task=")) taskId = argument.slice("--task=".length);
     else if (argument === "--help" || argument === "-h") help = true;
     else if (argument.startsWith("-")) throw new Error(`Unknown PPJ check option "${argument}".`);
     else positional.push(argument);
   }
   if (help) return { help, json };
   if (positional.length !== 1) throw new Error("PPJ check requires one deck.ppj input.");
-  return { inputPath: positional[0], fix, json, help };
+  return { inputPath: positional[0], fix, taskId, json, help };
 }
 
 function parseBuildArguments(args) {
@@ -126,18 +134,21 @@ function parseBuildArguments(args) {
   let outputPath;
   let json = false;
   let help = false;
+  let taskId;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
     if (argument === "--json") json = true;
     else if (argument === "--help" || argument === "-h") help = true;
     else if (argument === "-o" || argument === "--output") outputPath = requiredValue(args, ++index, argument);
     else if (argument.startsWith("--output=")) outputPath = argument.slice("--output=".length);
+    else if (argument === "--task") taskId = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--task=")) taskId = argument.slice("--task=".length);
     else if (argument.startsWith("-")) throw new Error(`Unknown PPJ build option "${argument}".`);
     else positional.push(argument);
   }
   if (help) return { help, json };
   if (positional.length !== 1 || !outputPath) throw new Error("PPJ build requires one deck.ppj and -o <deck.pptx>.");
-  return { inputPath: positional[0], outputPath, json, help };
+  return { inputPath: positional[0], outputPath, taskId, json, help };
 }
 
 function parseRenderArguments(args) {
@@ -166,15 +177,19 @@ function parseReviewArguments(args) {
   const positional = [];
   let json = false;
   let help = false;
-  for (const argument of args) {
+  let taskId;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
     if (argument === "--json") json = true;
     else if (argument === "--help" || argument === "-h") help = true;
+    else if (argument === "--task") taskId = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--task=")) taskId = argument.slice("--task=".length);
     else if (argument.startsWith("-")) throw new Error(`Unknown PPJ review option "${argument}".`);
     else positional.push(argument);
   }
   if (help) return { help, json };
   if (positional.length !== 1) throw new Error("PPJ review requires one deck.ppj input.");
-  return { inputPath: positional[0], json, help };
+  return { inputPath: positional[0], taskId, json, help };
 }
 
 function requiredValue(args, index, option) {
@@ -184,7 +199,7 @@ function requiredValue(args, index, option) {
 }
 
 export async function importPptxAsPpj(
-  { inputPath, outputPath },
+  { inputPath, outputPath, taskId },
   { cwd = process.cwd(), project = projectPptxToPpj } = {},
 ) {
   const input = await resolveRegularFile(path.resolve(cwd, inputPath), "PPTX input");
@@ -254,6 +269,8 @@ export async function importPptxAsPpj(
     if (error?.code === "EEXIST") throw new Error(`PPJ output already exists: ${destination}`);
     throw error;
   }
+  const workspace = await loadPpjWorkspace(destination, { cwd: root });
+  const task = await recordPpjTask({ taskId, cwd, stage: "imported", workspace, receipt: projected });
   return Object.freeze({
     ok: true,
     command: "import",
@@ -267,6 +284,7 @@ export async function importPptxAsPpj(
     expandedElementCount: projected.expandedElementCount,
     assets: Object.freeze(assets),
     diagnostics: projected.diagnostics,
+    task,
   });
 }
 
@@ -303,7 +321,7 @@ export async function inspectPpj(
 }
 
 export async function checkPpj(
-  { inputPath, fix = false },
+  { inputPath, fix = false, taskId },
   { cwd = process.cwd(), load = loadPpjWorkspace, validate = validatePpjWorkspace } = {},
 ) {
   const workspace = await load(inputPath, { cwd });
@@ -312,6 +330,7 @@ export async function checkPpj(
   const alreadyFormatted = Buffer.from(workspace.program).equals(formatted);
   if (fix && !alreadyFormatted) await replaceRegularFile(workspace.path, formatted);
   const program = JSON.parse(Buffer.from(validated.programJson).toString("utf8"));
+  const task = await recordPpjTask({ taskId, cwd, stage: "checked", workspace, receipt: validated });
   return Object.freeze({
     ok: true,
     command: "check",
@@ -326,11 +345,12 @@ export async function checkPpj(
     expandedElementCount: validated.expandedElementCount,
     changedNodeIds: validated.changedNodeIds,
     diagnostics: validated.diagnostics,
+    task,
   });
 }
 
 export async function buildPpj(
-  { inputPath, outputPath },
+  { inputPath, outputPath, taskId },
   { cwd = process.cwd(), load = loadPpjWorkspace, compile = compilePpjWorkspace } = {},
 ) {
   const workspace = await load(inputPath, { cwd });
@@ -353,6 +373,14 @@ export async function buildPpj(
     if (error?.code === "EEXIST") throw new Error(`PPTX output already exists: ${destination}`);
     throw error;
   }
+  const task = await recordPpjTask({
+    taskId,
+    cwd,
+    stage: "built",
+    workspace,
+    receipt: compiled,
+    candidate: { bytes: compiled.file, outputPath: destination },
+  });
   return Object.freeze({
     ok: true,
     command: "build",
@@ -366,6 +394,7 @@ export async function buildPpj(
     changedParts: compiled.changedParts,
     changedNodeIds: compiled.changedNodeIds,
     diagnostics: compiled.diagnostics,
+    task,
   });
 }
 

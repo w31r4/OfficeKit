@@ -51,10 +51,10 @@
 
 ## 7. Optional Task and resume integration
 
-- [ ] 7.1 Extend the Task artifact model to recognize PPJ revisions and their authored or projected source identity.
-- [ ] 7.2 Save immutable PPJ revision, receipt, candidate, review, and output bindings only when `--task` is supplied.
-- [ ] 7.3 Resume the latest valid/reviewed PPJ revision into a fresh context without restoring a JavaScript heap.
-- [ ] 7.4 Keep legacy `ctx.plan` tasks listable but return an explicit unsupported-schema result on 2.0 resume without migration.
+- [x] 7.1 Extend the Task artifact model to recognize PPJ revisions and their authored or projected source identity.
+- [x] 7.2 Save immutable PPJ revision, receipt, candidate, review, and output bindings only when `--task` is supplied.
+- [x] 7.3 Resume the latest valid/reviewed PPJ revision into a fresh context without restoring a JavaScript heap.
+- [x] 7.4 Keep legacy `ctx.plan` tasks listable but return an explicit unsupported-schema result on 2.0 resume without migration.
 
 ## 8. Skill and capability convergence
 

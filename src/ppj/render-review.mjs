@@ -9,6 +9,7 @@ import {
   sha256,
   writeExclusiveFile,
 } from "./workspace.mjs";
+import { recordPpjTask } from "./task.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -88,7 +89,7 @@ export async function renderPpj(
 }
 
 export async function reviewPpj(
-  { inputPath },
+  { inputPath, taskId },
   {
     cwd = process.cwd(),
     load = loadPpjWorkspace,
@@ -106,6 +107,15 @@ export async function reviewPpj(
     visualReview: "unavailable",
     contentView: "none",
   });
+  const task = await recordPpjTask({
+    taskId,
+    cwd,
+    stage: "reviewed",
+    workspace,
+    receipt: compiled,
+    candidate: { bytes: compiled.file },
+    review: report,
+  });
   return Object.freeze({
     ok: report.verdict !== "failed",
     command: "review",
@@ -116,6 +126,7 @@ export async function reviewPpj(
     playbackEvidence: "structural",
     visualReview: "unavailable",
     report,
+    task,
   });
 }
 
