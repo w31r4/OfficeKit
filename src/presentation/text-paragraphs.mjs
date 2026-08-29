@@ -76,6 +76,9 @@ function normalizeRunStyle(style = {}) {
   const rawFontKerning = style.fontKerning == null ? undefined : String(style.fontKerning).trim();
   const fontKerning = rawFontKerning == null ? undefined : finiteNumber(rawFontKerning.replace(/pt$/i, ""));
   if (fontKerning != null && !(fontKerning >= 0 && fontKerning <= 768)) throw new RangeError("Presentation run fontKerning must be between 0 and 768 points.");
+  const rawFontBaseline = style.fontBaseline == null ? undefined : String(style.fontBaseline).trim();
+  const fontBaseline = rawFontBaseline == null ? undefined : finiteNumber(rawFontBaseline.replace(/%$/i, ""));
+  if (fontBaseline != null && !(fontBaseline >= -400 && fontBaseline <= 400)) throw new RangeError("Presentation run fontBaseline must be between -400% and 400%.");
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
@@ -83,6 +86,7 @@ function normalizeRunStyle(style = {}) {
     ...(style.strike == null ? {} : { strike: normalizePresentationStrike(style.strike) }),
     ...(fontSize == null ? {} : { fontSize }),
     ...(fontKerning == null ? {} : { fontKerning }),
+    ...(fontBaseline == null ? {} : { fontBaseline }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),

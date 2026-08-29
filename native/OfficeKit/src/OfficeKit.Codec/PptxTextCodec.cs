@@ -112,6 +112,8 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", "Presentation run East Asian font family must contain 1 through 255 characters.");
                 if (run.HasFontKerningPoints && (!(run.FontKerningPoints >= 0) || run.FontKerningPoints > 768 || !double.IsFinite(run.FontKerningPoints)))
                     throw new CodecException("invalid_presentation_text", "Presentation run font kerning must be finite and between 0 and 768 points.");
+                if (run.HasFontBaselinePercent && (!(run.FontBaselinePercent >= -400) || run.FontBaselinePercent > 400 || !double.IsFinite(run.FontBaselinePercent)))
+                    throw new CodecException("invalid_presentation_text", "Presentation run font baseline must be finite and between -400% and 400%.");
                 if (run.HasColorRgb && run.HasColorScheme)
                     throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
@@ -272,6 +274,7 @@ internal static class PptxTextCodec
         var eastAsianFonts = properties?.Elements<A.EastAsianFont>().Take(2).ToArray() ?? [];
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) run.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
         if (PptxTextDecoration.TryKerning(properties, out var kerning)) run.FontKerningPoints = double.Parse(kerning, System.Globalization.CultureInfo.InvariantCulture) / 100d;
+        if (PptxTextDecoration.TryBaseline(properties, out var baseline)) run.FontBaselinePercent = double.Parse(baseline, System.Globalization.CultureInfo.InvariantCulture) / 1000d;
         if (PptxColor.TryDirectSolidRgb(properties?.GetFirstChild<A.SolidFill>(), out var rgb)) run.ColorRgb = rgb;
         else if (PptxColor.TryDirectSolidScheme(properties?.GetFirstChild<A.SolidFill>(), out var scheme)) run.ColorScheme = scheme;
         if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
@@ -497,7 +500,7 @@ internal static class PptxTextCodec
     };
 
     private static bool HasStyle(PresentationTextRun run) =>
-        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasFontKerningPoints || run.HasColorRgb || run.HasColorScheme ||
+        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasFontKerningPoints || run.HasFontBaselinePercent || run.HasColorRgb || run.HasColorScheme ||
         run.HasUnderline || run.HasStrike;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
@@ -508,6 +511,7 @@ internal static class PptxTextCodec
         if (requested.HasStrike) properties.Strike = new A.TextStrikeValues(PptxTextDecoration.NormalizeStrike(requested.Strike));
         properties.FontSize = requested.HasFontSizePoints ? checked((int)Math.Round(requested.FontSizePoints * 100)) : null;
         properties.Kerning = requested.HasFontKerningPoints ? checked((int)Math.Round(requested.FontKerningPoints * 100)) : null;
+        properties.Baseline = requested.HasFontBaselinePercent ? checked((int)Math.Round(requested.FontBaselinePercent * 1000)) : null;
         var latin = properties.GetFirstChild<A.LatinFont>();
         if (requested.HasFontFamily)
         {
@@ -554,6 +558,7 @@ internal static class PptxTextCodec
         properties.Bold = null;
         properties.Italic = null;
         properties.Kerning = null;
+        properties.Baseline = null;
         properties.FontSize = null;
         properties.GetFirstChild<A.LatinFont>()?.Remove();
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().ToArray();

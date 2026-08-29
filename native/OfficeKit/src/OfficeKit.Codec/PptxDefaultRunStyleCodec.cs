@@ -21,6 +21,7 @@ internal static class PptxDefaultRunStyleCodec
         if (PptxTextDecoration.TryStrike(properties, out var strike)) style.Strike = strike;
         if (properties.FontSize is not null) style.FontSizePoints = properties.FontSize.Value / 100d;
         if (PptxTextDecoration.TryKerning(properties, out var kerning)) style.FontKerningPoints = double.Parse(kerning, System.Globalization.CultureInfo.InvariantCulture) / 100d;
+        if (PptxTextDecoration.TryBaseline(properties, out var baseline)) style.FontBaselinePercent = double.Parse(baseline, System.Globalization.CultureInfo.InvariantCulture) / 1000d;
         var latin = properties.Elements<A.LatinFont>().SingleOrDefault();
         if (latin is not null && ModeledLatinFont(latin)) style.FontFamily = latin.Typeface!.Value!;
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().Take(2).ToArray();
@@ -105,6 +106,8 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid("Presentation default-run East Asian font family must contain 1 through 255 characters.");
         if (style.HasFontKerningPoints && (!(style.FontKerningPoints >= 0) || style.FontKerningPoints > 768 || !double.IsFinite(style.FontKerningPoints)))
             throw Invalid("Presentation default-run font kerning must be finite and between 0 and 768 points.");
+        if (style.HasFontBaselinePercent && (!(style.FontBaselinePercent >= -400) || style.FontBaselinePercent > 400 || !double.IsFinite(style.FontBaselinePercent)))
+            throw Invalid("Presentation default-run font baseline must be finite and between -400% and 400%.");
         if (style.HasUnderline) PptxTextDecoration.NormalizeUnderline(style.Underline);
         if (style.HasStrike) PptxTextDecoration.NormalizeStrike(style.Strike);
         switch (style.ColorCase)
@@ -124,7 +127,7 @@ internal static class PptxDefaultRunStyleCodec
 
     private static bool HasFields(PresentationTextStyle style) =>
         style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
-        style.HasFontKerningPoints || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasUnderline || style.HasStrike;
+        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasUnderline || style.HasStrike;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
     {
@@ -141,6 +144,7 @@ internal static class PptxDefaultRunStyleCodec
         if (source.HasStrike) target.Strike = new A.TextStrikeValues(PptxTextDecoration.NormalizeStrike(source.Strike));
         target.FontSize = source.HasFontSizePoints ? checked((int)Math.Round(source.FontSizePoints * 100)) : null;
         target.Kerning = source.HasFontKerningPoints ? checked((int)Math.Round(source.FontKerningPoints * 100)) : null;
+        target.Baseline = source.HasFontBaselinePercent ? checked((int)Math.Round(source.FontBaselinePercent * 1000)) : null;
         ApplyLatinFont(target, source);
         ApplyEastAsianFont(target, source);
         ApplyColor(target, source);
@@ -201,6 +205,7 @@ internal static class PptxDefaultRunStyleCodec
         target.Bold = null;
         target.Italic = null;
         target.Kerning = null;
+        target.Baseline = null;
         if (PptxTextDecoration.TryUnderline(target, out _)) target.Underline = null;
         if (PptxTextDecoration.TryStrike(target, out _)) target.Strike = null;
         target.FontSize = null;

@@ -990,6 +990,48 @@ const fontKerningRoundTripLeaf = fontKerningRoundTrip.inspect({ includeNativeLea
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontKerningPoints");
 assert.equal(fontKerningRoundTripLeaf.value, 14);
 
+// Direct DrawingML baseline offsets are the native superscript/subscript
+// primitive.  Exercise both signs through the public percent-facing value;
+// the output must splice only the signed integer token and keep neighboring
+// run metadata intact.
+const fontBaselineAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontBaselineAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 baseline="30000"$2',
+);
+assert.match(fontBaselineAccessibilityXml, /<a:rPr\b[^>]*\bbaseline="30000"/);
+fontBaselineAccessibilityZip.file("ppt/slides/slide1.xml", fontBaselineAccessibilityXml);
+const fontBaselineAccessibilityFile = new FileBlob(
+  await fontBaselineAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontBaselineImported = await PresentationFile.importPptx(fontBaselineAccessibilityFile);
+const fontBaselineShape = itemByName(fontBaselineImported.slides.getItem(0).shapes.items, "decision-status");
+const fontBaselineLeaf = fontBaselineImported.inspect({ includeNativeLeaves: true, target: fontBaselineShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontBaselinePercent");
+assert.ok(fontBaselineLeaf, "source-bound shapes should expose a direct run baseline leaf");
+assert.equal(fontBaselineLeaf.value, 30);
+fontBaselineImported.editNativeLeaf(fontBaselineLeaf.targetId, fontBaselineLeaf.leafId, {
+  expectedHash: fontBaselineLeaf.expectedHash,
+  value: -25,
+});
+const fontBaselineOutput = await PresentationFile.exportPptx(fontBaselineImported);
+assert.equal(fontBaselineOutput.metadata.editPlan.operations[0].leafKind, "fontBaselinePercent");
+await assertOnlyDeclaredPptxFootprintChanged(fontBaselineAccessibilityFile, fontBaselineOutput, fontBaselineOutput.metadata.editPlan.operations);
+const fontBaselineXml = await (await JSZip.loadAsync(fontBaselineOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontBaselineXml, /<a:rPr\b[^>]*\bbaseline="-25000"/);
+assert.match(fontBaselineXml, /fixture:opaque="kept"/);
+const fontBaselineRoundTrip = await PresentationFile.importPptx(fontBaselineOutput);
+const fontBaselineRoundTripLeaf = fontBaselineRoundTrip.inspect({ includeNativeLeaves: true, target: fontBaselineShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontBaselinePercent" && record.value === -25);
+assert.equal(fontBaselineRoundTripLeaf.value, -25);
+
 // Direct paragraph alignment is a source-bound token leaf.  The fixture adds
 // one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
 // it must splice only that attribute and retain the vendor cNvPr extension.

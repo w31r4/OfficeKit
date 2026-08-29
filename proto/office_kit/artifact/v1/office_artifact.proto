@@ -2466,6 +2466,10 @@ message PresentationTextStyle {
   // semantic unit while source-bound edits splice the canonical hundredths
   // of a point token.
   optional double font_kerning_points = 10;
+  // Direct DrawingML a:defRPr/@baseline value in thousandths of a percent.
+  // Positive values raise glyphs (superscript); negative values lower them
+  // (subscript). Source-bound edits retain the signed native token.
+  optional double font_baseline_percent = 11;
 }
 
 message PresentationTextParagraph {
@@ -2595,6 +2599,11 @@ message PresentationTextRun {
   // Direct DrawingML a:rPr/@kern value in points. Source-bound edits retain
   // the native hundredths-of-a-point token and do not rewrite other run XML.
   optional double font_kerning_points = 15;
+  // Direct DrawingML a:rPr/@baseline value in thousandths of a percent.
+  // The public value is expressed as percent (for example, 30 for the
+  // common superscript token 30000); source-bound edits splice the exact
+  // signed native integer token.
+  optional double font_baseline_percent = 16;
 }
 
 message PresentationTextField {
