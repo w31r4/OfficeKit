@@ -1494,14 +1494,13 @@ internal static class PptxCodec
         for (var index = 0; index < children.Length; index++)
         {
             var child = ReadElement(children[index], groupId, index, slideContext, elementIdsByNativeId: elementIdsByNativeId);
-            // Keep a valid group projected even when one child is outside the
-            // semantic model.  The child remains an opaque, source-bound leaf;
-            // only its own proven capability may be edited.  Rejecting the
-            // whole group here used to make an otherwise safe text/image edit
-            // impossible whenever a vendor extension shared the same group.
+            // Keep a valid group projected when a child is only partially
+            // modeled.  The child remains source-bound and read-only unless a
+            // separate capability proves a narrower edit; rejecting the whole
+            // group here makes an otherwise safe sibling edit impossible when
+            // a vendor extension or unsupported style shares the group.
             if (child.ContentCase is PresentationElement.ContentOneofCase.None ||
-                child.Source is null ||
-                child.ContentCase is not PresentationElement.ContentOneofCase.Opaque && child.Source.Editable != true)
+                child.Source is null)
                 return false;
             group.Children.Add(child);
         }

@@ -527,7 +527,14 @@ async function verifySourceComponentReuse(bytes) {
 
 function firstTextRun(presentation) {
   for (const slide of presentation.slides.items) {
-    for (const shape of slide.shapes?.items || []) {
+    const shapes = [];
+    const collect = (group) => {
+      shapes.push(...(group.shapes?.items || []));
+      for (const child of group.groups?.items || []) collect(child);
+    };
+    shapes.push(...(slide.shapes?.items || []));
+    for (const group of slide.groups?.items || []) collect(group);
+    for (const shape of shapes) {
       for (const paragraph of shape.text?.paragraphs || []) {
         const run = paragraph.runs?.find((candidate) => typeof candidate.text === "string" && candidate.text.trim().length >= 4);
         if (run) return { slide: slide.index + 1, shape, run };
