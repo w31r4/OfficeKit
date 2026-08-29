@@ -9,7 +9,6 @@ import {
   DocumentFile,
   FileBlob,
   PdfFile,
-  PresentationFile,
   SpreadsheetFile,
   Workbook,
 } from "../src/index.mjs";
@@ -280,31 +279,6 @@ assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsh
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-operating-plan-workflow.mjs")));
 assert.ok(await exists(path.join(skillsRoot, "spreadsheets", "skills", "spreadsheets", "examples", "officekit-exponential-growth-workflow.mjs")));
 
-const presentationApiRoot = path.join(skillsRoot, "presentations", "skills", "presentations", "artifact_tool", "api");
-const presentationApiDocs = await fs.readFile(path.join(presentationApiRoot, "API_DOCS.md"), "utf8");
-const presentationSpec = await fs.readFile(path.join(presentationApiRoot, "references", "presentation.spec.md"), "utf8");
-const presentationSectionsSpec = await fs.readFile(path.join(presentationApiRoot, "references", "sections.spec.md"), "utf8");
-const presentationLayoutSpec = await fs.readFile(path.join(presentationApiRoot, "references", "layout.spec.md"), "utf8");
-const presentationChartSpec = await fs.readFile(path.join(presentationApiRoot, "references", "charts.spec.md"), "utf8");
-assert.match(presentationApiDocs, /presentation\.view/);
-assert.match(presentationApiDocs, /inkml-content-part-clone\.spec\.md/);
-assert.match(presentationApiDocs, /references\/charts\.spec\.md/);
-assert.match(presentationApiDocs, /sections\.spec\.md/);
-assert.match(presentationSpec, /showGridlines\(\).*showGuides\(\)/s);
-assert.match(presentationSpec, /gridSpacingCxEmu.*gridSpacingCyEmu/s);
-assert.match(presentationSpec, /presentation\.view\.capability.*editable/s);
-assert.match(presentationSpec, /setSourceProperties\(/);
-assert.match(presentationSpec, /guide count\/order\/orientation|add\/remove\/reorient guides/i);
-assert.match(presentationSpec, /presentation\.sections\.add/);
-assert.match(presentationSectionsSpec, /p14:sectionLst/);
-assert.match(presentationSectionsSpec, /partition every deck slide exactly once/i);
-assert.match(presentationSectionsSpec, /officekit-section-rename-workflow\.mjs/);
-assert.match(presentationSectionsSpec, /officekit-section-boundary-edit-workflow\.mjs/);
-assert.match(presentationLayoutSpec, /read-only `slideGuides`/);
-assert.match(presentationChartSpec, /standard `area`.*50%-hole `doughnut`/s);
-assert.match(presentationChartSpec, /Marker-only `scatter`.*aligned.*`xValues`/s);
-assert.match(presentationChartSpec, /2D `bubble`.*positive `bubbleSize`/s);
-assert.match(presentationChartSpec, /formula references[\s\S]*fail\s+closed/i);
 const presentationSkillRoot = path.join(skillsRoot, "presentations", "skills", "presentations");
 const presentationSkillText = [
   await fs.readFile(path.join(presentationSkillRoot, "SKILL.md"), "utf8"),
@@ -316,17 +290,12 @@ assert.match(presentationSkillText, /office-kit\/ppj\/v1/);
 assert.match(presentationSkillText, /nativeRef/);
 assert.match(presentationSkillText, /no-op build must return the source bytes exactly/i);
 assert.doesNotMatch(presentationSkillText, /tasks\/create|slide\.compose|presentation\.editNativeLeaf/);
-for (const example of [
-  "officekit-chart-families-workflow.mjs",
-  "officekit-title-notes-edit-workflow.mjs",
-  "officekit-legacy-comment-edit-workflow.mjs",
-  "officekit-slide-name-edit-workflow.mjs",
-  "officekit-view-properties-edit-workflow.mjs",
-  "officekit-transition-edit-workflow.mjs",
-  "officekit-section-rename-workflow.mjs",
-  "officekit-section-boundary-edit-workflow.mjs",
-]) {
-  assert.ok(await exists(path.join(presentationSkillRoot, "examples", example)), example);
+for (const removedLegacyRoute of ["artifact_tool", "container_tools", "examples", "template_following_scripts"]) {
+  assert.equal(
+    await exists(path.join(presentationSkillRoot, removedLegacyRoute)),
+    false,
+    `Presentations Skill must not ship the legacy ${removedLegacyRoute} route`,
+  );
 }
 
 const documentsSkillRoot = path.join(skillsRoot, "documents", "skills", "documents");
@@ -542,19 +511,6 @@ try {
   for (const id of ["-1", "0", "1"]) assert.match(endnotesXml, new RegExp(`<w:endnote\\b[^>]*w:id="${id}"`));
   assert.match(footnotesXml, /semantic re-import/);
   assert.match(endnotesXml, /retained with the release record/);
-
-  const { ensureArtifactToolWorkspace, importArtifactTool } = await import(
-    "../skills/presentations/skills/presentations/container_tools/artifact_tool_utils.mjs"
-  );
-  const workspace = path.join(tempRoot, "presentation-workspace");
-  const prepared = await ensureArtifactToolWorkspace(workspace);
-  assert.equal(prepared.packageDir, repoRoot);
-  assert.equal(
-    await fs.realpath(path.join(workspace, "node_modules", "office-kit")),
-    await fs.realpath(repoRoot),
-  );
-  const importedPackage = await importArtifactTool(workspace);
-  assert.equal(importedPackage.PresentationFile, PresentationFile);
 
   const workbook = Workbook.create();
   const sheet = workbook.worksheets.add("Summary");

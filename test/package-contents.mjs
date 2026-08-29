@@ -436,36 +436,6 @@ for (const required of [
   "skills/presentations/skills/powerpoint-live-control/assets/icon.svg",
   "skills/presentations/skills/powerpoint-live-control/references/live-protocol.md",
   "skills/presentations/skills/presentations/routing/google_slides.md",
-  "skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/accessibility.spec.md",
-  "skills/presentations/skills/presentations/examples/officekit-accessibility-audit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-object-accessibility-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-chart-trendline-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-legacy-comment-add-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-legacy-comment-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-speaker-notes-add-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-title-notes-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-rich-speaker-notes-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-slide-name-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-view-properties-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-transition-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-section-rename-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-section-boundary-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-custom-show-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-smartart-text-edit-workflow.mjs",
-  "skills/presentations/skills/presentations/examples/officekit-ole-office-package-workflow.mjs",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/custom-shows.spec.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/sections.spec.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/transitions.spec.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/ole-workbooks.spec.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/smartart-clone.spec.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/inkml-content-part-clone.spec.md",
-  "skills/presentations/skills/presentations/artifact_tool/api/references/embedded-video-clone.spec.md",
-  "skills/presentations/skills/presentations/container_tools/artifact_tool_utils.mjs",
-  "skills/presentations/skills/presentations/container_tools/slides_test.py",
   "skills/office-kit/.codex-plugin/plugin.json",
   "skills/office-kit/README.md",
   "skills/office-kit/skills/office-kit/SKILL.md",
@@ -584,6 +554,10 @@ for (const removed of [
   "src/presentation/ooxml-picture-bullets.mjs",
 ]) assert.ok(!files.includes(removed), `npm package must not contain removed legacy Office implementation ${removed}`);
 assert.ok(!files.includes("skills/reference-sync.json"), "npm package must exclude the repository-only reference source snapshot");
+assert.ok(
+  files.every((file) => !/^skills\/presentations\/skills\/presentations\/(?:artifact_tool|container_tools|examples|template_following_scripts)\//u.test(file)),
+  "npm package must not publish legacy Presentation API, MJS example, container-tool, or template-transaction routes",
+);
 assert.ok(files.every((file) => !file.includes("/tests/") && !file.startsWith("test/")), "npm package must exclude development-only test sources");
 assert.ok(files.every((file) => !file.includes(".DS_Store") && !file.includes("__pycache__") && !file.endsWith(".pyc")), "npm package must exclude local metadata and Python bytecode");
 assert.ok(files.filter((file) => file.startsWith("src/pdf/providers/")).every((file) => !/\.(?:tar\.gz|tgz|zip|whl|jar|exe|dylib|so)$/i.test(file)), "npm package must ship provider policy/source only, never capability-pack binaries");
