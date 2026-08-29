@@ -48,6 +48,14 @@ values. A targeted Professional Minimalist edit changed its bullet font, RGB
 color, and point size together, changed only `ppt/slides/slide4.xml`, and
 survived second import; latent styles on `noBullet` paragraphs and follow-text,
 effect-bearing, or ambiguous style graphs remain source-owned.
+Direct run theme colors now retain their `a:solidFill/a:schemeClr/@val`
+meaning instead of being resolved to RGB. The six-sample corpus exposes this
+`fontColorScheme` leaf in five samples; a targeted FROSTE edit changed one
+`accent2` run to `accent1`, changed only `ppt/slides/slide1.xml`, and survived
+second import. Only bare canonical theme tokens are issued; transformed,
+effect-bearing, malformed, or inherited color graphs remain opaque. RGB and
+theme run colors are mutually exclusive in the semantic wire so a source-bound
+edit cannot silently switch color systems.
 Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
 one bounded `a:pPr/@lvl` edit with second import. Because the current wire
 scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero
