@@ -83,6 +83,14 @@ const NATIVE_LINE_JOIN_CANONICAL = Object.freeze({
   bevel: "bevel",
   miter: "miter",
 });
+const NATIVE_LINE_ARROW_CANONICAL = Object.freeze({
+  none: "none",
+  triangle: "triangle",
+  stealth: "stealth",
+  diamond: "diamond",
+  oval: "oval",
+  arrow: "arrow",
+});
 const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
 const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
@@ -4240,13 +4248,19 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineJoin native leaf requires round, bevel, or miter.");
                 return { raw: canonical, publicValue: canonical };
               }
+              if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_ARROW_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation line arrow native leaf requires none, triangle, stealth, diamond, oval, or arrow.");
+                return { raw: canonical, publicValue: canonical };
+              }
               const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
               if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineRgb native leaf requires a six-digit RGB color.");
               const normalized = match[1].toUpperCase();
               return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
             },
             isNoop(next) {
-              return leafKind === "lineScheme" || leafKind === "lineStyle" || leafKind === "lineCap" || leafKind === "lineJoin"
+              return leafKind === "lineScheme" || leafKind === "lineStyle" || leafKind === "lineCap" || leafKind === "lineJoin" || leafKind === "lineStartArrow" || leafKind === "lineEndArrow"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },
@@ -4315,6 +4329,12 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style lineJoin native leaf requires round, bevel, or miter.");
                 return { raw: canonical, publicValue: canonical };
               }
+              if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_ARROW_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line arrow native leaf requires none, triangle, stealth, diamond, oval, or arrow.");
+                return { raw: canonical, publicValue: canonical };
+              }
               const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
               if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style RGB native leaf requires a six-digit RGB color.");
               const normalized = match[1].toUpperCase();
@@ -4323,7 +4343,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
             isNoop(next) {
               return leafKind === "lineWidthEmu"
                 ? next === sourceLeaf.expectedValue
-                : leafKind === "fillScheme" || leafKind === "lineScheme" || leafKind === "lineStyle" || leafKind === "lineCap" || leafKind === "lineJoin"
+                : leafKind === "fillScheme" || leafKind === "lineScheme" || leafKind === "lineStyle" || leafKind === "lineCap" || leafKind === "lineJoin" || leafKind === "lineStartArrow" || leafKind === "lineEndArrow"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },

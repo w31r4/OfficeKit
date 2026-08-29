@@ -68,6 +68,14 @@ const NATIVE_LINE_JOINS = Object.freeze({
   bevel: "bevel",
   miter: "miter",
 });
+const NATIVE_LINE_ARROWS = Object.freeze({
+  none: "none",
+  triangle: "triangle",
+  stealth: "stealth",
+  diamond: "diamond",
+  oval: "oval",
+  arrow: "arrow",
+});
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -129,6 +137,25 @@ function nativeLineCapToken(value) {
 
 function nativeLineJoinToken(value) {
   return NATIVE_LINE_JOINS[String(value || "").trim().toLowerCase()];
+}
+
+function nativeLineArrowToken(value) {
+  return NATIVE_LINE_ARROWS[String(value || "").trim().toLowerCase()];
+}
+
+function nativeLineArrowLeaf(xml, endpointName, leafKind) {
+  const nodes = directPresentationChildren(xml, "ln").filter((child) => child.localName === endpointName);
+  if (nodes.length !== 1) return undefined;
+  const node = nodes[0];
+  const open = /^<[^>]+>/u.exec(node.xml)?.[0] || "";
+  if (!/\/\s*>$/u.test(node.xml) || directPresentationChildren(node.xml, endpointName).length !== 0) return undefined;
+  const attributes = nativeTagAttributes(open);
+  const typeAttributes = attributes.filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "type");
+  if (typeAttributes.length !== 1 || attributes.some((attribute) => !["type", "w", "len"].includes(attribute.name.split(":").pop()?.toLowerCase())) ||
+      ["w", "len"].some((name) => attributes.filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === name).length > 1) ||
+      attributes.filter((attribute) => ["w", "len"].includes(attribute.name.split(":").pop()?.toLowerCase())).some((attribute) => !["sm", "med", "lg"].includes(attribute.value))) return undefined;
+  const value = nativeLineArrowToken(typeAttributes[0].value);
+  return value ? { leafKind, value } : undefined;
 }
 
 function deriveNativeLineLeaves(rawXml, nativeKind) {
@@ -194,6 +221,12 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
       if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineJoin", value, expectedHash: sha256(value) });
     }
   }
+  if (hasSimpleLinePaint) {
+    for (const [endpointName, leafKind] of [["headEnd", "lineStartArrow"], ["tailEnd", "lineEndArrow"]]) {
+      const leaf = nativeLineArrowLeaf(line.groups?.value || "", endpointName, leafKind);
+      if (leaf) leaves.push({ lineLeafIndex: leaves.length, ...leaf, expectedHash: sha256(leaf.value) });
+    }
+  }
   return leaves.length ? Object.freeze(leaves) : undefined;
 }
 
@@ -203,7 +236,7 @@ function nativeLineRecord(leaves) {
     leafKind: leaf.leafKind || "lineRgb",
     value: leaf.leafKind === "lineWidthEmu"
       ? Number(leaf.value)
-      : leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" || leaf.leafKind === "lineJoin" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+      : leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" || leaf.leafKind === "lineJoin" || leaf.leafKind === "lineStartArrow" || leaf.leafKind === "lineEndArrow" ? leaf.value : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -227,6 +260,8 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
   const lineStyleLeaves = [];
   const lineCapLeaves = [];
   const lineJoinLeaves = [];
+  const lineStartArrowLeaves = [];
+  const lineEndArrowLeaves = [];
   const colorLeaf = (solid, prefix) => {
     const colors = directPresentationChildren(solid.xml, "solidFill")
       .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
@@ -298,11 +333,17 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
           if (value) lineJoinLeaves.push({ leafKind: "lineJoin", value });
         }
       }
+      if (lineLeaf) {
+        const startArrow = nativeLineArrowLeaf(outlines[0].xml, "headEnd", "lineStartArrow");
+        if (startArrow) lineStartArrowLeaves.push(startArrow);
+        const endArrow = nativeLineArrowLeaf(outlines[0].xml, "tailEnd", "lineEndArrow");
+        if (endArrow) lineEndArrowLeaves.push(endArrow);
+      }
     }
   };
   visitGroup(String(rawXml || ""));
   // Keep prior color indexes stable; append line widths as a separate family.
-  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves, ...lineStyleLeaves, ...lineCapLeaves, ...lineJoinLeaves].map((leaf, nativeLeafIndex) => ({
+  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves, ...lineStyleLeaves, ...lineCapLeaves, ...lineJoinLeaves, ...lineStartArrowLeaves, ...lineEndArrowLeaves].map((leaf, nativeLeafIndex) => ({
     nativeLeafIndex,
     ...leaf,
     expectedHash: sha256(leaf.value),
@@ -314,7 +355,7 @@ function nativeStyleRecord(leaves) {
   return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
     nativeLeafIndex: leaf.nativeLeafIndex,
     leafKind: leaf.leafKind,
-    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" || leaf.leafKind === "lineJoin"
+    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" || leaf.leafKind === "lineJoin" || leaf.leafKind === "lineStartArrow" || leaf.leafKind === "lineEndArrow"
       ? leaf.value
       : leaf.leafKind === "lineWidthEmu" ? Number(leaf.value) : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
@@ -934,6 +975,12 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         this._nativeLineLeaves[index].value = join;
         return;
       }
+      if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+        const arrow = nativeLineArrowToken(color);
+        if (!arrow || arrow !== color) throw new RangeError("Native line arrow requires none, triangle, stealth, diamond, oval, or arrow.");
+        this._nativeLineLeaves[index].value = arrow;
+        return;
+      }
       if (leafKind === "lineWidthEmu") {
         if (!/^\d+$/u.test(color)) throw new RangeError("Native line width requires a non-negative integer EMU value.");
         const width = Number(color);
@@ -978,6 +1025,13 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         const join = nativeLineJoinToken(token);
         if (!join || join !== token) throw new RangeError("Native style line join requires round, bevel, or miter.");
         this._nativeStyleLeaves[index].value = join;
+        return;
+      }
+      if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+        const token = String(value ?? "").trim();
+        const arrow = nativeLineArrowToken(token);
+        if (!arrow || arrow !== token) throw new RangeError("Native style line arrow requires none, triangle, stealth, diamond, oval, or arrow.");
+        this._nativeStyleLeaves[index].value = arrow;
         return;
       }
       if (leafKind === "lineWidthEmu") {

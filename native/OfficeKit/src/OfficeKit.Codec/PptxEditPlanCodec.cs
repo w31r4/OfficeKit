@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -341,6 +341,13 @@ internal static partial class PptxEditPlanCodec
                     !PptxLineStyleCodec.TryJoinToken(operation.Value, out _) ||
                     operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} lineJoin must use a changed supported join.");
+            }
+            if (leafKind is "lineStartArrow" or "lineEndArrow")
+            {
+                if (!PptxLineStyleCodec.TryArrowTypeToken(operation.ExpectedValue, out _) ||
+                    !PptxLineStyleCodec.TryArrowTypeToken(operation.Value, out _) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} {leafKind} must use a changed supported arrow type.");
             }
             if (leafKind is not ("chartTitleText" or "chartDataValue" or "diagramText") &&
                 (!string.IsNullOrEmpty(operation.TargetPartPath) || !string.IsNullOrEmpty(operation.ExpectedTargetPartSha256) || !string.IsNullOrEmpty(operation.RelationshipId) || HasEmbeddedWorkbookBinding(operation)))
@@ -532,7 +539,7 @@ internal static partial class PptxEditPlanCodec
             }
             else if (element is P.GroupShape group &&
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Opaque or PresentationElement.ContentOneofCase.Group) &&
-                     (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineWidthEmu") &&
+                     (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu") &&
                      PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var styleLeaf) &&
                      styleLeaf.Kind == LeafKind(operation))
             {
@@ -540,7 +547,7 @@ internal static partial class PptxEditPlanCodec
             }
             else if (element is P.ConnectionShape connector &&
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Opaque or PresentationElement.ContentOneofCase.Connector) &&
-                     (LeafKind(operation) is "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineWidthEmu") &&
+                     (LeafKind(operation) is "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu") &&
                      PptxNativeObjectCatalog.Classify(connector) == "connector" &&
                      HasSafeNativeConnectorLine(connector, LeafKind(operation)))
             {
@@ -915,7 +922,7 @@ internal static partial class PptxEditPlanCodec
         if (outline is not { Length: 1 }) return false;
         if (kind == "lineWidthEmu")
             return outline[0].Width?.Value is { } width && width is >= 0 and <= 20_116_800;
-        if (kind is "lineStyle" or "lineCap" or "lineJoin")
+        if (kind is "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow")
         {
             var fills = outline[0].Elements<A.SolidFill>().ToArray();
             if (fills.Length != 1 ||
@@ -926,6 +933,13 @@ internal static partial class PptxEditPlanCodec
                 return dashes.Length == 1 && PptxLineStyleCodec.TryReadPresetDash(dashes[0], out _);
             }
             if (kind == "lineCap") return PptxLineStyleCodec.TryReadCap(outline[0], out _);
+            if (kind is "lineStartArrow" or "lineEndArrow")
+            {
+                OpenXmlElement? endpoint = kind == "lineStartArrow"
+                    ? outline[0].GetFirstChild<A.HeadEnd>()
+                    : outline[0].GetFirstChild<A.TailEnd>();
+                return PptxLineStyleCodec.TryReadArrowType(endpoint, out _);
+            }
             return PptxLineStyleCodec.TryReadJoinLeaf(outline[0], out _);
         }
         var solidFill = outline[0].Elements<A.SolidFill>().ToArray();
@@ -1183,7 +1197,7 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font color.", operation.SlidePartPath);
             return color;
         }
-        if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineWidthEmu") && element is P.GroupShape group)
+        if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu") && element is P.GroupShape group)
         {
             if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} target is not a bounded source-bound group style leaf.", operation.SlidePartPath);
@@ -1192,7 +1206,7 @@ internal static partial class PptxEditPlanCodec
         var properties = element switch
         {
             P.Shape shape => shape.ShapeProperties,
-            P.ConnectionShape connector when kind is "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineWidthEmu" => connector.ShapeProperties,
+            P.ConnectionShape connector when kind is "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" => connector.ShapeProperties,
             P.Picture picture when IsGeometryLeaf(kind) => picture.ShapeProperties,
             _ => null,
         } ??
@@ -1208,6 +1222,8 @@ internal static partial class PptxEditPlanCodec
             "lineStyle" => RequiredLeafValue(ReadLineStyle(properties.GetFirstChild<A.Outline>(), operation), operation),
             "lineCap" => RequiredLeafValue(ReadLineCap(properties.GetFirstChild<A.Outline>(), operation), operation),
             "lineJoin" => RequiredLeafValue(ReadLineJoin(properties.GetFirstChild<A.Outline>(), operation), operation),
+            "lineStartArrow" => RequiredLeafValue(ReadLineArrow(properties.GetFirstChild<A.Outline>(), operation, start: true), operation),
+            "lineEndArrow" => RequiredLeafValue(ReadLineArrow(properties.GetFirstChild<A.Outline>(), operation, start: false), operation),
             "lineWidthEmu" => RequiredLeafValue(properties.GetFirstChild<A.Outline>()?.Width is { } width
                 ? width.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 : string.Empty, operation),
@@ -1258,6 +1274,11 @@ internal static partial class PptxEditPlanCodec
     private static string ReadLineJoin(A.Outline? outline, PresentationEditOperation operation) =>
         PptxLineStyleCodec.TryReadJoinLeaf(outline, out var join)
             ? join
+            : MissingLeaf(operation);
+
+    private static string ReadLineArrow(A.Outline? outline, PresentationEditOperation operation, bool start) =>
+        PptxLineStyleCodec.TryReadArrowType(start ? outline?.GetFirstChild<A.HeadEnd>() : outline?.GetFirstChild<A.TailEnd>(), out var arrow)
+            ? arrow
             : MissingLeaf(operation);
 
     private static string ParagraphAlignmentName(A.TextAlignmentTypeValues value) =>
@@ -1318,7 +1339,7 @@ internal static partial class PptxEditPlanCodec
     {
         var operation = proof.Operation;
         var owner = elementRange.LocalName;
-        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineWidthEmu"))
+        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu"))
             return CompileNativeStyleXmlPatch(xml, elementRange, proof);
         var properties = DirectChildRange(xml, elementRange, owner, "spPr", operation);
         XmlRange leaf;
@@ -1368,6 +1389,14 @@ internal static partial class PptxEditPlanCodec
                 if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineJoin.", operation.SlidePartPath);
                 var joinOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 return CompileNativeJoinXmlPatch(xml, joinOutline, proof);
+            case "lineStartArrow":
+                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineStartArrow.", operation.SlidePartPath);
+                var startArrowOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
+                return CompileNativeArrowXmlPatch(xml, startArrowOutline, proof, "headEnd");
+            case "lineEndArrow":
+                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineEndArrow.", operation.SlidePartPath);
+                var endArrowOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
+                return CompileNativeArrowXmlPatch(xml, endArrowOutline, proof, "tailEnd");
             case "lineWidthEmu":
                 if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineWidthEmu.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, properties, "spPr", "ln", operation);
@@ -1979,6 +2008,45 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + name.Length, replacementToken, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileNativeArrowXmlPatch(string xml, XmlRange outlineOrArrow, PptxEditPlanProof proof, string endpointName)
+    {
+        var operation = proof.Operation;
+        var arrow = outlineOrArrow.LocalName == "ln"
+            ? DirectChildRanges(xml, outlineOrArrow).Where(entry => entry.LocalName == endpointName).ToArray() switch
+            {
+                { Length: 1 } matches => matches[0],
+                _ => throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one explicit {endpointName} element.", operation.SlidePartPath),
+            }
+            : outlineOrArrow;
+        if (!string.Equals(arrow.LocalName, endpointName, StringComparison.Ordinal))
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} arrow endpoint does not match {endpointName}.", operation.SlidePartPath);
+
+        var fragment = xml[arrow.Start..arrow.End];
+        var opening = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == endpointName)
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} arrow endpoint tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(opening.Value).Cast<Match>().ToArray();
+        var typeAttributes = attributes.Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "type").ToArray();
+        var invalidAttribute = attributes.Any(attribute => LocalAttributeName(attribute.Groups["name"].Value) is not ("type" or "w" or "len"));
+        var invalidSize = attributes
+            .Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) is "w" or "len")
+            .Any(attribute => !PptxLineStyleCodec.TryArrowSizeToken(attribute.Groups["value"].Value));
+        if (!opening.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) ||
+            DirectChildRanges(xml, arrow).Count != 0 ||
+            typeAttributes.Length != 1 ||
+            attributes.Count(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "w") > 1 ||
+            attributes.Count(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "len") > 1 ||
+            invalidAttribute || invalidSize ||
+            !PptxLineStyleCodec.TryArrowTypeToken(operation.ExpectedValue, out var expectedToken) ||
+            !PptxLineStyleCodec.TryArrowTypeToken(operation.Value, out var replacementToken) ||
+            !string.Equals(typeAttributes[0].Groups["value"].Value, expectedToken, StringComparison.Ordinal))
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw arrow endpoint does not match the expected value.", operation.SlidePartPath);
+
+        var valueGroup = typeAttributes[0].Groups["value"];
+        var start = arrow.Start + opening.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacementToken, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static PptxXmlPatch CompileNativeStyleXmlPatch(string xml, XmlRange groupRange, PptxEditPlanProof proof)
     {
         var operation = proof.Operation;
@@ -1989,6 +2057,8 @@ internal static partial class PptxEditPlanCodec
         if (style.Kind != LeafKind(operation))
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} native style leaf kind changed after planning.", operation.SlidePartPath);
         if (style.Kind == "lineJoin") return CompileNativeJoinXmlPatch(xml, style.Range, proof);
+        if (style.Kind == "lineStartArrow") return CompileNativeArrowXmlPatch(xml, style.Range, proof, "headEnd");
+        if (style.Kind == "lineEndArrow") return CompileNativeArrowXmlPatch(xml, style.Range, proof, "tailEnd");
         var fragment = xml[style.Range.Start..style.Range.End];
         var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
             .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == style.Range.LocalName) ??
@@ -2061,6 +2131,8 @@ internal static partial class PptxEditPlanCodec
         var lineStyleLeaves = new List<NativeStyleXmlRange>();
         var lineCapLeaves = new List<NativeStyleXmlRange>();
         var lineJoinLeaves = new List<NativeStyleXmlRange>();
+        var lineStartArrowLeaves = new List<NativeStyleXmlRange>();
+        var lineEndArrowLeaves = new List<NativeStyleXmlRange>();
         var fillNames = new HashSet<string>(StringComparer.Ordinal) { "noFill", "solidFill", "gradFill", "blipFill", "pattFill" };
 
         void VisitGroup(XmlRange current)
@@ -2091,13 +2163,17 @@ internal static partial class PptxEditPlanCodec
                 var lineFills = DirectChildRanges(xml, outlines[0]).Where(entry => fillNames.Contains(entry.LocalName)).ToArray();
                 if (lineFills.Length == 1 && lineFills[0].LocalName == "solidFill" && TryNativeStyleXmlColor(xml, lineFills[0], "line", out var line))
                     lineLeaves.Add(line);
-                if (fillLeaves.Count + lineLeaves.Count + lineWidthLeaves.Count + lineStyleLeaves.Count + lineCapLeaves.Count + lineJoinLeaves.Count > 4_096)
+                if (TryNativeStyleXmlArrow(xml, outlines[0], "headEnd", "lineStartArrow", out var startArrow))
+                    lineStartArrowLeaves.Add(startArrow);
+                if (TryNativeStyleXmlArrow(xml, outlines[0], "tailEnd", "lineEndArrow", out var endArrow))
+                    lineEndArrowLeaves.Add(endArrow);
+                if (fillLeaves.Count + lineLeaves.Count + lineWidthLeaves.Count + lineStyleLeaves.Count + lineCapLeaves.Count + lineJoinLeaves.Count + lineStartArrowLeaves.Count + lineEndArrowLeaves.Count > 4_096)
                     throw new CodecException("presentation_item_budget_exceeded", "PPTX native opaque-group style leaves exceed the bounded style profile.");
             }
         }
 
         VisitGroup(groupRange);
-        return fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).Concat(lineJoinLeaves).ToArray();
+        return fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).Concat(lineJoinLeaves).Concat(lineStartArrowLeaves).Concat(lineEndArrowLeaves).ToArray();
     }
 
     private static bool TryNativeStyleXmlColor(string xml, XmlRange solidFill, string prefix, out NativeStyleXmlRange color)
@@ -2195,6 +2271,29 @@ internal static partial class PptxEditPlanCodec
             DirectChildRanges(xml, candidate).Count != 0 ||
             !TryNativeStyleXmlLinePaint(xml, outline)) return false;
         join = new NativeStyleXmlRange("lineJoin", candidate);
+        return true;
+    }
+
+    private static bool TryNativeStyleXmlArrow(string xml, XmlRange outline, string endpointName, string kind, out NativeStyleXmlRange arrow)
+    {
+        arrow = null!;
+        var endpoints = DirectChildRanges(xml, outline).Where(entry => entry.LocalName == endpointName).ToArray();
+        if (endpoints.Length != 1 || !TryNativeStyleXmlLinePaint(xml, outline)) return false;
+        var candidate = endpoints[0];
+        var fragment = xml[candidate.Start..candidate.End];
+        var opening = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == endpointName);
+        if (opening is null || !opening.Value.TrimEnd().EndsWith("/>", StringComparison.Ordinal) || DirectChildRanges(xml, candidate).Count != 0) return false;
+        var attributes = XmlAttributePattern().Matches(opening.Value).Cast<Match>().ToArray();
+        var typeAttributes = attributes.Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "type").ToArray();
+        if (typeAttributes.Length != 1 ||
+            attributes.Any(attribute => LocalAttributeName(attribute.Groups["name"].Value) is not ("type" or "w" or "len")) ||
+            attributes.Count(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "w") > 1 ||
+            attributes.Count(attribute => LocalAttributeName(attribute.Groups["name"].Value) == "len") > 1 ||
+            attributes.Where(attribute => LocalAttributeName(attribute.Groups["name"].Value) is "w" or "len")
+                .Any(attribute => !PptxLineStyleCodec.TryArrowSizeToken(attribute.Groups["value"].Value)) ||
+            !PptxLineStyleCodec.TryArrowTypeToken(typeAttributes[0].Groups["value"].Value, out _)) return false;
+        arrow = new NativeStyleXmlRange(kind, candidate);
         return true;
     }
 

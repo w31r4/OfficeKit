@@ -158,6 +158,39 @@ internal static class PptxLineStyleCodec
         return token.Length > 0;
     }
 
+    // Source-bound arrow leaves only splice an existing explicit endpoint
+    // type. Width/length attributes are retained and must already be
+    // canonical, so an irregular endpoint stays opaque.
+    internal static bool TryReadArrowType(OpenXmlElement? source, out string type)
+    {
+        type = string.Empty;
+        if (source is not (A.HeadEnd or A.TailEnd) || source.ChildElements.Any() ||
+            !HasOnlyAttributes(source, "type", "w", "len") || source.GetAttributes().Count(attribute => attribute.LocalName == "type") != 1) return false;
+        var sourceType = source is A.HeadEnd head ? head.Type?.Value : ((A.TailEnd)source).Type?.Value;
+        var sourceWidth = source is A.HeadEnd headWidth ? headWidth.Width?.Value : ((A.TailEnd)source).Width?.Value;
+        var sourceLength = source is A.HeadEnd headLength ? headLength.Length?.Value : ((A.TailEnd)source).Length?.Value;
+        if (!TryArrow(sourceType, out var parsed) || !TryEndWidth(sourceWidth, out _) || !TryEndLength(sourceLength, out _)) return false;
+        type = parsed.Length == 0 ? "none" : parsed;
+        return true;
+    }
+
+    internal static bool TryArrowTypeToken(string type, out string token)
+    {
+        token = type switch
+        {
+            "none" => "none",
+            "triangle" => "triangle",
+            "stealth" => "stealth",
+            "diamond" => "diamond",
+            "oval" => "oval",
+            "arrow" => "arrow",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
+    internal static bool TryArrowSizeToken(string size) => size is "sm" or "med" or "lg";
+
     internal static bool TryRead(A.Outline? outline, out Profile profile)
     {
         if (outline is null)

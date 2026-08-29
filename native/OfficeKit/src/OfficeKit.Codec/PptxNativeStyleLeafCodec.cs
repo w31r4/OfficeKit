@@ -24,6 +24,8 @@ internal static class PptxNativeStyleLeafCodec
         var lineStyleLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineCapLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineJoinLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineStartArrowLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineEndArrowLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         foreach (var shape in group.Descendants<P.Shape>())
         {
             var properties = shape.ShapeProperties;
@@ -47,14 +49,27 @@ internal static class PptxNativeStyleLeafCodec
             var lineFills = outlines[0].ChildElements
                 .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
                 .ToArray();
-            if (lineFills.Length == 1 && lineFills[0] is A.SolidFill lineSolid && TryReadColor(lineSolid, "line", out var lineKind, out var lineValue))
+            var hasSimpleLinePaint = false;
+            if (lineFills.Length == 1 && lineFills[0] is A.SolidFill lineSolid &&
+                TryReadColor(lineSolid, "line", out var lineKind, out var lineValue))
+            {
+                hasSimpleLinePaint = true;
                 lineLeaves.Add((lineKind, lineValue, shape));
+            }
+            if (hasSimpleLinePaint)
+            {
+                if (PptxLineStyleCodec.TryReadArrowType(outlines[0].GetFirstChild<A.HeadEnd>(), out var startArrow))
+                    lineStartArrowLeaves.Add(("lineStartArrow", startArrow, shape));
+                if (PptxLineStyleCodec.TryReadArrowType(outlines[0].GetFirstChild<A.TailEnd>(), out var endArrow))
+                    lineEndArrowLeaves.Add(("lineEndArrow", endArrow, shape));
+            }
         }
 
         // Keep existing fill/line color/width indexes stable; append each new
         // style family so adding a capability cannot retarget a prior
         // source-bound leaf.
-        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).Concat(lineJoinLeaves).ToArray();
+        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).Concat(lineJoinLeaves)
+            .Concat(lineStartArrowLeaves).Concat(lineEndArrowLeaves).ToArray();
         if (described.Length == 0 || described.Length > MaxLeaves) return false;
         leaves = described.Select((item, index) => new PptxNativeStyleLeaf(checked((uint)index), item.Kind, item.Value, item.Shape)).ToArray();
         return true;
