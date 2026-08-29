@@ -2328,6 +2328,33 @@ function presentationImportedGroupSnapshot(group) {
   });
 }
 
+// Attached connectors expose resolved endpoints through their public layout,
+// so a transform-only edit on a connected shape can make that derived view
+// move even though the connector itself was not edited.  Keep the source
+// connector's raw endpoint state as its preservation fingerprint; an explicit
+// connector edit still changes one of these fields and follows the normal
+// bounded connector compiler path.
+function presentationImportedConnectorSnapshot(connector) {
+  return JSON.stringify({
+    nativeId: connector.nativeId,
+    creationId: connector.creationId,
+    name: connector.name,
+    connectorType: connector.connectorType,
+    startTargetId: connector.startTargetId,
+    endTargetId: connector.endTargetId,
+    startSiteIndex: connector.startSiteIndex,
+    endSiteIndex: connector.endSiteIndex,
+    startSiteExplicit: connector._startSiteExplicit === true,
+    endSiteExplicit: connector._endSiteExplicit === true,
+    start: connector._start,
+    end: connector._end,
+    line: connector.line,
+    cap: connector.cap,
+    join: connector.join,
+    accessibility: connector.accessibility,
+  });
+}
+
 function presentationImportedSlideShellSnapshot(slide) {
   return JSON.stringify({
     id: slide.id,
@@ -3062,6 +3089,17 @@ export function presentationEnvelope(presentation, protocolVersion) {
   if (!presentation.slides?.items?.length) throw new OfficeKitCodecError("Presentation must contain at least one slide.", [], { code: "missing_slides" });
   const state = presentation[PRESENTATION_STATE];
   assertTrustedPresentationState(state);
+  // A native-leaf edit can target a descendant of a source-bound group.  The
+  // descendant is compiled against its original shape-tree path; rebuilding
+  // the parent group here would need to lower every sibling through the
+  // authored geometry subset and can reject unrelated opaque geometry.  Keep
+  // that ownership tree on its source wire while the native edit plan applies
+  // the signed leaf splice later.
+  const pendingNativeLeafRootIds = new Set(
+    [...state?.pendingNativeLeafEdits?.values?.() || []]
+      .map((pending) => pending?.leaf?.rootEntry?.wire?.id)
+      .filter(Boolean),
+  );
   const sourceStates = presentationSourceSlideStateMap(presentation, state);
   if (!state) {
     const unsupported = unsupportedPresentationFeatures(presentation);
@@ -3197,7 +3235,10 @@ export function presentationEnvelope(presentation, protocolVersion) {
             }
             return presentationTable(entry.model, entry.wire);
           }
-          if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+          if (entry.wire.content.case === "connector") {
+            if (presentationImportedConnectorSnapshot(entry.model) === entry.snapshot) return entry.wire;
+            return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+          }
           if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
           if (entry.wire.content.case === "group") {
             // The native validator still checks an unchanged, source-bound
@@ -3206,6 +3247,9 @@ export function presentationEnvelope(presentation, protocolVersion) {
             // and picture-bullet bytes even when the group itself can reuse
             // its original wire.
             registerPresentationCloneAssets(entry.model, assetCatalog);
+            if (pendingNativeLeafRootIds.has(entry.wire.id)) {
+              return entry.wire;
+            }
             if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
               return entry.wire;
             }
@@ -3809,6 +3853,58 @@ function createPresentationNativeLeafCapability(presentation, state) {
       }
       return;
     }
+    const registerImportedRotationLeaf = () => {
+      const isShape = wire.content.case === "shape";
+      const isPicture = wire.content.case === "image" ||
+        (wire.content.case === "opaque" && wire.content.value.nativeKind === "picture");
+      if ((!isShape && !isPicture) ||
+          (isShape
+            ? wire.source?.editable !== true && wire.source?.textEditable !== true
+            : wire.source?.editable !== true)) return;
+      if (isPicture) {
+        const frame = wire.content.value;
+        const frameTokens = [frame.leftEmu, frame.topEmu, frame.widthEmu, frame.heightEmu].map(String);
+        if (!frameTokens.every((token) => /^-?[0-9]+$/u.test(token))) return;
+        const [left, top, width, height] = frameTokens.map((token) => BigInt(token));
+        // Match the native picture placement proof: negative offsets and
+        // empty extents are not safe direct a:xfrm edits, even when the
+        // surrounding image payload is otherwise source-bound.
+        if (left < 0n || top < 0n || width <= 0n || height <= 0n) return;
+      }
+      const raw = String(wire.content.value?.transform?.rotationAngle60000 ?? "");
+      if (!/^-?[0-9]+$/u.test(raw)) return;
+      let rotation;
+      try { rotation = BigInt(raw); }
+      catch { return; }
+      if (rotation < -21_600_000n || rotation > 21_600_000n) return;
+      const degrees = Number(rotation) / ROTATION_UNITS_PER_DEGREE;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "rotationDegrees",
+        expectedValue: raw,
+        value: degrees,
+        unit: "degrees",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < -360 || candidate > 360) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation rotationDegrees native leaf requires a finite number from -360 through 360 degrees.");
+          }
+          const token = String(Math.round(candidate * ROTATION_UNITS_PER_DEGREE));
+          return { raw: token, publicValue: Number(token) / ROTATION_UNITS_PER_DEGREE };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) {
+          model.transform = { ...(model.transform || {}), rotationDegrees: Number(next) / ROTATION_UNITS_PER_DEGREE };
+        },
+      });
+    };
+    registerImportedRotationLeaf();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
@@ -6312,6 +6408,8 @@ export async function presentationFromEnvelope(envelope, options = {}) {
             ? presentationImageReadOnlySnapshot(model)
             : element.content.case === "table"
               ? presentationTableReadOnlySnapshot(model)
+              : element.content.case === "connector"
+                ? presentationImportedConnectorSnapshot(model)
             : undefined,
       });
     }
