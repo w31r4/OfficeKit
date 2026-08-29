@@ -139,7 +139,7 @@ for (const pluginName of pluginNames) {
     "presentation-template-library",
     "presentations",
     "template-creator",
-  ]).has(pluginName) ? "1.1.0" : "0.2.0";
+  ]).has(pluginName) ? "2.0.0" : "0.2.0";
   assert.equal(manifest.version, expectedVersion);
   assert.equal(manifest.license, pluginName === "default-template-library" ? "MIT" : "AGPL-3.0-or-later");
   assert.equal(manifest.skills, "./skills/");

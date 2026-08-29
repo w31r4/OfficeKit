@@ -36,6 +36,13 @@ completed all three workflows. Final release hashes and platform build evidence
 are recorded after the one release gate run; Windows PowerPoint playback remains
 unverified and is not a 2.0 completion condition.
 
+The npm and self-contained GitHub distributions are independent release
+channels. The verified standalone catalog remains pinned to 1.0.0 until fresh
+macOS, Linux, and Windows archives are built and their exact identities are
+committed; it is released manually and does not borrow or fabricate 2.0.0
+hashes. This does not affect the npm 2.0.0 package or its three NativeAOT
+optional packages.
+
 ## Unreleased: Presentation scene stack
 
 Presentation authoring now uses one bottom-to-top scene stack across shapes,

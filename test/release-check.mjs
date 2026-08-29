@@ -16,7 +16,11 @@ assert.equal(report.publishReady, true);
 assert.ok(report.checks.some((check) => check.name === "package metadata" && check.ok));
 assert.ok(report.checks.some((check) => check.name === "project license" && check.ok));
 assert.ok(report.checks.some((check) => check.name === "third-party license policy" && check.ok));
-assert.ok(report.checks.some((check) => check.name === "standalone release metadata" && check.ok));
+assert.ok(report.checks.some((check) =>
+  check.name === "standalone release metadata" &&
+  check.ok &&
+  check.stdout.includes("npm candidate")
+));
 assert.ok(report.checks.some((check) => check.name === "npm auth" && check.skipped));
 assert.match(report.nextPublishCommand, /npm publish/);
 const releaseWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/release.yml"), "utf8");
@@ -36,7 +40,8 @@ assert.match(releaseWorkflow, /gh release create/);
 assert.match(releaseWorkflow, /npm run test:slow/);
 assert.match(ciWorkflow, /name:\s*Fast gate/);
 assert.match(ciWorkflow, /npm test/);
-assert.doesNotMatch(ciWorkflow, /playwright install|libreoffice-writer|setup-dotnet/);
+assert.doesNotMatch(ciWorkflow, /playwright install|libreoffice-writer/);
+assert.match(ciWorkflow, /setup-dotnet@v5/);
 assert.match(slowWorkflow, /workflow_dispatch/);
 assert.match(slowWorkflow, /npm run test:slow/);
 const slowSegments = [
@@ -72,6 +77,7 @@ assert.match(standaloneWorkflow, /linux-x64/);
 assert.match(standaloneWorkflow, /standalone-four-formats\.mjs/);
 assert.match(standaloneWorkflow, /actions\/upload-artifact@v4/);
 assert.match(standaloneWorkflow, /gh release upload/);
+assert.doesNotMatch(standaloneWorkflow, /push:\s*\n\s*tags:/m);
 for (const workflow of [slowWorkflow, releaseWorkflow]) {
   assert.match(workflow, /playwright install --with-deps chromium/);
   assert.match(workflow, /libreoffice-writer libreoffice-calc libreoffice-impress poppler-utils/);

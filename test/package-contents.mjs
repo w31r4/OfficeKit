@@ -5,7 +5,7 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const packageMetadata = JSON.parse(await fs.readFile(path.join(repoRoot, "package.json"), "utf8"));
-assert.equal(packageMetadata.version, "1.1.0");
+assert.equal(packageMetadata.version, "2.0.0");
 assert.equal(packageMetadata.license, "AGPL-3.0-or-later");
 assert.equal(packageMetadata.dependencies.mupdf, "1.28.0");
 assert.equal(packageMetadata.dependencies["@firecrawl/anydoc"], "0.1.3");
@@ -28,9 +28,9 @@ assert.deepEqual(packageMetadata.bin, {
 });
 assert.equal(packageMetadata.engines.node, ">=22.15.0");
 assert.deepEqual(packageMetadata.optionalDependencies, {
-  "office-kit-codec-darwin-arm64": "1.1.0",
-  "office-kit-codec-linux-x64": "1.1.0",
-  "office-kit-codec-win32-x64": "1.1.0",
+  "office-kit-codec-darwin-arm64": "2.0.0",
+  "office-kit-codec-linux-x64": "2.0.0",
+  "office-kit-codec-win32-x64": "2.0.0",
 });
 assert.equal(
   packageMetadata.scripts["build:standalone"],
@@ -175,7 +175,7 @@ assert.equal(result.status, 0, `npm pack manifest failed\nSTDOUT:\n${result.stdo
 const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
-// and hosted gates. The 1.1.0 global CLI ships 13 source-backed DOCX/XLSX
+// and hosted gates. The 2.0.0 global CLI ships 13 source-backed DOCX/XLSX
 // templates plus thirty-nine presentation style Skills once inside the package. Keep
 // narrow cross-platform headroom over the measured release archive.
 const maxPackedBytes = 37_500_000;

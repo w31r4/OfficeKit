@@ -6,6 +6,10 @@ umask 077
 OFFICE_KIT_VERSION=1.0.0
 OFFICE_KIT_REPOSITORY=w31r4/OfficeKit
 
+if [ "${OFFICE_KIT_INSTALL_TEST:-0}" = "1" ] && [ -n "${OFFICE_KIT_TEST_VERSION:-}" ]; then
+  OFFICE_KIT_VERSION=$OFFICE_KIT_TEST_VERSION
+fi
+
 fail() {
   printf '%s\n' "OfficeKit installer: $*" >&2
   exit 1

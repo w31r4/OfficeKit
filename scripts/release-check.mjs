@@ -35,6 +35,19 @@ function summarizeCheck(name, result, required = true) {
   return { name, required, ...result };
 }
 
+function parseStableVersion(value, label) {
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(value || ""));
+  if (!match) throw new Error(`${label} must be a stable semantic version`);
+  return match.slice(1).map(Number);
+}
+
+function compareStableVersions(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    if (left[index] !== right[index]) return left[index] - right[index];
+  }
+  return 0;
+}
+
 const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, "package.json"), "utf8"));
 const lock = JSON.parse(fs.readFileSync(path.join(repoRoot, "package-lock.json"), "utf8"));
 const licensePolicyPath = process.env.OFFICE_KIT_LICENSE_POLICY || path.join(repoRoot, "scripts", "license-policy.json");
@@ -76,6 +89,7 @@ const standaloneWindowsInstallerPath = path.join(repoRoot, "standalone", "instal
 const standaloneVerifierPath = path.join(repoRoot, "standalone", "verify-install.mjs");
 const standaloneWorkflowPath = path.join(repoRoot, ".github", "workflows", "standalone-release.yml");
 let standaloneIssues = [];
+let standaloneVersion = null;
 try {
   const runtimeCatalog = JSON.parse(fs.readFileSync(standaloneRuntimePath, "utf8"));
   const releaseCatalog = JSON.parse(fs.readFileSync(standaloneReleasePath, "utf8"));
@@ -86,8 +100,18 @@ try {
   if (runtimeCatalog.schemaVersion !== 1 || runtimeCatalog.nodeVersion !== "24.18.0") {
     standaloneIssues.push("Node runtime catalog must pin schema 1 and Node 24.18.0");
   }
-  if (releaseCatalog.schemaVersion !== 1 || releaseCatalog.officeKitVersion !== pkg.version) {
-    standaloneIssues.push("standalone release catalog version does not match package.json");
+  standaloneVersion = releaseCatalog.officeKitVersion;
+  if (releaseCatalog.schemaVersion !== 1) {
+    standaloneIssues.push("standalone release catalog must use schema 1");
+  }
+  try {
+    const packageVersion = parseStableVersion(pkg.version, "package version");
+    const catalogVersion = parseStableVersion(standaloneVersion, "standalone catalog version");
+    if (compareStableVersions(catalogVersion, packageVersion) > 0) {
+      standaloneIssues.push("standalone release catalog cannot be newer than package.json");
+    }
+  } catch (error) {
+    standaloneIssues.push(error instanceof Error ? error.message : String(error));
   }
   for (const target of ["darwin-arm64", "linux-x64", "win32-x64"]) {
     const runtime = runtimeCatalog.runtimes?.[target];
@@ -105,7 +129,7 @@ try {
     }
     if (
       !release ||
-      release.asset !== `office-kit-${pkg.version}-${target}${archiveExtension}` ||
+      release.asset !== `office-kit-${standaloneVersion}-${target}${archiveExtension}` ||
       !/^[a-f0-9]{64}$/.test(release.sha256) ||
       !Number.isSafeInteger(release.size) ||
       release.size <= 0
@@ -119,14 +143,14 @@ try {
     }
   }
   if (
-    !installer.includes(`OFFICE_KIT_VERSION=${pkg.version}`) ||
+    !installer.includes(`OFFICE_KIT_VERSION=${standaloneVersion}`) ||
     /FINALIZE_/.test(installer) ||
     (fs.statSync(standaloneInstallerPath).mode & 0o111) === 0
   ) {
     standaloneIssues.push("standalone installer version, hashes, or executable mode are incomplete");
   }
   if (
-    !windowsInstaller.includes(`$OfficeKitVersion = "${pkg.version}"`) ||
+    !windowsInstaller.includes(`$OfficeKitVersion = "${standaloneVersion}"`) ||
     /RELEASE_(?:SHA256|SIZE)/.test(windowsInstaller) ||
     !/Invoke-WebRequest/.test(windowsInstaller) ||
     !/System\.Security\.Cryptography\.SHA256/.test(windowsInstaller)
@@ -146,9 +170,10 @@ try {
     !/node-version:\s*24\.18\.0/.test(workflow) ||
     !/win32-x64/.test(workflow) ||
     !/install\.ps1/.test(workflow) ||
-    !/standalone-four-formats\.mjs/.test(workflow)
+    !/standalone-four-formats\.mjs/.test(workflow) ||
+    /push:\s*\n\s*tags:/m.test(workflow)
   ) {
-    standaloneIssues.push("standalone release workflow does not verify all native targets and all four formats");
+    standaloneIssues.push("standalone release workflow must be manual and verify all native targets and all four formats");
   }
 } catch (error) {
   standaloneIssues.push(error instanceof Error ? error.message : String(error));
@@ -156,7 +181,9 @@ try {
 const standaloneOk = standaloneIssues.length === 0;
 checks.push(summarizeCheck("standalone release metadata", {
   ok: standaloneOk,
-  stdout: standaloneOk ? `OfficeKit ${pkg.version}, Node 24.18.0, darwin-arm64 + linux-x64 + win32-x64` : "standalone release audit failed",
+  stdout: standaloneOk
+    ? `OfficeKit standalone ${standaloneVersion} (npm candidate ${pkg.version}), Node 24.18.0, darwin-arm64 + linux-x64 + win32-x64`
+    : "standalone release audit failed",
   stderr: standaloneIssues.join("\n"),
   command: "audit standalone runtime, release, installer, and workflow pins",
 }));
@@ -167,8 +194,9 @@ const declaredDependencyNames = [...new Set([...Object.keys(pkg.dependencies || 
 const policyNames = Object.keys(licensePolicy.declaredPackages || {});
 const lockLicenseIssues = Object.entries(lock.packages || {}).flatMap(([packagePath, metadata]) => {
   if (!packagePath.startsWith("node_modules/")) return [];
-  if (!metadata.license) return [`${packagePath}: missing license metadata`];
-  if (!licensePolicy.allowedLockLicenses.includes(metadata.license)) return [`${packagePath}: unapproved license expression ${metadata.license}`];
+  const auditedMetadata = metadata.link ? lock.packages?.[metadata.resolved] : metadata;
+  if (!auditedMetadata?.license) return [`${packagePath}: missing license metadata`];
+  if (!licensePolicy.allowedLockLicenses.includes(auditedMetadata.license)) return [`${packagePath}: unapproved license expression ${auditedMetadata.license}`];
   return [];
 });
 const missingPolicy = declaredDependencyNames.filter((name) => !policyNames.includes(name));

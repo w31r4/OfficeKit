@@ -9,13 +9,13 @@
   },
   "metadata": {
     "description": "OfficeKit Skills for Word, Excel, PowerPoint, PDF, templates, and local Office Live control.",
-    "version": "1.1.0"
+    "version": "2.0.0"
   },
   "plugins": [
     {
       "name": "office-kit",
       "displayName": "OfficeKit",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "description": "Coordinate local Office and PDF artifact work and route each output to its owning Skill.",
       "source": "./skills/office-kit",
       "strict": false,
@@ -51,14 +51,14 @@
     {
       "name": "presentations",
       "displayName": "Presentations",
-      "version": "1.1.0",
-      "description": "Create, edit, inspect, render, and verify local PowerPoint presentations.",
+      "version": "2.0.0",
+      "description": "Create, edit, inspect, compile, render, and verify local PowerPoint presentations through PPJ.",
       "source": "./skills/presentations",
       "strict": false,
       "skills": "./skills/",
       "license": "AGPL-3.0-or-later",
       "category": "productivity",
-      "tags": ["powerpoint", "pptx", "slides", "presentations"]
+      "tags": ["powerpoint", "pptx", "ppj", "slides", "presentations"]
     },
     {
       "name": "pdf",
@@ -75,7 +75,7 @@
     {
       "name": "template-creator",
       "displayName": "Template Creator",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "description": "Create or update source-backed local templates from verified DOCX or XLSX references.",
       "source": "./skills/template-creator",
       "strict": false,
@@ -87,7 +87,7 @@
     {
       "name": "presentation-template-creator",
       "displayName": "Presentation Template Creator",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "description": "Distill PowerPoint references into reusable style Skills with original visual examples.",
       "source": "./skills/presentation-template-creator",
       "strict": false,
@@ -99,7 +99,7 @@
     {
       "name": "presentation-template-library",
       "displayName": "Presentation Template Library",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "description": "Thirty-eight original presentation style Skills with visual calibration examples.",
       "source": "./skills/presentation-template-library",
       "strict": false,
@@ -111,7 +111,7 @@
     {
       "name": "default-template-library",
       "displayName": "Default Template Library",
-      "version": "1.1.0",
+      "version": "2.0.0",
       "description": "Optional MIT-licensed DOCX and XLSX template references with retained assets and previews.",
       "source": "./skills/default-template-library",
       "strict": false,

@@ -1,6 +1,6 @@
 {
   "name": "template-creator",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Create and update reusable local document and spreadsheet templates from DOCX or XLSX references.",
   "author": {
     "name": "w31r4",

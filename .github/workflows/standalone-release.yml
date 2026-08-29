@@ -11,10 +11,6 @@ on:
         options:
           - "false"
           - "true"
-  push:
-    tags:
-      - "v*"
-
 permissions:
   contents: write
 

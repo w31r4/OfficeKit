@@ -4,6 +4,10 @@ Set-StrictMode -Version Latest
 $OfficeKitVersion = "1.0.0"
 $OfficeKitRepository = "w31r4/OfficeKit"
 
+if ($env:OFFICE_KIT_INSTALL_TEST -eq "1" -and -not [string]::IsNullOrWhiteSpace($env:OFFICE_KIT_TEST_VERSION)) {
+  $OfficeKitVersion = $env:OFFICE_KIT_TEST_VERSION
+}
+
 function Fail([string] $Message) {
   throw "OfficeKit installer: $Message"
 }

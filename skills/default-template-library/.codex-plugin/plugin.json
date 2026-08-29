@@ -1,6 +1,6 @@
 {
   "name": "default-template-library",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "MIT-licensed DOCX and XLSX template library with retained reference files and previews.",
   "author": {
     "name": "w31r4",

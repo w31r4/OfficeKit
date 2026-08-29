@@ -242,6 +242,7 @@ try {
     OFFICE_KIT_HOME: installRoot,
     OFFICE_KIT_BIN_DIR: binRoot,
     OFFICE_KIT_INSTALL_TEST: "1",
+    OFFICE_KIT_TEST_VERSION: packageMetadata.version,
     OFFICE_KIT_TEST_TARGET: target,
     OFFICE_KIT_TEST_ARCHIVE: first.archive,
     OFFICE_KIT_TEST_SHA256: first.metadata.sha256,
