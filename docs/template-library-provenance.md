@@ -22,7 +22,7 @@ Documents or Spreadsheets then owns the edit and review workflow.
 
 ## Original presentation Template Skills
 
-`skills/presentation-template-library/` contains eight OfficeKit-original,
+`skills/presentation-template-library/` contains thirty-nine OfficeKit-original,
 AGPL-licensed presentation Template Skills. Presentation schema v3 has one
 public form:
 
@@ -32,18 +32,22 @@ artifact-template.json
 agents/agent.yaml
 assets/preview.png
 assets/examples/*.png
+assets/references/reference.ppj   # optional
+assets/references/reference.pptx  # optional
 ```
 
 The guide is the style authority; the images are visual calibration evidence.
-No presentation template ships a PPTX, MJS, DSL, SVG page skeleton, fixed
-Layout, or cloneable component. Existing IDs are retained only as catalog
-identity. The guidance and calibration pages were rewritten and rendered as
-OfficeKit-original work rather than copied from the removed source-backed PPTX
-templates.
+A template may additionally ship one declared, reviewed clean-room PPJ and the
+PPTX compiled from it. It never ships a user/source deck, MJS, executable page
+code, SVG page skeleton, fixed Layout, or undeclared cloneable component.
+Existing IDs are retained only as catalog identity. The guidance and
+calibration pages were rewritten and rendered as OfficeKit-original work rather
+than copied from the removed source-backed PPTX templates.
 
 `presentation-template-creator` packages the same fixed surface from a distilled
-guide and four to six original calibration images. Reference decks, analysis,
-temporary PPTX files, and review evidence remain task-local.
+guide and four to six original calibration images. Source references, analysis,
+temporary artifacts, and review evidence remain task-local. Only an explicitly
+licensed clean-room `referenceProgram`/`referencePptx` pair crosses that boundary.
 
 ## Verification
 
@@ -52,6 +56,6 @@ templates, retained hashes, materialization, and bounded native workflows.
 `test/template-creator.mjs` checks deterministic presentation schema-v3
 creation/update and generic PPTX routing. `test/office-kit-skill.mjs` verifies
 schema-specific discovery, hash validation, old presentation schema rejection,
-and zero-or-one selection. Package checks require all eight presentation styles,
-40 calibration images, and reject PPTX, executable code, page DSL, and SVG page
-skeletons from their template directories.
+and zero-or-one selection. Package checks require all thirty-nine presentation
+styles and 197 calibration PNGs; they reject undeclared PPTX/PPJ, executable
+code, and SVG page skeletons from template directories.

@@ -56,6 +56,7 @@ const presentationTemplateSkills = [
   "artifact-template-cranberry-evidence",
   "artifact-template-cream-civic-collage",
   "artifact-template-ebony-investment-review",
+  "artifact-template-evidence-ledger",
   "artifact-template-forest-strategy",
   "artifact-template-gilt-market-ledger",
   "artifact-template-grid-layout-library",

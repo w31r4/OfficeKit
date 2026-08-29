@@ -26,13 +26,18 @@ arbitrary nested-native reorder or Windows PowerPoint visual acceptance.
 
 ## Unreleased presentation style expansion
 
-The presentation template library now contains thirty-eight schema-v3 style
+The presentation template library now contains thirty-nine schema-v3 style
 Skills. Thirty additions were independently authored from high-level visual
 observations of a user-supplied reference set. The source archive, descriptions,
 names, images, and page geometry are excluded; each shipped guide and all four
 calibration pages are original OfficeKit works. This corrects an earlier local
 experiment that treated a methodology/prompt bundle as if it were a template
 catalog; those prompt-derived styles were removed before this expansion.
+
+Evidence Ledger adds the first declared PPJ-native template reference: an
+original ten-page experimental-report program, the PPTX compiled from it, six
+representative renders, exact authored-program recovery, and synthetic-data
+provenance. No user or third-party source deck enters the package.
 
 ## OfficeKit 1.1.0
 

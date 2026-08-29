@@ -1,9 +1,11 @@
 # Presentation Template Library
 
-This plugin contains thirty-eight original OfficeKit presentation style Skills. Each
-template is guidance plus visual calibration evidence, not a retained deck or
-layout program. `officekit template search --kind presentation` discovers the
-styles in place; `officekit init` does not copy them into each project.
+This plugin contains thirty-nine original OfficeKit presentation style Skills.
+Each template is guidance plus visual calibration evidence. A template may
+also declare one reviewed clean-room reference PPJ/PPTX when native reuse and
+provenance justify the package cost. `officekit template search --kind
+presentation` discovers the styles in place; `officekit init` does not copy
+them into each project.
 
 Every nested template has exactly this surface:
 
@@ -13,6 +15,8 @@ artifact-template.json
 agents/agent.yaml
 assets/preview.png
 assets/examples/*.png
+assets/references/reference.ppj   # optional, declared and hash-bound
+assets/references/reference.pptx  # optional, compiled from the reference PPJ
 ```
 
 The selected style informs a new deck-specific Design Grammar. The
@@ -23,3 +27,6 @@ Thirty styles were independently rebuilt from high-level observations of a
 user-supplied visual reference set. The reference archive, source descriptions,
 page images, names, and geometry are not distributed. Each shipped guide and
 calibration page is an original OfficeKit work.
+
+Evidence Ledger is the first PPJ-native reference template. Its source program,
+compiled deck, and figures are OfficeKit-original and explicitly synthetic.

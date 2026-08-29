@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-evidence-ledger",
+  "displayName": "Evidence Ledger",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0bd555742143388d3e5402d50a1efaf77f0e482a1dd6856fc1947640af890bd5"
+    },
+    {
+      "path": "assets/examples/02-process.png",
+      "role": "process",
+      "sha256": "51cc1429dc4ad4b2cab34f10ec93aebc2e342601e932d7c0c94c85887345a050"
+    },
+    {
+      "path": "assets/examples/03-analysis.png",
+      "role": "analysis",
+      "sha256": "7b262540f485ba340c5943ae5c328fc14f7ef1369d541c323ee9af18935a8203"
+    },
+    {
+      "path": "assets/examples/04-data.png",
+      "role": "data",
+      "sha256": "d061df156f691165abff7595ada15e11596798ff78fdfaf6386e5432d33a4293"
+    },
+    {
+      "path": "assets/examples/05-comparison.png",
+      "role": "comparison",
+      "sha256": "1e90e87876db70ad3aea8f1cf846521466141b04bc69facc6cc07f972d83ac53"
+    },
+    {
+      "path": "assets/examples/06-closing.png",
+      "role": "closing",
+      "sha256": "ef391d85c7ba4b5408b8434a10d6f72eb45a1ebb679ba754250f5279facb89bc"
+    }
+  ],
+  "useWhen": [
+    "experimental report",
+    "pilot review",
+    "reliability analysis",
+    "evidence based decision",
+    "method and measurement audit"
+  ],
+  "avoidWhen": [
+    "cinematic brand launch",
+    "playful consumer campaign",
+    "image led lifestyle story"
+  ],
+  "audiences": [
+    "technical review board",
+    "operations leadership",
+    "research and policy teams",
+    "evidence literate executives"
+  ],
+  "contentShapes": [
+    "falsifiable hypothesis",
+    "method decision tree",
+    "experiment matrix",
+    "measurement timeline",
+    "native charts",
+    "confidence interval",
+    "decision gates"
+  ],
+  "visualTraits": {
+    "tone": [
+      "editorial",
+      "measured",
+      "auditable",
+      "decision oriented"
+    ],
+    "density": "dense",
+    "colorMode": "neutral",
+    "structure": [
+      "evidence led",
+      "line based",
+      "method before outcome",
+      "reversible decision"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "607c5f382868307b60dd11d23a615d51ff857b8f17e620a761e43fa3c1eef005",
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration program authored for PPJ 2.0"
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "7027e8f56d1e7c6cb46ae9c1148ef1513514f601c46b2b3333a57de2402a94f6",
+    "license": "AGPL-3.0-or-later",
+    "source": "Compiled from the declared OfficeKit Evidence Ledger referenceProgram"
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration work; all figures are synthetic and illustrative",
+    "guideSha256": "8527a1d5b9c38cf27fe7cd505d82327496e1c33b38ae4e0dc3c25c1f09df1bef",
+    "previewSha256": "474383dfe733954832322c273e8337784de0122e5c084a7e664d84324506c9eb"
+  }
+}

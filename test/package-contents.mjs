@@ -172,7 +172,7 @@ const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
 // and hosted gates. The 1.1.0 global CLI ships 13 source-backed DOCX/XLSX
-// templates plus thirty-eight presentation style Skills once inside the package. Keep
+// templates plus thirty-nine presentation style Skills once inside the package. Keep
 // narrow cross-platform headroom over the measured release archive.
 const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
@@ -509,6 +509,13 @@ for (const required of [
   "skills/presentation-template-library/skills/artifact-template-grid-layout-library/artifact-template.json",
   "skills/presentation-template-library/skills/artifact-template-grid-layout-library/assets/preview.png",
   "skills/presentation-template-library/skills/artifact-template-grid-layout-library/assets/examples/04-closing.png",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/SKILL.md",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/agents/agent.yaml",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/artifact-template.json",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/preview.png",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/examples/06-closing.png",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.ppj",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.pptx",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -600,16 +607,21 @@ assert.equal(
 const packagedPresentationSidecars = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
 );
-assert.equal(packagedPresentationSidecars.length, 38, "npm package must ship exactly thirty-eight schema-v3 presentation style Skills");
+assert.equal(packagedPresentationSidecars.length, 39, "npm package must ship exactly thirty-nine schema-v3 presentation style Skills");
+const permittedPresentationReferences = new Set([
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.ppj",
+  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.pptx",
+]);
 assert.ok(
-  files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|mjs|js|svg)$/u.test(file)
-    || file.endsWith("/assets/icon.svg")),
-  "presentation templates must not ship source decks, code, page DSL, or SVG page skeletons",
+  files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|ppj|mjs|js|svg)$/u.test(file)
+    || file.endsWith("/assets/icon.svg")
+    || permittedPresentationReferences.has(file)),
+  "presentation templates may ship only declared clean-room PPJ/PPTX references, never source decks, code, or SVG page skeletons",
 );
 const packagedPresentationCalibrationPngs = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
 );
-assert.equal(packagedPresentationCalibrationPngs.length, 190, "each presentation style must ship one preview and four calibration examples");
+assert.equal(packagedPresentationCalibrationPngs.length, 197, "the presentation library must ship every declared preview and calibration example");
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(

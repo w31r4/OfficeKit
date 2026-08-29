@@ -70,8 +70,8 @@
 - [x] 9.1 Extend Presentation Template schema v3 and search results with optional declared `referenceProgram` and `referencePptx` evidence.
 - [x] 9.2 Update the Presentation Template Creator to build and verify clean-room reference PPJ/PPTX while publishing them only when rights allow.
 - [x] 9.3 Create the original Evidence Ledger PPJ with hypothesis, method tree, timeline, table, line/bar evidence, confidence interval, decision gates, and sources.
-- [ ] 9.4 Compile, render, review, and package Evidence Ledger with reference PPJ/PPTX, preview, representative examples, hashes, provenance, and license.
-- [ ] 9.5 Verify the Evidence Ledger diff does not modify Cranberry Evidence or shared-worktree template WIP.
+- [x] 9.4 Compile, render, review, and package Evidence Ledger with reference PPJ/PPTX, preview, representative examples, hashes, provenance, and license.
+- [x] 9.5 Verify the Evidence Ledger diff does not modify Cranberry Evidence or shared-worktree template WIP.
 
 ## 10. Real acceptance and legacy removal
 
