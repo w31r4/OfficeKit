@@ -1534,15 +1534,6 @@ function presentationBackgroundImageSvg(background) {
   return `<image href="${xmlEscape(background.image.dataUrl)}" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none"/>`;
 }
 
-function presentationBackgroundHasImage(background) {
-  return Boolean(background?.image && (background.image.dataUrl || background.image.assetId));
-}
-
-function presentationBackgroundImageSvg(background) {
-  if (!background?.image?.dataUrl) return "";
-  return `<image href="${xmlEscape(background.image.dataUrl)}" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none"/>`;
-}
-
 export class Slide {
   constructor(presentation, options = {}) {
     if (options.hidden !== undefined && typeof options.hidden !== "boolean") {
