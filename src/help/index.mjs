@@ -639,6 +639,7 @@ const HELP_DETAIL_OVERRIDES = {
   },
   "presentation.editNativeLeaf": {
     examples: ["presentation.editNativeLeaf(leaf.targetId, leaf.leafId, { expectedHash: leaf.expectedHash, value: 'Reviewed title' })"],
+    notes: ["A fillOpacityThousandthPercent leaf is available for a direct solid RGB fill with one bounded alpha token. Pass a 0..1 fraction; only that alpha token changes and irregular or effect-bearing fills remain blocked."],
     returns: "immutable nativeLeafEdit receipt",
   },
   "presentation.resolveComponentCandidate": {

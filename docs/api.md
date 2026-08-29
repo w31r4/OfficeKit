@@ -4584,6 +4584,10 @@ Change one native leaf issued by presentation.inspect({ includeNativeLeaves: tru
 
 immutable nativeLeafEdit receipt
 
+**Notes:**
+
+- A fillOpacityThousandthPercent leaf is available for a direct solid RGB fill with one bounded alpha token. Pass a 0..1 fraction; only that alpha token changes and irregular or effect-bearing fills remain blocked.
+
 #### `presentation.export`
 
 Export a slide SVG preview, deck SVG montage via { format: 'montage' }, or target/search-sliced layout JSON.
