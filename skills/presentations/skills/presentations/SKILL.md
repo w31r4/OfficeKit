@@ -1,137 +1,143 @@
 ---
 name: Presentations
-description: Create, edit, continue, review, and deliver local PowerPoint PPTX presentations. Use for new decks, template-conditioned decks, imported PPTX edits, and durable presentation tasks. Use powerpoint-live-control instead when the user explicitly targets the currently open desktop PowerPoint presentation.
+description: Create, import, edit, continue, render, review, and deliver editable PowerPoint presentations through OfficeKit PPJ. Use powerpoint-live-control instead only when the user explicitly targets the presentation currently open in desktop PowerPoint.
 ---
 
 # Presentations
 
-Use OfficeKit to turn a request into an editable, reviewed PPTX. Run task
-modules with `officekit run`; use `officekit repl` when work must survive a new
-Agent context.
+PPJ is OfficeKit's only public Presentation authoring language. A `.ppj` file
+is one strict, non-executable JSON program. Edit PPJ directly, then compile it
+with the native OfficeKit compiler:
 
-Never import or use `@oai/artifact-tool`. It is a different host runtime, not an
-OfficeKit alias, and its output must not be attributed to OfficeKit.
+```text
+request or PPTX → deck.ppj → check → build → render → review → deliver
+```
 
-Use the shared [workspace](../office-kit/references/workspace.md),
-[REPL](../office-kit/references/repl.md), and
-[review](../office-kit/references/review.md) contracts.
+Read [the PPJ language reference](references/ppj.md) before writing or changing
+a program. Do not use MJS, JSX, legacy composition/facade APIs, raw OOXML,
+XPath, relationship IDs, or another authoring engine as a substitute.
+An external script may generate JSON, but executable code is not part of PPJ.
+
+Use `powerpoint-live-control` only for an open, possibly unsaved desktop deck.
+For local PPTX and PPJ files, stay in this Skill. Never import
+`@oai/artifact-tool` or attribute its output to OfficeKit.
 
 ## Choose one route
 
-Load only the route that matches the request:
+### Create
 
-| Request | Route |
-|---|---|
-| Create a new deck from a goal or outline | [Create](tasks/create.md) |
-| Create with a selected style Skill, design system, or reference deck | [Create from template](tasks/create-from-template.md) |
-| Modify an existing local PPTX | [Edit existing](tasks/edit-existing.md) |
-| Continue a saved OfficeKit task | [Continue](tasks/continue.md) |
-| Review, finalize, or deliver a candidate | [Review and deliver](tasks/review-deliver.md) |
+1. Define the audience, communication job, expected change, evidence boundary,
+   delivery mode, and after-use.
+2. Read [scenario routing](references/scenarios/README.md) and exactly one
+   primary scenario guide.
+3. Read only the focused references needed by the planned carriers: fonts,
+   text, shapes, charts/tables, media/layers, components/templates, or motion.
+4. Write one deck-specific Design Grammar and ordered page plan into PPJ.
+5. Build, render, review, revise the PPJ, and emit a new PPTX path.
 
-Use `powerpoint-live-control` only for an open, possibly unsaved desktop deck.
-Keep local-file work here. For Google Slides, create and verify a local PPTX,
-then follow the [local handoff](routing/google_slides.md); cloud upload is a
-separate host action.
+### Create from a template, design system, or reference
 
-## Keep these invariants
+Read [components and templates](references/components-and-templates.md).
+A design system is binding brand authority. A selected Template Skill supplies
+style guidance and representative images. A reference PPTX may additionally
+supply observed design evidence or a reusable source package. Do not mix
+unrelated templates. Derive a deck-specific grammar and compose every page in
+PPJ; a template guides design rather than pinning a page skeleton.
 
-- Treat inputs, templates, references, and accepted revisions as read-only.
-  Write every candidate and final file to a distinct path.
-- Use the public `office-kit` package and one authoring engine throughout the
-  task. Do not silently switch engines or rebuild an imported file elsewhere.
-- Reopen every exported PPTX. Export success alone is not acceptance evidence.
-- Preserve unsupported imported topology as opaque. Use an inspected,
-  capability-issued edit or stop at that object.
-- Keep facts, source data, citations, and locked user text unchanged unless the
-  requested scope includes them.
-- Limit a local edit to its declared pages. A deck-wide editorial or visual
-  rewrite requires explicit scope.
-- Keep objects natively editable when OfficeKit can represent them; never
-  flatten a source object merely to make an edit succeed.
-- Do not claim visual review when rendered pages were not understood.
+### Import or edit an existing PPTX
 
-## Follow one production spine
+Read [imported native references](references/imported-native-ref.md), then run:
 
-```text
-define → plan → design → compose/edit → review → commit → deliver
+```bash
+officekit ppj import input.pptx -o deck.ppj
+officekit ppj inspect deck.ppj --query "target"
 ```
 
-`define` identifies the audience, communication job, expected change, facts,
-constraints, and after-use. Ask only when a missing answer materially changes
-the outcome, evidence, or design authority.
+Edit typed fields or fields explicitly issued by `nativeRef`. Keep the copied
+source asset and its SHA-256 unchanged. Unsupported mutations fail closed; do
+not rebuild, flatten, rasterize, or patch the package to force success.
 
-`plan` assigns every page one reader job, one primary claim, evidence, a
-dominant relationship or explicit `none`, a content budget, and a visual
-carrier. Durable work records this in the existing presentation authoring plan;
-its schema lives in
-[authoring plan](references/authoring-plan.md).
+### Recover an OfficeKit-authored deck
 
-`design` starts from authority. A design system outranks a conflicting Template
-Skill. A reference deck supplies observation or source-bound continuation, not
-catalog identity. A selected Template Skill supplies style guidance and visual
-examples; use them to write a new deck-specific Design Grammar and compose
-freely. With no authority or suitable template, use the self-directed C route.
+Import the PPTX. When its embedded program and node map are valid, OfficeKit
+restores the authored PPJ exactly. That PPJ remains authoritative even if an
+external application changed native PPTX state. Build to a new output; never
+overwrite the input.
 
-For every newly composed page, follow the [shared visual floor](style_guidelines.md):
-start from the claim and evidence, identify the dominant relationship, choose
-the carrier, then assign geometry roles. Do not start from a shape, helper, or
-card layout. Authoritative templates and untouched imported design remain
-authoritative; new additions still need a declared role.
+### Continue durable work
 
-`compose/edit` uses only public OfficeKit capabilities. Search Help by intent
-and load advanced references only for the object or workflow in use. API
-examples prove callability, not visual quality; do not copy their palette,
-helpers, or page silhouettes as a design source.
+Task state is optional. Add `--task <id>` only when immutable PPJ revisions,
+review receipts, resume, or publication evidence are useful. Resume from the
+latest verified PPJ revision and reopen its reviewed artifact. Do not attempt
+to restore a JavaScript heap. Legacy `ctx.plan` Presentation tasks are reported
+as unsupported rather than silently migrated.
 
-The [primitive surface](references/primitives.md) is the compact language map;
-the API reference files remain the contract. Load [typography guidance](references/fonts.md)
-when the deck contains CJK, mixed-script data, a supplied font rule, or a
-rendering substitution. Do not invent a new primitive guide in a task.
+### Review and deliver
 
-`review` follows [Review and deliver](tasks/review-deliver.md). Run semantic,
-structural, layout/render, design, optional reading-view, visual/human, and
-delivery checks in that order. Motion is considered only for `live`, `hybrid`,
-or explicitly animated work and follows [Motion](references/motion.md).
+Read [review and delivery](references/review-and-delivery.md). Compilation is
+not rendering, rendering is not visual understanding, and structural playback
+evidence is not desktop PowerPoint acceptance.
 
-`commit` binds the reviewed candidate, evidence, and active plan revision.
-Resume from the latest reviewed artifact and re-inspect it; never assume a new
-context can recover the old JavaScript heap. The authoritative continuation
-steps are in [Continue](tasks/continue.md).
+## Design before drawing
 
-## Load detail only when needed
+Use this order for every new deck:
 
-- Creation loads the doctrine, visual floor, scenario policy, and one selected
-  scenario guide.
-- Catalog-style creation loads only the selected Template Skill, its examples,
-  and the creation workflow. Reference-deck continuation loads its source-bound
-  workflow instead.
-- Image-led pages and any cross-type overlap load
-  [layered composition](references/layered-composition.md).
-- Imported editing loads [imported capabilities](references/imported-capabilities.md)
-  and then only the API reference for the targeted native object; a z-order
-  request also loads layered composition.
-- Source continuation loads [source continuation](references/source-continuation.md)
-  instead of the style-template or free-compose route.
-- Motion loads only for a speaking or explicit animation requirement.
-- Review and continuation each have one authoritative task document; do not
-  copy their mechanics into another route.
-- A runtime, protocol, Help, example, or review change loads
-  `presentation-skill-maintainer` before the change is considered complete.
+```text
+communication job
+→ narrative and page responsibilities
+→ design authority and deck-specific grammar
+→ evidence relationship and visual carrier
+→ composition and true layer order
+→ optional motion
+→ review
+```
 
-Avoid preloading the complete API, all scenario guides, every template, and all
-advanced object references. Progressive loading is part of the workflow.
+Each page needs one audience task, one primary claim, evidence, a content
+budget, and a dominant relationship or explicit `none`. Choose the carrier
+that communicates that relationship: text, image, chart, table, diagram,
+native vector, or a deliberate mix. Negative space must create focus,
+separation, or rhythm; it is not leftover canvas.
 
-## Deliver evidence, not process noise
+Arrays are semantic. `pages[]` is page order. `pages[].elements[]` is the real
+back-to-front z-order. Use stable IDs and edit those IDs in later turns.
 
-Return:
+## Strictly forbidden
 
-- the final absolute file path;
-- `kind: "presentation"`;
-- SHA-256;
-- useful slide or object locators when stable;
-- render, inspect, or verify evidence paths when available;
-- the exact visual-review state: `complete`, `unavailable`, or
-  `requires-human`.
+- Fabricating data, sources, citations, cases, experiments, or certainty.
+  Mark missing material as a placeholder or explicit assumption.
+- Building hierarchy from card walls, equal rounded panels, colored side-strip
+  cards, pills, badges, or a universal `box()` pattern.
+- Adding random circles, rings, arrows, icon clouds, gradients, or stock images
+  merely to fill space.
+- Putting red, purple, yellow, and green accents together as generic "AI"
+  styling instead of defining controlled palette roles.
+- Letting bars, fills, masks, labels, shapes, or decoration hide a line,
+  marker, error bar, number, source, or other evidence-bearing object.
+- Using tiny text to rescue an overloaded page, or sparse composition to hide
+  missing evidence.
+- Putting file-system escapes, remote URLs, code, functions, recursion,
+  unbounded loops, or arbitrary expressions inside PPJ.
 
-Do not present scratch plans, previews, temporary builders, or QA files as the
-deliverable. Call a deck final only after the selected route and review pass.
+Authoritative user templates and untouched imported design remain
+authoritative, but newly added objects still need a communication role and may
+not obscure evidence.
+
+## Common commands
+
+```bash
+officekit ppj inspect deck.ppj --json
+officekit ppj check deck.ppj --json
+officekit ppj build deck.ppj -o deck.pptx --json
+officekit ppj render deck.ppj -o previews/ --json
+officekit ppj review deck.ppj --json
+```
+
+`check --fix` may apply deterministic formatting fixes only. It must not invent
+copy, select a visual direction, or alter design semantics.
+
+## Deliver evidence
+
+Return the absolute PPJ and PPTX paths, PPTX SHA-256, review status, and useful
+render or inspection evidence. State visual review as `complete`,
+`unavailable`, or `requires-human`. Keep source files, PPJ revisions, previews,
+and scratch outputs distinct from the final deliverable.

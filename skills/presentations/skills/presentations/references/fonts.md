@@ -1,62 +1,50 @@
-# Presentation typography guidance
+# Fonts and typography
 
-Typography is a role system, not a single approved font. Select a family from
-evidence available on the target host and record substitutions that affect
-metrics or readability. A user or brand design system wins over these defaults.
+Choose typography from audience, language, delivery mode, and design authority.
+Do not choose a typeface only because it looks fashionable in a screenshot.
 
-## Assign roles before choosing families
+## Define roles
 
-| Role | Job | Typical treatment |
-| --- | --- | --- |
-| Display | Cover or section promise | Highest contrast in size/weight; short line length. |
-| Title | State the page conclusion | Sentence or claim, not a topic label; stable across the deck. |
-| Body | Explain evidence and decisions | Comfortable line height, restrained weight, readable measure. |
-| Data | Make values and units comparable | Tabular numerals when available; align decimal or unit columns. |
-| Label | Identify axes, legends and diagram nodes | Smaller than body but never sacrificed below the delivery floor. |
-| Source | Preserve provenance and time | Quiet contrast, still readable in the intended after-use. |
-| UI/chrome | Page numbers, controls and metadata | Consistent and subordinate; do not compete with the claim. |
+The PPJ `design.fonts` catalog should name a small role system, such as:
 
-## Language and host evidence
+- display or cover;
+- title and section title;
+- body and annotation;
+- data and table numerals;
+- code or technical notation when required;
+- CJK and symbol fallback.
 
-- For CJK text, choose a family with verified glyph coverage and pair it with a
-  Latin family only when the x-height, stroke contrast and numeral widths are
-  visually compatible.
-- Do not infer that a font name is installed because it is common elsewhere.
-  Inspect the host/package evidence or choose a known fallback and record it.
-- Avoid mixing more than two primary families in one deck unless a supplied
-  design system requires it. A CJK fallback is an implementation detail, not a
-  new visual role.
-- Check punctuation, full-width characters, line breaking, numerals and mixed
-  Latin/CJK labels in an actual render. Font substitution can change wrapping,
-  baseline, chart labels and placeholder fit.
-- Use a font-size floor appropriate to delivery. Shorten, split or recompose
-  before shrinking a title, body or source below that floor.
+Use `styleRef` for repeated roles and direct overrides only for a deliberate
+exception. Preserve the user's brand font when it is available on the target
+host. Record fallbacks in the deck's Design Grammar rather than allowing each
+text object to improvise.
 
-## Rhythm and hierarchy
+## Match the script and medium
 
-Use a small, explicit scale rather than many arbitrary sizes. A page should
-make its reading order obvious through title/body/data contrast, alignment,
-weight and spacing—not by placing every sentence in a different container.
+- For Chinese or mixed CJK/Latin text, choose families with complete glyph
+  coverage, compatible metrics, and appropriate punctuation behavior.
+- For multilingual runs, set language and font roles per run when needed.
+- For dense numbers, use stable numeral width and verify decimal alignment.
+- For technical notation, check symbols, superscripts, subscripts, and code
+  glyphs in the final renderer.
+- A live deck generally needs larger visible type than a reader handout; do not
+  solve reader density by shrinking a live presentation.
 
-Titles should carry the conclusion. Body copy should earn its line count. Data
-labels should sit next to the mark they explain. Sources should remain attached
-to the evidence they qualify. Keep line length, paragraph spacing and baseline
-alignment consistent within a page archetype, then vary density intentionally
-across the deck.
+Font names are intent, not proof. Renderer substitution can change line breaks,
+paragraph height, chart labels, and page balance. Inspect the target host or
+render evidence before claiming fidelity.
 
-## Review before delivery
+## Fit and hierarchy
 
-Review a representative title, body, data label, source line, and mixed CJK /
-Latin page after export and re-import. Look for:
+Create contrast with size, weight, position, and whitespace before adding
+containers. Keep title, evidence, annotation, and source roles visibly
+different. Avoid excessive weights and one-off sizes that destroy rhythm.
 
-- substituted glyphs, missing symbols or fallback boxes;
-- changed line breaks, clipped text, collapsed spacing or baseline drift;
-- labels colliding with marks, lines, bars or image edges;
-- source text becoming unreadable in the after-use medium;
-- a hierarchy that depends on color alone or weight alone.
+If text overflows, edit the copy, adjust the frame, split the page, or change
+the carrier. Do not reduce important text below the reading conditions implied
+by the delivery mode.
 
-If a renderer substitutes a font, keep the fact in the task evidence and either
-choose a verified compatible family, adjust the copy/geometry, or mark the
-visual review as requiring human confirmation. Do not claim a font-specific
-visual result that was not rendered.
-
+After font or fallback changes, rebuild and render all affected pages. Check
+CJK line breaking, punctuation, widows, clipped glyphs, number/unit binding,
+text-image contrast, and whether substituted metrics now obscure another
+object.

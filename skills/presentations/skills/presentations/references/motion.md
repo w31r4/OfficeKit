@@ -1,138 +1,66 @@
-# Presentation motion
+# Motion
 
-Motion is the behavior layer of an already complete page. It answers what the
-audience should notice next. It does not supply the page's visual interest.
+Motion explains order, causality, comparison, focus, or continuity. Complete
+the static composition first; animation cannot repair an empty or incoherent
+page.
 
-## Choose the delivery mode
+PPJ stores transitions in `pages[].transition` and semantic object animations
+in `pages[].animations`. Targets are stable element IDs. Supported effects are
+fade, wipe, fly, zoom, and pulse; start modes are `withPrevious`,
+`afterPrevious`, and `onClick`. Text may build as whole or paragraph. Charts
+may build all at once, by series, category, or element. Morph uses explicit
+adjacent-page pairs.
 
-- `reader`: no automatic object animation; keep the complete argument visible.
-- `hybrid`: one restrained transition plus animation for data, sequence, or
-  causality only.
-- `live`: deliberate speaking beats, normally no more than four motion units
-  per page.
+## Delivery policy
 
-Use no automatic advance or sound. Keep at most one baseline transition and
-one section transition across a deck. High-noise effects require an explicit
-stage direction from the user.
+- `reader`: static by default; animation requires explicit user intent.
+- `hybrid`: one restrained base transition; animate only data, sequence, or
+  causal relationships that gain meaning from reveal.
+- `live`: semantic choreography is allowed, usually no more than four motion
+  units on a page.
 
-## Typed surface
+Never auto-advance or add sound unless the user explicitly requests it. Keep
+one base transition and at most one section transition across a deck. High-noise
+effects are not automatic choices.
 
-```js
-slide.animations.add(target, {
-  phase: "entrance",
-  effect: "wipe",
-  direction: "up",
-  start: "afterPrevious",
-  durationMs: 650,
-  delayMs: 0,
-  textBuild: "paragraph",
-  chartBuild: "category-element",
-  staggerMs: 90,
-  animateChartBackground: false,
-});
-```
+## Six recipes
 
-Effects are `fade`, `wipe`, `fly`, `zoom`, and `pulse`. Starts are
-`withPrevious`, `afterPrevious`, and `onClick`. Text build is `whole` or
-`paragraph`. Chart build is `all-at-once`, `series`, `category`,
-`series-element`, or `category-element`.
+### Data Rise
 
-Remove a single returned record with `slide.animations.remove(record)`, or
-clear the canonical graph with `slide.animations.clear()`. Unknown imported
-timing stays opaque and cannot be reconstructed through this surface.
+Reveal bars, line points, or a small number of categories in data order. Keep
+axes, labels needed for orientation, and sources visible. Do not use stagger to
+hide an unreadable chart.
 
-The complete runnable example is
-[`officekit-motion-workflow.mjs`](../examples/officekit-motion-workflow.mjs).
+### Causal Reveal
 
-## Data Rise
+Reveal causes, connectors, and effects in the direction of reasoning. A
+connector appears with or after the node whose relationship it explains.
 
-Use when a chart's order is part of the claim. Wipe from the baseline or reveal
-time categories in sequence; do not animate legends, footnotes, or decorative
-backgrounds.
+### Comparison Beat
 
-```js
-slide.animations.add(chart, {
-  effect: "wipe",
-  direction: "up",
-  chartBuild: "category-element",
-  start: "onClick",
-  durationMs: 650,
-  staggerMs: 90,
-  animateChartBackground: false,
-});
-```
+Bring comparable objects in together, then reveal the conclusion. Preserve a
+common scale and avoid making one side look stronger through timing alone.
 
-## Causal Reveal
+### Focus Pulse
 
-Use for a process or causal chain. Reveal each node, its outgoing connector,
-then the conclusion. A connector never arrives before both endpoints exist.
+Pulse one already visible number, threshold, or risk. Repeated pulse becomes
+noise and should trigger a review warning.
 
-```js
-slide.animations.add(cause, { effect: "fade", start: "onClick" });
-slide.animations.add(link, { effect: "wipe", direction: "right", start: "afterPrevious" });
-slide.animations.add(effect, { effect: "fade", start: "afterPrevious" });
-```
+### Calm Continuity
 
-## Comparison Beat
+Use short fade, wipe, or push transitions to maintain chapter rhythm without
+turning page changes into the subject.
 
-Use for two alternatives that should be perceived together. Bring both sides
-in on one beat, then reveal the decision.
+### Morph Continuity
 
-```js
-slide.animations.add(left, { effect: "fly", direction: "left", start: "onClick" });
-slide.animations.add(right, { effect: "fly", direction: "right", start: "withPrevious" });
-slide.animations.add(conclusion, { effect: "fade", start: "afterPrevious" });
-```
-
-## Focus Pulse
-
-Use once on an object that is already visible. It is suitable for a threshold,
-risk, or decisive number; it is not a page-entry effect.
-
-```js
-slide.animations.add(riskNumber, {
-  phase: "emphasis",
-  effect: "pulse",
-  start: "afterPrevious",
-  durationMs: 500,
-});
-```
-
-## Calm Continuity
-
-Use one short transition to keep chapters coherent. Prefer `fade` for a quiet
-change and `push` when the reading direction matters.
-
-```js
-nextSlide.setTransition({
-  effect: "fade",
-  speed: "fast",
-  durationMs: 450,
-  advanceOnClick: true,
-});
-```
-
-## Morph Continuity
-
-Use only for the same semantic object on adjacent slides. Pass real source and
-destination objects. Charts do not participate; use Data Rise instead.
-
-```js
-detailSlide.setMorph({
-  from: overviewSlide,
-  durationMs: 800,
-  pairs: [{ key: "hero", from: overviewHero, to: detailHero }],
-});
-```
-
-OfficeKit assigns the paired Selection Pane identity to both objects, rejects
-non-adjacent slides, incompatible object kinds, duplicate objects, name
-conflicts, charts, and conflicting transitions, and restores the pair after a
-second import.
+Use adjacent pages and explicit one-to-one compatible object pairs to move,
+scale, crop, or focus a repeated object. Charts do not participate in Morph;
+use chart build or cross-fade. Pair keys and object identities must remain
+unique and recoverable after re-import.
 
 ## Review
 
-Inspect with `presentation.inspect({ kind: "animation,morph" })`. Reopen the
-PPTX, render every changed page, and verify static composition before playback.
-Record `playbackEvidence` as `structural`, `keynote`, or `powerpoint`.
-Structural evidence proves the package graph, not host playback.
+Check target existence, trigger order, delay/stagger, text/chart build type,
+timing budgets, reader-mode authorization, and Morph adjacency. Then observe
+playback in an available host. `structural` proves only that canonical timing
+was written; report Keynote or PowerPoint evidence only when actually played.

@@ -2923,13 +2923,13 @@ const PRESENTATION_COMPATIBILITY_NAMES = new Set([
 ]);
 
 const PRESENTATION_RECIPE_PATHS = Object.freeze({
-  create: "skills/presentations/skills/presentations/tasks/create.md",
-  template: "skills/presentations/skills/presentations/tasks/create-from-template.md",
-  edit: "skills/presentations/skills/presentations/tasks/edit-existing.md",
-  continue: "skills/presentations/skills/presentations/tasks/continue.md",
-  review: "skills/presentations/skills/presentations/tasks/review-deliver.md",
+  create: "skills/presentations/skills/presentations/SKILL.md#create",
+  template: "skills/presentations/skills/presentations/references/components-and-templates.md#template-use",
+  edit: "skills/presentations/skills/presentations/references/imported-native-ref.md#edit-boundary",
+  continue: "skills/presentations/skills/presentations/SKILL.md#continue-durable-work",
+  review: "skills/presentations/skills/presentations/references/review-and-delivery.md",
   motion: "skills/presentations/skills/presentations/references/motion.md",
-  layers: "skills/presentations/skills/presentations/references/layered-composition.md",
+  layers: "skills/presentations/skills/presentations/references/media-and-layers.md#layer-stack",
 });
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";

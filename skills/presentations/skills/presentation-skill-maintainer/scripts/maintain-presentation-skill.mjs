@@ -48,7 +48,57 @@ function validateRegistry(value, language) {
   const declaredLive = [...(value.hostOnly ?? [])].sort();
   if (JSON.stringify(liveNames) !== JSON.stringify(declaredLive)) errors.push("PowerPoint Live operations and host-only registry entries differ.");
   for (const name of value.hostOnly ?? []) if (value.helpApis?.[name] != null) errors.push(`Host-only operation leaked into file authoring Help: ${name}`);
+  validateSkillTree(errors);
   return errors;
+}
+
+function validateSkillTree(errors) {
+  const root = path.join(repo, "skills/presentations/skills/presentations");
+  const required = [
+    "SKILL.md",
+    "references/ppj.md",
+    "references/fonts.md",
+    "references/shapes.md",
+    "references/text.md",
+    "references/charts-and-tables.md",
+    "references/media-and-layers.md",
+    "references/motion.md",
+    "references/components-and-templates.md",
+    "references/imported-native-ref.md",
+    "references/review-and-delivery.md",
+    "references/scenarios/README.md",
+    "references/scenarios/analysis-decision.md",
+    "references/scenarios/business-proposal.md",
+    "references/scenarios/management-report.md",
+    "references/scenarios/academic-research.md",
+    "references/scenarios/education-training.md",
+    "references/scenarios/technical-engineering.md",
+    "references/scenarios/brand-creative.md",
+  ];
+  const obsolete = [
+    "tasks/create.md",
+    "tasks/create-from-template.md",
+    "tasks/edit-existing.md",
+    "tasks/continue.md",
+    "tasks/review-deliver.md",
+    "references/authoring-plan.md",
+    "references/primitives.md",
+    "references/imported-capabilities.md",
+    "references/source-continuation.md",
+    "style_guidelines.md",
+  ];
+  for (const relative of required) if (!existsSync(path.join(root, relative))) errors.push(`Missing focused Presentation guidance: ${relative}`);
+  for (const relative of obsolete) if (existsSync(path.join(root, relative))) errors.push(`Obsolete Presentation authority still exists: ${relative}`);
+  const mainPath = path.join(root, "SKILL.md");
+  if (!existsSync(mainPath)) return;
+  const main = readFileSync(mainPath, "utf8");
+  if (main.split(/\r?\n/u).length > 180) errors.push("Presentations SKILL.md exceeds the short-router budget of 180 lines.");
+  for (const needle of ["references/ppj.md", "officekit ppj import", "references/review-and-delivery.md", "only public Presentation authoring language"]) {
+    if (!main.includes(needle)) errors.push(`Presentations SKILL.md is missing required PPJ route text: ${needle}`);
+  }
+  for (const needle of ["tasks/create.md", "slide.compose", "presentation.editNativeLeaf", "references/primitives.md", "artifact_tool/api/"]) {
+    if (main.includes(needle)) errors.push(`Legacy public Presentation route leaked into SKILL.md: ${needle}`);
+  }
 }
 
 function renderManual(schema, registry) {

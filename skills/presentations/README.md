@@ -8,6 +8,7 @@ This installable Skill bundle is distributed with `office-kit`.
 
 - `Presentations`: create, edit, render, verify, and export editable PowerPoint and Google Slides presentation decks.
 - `Presentation Editorial Trim`: shape slide titles, visible support, labels, sources, and notes without changing facts or unrelated pages.
+- `Presentation Skill Maintainer`: synchronize PPJ, native capability ownership, Help, Agent guidance, and review rules.
 - `PowerPoint Live Control`: operate a presentation already open in desktop PowerPoint through the local typed OfficeKit bridge.
 
 ## Discoverability

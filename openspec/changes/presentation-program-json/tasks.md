@@ -58,12 +58,12 @@
 
 ## 8. Skill and capability convergence
 
-- [ ] 8.1 Build a capability registry that classifies every stable Presentation API as PPJ state, nativeRef, compiler/helper, inspect/review, or host-only.
-- [ ] 8.2 Generate `ppj.md` from the JSON Schema and capability registry with typed fields, limits, minimal examples, and errors.
-- [ ] 8.3 Rewrite the main Presentations Skill as a short PPJ-first router for create, import, edit, continue, review, and delivery.
-- [ ] 8.4 Consolidate focused references for fonts, shapes, text, charts/tables, media/layers, motion, components/templates, imported native references, scenarios, and review/delivery.
-- [ ] 8.5 Remove duplicated task routes, conflicting visual rules, legacy JSX/MJS defaults, and examples that teach generic card/container composition.
-- [ ] 8.6 Add the host-neutral `presentation-skill-maintainer` Skill and a registry/schema/reference consistency gate.
+- [x] 8.1 Build a capability registry that classifies every stable Presentation API as PPJ state, nativeRef, compiler/helper, inspect/review, or host-only.
+- [x] 8.2 Generate `ppj.md` from the JSON Schema and capability registry with typed fields, limits, minimal examples, and errors.
+- [x] 8.3 Rewrite the main Presentations Skill as a short PPJ-first router for create, import, edit, continue, review, and delivery.
+- [x] 8.4 Consolidate focused references for fonts, shapes, text, charts/tables, media/layers, motion, components/templates, imported native references, scenarios, and review/delivery.
+- [x] 8.5 Remove duplicated task routes, conflicting visual rules, legacy JSX/MJS defaults, and examples that teach generic card/container composition.
+- [x] 8.6 Add the host-neutral `presentation-skill-maintainer` Skill and a registry/schema/reference consistency gate.
 
 ## 9. Template Creator and Evidence Ledger
 

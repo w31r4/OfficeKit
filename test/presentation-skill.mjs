@@ -2903,10 +2903,10 @@ try {
   }
   const skillText = [
     await fs.readFile("skills/presentations/skills/presentations/SKILL.md", "utf8"),
-    await fs.readFile("skills/presentations/skills/presentations/references/imported-capabilities.md", "utf8"),
-    await fs.readFile("skills/presentations/skills/presentations/references/source-continuation.md", "utf8"),
+    await fs.readFile("skills/presentations/skills/presentations/references/ppj.md", "utf8"),
+    await fs.readFile("skills/presentations/skills/presentations/references/imported-native-ref.md", "utf8"),
+    await fs.readFile("skills/presentations/skills/presentations/references/review-and-delivery.md", "utf8"),
   ].join("\n");
-  const styleGuidelinesText = await fs.readFile("skills/presentations/skills/presentations/style_guidelines.md", "utf8");
   const googleSlidesRoutingText = await fs.readFile("skills/presentations/skills/presentations/routing/google_slides.md", "utf8");
   const quickStartText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/API_QUICK_START.md", "utf8");
   const starterRoot = path.join(root, "template-starter-workflow");
@@ -3074,11 +3074,11 @@ try {
   assert.equal(await fs.access(blockedStarterPreview).then(() => true, () => false), false);
   assert.equal(await fs.access(blockedStarterLayout).then(() => true, () => false), false);
   assert.equal((await fs.readdir(blockedStarterRoot)).some((name) => name.startsWith(".office-kit-template-starter-")), false);
-  assert.match(skillText, /office-kit/);
-  assert.match(skillText, /source continuation/i);
-  assert.match(skillText, /imported capability router/i);
-  assert.match(skillText, /opaque.*fail(?:s)? closed/i);
-  assert.match(skillText, /reimport/i);
+  assert.match(skillText, /office-kit\/ppj\/v1/);
+  assert.match(skillText, /only public Presentation authoring language/i);
+  assert.match(skillText, /nativeRef/);
+  assert.match(skillText, /Unsupported mutations fail closed/i);
+  assert.match(skillText, /Re-import after build/i);
   assert.match(quickStartText, /PresentationFile\.exportPptx/);
   assert.match(quickStartText, /addPptxSpeakerNotes/);
   assert.match(quickStartText, /editPptxRichSpeakerNotes/);
@@ -3100,8 +3100,6 @@ try {
   assert.match(quickStartText, /canonical top-level `p:contentPart`.*closed standard InkML part.*distinct byte-identical SDK `CustomXmlPart`/is);
   assert.match(quickStartText, /embedded-MP4.*video\/media relationships.*distinct byte-identical SDK `MediaDataPart`.*shares only the immutable preview/is);
   assert.match(quickStartText, /relationship-free custom-show action.*exact native ID\/return policy.*clone.*not silently added to the route/is);
-  assert.match(skillText, /artifact_tool\/api\/references\/(?:comments|slide)\./);
-  assert.match(skillText, /routing\/google_slides\.md/);
   assert.match(googleSlidesRoutingText, /local `\.pptx`/);
   assert.match(googleSlidesRoutingText, /separate host\s+step/);
   assert.doesNotMatch(googleSlidesRoutingText, /plugin|mcp__|google-drive@/i);
@@ -3163,13 +3161,11 @@ try {
   assert.match(accessibilityReferenceText, /exactly the\s+selected SlidePart to differ.*complete non-target presentation projection/is);
   assert.match(accessibilityReferenceText, /not whole-deck\s+accessibility conformance/is);
   const groupingReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/grouping.spec.md", "utf8");
-  assert.match(skillText, /artifact_tool\/api\/references\/grouping\.spec\.md/);
   assert.match(groupingReferenceText, /real `p:grpSp`/);
   assert.match(groupingReferenceText, /a:chOff\/a:chExt/);
   assert.match(groupingReferenceText, /presentation_group_topology_changed/);
   assert.match(groupingReferenceText, /one opaque, read-only native object/i);
   const oleWorkbookReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/ole-workbooks.spec.md", "utf8");
-  assert.match(skillText, /artifact_tool\/api\/references\/ole-workbooks\.spec\.md/);
   assert.match(oleWorkbookReferenceText, /getEmbeddedWorkbook\(\).*replaceEmbeddedWorkbook/s);
   assert.match(oleWorkbookReferenceText, /getEmbeddedOfficePackage\(\).*replaceEmbeddedOfficePackage/s);
   assert.match(oleWorkbookReferenceText, /only newly supported kind is a DOCX package/i);
@@ -3181,8 +3177,6 @@ try {
   assert.match(oleWorkbookReferenceText, /slide\.duplicate\(\).*distinct clone-local XLSX `EmbeddedPackagePart`.*shares\s+the immutable preview ImagePart.*export has been imported again/is);
   assert.match(oleWorkbookReferenceText, /no lossy reconstruction or silent\s+fallback/i);
   const smartArtReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/smartart-clone.spec.md", "utf8");
-  assert.match(skillText, /artifact_tool\/api\/references\/smartart-clone\.spec\.md/);
-  assert.match(skillText, /officekit-smartart-text-edit-workflow\.mjs/);
   assert.match(smartArtReferenceText, /top-level `p:graphicFrame`.*exactly one `dgm:relIds`/is);
   assert.match(smartArtReferenceText, /four distinct typed diagram parts.*disjoint part paths.*per-role hashes/is);
   assert.match(smartArtReferenceText, /Neither contract is SmartArt\s+authoring.*fail closed/is);
@@ -3191,23 +3185,19 @@ try {
   assert.match(smartArtReferenceText, /setDiagramNodeRunText.*runs.*source order.*a:pPr.*a:rPr.*a:br.*a:endParaRPr.*--run-index=1/is);
   assert.match(smartArtReferenceText, /only the DiagramDataPart changed.*reimports the graph.*LibreOffice\/Poppler/is);
   const inkMlReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/inkml-content-part-clone.spec.md", "utf8");
-  assert.match(skillText, /artifact_tool\/api\/references\/inkml-content-part-clone\.spec\.md/);
   assert.match(inkMlReferenceText, /top-level child.*`p:spTree`.*exactly one relationship attribute/is);
   assert.match(inkMlReferenceText, /`application\/inkml\+xml`.*`http:\/\/www\.w3\.org\/2003\/InkML`/is);
   assert.match(inkMlReferenceText, /distinct Open\s+XML SDK `CustomXmlPart`.*disjoint part paths.*equal payload hashes/is);
   assert.match(inkMlReferenceText, /opaque and read-only.*fail closed/is);
   const embeddedVideoReferenceText = await fs.readFile("skills/presentations/skills/presentations/artifact_tool/api/references/embedded-video-clone.spec.md", "utf8");
-  assert.match(skillText, /artifact_tool\/api\/references\/embedded-video-clone\.spec\.md/);
   assert.match(embeddedVideoReferenceText, /top-level `p:pic`.*empty `r:id` media-action sentinel.*`a:videoFile\/@r:link`.*`p14:media\/@r:embed`/is);
   assert.match(embeddedVideoReferenceText, /distinct `MediaDataPart`.*exact MP4 bytes.*same poster path/is);
   assert.match(embeddedVideoReferenceText, /poster remains equal.*do not claim media playback equivalence/is);
   assert.match(embeddedVideoReferenceText, /audio.*linked or\s+external media.*timing.*fail closed/is);
-  const importedCapabilitiesText = await fs.readFile("skills/presentations/skills/presentations/references/imported-capabilities.md", "utf8");
-  const sourceContinuationText = await fs.readFile("skills/presentations/skills/presentations/references/source-continuation.md", "utf8");
-  assert.match(importedCapabilitiesText, /Capability router/);
-  assert.match(importedCapabilitiesText, /Unknown topology remains opaque/);
-  assert.match(sourceContinuationText, /one clone per export\/reimport boundary/);
-  assert.match(sourceContinuationText, /starter manifest is the only locator authority/);
+  const importedNativeRefText = await fs.readFile("skills/presentations/skills/presentations/references/imported-native-ref.md", "utf8");
+  assert.match(importedNativeRefText, /Every visible object must appear as a typed element or an `opaque`/);
+  assert.match(importedNativeRefText, /No-op build must return the source bytes exactly/);
+  assert.match(importedNativeRefText, /source page or component may be reused only when import issues a reuse capability/);
 
   console.log("presentation workflow regression ok");
 } finally {

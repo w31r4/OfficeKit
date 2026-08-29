@@ -307,14 +307,14 @@ assert.match(presentationChartSpec, /formula references[\s\S]*fail\s+closed/i);
 const presentationSkillRoot = path.join(skillsRoot, "presentations", "skills", "presentations");
 const presentationSkillText = [
   await fs.readFile(path.join(presentationSkillRoot, "SKILL.md"), "utf8"),
-  await fs.readFile(path.join(presentationSkillRoot, "references", "imported-capabilities.md"), "utf8"),
-  await fs.readFile(path.join(presentationSkillRoot, "references", "source-continuation.md"), "utf8"),
+  await fs.readFile(path.join(presentationSkillRoot, "references", "ppj.md"), "utf8"),
+  await fs.readFile(path.join(presentationSkillRoot, "references", "imported-native-ref.md"), "utf8"),
 ].join("\n");
-assert.match(presentationSkillText, /imported capabilities/i);
-assert.match(presentationSkillText, /source continuation/i);
-assert.match(presentationSkillText, /slide\.cloneCapability/);
-assert.match(presentationSkillText, /presentation\.editNativeLeaf/);
-assert.match(presentationSkillText, /officekit-chart-families-workflow\.mjs/);
+assert.match(presentationSkillText, /only public Presentation authoring language/i);
+assert.match(presentationSkillText, /office-kit\/ppj\/v1/);
+assert.match(presentationSkillText, /nativeRef/);
+assert.match(presentationSkillText, /no-op build must return the source bytes exactly/i);
+assert.doesNotMatch(presentationSkillText, /tasks\/create|slide\.compose|presentation\.editNativeLeaf/);
 for (const example of [
   "officekit-chart-families-workflow.mjs",
   "officekit-title-notes-edit-workflow.mjs",
