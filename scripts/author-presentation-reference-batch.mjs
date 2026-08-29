@@ -143,7 +143,7 @@ const TEMPLATE_PHOTO_POOLS = Object.freeze({
   "artifact-template-violet-operations": ["operations-floor-calibration-v1.jpg", "data-center-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "night-lab-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg"],
   "artifact-template-moonlit-work-report": ["night-lab-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "research-studio-calibration-v1.jpg", "library-lounge-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg"],
   "artifact-template-skyline-wayfinding": ["architectural-staircase-calibration-v1.jpg", "operations-floor-calibration-v1.jpg", "civic-courtyard-calibration-v1.jpg"],
-  "artifact-template-jade-annual-brief": ["civic-workshop-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg"],
+  "artifact-template-jade-annual-brief": ["civic-workshop-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "community-table-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg"],
 });
 
 const SOURCE_MAP = Object.freeze([
@@ -272,6 +272,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const sectionImage = !photoProhibition.test(signatureGuide) && /(?:section[- ]opening|section opener|chapter[- ]opening|chapter opening|chapter break|chapter divider|article[- ]opening|transition)[^.\n]{0,180}(?:photograph|photography|photo)|(?:photograph|photography|photo)[^.\n]{0,180}(?:section[- ]opening|section opener|chapter[- ]opening|chapter opening|chapter break|chapter divider|article[- ]opening|transition)/iu.test(signatureGuide);
   const imageLead = bodyImage;
   const photoBand = /(?:photo(?:graph|graphy)?[- ](?:band|header)|photo(?:graph|graphy)?[^\n]{0,120}(?:top|header|title band|header background)[^\n]{0,60}(?:band|strip|background)?|(?:title band|header background)[^\n]{0,120}(?:photo(?:graph|graphy)?|image)|darkened technology[- ]?photo(?:graphy)? title band|technology\/person\/data photo band)/iu.test(signatureGuide);
+  const eventImage = /event\s*\/\s*milestone page[^\n]{0,240}bottom photograph/iu.test(sourceGuide);
   const processLed = /(?:process(?: |-)?diagram|causal (?:chain|sequence)|decision tree|flow diagram|method choice|timeline|relationship diagram)/iu.test(signatureGuide);
   const noCharts = /(?:chart count is always 0|source deck contains no data charts|no data charts (?:are|appear) (?:in|throughout) (?:the )?(?:deck|source)|no charts (?:are|appear) (?:in|throughout) (?:the )?(?:deck|source))/iu.test(signatureGuide);
   const tableLed = /(?:tables? (?:are|as) the protagonist|financial model tables|financial pages center on)/iu.test(sourceGuide);
@@ -301,7 +302,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const name = sidecar.displayName || templateId.replace(/^artifact-template-/u, "");
   const backdropSvg = makeBackdropSvg({ palette, category, dark });
   const backdropPng = await sharp(Buffer.from(backdropSvg, "utf8")).png().toBuffer();
-  const needsPhoto = Boolean(bodyImage || coverImage || sectionImage || photoBand);
+  const needsPhoto = Boolean(bodyImage || coverImage || sectionImage || photoBand || eventImage);
   const photoPool = TEMPLATE_PHOTO_POOLS[templateId] || PHOTO_ASSET_POOLS[category] || [];
   const photoSources = needsPhoto ? photoPool.map((file) => typeof file === "string" ? { file } : file) : [];
   const imageSources = [];
@@ -337,6 +338,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     imageLead,
     bodyImage,
     photoBand,
+    eventImage,
     sectionImage,
     processLed,
     coverImage,
@@ -873,7 +875,8 @@ function makeDetail(presentation, style) {
     titleName: "detail-title",
     basisName: "detail-basis",
   });
-  if (style.processLed) detailProcess(slide, style);
+  if (style.eventImage && style.hasPhotoPool) detailEventColumns(slide, style);
+  else if (style.processLed) detailProcess(slide, style);
   else if (style.category === "finance" || style.category === "academic") detailTable(slide, style);
   else if (style.category === "consulting") detailDecision(slide, style);
   else if (style.category === "promotion" && style.hasPhotoPool) detailImageMatrix(slide, style);
@@ -881,6 +884,34 @@ function makeDetail(presentation, style) {
   addText(slide, "source", "Source: illustrative calibration brief · labels and values are fictional", 96, 822, 1150, 22, { fontSize: 14, color: c.rule });
   addText(slide, "page-number", "4 / 6", 1400, 822, 100, 22, { fontSize: 14, color: c.rule, alignment: "right" });
   return slide;
+}
+
+function detailEventColumns(slide, style) {
+  const { palette: c } = style;
+  const columns = [
+    ["2019", "First signal", "A small operating change makes the hidden pattern visible."],
+    ["2021", "Proof point", "The repeatable practice earns a place in the annual rhythm."],
+    ["2023", "Scale", "The network grows without losing the original constraint."],
+    ["2025", "Next chapter", "The next period turns evidence into one bounded move."],
+  ];
+  const gap = 18;
+  const left = 104;
+  const width = (1390 - gap * (columns.length - 1)) / columns.length;
+  columns.forEach(([period, title, text], index) => {
+    const x = left + index * (width + gap);
+    addText(slide, `event-period-${index}`, period, x, 332, width, 34, { fontSize: 28, bold: true, color: index === columns.length - 1 ? c.accent : c.ink });
+    addText(slide, `event-title-${index}`, title, x, 374, width, 26, { fontSize: 17, bold: true, color: c.ink });
+    addText(slide, `event-text-${index}`, text, x, 410, width, 66, { fontSize: 15, color: c.rule });
+    slide.images.add({
+      name: `event-photo-${index}`,
+      ...imageProps(style, `event-${index}`),
+      position: { left: x, top: 516, width, height: 190 },
+      fit: "cover",
+      accessibility: { decorative: true },
+    });
+    addLine(slide, `event-rule-${index}`, x, 728, x + width, 728, index === columns.length - 1 ? c.accent : c.rule, index === columns.length - 1 ? 2 : 1);
+  });
+  addText(slide, "event-footnote", "Event sequence · one image per milestone · source and period remain adjacent", 104, 760, 1120, 24, { fontSize: 14, color: c.rule });
 }
 
 function makeVisual(presentation, style) {

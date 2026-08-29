@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-jade-annual-brief/assets/reference.pptx",
-    "sha256": "67580827b03f24b0946cb065e8be208b1c503ef918d6c451b80fc2e8a94a3ea9"
+    "sha256": "40f648367180841e87461652e8a2a78cdba1ea0bc9c79e7aab3659b198838e2b"
   },
   "evidence": {
     "source": [
@@ -31,7 +31,7 @@
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:368",
+      "records:376",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:67580827b03f24b0946cb065e8be208b1c503ef918d6c451b80fc2e8a94a3ea9"
+      "reference-sha256:40f648367180841e87461652e8a2a78cdba1ea0bc9c79e7aab3659b198838e2b"
     ]
   },
   "visual": {
