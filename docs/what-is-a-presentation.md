@@ -9,6 +9,9 @@ and delivers PowerPoint work.
 
 [简体中文](what-is-a-presentation.zh-CN.md)
 
+For the language and compiler boundary behind this model, see
+[Why OfficeKit Uses PPJ](why-ppj.md).
+
 ## The audience outcome comes first
 
 People rarely ask for slides because pages are the final goal. They want an
