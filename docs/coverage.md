@@ -51,6 +51,10 @@ The same source-bound profile now exposes explicit direct `a:bodyPr/@wrap`
 tokens as `textBodyWrap` when the source value is `square` or `none`; all six
 samples completed one token edit and second import, while omitted, inherited,
 and unsupported wrap forms remain opaque.
+It also exposes direct `a:bodyPr/@numCol` values as `textBodyColumnCount` when
+the source declares one through sixteen columns; the two NASA samples with
+explicit column counts completed a token edit and second import. Missing,
+inherited, malformed, and out-of-range column values remain opaque.
 
 | Surface | Status | Boundary |
 | --- | --- | --- |
