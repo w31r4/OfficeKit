@@ -1,0 +1,3615 @@
+{
+  "schema": "office-kit/ppj/v1",
+  "meta": {
+    "id": "evidence-ledger-reference",
+    "title": "Evidence Ledger: Reliability Pilot",
+    "language": "en-US",
+    "version": 1,
+    "description": "Original OfficeKit PPJ reference program for a dense, evidence-led experimental report. Every value is illustrative."
+  },
+  "intent": {
+    "brief": {
+      "primaryJob": "decide",
+      "supportingJobs": [
+        "explain",
+        "handoff"
+      ],
+      "purpose": "Decide whether a bounded reliability intervention should advance from pilot to staged rollout.",
+      "expectedOutcome": "The review board can approve, revise, or stop the rollout using five preset evidence gates.",
+      "durationMinutes": 14,
+      "evidenceBoundary": "All figures are synthetic calibration data created for this OfficeKit reference; they are not operational results.",
+      "constraints": [
+        "Keep the hypothesis falsifiable.",
+        "Bind every conclusion to a visible measure or decision rule.",
+        "Never allow labels, marks, bars, or lines to obscure one another."
+      ]
+    },
+    "audience": {
+      "description": "A technical review board with operations, finance, and statistical literacy.",
+      "knowledgeLevel": "expert",
+      "decisionRole": "Authorize a bounded rollout and its measurement protocol.",
+      "needs": [
+        "A falsifiable claim",
+        "A controlled method",
+        "A readable effect estimate",
+        "Explicit stop conditions"
+      ]
+    },
+    "narrative": {
+      "thesis": "The pilot merits staged expansion only because incident hours fell while protected workload rose and all five preset gates passed.",
+      "arc": [
+        {
+          "id": "arc-boundary",
+          "purpose": "Define the test before revealing outcomes.",
+          "claim": "A four-hour-ahead forecast is useful only if it reduces incident hours without shifting risk elsewhere."
+        },
+        {
+          "id": "arc-method",
+          "purpose": "Make assignment, measurement, and timing auditable.",
+          "claim": "Matched sites and a preregistered window isolate the intervention from calendar and workload effects."
+        },
+        {
+          "id": "arc-result",
+          "purpose": "Show magnitude, uncertainty, and competing explanations.",
+          "claim": "The measured effect clears the gate and survives workload growth."
+        },
+        {
+          "id": "arc-decision",
+          "purpose": "Translate evidence into a reversible action.",
+          "claim": "Expand in two waves while preserving the same gates and stop rules."
+        }
+      ]
+    },
+    "editorial": {
+      "tone": [
+        "precise",
+        "measured",
+        "decision-oriented"
+      ],
+      "titleMode": "conclusion",
+      "lockedFacts": [
+        "Every value is synthetic and illustrative.",
+        "The pilot contains 12 sites split evenly between control and treatment.",
+        "The effect estimate is −26 incident hours with an illustrative 95% CI of −34 to −18."
+      ],
+      "avoid": [
+        "unsupported causality",
+        "card walls",
+        "decorative geometry",
+        "labels placed over evidence marks"
+      ],
+      "sourceStyle": "footnote"
+    },
+    "delivery": {
+      "mode": "hybrid",
+      "afterUse": "Decision record, rollout protocol, and reproducibility handoff.",
+      "mediumFit": "strong"
+    }
+  },
+  "design": {
+    "canvas": {
+      "width": 960,
+      "height": 540,
+      "unit": "pt"
+    },
+    "theme": {
+      "name": "Evidence Ledger",
+      "colors": [
+        {
+          "id": "paper",
+          "value": "#F7F4EC",
+          "role": "primary surface"
+        },
+        {
+          "id": "paper-alt",
+          "value": "#ECE9E1",
+          "role": "secondary evidence field"
+        },
+        {
+          "id": "ink",
+          "value": "#17324D",
+          "role": "primary text and structure"
+        },
+        {
+          "id": "signal",
+          "value": "#0B8F8F",
+          "role": "measured signal"
+        },
+        {
+          "id": "signal-soft",
+          "value": "#CDE7E4",
+          "role": "signal field"
+        },
+        {
+          "id": "decision",
+          "value": "#D9A514",
+          "role": "decision emphasis"
+        },
+        {
+          "id": "muted",
+          "value": "#C9CDD1",
+          "role": "baseline evidence"
+        },
+        {
+          "id": "quiet",
+          "value": "#64788B",
+          "role": "secondary text"
+        },
+        {
+          "id": "white",
+          "value": "#FFFFFF",
+          "role": "reverse text"
+        }
+      ]
+    },
+    "fonts": [
+      {
+        "id": "sans",
+        "family": "Arial",
+        "fallbacks": [
+          "Helvetica",
+          "sans-serif"
+        ],
+        "language": "en-US",
+        "weight": 400,
+        "style": "normal"
+      },
+      {
+        "id": "serif",
+        "family": "Georgia",
+        "fallbacks": [
+          "Times New Roman",
+          "serif"
+        ],
+        "language": "en-US",
+        "weight": 400,
+        "style": "normal"
+      }
+    ],
+    "styles": {
+      "text": [
+        {
+          "id": "display",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 34,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "title",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 26,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "subtitle",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 14,
+              "color": {
+                "token": "signal"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "body",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "label",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 9,
+              "bold": true,
+              "color": {
+                "token": "signal"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "source",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 7,
+              "color": {
+                "token": "quiet"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "metric",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 29,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        }
+      ],
+      "shape": [
+        {
+          "id": "signal-field",
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal-soft"
+              }
+            },
+            "opacity": 1
+          }
+        },
+        {
+          "id": "decision-field",
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            },
+            "opacity": 1
+          }
+        }
+      ],
+      "chart": [
+        {
+          "id": "evidence-chart",
+          "style": {
+            "legend": "none",
+            "stacking": "none",
+            "gapWidth": 72,
+            "showCategoryAxis": true,
+            "showValueAxis": false,
+            "showGridlines": false,
+            "showDataLabels": true,
+            "dataLabelPosition": "outside-end",
+            "chartAreaFill": {
+              "type": "none"
+            },
+            "plotAreaFill": {
+              "type": "none"
+            }
+          }
+        },
+        {
+          "id": "trend-chart",
+          "style": {
+            "legend": "bottom",
+            "stacking": "none",
+            "gapWidth": 90,
+            "showCategoryAxis": true,
+            "showValueAxis": true,
+            "showGridlines": false,
+            "showDataLabels": false,
+            "chartAreaFill": {
+              "type": "none"
+            },
+            "plotAreaFill": {
+              "type": "none"
+            }
+          }
+        }
+      ],
+      "table": [
+        {
+          "id": "ledger-table",
+          "style": {
+            "headerRows": 1,
+            "bandedRows": false,
+            "bandedColumns": false,
+            "firstColumnEmphasis": true,
+            "lastColumnEmphasis": false,
+            "defaultCellFill": {
+              "type": "none"
+            },
+            "defaultTextStyle": {
+              "defaultText": {
+                "font": "sans",
+                "size": 9,
+                "color": {
+                  "token": "ink"
+                }
+              },
+              "verticalAlignment": "middle",
+              "autoFit": "shrink-text",
+              "margins": {
+                "left": 6,
+                "top": 3,
+                "right": 6,
+                "bottom": 3
+              }
+            }
+          }
+        }
+      ]
+    },
+    "grammar": {
+      "name": "Measured field note",
+      "rationale": "A technical board needs dense evidence with explicit reading order, visible uncertainty, and no dashboard ornament.",
+      "visualThesis": "Warm paper, one measured signal, and one decision color separate observation from judgment.",
+      "surfaceHierarchy": [
+        "Use paper as the default field and pale signal only for bounded evidence regions.",
+        "Use rules, alignment, and scale instead of nested containers."
+      ],
+      "typographyRhythm": [
+        "Serif display language frames the research question; sans-serif text carries protocol and evidence.",
+        "Conclusion titles lead; page furniture remains quiet."
+      ],
+      "geometryRules": [
+        "Every line, node, band, and mark must encode a threshold, sequence, comparison, or measured magnitude.",
+        "Never add empty rings, floating circles, or unlabelled decorative geometry."
+      ],
+      "densityRhythm": [
+        "Alternate spacious framing pages with dense method and evidence pages.",
+        "Reserve the bottom ledger strip for the actionable read-through."
+      ],
+      "carrierRules": [
+        "Charts carry quantitative claims; tables carry audit detail; connectors carry dependency."
+      ],
+      "imageRules": [
+        "Use imagery only as evidence or identity; this technical reference intentionally relies on native data graphics."
+      ],
+      "chartRules": [
+        "Keep labels outside marks, keep trends on truthful axes, and separate bar and line evidence when overlap would obscure either."
+      ],
+      "diagramRules": [
+        "Connectors express a real branch, dependency, or handoff and terminate at an explicit object."
+      ],
+      "motifs": [
+        "A short ochre rule marks a preset decision gate.",
+        "A thin navy rule anchors each page to the evidence ledger."
+      ],
+      "forbiddenPatterns": [
+        "No card wall or equal panel grid.",
+        "No meaningless ring or decorative node.",
+        "No line, marker, bar, label, or connector may obscure another required value.",
+        "No synthetic calibration value may be presented as real-world evidence."
+      ]
+    },
+    "motionPolicy": "adaptive"
+  },
+  "components": [
+    {
+      "id": "ledger-furniture",
+      "description": "Shared evidence-ledger rule, kicker, source boundary, and folio.",
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "width": 960,
+        "height": 540
+      },
+      "parameters": [
+        {
+          "name": "kicker",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "source",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "folio",
+          "type": "string",
+          "required": true
+        }
+      ],
+      "bindings": [
+        {
+          "target": "furniture-kicker",
+          "field": "text",
+          "parameter": "kicker"
+        },
+        {
+          "target": "furniture-source",
+          "field": "text",
+          "parameter": "source"
+        },
+        {
+          "target": "furniture-folio",
+          "field": "text",
+          "parameter": "folio"
+        }
+      ],
+      "elements": [
+        {
+          "id": "furniture-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 30,
+            "width": 864,
+            "height": 2
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "ink"
+              }
+            }
+          }
+        },
+        {
+          "id": "furniture-kicker",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 10,
+            "width": 460,
+            "height": 14
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Section label"
+          },
+          "text": "EVIDENCE LEDGER",
+          "styleRef": "label"
+        },
+        {
+          "id": "furniture-source",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 512,
+            "width": 760,
+            "height": 12
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Evidence boundary and source"
+          },
+          "text": "Illustrative source",
+          "styleRef": "source"
+        },
+        {
+          "id": "furniture-folio",
+          "type": "text",
+          "frame": {
+            "x": 858,
+            "y": 512,
+            "width": 54,
+            "height": 12
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Page number"
+          },
+          "text": "01 / 10",
+          "styleRef": "source"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "id": "page-01-cover",
+      "name": "Decision frame",
+      "role": "Frame the falsifiable claim and the protocol boundary",
+      "claim": "The pilot is worth scaling only if reliability improves while protected workload grows.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "Open with the decision, then name the evidence boundary before showing any result.",
+      "transition": {
+        "type": "fade",
+        "durationMs": 320
+      },
+      "elements": [
+        {
+          "id": "p01-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "PILOT NOTE 06 · RELIABILITY OPERATIONS",
+            "source": "Source · Synthetic OfficeKit calibration ledger, 2026-08-30 · not operational evidence",
+            "folio": "01 / 10"
+          }
+        },
+        {
+          "id": "p01-title",
+          "type": "text",
+          "role": "title",
+          "frame": {
+            "x": 48,
+            "y": 78,
+            "width": 570,
+            "height": 122
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Reliability pilot title"
+          },
+          "text": {
+            "paragraphs": [
+              {
+                "id": "p01-title-paragraph",
+                "runs": [
+                  {
+                    "id": "p01-title-run-1",
+                    "text": "Battery Dispatch\n",
+                    "style": {
+                      "font": "serif",
+                      "size": 38,
+                      "color": {
+                        "token": "ink"
+                      }
+                    }
+                  },
+                  {
+                    "id": "p01-title-run-2",
+                    "text": "Reliability Pilot",
+                    "style": {
+                      "font": "serif",
+                      "size": 38,
+                      "color": {
+                        "token": "signal"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "styleRef": "display"
+        },
+        {
+          "id": "p01-subtitle",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 224,
+            "width": 570,
+            "height": 48
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Pilot thesis"
+          },
+          "text": "From peak-risk hypothesis to measured, reversible rollout",
+          "styleRef": "subtitle"
+        },
+        {
+          "id": "p01-signal-field",
+          "type": "shape",
+          "frame": {
+            "x": 666,
+            "y": 76,
+            "width": 246,
+            "height": 306
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Protocol summary field"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "styleRef": "signal-field"
+        },
+        {
+          "id": "p01-signal-title",
+          "type": "text",
+          "frame": {
+            "x": 690,
+            "y": 100,
+            "width": 190,
+            "height": 32
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Measured profile label"
+          },
+          "text": "MEASURED PROFILE",
+          "styleRef": "label"
+        },
+        {
+          "id": "p01-signal-metric",
+          "type": "text",
+          "frame": {
+            "x": 690,
+            "y": 150,
+            "width": 190,
+            "height": 70
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Pilot sites and duration"
+          },
+          "text": "12 sites\n28 days",
+          "styleRef": "metric"
+        },
+        {
+          "id": "p01-signal-copy",
+          "type": "text",
+          "frame": {
+            "x": 690,
+            "y": 244,
+            "width": 190,
+            "height": 88
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Protocol configuration"
+          },
+          "text": "6 control / 6 pilot\n4-week intervention\n5 preregistered gates",
+          "styleRef": "body"
+        },
+        {
+          "id": "p01-claim-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 330,
+            "width": 36,
+            "height": 4
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            }
+          }
+        },
+        {
+          "id": "p01-claim-label",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 346,
+            "width": 210,
+            "height": 20
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Claim under test label"
+          },
+          "text": "CLAIM UNDER TEST",
+          "styleRef": "label"
+        },
+        {
+          "id": "p01-claim",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 378,
+            "width": 570,
+            "height": 78
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Falsifiable pilot claim"
+          },
+          "text": "A four-hour-ahead forecast can reduce evening incident hours without reducing protected workload.",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 18,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "page-02-hypothesis",
+      "name": "Falsifiable hypothesis",
+      "role": "Translate the intervention into an explicit if-then-because test",
+      "claim": "The hypothesis is falsifiable because the intervention, outcome, and mechanism are each bounded.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "Read the three clauses as a single causal claim, then call out the preset rejection rule.",
+      "elements": [
+        {
+          "id": "p02-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "ANALYSIS FRAME · FALSIFIABLE HYPOTHESIS",
+            "source": "Source · Synthetic OfficeKit calibration protocol, preregistered thresholds",
+            "folio": "02 / 10"
+          }
+        },
+        {
+          "id": "p02-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 54
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Hypothesis conclusion"
+          },
+          "text": "A useful forecast must change action—not merely predict demand",
+          "styleRef": "title"
+        },
+        {
+          "id": "p02-if-label",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 154,
+            "width": 74,
+            "height": 30
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "If clause"
+          },
+          "text": "IF",
+          "styleRef": "label"
+        },
+        {
+          "id": "p02-if",
+          "type": "text",
+          "frame": {
+            "x": 142,
+            "y": 148,
+            "width": 694,
+            "height": 44
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Intervention clause"
+          },
+          "text": "Sites receive a four-hour-ahead peak forecast and a fixed dispatch rule.",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 19,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p02-if-rule",
+          "type": "shape",
+          "frame": {
+            "x": 142,
+            "y": 198,
+            "width": 694,
+            "height": 1
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "p02-then-label",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 232,
+            "width": 74,
+            "height": 30
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Then clause"
+          },
+          "text": "THEN",
+          "styleRef": "label"
+        },
+        {
+          "id": "p02-then",
+          "type": "text",
+          "frame": {
+            "x": 142,
+            "y": 226,
+            "width": 694,
+            "height": 44
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Outcome clause"
+          },
+          "text": "Evening incident hours decline while protected workload remains at or above baseline.",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 19,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p02-then-rule",
+          "type": "shape",
+          "frame": {
+            "x": 142,
+            "y": 276,
+            "width": 694,
+            "height": 1
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "p02-because-label",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 310,
+            "width": 74,
+            "height": 30
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Because clause"
+          },
+          "text": "BECAUSE",
+          "styleRef": "label"
+        },
+        {
+          "id": "p02-because",
+          "type": "text",
+          "frame": {
+            "x": 142,
+            "y": 304,
+            "width": 694,
+            "height": 44
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Mechanism clause"
+          },
+          "text": "Earlier dispatch shifts battery capacity into the narrow peak-risk window.",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 19,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p02-reject-field",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 390,
+            "width": 864,
+            "height": 74
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Preset rejection rule"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper-alt"
+              }
+            }
+          },
+          "text": "PRESET REJECTION RULE  ·  Reject if the 95% CI crosses zero, protected workload falls, or severity shifts to lower tiers.",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 18,
+              "top": 8,
+              "right": 18,
+              "bottom": 8
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "page-03-method-tree",
+      "name": "Method choice",
+      "role": "Show how the assignment method is selected",
+      "claim": "Stratified randomization is the lightest method that controls the observed site differences.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "Follow the tree from left to right. Each branch eliminates a weaker design.",
+      "elements": [
+        {
+          "id": "p03-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "METHOD CHOICE · TWO QUESTIONS, THREE LEVELS MAX",
+            "source": "Source · Synthetic OfficeKit calibration protocol · assignment logic",
+            "folio": "03 / 10"
+          }
+        },
+        {
+          "id": "p03-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Method selection conclusion"
+          },
+          "text": "Stratify first; randomize second; stop before the method outruns the sample",
+          "styleRef": "title"
+        },
+        {
+          "id": "p03-method-copy",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 136,
+            "width": 260,
+            "height": 104
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Method rationale"
+          },
+          "text": "Four methods appear only as leaves. Each branch answers an exclusion reason and remains readable without animation.\n\nSelected: stratified randomization by baseline risk and floor mix.",
+          "styleRef": "body"
+        },
+        {
+          "id": "p03-q1",
+          "type": "shape",
+          "frame": {
+            "x": 382,
+            "y": 132,
+            "width": 126,
+            "height": 70
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "First method question"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "flowChartDecision"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper"
+              }
+            },
+            "stroke": {
+              "color": {
+                "token": "ink"
+              },
+              "width": 1.2
+            }
+          },
+          "text": "Must all launch at once?",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 10,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text"
+          }
+        },
+        {
+          "id": "p03-before-after",
+          "type": "text",
+          "frame": {
+            "x": 600,
+            "y": 112,
+            "width": 210,
+            "height": 36
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Rejected before-after method"
+          },
+          "text": "Before–after  ·  rejected\nSeasonal risk remains uncontrolled",
+          "styleRef": "body"
+        },
+        {
+          "id": "p03-q2",
+          "type": "shape",
+          "frame": {
+            "x": 548,
+            "y": 248,
+            "width": 126,
+            "height": 70
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Second method question"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "flowChartDecision"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper"
+              }
+            },
+            "stroke": {
+              "color": {
+                "token": "ink"
+              },
+              "width": 1.2
+            }
+          },
+          "text": "Do baseline risks differ?",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 10,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text"
+          }
+        },
+        {
+          "id": "p03-simple",
+          "type": "text",
+          "frame": {
+            "x": 748,
+            "y": 218,
+            "width": 164,
+            "height": 42
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Rejected simple random method"
+          },
+          "text": "Simple random  ·  rejected\nRisk mix differs by site",
+          "styleRef": "body"
+        },
+        {
+          "id": "p03-selected",
+          "type": "shape",
+          "frame": {
+            "x": 710,
+            "y": 352,
+            "width": 202,
+            "height": 72
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Selected stratified assignment"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal-soft"
+              }
+            },
+            "stroke": {
+              "color": {
+                "token": "signal"
+              },
+              "width": 1.5
+            }
+          },
+          "text": "SELECTED\nStratified randomization",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 12,
+              "top": 8,
+              "right": 12,
+              "bottom": 8
+            }
+          }
+        },
+        {
+          "id": "p03-link-q1-reject",
+          "type": "connector",
+          "frame": {
+            "x": 508,
+            "y": 132,
+            "width": 92,
+            "height": 20
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "No branch to before-after rejection"
+          },
+          "connectorType": "elbow",
+          "from": {
+            "element": "p03-q1",
+            "anchor": "right"
+          },
+          "to": {
+            "element": "p03-before-after",
+            "anchor": "left"
+          },
+          "stroke": {
+            "color": {
+              "token": "quiet"
+            },
+            "width": 1.2,
+            "dash": "solid"
+          },
+          "endArrow": "triangle"
+        },
+        {
+          "id": "p03-link-q1-q2",
+          "type": "connector",
+          "frame": {
+            "x": 440,
+            "y": 202,
+            "width": 108,
+            "height": 82
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "No branch to second question"
+          },
+          "connectorType": "elbow",
+          "from": {
+            "element": "p03-q1",
+            "anchor": "bottom"
+          },
+          "to": {
+            "element": "p03-q2",
+            "anchor": "left"
+          },
+          "stroke": {
+            "color": {
+              "token": "ink"
+            },
+            "width": 1.5,
+            "dash": "solid"
+          },
+          "endArrow": "triangle"
+        },
+        {
+          "id": "p03-link-q2-simple",
+          "type": "connector",
+          "frame": {
+            "x": 674,
+            "y": 248,
+            "width": 74,
+            "height": 18
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "No branch to simple random rejection"
+          },
+          "connectorType": "elbow",
+          "from": {
+            "element": "p03-q2",
+            "anchor": "right"
+          },
+          "to": {
+            "element": "p03-simple",
+            "anchor": "left"
+          },
+          "stroke": {
+            "color": {
+              "token": "quiet"
+            },
+            "width": 1.2,
+            "dash": "solid"
+          },
+          "endArrow": "triangle"
+        },
+        {
+          "id": "p03-link-q2-selected",
+          "type": "connector",
+          "frame": {
+            "x": 610,
+            "y": 318,
+            "width": 100,
+            "height": 70
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Yes branch to stratified assignment"
+          },
+          "connectorType": "elbow",
+          "from": {
+            "element": "p03-q2",
+            "anchor": "bottom"
+          },
+          "to": {
+            "element": "p03-selected",
+            "anchor": "left"
+          },
+          "stroke": {
+            "color": {
+              "token": "signal"
+            },
+            "width": 1.8,
+            "dash": "solid"
+          },
+          "endArrow": "triangle"
+        },
+        {
+          "id": "p03-branch-q1-yes",
+          "type": "text",
+          "frame": {
+            "x": 538,
+            "y": 112,
+            "width": 42,
+            "height": 16
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Yes branch"
+          },
+          "text": "YES",
+          "styleRef": "label"
+        },
+        {
+          "id": "p03-branch-q1-no",
+          "type": "text",
+          "frame": {
+            "x": 478,
+            "y": 224,
+            "width": 42,
+            "height": 16
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "No branch"
+          },
+          "text": "NO",
+          "styleRef": "label"
+        },
+        {
+          "id": "p03-branch-q2-no",
+          "type": "text",
+          "frame": {
+            "x": 696,
+            "y": 228,
+            "width": 42,
+            "height": 16
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "No branch"
+          },
+          "text": "NO",
+          "styleRef": "label"
+        },
+        {
+          "id": "p03-branch-q2-yes",
+          "type": "text",
+          "frame": {
+            "x": 648,
+            "y": 338,
+            "width": 42,
+            "height": 16
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Yes branch"
+          },
+          "text": "YES",
+          "styleRef": "label"
+        },
+        {
+          "id": "p03-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 430,
+            "width": 864,
+            "height": 1
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "p03-footnote",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 446,
+            "width": 864,
+            "height": 34
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Method limit"
+          },
+          "text": "Method limit · 12 sites support two strata and one treatment factor. More branches would exceed the sample's useful resolution.",
+          "styleRef": "body"
+        }
+      ]
+    },
+    {
+      "id": "page-04-design-table",
+      "name": "Experiment design",
+      "role": "Audit what changes and what remains controlled",
+      "claim": "Only the dispatch rule varies; all other operating conditions remain matched.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "The table is the audit surface. Read across one row before comparing arms.",
+      "elements": [
+        {
+          "id": "p04-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "EXPERIMENT DESIGN · 12 SITES, TWO ARMS",
+            "source": "Source · Synthetic OfficeKit calibration protocol · design matrix",
+            "folio": "04 / 10"
+          }
+        },
+        {
+          "id": "p04-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Experiment design conclusion"
+          },
+          "text": "Two matched arms isolate one variable: the points-based dispatch rule",
+          "styleRef": "title"
+        },
+        {
+          "id": "p04-table",
+          "type": "table",
+          "role": "experiment design matrix",
+          "frame": {
+            "x": 48,
+            "y": 136,
+            "width": 864,
+            "height": 196
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Matched control and treatment arms"
+          },
+          "styleRef": "ledger-table",
+          "columns": [
+            {
+              "id": "p04-col-arm",
+              "width": 110
+            },
+            {
+              "id": "p04-col-rule",
+              "width": 170
+            },
+            {
+              "id": "p04-col-risk",
+              "width": 145
+            },
+            {
+              "id": "p04-col-floor",
+              "width": 135
+            },
+            {
+              "id": "p04-col-pickup",
+              "width": 145
+            },
+            {
+              "id": "p04-col-promo",
+              "width": 159
+            }
+          ],
+          "rows": [
+            {
+              "id": "p04-row-header",
+              "height": 42,
+              "cells": [
+                {
+                  "id": "p04-h-arm",
+                  "text": "Arm / n"
+                },
+                {
+                  "id": "p04-h-rule",
+                  "text": "Dispatch rule"
+                },
+                {
+                  "id": "p04-h-risk",
+                  "text": "Baseline risk"
+                },
+                {
+                  "id": "p04-h-floor",
+                  "text": "Floor mix"
+                },
+                {
+                  "id": "p04-h-pickup",
+                  "text": "Pickup frequency"
+                },
+                {
+                  "id": "p04-h-promo",
+                  "text": "Operating notices"
+                }
+              ]
+            },
+            {
+              "id": "p04-row-control",
+              "height": 56,
+              "cells": [
+                {
+                  "id": "p04-c-arm",
+                  "text": "Control · 6"
+                },
+                {
+                  "id": "p04-c-rule",
+                  "text": "Existing threshold"
+                },
+                {
+                  "id": "p04-c-risk",
+                  "text": "Matched"
+                },
+                {
+                  "id": "p04-c-floor",
+                  "text": "50 / 50"
+                },
+                {
+                  "id": "p04-c-pickup",
+                  "text": "Same"
+                },
+                {
+                  "id": "p04-c-promo",
+                  "text": "Same"
+                }
+              ]
+            },
+            {
+              "id": "p04-row-treatment",
+              "height": 56,
+              "cells": [
+                {
+                  "id": "p04-t-arm",
+                  "text": "Treatment · 6"
+                },
+                {
+                  "id": "p04-t-rule",
+                  "text": "Forecast + points"
+                },
+                {
+                  "id": "p04-t-risk",
+                  "text": "Matched"
+                },
+                {
+                  "id": "p04-t-floor",
+                  "text": "50 / 50"
+                },
+                {
+                  "id": "p04-t-pickup",
+                  "text": "Same"
+                },
+                {
+                  "id": "p04-t-promo",
+                  "text": "Same"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "p04-read-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 362,
+            "width": 36,
+            "height": 4
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            }
+          }
+        },
+        {
+          "id": "p04-read",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 380,
+            "width": 864,
+            "height": 76
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Design read-through"
+          },
+          "text": "READ-THROUGH\nRisk mix, floor mix, pickup frequency, and operating notices are matched. Any measured difference is attributable to the single changed dispatch rule within the limits of this synthetic design.",
+          "styleRef": "body"
+        }
+      ]
+    },
+    {
+      "id": "page-05-timeline",
+      "name": "Measurement timeline",
+      "role": "Make baseline, intervention, and follow-up windows explicit",
+      "claim": "Three baseline weeks and one follow-up week separate intervention from calendar noise.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "The timeline is continuous except for the two annotated collection gaps. Do not imply missing weeks.",
+      "elements": [
+        {
+          "id": "p05-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "MEASURES & DEFINITIONS · ELEVEN-WEEK LEDGER",
+            "source": "Source · Synthetic OfficeKit calibration protocol · timing and exclusions",
+            "folio": "05 / 10"
+          }
+        },
+        {
+          "id": "p05-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Timeline conclusion"
+          },
+          "text": "Measure three weeks before, four weeks during, and one week after",
+          "styleRef": "title"
+        },
+        {
+          "id": "p05-axis",
+          "type": "shape",
+          "frame": {
+            "x": 74,
+            "y": 262,
+            "width": 808,
+            "height": 3
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "ink"
+              }
+            }
+          }
+        },
+        {
+          "id": "p05-baseline",
+          "type": "shape",
+          "frame": {
+            "x": 74,
+            "y": 226,
+            "width": 220,
+            "height": 36
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Three-week baseline"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          },
+          "text": "BASELINE · 3 weeks",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 10,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p05-intervention",
+          "type": "shape",
+          "frame": {
+            "x": 326,
+            "y": 208,
+            "width": 336,
+            "height": 54
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Four-week intervention"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "INTERVENTION · 4 weeks",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 11,
+              "bold": true,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p05-followup",
+          "type": "shape",
+          "frame": {
+            "x": 694,
+            "y": 226,
+            "width": 188,
+            "height": 36
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "One-week follow-up"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            }
+          },
+          "text": "FOLLOW-UP · 1 week",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 10,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p05-weeks",
+          "type": "text",
+          "frame": {
+            "x": 74,
+            "y": 278,
+            "width": 808,
+            "height": 28
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Week labels"
+          },
+          "text": "B−3       B−2       B−1       V1       V2       V3       V4       F+1",
+          "styleRef": "source"
+        },
+        {
+          "id": "p05-gap-1",
+          "type": "shape",
+          "frame": {
+            "x": 300,
+            "y": 244,
+            "width": 18,
+            "height": 36
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Data collection freeze between baseline and intervention"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper"
+              }
+            }
+          },
+          "text": "//",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 15,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p05-gap-2",
+          "type": "shape",
+          "frame": {
+            "x": 668,
+            "y": 244,
+            "width": 18,
+            "height": 36
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Data collection freeze before follow-up"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper"
+              }
+            }
+          },
+          "text": "//",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 15,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p05-rules",
+          "type": "text",
+          "frame": {
+            "x": 74,
+            "y": 356,
+            "width": 808,
+            "height": 92
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Timing rules"
+          },
+          "text": "RULE 1 · A site must contribute at least 2 complete baseline days and 2 complete intervention days per week.\nRULE 2 · Exam-week anomaly is excluded before assignment, not after seeing results.\nRULE 3 · The same severity taxonomy and workload definition apply across all eleven weeks.",
+          "styleRef": "body"
+        }
+      ]
+    },
+    {
+      "id": "page-06-bars",
+      "name": "Incident hours",
+      "role": "Show the primary outcome without competing overlays",
+      "claim": "P1 incident hours fall 38% from 69 to 43 across the synthetic ledger.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "The bars carry the incident-hour evidence. Workload is deliberately moved to the next page to avoid visual obstruction.",
+      "elements": [
+        {
+          "id": "p06-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "PRIMARY OUTCOME · INCIDENT HOURS",
+            "source": "Source · Synthetic OfficeKit calibration ledger · values are illustrative",
+            "folio": "06 / 10"
+          }
+        },
+        {
+          "id": "p06-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Primary outcome conclusion"
+          },
+          "text": "P1 incident hours fell 38%; the decline persisted through follow-up",
+          "styleRef": "title"
+        },
+        {
+          "id": "p06-chart",
+          "type": "chart",
+          "role": "primary evidence",
+          "frame": {
+            "x": 48,
+            "y": 136,
+            "width": 648,
+            "height": 310
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "P1 incident hours decline from 69 to 43 across eight half-year observations."
+          },
+          "chartType": "column",
+          "styleRef": "evidence-chart",
+          "data": {
+            "categories": [
+              "24H1",
+              "24H2",
+              "25H1",
+              "25H2",
+              "26H1",
+              "26H2",
+              "27H1",
+              "27H2"
+            ],
+            "series": [
+              {
+                "id": "p06-hours-series",
+                "name": "P1 incident hours",
+                "values": [
+                  69,
+                  64,
+                  61,
+                  58,
+                  55,
+                  50,
+                  47,
+                  43
+                ],
+                "fill": {
+                  "type": "solid",
+                  "color": {
+                    "token": "muted"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "p06-divider",
+          "type": "shape",
+          "frame": {
+            "x": 724,
+            "y": 136,
+            "width": 1,
+            "height": 310
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "p06-read-label",
+          "type": "text",
+          "frame": {
+            "x": 752,
+            "y": 146,
+            "width": 160,
+            "height": 20
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Read-through label"
+          },
+          "text": "READ-THROUGH",
+          "styleRef": "label"
+        },
+        {
+          "id": "p06-metric-1",
+          "type": "text",
+          "frame": {
+            "x": 752,
+            "y": 190,
+            "width": 160,
+            "height": 48
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Incident-hour reduction"
+          },
+          "text": "−26 h",
+          "styleRef": "metric"
+        },
+        {
+          "id": "p06-metric-1-copy",
+          "type": "text",
+          "frame": {
+            "x": 752,
+            "y": 242,
+            "width": 160,
+            "height": 32
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Incident-hour reduction explanation"
+          },
+          "text": "illustrative reduction\nfrom 69 to 43",
+          "styleRef": "source"
+        },
+        {
+          "id": "p06-metric-2",
+          "type": "text",
+          "frame": {
+            "x": 752,
+            "y": 304,
+            "width": 160,
+            "height": 48
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Reduction percentage"
+          },
+          "text": "−38%",
+          "styleRef": "metric"
+        },
+        {
+          "id": "p06-metric-2-copy",
+          "type": "text",
+          "frame": {
+            "x": 752,
+            "y": 356,
+            "width": 160,
+            "height": 42
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Persistence note"
+          },
+          "text": "same direction in\nfollow-up week",
+          "styleRef": "source"
+        }
+      ],
+      "animations": [
+        {
+          "id": "p06-chart-rise",
+          "target": "p06-chart",
+          "phase": "entrance",
+          "effect": "wipe",
+          "direction": "up",
+          "start": "afterPrevious",
+          "durationMs": 650,
+          "delayMs": 80,
+          "chartBuild": "category-element",
+          "staggerMs": 80,
+          "animateChartBackground": false
+        }
+      ]
+    },
+    {
+      "id": "page-07-line",
+      "name": "Protected workload",
+      "role": "Show the guardrail trend separately from the primary bars",
+      "claim": "Protected workload rises 27%, so the reliability gain is not explained by reduced activity.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "The line has its own page and axis so it cannot collide with incident-hour labels.",
+      "elements": [
+        {
+          "id": "p07-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "GUARDRAIL · PROTECTED WORKLOAD",
+            "source": "Source · Synthetic OfficeKit calibration ledger · indexed workload, 24H1 = 100",
+            "folio": "07 / 10"
+          }
+        },
+        {
+          "id": "p07-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Guardrail conclusion"
+          },
+          "text": "Protected workload grew 27%; the result is not a volume artifact",
+          "styleRef": "title"
+        },
+        {
+          "id": "p07-chart",
+          "type": "chart",
+          "role": "guardrail evidence",
+          "frame": {
+            "x": 48,
+            "y": 132,
+            "width": 864,
+            "height": 276
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Protected workload index rises from 100 to 127 across eight periods."
+          },
+          "chartType": "line",
+          "styleRef": "trend-chart",
+          "data": {
+            "categories": [
+              "24H1",
+              "24H2",
+              "25H1",
+              "25H2",
+              "26H1",
+              "26H2",
+              "27H1",
+              "27H2"
+            ],
+            "series": [
+              {
+                "id": "p07-workload-series",
+                "name": "Protected workload index",
+                "values": [
+                  100,
+                  104,
+                  108,
+                  111,
+                  116,
+                  120,
+                  123,
+                  127
+                ],
+                "color": {
+                  "token": "signal"
+                },
+                "stroke": {
+                  "color": {
+                    "token": "signal"
+                  },
+                  "width": 3,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "marker": "circle"
+              }
+            ]
+          }
+        },
+        {
+          "id": "p07-start-label",
+          "type": "text",
+          "frame": {
+            "x": 68,
+            "y": 410,
+            "width": 110,
+            "height": 32
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Workload baseline"
+          },
+          "text": "100\nbaseline index",
+          "styleRef": "body"
+        },
+        {
+          "id": "p07-end-label",
+          "type": "text",
+          "frame": {
+            "x": 748,
+            "y": 410,
+            "width": 164,
+            "height": 42
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Workload final index"
+          },
+          "text": "+27%\nfinal workload index 127",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 13,
+              "bold": true,
+              "color": {
+                "token": "decision"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        }
+      ],
+      "animations": [
+        {
+          "id": "p07-line-reveal",
+          "target": "p07-chart",
+          "phase": "entrance",
+          "effect": "wipe",
+          "direction": "right",
+          "start": "afterPrevious",
+          "durationMs": 700,
+          "delayMs": 80,
+          "chartBuild": "category-element",
+          "staggerMs": 80,
+          "animateChartBackground": false
+        }
+      ]
+    },
+    {
+      "id": "page-08-confidence",
+      "name": "Effect and uncertainty",
+      "role": "Show the effect estimate, confidence interval, and preset threshold",
+      "claim": "The illustrative 95% confidence interval excludes zero and clears the preset gate.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "Name uncertainty before the decision. The interval is illustrative, not an inferred operational result.",
+      "elements": [
+        {
+          "id": "p08-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "EFFECT ESTIMATE · UNCERTAINTY BEFORE DECISION",
+            "source": "Source · Synthetic OfficeKit calibration ledger · illustrative 95% CI",
+            "folio": "08 / 10"
+          }
+        },
+        {
+          "id": "p08-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Confidence interval conclusion"
+          },
+          "text": "The effect clears zero by 18 hours at the conservative bound",
+          "styleRef": "title"
+        },
+        {
+          "id": "p08-treatment",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 142,
+            "width": 220,
+            "height": 86
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Treatment summary"
+          },
+          "text": "TREATMENT\n3,842 person-weeks\n14.8% weekly participation",
+          "styleRef": "body"
+        },
+        {
+          "id": "p08-control",
+          "type": "text",
+          "frame": {
+            "x": 692,
+            "y": 142,
+            "width": 220,
+            "height": 86
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Control summary"
+          },
+          "text": "CONTROL\n3,915 person-weeks\n11.2% weekly participation",
+          "styleRef": "body"
+        },
+        {
+          "id": "p08-estimate",
+          "type": "text",
+          "frame": {
+            "x": 344,
+            "y": 132,
+            "width": 272,
+            "height": 74
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Effect estimate"
+          },
+          "text": "−26 h",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 38,
+              "color": {
+                "token": "signal"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p08-axis",
+          "type": "shape",
+          "frame": {
+            "x": 250,
+            "y": 298,
+            "width": 460,
+            "height": 2
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "p08-zero",
+          "type": "shape",
+          "frame": {
+            "x": 650,
+            "y": 246,
+            "width": 2,
+            "height": 106
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Zero effect threshold"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            }
+          }
+        },
+        {
+          "id": "p08-ci",
+          "type": "shape",
+          "frame": {
+            "x": 334,
+            "y": 292,
+            "width": 176,
+            "height": 10
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Illustrative confidence interval from minus 34 to minus 18 hours"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          }
+        },
+        {
+          "id": "p08-ci-left",
+          "type": "shape",
+          "frame": {
+            "x": 332,
+            "y": 278,
+            "width": 3,
+            "height": 38
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          }
+        },
+        {
+          "id": "p08-ci-right",
+          "type": "shape",
+          "frame": {
+            "x": 508,
+            "y": 278,
+            "width": 3,
+            "height": 38
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          }
+        },
+        {
+          "id": "p08-marker",
+          "type": "shape",
+          "frame": {
+            "x": 414,
+            "y": 286,
+            "width": 22,
+            "height": 22
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Point estimate minus 26 hours"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper"
+              }
+            },
+            "stroke": {
+              "color": {
+                "token": "signal"
+              },
+              "width": 3
+            }
+          }
+        },
+        {
+          "id": "p08-ci-label",
+          "type": "text",
+          "frame": {
+            "x": 318,
+            "y": 326,
+            "width": 208,
+            "height": 28
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Confidence interval label"
+          },
+          "text": "95% CI  −34 h to −18 h",
+          "styleRef": "body"
+        },
+        {
+          "id": "p08-zero-label",
+          "type": "text",
+          "frame": {
+            "x": 630,
+            "y": 360,
+            "width": 108,
+            "height": 26
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Zero threshold label"
+          },
+          "text": "0 · no effect",
+          "styleRef": "body"
+        },
+        {
+          "id": "p08-read-field",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 410,
+            "width": 864,
+            "height": 58
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Decision read-through"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper-alt"
+              }
+            }
+          },
+          "text": "READ-THROUGH  ·  The full illustrative interval stays on the improvement side of zero; the conservative bound clears the gate by 18 hours.",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 16,
+              "top": 8,
+              "right": 16,
+              "bottom": 8
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "page-09-gates",
+      "name": "Decision gates",
+      "role": "Translate results into five explicit gates and one reversible action",
+      "claim": "All five illustrative gates pass, supporting a two-wave expansion rather than a full rollout.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "paper"
+        }
+      },
+      "notes": "Move left to right. Each gate is a necessary condition; none is sufficient alone.",
+      "elements": [
+        {
+          "id": "p09-furniture",
+          "type": "component",
+          "frame": {
+            "x": 0,
+            "y": 0,
+            "width": 960,
+            "height": 540
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Shared page furniture"
+          },
+          "component": "ledger-furniture",
+          "arguments": {
+            "kicker": "BOARD DECISION · FIVE GATES BEFORE SCALE",
+            "source": "Source · Synthetic OfficeKit calibration ledger · preregistered gate results",
+            "folio": "09 / 10"
+          }
+        },
+        {
+          "id": "p09-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 58,
+            "width": 864,
+            "height": 52
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Decision conclusion"
+          },
+          "text": "Scale in two waves—but only while all five gates remain green",
+          "styleRef": "title"
+        },
+        {
+          "id": "p09-baseline",
+          "type": "shape",
+          "frame": {
+            "x": 72,
+            "y": 240,
+            "width": 760,
+            "height": 2
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "muted"
+              }
+            }
+          }
+        },
+        {
+          "id": "p09-gate-1",
+          "type": "shape",
+          "frame": {
+            "x": 72,
+            "y": 210,
+            "width": 56,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Participation gate passed"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "01",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p09-label-1",
+          "type": "text",
+          "frame": {
+            "x": 54,
+            "y": 282,
+            "width": 96,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Participation gate result"
+          },
+          "text": "Participation\n14.8% > 10%",
+          "styleRef": "body"
+        },
+        {
+          "id": "p09-gate-2",
+          "type": "shape",
+          "frame": {
+            "x": 232,
+            "y": 210,
+            "width": 56,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Impact gate passed"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "02",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p09-label-2",
+          "type": "text",
+          "frame": {
+            "x": 214,
+            "y": 282,
+            "width": 96,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Impact gate result"
+          },
+          "text": "Impact\nCI excludes 0",
+          "styleRef": "body"
+        },
+        {
+          "id": "p09-gate-3",
+          "type": "shape",
+          "frame": {
+            "x": 392,
+            "y": 210,
+            "width": 56,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Workload gate passed"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "03",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p09-label-3",
+          "type": "text",
+          "frame": {
+            "x": 374,
+            "y": 282,
+            "width": 96,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Workload gate result"
+          },
+          "text": "Workload\n+27% growth",
+          "styleRef": "body"
+        },
+        {
+          "id": "p09-gate-4",
+          "type": "shape",
+          "frame": {
+            "x": 552,
+            "y": 210,
+            "width": 56,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Severity gate passed"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "04",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p09-label-4",
+          "type": "text",
+          "frame": {
+            "x": 534,
+            "y": 282,
+            "width": 96,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Severity gate result"
+          },
+          "text": "Severity\nno rebound",
+          "styleRef": "body"
+        },
+        {
+          "id": "p09-gate-5",
+          "type": "shape",
+          "frame": {
+            "x": 712,
+            "y": 210,
+            "width": 56,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Compliance gate passed"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "signal"
+              }
+            }
+          },
+          "text": "05",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "middle"
+          }
+        },
+        {
+          "id": "p09-label-5",
+          "type": "text",
+          "frame": {
+            "x": 694,
+            "y": 282,
+            "width": 96,
+            "height": 56
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Compliance gate result"
+          },
+          "text": "Compliance\n98.6% > 95%",
+          "styleRef": "body"
+        },
+        {
+          "id": "p09-decision",
+          "type": "shape",
+          "frame": {
+            "x": 828,
+            "y": 190,
+            "width": 84,
+            "height": 96
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Two-wave rollout decision"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "flowChartProcess"
+          },
+          "styleRef": "decision-field",
+          "text": "TWO-WAVE\nROLLOUT",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 11,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text"
+          }
+        },
+        {
+          "id": "p09-decision-link",
+          "type": "connector",
+          "frame": {
+            "x": 768,
+            "y": 228,
+            "width": 60,
+            "height": 20
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "All five gates lead to staged rollout"
+          },
+          "connectorType": "straight",
+          "from": {
+            "element": "p09-gate-5",
+            "anchor": "right"
+          },
+          "to": {
+            "element": "p09-decision",
+            "anchor": "left"
+          },
+          "stroke": {
+            "color": {
+              "token": "decision"
+            },
+            "width": 2,
+            "dash": "solid"
+          },
+          "endArrow": "triangle"
+        },
+        {
+          "id": "p09-stop-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 390,
+            "width": 864,
+            "height": 66
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Rollout stop rule"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper-alt"
+              }
+            }
+          },
+          "text": "STOP RULE  ·  Pause the next wave if any gate fails for two consecutive measurement windows; investigate before changing thresholds.",
+          "textStyle": {
+            "defaultText": {
+              "font": "sans",
+              "size": 12,
+              "bold": true,
+              "color": {
+                "token": "ink"
+              }
+            },
+            "verticalAlignment": "middle",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 18,
+              "top": 8,
+              "right": 18,
+              "bottom": 8
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "page-10-handoff",
+      "name": "Reproducibility handoff",
+      "role": "Close with action, limits, and the audit trail",
+      "claim": "The decision is reversible because the method, limits, and source boundary remain visible.",
+      "background": {
+        "type": "solid",
+        "color": {
+          "token": "ink"
+        }
+      },
+      "notes": "Close on the next action and the three conditions that preserve interpretability.",
+      "elements": [
+        {
+          "id": "p10-kicker",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 28,
+            "width": 560,
+            "height": 18
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Closing section label"
+          },
+          "text": "DECISION RECORD · REPRODUCIBILITY HANDOFF",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 9,
+              "bold": true,
+              "color": {
+                "token": "signal-soft"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p10-title",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 86,
+            "width": 700,
+            "height": 112
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Closing decision"
+          },
+          "text": "Approve two bounded waves—\nkeep the same evidence gates",
+          "style": {
+            "defaultText": {
+              "font": "serif",
+              "size": 34,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p10-decision-rule",
+          "type": "shape",
+          "frame": {
+            "x": 48,
+            "y": 230,
+            "width": 36,
+            "height": 4
+          },
+          "accessibility": {
+            "decorative": true
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "decision"
+              }
+            }
+          }
+        },
+        {
+          "id": "p10-action",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 250,
+            "width": 430,
+            "height": 138
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Rollout action"
+          },
+          "text": "NEXT ACTION\nWave 1 · 12 additional sites\nWave 2 · only after two complete windows\nOwner · Reliability operations\nReview · board checkpoint after each wave",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 13,
+              "color": {
+                "token": "white"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p10-limit-field",
+          "type": "shape",
+          "frame": {
+            "x": 574,
+            "y": 230,
+            "width": 338,
+            "height": 190
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Interpretation limits"
+          },
+          "geometry": {
+            "kind": "preset",
+            "preset": "rect"
+          },
+          "style": {
+            "fill": {
+              "type": "solid",
+              "color": {
+                "token": "paper"
+              }
+            }
+          }
+        },
+        {
+          "id": "p10-limits",
+          "type": "text",
+          "frame": {
+            "x": 598,
+            "y": 252,
+            "width": 290,
+            "height": 146
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Interpretation limits"
+          },
+          "text": "KEEP INTERPRETABILITY\n01 · preserve assignment strata\n02 · preserve severity taxonomy\n03 · preserve preregistered gates\n\nDo not tune thresholds after seeing a wave.",
+          "styleRef": "body"
+        },
+        {
+          "id": "p10-source",
+          "type": "text",
+          "frame": {
+            "x": 48,
+            "y": 486,
+            "width": 780,
+            "height": 26
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Synthetic source boundary"
+          },
+          "text": "SOURCE BOUNDARY · Entire deck uses synthetic OfficeKit calibration data generated 2026-08-30. Replace before external use.",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 8,
+              "color": {
+                "token": "signal-soft"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        },
+        {
+          "id": "p10-folio",
+          "type": "text",
+          "frame": {
+            "x": 858,
+            "y": 486,
+            "width": 54,
+            "height": 18
+          },
+          "accessibility": {
+            "decorative": false,
+            "description": "Page number"
+          },
+          "text": "10 / 10",
+          "style": {
+            "defaultText": {
+              "font": "sans",
+              "size": 8,
+              "color": {
+                "token": "signal-soft"
+              }
+            },
+            "verticalAlignment": "top",
+            "autoFit": "shrink-text",
+            "margins": {
+              "left": 0,
+              "top": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "section-frame",
+      "name": "Decision frame",
+      "pages": [
+        "page-01-cover",
+        "page-02-hypothesis"
+      ]
+    },
+    {
+      "id": "section-method",
+      "name": "Method",
+      "pages": [
+        "page-03-method-tree",
+        "page-04-design-table",
+        "page-05-timeline"
+      ]
+    },
+    {
+      "id": "section-evidence",
+      "name": "Evidence",
+      "pages": [
+        "page-06-bars",
+        "page-07-line",
+        "page-08-confidence"
+      ]
+    },
+    {
+      "id": "section-decision",
+      "name": "Decision",
+      "pages": [
+        "page-09-gates",
+        "page-10-handoff"
+      ]
+    }
+  ],
+  "customShows": [
+    {
+      "id": "show-board",
+      "name": "Board review",
+      "pages": [
+        "page-01-cover",
+        "page-02-hypothesis",
+        "page-04-design-table",
+        "page-06-bars",
+        "page-08-confidence",
+        "page-09-gates",
+        "page-10-handoff"
+      ]
+    }
+  ],
+  "comments": [
+    {
+      "id": "comment-source-boundary",
+      "page": "page-06-bars",
+      "target": "p06-chart",
+      "author": "OfficeKit reference",
+      "text": "Replace every synthetic value and re-run review before external use.",
+      "createdAt": "2026-08-30T00:00:00Z",
+      "resolved": false,
+      "position": {
+        "x": 692,
+        "y": 124
+      }
+    }
+  ]
+}
