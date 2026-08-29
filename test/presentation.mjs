@@ -3533,6 +3533,34 @@ const opaqueGroupLineRoundTripLeaves = opaqueGroupLineRoundTrip.inspect({ includ
   .filter((record) => record.kind === "nativeLeaf");
 assert.equal(opaqueGroupLineRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupLineLeaf.nativeLeafIndex)?.value, "#c3b2a1");
 
+const opaqueGroupWidthPresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupWidth = itemByName(opaqueGroupWidthPresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupWidthLeaves = opaqueGroupWidthPresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupWidth.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupWidthLeaf = opaqueGroupWidthLeaves.find((record) => record.leafKind === "lineWidthEmu");
+assert.ok(opaqueGroupWidthLeaf, "opaque groups should expose an unambiguous descendant line width leaf");
+assert.equal(opaqueGroupWidthLeaf.value, 25400);
+opaqueGroupWidthPresentation.editNativeLeaf(opaqueGroupWidthLeaf.targetId, opaqueGroupWidthLeaf.leafId, {
+  expectedHash: opaqueGroupWidthLeaf.expectedHash,
+  value: 38100,
+});
+const opaqueGroupWidthOutput = await PresentationFile.exportPptx(opaqueGroupWidthPresentation);
+const opaqueGroupWidthOperation = opaqueGroupWidthOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupWidthOperation.leafKind, "lineWidthEmu");
+assert.equal(opaqueGroupWidthOperation.nativeLeafIndex ?? 0, opaqueGroupWidthLeaf.nativeLeafIndex);
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupWidthOutput, opaqueGroupWidthOperation);
+const opaqueGroupWidthRoundTrip = await PresentationFile.importPptx(opaqueGroupWidthOutput);
+const opaqueGroupWidthRoundTripObject = itemByName(opaqueGroupWidthRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupWidthRoundTripLeaves = opaqueGroupWidthRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupWidthRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupWidthRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupWidthLeaf.nativeLeafIndex)?.value, 38100);
+
 // Office 2019+ decorative classification is one presence-aware accessibility
 // value across every modeled drawing object. Explicit false remains distinct
 // from absence, and true cannot coexist with title/description.

@@ -3999,6 +3999,19 @@ function createPresentationNativeLeafCapability(presentation, state) {
             value: sourceLeaf.value,
             details: { nativeLeafIndex: index },
             normalize(next) {
+              if (leafKind === "lineWidthEmu") {
+                if (typeof next !== "string" && typeof next !== "number") {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line width requires a non-negative integer EMU value.");
+                }
+                const token = String(next).trim();
+                let integer;
+                try { integer = BigInt(token); }
+                catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line width requires a non-negative integer EMU value."); }
+                if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line width is outside the safe EMU range.");
+                }
+                return { raw: String(integer), publicValue: Number(integer) };
+              }
               if (leafKind === "fillScheme" || leafKind === "lineScheme") {
                 const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
                 if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style scheme native leaf requires a supported theme color token.");
@@ -4010,7 +4023,9 @@ function createPresentationNativeLeafCapability(presentation, state) {
               return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
             },
             isNoop(next) {
-              return leafKind === "fillScheme" || leafKind === "lineScheme"
+              return leafKind === "lineWidthEmu"
+                ? next === sourceLeaf.expectedValue
+                : leafKind === "fillScheme" || leafKind === "lineScheme"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },

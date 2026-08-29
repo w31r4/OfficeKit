@@ -154,13 +154,15 @@ function nativeLineEditableFields(leaves) {
 
 // A group that the semantic importer cannot model can still expose a tiny,
 // source-bound style surface. Walk only direct PresentationML children and
-// issue leaves for unambiguous solid fills and outline colors on descendant
+// issue leaves for unambiguous solid fills, outline colors, and canonical
+// outline widths on descendant
 // p:sp nodes. This keeps the group topology, effects, and every unsupported
 // paint opaque while making common theme-driven template shapes reusable.
 function deriveNativeStyleLeaves(rawXml, nativeKind) {
   if (nativeKind !== "group") return undefined;
   const fillLeaves = [];
   const lineLeaves = [];
+  const lineWidthLeaves = [];
   const colorLeaf = (solid, prefix) => {
     const colors = directPresentationChildren(solid.xml, "solidFill")
       .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
@@ -194,6 +196,15 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
       }
       const outlines = directPresentationChildren(shapeProperties.xml, "spPr").filter((entry) => entry.localName === "ln");
       if (outlines.length !== 1) continue;
+      const lineOpen = /^<[^>]+>/u.exec(outlines[0].xml)?.[0];
+      const widthAttributes = nativeTagAttributes(lineOpen || "")
+        .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "w");
+      if (widthAttributes.length === 1 && /^(?:0|[1-9]\d*)$/u.test(widthAttributes[0].value)) {
+        const width = Number(widthAttributes[0].value);
+        if (Number.isSafeInteger(width) && width <= MAX_NATIVE_LINE_WIDTH_EMU) {
+          lineWidthLeaves.push({ leafKind: "lineWidthEmu", value: widthAttributes[0].value });
+        }
+      }
       const lineFills = directPresentationChildren(outlines[0].xml, "ln")
         .filter((entry) => ["noFill", "solidFill", "gradFill", "blipFill", "pattFill"].includes(entry.localName));
       if (lineFills.length !== 1 || lineFills[0].localName !== "solidFill") continue;
@@ -202,7 +213,8 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
     }
   };
   visitGroup(String(rawXml || ""));
-  const leaves = [...fillLeaves, ...lineLeaves].map((leaf, nativeLeafIndex) => ({
+  // Keep prior color indexes stable; append line widths as a separate family.
+  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves].map((leaf, nativeLeafIndex) => ({
     nativeLeafIndex,
     ...leaf,
     expectedHash: sha256(leaf.value),
@@ -214,7 +226,9 @@ function nativeStyleRecord(leaves) {
   return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
     nativeLeafIndex: leaf.nativeLeafIndex,
     leafKind: leaf.leafKind,
-    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme"
+      ? leaf.value
+      : leaf.leafKind === "lineWidthEmu" ? Number(leaf.value) : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -840,6 +854,16 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native style leaf ${index}.`);
       }
       const leafKind = this._nativeStyleBinding[index].leafKind;
+      if (leafKind === "lineWidthEmu") {
+        const token = String(value ?? "").trim();
+        if (!/^(?:0|[1-9]\d*)$/u.test(token)) throw new RangeError("Native style line width requires a non-negative integer EMU value.");
+        const width = Number(token);
+        if (!Number.isSafeInteger(width) || width > MAX_NATIVE_LINE_WIDTH_EMU) {
+          throw new RangeError("Native style line width is outside the safe EMU range.");
+        }
+        this._nativeStyleLeaves[index].value = token;
+        return;
+      }
       if (leafKind === "fillScheme" || leafKind === "lineScheme") {
         const token = nativeSchemeColorToken(String(value ?? "").trim());
         if (!token) throw new RangeError("Native style scheme color must be a supported theme token.");

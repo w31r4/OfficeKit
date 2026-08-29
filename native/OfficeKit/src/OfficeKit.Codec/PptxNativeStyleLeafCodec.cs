@@ -20,6 +20,7 @@ internal static class PptxNativeStyleLeafCodec
 
         var fillLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineWidthLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         foreach (var shape in group.Descendants<P.Shape>())
         {
             var properties = shape.ShapeProperties;
@@ -32,6 +33,8 @@ internal static class PptxNativeStyleLeafCodec
 
             var outlines = properties.Elements<A.Outline>().ToArray();
             if (outlines.Length != 1) continue;
+            if (TryReadWidth(outlines[0], out var widthValue))
+                lineWidthLeaves.Add(("lineWidthEmu", widthValue, shape));
             var lineFills = outlines[0].ChildElements
                 .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
                 .ToArray();
@@ -39,7 +42,10 @@ internal static class PptxNativeStyleLeafCodec
                 lineLeaves.Add((lineKind, lineValue, shape));
         }
 
-        var described = fillLeaves.Concat(lineLeaves).ToArray();
+        // Keep existing fill/line color indexes stable; append widths as a
+        // separate family so adding this capability cannot retarget a prior
+        // source-bound leaf.
+        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).ToArray();
         if (described.Length == 0 || described.Length > MaxLeaves) return false;
         leaves = described.Select((item, index) => new PptxNativeStyleLeaf(checked((uint)index), item.Kind, item.Value, item.Shape)).ToArray();
         return true;
@@ -76,5 +82,25 @@ internal static class PptxNativeStyleLeafCodec
             return true;
         }
         return false;
+    }
+
+    private static bool TryReadWidth(A.Outline outline, out string value)
+    {
+        value = string.Empty;
+        var attributes = outline.GetAttributes()
+            .Where(attribute => attribute.LocalName == "w")
+            .ToArray();
+        if (attributes.Length != 1 || !ulong.TryParse(
+                attributes[0].Value,
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var width) || width > 20_116_800)
+            return false;
+        // Require the source token to be canonical so expectedHash and the
+        // token splice remain deterministic across import/round-trip.
+        var canonical = width.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (!string.Equals(attributes[0].Value, canonical, StringComparison.Ordinal)) return false;
+        value = canonical;
+        return true;
     }
 }

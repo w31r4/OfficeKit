@@ -425,7 +425,7 @@ internal static partial class PptxEditPlanCodec
             }
             else if (element is P.GroupShape group &&
                      projectedElement.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
-                     (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme") &&
+                     (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu") &&
                      PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var styleLeaf) &&
                      styleLeaf.Kind == LeafKind(operation))
             {
@@ -815,7 +815,7 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} nativeText target is not a bounded DrawingML text leaf.", operation.SlidePartPath);
             return leaf.Text;
         }
-        if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme") && element is P.GroupShape group)
+        if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu") && element is P.GroupShape group)
         {
             if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} target is not a bounded opaque-group style leaf.", operation.SlidePartPath);
@@ -865,7 +865,7 @@ internal static partial class PptxEditPlanCodec
     {
         var operation = proof.Operation;
         var owner = elementRange.LocalName;
-        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme"))
+        if (owner == "grpSp" && (LeafKind(operation) is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu"))
             return CompileNativeStyleXmlPatch(xml, elementRange, proof);
         var properties = DirectChildRange(xml, elementRange, owner, "spPr", operation);
         XmlRange leaf;
@@ -937,19 +937,20 @@ internal static partial class PptxEditPlanCodec
         var style = styles[(int)operation.NativeLeafIndex];
         if (style.Kind != LeafKind(operation))
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} native style leaf kind changed after planning.", operation.SlidePartPath);
-        var fragment = xml[style.Color.Start..style.Color.End];
+        var fragment = xml[style.Range.Start..style.Range.End];
         var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
-            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == style.Color.LocalName) ??
-            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} native style color tag was not found.", operation.SlidePartPath);
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == style.Range.LocalName) ??
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} native style tag was not found.", operation.SlidePartPath);
+        var attributeName = style.Kind == "lineWidthEmu" ? "w" : "val";
         var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
-            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "val")
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == attributeName)
             .ToArray();
         if (attributes.Length != 1)
-            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} native style color attribute is missing or ambiguous.", operation.SlidePartPath);
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} native style attribute is missing or ambiguous.", operation.SlidePartPath);
         var valueGroup = attributes[0].Groups["value"];
         if (!LeafValuesEqual(valueGroup.Value, operation.ExpectedValue, style.Kind))
             throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw native style value does not match the expected value.", operation.SlidePartPath);
-        var start = style.Color.Start + startTag.Index + valueGroup.Index;
+        var start = style.Range.Start + startTag.Index + valueGroup.Index;
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
@@ -979,12 +980,13 @@ internal static partial class PptxEditPlanCodec
             .ToArray();
     }
 
-    private sealed record NativeStyleXmlRange(string Kind, XmlRange Color);
+    private sealed record NativeStyleXmlRange(string Kind, XmlRange Range);
 
     private static IReadOnlyList<NativeStyleXmlRange> NativeStyleXmlLeaves(string xml, XmlRange groupRange)
     {
         var fillLeaves = new List<NativeStyleXmlRange>();
         var lineLeaves = new List<NativeStyleXmlRange>();
+        var lineWidthLeaves = new List<NativeStyleXmlRange>();
         var fillNames = new HashSet<string>(StringComparer.Ordinal) { "noFill", "solidFill", "gradFill", "blipFill", "pattFill" };
 
         void VisitGroup(XmlRange current)
@@ -1004,16 +1006,18 @@ internal static partial class PptxEditPlanCodec
                     fillLeaves.Add(fill);
                 var outlines = DirectChildRanges(xml, properties[0]).Where(entry => entry.LocalName == "ln").ToArray();
                 if (outlines.Length != 1) continue;
+                if (TryNativeStyleXmlWidth(xml, outlines[0], out var width))
+                    lineWidthLeaves.Add(width);
                 var lineFills = DirectChildRanges(xml, outlines[0]).Where(entry => fillNames.Contains(entry.LocalName)).ToArray();
                 if (lineFills.Length == 1 && lineFills[0].LocalName == "solidFill" && TryNativeStyleXmlColor(xml, lineFills[0], "line", out var line))
                     lineLeaves.Add(line);
-                if (fillLeaves.Count + lineLeaves.Count > 4_096)
+                if (fillLeaves.Count + lineLeaves.Count + lineWidthLeaves.Count > 4_096)
                     throw new CodecException("presentation_item_budget_exceeded", "PPTX native opaque-group style leaves exceed the bounded style profile.");
             }
         }
 
         VisitGroup(groupRange);
-        return fillLeaves.Concat(lineLeaves).ToArray();
+        return fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).ToArray();
     }
 
     private static bool TryNativeStyleXmlColor(string xml, XmlRange solidFill, string prefix, out NativeStyleXmlRange color)
@@ -1034,6 +1038,31 @@ internal static partial class PptxEditPlanCodec
             return true;
         }
         return false;
+    }
+
+    private static bool TryNativeStyleXmlWidth(string xml, XmlRange outline, out NativeStyleXmlRange width)
+    {
+        width = null!;
+        var fragment = xml[outline.Start..outline.End];
+        var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == "ln");
+        if (startTag is null) return false;
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "w")
+            .ToArray();
+        if (attributes.Length != 1 || !ulong.TryParse(
+                attributes[0].Groups["value"].Value,
+                System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var parsed) || parsed > 20_116_800)
+            return false;
+        var canonical = parsed.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (!string.Equals(attributes[0].Groups["value"].Value, canonical, StringComparison.Ordinal)) return false;
+        width = new NativeStyleXmlRange("lineWidthEmu", new XmlRange(
+            outline.Start + startTag.Index,
+            outline.Start + startTag.Index + startTag.Length,
+            "ln"));
+        return true;
     }
 
     private static string? NativeStyleXmlAttribute(string xml, XmlRange range)

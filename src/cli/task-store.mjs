@@ -944,8 +944,9 @@ function validateTaskEditPlan(value, outputSha256) {
   const requiredChangedParts = new Set();
   const operationIds = new Set();
   const nativeLeafKinds = new Set([
-    "text", "tableCellText", "fillRgb", "lineRgb", "leftEmu", "topEmu", "widthEmu", "heightEmu",
-    "imageAsset", "chartTitleText", "chartDataValue", "diagramText", "deleteElement",
+    "text", "tableCellText", "nativeText", "fillRgb", "fillScheme", "lineRgb", "lineScheme", "lineWidthEmu",
+    "leftEmu", "topEmu", "widthEmu", "heightEmu", "imageAsset", "imageSvgAsset", "chartTitleText", "chartDataValue",
+    "diagramText", "deleteElement",
   ]);
   for (const operation of value.operations) {
     if (!operation || typeof operation !== "object" || Array.isArray(operation)) {
@@ -966,6 +967,12 @@ function validateTaskEditPlan(value, outputSha256) {
         !nativeLeafKinds.has(leafKind) ||
         typeof operation.expectedValue !== "string" || typeof operation.value !== "string" || operation.expectedValue === operation.value) {
       throw taskError("invalid-edit-plan", "Artifact Edit Plan operation is invalid.");
+    }
+    const styleLeaf = new Set(["fillRgb", "fillScheme", "lineRgb", "lineScheme", "lineWidthEmu"]).has(leafKind);
+    if (styleLeaf
+      ? !Number.isSafeInteger(operation.nativeLeafIndex) || operation.nativeLeafIndex < 0
+      : operation.nativeLeafIndex !== undefined) {
+      throw taskError("invalid-edit-plan", "Artifact Edit Plan native style-leaf binding is invalid.");
     }
     const footprint = operation.footprint;
     if (!footprint || !exactObjectKeys(footprint, TASK_FOOTPRINT_KEYS) ||
@@ -1030,7 +1037,7 @@ function safeEmbeddedWorksheetPartPath(value) {
 const TASK_OPERATION_COMMON_KEYS = new Set([
   "operationId", "slideId", "slidePartPath", "expectedSlideSha256", "targetId", "shapeTreeIndex", "shapeTreePath",
   "leafKind", "expectedElementSha256", "expectedSemanticSha256", "textLeafIndex", "expectedTextSha256",
-  "expectedValue", "value", "footprint",
+  "expectedValue", "value", "nativeLeafIndex", "footprint",
 ]);
 const TASK_OPERATION_DEPENDENT_KEYS = ["targetPartPath", "expectedTargetPartSha256", "relationshipId"];
 const TASK_OPERATION_CHART_DATA_KEYS = [

@@ -49,6 +49,13 @@ and six source-component continuations. A `blocked` status means that the source
 sample does not contain a safe leaf of that kind; it is retained as evidence
 rather than treated as a skipped or successful edit.
 
+The follow-up opaque-group style pass also selected one canonical descendant
+outline width in each of FROSTE, MMS, Data Particles, and Minimal Business.
+Each edit changed only its target `ppt/slides/slideN.xml` part and re-imported
+the requested EMU width. Business Infographic and Professional Minimalist did
+not expose a safe group-width target in this focused pass; this does not alter
+the frozen runner totals above.
+
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
 the same six inputs and a bounded placement edit. It includes per-slide PNG
 hashes so non-target pages can be checked without storing the rendered images.

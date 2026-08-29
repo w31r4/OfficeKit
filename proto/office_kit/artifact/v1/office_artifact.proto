@@ -153,6 +153,7 @@ message PresentationEditOperation {
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, tableCellText, fillRgb, fillScheme, lineRgb, lineScheme,
+  // lineWidthEmu,
   // leftEmu, topEmu,
   // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
   // diagramText, deleteElement.

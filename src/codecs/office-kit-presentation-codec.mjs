@@ -126,7 +126,8 @@ function presentationEditPlanMetadata(editPlan, result) {
         expectedValue: operation.expectedValue,
         value: operation.value,
         ...(operation.leafKind === "fillRgb" || operation.leafKind === "fillScheme" ||
-            operation.leafKind === "lineRgb" || operation.leafKind === "lineScheme"
+            operation.leafKind === "lineRgb" || operation.leafKind === "lineScheme" ||
+            operation.leafKind === "lineWidthEmu"
           ? { nativeLeafIndex: operation.nativeLeafIndex }
           : {}),
         ...(operation.targetPartPath ? {
