@@ -510,6 +510,12 @@
           },
           "asset": "evidence-mark",
           "fit": "contain",
+          "crop": {
+            "left": 0.04,
+            "top": 0.03,
+            "right": 0.02,
+            "bottom": 0.01
+          },
           "opacity": 0.92,
           "mask": {
             "kind": "preset",

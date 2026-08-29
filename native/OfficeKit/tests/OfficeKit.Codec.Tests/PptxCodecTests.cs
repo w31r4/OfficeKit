@@ -149,13 +149,30 @@ public sealed class PptxCodecTests
         var importedImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
         Assert.Equal(92_000U, importedImage.OpacityThousandthPercent);
+        Assert.Equal(4_000, importedImage.Crop.LeftThousandthPercent);
+        Assert.Equal(3_000, importedImage.Crop.TopThousandthPercent);
+        Assert.Equal(2_000, importedImage.Crop.RightThousandthPercent);
+        Assert.Equal(1_000, importedImage.Crop.BottomThousandthPercent);
         Assert.Equal("ellipse", importedImage.MaskPreset);
         Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
+        Assert.Equal("Rising evidence line", importedImage.AltText);
+        var importedClaim = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
+            element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal)).Shape;
+        Assert.Equal(2, Assert.Single(importedClaim.TextBody.Paragraphs).Runs.Count);
+        Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
+        Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
+        Assert.Equal("Main decision claim", importedClaim.Accessibility.Description);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
         Assert.False(importedChart.DataLabels.ShowSeriesName);
+        Assert.Equal("Incident hours decline from 69 to 43 while protected workload index rises from 100 to 127.", importedChart.Accessibility.Description);
+        var importedTable = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Table).Table;
+        Assert.Equal("Pilot method table", importedTable.Accessibility.Description);
+        Assert.Equal(3, importedTable.Rows.Count);
         Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Connector);
 
