@@ -22,7 +22,7 @@ The runner verifies the frozen source hashes, counts visible slide roots and
 their recursive group children, requires a byte-identical no-op export, builds a source-bound design profile,
 and performs one fresh text edit, placement edit, z-order edit, same-format image
 replacement, crop edit, and source-slide reuse per sample. It also probes
-bounded native text, fill, connector line color/width, direct run font size/family/bold/italic, SVG style, animated text,
+bounded native text, fill, connector line color/width/style/cap/join, direct run font size/family/bold/italic, SVG style, animated text,
 and table-cell leaves when the input exposes a safe target; an unavailable
 operation is reported as blocked rather than skipped silently. It re-imports
 every result and requires the expected mutation to stay within the target slide
@@ -43,7 +43,7 @@ editable leaves.
 
 The current six-sample pass exercises imported-edit paths across the corpus:
 six z-order edits, six image-crop edits, three bounded fill-color edits, four
-connector line-color edits, four connector line-width edits, five bounded direct
+connector line-color edits, four connector line-width edits, four bounded line-join edits, five bounded direct
 shape line-width edits, six explicit text-run font-size edits, six explicit
 text-run font-family edits, five explicit text-run bold/italic edits, one SVG style
 edit, one text edit on a slide with an existing animation graph, four table-cell
