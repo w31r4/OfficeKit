@@ -237,6 +237,23 @@ public sealed class PptxCodecTests
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
         }
+        var unnamedThirdPartySource = ReplaceZipText(thirdPartySource, "ppt/slides/slide1.xml", xml =>
+        {
+            var document = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+            document.Descendants().First(element => element.Name.LocalName == "cSld").Attribute("name")?.Remove();
+            return document.ToString(SaveOptions.DisableFormatting);
+        });
+        var unnamedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(unnamedThirdPartySource),
+            PresentationProgram = new PresentationProgramRequest(),
+        });
+        Assert.True(unnamedProjection.Ok, Diagnostics(unnamedProjection));
+        using (var unnamedJson = JsonDocument.Parse(unnamedProjection.PresentationProgram.ProgramJson.ToByteArray()))
+            Assert.False(unnamedJson.RootElement.GetProperty("pages")[0].TryGetProperty("name", out _));
         var repeatedProjection = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,

@@ -248,11 +248,11 @@ internal static partial class PpjPresentationProjector
         var page = new JsonObject
         {
             ["id"] = pageId,
-            ["name"] = string.IsNullOrWhiteSpace(slide.Name) ? null : slide.Name,
             ["role"] = "source continuation",
             ["elements"] = elements,
             ["nativeRef"] = NativeRef(context, $"page:{pageId}", pageHash, pageCapabilities),
         };
+        if (!string.IsNullOrWhiteSpace(slide.Name)) page["name"] = slide.Name;
         if (slide.HasHidden) page["hidden"] = slide.Hidden;
         if (!string.IsNullOrEmpty(slide.SpeakerNotes?.Text)) page["notes"] = slide.SpeakerNotes.Text;
         if (ProjectBackground(slide.Background, context) is { } background) page["background"] = background;
