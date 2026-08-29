@@ -67,6 +67,15 @@ focused contract also changes a `kern="1200"` token to `kern="1400"`, preserves
 an unrelated vendor attribute, and recovers the 14-point value. Inherited
 list-style kerning, placeholder-owned typography, malformed tokens, and
 transformed font graphs remain source-owned.
+Direct run baseline is exposed on ordinary non-placeholder runs as
+`fontBaselinePercent` for a canonical signed
+`a:rPr/@baseline` token. Public values are percentages while the source-bound
+operation splices the native thousandths-of-a-percent token and leaves the
+rest of the run intact. The FROSTE sample exposes 12 superscript leaves;
+changing one from 30% to -25% changes only `ppt/slides/slide1.xml` and
+recovers the new value after second import. Values outside +/-400%, inherited
+or end-paragraph styles, malformed tokens, and irregular font graphs remain
+source-owned.
 Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
 one bounded `a:pPr/@lvl` edit with second import. Because the current wire
 scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero
@@ -157,6 +166,11 @@ survive re-import with the target SlidePart as the declared footprint; endpoint
 width/length attributes are retained, while custom dash graphs, miter limits,
 missing/ambiguous paints, malformed or absent endpoints, effects, and other
 unsupported line graphs remain opaque.
+
+The imported style boundary also includes bounded direct run baseline leaves:
+`fontBaselinePercent` maps to a signed `a:rPr/@baseline` token in
+thousandths of a percent. It is source-bound and does not imply inherited or
+effect-bearing typography is editable.
 
 | Surface | Status | Boundary |
 | --- | --- | --- |
