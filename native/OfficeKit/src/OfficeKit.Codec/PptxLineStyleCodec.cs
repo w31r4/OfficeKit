@@ -125,6 +125,39 @@ internal static class PptxLineStyleCodec
         return token.Length > 0;
     }
 
+    // Source-bound joins are intentionally narrower than the full typed line
+    // profile: only one bare DrawingML join element is safe to token-splice.
+    // A miter limit, extra attributes, or child markup stays opaque.
+    internal static bool TryReadJoinLeaf(A.Outline? outline, out string join)
+    {
+        join = string.Empty;
+        if (outline is null) return false;
+        var joins = outline.ChildElements.Where(child => child is A.Round or A.LineJoinBevel or A.Miter).ToArray();
+        if (joins.Length != 1) return false;
+        var candidate = joins[0];
+        if (candidate.ChildElements.Any() || !HasOnlyAttributes(candidate)) return false;
+        join = candidate switch
+        {
+            A.Round => "round",
+            A.LineJoinBevel => "bevel",
+            A.Miter => "miter",
+            _ => string.Empty,
+        };
+        return join.Length > 0;
+    }
+
+    internal static bool TryJoinToken(string join, out string token)
+    {
+        token = join switch
+        {
+            "round" => "round",
+            "bevel" => "bevel",
+            "miter" => "miter",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
     internal static bool TryRead(A.Outline? outline, out Profile profile)
     {
         if (outline is null)

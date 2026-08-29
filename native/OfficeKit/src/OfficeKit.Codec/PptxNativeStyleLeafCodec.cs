@@ -23,6 +23,7 @@ internal static class PptxNativeStyleLeafCodec
         var lineWidthLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineStyleLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         var lineCapLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
+        var lineJoinLeaves = new List<(string Kind, string Value, P.Shape Shape)>();
         foreach (var shape in group.Descendants<P.Shape>())
         {
             var properties = shape.ShapeProperties;
@@ -41,6 +42,8 @@ internal static class PptxNativeStyleLeafCodec
                 lineStyleLeaves.Add(("lineStyle", styleValue, shape));
             if (TryReadCap(outlines[0], out var capValue))
                 lineCapLeaves.Add(("lineCap", capValue, shape));
+            if (TryReadJoin(outlines[0], out var joinValue))
+                lineJoinLeaves.Add(("lineJoin", joinValue, shape));
             var lineFills = outlines[0].ChildElements
                 .Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill)
                 .ToArray();
@@ -48,10 +51,10 @@ internal static class PptxNativeStyleLeafCodec
                 lineLeaves.Add((lineKind, lineValue, shape));
         }
 
-        // Keep existing fill/line color/width indexes stable; append the dash
-        // family so adding this capability cannot retarget a prior
+        // Keep existing fill/line color/width indexes stable; append each new
+        // style family so adding a capability cannot retarget a prior
         // source-bound leaf.
-        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).ToArray();
+        var described = fillLeaves.Concat(lineLeaves).Concat(lineWidthLeaves).Concat(lineStyleLeaves).Concat(lineCapLeaves).Concat(lineJoinLeaves).ToArray();
         if (described.Length == 0 || described.Length > MaxLeaves) return false;
         leaves = described.Select((item, index) => new PptxNativeStyleLeaf(checked((uint)index), item.Kind, item.Value, item.Shape)).ToArray();
         return true;
@@ -163,6 +166,19 @@ internal static class PptxNativeStyleLeafCodec
         }
         else return false;
         value = cap;
+        return true;
+    }
+
+    private static bool TryReadJoin(A.Outline outline, out string value)
+    {
+        value = string.Empty;
+        if (!PptxLineStyleCodec.TryReadJoinLeaf(outline, out var join)) return false;
+
+        // A join token only has a stable visible meaning on one simple solid
+        // outline paint. Keep effect-bearing and inherited line graphs opaque.
+        var fills = outline.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
+        if (fills.Length != 1 || fills[0] is not A.SolidFill solid || !TryReadColor(solid, "line", out _, out _)) return false;
+        value = join;
         return true;
     }
 }
