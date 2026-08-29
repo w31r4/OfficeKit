@@ -1001,6 +1001,43 @@ const textBodyInsetRoundTripLeaf = textBodyInsetRoundTrip.inspect({ includeNativ
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyInsetLeftEmu");
 assert.equal(textBodyInsetRoundTripLeaf.value, textBodyInsetNext);
 
+// Direct text-body wrapping is a source-bound token leaf. Only an explicit
+// square/none bodyPr value is issued; omitted or inherited wrapping remains
+// source-preserved rather than being synthesized by export. The shared
+// paragraph fixture already contains an explicit square value.
+const textBodyWrapAccessibilityFile = paragraphAlignmentAccessibilityFile;
+const textBodyWrapAccessibilityZip = await JSZip.loadAsync(textBodyWrapAccessibilityFile.bytes);
+const textBodyWrapAccessibilityXml = await textBodyWrapAccessibilityZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyWrapAccessibilityXml, /<a:bodyPr\b[^>]*\bwrap="square"/);
+const textBodyWrapImported = await PresentationFile.importPptx(textBodyWrapAccessibilityFile);
+const textBodyWrapShape = itemByName(textBodyWrapImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyWrapLeaf = textBodyWrapImported.inspect({ includeNativeLeaves: true, target: textBodyWrapShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyWrap");
+assert.ok(textBodyWrapLeaf, "source-bound shapes should expose direct text-body wrap leaves");
+assert.equal(textBodyWrapLeaf.value, "square");
+textBodyWrapImported.editNativeLeaf(textBodyWrapLeaf.targetId, textBodyWrapLeaf.leafId, {
+  expectedHash: textBodyWrapLeaf.expectedHash,
+  value: "none",
+});
+const textBodyWrapOutput = await PresentationFile.exportPptx(textBodyWrapImported);
+const textBodyWrapOperation = textBodyWrapOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyWrap");
+assert.ok(textBodyWrapOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyWrapAccessibilityFile, textBodyWrapOutput, textBodyWrapOperation);
+const textBodyWrapXml = await (await JSZip.loadAsync(textBodyWrapOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyWrapXml, /<a:bodyPr\b[^>]*\bwrap="none"/);
+assert.match(textBodyWrapXml, /fixture:opaque="kept"/);
+const textBodyWrapRoundTrip = await PresentationFile.importPptx(textBodyWrapOutput);
+const textBodyWrapRoundTripLeaf = textBodyWrapRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyWrapShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyWrap");
+assert.equal(textBodyWrapRoundTripLeaf.value, "none");
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
@@ -3623,6 +3660,7 @@ assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), 
   "textBodyInsetTopEmu",
   "textBodyInsetRightEmu",
   "textBodyInsetBottomEmu",
+  "textBodyWrap",
   "verticalAnchor",
   "fillRgb",
   "lineRgb",
