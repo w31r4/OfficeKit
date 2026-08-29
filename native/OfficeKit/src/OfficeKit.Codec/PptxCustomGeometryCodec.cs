@@ -23,6 +23,61 @@ internal static class PptxCustomGeometryCodec
     private const int MaxConnectionSites = 1_024;
     private const long MaxCoordinate = int.MaxValue;
     private const int FullTurnAngle = 21_600_000;
+    private static readonly IReadOnlyDictionary<string, A.ShapeTypeValues> PresetGeometry =
+        new Dictionary<string, A.ShapeTypeValues>(StringComparer.Ordinal)
+        {
+            ["rect"] = A.ShapeTypeValues.Rectangle,
+            ["textbox"] = A.ShapeTypeValues.Rectangle,
+            ["ellipse"] = A.ShapeTypeValues.Ellipse,
+            ["roundRect"] = A.ShapeTypeValues.RoundRectangle,
+            ["line"] = A.ShapeTypeValues.Line,
+            ["triangle"] = A.ShapeTypeValues.Triangle,
+            ["rightTriangle"] = A.ShapeTypeValues.RightTriangle,
+            ["diamond"] = A.ShapeTypeValues.Diamond,
+            ["parallelogram"] = A.ShapeTypeValues.Parallelogram,
+            ["trapezoid"] = A.ShapeTypeValues.Trapezoid,
+            ["pentagon"] = A.ShapeTypeValues.Pentagon,
+            ["hexagon"] = A.ShapeTypeValues.Hexagon,
+            ["heptagon"] = A.ShapeTypeValues.Heptagon,
+            ["octagon"] = A.ShapeTypeValues.Octagon,
+            ["chevron"] = A.ShapeTypeValues.Chevron,
+            ["homePlate"] = A.ShapeTypeValues.HomePlate,
+            ["pie"] = A.ShapeTypeValues.Pie,
+            ["arc"] = A.ShapeTypeValues.Arc,
+            ["donut"] = A.ShapeTypeValues.Donut,
+            ["blockArc"] = A.ShapeTypeValues.BlockArc,
+            ["heart"] = A.ShapeTypeValues.Heart,
+            ["lightningBolt"] = A.ShapeTypeValues.LightningBolt,
+            ["sun"] = A.ShapeTypeValues.Sun,
+            ["moon"] = A.ShapeTypeValues.Moon,
+            ["cloud"] = A.ShapeTypeValues.Cloud,
+            ["star4"] = A.ShapeTypeValues.Star4,
+            ["star5"] = A.ShapeTypeValues.Star5,
+            ["star6"] = A.ShapeTypeValues.Star6,
+            ["star8"] = A.ShapeTypeValues.Star8,
+            ["star10"] = A.ShapeTypeValues.Star10,
+            ["star12"] = A.ShapeTypeValues.Star12,
+            ["leftArrow"] = A.ShapeTypeValues.LeftArrow,
+            ["rightArrow"] = A.ShapeTypeValues.RightArrow,
+            ["upArrow"] = A.ShapeTypeValues.UpArrow,
+            ["downArrow"] = A.ShapeTypeValues.DownArrow,
+            ["leftRightArrow"] = A.ShapeTypeValues.LeftRightArrow,
+            ["upDownArrow"] = A.ShapeTypeValues.UpDownArrow,
+            ["quadArrow"] = A.ShapeTypeValues.QuadArrow,
+            ["bentArrow"] = A.ShapeTypeValues.BentArrow,
+            ["uturnArrow"] = A.ShapeTypeValues.UTurnArrow,
+            ["circularArrow"] = A.ShapeTypeValues.CircularArrow,
+            ["wedgeRoundRectCallout"] = A.ShapeTypeValues.WedgeRoundRectangleCallout,
+            ["wedgeEllipseCallout"] = A.ShapeTypeValues.WedgeEllipseCallout,
+            ["bracePair"] = A.ShapeTypeValues.BracePair,
+            ["bracketPair"] = A.ShapeTypeValues.BracketPair,
+            ["flowChartProcess"] = A.ShapeTypeValues.FlowChartProcess,
+            ["flowChartDecision"] = A.ShapeTypeValues.FlowChartDecision,
+            ["flowChartData"] = A.ShapeTypeValues.FlowChartInputOutput,
+            ["flowChartTerminator"] = A.ShapeTypeValues.FlowChartTerminator,
+            ["flowChartDocument"] = A.ShapeTypeValues.FlowChartDocument,
+            ["flowChartPreparation"] = A.ShapeTypeValues.FlowChartPreparation,
+        };
     private sealed class Profile
     {
         internal required A.PathList Paths { get; init; }
@@ -134,6 +189,8 @@ internal static class PptxCustomGeometryCodec
     {
         if (shape.Geometry != "custom")
         {
+            if (!PresetGeometry.ContainsKey(shape.Geometry))
+                throw new CodecException("unsupported_presentation_geometry", $"Presentation shape {shapeId} uses unsupported preset geometry {shape.Geometry}.");
             if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 || shape.TextRectangle is not null)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom geometry data without custom geometry.");
             return;
@@ -192,13 +249,9 @@ internal static class PptxCustomGeometryCodec
                 if (presetTransform is null) properties.PrependChild(preset);
                 else properties.InsertAfter(preset, presetTransform);
             }
-            preset.Preset = shape.Geometry switch
-            {
-                "ellipse" => A.ShapeTypeValues.Ellipse,
-                "roundRect" => A.ShapeTypeValues.RoundRectangle,
-                "line" => A.ShapeTypeValues.Line,
-                _ => A.ShapeTypeValues.Rectangle,
-            };
+            if (!PresetGeometry.TryGetValue(shape.Geometry, out var presetGeometry))
+                throw new CodecException("unsupported_presentation_geometry", $"Presentation shape {shapeId} uses unsupported preset geometry {shape.Geometry}.");
+            preset.Preset = presetGeometry;
             return;
         }
         var transform = properties.GetFirstChild<A.Transform2D>();

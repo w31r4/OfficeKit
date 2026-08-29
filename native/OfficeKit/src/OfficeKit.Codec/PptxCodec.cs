@@ -2708,8 +2708,6 @@ internal static class PptxCodec
                     throw new CodecException("invalid_presentation_placeholder", $"Presentation shape {element.Id} has inconsistent direct placeholder geometry.");
                 PptxPlaceholderCodec.ValidateDirectFrame(element.Shape.DirectFrame, element.Id);
             }
-            if (element.Shape.Geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "line" or "custom"))
-                throw new CodecException("unsupported_presentation_geometry", $"Presentation shape {element.Id} uses unsupported geometry {element.Shape.Geometry}.");
             if (freeLine && element.Shape.Placeholder is not null)
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation free line {element.Id} cannot be a placeholder.");
             PptxCustomGeometryCodec.Validate(element.Shape, element.Id);
