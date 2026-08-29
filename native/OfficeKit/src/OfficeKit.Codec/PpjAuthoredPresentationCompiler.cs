@@ -200,7 +200,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationImage BuildImage(PpjImageElementModel element, JsonElement raw, Catalog catalog)
     {
-        RejectProperties(raw, element.Id, "opacity", "mask", "border", "shadow");
         var image = new PresentationImage
         {
             AssetId = catalog.NativeAssetId(element.AssetId),
@@ -210,6 +209,42 @@ internal static class PpjAuthoredPresentationCompiler
             HeightEmu = Emu(element.Frame.Height),
         };
         ApplyImageCrop(image, element, raw, catalog);
+        if (raw.TryGetProperty("opacity", out var opacity))
+            image.OpacityThousandthPercent = Opacity(opacity.GetDouble());
+        if (raw.TryGetProperty("mask", out var mask))
+        {
+            if (mask.GetProperty("kind").GetString() != "preset")
+                throw Unsupported(element.Id, "custom image masks require the native custom-geometry picture compiler");
+            if (mask.TryGetProperty("adjustments", out var adjustments) && adjustments.GetArrayLength() > 0)
+                throw Unsupported(element.Id, "adjusted image-mask geometry is not yet compiler-owned");
+            image.MaskPreset = mask.GetProperty("preset").GetString()!;
+        }
+        if (raw.TryGetProperty("border", out var border))
+        {
+            var color = catalog.Color(border.GetProperty("color"));
+            image.Border = new PresentationImageBorder
+            {
+                ColorRgb = color.Rgb,
+                WidthEmu = Emu(border.GetProperty("width").GetDouble()),
+                Style = LineStyle(OptionalString(border, "dash")),
+                Cap = OptionalString(border, "cap") ?? string.Empty,
+                Join = OptionalString(border, "join") ?? string.Empty,
+            };
+            var borderOpacity = OptionalDouble(border, "opacity") ?? color.Alpha;
+            if (borderOpacity < 1) image.Border.OpacityThousandthPercent = Opacity(borderOpacity);
+        }
+        if (raw.TryGetProperty("shadow", out var shadow))
+        {
+            var color = catalog.Color(shadow.GetProperty("color"));
+            image.Shadow = new PresentationShadow
+            {
+                ColorRgb = color.Rgb,
+                BlurRadiusEmu = Emu(shadow.GetProperty("blur").GetDouble()),
+                DistanceEmu = Emu(shadow.GetProperty("distance").GetDouble()),
+                DirectionAngle60000 = Angle(shadow.GetProperty("angle").GetDouble()),
+                OpacityThousandthPercent = Opacity(OptionalDouble(shadow, "opacity") ?? color.Alpha),
+            };
+        }
         if (element.Frame.Rotation != 0 || element.Frame.FlipH || element.Frame.FlipV)
         {
             image.Transform = new PresentationImageTransform();

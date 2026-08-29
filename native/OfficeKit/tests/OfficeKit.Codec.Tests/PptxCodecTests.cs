@@ -113,6 +113,12 @@ public sealed class PptxCodecTests
         var imported = Import(first.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
         Assert.Equal(2, imported.Artifact.Presentation.Slides.Count);
+        var importedImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+        Assert.Equal(92_000U, importedImage.OpacityThousandthPercent);
+        Assert.Equal("ellipse", importedImage.MaskPreset);
+        Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
+        Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart);
 
@@ -126,6 +132,24 @@ public sealed class PptxCodecTests
         Assert.True(differingParts.Length == 0, $"Non-deterministic OPC parts: {string.Join(", ", differingParts)}");
         Assert.Equal(first.PresentationProgram.OutputSha256, repeated.PresentationProgram.OutputSha256);
         Assert.Equal(first.File, repeated.File);
+
+        var editedArtifact = imported.Artifact.Clone();
+        var editedImage = Assert.Single(editedArtifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+        editedImage.OpacityThousandthPercent = 76_000;
+        editedImage.MaskPreset = "roundRect";
+        editedImage.Border = null;
+        editedImage.Shadow.DistanceEmu = 48_000;
+        var edited = Export(editedArtifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var editedRoundTrip = Import(edited.File.ToByteArray());
+        Assert.True(editedRoundTrip.Ok, Diagnostics(editedRoundTrip));
+        var roundTripImage = Assert.Single(editedRoundTrip.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+        Assert.Equal(76_000U, roundTripImage.OpacityThousandthPercent);
+        Assert.Equal("roundRect", roundTripImage.MaskPreset);
+        Assert.Null(roundTripImage.Border);
+        Assert.Equal(48_000L, roundTripImage.Shadow.DistanceEmu);
     }
 
     [Fact]

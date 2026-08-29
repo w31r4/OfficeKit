@@ -92,6 +92,21 @@ internal static class PptxCustomGeometryCodec
         return TryProfile(geometry, widthEmu, heightEmu, out _);
     }
 
+    internal static bool TryPreset(string name, out A.ShapeTypeValues preset) =>
+        PresetGeometry.TryGetValue(name, out preset);
+
+    internal static bool TryPresetName(A.ShapeTypeValues preset, out string name)
+    {
+        foreach (var entry in PresetGeometry)
+        {
+            if (!entry.Value.Equals(preset)) continue;
+            name = entry.Key;
+            return true;
+        }
+        name = string.Empty;
+        return false;
+    }
+
     internal static void Read(A.CustomGeometry? geometry, long widthEmu, long heightEmu, PresentationShape target)
     {
         if (!TryProfile(geometry, widthEmu, heightEmu, out var profile)) return;

@@ -7,10 +7,9 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns the deliberately bounded, source-preserving p:pic projection. The
-// semantic image exposes only the asset/frame/crop/accessibility leaves; the
-// standard DrawingML effects, SVG fallback and presentation extensions below
-// are accepted as preserved source structure, never reconstructed by the
-// authored-image builder.
+// semantic image owns a compact canonical picture profile: asset, frame, crop,
+// accessibility, opacity, preset mask, border, and one outer shadow. SVG
+// fallback and bounded presentation extensions remain source-preserved.
 internal static class PptxPictureCodec
 {
     private const int MaxTextLength = 1_024;
@@ -29,7 +28,10 @@ internal static class PptxPictureCodec
     internal static bool TryRead(P.Picture source, PptxPartContext context, out PresentationImage image)
     {
         image = new PresentationImage();
-        if (!TryParts(source, out var nonVisual, out var blip, out var transform, out var crop)) return false;
+        if (!TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out var crop) ||
+            !TryReadBorder(properties.GetFirstChild<A.Outline>(), out var border) ||
+            !PptxShadowCodec.TryRead(properties, out var shadow) ||
+            geometry.Preset?.Value is not { } preset || !PptxCustomGeometryCodec.TryPresetName(preset, out var maskPreset)) return false;
         // Accessibility is a leaf capability, not ownership of the whole
         // picture. An ambiguous known extension hides the modeled metadata and
         // disables only that setter; unrelated picture edits remain residual-
@@ -59,6 +61,11 @@ internal static class PptxPictureCodec
             };
             if (accessibility?.HasDecorative == true) image.AccessibilityDecorative = accessibility.Decorative;
             if (crop is not null) image.Crop = ReadCrop(crop);
+            if (blip.GetFirstChild<A.AlphaModulationFixed>() is { } alpha)
+                image.OpacityThousandthPercent = checked((uint)(alpha.Amount?.Value ?? 100_000));
+            if (!maskPreset.Equals("rect", StringComparison.Ordinal)) image.MaskPreset = maskPreset;
+            image.Border = border;
+            image.Shadow = shadow;
             var visual = ReadTransform(transform);
             if (visual is not null) image.Transform = visual;
             PptxNonVisualAccessibilityCodec.Validate(Accessibility(image), "source", "image");
@@ -93,6 +100,12 @@ internal static class PptxPictureCodec
                 : "frame must use non-negative coordinates and positive extents");
         if (image.Crop is not null && !CropValuesValid(image.Crop))
             throw Invalid(elementId, "crop edges must be between -100% and 100% and opposing sums must remain below 100%");
+        if (image.HasOpacityThousandthPercent && image.OpacityThousandthPercent > 100_000)
+            throw Invalid(elementId, "opacity must be between 0% and 100%");
+        if (image.MaskPreset.Length > 0 && !PptxCustomGeometryCodec.TryPreset(image.MaskPreset, out _))
+            throw Invalid(elementId, $"mask preset {image.MaskPreset} is unsupported");
+        ValidateBorder(image.Border, elementId);
+        PptxShadowCodec.Validate(image.Shadow, elementId, "image");
         ValidateTransform(image.Transform, elementId);
     }
 
@@ -110,26 +123,31 @@ internal static class PptxPictureCodec
             new A.Offset { X = image.LeftEmu, Y = image.TopEmu },
             new A.Extents { Cx = image.WidthEmu, Cy = image.HeightEmu });
         ApplyTransform(transform, image.Transform);
-        var fill = new P.BlipFill(new A.Blip { Embed = context.AddEmbeddedPicture(image.AssetId) });
+        var blip = new A.Blip { Embed = context.AddEmbeddedPicture(image.AssetId) };
+        ApplyOpacity(blip, image.HasOpacityThousandthPercent ? image.OpacityThousandthPercent : null);
+        var fill = new P.BlipFill(blip);
         if (image.Crop is not null) fill.Append(BuildCrop(image.Crop));
         fill.Append(new A.Stretch(new A.FillRectangle()));
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, Accessibility(image));
+        var properties = new P.ShapeProperties(
+            transform,
+            BuildMask(image.MaskPreset));
+        if (image.Border is not null) properties.Append(BuildBorder(image.Border));
+        PptxShadowCodec.Apply(properties, image.Shadow);
         return new P.Picture(
             new P.NonVisualPictureProperties(
                 nonVisual,
                 new P.NonVisualPictureDrawingProperties(),
                 new P.ApplicationNonVisualDrawingProperties()),
             fill,
-            new P.ShapeProperties(
-                transform,
-                new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }));
+            properties);
     }
 
     internal static void Apply(P.Picture source, PresentationElement requested, PptxPartContext context)
     {
         if (!TryRead(source, context, out var currentImage) ||
-            !TryParts(source, out var nonVisual, out var blip, out var transform, out _))
+            !TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out _))
             throw new CodecException("unsupported_presentation_edit", $"Presentation image {requested.Id} no longer matches the editable picture profile.");
         var current = context.ReadEmbeddedPicture(blip.Embed?.Value ?? string.Empty);
         var replacement = context.Assets?.Get(requested.Image.AssetId) ??
@@ -175,6 +193,13 @@ internal static class PptxPictureCodec
         transform.Extents.Cy = requested.Image.HeightEmu;
         ApplyCrop(source.BlipFill!, requested.Image.Crop);
         ApplyTransform(transform, requested.Image.Transform);
+        if (currentImage.HasOpacityThousandthPercent != requested.Image.HasOpacityThousandthPercent ||
+            currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
+            ApplyOpacity(blip, requested.Image.HasOpacityThousandthPercent ? requested.Image.OpacityThousandthPercent : null);
+        if (!currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal))
+            geometry.Preset = MaskPreset(requested.Image.MaskPreset);
+        if (!Equals(currentImage.Border, requested.Image.Border)) ApplyBorder(properties, requested.Image.Border);
+        if (!Equals(currentImage.Shadow, requested.Image.Shadow)) PptxShadowCodec.Apply(properties, requested.Image.Shadow);
     }
 
     internal static void ScrubModeledContent(P.Picture source)
@@ -185,7 +210,11 @@ internal static class PptxPictureCodec
             PptxNonVisualAccessibilityCodec.ScrubResidualModeledContent(nonVisual);
             nonVisual.Description = string.Empty;
         }
-        if (source.BlipFill?.GetFirstChild<A.Blip>() is { } blip) blip.Embed = string.Empty;
+        if (source.BlipFill?.GetFirstChild<A.Blip>() is { } blip)
+        {
+            blip.Embed = string.Empty;
+            blip.GetFirstChild<A.AlphaModulationFixed>()?.Remove();
+        }
         source.BlipFill?.GetFirstChild<A.SourceRectangle>()?.Remove();
         if (source.ShapeProperties?.Transform2D is { } transform)
         {
@@ -195,26 +224,37 @@ internal static class PptxPictureCodec
             transform.HorizontalFlip = null;
             transform.VerticalFlip = null;
         }
+        if (source.ShapeProperties is { } properties)
+        {
+            if (properties.GetFirstChild<A.PresetGeometry>() is { } geometry)
+                geometry.Preset = A.ShapeTypeValues.Rectangle;
+            properties.GetFirstChild<A.Outline>()?.Remove();
+            properties.GetFirstChild<A.EffectList>()?.Remove();
+        }
     }
 
     private static bool TryParts(
         P.Picture source,
         out P.NonVisualDrawingProperties nonVisual,
         out A.Blip blip,
+        out P.ShapeProperties properties,
         out A.Transform2D transform,
+        out A.PresetGeometry geometry,
         out A.SourceRectangle? crop)
     {
         nonVisual = null!;
         blip = null!;
+        properties = null!;
         transform = null!;
+        geometry = null!;
         crop = null;
         var nonVisualContainer = source.NonVisualPictureProperties;
         var fill = source.BlipFill;
-        var properties = source.ShapeProperties;
+        var pictureProperties = source.ShapeProperties;
         if (nonVisualContainer?.NonVisualDrawingProperties is not { } nv ||
             nonVisualContainer.NonVisualPictureDrawingProperties is null ||
             nonVisualContainer.ApplicationNonVisualDrawingProperties is null ||
-            fill is null || properties is null) return false;
+            fill is null || pictureProperties is null) return false;
         var fillChildren = fill.ChildElements.ToArray();
         if (source.ChildElements.Count != 3 ||
             nonVisualContainer.ChildElements.Count != 3 ||
@@ -223,19 +263,21 @@ internal static class PptxPictureCodec
             fillChildren.Length == 3 && fillChildren[1] is not A.SourceRectangle ||
             !StretchSupported(stretch) ||
             !BlipSupported(embedded) || !BlipFillSupported(fill) ||
-            !ShapePropertiesSupported(properties) ||
-            properties.Elements<A.Transform2D>().SingleOrDefault() is not { } xfrm ||
-            properties.Elements<A.PresetGeometry>().SingleOrDefault() is not { } geometry ||
-            geometry.Preset is null || geometry.GetAttributes().Count != 1 ||
-            geometry.GetAttributes()[0].LocalName != "prst" || geometry.GetAttributes()[0].NamespaceUri.Length != 0 ||
-            geometry.ChildElements.Count != 1 || geometry.GetFirstChild<A.AdjustValueList>() is not { } adjustments ||
+            !ShapePropertiesSupported(pictureProperties) ||
+            pictureProperties.Elements<A.Transform2D>().SingleOrDefault() is not { } xfrm ||
+            pictureProperties.Elements<A.PresetGeometry>().SingleOrDefault() is not { } presetGeometry ||
+            presetGeometry.Preset is null || presetGeometry.GetAttributes().Count != 1 ||
+            presetGeometry.GetAttributes()[0].LocalName != "prst" || presetGeometry.GetAttributes()[0].NamespaceUri.Length != 0 ||
+            presetGeometry.ChildElements.Count != 1 || presetGeometry.GetFirstChild<A.AdjustValueList>() is not { } adjustments ||
             adjustments.HasAttributes || adjustments.HasChildren ||
             !TransformSupported(xfrm)) return false;
         crop = fillChildren.Length == 3 ? (A.SourceRectangle)fillChildren[1] : null;
         if (crop is not null && !CropSupported(crop)) return false;
         nonVisual = nv;
         blip = embedded;
+        properties = pictureProperties;
         transform = xfrm;
+        geometry = presetGeometry;
         return true;
     }
 
@@ -371,19 +413,11 @@ internal static class PptxPictureCodec
         {
             A.Transform2D or A.PresetGeometry => true,
             A.NoFill noFill => !noFill.HasAttributes && !noFill.HasChildren,
-            A.Outline outline => LineSupported(outline),
-            A.EffectList effects => effects.HasAttributes || effects.HasChildren, // preserved, never edited by the image facade
+            A.Outline outline => TryReadBorder(outline, out _),
+            A.EffectList => PptxShadowCodec.TryRead(properties, out _),
             A.ShapePropertiesExtensionList extensions => ShapeExtensionListSupported(extensions),
             _ => false,
         });
-    }
-
-    private static bool LineSupported(A.Outline outline)
-    {
-        var attributes = outline.GetAttributes().ToArray();
-        if (attributes.Any(attribute => attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("w" or "cap" or "cmpd" or "algn"))) return false;
-        return outline.ChildElements.All(child => child.LocalName is "noFill" or "solidFill" or "prstDash" or "round" or "bevel" or "miter" or "headEnd" or "tailEnd") &&
-               outline.ChildElements.All(child => child.LocalName != "noFill" || !child.HasAttributes && !child.HasChildren);
     }
 
     private static bool ShapeExtensionListSupported(A.ShapePropertiesExtensionList extensions)
@@ -409,6 +443,171 @@ internal static class PptxPictureCodec
     }
 
     private static bool IsHexColor(string value) => value.Length == 6 && value.All(Uri.IsHexDigit);
+
+    private static bool TryReadBorder(A.Outline? outline, out PresentationImageBorder? border)
+    {
+        border = null;
+        if (outline is null) return true;
+        if (outline.CompoundLineType is not null || outline.Alignment is not null ||
+            !HasOnlyAttributes(outline, "w", "cap") || outline.Width?.Value is < 0 or > int.MaxValue)
+            return false;
+        var noFill = outline.Elements<A.NoFill>().ToArray();
+        var solidFill = outline.Elements<A.SolidFill>().ToArray();
+        if (noFill.Length + solidFill.Length != 1) return false;
+        if (noFill.Length == 1)
+            return outline.ChildElements.Count == 1 && !noFill[0].HasAttributes && !noFill[0].HasChildren;
+
+        var solid = solidFill[0];
+        if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color ||
+            !HasOnlyAttributes(solid) || !HasOnlyAttributes(color, "val") ||
+            color.Val?.Value is not { Length: 6 } rgb || !rgb.All(Uri.IsHexDigit)) return false;
+        var alphas = color.Elements<A.Alpha>().ToArray();
+        if (color.ChildElements.Count != alphas.Length || alphas.Length > 1 ||
+            alphas.Length == 1 && (alphas[0].Val?.Value is not (>= 0 and <= 100_000) || !HasOnlyAttributes(alphas[0], "val")))
+            return false;
+        var dashes = outline.Elements<A.PresetDash>().ToArray();
+        if (dashes.Length > 1 || dashes.SingleOrDefault() is { } dash &&
+            (dash.ChildElements.Any() || !HasOnlyAttributes(dash, "val"))) return false;
+        var style = dashes.SingleOrDefault()?.Val?.Value switch
+        {
+            null => "solid",
+            var value when value.Equals(A.PresetLineDashValues.Solid) => "solid",
+            var value when value.Equals(A.PresetLineDashValues.Dash) => "dashed",
+            var value when value.Equals(A.PresetLineDashValues.Dot) => "dotted",
+            var value when value.Equals(A.PresetLineDashValues.DashDot) => "dash-dot",
+            var value when value.Equals(A.PresetLineDashValues.LargeDashDotDot) => "dash-dot-dot",
+            _ => string.Empty,
+        };
+        if (style.Length == 0 || !TryCap(outline.CapType?.Value, out var cap) || !TryJoin(outline, out var join) ||
+            outline.ChildElements.Any(child => child is not A.SolidFill and not A.PresetDash and not A.Round and not A.LineJoinBevel and not A.Miter))
+            return false;
+        border = new PresentationImageBorder
+        {
+            ColorRgb = PptxColor.Normalize(rgb),
+            WidthEmu = outline.Width?.Value ?? 0L,
+            Style = style,
+            Cap = cap,
+            Join = join,
+        };
+        if (alphas.SingleOrDefault()?.Val?.Value is { } opacity)
+            border.OpacityThousandthPercent = checked((uint)opacity);
+        return true;
+    }
+
+    private static void ValidateBorder(PresentationImageBorder? border, string elementId)
+    {
+        if (border is null) return;
+        PptxColor.Normalize(border.ColorRgb);
+        if (border.WidthEmu is < 0 or > int.MaxValue ||
+            border.Style is not ("solid" or "dashed" or "dotted" or "dash-dot" or "dash-dot-dot") ||
+            border.Cap is not ("" or "flat" or "round" or "square") ||
+            border.Join is not ("" or "miter" or "round" or "bevel") ||
+            border.HasOpacityThousandthPercent && border.OpacityThousandthPercent > 100_000)
+            throw Invalid(elementId, "border uses unsupported width, dash, cap, join, or opacity");
+    }
+
+    private static A.Outline BuildBorder(PresentationImageBorder border)
+    {
+        var outline = new A.Outline { Width = checked((int)border.WidthEmu) };
+        outline.CapType = border.Cap switch
+        {
+            "round" => A.LineCapValues.Round,
+            "square" => A.LineCapValues.Square,
+            "flat" => A.LineCapValues.Flat,
+            _ => null,
+        };
+        var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(border.ColorRgb) };
+        if (border.HasOpacityThousandthPercent)
+            color.Append(new A.Alpha { Val = checked((int)border.OpacityThousandthPercent) });
+        outline.Append(new A.SolidFill(color));
+        if (border.Style != "solid") outline.Append(new A.PresetDash { Val = border.Style switch
+        {
+            "dotted" => A.PresetLineDashValues.Dot,
+            "dash-dot" => A.PresetLineDashValues.DashDot,
+            "dash-dot-dot" => A.PresetLineDashValues.LargeDashDotDot,
+            _ => A.PresetLineDashValues.Dash,
+        }});
+        if (border.Join.Length > 0) outline.Append(border.Join switch
+        {
+            "round" => new A.Round(),
+            "bevel" => new A.LineJoinBevel(),
+            _ => new A.Miter(),
+        });
+        return outline;
+    }
+
+    private static void ApplyBorder(P.ShapeProperties properties, PresentationImageBorder? border)
+    {
+        properties.GetFirstChild<A.Outline>()?.Remove();
+        if (border is null) return;
+        var outline = BuildBorder(border);
+        OpenXmlElement? anchor = properties.ChildElements.LastOrDefault(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill or A.PatternFill or A.GroupFill);
+        anchor ??= properties.GetFirstChild<A.PresetGeometry>();
+        anchor ??= properties.GetFirstChild<A.Transform2D>();
+        if (anchor is null) properties.PrependChild(outline);
+        else properties.InsertAfter(outline, anchor);
+    }
+
+    private static A.PresetGeometry BuildMask(string value) =>
+        new(new A.AdjustValueList()) { Preset = MaskPreset(value) };
+
+    private static A.ShapeTypeValues MaskPreset(string value)
+    {
+        var name = value.Length == 0 ? "rect" : value;
+        if (!PptxCustomGeometryCodec.TryPreset(name, out var preset))
+            throw new CodecException("unsupported_presentation_image", $"Presentation image mask preset {name} is unsupported.");
+        return preset;
+    }
+
+    private static void ApplyOpacity(A.Blip blip, uint? opacity)
+    {
+        blip.GetFirstChild<A.AlphaModulationFixed>()?.Remove();
+        if (opacity is null) return;
+        var alpha = new A.AlphaModulationFixed { Amount = checked((int)opacity.Value) };
+        var before = blip.ChildElements.FirstOrDefault(child => child is A.ColorChange or A.BlipExtensionList);
+        if (before is null) blip.Append(alpha);
+        else blip.InsertBefore(alpha, before);
+    }
+
+    private static bool TryCap(A.LineCapValues? value, out string cap)
+    {
+        cap = string.Empty;
+        if (value is null) return true;
+        if (value.Value.Equals(A.LineCapValues.Flat)) cap = "flat";
+        else if (value.Value.Equals(A.LineCapValues.Round)) cap = "round";
+        else if (value.Value.Equals(A.LineCapValues.Square)) cap = "square";
+        else return false;
+        return true;
+    }
+
+    private static bool TryJoin(A.Outline outline, out string join)
+    {
+        join = string.Empty;
+        var joins = outline.ChildElements.Where(child => child is A.Round or A.LineJoinBevel or A.Miter).ToArray();
+        if (joins.Length > 1) return false;
+        if (joins.SingleOrDefault() is A.Round round)
+        {
+            if (round.HasAttributes || round.HasChildren) return false;
+            join = "round";
+        }
+        else if (joins.SingleOrDefault() is A.LineJoinBevel bevel)
+        {
+            if (bevel.HasAttributes || bevel.HasChildren) return false;
+            join = "bevel";
+        }
+        else if (joins.SingleOrDefault() is A.Miter miter)
+        {
+            if (miter.HasAttributes || miter.HasChildren || miter.Limit is not null) return false;
+            join = "miter";
+        }
+        return true;
+    }
+
+    private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
+    {
+        var allowed = names.ToHashSet(StringComparer.Ordinal);
+        return element.GetAttributes().All(attribute => attribute.NamespaceUri.Length == 0 && allowed.Contains(attribute.LocalName));
+    }
 
     private static bool UIntInRange(string value, uint min, uint max) =>
         uint.TryParse(value, out var parsed) && parsed >= min && parsed <= max;

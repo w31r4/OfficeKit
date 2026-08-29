@@ -1619,7 +1619,7 @@ internal static class PptxCodec
             Transform = placeholder is null && PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")
                 ? PptxShapeTransformCodec.Read(transform!)
                 : null,
-            Shadow = ReadShadow(properties),
+            Shadow = PptxShadowCodec.TryRead(properties, out var shadow) ? shadow : null,
         };
         if (ReadFillOpacity(solidFill) is { } fillOpacity)
             result.FillOpacityThousandthPercent = fillOpacity;
@@ -1659,7 +1659,7 @@ internal static class PptxCodec
         if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
         if (!string.Equals(geometry, "line", StringComparison.Ordinal) &&
             (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
-        if (!SupportsShadow(properties)) return false;
+        if (!PptxShadowCodec.TryRead(properties, out _)) return false;
         if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.Outline and not A.EffectList)) return false;
         return PptxTextCodec.SupportsEditing(shape.TextBody);
     }
@@ -1680,57 +1680,6 @@ internal static class PptxCodec
     {
         var alpha = solid?.GetFirstChild<A.RgbColorModelHex>()?.GetFirstChild<A.Alpha>();
         return alpha?.Val?.Value is { } value ? checked((uint)value) : null;
-    }
-
-    private static PresentationShadow? ReadShadow(P.ShapeProperties? properties)
-    {
-        if (!SupportsShadow(properties)) return null;
-        var outer = properties?.GetFirstChild<A.EffectList>()?.GetFirstChild<A.OuterShadow>();
-        if (outer?.GetFirstChild<A.RgbColorModelHex>() is not { } color) return null;
-        return new PresentationShadow
-        {
-            ColorRgb = PptxColor.Normalize(color.Val?.Value ?? string.Empty),
-            BlurRadiusEmu = outer.BlurRadius?.Value ?? 0L,
-            DistanceEmu = outer.Distance?.Value ?? 0L,
-            DirectionAngle60000 = outer.Direction?.Value ?? 0,
-            OpacityThousandthPercent = checked((uint)(color.GetFirstChild<A.Alpha>()?.Val?.Value ?? 100_000)),
-        };
-    }
-
-    private static bool SupportsShadow(P.ShapeProperties? properties)
-    {
-        var lists = properties?.Elements<A.EffectList>().ToArray() ?? [];
-        if (lists.Length == 0) return true;
-        if (lists.Length != 1 || lists[0].ChildElements.Count != 1 || lists[0].FirstChild is not A.OuterShadow outer ||
-            !HasOnlyAttributes(outer, "blurRad", "dist", "dir") || outer.BlurRadius?.Value is < 0 || outer.Distance?.Value is < 0 ||
-            outer.Direction?.Value is < 0 or >= 21_600_000 || outer.ChildElements.Count != 1 || outer.FirstChild is not A.RgbColorModelHex color ||
-            color.Val?.Value is not { Length: 6 } rgb || !rgb.All(Uri.IsHexDigit) || !HasOnlyAttributes(color, "val")) return false;
-        var alphas = color.Elements<A.Alpha>().ToArray();
-        return color.ChildElements.Count == alphas.Length && alphas.Length <= 1 &&
-               (alphas.Length == 0 || alphas[0].Val?.Value is >= 0 and <= 100_000 && HasOnlyAttributes(alphas[0], "val"));
-    }
-
-    private static void ApplyShadow(P.ShapeProperties properties, PresentationShadow? shadow)
-    {
-        properties.GetFirstChild<A.EffectList>()?.Remove();
-        if (shadow is null) return;
-        var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(shadow.ColorRgb) };
-        color.Append(new A.Alpha { Val = checked((int)shadow.OpacityThousandthPercent) });
-        var outer = new A.OuterShadow(color)
-        {
-            BlurRadius = shadow.BlurRadiusEmu,
-            Distance = shadow.DistanceEmu,
-            Direction = shadow.DirectionAngle60000,
-        };
-        properties.Append(new A.EffectList(outer));
-    }
-
-    private static void ValidateShadow(PresentationShadow? shadow, string elementId)
-    {
-        if (shadow is null) return;
-        PptxColor.Normalize(shadow.ColorRgb);
-        if (shadow.BlurRadiusEmu < 0 || shadow.DistanceEmu < 0 || shadow.DirectionAngle60000 is < 0 or >= 21_600_000 || shadow.OpacityThousandthPercent > 100_000)
-            throw new CodecException("invalid_presentation_shadow", $"Presentation shape {elementId} has invalid shadow geometry or opacity.");
     }
 
     private static void ApplyShape(P.Shape shape, PresentationElement source, PptxPartContext slideContext)
@@ -1760,7 +1709,7 @@ internal static class PptxCodec
         PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
-        ApplyShadow(properties, semantic.Shadow);
+        PptxShadowCodec.Apply(properties, semantic.Shadow);
         PptxTextCodec.Apply(shape, semantic, slideContext);
     }
 
@@ -2237,7 +2186,7 @@ internal static class PptxCodec
             semantic.FillRgb,
             semantic.HasFillOpacityThousandthPercent ? semantic.FillOpacityThousandthPercent : (uint?)null));
         properties.Append(PptxLineStyleCodec.Build(semantic));
-        ApplyShadow(properties, semantic.Shadow);
+        PptxShadowCodec.Apply(properties, semantic.Shadow);
         var applicationProperties = new P.ApplicationNonVisualDrawingProperties();
         if (semantic.Placeholder is not null)
         {
@@ -2796,7 +2745,7 @@ internal static class PptxCodec
                 throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} has invalid solid-fill opacity.");
             PptxLineStyleCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
-            ValidateShadow(element.Shape.Shadow, element.Id);
+            PptxShadowCodec.Validate(element.Shape.Shadow, element.Id);
             PptxNonVisualAccessibilityCodec.Validate(element.Shape.Accessibility, element.Id);
             PptxTextCodec.Validate(element.Shape);
             foreach (var paragraph in element.Shape.TextBody?.Paragraphs ?? [])

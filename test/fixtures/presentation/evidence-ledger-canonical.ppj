@@ -509,7 +509,29 @@
             "description": "Rising evidence line"
           },
           "asset": "evidence-mark",
-          "fit": "contain"
+          "fit": "contain",
+          "opacity": 0.92,
+          "mask": {
+            "kind": "preset",
+            "preset": "ellipse"
+          },
+          "border": {
+            "color": {
+              "token": "signal"
+            },
+            "width": 1.5,
+            "opacity": 0.72,
+            "dash": "solid",
+            "cap": "round",
+            "join": "round"
+          },
+          "shadow": {
+            "color": "#17324D",
+            "opacity": 0.24,
+            "blur": 6,
+            "distance": 3,
+            "angle": 45
+          }
         },
         {
           "id": "claim-band",

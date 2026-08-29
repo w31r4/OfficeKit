@@ -2274,12 +2274,13 @@ message PresentationShapeTransform {
 // Bounded top-level p:pic projection. The asset is content-addressed in the
 // envelope; relationship IDs and OPC part names remain package-local. This
 // slice owns only an embedded PNG/JPEG/GIF/safe-SVG source, non-visible
-// title/description/decorative metadata, a rectangular stretch frame, a bounded native
-// source rectangle, and direct rotation/flips. The legacy alt_text field is
+// title/description/decorative metadata, a bounded stretch frame and source
+// rectangle, direct rotation/flips, one canonical preset mask, direct border,
+// opacity, and outer shadow. The legacy alt_text field is
 // the canonical description field for wire compatibility; accessibility_title
 // appends the independent p:cNvPr title without duplicating description state.
-// Effects, external links, transformed blips, and non-rectangular geometry
-// remain source-bound opaque content.
+// External links, transformed blips, custom mask geometry, and effect graphs
+// outside the canonical outer-shadow profile remain source-bound opaque content.
 message PresentationImage {
   string asset_id = 1;
   string alt_text = 2;
@@ -2299,6 +2300,24 @@ message PresentationImage {
   // primary asset remains the rendered PNG/JPEG/GIF; edits to this leaf are
   // source-bound and preserve both relationships and the extension wrapper.
   string svg_asset_id = 11;
+  // Presence-aware a:alphaModFix amount in DrawingML thousandths of one
+  // percent. Absence keeps the native blip transform omitted.
+  optional uint32 opacity_thousandth_percent = 12;
+  // Canonical DrawingML preset geometry used as a picture mask. Empty remains
+  // the backward-compatible rectangle default.
+  string mask_preset = 13;
+  PresentationImageBorder border = 14;
+  PresentationShadow shadow = 15;
+}
+
+message PresentationImageBorder {
+  string color_rgb = 1;
+  int64 width_emu = 2;
+  // solid, dashed, dotted, dash-dot, or dash-dot-dot.
+  string style = 3;
+  string cap = 4;
+  string join = 5;
+  optional uint32 opacity_thousandth_percent = 6;
 }
 
 message PresentationImageTransform {
