@@ -4631,6 +4631,11 @@ function createPresentationNativeLeafCapability(presentation, state) {
         // untouched.
         if (!model.placeholder && wire.source?.textEditable === true) {
           const paragraphs = wire.content.value.textBody?.paragraphs || [];
+          const paragraphSpacingSlots = [
+            { property: "lineSpacing", pointsKind: "paragraphLineSpacingPoints", multiplierKind: "paragraphLineSpacingMultiplier", pointsModel: "lineSpacing", multiplierModel: "lineSpacing", allowZero: false },
+            { property: "spaceBefore", pointsKind: "paragraphSpaceBeforePoints", multiplierKind: "paragraphSpaceBeforeMultiplier", pointsModel: "spaceBefore", multiplierModel: "spaceBeforePercent", allowZero: true },
+            { property: "spaceAfter", pointsKind: "paragraphSpaceAfterPoints", multiplierKind: "paragraphSpaceAfterMultiplier", pointsModel: "spaceAfter", multiplierModel: "spaceAfterPercent", allowZero: true },
+          ];
           paragraphs.forEach((paragraph, paragraphIndex) => {
             const alignment = paragraph.alignment;
             if (PRESENTATION_PARAGRAPH_ALIGNMENTS.has(alignment) && !paragraphAlignmentIndices.has(paragraphIndex)) {
@@ -4659,56 +4664,60 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 },
               });
             }
-            const spacing = paragraph.lineSpacing;
-            const spacingCase = spacing?.case;
-            if (spacingCase !== "lineSpacingPoints" && spacingCase !== "lineSpacingMultiplier") return;
-            const scale = spacingCase === "lineSpacingPoints" ? 100 : 100_000;
-            const maximum = spacingCase === "lineSpacingPoints" ? 1584 : 132;
-            const sourceValue = Number(spacing.value);
-            const sourceRawNumber = sourceValue * scale;
-            const sourceRaw = Math.round(sourceRawNumber);
-            if (!Number.isFinite(sourceValue) || sourceValue <= 0 || sourceValue > maximum ||
-                !Number.isSafeInteger(sourceRaw) || sourceRaw < 1 || sourceRaw > maximum * scale ||
-                Math.abs(sourceRawNumber - sourceRaw) > 1e-6) return;
-            const leafKind = spacingCase === "lineSpacingPoints"
-              ? "paragraphLineSpacingPoints"
-              : "paragraphLineSpacingMultiplier";
-            const expectedValue = String(sourceRaw);
-            registerLeaf({
-              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
-              leafKind,
-              expectedValue,
-              value: sourceRaw / scale,
-              unit: spacingCase === "lineSpacingPoints" ? "pt" : "multiplier",
-              details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
-              normalize(next) {
-                if (typeof next !== "string" && typeof next !== "number") {
-                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a positive ${spacingCase === "lineSpacingPoints" ? "point" : "multiplier"} value.`);
-                }
-                const token = String(next).trim();
-                if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/u.test(token)) {
-                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a canonical positive numeric value.`);
-                }
-                const candidate = Number(token);
-                const rawNumber = candidate * scale;
-                const raw = Math.round(rawNumber);
-                if (!Number.isFinite(candidate) || candidate <= 0 || candidate > maximum ||
-                    !Number.isSafeInteger(raw) || raw < 1 || raw > maximum * scale ||
-                    Math.abs(rawNumber - raw) > 1e-6) {
-                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the supported DrawingML range.`);
-                }
-                return { raw: String(raw), publicValue: raw / scale };
-              },
-              isNoop(next) { return next === expectedValue; },
-              apply(next) {
-                const current = model.text._paragraphs;
-                const target = current[paragraphIndex];
-                if (!target || typeof target !== "object") {
-                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph line-spacing native leaf no longer resolves to the imported paragraph.");
-                }
-                target.lineSpacing = (Number(next) / scale) / (spacingCase === "lineSpacingPoints" ? POINTS_PER_PIXEL : 1);
-              },
-            });
+            for (const slot of paragraphSpacingSlots) {
+              const spacing = paragraph[slot.property];
+              const spacingCase = spacing?.case;
+              if (spacingCase !== "lineSpacingPoints" && spacingCase !== "lineSpacingMultiplier" &&
+                  spacingCase !== "spaceBeforePoints" && spacingCase !== "spaceBeforeMultiplier" &&
+                  spacingCase !== "spaceAfterPoints" && spacingCase !== "spaceAfterMultiplier") continue;
+              const points = spacingCase.endsWith("Points");
+              const scale = points ? 100 : 100_000;
+              const maximum = points ? 1584 : 132;
+              const sourceValue = Number(spacing.value);
+              const sourceRawNumber = sourceValue * scale;
+              const sourceRaw = Math.round(sourceRawNumber);
+              if (!Number.isFinite(sourceValue) || sourceValue < (slot.allowZero ? 0 : Number.EPSILON) || sourceValue > maximum ||
+                  !Number.isSafeInteger(sourceRaw) || sourceRaw < (slot.allowZero ? 0 : 1) || sourceRaw > maximum * scale ||
+                  Math.abs(sourceRawNumber - sourceRaw) > 1e-6) continue;
+              const leafKind = points ? slot.pointsKind : slot.multiplierKind;
+              const expectedValue = String(sourceRaw);
+              const modelField = points ? slot.pointsModel : slot.multiplierModel;
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind,
+                expectedValue,
+                value: sourceRaw / scale,
+                unit: points ? "pt" : "multiplier",
+                details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                normalize(next) {
+                  if (typeof next !== "string" && typeof next !== "number") {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a ${points ? "point" : "multiplier"} value.`);
+                  }
+                  const token = String(next).trim();
+                  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/u.test(token)) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a canonical numeric value.`);
+                  }
+                  const candidate = Number(token);
+                  const rawNumber = candidate * scale;
+                  const raw = Math.round(rawNumber);
+                  if (!Number.isFinite(candidate) || candidate < (slot.allowZero ? 0 : Number.EPSILON) || candidate > maximum ||
+                      !Number.isSafeInteger(raw) || raw < (slot.allowZero ? 0 : 1) || raw > maximum * scale ||
+                      Math.abs(rawNumber - raw) > 1e-6) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the supported DrawingML range.`);
+                  }
+                  return { raw: String(raw), publicValue: raw / scale };
+                },
+                isNoop(next) { return next === expectedValue; },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", `Presentation ${leafKind} native leaf no longer resolves to the imported paragraph.`);
+                  }
+                  target[modelField] = (Number(next) / scale) / (points ? POINTS_PER_PIXEL : 1);
+                },
+              });
+            }
           });
         }
       }
