@@ -107,6 +107,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeParagraphAlignment = await verifyNativeParagraphAlignmentEdit(bytes);
     const nativeParagraphLineSpacing = await verifyNativeParagraphLineSpacingEdit(bytes);
     const nativeParagraphBlockSpacing = await verifyNativeParagraphBlockSpacingEdit(bytes);
+    const nativeParagraphMargin = await verifyNativeParagraphLayoutEdit(bytes, "paragraphMarginLeftEmu");
+    const nativeParagraphIndent = await verifyNativeParagraphLayoutEdit(bytes, "paragraphIndentEmu");
     const nativeVerticalAnchor = await verifyNativeVerticalAnchorEdit(bytes);
     const nativeTextBodyInset = await verifyNativeTextBodyInsetEdit(bytes);
     const nativeTextBodyWrap = await verifyNativeTextBodyWrapEdit(bytes);
@@ -164,6 +166,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeParagraphAlignment,
       nativeParagraphLineSpacing,
       nativeParagraphBlockSpacing,
+      nativeParagraphMargin,
+      nativeParagraphIndent,
       nativeVerticalAnchor,
       nativeTextBodyInset,
       nativeTextBodyWrap,
@@ -220,6 +224,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeParagraphAlignmentEdits: results.filter((result) => result.nativeParagraphAlignment.status === "passed").length,
       nativeParagraphLineSpacingEdits: results.filter((result) => result.nativeParagraphLineSpacing.status === "passed").length,
       nativeParagraphBlockSpacingEdits: results.filter((result) => result.nativeParagraphBlockSpacing.status === "passed").length,
+      nativeParagraphMarginEdits: results.filter((result) => result.nativeParagraphMargin.status === "passed").length,
+      nativeParagraphIndentEdits: results.filter((result) => result.nativeParagraphIndent.status === "passed").length,
       nativeVerticalAnchorEdits: results.filter((result) => result.nativeVerticalAnchor.status === "passed").length,
       nativeTextBodyInsetEdits: results.filter((result) => result.nativeTextBodyInset.status === "passed").length,
       nativeTextBodyWrapEdits: results.filter((result) => result.nativeTextBodyWrap.status === "passed").length,
@@ -685,6 +691,33 @@ async function verifyNativeParagraphBlockSpacingEdit(bytes) {
     throw new Error(`Native paragraph before/after-spacing edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphLayoutEdit(bytes, leafKind) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === leafKind);
+  if (!target) return { status: "blocked", reason: `no bounded direct ${leafKind} leaf was discovered` };
+  const oldValue = Number(target.value);
+  const maximum = 51_206_400;
+  const value = oldValue < maximum ? oldValue + 1 : oldValue - 1;
+  if (!Number.isSafeInteger(oldValue) || !Number.isSafeInteger(value) || value === oldValue || value < -maximum || value > maximum || (leafKind === "paragraphMarginLeftEmu" && value < 0)) {
+    return { status: "blocked", reason: `discovered ${leafKind} is outside the safe edit range` };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native ${leafKind} edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native ${leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
 }
 
 async function verifyNativeVerticalAnchorEdit(bytes) {
