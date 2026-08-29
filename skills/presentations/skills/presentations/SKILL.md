@@ -60,9 +60,10 @@ define → plan → design → compose/edit → review → commit → deliver
 constraints, and after-use. Ask only when a missing answer materially changes
 the outcome, evidence, or design authority.
 
-`plan` assigns every page one reader job, one primary claim, evidence, a content
-budget, and a dominant visual carrier. Durable work records this in the existing
-presentation authoring plan; its schema lives in
+`plan` assigns every page one reader job, one primary claim, evidence, a
+dominant relationship or explicit `none`, a content budget, and a visual
+carrier. Durable work records this in the existing presentation authoring plan;
+its schema lives in
 [authoring plan](references/authoring-plan.md).
 
 `design` starts from authority. A design system outranks a conflicting Template
@@ -71,13 +72,11 @@ catalog identity. A selected Template Skill supplies style guidance and visual
 examples; use them to write a new deck-specific Design Grammar and compose
 freely. With no authority or suitable template, use the self-directed C route.
 
-For ordinary self-directed pages, card-based composition is forbidden. Do not
-build card walls, equal panel grids, colored-side cards, decorative pills or
-badges, or pages dominated by `box()`, `card()`, or `metricPanel()`. This rule
-does not alter an authoritative card-based template, imported source design,
-real product UI, table/chart/image frames, a page-scale organizing field, or an
-explicit dashboard request. The exact boundary is in the
-[shared visual floor](style_guidelines.md).
+For every newly composed page, follow the [shared visual floor](style_guidelines.md):
+start from the claim and evidence, identify the dominant relationship, choose
+the carrier, then assign geometry roles. Do not start from a shape, helper, or
+card layout. Authoritative templates and untouched imported design remain
+authoritative; new additions still need a declared role.
 
 `compose/edit` uses only public OfficeKit capabilities. Search Help by intent
 and load advanced references only for the object or workflow in use. API

@@ -24,7 +24,7 @@ pages are valid when the dominant visual earns the space. Follow an emotional
 beat with concrete proof. Vary crop, scale, negative space, and visual tempo
 without changing the deck's identity on every page.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - image-led opening with one memorable line;
 - product, idea, or identity reveal;

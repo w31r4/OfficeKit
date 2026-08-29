@@ -23,7 +23,7 @@ and feasibility in the middle. Return to a sparse, explicit decision at the
 close. In `reader` mode, keep conditions and source detail visible or in a
 clearly attached appendix; in `live` mode, notes may carry the talk track.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - before/after operating model or experience sequence;
 - value chain showing who gains what and how it is measured;

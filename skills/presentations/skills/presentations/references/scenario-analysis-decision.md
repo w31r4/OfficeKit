@@ -28,7 +28,7 @@ scales across comparable charts. Give exceptions and uncertainty enough space
 to be read. A live deck may stage a complex driver chain; a reader deck must
 remain self-contained without the animation.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - annotated trend, variance, waterfall, or distribution chart;
 - option comparison on shared criteria and a common visual scale;
@@ -54,6 +54,13 @@ should make the decision path scannable without turning every observation into
 a card. Motifs may mark thresholds or selected options, but must not become a
 second legend.
 
+For a bar-line or other combo chart, preserve one truthful category or time
+plot when the comparison depends on it. Keep the line and markers above pale or
+transparent bars, reserve clearance around every marker, and re-anchor only the
+labels that collide. Split into aligned panels only when sharing a plot would
+misrepresent the units or remains illegible after those repairs; never split
+merely to silence an overlap warning.
+
 ## Avoid
 
 Dashboard walls, ornamental KPI cards, incomparable scales, decorative arrows,
@@ -64,6 +71,8 @@ uncertainty, and confidence language unsupported by the source.
 
 - Can the audience state the decision, criteria, and uncertainty after a scan?
 - Does each visual change the decision, or merely decorate a number?
+- Can every line, marker, value label, axis, interval, and error bar be traced
+  without another series obscuring it?
 - Are counter-evidence and assumptions visible before the conclusion?
 - Is the requested action explicit, bounded, and supported?
 - If the page feels generic, should the claim/evidence or carrier change before

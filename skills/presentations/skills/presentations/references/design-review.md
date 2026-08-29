@@ -28,8 +28,8 @@ Use the same report to review six different responsibilities:
    delivery mode, after-use, and any weak-medium mitigation;
 3. narrative checks compare page jobs, claims, evidence order, and action;
 4. cognitive checks use budgets, hierarchy, density, and information relations;
-5. visual checks locate deterministic composition risks and require rendered
-   judgment when available;
+5. visual checks compare claim, relationship, carrier, geometry roles, and
+   composition, then require rendered judgment when available;
 6. native-operation checks cover package, layout, motion, editability, and
    delivery evidence.
 
@@ -49,6 +49,9 @@ unrecorded design choice.
 
 OfficeKit may report:
 
+- a missing dominant relationship or a carrier that does not express it;
+- a connector without direction, dependency, sequence, or causal meaning;
+- newly authored geometry without an information or organizing role;
 - repeated modeled composition signatures;
 - sharp density changes between adjacent pages;
 - six or more same-sized boxes on one page;
@@ -74,13 +77,17 @@ Repair a weak page in this order:
 
 1. **Claim and evidence:** correct the page job, source, qualifier, or
    unsupported conclusion.
-2. **Carrier:** choose a chart, image, diagram, table, typography, vector, or
+2. **Relationship:** state the quantity, sequence, hierarchy, causality,
+   comparison, spatial context, object evidence, or explicit `none`.
+3. **Carrier:** choose a chart, image, diagram, table, typography, vector, or
    mixed carrier that can actually express that relationship.
-3. **Composition and hierarchy:** fix scale, reading order, alignment, density,
+4. **Geometry roles:** keep only elements that encode, connect, annotate,
+   organize, focus, or maintain identity and continuity.
+5. **Composition and hierarchy:** fix scale, reading order, alignment, density,
    and text/container relationships.
-4. **Style and motif:** refine palette roles, type treatment, surfaces, lines,
+6. **Style and motif:** refine palette roles, type treatment, surfaces, lines,
    crops, and restrained recurring detail.
-5. **Motion:** add or repair timing only after the static page works.
+7. **Motion:** add or repair timing only after the static page works.
 
 Do not recolor an inventory of boxes when the problem is missing evidence, and
 do not animate an unresolved composition.
@@ -90,6 +97,20 @@ do not animate an unresolved composition.
 When image understanding is available, inspect rendered pages at readable
 scale and review hierarchy, crop, balance, contrast, visual rhythm, and the
 relationship between copy and graphics.
+
+Trace every plotted line and its markers from start to finish. A partially
+covered line, marker, label, axis, interval, or error bar is a failed visual
+review, not acceptable layering. For combo charts, confirm the target host
+keeps every intended crossing legible. Preserve the shared plot when it carries
+a real comparison: move individual labels, reserve clearance around markers,
+lighten or make bars transparent, and correct z-order before considering a
+split. Use aligned panels only when a shared plot would be semantically false
+or still illegible after those repairs.
+
+Apply the removal test to every questionable new shape: if removing it only
+makes the page emptier and does not remove information, organization, focus, or
+continuity, delete it. Marking an object decorative for accessibility does not
+exempt it from layout, overlap, or role review.
 
 When it is unavailable, retain semantic, structural, layout, and design checks
 and report `visualReview: "unavailable"`. Request human review for high-risk
@@ -118,8 +139,7 @@ and repair errors such as text overflow or unexpected overlap before commit.
 Baseline review may downgrade only an unchanged, already evidenced finding in
 a source-bound local edit; it is not a way to make a new deck pass.
 
-Intentional layering is allowed when a filled, text-free rectangle, rounded
-rectangle, or ellipse is a bounded background container for its child objects,
-or a thin track behind centered markers. Keep those children within the
-container or track span. An object that crosses the container boundary remains
-an overlap error and must be repositioned.
+Preserve intentional source or template layering. For newly authored work,
+layer only when the plan gives the field, boundary, track, annotation, or focal
+element a concrete role and the rendered page verifies it. An accessibility
+flag, off-canvas placement, or large page coverage is not a layout exemption.

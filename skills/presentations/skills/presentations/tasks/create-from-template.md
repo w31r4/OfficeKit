@@ -63,12 +63,22 @@ with editable native objects. Use examples to understand relationships, not to
 trace a calibration page. The selected style saves design reasoning; it never
 pins page geometry.
 
+Every page `compositionIntent` must name its dominant relationship or explicit
+`none`, its carrier and source strategy, and the role of any newly authored
+geometry. A cloned source slide, reusable template component, supplied image,
+source SVG, or new native chart/diagram/table may provide the carrier. “Follow
+the template” is not a sufficient composition intent.
+
 For `source-continuation`, use inspected source-slide/component capabilities.
 Export/reimport pending clones before another bounded edit. Preserve opaque
 graphs and stop at an unsupported target instead of rebuilding the deck.
 
 For decks longer than four pages, first render the opening, one evidence page,
 and the densest/highest-risk page. Repair the same direction before expansion.
+
+Do not retroactively redesign or justify untouched source geometry. Preserve it
+as authority. Every new connector, container, field, accent, or other geometric
+addition must still pass the shared visual floor's role test.
 
 ## 5. Review
 

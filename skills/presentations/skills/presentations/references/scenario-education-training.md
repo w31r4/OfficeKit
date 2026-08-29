@@ -24,7 +24,7 @@ reference material in handout-friendly pages or an appendix. In live delivery,
 notes may hold prompts and answer timing; the visible page must not leak an
 answer before the intended reveal.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - concept map or annotated model;
 - worked example with progressive annotation;

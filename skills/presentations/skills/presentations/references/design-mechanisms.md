@@ -10,30 +10,13 @@ layer controls reveal or continuity. A strong static page may already feel
 dynamic through scale, direction, contrast, cropping, and data relationships;
 animation is optional. Judge the contact sheet before adding timing.
 
-## Cross-cutting authoring floor
+## Shared floor
 
-Mechanisms are deliberately open-ended, but a self-directed deck still needs a
-small quality floor. Put the floor in the deck's `designGrammar`, rather than
-silently inheriting a library style:
-
-- state a readable body and caption size in the model's font-size units; shorten,
-  split, or restructure before shrinking text;
-- choose text/background pairs with clear contrast, and check them at contact-
-  sheet scale instead of trusting a token name such as `muted`;
-- do not let one pale card surface or dark canvas become the default treatment
-  for every page; use contrast and surface changes to explain the story rather
-  than to fill space;
-- give each quantitative claim an information relationship (a chart, axis,
-  connector, direct label, or spatial comparison), not a decorative list of
-  numbers;
-- vary the dominant composition across a six-or-more-page deck and record an
-  intentional exception when repetition serves the story;
-- keep one clear reading anchor per page; do not fill unused space with equal-
-  weight cards or captions.
-
-These are authoring heuristics, not claims of aesthetic correctness. The
-deterministic review may report bounded warnings; the Agent must inspect and
-repair them or record why they are intentional.
+Read the [shared visual floor](../style_guidelines.md) before selecting a
+mechanism. It is the single authority for readability, semantic carrier
+selection, geometry roles, and container boundaries. A mechanism can vary
+rhythm and expression; it cannot choose shapes before the information
+relationship is known or authorize filler geometry.
 
 ## Editorial minimal (`editorial-minimal`)
 

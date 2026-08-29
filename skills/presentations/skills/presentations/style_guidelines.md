@@ -1,9 +1,10 @@
 # Shared visual floor
 
-This is a cross-scenario quality floor, not a house style. The selected scenario,
-design authority, and deck-specific Design Grammar decide palette, typography,
-theme, density, geometry, imagery, and page silhouettes. User templates and
-brand rules take precedence.
+This is the single cross-scenario authority for choosing visual form. It is not
+a house style. The selected scenario, design authority, and deck-specific
+Design Grammar decide palette, typography, theme, density, imagery, and page
+silhouettes. User templates, brand rules, and preserved source design take
+precedence.
 
 ## Communication and evidence
 
@@ -18,6 +19,35 @@ brand rules take precedence.
 - Keep titles minimal and specific. Make executive summaries scan through
   hierarchy and light dividers. A closing page resolves the opening and adds no
   new evidence.
+
+## Choose form from meaning
+
+For every newly composed page, decide in this order:
+
+```text
+audience task → claim and evidence → dominant relationship
+              → visual carrier → geometry roles → composition
+```
+
+- Name the dominant relationship as quantity/trend, sequence, hierarchy,
+  causality, comparison, spatial context, object evidence, or explicitly
+  `none`. Do not begin from a favorite shape, helper, or layout.
+- Choose the carrier that makes that relationship easiest to understand: chart,
+  image, table, diagram, typography, native vector, or a deliberate mixture.
+- Map quantitative change to charts, exact lookup to tables, sequence/hierarchy/
+  causality to diagrams, physical identity or context to sourced imagery, and a
+  purely verbal proposition to typography. Use native geometry to express a
+  simple boundary, relation, annotation, or identity—not as generic enrichment.
+- Give each added geometric element a role: encode data, connect a relationship,
+  annotate evidence, establish a boundary or page field, create focal hierarchy,
+  or maintain identity and continuity. Ease of drawing is not a role.
+- A structural diagram should express one primary relationship. Every connector
+  must communicate direction, dependency, sequence, or causality.
+- Do not add circles, rings, arrows, nodes, blocks, panels, or cards merely to
+  fill space or make a page feel richer. If removing an element only makes the
+  page emptier, remove it.
+- Preserve authoritative template and imported geometry. The role test applies
+  to new additions and redesigns; it does not rewrite untouched source design.
 
 ## Composition and fit
 
@@ -34,14 +64,23 @@ brand rules take precedence.
   important values when practical, and use color to direct attention rather
   than decorate every series.
 - Keep evidence-bearing lines, markers, labels, axes, connectors, arrowheads,
-  and source-critical image regions visible. When truthful series overlap,
-  preserve the relationship and resolve label or fill conflicts with bounded
-  transparency, offsets, local masks, or a valid alternate chart form.
+  and source-critical image regions visible. Treat data marks as protected
+  foreground: no band, surface, image, shape, annotation, or other series may
+  hide a line segment, marker, label, axis, interval, or error bar the audience
+  must read.
+- When truthful series overlap, preserve the relationship and resolve label or
+  fill conflicts by re-anchoring labels, reserving marker clearance, choosing
+  honest axis ranges, using bounded transparency or local masks, putting the
+  line above pale bars, or choosing a valid alternate chart form. Do not split
+  a shared plot merely to make an overlap warning disappear.
+- Separate aligned panels only when overlaying different units would mislead or
+  no truthful, legible shared encoding survives the target-host render. Label
+  every independent scale explicitly.
 - Use icons only when they encode structure or meaning, and keep one coherent
   icon language within a deck.
 - Preserve native editability and render every changed page before delivery.
 
-## Card-based composition is forbidden by default
+## Containers are not a default composition
 
 On an ordinary OfficeKit self-directed page without an authoritative template
 or brand requirement, do not use:
@@ -53,14 +92,16 @@ or brand requirement, do not use:
 - a generic `box()`, `card()`, or `metricPanel()` as the page's main language;
 - `roundRect + outline + shadow` as a default component.
 
-Express parallel content through scale, position, baseline, light rules,
-numbering, connectors, charts, tables, images, and negative space.
+Express parallel content through the relationship and carrier chosen above,
+using scale, position, baseline, light rules, numbering, connectors, charts,
+tables, images, and negative space.
 
-The prohibition does not apply when the card treatment is authoritative or
+The prohibition does not apply when the treatment is authoritative or
 structural: a user-supplied card template or brand system, preserved imported
 cards, a real product UI screenshot, table cells, a chart plot area, an image
-crop, one page-scale background field or frame, or an explicitly requested
-dashboard reproduction.
+crop, or an explicitly requested dashboard. A page-scale field or frame still
+needs a declared boundary, focus, or continuity role; its size is not an
+exemption.
 
 ## Final judgment
 

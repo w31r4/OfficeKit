@@ -23,7 +23,7 @@ uncertainty enough room to be inspectable. Insert sparse synthesis pages between
 dense evidence sequences. A live defense may reveal a figure in stages, but
 the exported page must still make sense without playback.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - research question and conceptual model;
 - sample, method, or study-flow diagram;

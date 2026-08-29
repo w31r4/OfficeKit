@@ -23,7 +23,7 @@ Alternate performance views with driver or action pages. Reserve sparse pages
 for decisions, escalations, and section turns. Keep repeated metric views
 visually stable while varying the rest of the composition.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - operating headline with a compact, meaningful score strip;
 - actual-versus-plan trend with annotated inflections;

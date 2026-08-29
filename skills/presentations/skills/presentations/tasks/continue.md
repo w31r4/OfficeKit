@@ -28,6 +28,10 @@ Follow the plan's `recipe` and `nextAction`. If intent or design changes, write
 an updated plan with its current SHA-256. The task becomes `working` until a new
 artifact commit binds that plan.
 
+Reuse each page's recorded claim, relationship, carrier, and geometry roles.
+If any of them changes, revise `compositionIntent` before composing so a fresh
+Agent does not infer visual structure from the current screenshot alone.
+
 If the resumed plan is marked `legacy`, do not invent missing strategy during a
 local edit. Preserve its existing design and add the communication fields only
 when the user asks for broader creation or redesign. When the scenario or

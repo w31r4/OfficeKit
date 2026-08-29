@@ -23,7 +23,7 @@ metrics, or decision frames. Preserve enough labels for a reader version while
 using staged pages or motion to manage live complexity. Dense diagrams should
 be followed by a consequence or decision page, not another inventory.
 
-## Visual carriers and archetypes
+## Relationship-to-carrier choices
 
 - context and trust/ownership boundary map;
 - request, data, state, or event flow;

@@ -11,7 +11,8 @@ publication.
 3. Narrative: verify cumulative page responsibilities, evidence order, and the
    closing decision or action.
 4. Cognitive and visual: inspect content budgets, hierarchy, density rhythm,
-   visual carriers, composition, and plan-bound design risks.
+   the claim-to-relationship-to-carrier chain, geometry roles, composition, and
+   plan-bound design risks.
 5. Native operation: reimport, inspect the package, run layout/render and
    motion checks, and preserve source-bound topology.
 6. Delivery: complete visual or human review when available, use AnyDoc only
@@ -52,9 +53,12 @@ the exact plan page IDs for a local edit.
 
 - Fix semantic, package, layout, strict plan, content-budget, required
   unresolved, and undeclared-page errors before commit.
-- Repair design findings in this order: claim/evidence, carrier,
-  composition/hierarchy, style/motif, then motion. Do not begin with decoration
-  when the information relationship is wrong.
+- Repair design findings in this order: claim/evidence, relationship, carrier,
+  geometry roles, composition/hierarchy, style/motif, then motion. Do not begin
+  with decoration when the information relationship is wrong.
+- Apply the removal test to new geometry: if removing it only makes the page
+  emptier and loses no information, organization, focus, or continuity, remove
+  it before styling or animating the page.
 - On layered pages, compare `slide.elements` or `inspect({ kind: "layer" })`
   with the render. Reject hidden chart lines, markers, labels, axes,
   connectors, arrowheads, causal routes, or source-critical image regions.

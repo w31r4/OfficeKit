@@ -48,6 +48,11 @@ If copy reflows, render the changed pages and run the editorial page-fit pass.
 Do not alter layout or neighboring objects when the requested scope is
 copy-only unless fit cannot be restored safely; report that limitation instead.
 
+A narrow edit does not require reinterpreting or restyling existing source
+geometry. When the task adds a new composition or geometric object, update the
+plan with its claim, dominant relationship, carrier, and geometry role before
+authoring it. New decoration is not a repair for source complexity.
+
 ## 4. Review the edit boundary
 
 Call `reviewArtifact` with the source or latest reviewed revision as

@@ -62,7 +62,7 @@ const plan = {
         strict: false,
       },
       spacing: { base: 8, outerMargin: 48 },
-      geometry: "straight boundaries, square evidence frames, restrained rounding",
+      geometry: "boundaries mark system scope; one shared baseline supports comparison; no filler shapes",
       lines: "solid for control flow, dashed for deferred migration",
       densityRhythm: "alternate sparse decisions with denser evidence",
       visualCarriers: ["system boundary diagram", "shared-scale comparison chart"],
@@ -89,7 +89,7 @@ const plan = {
     claim: "The bounded path is the safest deployable option",
     evidence: ["Recovery test result"],
     contentBudget: { maxCharacters: 420, maxObjects: 12 },
-    compositionIntent: "shared-scale comparison chart from measured task data, with one decision statement above it",
+    compositionIntent: "relationship: comparison across recovery risk; carrier: shared-scale native chart from measured task data; geometry roles: shared baseline and one decision marker",
     assetRefs: [],
   }],
   editorial: {
@@ -133,12 +133,13 @@ the grammar, write an updated plan with the current `expectedSha256`; resume
 uses that plan revision and the latest reviewed artifact rather than a second
 design file or restored JavaScript heap.
 
-Each page `compositionIntent` must name the visual carrier and its source
-strategy. It should distinguish, for example, a native chart from measured task
-data, a supplied image, a style-guided free composition, a source-derived
-component from a reference deck, or an authored diagram.
-Coordinates, columns, and “clean layout” are implementation details, not
-sufficient intent.
+Each page `compositionIntent` must name the dominant relationship or explicit
+`none`, the visual carrier and its source strategy, and the role of any planned
+geometry. It should distinguish, for example, a native chart from measured task
+data, a supplied image, a style-guided or template-derived component, a
+source-derived component from a reference deck, or an authored diagram.
+Coordinates, columns, shape names, and “clean layout” are implementation
+details, not sufficient intent.
 
 ## Artifact references
 

@@ -49,13 +49,13 @@ the audience, evidence, delivery mode, and after-use. Use zero to two mechanism
 packs. They guide composition but do not supply a palette or template.
 
 The C authoring route is the default. Write one deck-specific Design Grammar
-covering palette roles, type roles, geometry and line behavior, density rhythm,
+covering palette roles, type roles, geometry and line roles, density rhythm,
 visual carriers, asset treatment, motifs, invariants, and forbidden patterns.
 
-Ordinary self-directed pages must obey the hard card ban in the shared visual
-floor. Resolve parallel information with scale, position, baseline, light
-rules, numbering, connectors, charts, tables, imagery, and intentional negative
-space instead of container grids.
+Ordinary self-directed pages must follow the semantic selection chain in the
+shared visual floor. Resolve the claim and dominant relationship before choosing
+a carrier; choose geometry only after its information or organizing role is
+known. Do not use container grids or decorative geometry as a starting point.
 
 ## 3. Plan the deck
 
@@ -64,12 +64,17 @@ For durable work, write the existing
 
 - one reader task and one primary claim;
 - evidence and source constraints;
+- one dominant relationship, or explicit `none`;
 - a realistic content budget;
 - one dominant visual carrier and its asset/source strategy;
+- the role of every planned connector, boundary, field, or focal geometry;
 - a page silhouette that contributes to the deck-wide rhythm.
 
-When the carrier is an image or the composition depends on overlapping object
-types, read [layered composition](../references/layered-composition.md). Plan the
+Write `compositionIntent` as compact prose containing the relationship, carrier
+and source strategy, and geometry roles. Coordinates, columns, shape names, and
+style adjectives alone are not a plan. When the carrier is an image or the
+composition depends on overlapping object types, read
+[layered composition](../references/layered-composition.md) and plan the
 bottom-to-top relationship explicitly. An image-led page normally starts with
 the image, adds only the contrast treatment it needs, and keeps editable copy,
 evidence, and decisions in the foreground.
@@ -117,8 +122,9 @@ substitute for the exported scene stack.
 Compose in this order:
 
 ```text
-communication job → scenario → direction → design grammar
-                  → page archetype → visual carrier → composition → motion
+communication job → scenario → direction → design grammar → page claim
+                  → relationship → visual carrier → geometry roles
+                  → composition → motion
 ```
 
 The static page must work before motion. Enlarge, crop, align, or recompose the
