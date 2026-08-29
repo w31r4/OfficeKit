@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-moonlit-work-report/assets/reference.pptx",
-    "sha256": "7ded2459e08bf78dedc45c20e9c958b84f025400114947387e39b0fcfd37b4ba"
+    "sha256": "e1c260f6277d8f3a0801de1fbae217d722bcd4a0b86b81519aa6e67acc258625"
   },
   "evidence": {
     "source": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:7ded2459e08bf78dedc45c20e9c958b84f025400114947387e39b0fcfd37b4ba"
+      "reference-sha256:e1c260f6277d8f3a0801de1fbae217d722bcd4a0b86b81519aa6e67acc258625"
     ]
   },
   "visual": {
@@ -168,7 +168,7 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:9c0c5433c86c671729b08da690801a1e7dd6c0c28f99ff3425aa8fc1c6eda6bc",
+        "native-pdf-sha256:8fcedd23964084dde98d53257a883679c872981d0cdb584276cf601cf9cb28da",
         "pages:6",
         "all-pages-rendered"
       ]

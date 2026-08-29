@@ -34,6 +34,20 @@ const PREVIEW_PNG_OPTIONS = Object.freeze({
   palette: true,
   quality: 92,
 });
+// Reference decks are distributed as inspectable calibration material, not as
+// a source-photo archive.  Keep enough pixels for a 16:9 slide while avoiding
+// embedding the same large camera frame in every authored reference.  The
+// source files in assets/generated remain untouched; this bounded derivative
+// is used only inside the generated PPTX.
+const PHOTO_EMBED_OPTIONS = Object.freeze({
+  width: 1280,
+  height: 720,
+  fit: "inside",
+  withoutEnlargement: true,
+  quality: 64,
+  progressive: true,
+});
+const PHOTO_BYTES_CACHE = new Map();
 const PHOTO_ASSET_POOLS = Object.freeze({
   // These are OfficeKit-authored clean-room calibration photographs. They
   // are intentionally grouped by visual job rather than by copied source
@@ -345,14 +359,27 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const backdropSvg = makeBackdropSvg({ palette, category, dark });
   const backdropPng = await sharp(Buffer.from(backdropSvg, "utf8")).png().toBuffer();
   const needsPhoto = Boolean(bodyImage || coverImage || sectionImage || photoBand || eventImage);
-  const photoPool = TEMPLATE_PHOTO_POOLS[templateId] || PHOTO_ASSET_POOLS[category] || [];
-  const photoSources = needsPhoto ? photoPool.map((file) => typeof file === "string" ? { file } : file) : [];
+  // A template-specific pool sets the opening art direction, but it should
+  // not cap the rest of the deck at four or five photographs.  When the
+  // source grammar calls for more than one image role, continue with the
+  // category's authored clean-room library in a stable order.  This keeps a
+  // style recognizable while preventing the cover photograph from silently
+  // reappearing in every later crop.  The cap is deliberately modest so the
+  // reference remains an example deck, not an asset warehouse.
+  const scopedPool = TEMPLATE_PHOTO_POOLS[templateId] || [];
+  const categoryPool = PHOTO_ASSET_POOLS[category] || [];
+  const photoPool = [...scopedPool, ...categoryPool]
+    .map((entry) => typeof entry === "string" ? { file: entry } : entry)
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate.file === entry.file) === index)
+    .slice(0, 12);
+  const photoSources = needsPhoto ? photoPool : [];
   const imageSources = [];
   for (const source of photoSources) {
     const photoAssetPath = path.join(GENERATED_ASSET_ROOT, source.file);
     try {
+      const photoBytes = await loadPhotoBytes(photoAssetPath);
       imageSources.push({
-        blob: new FileBlob(await fs.readFile(photoAssetPath), { type: mimeTypeForPath(photoAssetPath) }),
+        blob: new FileBlob(photoBytes, { type: mimeTypeForPath(photoAssetPath) }),
         asset: path.relative(REPO_ROOT, photoAssetPath),
         transform: source.transform,
       });
@@ -410,6 +437,22 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     sidecar,
     coverTitle: `${name}: a claim worth testing`,
   };
+}
+
+async function loadPhotoBytes(photoAssetPath) {
+  if (!PHOTO_BYTES_CACHE.has(photoAssetPath)) {
+    PHOTO_BYTES_CACHE.set(photoAssetPath, fs.readFile(photoAssetPath).then((bytes) =>
+      sharp(bytes).resize({
+        width: PHOTO_EMBED_OPTIONS.width,
+        height: PHOTO_EMBED_OPTIONS.height,
+        fit: PHOTO_EMBED_OPTIONS.fit,
+        withoutEnlargement: PHOTO_EMBED_OPTIONS.withoutEnlargement,
+      }).jpeg({
+        quality: PHOTO_EMBED_OPTIONS.quality,
+        progressive: PHOTO_EMBED_OPTIONS.progressive,
+      }).toBuffer()));
+  }
+  return PHOTO_BYTES_CACHE.get(photoAssetPath);
 }
 
 function mimeTypeForPath(filePath) {

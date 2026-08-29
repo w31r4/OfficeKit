@@ -47,21 +47,21 @@
     },
     {
       "id": "artifact-template-aqua-impact-story",
-      "referenceSha256": "b66158f422aad6cd084c770f4aa6da1781b6b56e3bb17eeb1c254ef60cc137f0",
-      "mediaCount": 5,
+      "referenceSha256": "cb0fadfee4c1829ce475a4ddc48d15ecf83ba0db055d1b70376f51e1b6e57740",
+      "mediaCount": 11,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1681420,
-      "pdfSha256": "2523453bf9e7c504a8f9e4788390f86a4a4760d1e41acec0f9aaf55a38bd9a29",
+      "pdfBytes": 1181460,
+      "pdfSha256": "b59138f9bc044d11f7c90fc93118cf3ce0709d4c40f0a7dc4a9ee0cf77ea2927",
       "firstPageRendered": true,
-      "firstPageSha256": "6fbae54243682a88a592c558b7bf1baf1be22f45e5ce75f72afb18eb16f1fc20",
+      "firstPageSha256": "c1a26d7033eeb04e4ca9c857158275285eccb1b1bc496a2d0824f79aaca12156",
       "pageSha256": [
-        "6fbae54243682a88a592c558b7bf1baf1be22f45e5ce75f72afb18eb16f1fc20",
-        "e60ac16f670d04e94c111ae5f8ea403c74655eedea0555cb78fa2a7fe4adb604",
-        "e7c86484bdd3865beeb632b0d878566c306847f860a4471c3b421c05d05e30a0",
-        "f91e24738ee8f639edf0456eeffeecbcba5adb4b928fb638166cc6c58f248883",
-        "e891860c06badc944f36009ebaf97202dca5cba937d4247e34cb86a7e58abe86",
-        "6ed4b8bcce79360ebd1bc15629d95d496050d2787d3463d2df6337fe51705c2e"
+        "c1a26d7033eeb04e4ca9c857158275285eccb1b1bc496a2d0824f79aaca12156",
+        "edfd70799200ae99cc4931ab9c4597d58c3d041fcfe323f78b632b31a0d86798",
+        "3e80000a3564098a04c45d4814d6e26323ef144a98281a65b2e9f934e19ee80b",
+        "aefdb3ec9ef1ef02165725b9b3c3b50f541d0f6c3e966db2dce5db738a917c67",
+        "2479bdcd958effc7b407e5b35fe47e9f2ddffd3a0f07b7d008deccc4a915cde6",
+        "81d6fee36c077e1ef6813abc358b94a668e1284e4cdaf07895bde40ce7d945fe"
       ],
       "allPagesRendered": true
     },
@@ -347,16 +347,16 @@
     },
     {
       "id": "artifact-template-midnight-prospectus",
-      "referenceSha256": "159d9861fdd3b7287a13d6f2032a6a5c769d9bc283cb2ef1fc9063de7651e3da",
-      "mediaCount": 0,
+      "referenceSha256": "d496b3ab3b890cb6b1151b0b772b477e47d59d24bfdf93252b41ea51cff9a7a2",
+      "mediaCount": 1,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 251302,
-      "pdfSha256": "e152e16e5eccdcbdd13b6389b63ab8a629a75b6b2820da94b2b63b0dcbf3b33b",
+      "pdfBytes": 323090,
+      "pdfSha256": "396883134ce7dc963a45e2c1a57eaa28ea58f9f9714e1a22e90a0b8f3b451025",
       "firstPageRendered": true,
-      "firstPageSha256": "8e661c8249f4b3cf6734d2989ac273f37fcdff9e3fdca3eabb9211e409d69777",
+      "firstPageSha256": "53021c2c0a514db0cf720b58e6d8e38cf746426943ae00a064e265083b145914",
       "pageSha256": [
-        "8e661c8249f4b3cf6734d2989ac273f37fcdff9e3fdca3eabb9211e409d69777",
+        "53021c2c0a514db0cf720b58e6d8e38cf746426943ae00a064e265083b145914",
         "2b6f589d270a8d40fe2739cd8727f5662aee3658653e78200e0583cdb46ad451",
         "e1ed058c6e8962d6e49fd6ef6ee5550726714909be7a1818c34bf45fb18a7b6f",
         "f3e8adc0a194a3797574493592d1d12357fa5661d2c8226085136cb92955042c",
@@ -367,21 +367,21 @@
     },
     {
       "id": "artifact-template-moonlit-work-report",
-      "referenceSha256": "7ded2459e08bf78dedc45c20e9c958b84f025400114947387e39b0fcfd37b4ba",
-      "mediaCount": 5,
+      "referenceSha256": "e1c260f6277d8f3a0801de1fbae217d722bcd4a0b86b81519aa6e67acc258625",
+      "mediaCount": 9,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1347101,
-      "pdfSha256": "9c0c5433c86c671729b08da690801a1e7dd6c0c28f99ff3425aa8fc1c6eda6bc",
+      "pdfBytes": 1157436,
+      "pdfSha256": "8fcedd23964084dde98d53257a883679c872981d0cdb584276cf601cf9cb28da",
       "firstPageRendered": true,
-      "firstPageSha256": "f26daae0107cfcbf3cb2441feeece61f74746fd8cc5859f7b24dfb1d72fd3aec",
+      "firstPageSha256": "70baeb2c5da40439e5db4b70b7f64089a36f5eb08db0de70596c044e7d752d2b",
       "pageSha256": [
-        "f26daae0107cfcbf3cb2441feeece61f74746fd8cc5859f7b24dfb1d72fd3aec",
-        "cc22136184e96d37546c5a02b5becc51ed7ab9bc61c95f8fa8b421d56b7338e2",
-        "6dc9fe5f63249bdac824c20bc69e8d750d914f0ab3e106b66ae2b97fc5908ac5",
-        "59e1582c56d06d3b60975c0a49a814b3280ec6945dd6a06cbe2556c8696b47de",
-        "70e16ead70e609b9ea27e9935aac28bdb14e7da3f6e488fb414d2374358d3345",
-        "82afe1891aea9381266c19405a53e1eab8245121b15cfd5b0f36ca7a960ee458"
+        "70baeb2c5da40439e5db4b70b7f64089a36f5eb08db0de70596c044e7d752d2b",
+        "242020edc677421dcf5694a862a7159acc1feebe73a7de4f9d91cd998240614d",
+        "d7f180116ad7caa579af6d71161f6c321f7aaf10a7b9ab4b997a2817a97eae27",
+        "7dccce895d535f82f820683bd3de05a96d4b614592571e3356815efbb6f3cc41",
+        "194a4f96fa66835a175d082a3a5338994aa512cd04b2c49994c3850ae831fc86",
+        "3a2ee1a7a87f89c8344f0d2b1100609f47fb1e45f828468a3d2c0522969f7403"
       ],
       "allPagesRendered": true
     },
@@ -427,21 +427,21 @@
     },
     {
       "id": "artifact-template-paper-seminar",
-      "referenceSha256": "fab0506bccae05895a08511c9653662133ce9c749cae645f8fe46737ea5ec49b",
-      "mediaCount": 4,
+      "referenceSha256": "6e69d943d33e5de61a0773ed278b41b121cbb34420cfa3fee989664cca0a7591",
+      "mediaCount": 6,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 923207,
-      "pdfSha256": "993bccf43d3e606b7c6b941ea3a8626c4c41fe1a35ac37dd2aa661b38f9c6b8c",
+      "pdfBytes": 669043,
+      "pdfSha256": "023ec6a4ad445d4646b5e4e1e26e9ca3f2c837e25d5648fe0d33e3d814134ab9",
       "firstPageRendered": true,
-      "firstPageSha256": "bd54bb995a3fde6a9b82c27c464ab3fba10007791456653e92460db07b61d4d8",
+      "firstPageSha256": "b32a0177708ff3ba8a2bba6a01fdb4c654973b50183a3280d2b02cfea1cc2285",
       "pageSha256": [
-        "bd54bb995a3fde6a9b82c27c464ab3fba10007791456653e92460db07b61d4d8",
-        "c918029e5c75f40ac3535354843b71fd6efe8fe640e40eee0af19fe0fa76301f",
-        "51b48ff64b5b164368069306760f53713db3002432f81d2e0f3092a727dd7454",
-        "3bfb74ce82193c48d3a73f4a824df0c4ff7df3ecd4dbc458a7a850e34ba24b55",
-        "6709b6cabb00ec8eff05dbe40c6f29370bf1800bbe61647818fd6dcfb284e49e",
-        "e7d1fe3c4cfe0ac9abd15850296abed1fe6eb60133993583be81814b699586c9"
+        "b32a0177708ff3ba8a2bba6a01fdb4c654973b50183a3280d2b02cfea1cc2285",
+        "bee049c2062978e0ed759b3c7594df31d042ba499ec3518edfc9bf80eb711a5b",
+        "10e3d249cc9c900b96a88a30bd46f88d7e2bba2296a470d69ac4d8b439bb78dd",
+        "8cbdb602c51cd8e3ec263def3ca4a0866f5dc7830003ce0655e56580da8b8f30",
+        "7b49fa922a20b083784614d06e32dfe48bdc82ddfda8c59e22387dd04764908c",
+        "98028453fe4e2e88a6d7fb9408d066655f05d34441bf97ca5ff1586e828dfcec"
       ],
       "allPagesRendered": true
     },
@@ -467,21 +467,21 @@
     },
     {
       "id": "artifact-template-river-handbook",
-      "referenceSha256": "5b41429cfe889865b62962c9c4630b5d2db82308f0072e07dc70e3b16f40f56e",
-      "mediaCount": 5,
+      "referenceSha256": "c3be60e1a2d5f1eb2e0322c650c75a8c5e9422eb3e35ec180e039d06a37634da",
+      "mediaCount": 12,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1929794,
-      "pdfSha256": "951167c68fff10fa13943906b9f7b1cb067bae57c872992f18e8d933ddd4b230",
+      "pdfBytes": 1303369,
+      "pdfSha256": "c6543c9878b6dec8fbbf40b584739a1b8a1077907993df7b3246c361a0a7cb0d",
       "firstPageRendered": true,
-      "firstPageSha256": "85c88a5207c013cdb5ff5cb7ee354799c1b77d1328913fd659404ea3719574b7",
+      "firstPageSha256": "75b74a9bb78d7d761aaca09f03c7f4289e3284727188daacc17379a1df1d213f",
       "pageSha256": [
-        "85c88a5207c013cdb5ff5cb7ee354799c1b77d1328913fd659404ea3719574b7",
-        "2f3e905ffe5d22aee31fdb5752fd28b694895b99c96fe19614bc759039f47dc9",
-        "693ae39033abb32bba5a78e4dcd8bf0ea880cf974c42c0715e0a0aeb08bd6395",
-        "a4d31522e9a1170cb5eea7d5035d4b23229028083365cf3f857e239ce1d1f31f",
-        "e6cbcf2b47365c27d31569ac3ad2ed2175f6c5dccfd9aeafa736880ff3401333",
-        "540053f8bb3474053ee8a5b27afb877f454350f77a50bda61cc6842fa1f0ddd6"
+        "75b74a9bb78d7d761aaca09f03c7f4289e3284727188daacc17379a1df1d213f",
+        "274f8f5069a01b6d5d6f9a961cf98a0b13c1b1d1f501602be6fa0a8873d5a940",
+        "433818a510833707ff25e7297eae10c592454a61920de21cd8ead261c51b8531",
+        "df01bbc852144894b7badffb9eabffe1f6243c7617bc6a118fe01f6693f7e8d3",
+        "b2124c5a35a1b719beda5dad2cfd6ab95dc76bf312a5bccf35e9bc195d924044",
+        "6494eb14e8b6c286cf5b3694cfa3206dceb80f2bf2413659bd5e046b8f47c881"
       ],
       "allPagesRendered": true
     },
@@ -507,21 +507,21 @@
     },
     {
       "id": "artifact-template-silver-atelier",
-      "referenceSha256": "b69ff1295eb8dc5a75bd49f724884ea30f3603a8f7cd0b6402a57498cc8e6da9",
-      "mediaCount": 4,
+      "referenceSha256": "370e89eb04d781d31c23a7c7e4143d688a19f28c0d74f9aea7d619c21c2a4865",
+      "mediaCount": 6,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1284377,
-      "pdfSha256": "110b814bba43fc708c7066ba5e26549a90b409d3b8eda2634f280931d4ca1037",
+      "pdfBytes": 922647,
+      "pdfSha256": "ebf8b3968eca8901d4d272fa8187943625dc1ea9863a4cd0e96f63718d541807",
       "firstPageRendered": true,
-      "firstPageSha256": "a01474966c4a4148929ca2035e5cdbb3b69ab68933c4d8ce49a22ada2934b580",
+      "firstPageSha256": "fd24c25774652d460f625bae868925463596e6fe2aaf261e0e3017eb84ef9de4",
       "pageSha256": [
-        "a01474966c4a4148929ca2035e5cdbb3b69ab68933c4d8ce49a22ada2934b580",
-        "f860c12e05cb16cade2e22c07fb864ddf289ef38957deed837d2ad52da97dbeb",
-        "f0f83d911c375cd6e7aafd094893f637dc650e311198eb2ba9604047ad05e07b",
+        "fd24c25774652d460f625bae868925463596e6fe2aaf261e0e3017eb84ef9de4",
+        "f1c5d4791628c01035e236115f2c3c2f3348a582b48140da56aa11f2445f1c8c",
+        "7f3cee65f22cd30576080e675627918815dead3d01565b44553af3f8f84f5322",
         "cfbd22597e290820a40c1a22b3bac2c7ad4a79f06982672623d1e0d29827703f",
-        "b01be3fd4f03b03caffab5bfd051ba1141243c67ffeeb89682e89e02f8456883",
-        "3ff123a4b97d7a557b23c851b404f94b8113ed0cf59400151e877c451f5eb2ec"
+        "4e6f3fa4ca324f5fcae24a3ab8dd377f9c8c52a79c352a0ad8195ebb4fa305f1",
+        "138bdd192cc52ae439e1e29f6272012d92622c581cae7593f6661e6b75b6c123"
       ],
       "allPagesRendered": true
     },
@@ -606,5 +606,5 @@
       "allPagesRendered": true
     }
   ],
-  "generatedAt": "2026-08-29T00:51:12.479Z"
+  "generatedAt": "2026-08-29T01:55:22.333Z"
 }

@@ -1,6 +1,6 @@
 {
   "schema": "office-kit/presentation-template-reuse-evidence/v1",
-  "generatedAt": "2026-08-29T01:16:45.809Z",
+  "generatedAt": "2026-08-29T01:55:49.470Z",
   "count": 30,
   "results": [
     {
@@ -25,11 +25,11 @@
     },
     {
       "templateId": "artifact-template-aqua-impact-story",
-      "referenceSha256": "b66158f422aad6cd084c770f4aa6da1781b6b56e3bb17eeb1c254ef60cc137f0",
+      "referenceSha256": "cb0fadfee4c1829ce475a4ddc48d15ecf83ba0db055d1b70376f51e1b6e57740",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/002o",
+      "cloneSlideId": "sl/0008",
       "outputSlides": 7,
       "reimported": true
     },
@@ -175,21 +175,21 @@
     },
     {
       "templateId": "artifact-template-midnight-prospectus",
-      "referenceSha256": "159d9861fdd3b7287a13d6f2032a6a5c769d9bc283cb2ef1fc9063de7651e3da",
+      "referenceSha256": "d496b3ab3b890cb6b1151b0b772b477e47d59d24bfdf93252b41ea51cff9a7a2",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/00iz",
+      "cloneSlideId": "sl/0012",
       "outputSlides": 7,
       "reimported": true
     },
     {
       "templateId": "artifact-template-moonlit-work-report",
-      "referenceSha256": "7ded2459e08bf78dedc45c20e9c958b84f025400114947387e39b0fcfd37b4ba",
+      "referenceSha256": "e1c260f6277d8f3a0801de1fbae217d722bcd4a0b86b81519aa6e67acc258625",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/00k3",
+      "cloneSlideId": "sl/0026",
       "outputSlides": 7,
       "reimported": true
     },
@@ -215,11 +215,11 @@
     },
     {
       "templateId": "artifact-template-paper-seminar",
-      "referenceSha256": "fab0506bccae05895a08511c9653662133ce9c749cae645f8fe46737ea5ec49b",
+      "referenceSha256": "6e69d943d33e5de61a0773ed278b41b121cbb34420cfa3fee989664cca0a7591",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 4,
-      "cloneSlideId": "sl/00ng",
+      "cloneSlideId": "sl/0038",
       "outputSlides": 7,
       "reimported": true
     },
@@ -235,11 +235,11 @@
     },
     {
       "templateId": "artifact-template-river-handbook",
-      "referenceSha256": "5b41429cfe889865b62962c9c4630b5d2db82308f0072e07dc70e3b16f40f56e",
+      "referenceSha256": "c3be60e1a2d5f1eb2e0322c650c75a8c5e9422eb3e35ec180e039d06a37634da",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/00pm",
+      "cloneSlideId": "sl/004k",
       "outputSlides": 7,
       "reimported": true
     },
@@ -255,11 +255,11 @@
     },
     {
       "templateId": "artifact-template-silver-atelier",
-      "referenceSha256": "b69ff1295eb8dc5a75bd49f724884ea30f3603a8f7cd0b6402a57498cc8e6da9",
+      "referenceSha256": "370e89eb04d781d31c23a7c7e4143d688a19f28c0d74f9aea7d619c21c2a4865",
       "sourceSlides": 6,
       "plannedPages": 3,
       "sourceSlideOrdinal": 2,
-      "cloneSlideId": "sl/00rb",
+      "cloneSlideId": "sl/005f",
       "outputSlides": 7,
       "reimported": true
     },
