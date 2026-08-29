@@ -374,13 +374,13 @@ internal static partial class PpjPresentationProjector
         output["chartType"] = type;
         if (!string.IsNullOrEmpty(chart.Title)) output["title"] = chart.Title;
         var categories = new JsonArray();
-        foreach (var value in chart.Categories) categories.Add(value);
+        foreach (var value in chart.Categories) categories.Add((JsonNode)value);
         var seriesJson = new JsonArray();
         for (var index = 0; index < series.Length; index++)
         {
             var item = series[index];
             var values = new JsonArray();
-            foreach (var value in item.Values) values.Add(value);
+            foreach (var value in item.Values) values.Add((JsonNode)value);
             var entry = new JsonObject
             {
                 ["id"] = $"series-{index + 1}",
@@ -526,7 +526,7 @@ internal static partial class PpjPresentationProjector
         else if (!string.IsNullOrWhiteSpace(opaque?.Text))
         {
             var visible = new JsonArray();
-            foreach (var line in opaque.Text.Split('\n').Where(line => line.Length > 0)) visible.Add(line);
+            foreach (var line in opaque.Text.Split('\n').Where(line => line.Length > 0)) visible.Add((JsonNode)line);
             if (visible.Count > 0) output["visibleText"] = visible;
         }
         return output;
@@ -571,7 +571,7 @@ internal static partial class PpjPresentationProjector
         if (body is null || body.Paragraphs.Count == 0 ||
             body.Paragraphs.Any(paragraph => paragraph.Runs.Count == 0 ||
                 paragraph.Runs.Any(run => run.ContentCase != PresentationTextRun.ContentOneofCase.Text)))
-            return JsonValue.Create(fallback ?? string.Empty)!;
+            return (JsonNode)(fallback ?? string.Empty);
 
         var paragraphs = new JsonArray();
         for (var paragraphIndex = 0; paragraphIndex < body.Paragraphs.Count; paragraphIndex++)
@@ -727,7 +727,7 @@ internal static partial class PpjPresentationProjector
         {
             var pages = new JsonArray();
             foreach (var id in section.SlideIds)
-                if (context.TryPageId(id, out var pageId)) pages.Add(pageId);
+                if (context.TryPageId(id, out var pageId)) pages.Add((JsonNode)pageId);
             if (pages.Count == 0) continue;
             output.Add(new JsonObject
             {
@@ -746,7 +746,7 @@ internal static partial class PpjPresentationProjector
         {
             var pages = new JsonArray();
             foreach (var id in show.SlideIds)
-                if (context.TryPageId(id, out var pageId)) pages.Add(pageId);
+                if (context.TryPageId(id, out var pageId)) pages.Add((JsonNode)pageId);
             if (pages.Count == 0) continue;
             output.Add(new JsonObject
             {
@@ -865,7 +865,7 @@ internal static partial class PpjPresentationProjector
                      .ThenBy(item => string.Join("\0", item.Fields), StringComparer.Ordinal))
         {
             var fields = new JsonArray();
-            foreach (var field in capability.Fields) fields.Add(field);
+            foreach (var field in capability.Fields) fields.Add((JsonNode)field);
             capabilityArray.Add(new JsonObject
             {
                 ["id"] = $"cap-{capability.Operation}-{Sha256(Encoding.UTF8.GetBytes(scope + capability.Operation))[..10]}",
