@@ -50,6 +50,20 @@ internal static class PpjPresentationCompiler
 internal static class PpjSourceBoundPresentationCompiler
 {
     private const double EmuPerPoint = 12_700d;
+    private sealed class MutationState
+    {
+        internal bool SemanticChanges { get; set; }
+        internal List<NativeTextMutation> NativeText { get; } = [];
+    }
+
+    private sealed record NativeTextMutation(
+        string ProgramElementId,
+        PresentationSlide Slide,
+        PresentationElement Element,
+        IReadOnlyList<uint> ShapeTreePath,
+        uint LeafIndex,
+        string Before,
+        string After);
 
     internal static PpjCompileResult Compile(
         PresentationProgramRequest request,
@@ -99,7 +113,8 @@ internal static class PpjSourceBoundPresentationCompiler
             throw new CodecException("ppj.source.presentation", "The exact source did not import as a Presentation artifact.", "$.source");
         var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact);
         var changedNodeIds = new HashSet<string>(StringComparer.Ordinal);
-        var physicalChanges = ApplyPages(baseline, requested, presentation, assetIds, changedNodeIds);
+        var mutations = new MutationState();
+        var physicalChanges = ApplyPages(baseline, requested, presentation, assetIds, changedNodeIds, mutations);
 
         byte[] output;
         IReadOnlyList<Diagnostic> diagnostics;
@@ -110,6 +125,14 @@ internal static class PpjSourceBoundPresentationCompiler
             // advance outside the third-party PPTX.
             output = sourceBytes;
             diagnostics = projected.Diagnostics;
+        }
+        else if (mutations.NativeText.Count > 0)
+        {
+            if (mutations.SemanticChanges)
+                throw Unsupported("$.pages", "mixing opaque native-leaf edits with typed semantic edits in one source-bound build");
+            var edited = PptxEditPlanCodec.Apply(sourceBytes, NativeTextEditPlan(sourceSha256, mutations.NativeText), limits);
+            output = edited.File;
+            diagnostics = projected.Diagnostics.Concat(edited.Diagnostics).ToArray();
         }
         else
         {
@@ -222,7 +245,8 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjProgramModel requested,
         PresentationArtifact presentation,
         IReadOnlyDictionary<string, string> assets,
-        ISet<string> changedNodeIds)
+        ISet<string> changedNodeIds,
+        MutationState mutations)
     {
         if (baseline.Pages.Count != requested.Pages.Count || baseline.Pages.Count != presentation.Slides.Count)
             throw Unsupported("$.pages", "source-bound page insertion or deletion requires an explicit page capability");
@@ -242,7 +266,9 @@ internal static class PpjSourceBoundPresentationCompiler
             for (var elementIndex = 0; elementIndex < before.Elements.Count; elementIndex++)
             {
                 var elementPath = $"{path}.elements[{elementIndex}]";
-                if (ApplyElement(before.Elements[elementIndex], after.Elements[elementIndex], slide.Elements[elementIndex], assets, changedNodeIds, elementPath))
+                var wireElement = slide.Elements[elementIndex];
+                var shapeTreePath = new[] { wireElement.Source?.ShapeTreeIndex ?? checked((uint)elementIndex) };
+                if (ApplyElement(before.Elements[elementIndex], after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, changedNodeIds, mutations, elementPath))
                 {
                     changed = true;
                     changedNodeIds.Add(after.Id);
@@ -256,36 +282,57 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjElementModel before,
         PpjElementModel after,
         PresentationElement target,
+        PresentationSlide slide,
+        IReadOnlyList<uint> shapeTreePath,
         IReadOnlyDictionary<string, string> assets,
         ISet<string> changedNodeIds,
+        MutationState mutations,
         string path)
     {
         if (!before.Id.Equals(after.Id, StringComparison.Ordinal) || !before.Type.Equals(after.Type, StringComparison.Ordinal))
             throw Unsupported(path, "source-bound element reorder, identity, or type change");
         RequireNativeRef(before.Raw, after.Raw, path);
 
-        var changed = before switch
+        bool changed;
+        switch (before)
         {
-            PpjTextElementModel beforeText when after is PpjTextElementModel afterText && target.ContentCase == PresentationElement.ContentOneofCase.Shape =>
-                ApplyTextElement(beforeText, afterText, target.Shape, path),
-            PpjShapeElementModel beforeShape when after is PpjShapeElementModel afterShape && target.ContentCase == PresentationElement.ContentOneofCase.Shape =>
-                ApplyShapeElement(beforeShape, afterShape, target.Shape, path),
-            PpjPlaceholderElementModel beforePlaceholder when after is PpjPlaceholderElementModel afterPlaceholder && target.ContentCase == PresentationElement.ContentOneofCase.Shape =>
-                ApplyPlaceholderElement(beforePlaceholder, afterPlaceholder, target.Shape, path),
-            PpjImageElementModel beforeImage when after is PpjImageElementModel afterImage && target.ContentCase == PresentationElement.ContentOneofCase.Image =>
-                ApplyImageElement(beforeImage, afterImage, target.Image, assets, path),
-            PpjChartElementModel beforeChart when after is PpjChartElementModel afterChart && target.ContentCase == PresentationElement.ContentOneofCase.Chart =>
-                ApplyChartElement(beforeChart, afterChart, target.Chart, path),
-            PpjTableElementModel beforeTable when after is PpjTableElementModel afterTable && target.ContentCase == PresentationElement.ContentOneofCase.Table =>
-                ApplyTableElement(beforeTable, afterTable, target.Table, path),
-            PpjConnectorElementModel beforeConnector when after is PpjConnectorElementModel afterConnector && target.ContentCase == PresentationElement.ContentOneofCase.Connector =>
-                ApplyConnectorElement(beforeConnector, afterConnector, target.Connector, path),
-            PpjGroupElementModel beforeGroup when after is PpjGroupElementModel afterGroup && target.ContentCase == PresentationElement.ContentOneofCase.Group =>
-                ApplyGroupElement(beforeGroup, afterGroup, target.Group, assets, changedNodeIds, path),
-            PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque =>
-                ApplyOpaqueElement(beforeOpaque, afterOpaque, target, path),
-            _ => throw Unsupported(path, "the exact source object no longer matches its PPJ projection type"),
-        };
+            case PpjTextElementModel beforeText when after is PpjTextElementModel afterText && target.ContentCase == PresentationElement.ContentOneofCase.Shape:
+                changed = ApplyTextElement(beforeText, afterText, target.Shape, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjShapeElementModel beforeShape when after is PpjShapeElementModel afterShape && target.ContentCase == PresentationElement.ContentOneofCase.Shape:
+                changed = ApplyShapeElement(beforeShape, afterShape, target.Shape, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjPlaceholderElementModel beforePlaceholder when after is PpjPlaceholderElementModel afterPlaceholder && target.ContentCase == PresentationElement.ContentOneofCase.Shape:
+                changed = ApplyPlaceholderElement(beforePlaceholder, afterPlaceholder, target.Shape, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjImageElementModel beforeImage when after is PpjImageElementModel afterImage && target.ContentCase == PresentationElement.ContentOneofCase.Image:
+                changed = ApplyImageElement(beforeImage, afterImage, target.Image, assets, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjChartElementModel beforeChart when after is PpjChartElementModel afterChart && target.ContentCase == PresentationElement.ContentOneofCase.Chart:
+                changed = ApplyChartElement(beforeChart, afterChart, target.Chart, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjTableElementModel beforeTable when after is PpjTableElementModel afterTable && target.ContentCase == PresentationElement.ContentOneofCase.Table:
+                changed = ApplyTableElement(beforeTable, afterTable, target.Table, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjConnectorElementModel beforeConnector when after is PpjConnectorElementModel afterConnector && target.ContentCase == PresentationElement.ContentOneofCase.Connector:
+                changed = ApplyConnectorElement(beforeConnector, afterConnector, target.Connector, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
+            case PpjGroupElementModel beforeGroup when after is PpjGroupElementModel afterGroup && target.ContentCase == PresentationElement.ContentOneofCase.Group:
+                changed = ApplyGroupElement(beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, changedNodeIds, mutations, path);
+                break;
+            case PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque:
+                changed = ApplyOpaqueElement(beforeOpaque, afterOpaque, target, slide, shapeTreePath, mutations, path);
+                break;
+            default:
+                throw Unsupported(path, "the exact source object no longer matches its PPJ projection type");
+        }
         if (changed) changedNodeIds.Add(after.Id);
         return changed;
     }
@@ -445,34 +492,76 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjGroupElementModel before,
         PpjGroupElementModel after,
         PresentationGroup target,
+        PresentationSlide slide,
+        IReadOnlyList<uint> shapeTreePath,
         IReadOnlyDictionary<string, string> assets,
         ISet<string> changedNodeIds,
+        MutationState mutations,
         string path)
     {
         RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "elements");
         var changed = ApplyFrame(before, after, target, path);
+        if (changed) mutations.SemanticChanges = true;
         if (before.Elements.Count != after.Elements.Count || before.Elements.Count != target.Children.Count)
             throw Unsupported(path + ".elements", "source-bound group child insertion or deletion");
         for (var index = 0; index < before.Elements.Count; index++)
-            changed |= ApplyElement(before.Elements[index], after.Elements[index], target.Children[index], assets, changedNodeIds, $"{path}.elements[{index}]");
+        {
+            var child = target.Children[index];
+            var childPath = shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray();
+            changed |= ApplyElement(before.Elements[index], after.Elements[index], child, slide, childPath, assets, changedNodeIds, mutations, $"{path}.elements[{index}]");
+        }
         return changed;
     }
 
-    private static bool ApplyOpaqueElement(PpjOpaqueElementModel before, PpjOpaqueElementModel after, PresentationElement target, string path)
+    private static bool ApplyOpaqueElement(
+        PpjOpaqueElementModel before,
+        PpjOpaqueElementModel after,
+        PresentationElement target,
+        PresentationSlide slide,
+        IReadOnlyList<uint> shapeTreePath,
+        MutationState mutations,
+        string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame");
-        if (!FrameChanged(before, after)) return false;
-        return target.ContentCase switch
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "visibleText");
+        var changed = false;
+        if (FrameChanged(before, after))
         {
-            PresentationElement.ContentOneofCase.Shape => ApplyFrame(before, after, target.Shape, path),
-            PresentationElement.ContentOneofCase.Image => ApplyFrame(before, after, target.Image, path),
-            PresentationElement.ContentOneofCase.Chart => ApplyFrame(before, after, target.Chart, path),
-            PresentationElement.ContentOneofCase.Table => ApplyFrame(before, after, target.Table, path),
-            PresentationElement.ContentOneofCase.Connector => ApplyConnectorFrame(before, after, target.Connector, path),
-            PresentationElement.ContentOneofCase.Group => ApplyFrame(before, after, target.Group, path),
-            PresentationElement.ContentOneofCase.Opaque => ApplyFrame(before, after, target.Opaque, path),
-            _ => throw Unsupported(path + ".frame", "placement of an unrecognized source object"),
-        };
+            changed = target.ContentCase switch
+            {
+                PresentationElement.ContentOneofCase.Shape => ApplyFrame(before, after, target.Shape, path),
+                PresentationElement.ContentOneofCase.Image => ApplyFrame(before, after, target.Image, path),
+                PresentationElement.ContentOneofCase.Chart => ApplyFrame(before, after, target.Chart, path),
+                PresentationElement.ContentOneofCase.Table => ApplyFrame(before, after, target.Table, path),
+                PresentationElement.ContentOneofCase.Connector => ApplyConnectorFrame(before, after, target.Connector, path),
+                PresentationElement.ContentOneofCase.Group => ApplyFrame(before, after, target.Group, path),
+                PresentationElement.ContentOneofCase.Opaque => ApplyFrame(before, after, target.Opaque, path),
+                _ => throw Unsupported(path + ".frame", "placement of an unrecognized source object"),
+            };
+            mutations.SemanticChanges = true;
+        }
+        if (!before.VisibleText.SequenceEqual(after.VisibleText, StringComparer.Ordinal))
+        {
+            RequireCapability(after, "replaceText", path + ".visibleText");
+            if (target.ContentCase != PresentationElement.ContentOneofCase.Opaque ||
+                !PpjNativeTextProjection.TryRead(target.Opaque.RawXml, out var sourceLeaves) ||
+                !sourceLeaves.SequenceEqual(before.VisibleText, StringComparer.Ordinal) ||
+                before.VisibleText.Count != after.VisibleText.Count)
+                throw Unsupported(path + ".visibleText", "stale or topologically changed opaque text leaves");
+            for (var index = 0; index < before.VisibleText.Count; index++)
+            {
+                if (before.VisibleText[index] == after.VisibleText[index]) continue;
+                mutations.NativeText.Add(new NativeTextMutation(
+                    after.Id,
+                    slide,
+                    target,
+                    shapeTreePath,
+                    checked((uint)index),
+                    before.VisibleText[index],
+                    after.VisibleText[index]));
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationShape target, string path)
@@ -838,6 +927,44 @@ internal static class PpjSourceBoundPresentationCompiler
         var values = id[5..].Split('-');
         return values.Length == 2 && int.TryParse(values[0], out var oneBasedRow) && int.TryParse(values[1], out var oneBasedColumn) &&
                (row = oneBasedRow - 1) >= 0 && (column = oneBasedColumn - 1) >= 0;
+    }
+
+    private static PresentationEditPlanRequest NativeTextEditPlan(
+        string sourceSha256,
+        IReadOnlyList<NativeTextMutation> mutations)
+    {
+        var plan = new PresentationEditPlanRequest { ExpectedSourceSha256 = sourceSha256 };
+        foreach (var mutation in mutations)
+        {
+            var slideSource = mutation.Slide.Source ??
+                throw new CodecException("ppj.nativeRef.stale", "Opaque text edit lost its source slide binding.", mutation.ProgramElementId);
+            var elementSource = mutation.Element.Source ??
+                throw new CodecException("ppj.nativeRef.stale", "Opaque text edit lost its source element binding.", mutation.ProgramElementId);
+            if (mutation.ShapeTreePath.Count == 0 || string.IsNullOrEmpty(slideSource.PartPath) ||
+                string.IsNullOrEmpty(slideSource.SlideXmlSha256) || string.IsNullOrEmpty(elementSource.ElementSha256) ||
+                string.IsNullOrEmpty(elementSource.SemanticSha256))
+                throw new CodecException("ppj.nativeRef.stale", "Opaque text edit has an incomplete source-bound compiler binding.", mutation.ProgramElementId);
+            var seed = string.Join("\0", sourceSha256, mutation.ProgramElementId, mutation.LeafIndex, mutation.Before, mutation.After);
+            var operation = new PresentationEditOperation
+            {
+                OperationId = $"ppj-nativeText-{Sha256(Encoding.UTF8.GetBytes(seed))[..20]}",
+                SlideId = mutation.Slide.Id,
+                SlidePartPath = slideSource.PartPath,
+                ExpectedSlideSha256 = slideSource.SlideXmlSha256,
+                TargetId = mutation.Element.Id,
+                ShapeTreeIndex = mutation.ShapeTreePath[0],
+                ExpectedElementSha256 = elementSource.ElementSha256,
+                ExpectedSemanticSha256 = elementSource.SemanticSha256,
+                TextLeafIndex = mutation.LeafIndex,
+                ExpectedTextSha256 = Sha256(Encoding.UTF8.GetBytes(mutation.Before)),
+                ExpectedValue = mutation.Before,
+                Value = mutation.After,
+                LeafKind = "nativeText",
+            };
+            operation.ShapeTreePath.Add(mutation.ShapeTreePath);
+            plan.Operations.Add(operation);
+        }
+        return plan;
     }
 
     private static string AssetRoot(PpjProgramModel program)

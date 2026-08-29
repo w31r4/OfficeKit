@@ -219,6 +219,59 @@ public sealed class PptxCodecTests
         Assert.Contains(sourceEditRoundTrip.Artifact.Presentation.Slides.SelectMany(slide => slide.Elements), element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Text.Contains(sourceBoundReplacement, StringComparison.Ordinal));
 
+        var tableSlidePath = ZipPartPaths(first.File.ToByteArray()).Single(path =>
+            Regex.IsMatch(path, "^ppt/slides/slide[0-9]+\\.xml$", RegexOptions.CultureInvariant) &&
+            Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), path)).Contains("<a:tbl", StringComparison.Ordinal));
+        var opaqueTextSource = ReplaceZipText(first.File.ToByteArray(), tableSlidePath, xml =>
+        {
+            var tableStart = xml.IndexOf("<a:tbl", StringComparison.Ordinal);
+            var tableEnd = xml.IndexOf("</a:tbl>", tableStart, StringComparison.Ordinal);
+            var firstRunEnd = xml.IndexOf("</a:r>", tableStart, StringComparison.Ordinal);
+            Assert.True(tableStart >= 0 && tableEnd > tableStart && firstRunEnd > tableStart && firstRunEnd < tableEnd);
+            return xml.Insert(firstRunEnd + "</a:r>".Length, "<a:r><a:rPr/><a:t>source-owned companion</a:t></a:r>");
+        });
+        var opaqueProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(opaqueTextSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/opaque-source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(opaqueProjection.Ok, Diagnostics(opaqueProjection));
+        var opaqueProgram = JsonNode.Parse(opaqueProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var opaqueText = opaqueProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .First(element => element["type"]!.GetValue<string>() == "opaque" &&
+                element["nativeRef"]!["capabilities"]!.AsArray().Any(capability =>
+                    capability!["operation"]!.GetValue<string>() == "replaceText"));
+        var opaqueTextId = opaqueText["id"]!.GetValue<string>();
+        var oldNativeText = opaqueText["visibleText"]![0]!.GetValue<string>();
+        const string newNativeText = "PPJ bounded native text";
+        opaqueText["visibleText"]![0] = newNativeText;
+        var opaqueTextEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(opaqueTextSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(opaqueProgram.ToJsonString()),
+            },
+        });
+        Assert.True(opaqueTextEdit.Ok, Diagnostics(opaqueTextEdit));
+        Assert.Equal([tableSlidePath], opaqueTextEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(opaqueTextId, opaqueTextEdit.PresentationProgram.ChangedNodeIds);
+        var opaqueSourceXml = Encoding.UTF8.GetString(ZipBytes(opaqueTextSource, tableSlidePath));
+        var opaqueOutputXml = Encoding.UTF8.GetString(ZipBytes(opaqueTextEdit.File.ToByteArray(), tableSlidePath));
+        Assert.Equal(opaqueSourceXml, opaqueOutputXml.Replace(newNativeText, oldNativeText, StringComparison.Ordinal));
+
         var repeated = Invoke(request);
         Assert.True(repeated.Ok, Diagnostics(repeated));
         Assert.Equal(first.PresentationProgram.ProgramSha256, repeated.PresentationProgram.ProgramSha256);

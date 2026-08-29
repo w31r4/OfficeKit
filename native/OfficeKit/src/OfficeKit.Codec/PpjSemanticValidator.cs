@@ -7,7 +7,7 @@ internal static class PpjSemanticValidator
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> CapabilityFields =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
-            ["replaceText"] = Set("text"),
+            ["replaceText"] = Set("text", "visibleText"),
             ["setFill"] = Set("fill"),
             ["setStroke"] = Set("stroke"),
             ["setOpacity"] = Set("opacity"),

@@ -201,6 +201,7 @@ internal sealed class PpjOpaqueElementModel : PpjElementModel
 {
     internal required string NativeKind { get; init; }
     internal required string Summary { get; init; }
+    internal required IReadOnlyList<string> VisibleText { get; init; }
     internal string? PreviewAssetId { get; init; }
 }
 
@@ -553,6 +554,7 @@ internal static class PpjProgramParser
             {
                 NativeKind = element.GetProperty("nativeKind").GetString()!,
                 Summary = element.GetProperty("summary").GetString()!,
+                VisibleText = OptionalArray(element, "visibleText").Select(item => item.GetString()!).ToArray(),
                 PreviewAssetId = OptionalString(element, "previewAsset"),
             },
             "component" => new PpjComponentElementModel

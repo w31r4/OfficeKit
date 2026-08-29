@@ -513,7 +513,13 @@ internal static partial class PpjPresentationProjector
         output["type"] = "opaque";
         output["nativeKind"] = nativeKind;
         output["summary"] = summary ?? $"Preserved source-owned {nativeKind} object; only issued nativeRef capabilities are editable.";
-        if (!string.IsNullOrWhiteSpace(opaque?.Text))
+        if (opaque is not null && PpjNativeTextProjection.TryRead(opaque.RawXml, out var nativeLeaves))
+        {
+            var visible = new JsonArray();
+            foreach (var leaf in nativeLeaves) visible.Add(leaf);
+            output["visibleText"] = visible;
+        }
+        else if (!string.IsNullOrWhiteSpace(opaque?.Text))
         {
             var visible = new JsonArray();
             foreach (var line in opaque.Text.Split('\n').Where(line => line.Length > 0)) visible.Add(line);
@@ -835,7 +841,9 @@ internal static partial class PpjPresentationProjector
         var output = new List<CapabilitySpec>();
         var source = element.Source;
         if (source is null) return output;
-        if (source.TextEditable) output.Add(new("replaceText", ["text"]));
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+            PpjNativeTextProjection.TryRead(element.Opaque.RawXml, out _))
+            output.Add(new("replaceText", ["visibleText"]));
         if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
         if (element.ContentCase == PresentationElement.ContentOneofCase.Opaque)
         {

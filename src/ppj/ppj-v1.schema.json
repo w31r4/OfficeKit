@@ -1002,6 +1002,7 @@
           "items": {
             "enum": [
               "text",
+              "visibleText",
               "fill",
               "stroke",
               "opacity",
