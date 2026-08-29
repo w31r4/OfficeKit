@@ -124,6 +124,10 @@ function textBodyAutoFitToken(value) {
   return ({ none: "noAutofit", shrinkText: "normAutofit", resizeShape: "spAutoFit" })[value] || value;
 }
 
+function textBodyColumnDirectionToken(value) {
+  return typeof value === "boolean" ? (value ? "1" : "0") : String(value);
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -145,6 +149,8 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
         ? verticalAnchorToken(item.expectedValue)
         : item.leafKind === "textBodyAutoFit"
           ? textBodyAutoFitToken(item.expectedValue)
+        : item.leafKind === "textBodyColumnDirection"
+          ? textBodyColumnDirectionToken(item.expectedValue)
         : String(item.expectedValue);
     const replacementValue = item.leafKind === "paragraphAlignment"
       ? paragraphAlignmentToken(item.value)
@@ -152,6 +158,8 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
         ? verticalAnchorToken(item.value)
         : item.leafKind === "textBodyAutoFit"
           ? textBodyAutoFitToken(item.value)
+        : item.leafKind === "textBodyColumnDirection"
+          ? textBodyColumnDirectionToken(item.value)
         : String(item.value);
     const expected = Buffer.from(expectedValue, "utf8");
     const replacement = Buffer.from(replacementValue, "utf8");
@@ -1130,6 +1138,49 @@ const textBodyAutoFitRoundTripLeaf = textBodyAutoFitRoundTrip.inspect({ includeN
   .map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyAutoFit");
 assert.equal(textBodyAutoFitRoundTripLeaf.value, "none");
+
+// A direct rtlCol flag is a source-bound column-direction leaf.  Toggle the
+// boolean while preserving the other bodyPr attributes and vendor metadata.
+const textBodyColumnDirectionAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyColumnDirectionAccessibilityXml = (await textBodyColumnDirectionAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:bodyPr\b)(?![^>]*\brtlCol=)([^>]*>)/u,
+    '$1 rtlCol="0"$2',
+  );
+assert.match(textBodyColumnDirectionAccessibilityXml, /<a:bodyPr\b[^>]*\brtlCol="0"/);
+textBodyColumnDirectionAccessibilityZip.file("ppt/slides/slide1.xml", textBodyColumnDirectionAccessibilityXml);
+const textBodyColumnDirectionAccessibilityFile = new FileBlob(
+  await textBodyColumnDirectionAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyColumnDirectionImported = await PresentationFile.importPptx(textBodyColumnDirectionAccessibilityFile);
+const textBodyColumnDirectionShape = itemByName(textBodyColumnDirectionImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyColumnDirectionLeaf = textBodyColumnDirectionImported.inspect({ includeNativeLeaves: true, target: textBodyColumnDirectionShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnDirection");
+assert.ok(textBodyColumnDirectionLeaf, "source-bound shapes should expose direct text-body column-direction leaves");
+assert.equal(textBodyColumnDirectionLeaf.value, false);
+textBodyColumnDirectionImported.editNativeLeaf(textBodyColumnDirectionLeaf.targetId, textBodyColumnDirectionLeaf.leafId, {
+  expectedHash: textBodyColumnDirectionLeaf.expectedHash,
+  value: true,
+});
+const textBodyColumnDirectionOutput = await PresentationFile.exportPptx(textBodyColumnDirectionImported);
+const textBodyColumnDirectionOperation = textBodyColumnDirectionOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyColumnDirection");
+assert.ok(textBodyColumnDirectionOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyColumnDirectionAccessibilityFile, textBodyColumnDirectionOutput, textBodyColumnDirectionOperation);
+const textBodyColumnDirectionXml = await (await JSZip.loadAsync(textBodyColumnDirectionOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyColumnDirectionXml, /<a:bodyPr\b[^>]*\brtlCol="1"/);
+assert.match(textBodyColumnDirectionXml, /fixture:opaque="kept"/);
+const textBodyColumnDirectionRoundTrip = await PresentationFile.importPptx(textBodyColumnDirectionOutput);
+const textBodyColumnDirectionRoundTripLeaf = textBodyColumnDirectionRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyColumnDirectionShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnDirection");
+assert.equal(textBodyColumnDirectionRoundTripLeaf.value, true);
 
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,

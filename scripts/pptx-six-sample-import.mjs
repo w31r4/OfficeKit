@@ -105,6 +105,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeTextBodyWrap = await verifyNativeTextBodyWrapEdit(bytes);
     const nativeTextBodyColumnCount = await verifyNativeTextBodyColumnCountEdit(bytes);
     const nativeTextBodyAutoFit = await verifyNativeTextBodyAutoFitEdit(bytes);
+    const nativeTextBodyColumnDirection = await verifyNativeTextBodyColumnDirectionEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -150,6 +151,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeTextBodyWrap,
       nativeTextBodyColumnCount,
       nativeTextBodyAutoFit,
+      nativeTextBodyColumnDirection,
       svgStyle,
       animatedText,
       tableCell,
@@ -194,6 +196,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeTextBodyWrapEdits: results.filter((result) => result.nativeTextBodyWrap.status === "passed").length,
       nativeTextBodyColumnCountEdits: results.filter((result) => result.nativeTextBodyColumnCount.status === "passed").length,
       nativeTextBodyAutoFitEdits: results.filter((result) => result.nativeTextBodyAutoFit.status === "passed").length,
+      nativeTextBodyColumnDirectionEdits: results.filter((result) => result.nativeTextBodyColumnDirection.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -610,6 +613,28 @@ async function verifyNativeTextBodyAutoFitEdit(bytes) {
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
     throw new Error(`Native text-body AutoFit edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeTextBodyColumnDirectionEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyColumnDirection");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body column-direction leaf was discovered" };
+  const value = !Boolean(target.value);
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native text-body column-direction edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body column-direction edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
 }
