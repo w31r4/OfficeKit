@@ -3052,6 +3052,21 @@ for (const item of HELP_CATALOG) {
   if (adoption) Object.assign(item, adoption);
 }
 
+// Keep the source-bound typography additions adjacent to the existing native
+// leaf guidance without duplicating the long catalog literals above.
+const presentationNativeLeafHelp = HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf");
+const presentationInspectLeavesHelp = HELP_CATALOG.find((item) => item.name === "presentation.inspect");
+if (presentationNativeLeafHelp) {
+  presentationNativeLeafHelp.summary += " Character spacing is also available as a bounded direct `fontSpacingPoints` leaf for canonical signed `a:rPr/@spc` tokens, exposed in points and spliced as signed hundredths of a point; inherited, malformed, effect-bearing, and placeholder style graphs remain opaque.";
+}
+if (presentationInspectLeavesHelp) {
+  presentationInspectLeavesHelp.summary += " Direct run `fontSpacingPoints` leaves cover canonical signed `a:rPr/@spc` tokens in the same source-bound, revision-checked manner; missing, inherited, malformed, effect-bearing, and placeholder style graphs remain opaque.";
+}
+const presentationNativeLeafReceipt = presentationNativeLeafHelp?.schema?.returns?.receipt;
+if (presentationNativeLeafReceipt) {
+  presentationNativeLeafReceipt.description += " A `fontSpacingPoints` leaf changes only one canonical direct `a:rPr/@spc` token, exposed in points and spliced as signed hundredths of a point; inherited, malformed, effect-bearing, and placeholder style graphs remain source-owned.";
+}
+
 export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) {
   const q = String(query || "*").toLowerCase();
   const search = String(options.search || "").toLowerCase();

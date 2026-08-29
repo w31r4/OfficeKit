@@ -71,11 +71,18 @@ Direct run baseline is exposed on ordinary non-placeholder runs as
 `fontBaselinePercent` for a canonical signed
 `a:rPr/@baseline` token. Public values are percentages while the source-bound
 operation splices the native thousandths-of-a-percent token and leaves the
-rest of the run intact. The FROSTE sample exposes 12 superscript leaves;
+rest of the run intact. The FROSTE sample exposes 10 superscript leaves;
 changing one from 30% to -25% changes only `ppt/slides/slide1.xml` and
 recovers the new value after second import. Values outside +/-400%, inherited
 or end-paragraph styles, malformed tokens, and irregular font graphs remain
 source-owned.
+Direct character spacing is exposed as `fontSpacingPoints` for canonical signed
+`a:rPr/@spc` tokens. Public values are points while the source-bound operation
+splices signed hundredths-of-a-point tokens and leaves the rest of the run
+intact. The MMS sample exposes one 2-point direct run leaf; changing it to
+-1.5 points changes only its slide part and recovers the value after second
+import. Placeholder, inherited, malformed, effect-bearing, and non-canonical
+spacing graphs remain source-owned.
 Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
 one bounded `a:pPr/@lvl` edit with second import. Because the current wire
 scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero
