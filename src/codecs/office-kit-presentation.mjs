@@ -25,7 +25,7 @@ import { normalizePresentationTextBodyProperties } from "../presentation/text-bo
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
 import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
-import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
+import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
@@ -79,7 +79,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "fontSize", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontFamily", "fontFamilyEastAsia", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -884,6 +884,8 @@ function wireTextStyle(style = {}, shapeId) {
   }
   const fontFamily = presentationFontFamily(style.fontFamily, `Presentation shape ${shapeId} paragraph`);
   const fontFamilyEastAsia = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} paragraph East Asian`);
+  const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
+  const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
   if (style.color != null) {
     const token = String(style.color).trim();
@@ -898,6 +900,8 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
+    ...(underline === undefined ? {} : { underline }),
+    ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
   };
 }
@@ -958,6 +962,8 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   const runText = run.field?.text ?? run.text ?? "";
   const explicitEastAsianFamily = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} East Asian`);
   const fontFamilyEastAsia = explicitEastAsianFamily ?? (fontFamily && containsEastAsianText(runText) ? fontFamily : undefined);
+  const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
+  const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
   const colorRgb = style.color == null ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
   if (colorRgb === "") {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
@@ -974,6 +980,8 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
+    ...(underline === undefined ? {} : { underline }),
+    ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
     ...(hyperlink ? { hyperlink } : {}),
   };
@@ -3318,6 +3326,22 @@ function assertNativeLeafBooleanValue(value) {
   }
 }
 
+function normalizeNativeLeafUnderlineValue(value) {
+  try {
+    return normalizePresentationUnderline(value, "Presentation native underline leaf");
+  } catch {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native underline leaf requires a standard DrawingML underline token or boolean.");
+  }
+}
+
+function normalizeNativeLeafStrikeValue(value) {
+  try {
+    return normalizePresentationStrike(value, "Presentation native strike leaf");
+  } catch {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native strike leaf requires a standard DrawingML strike token or boolean.");
+  }
+}
+
 function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
   if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
@@ -4276,6 +4300,38 @@ function createPresentationNativeLeafCapability(presentation, state) {
               },
             });
           }
+          for (const [field, leafKind, normalize] of [
+            ["underline", "fontUnderline", normalizeNativeLeafUnderlineValue],
+            ["strike", "fontStrike", normalizeNativeLeafStrikeValue],
+          ]) {
+            const token = leaf.run[field];
+            if (typeof token !== "string") continue;
+            let canonical;
+            try {
+              canonical = normalize(token);
+            } catch {
+              continue;
+            }
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+              expectedValue: canonical,
+              value: canonical,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                const normalized = normalize(next);
+                return { raw: normalized, publicValue: normalized };
+              },
+              isNoop(next) { return next === canonical; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation text-decoration native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), [field]: next };
+              },
+            });
+          }
           const colorRgb = leaf.run.colorRgb;
           if (typeof colorRgb === "string" && /^[0-9A-F]{6}$/iu.test(colorRgb)) {
             const expectedValue = colorRgb.toUpperCase();
@@ -4936,6 +4992,8 @@ function modelRun(run, customShowLinks) {
       ...(run.fontSizePoints === undefined ? {} : { fontSize: run.fontSizePoints / POINTS_PER_PIXEL }),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
+      ...(run.underline === undefined ? {} : { underline: run.underline }),
+      ...(run.strike === undefined ? {} : { strike: run.strike }),
       ...(run.colorRgb === undefined ? {} : { color: `#${run.colorRgb}` }),
     },
     ...(hyperlink ? { link: hyperlink } : {}),
@@ -5018,6 +5076,8 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.fontSizePoints === undefined ? {} : { fontSize: style.fontSizePoints / POINTS_PER_PIXEL }),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
+    ...(style.underline === undefined ? {} : { underline: style.underline }),
+    ...(style.strike === undefined ? {} : { strike: style.strike }),
     ...(style.color?.case === "colorRgb" ? { color: `#${style.color.value}` } : {}),
     ...(style.color?.case === "colorScheme" ? { color: style.color.value } : {}),
   };

@@ -111,6 +111,8 @@ internal static class PptxTextCodec
                 if (run.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(run.FontFamilyEastAsia) || run.FontFamilyEastAsia.Length > 255))
                     throw new CodecException("invalid_presentation_text", "Presentation run East Asian font family must contain 1 through 255 characters.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
+                if (run.HasUnderline) PptxTextDecoration.NormalizeUnderline(run.Underline);
+                if (run.HasStrike) PptxTextDecoration.NormalizeStrike(run.Strike);
                 PptxHyperlinkCodec.Validate(run);
             }
         }
@@ -265,6 +267,8 @@ internal static class PptxTextCodec
         var eastAsianFonts = properties?.Elements<A.EastAsianFont>().Take(2).ToArray() ?? [];
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) run.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
         if (PptxColor.TryDirectSolidRgb(properties?.GetFirstChild<A.SolidFill>(), out var rgb)) run.ColorRgb = rgb;
+        if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
+        if (PptxTextDecoration.TryStrike(properties, out var strike)) run.Strike = strike;
         PptxHyperlinkCodec.Read(run, properties, slideContext);
         return run;
     }
@@ -486,12 +490,15 @@ internal static class PptxTextCodec
     };
 
     private static bool HasStyle(PresentationTextRun run) =>
-        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasColorRgb;
+        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasColorRgb ||
+        run.HasUnderline || run.HasStrike;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
     {
         properties.Bold = requested.HasBold ? requested.Bold : null;
         properties.Italic = requested.HasItalic ? requested.Italic : null;
+        if (requested.HasUnderline) properties.Underline = new A.TextUnderlineValues(PptxTextDecoration.NormalizeUnderline(requested.Underline));
+        if (requested.HasStrike) properties.Strike = new A.TextStrikeValues(PptxTextDecoration.NormalizeStrike(requested.Strike));
         properties.FontSize = requested.HasFontSizePoints ? checked((int)Math.Round(requested.FontSizePoints * 100)) : null;
         var latin = properties.GetFirstChild<A.LatinFont>();
         if (requested.HasFontFamily)

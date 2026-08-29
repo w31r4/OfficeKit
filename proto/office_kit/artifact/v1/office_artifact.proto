@@ -153,7 +153,8 @@ message PresentationEditOperation {
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
   // v1 values: text, tableCellText, fontSizePoints, fontFamily,
-  // fontFamilyEastAsia, fontBold, fontItalic, fontColorRgb, fillRgb, fillScheme,
+  // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
+  // fontColorRgb, fillRgb, fillScheme,
   // lineRgb, lineScheme, lineWidthEmu,
   // leftEmu, topEmu,
   // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
@@ -2441,6 +2442,9 @@ message PresentationTextStyle {
   // Latin display face and a separate CJK fallback without relying on host
   // substitution.
   optional string font_family_east_asia = 7;
+  // Direct DrawingML decoration tokens for default run properties.
+  optional string underline = 8;
+  optional string strike = 9;
 }
 
 message PresentationTextParagraph {
@@ -2558,6 +2562,11 @@ message PresentationTextRun {
   // Direct DrawingML a:ea typeface. The JavaScript authoring layer supplies
   // font_family for East Asian text when no explicit override is present.
   optional string font_family_east_asia = 11;
+  // Direct DrawingML a:rPr decoration tokens. Only standard DrawingML values
+  // are exposed by the native leaf projection; unknown effect-bearing text
+  // properties remain source-bound.
+  optional string underline = 12;
+  optional string strike = 13;
 }
 
 message PresentationTextField {

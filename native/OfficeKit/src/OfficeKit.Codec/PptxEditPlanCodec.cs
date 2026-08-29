@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -251,6 +251,20 @@ internal static partial class PptxEditPlanCodec
             {
                 if (!ValidBooleanToken(operation.ExpectedValue) || !ValidBooleanToken(operation.Value))
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} font style must use canonical boolean tokens 0 or 1.");
+            }
+            if (leafKind == "fontUnderline")
+            {
+                var expected = PptxTextDecoration.NormalizeUnderline(operation.ExpectedValue);
+                var requested = PptxTextDecoration.NormalizeUnderline(operation.Value);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its underline.");
+            }
+            if (leafKind == "fontStrike")
+            {
+                var expected = PptxTextDecoration.NormalizeStrike(operation.ExpectedValue);
+                var requested = PptxTextDecoration.NormalizeStrike(operation.Value);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its strike.");
             }
             if (leafKind == "fontColorRgb")
             {
@@ -428,7 +442,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -534,7 +548,7 @@ internal static partial class PptxEditPlanCodec
             }
             if (range.LocalName is not ("sp" or "pic" or "graphicFrame" or "cxnSp" or "grpSp"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} raw target is not p:sp, p:pic, p:graphicFrame, p:cxnSp, or p:grpSp.", operation.SlidePartPath);
-            if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontColorRgb")
+            if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb")
             {
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
@@ -542,7 +556,7 @@ internal static partial class PptxEditPlanCodec
                     ? CompileTextFontSizeXmlPatch(xml, range, proof, drawingPrefixes)
                     : leafKind is "fontFamily" or "fontFamilyEastAsia"
                         ? CompileTextFontFamilyXmlPatch(xml, range, proof, drawingPrefixes)
-                        : leafKind is "fontBold" or "fontItalic"
+                        : leafKind is "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike"
                             ? CompileTextFontBooleanXmlPatch(xml, range, proof, drawingPrefixes)
                             : CompileTextFontColorXmlPatch(xml, range, proof, drawingPrefixes));
                 continue;
@@ -894,6 +908,24 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font style.", operation.SlidePartPath);
             return value.Value ? "1" : "0";
         }
+        if (kind is "fontUnderline" or "fontStrike")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
+            var leaves = shape.Descendants<A.Text>().ToArray();
+            if (operation.TextLeafIndex >= (uint)leaves.Length || leaves[operation.TextLeafIndex].Parent is not A.Run run)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run decoration.", operation.SlidePartPath);
+            var runProperties = run.RunProperties;
+            if (kind == "fontUnderline")
+            {
+                if (!PptxTextDecoration.TryUnderline(runProperties, out var underline))
+                    throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run underline.", operation.SlidePartPath);
+                return underline;
+            }
+            if (!PptxTextDecoration.TryStrike(runProperties, out var strike))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run strike.", operation.SlidePartPath);
+            return strike;
+        }
         if (kind == "fontColorRgb")
         {
             if (element is not P.Shape shape)
@@ -1121,14 +1153,28 @@ internal static partial class PptxEditPlanCodec
         var startTag = XmlTokenPattern().Matches(propertiesXml).Cast<Match>()
             .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == "rPr") ??
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} run properties tag was not found.", operation.SlidePartPath);
-        var attribute = LeafKind(operation) == "fontBold" ? "b" : "i";
+        var leafKind = LeafKind(operation);
+        var attribute = leafKind switch
+        {
+            "fontBold" => "b",
+            "fontItalic" => "i",
+            "fontUnderline" => "u",
+            "fontStrike" => "strike",
+            _ => throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an unsupported text decoration leaf.", operation.SlidePartPath),
+        };
         var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
             .Where(match => LocalAttributeName(match.Groups["name"].Value) == attribute)
             .ToArray();
         if (attributes.Length != 1)
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run {attribute} attribute is missing or ambiguous.", operation.SlidePartPath);
         var valueGroup = attributes[0].Groups["value"];
-        if (!TryCanonicalBoolean(valueGroup.Value, out var actual) || actual != operation.ExpectedValue)
+        var actualValue = System.Net.WebUtility.HtmlDecode(valueGroup.Value);
+        var matches = leafKind is "fontBold" or "fontItalic"
+            ? TryCanonicalBoolean(actualValue, out var actualBoolean) && actualBoolean == operation.ExpectedValue
+            : leafKind == "fontUnderline"
+                ? PptxTextDecoration.IsUnderlineToken(actualValue) && actualValue == operation.ExpectedValue
+                : PptxTextDecoration.IsStrikeToken(actualValue) && actualValue == operation.ExpectedValue;
+        if (!matches)
             throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw run font style does not match the expected value.", operation.SlidePartPath);
         var start = elementRange.Start + properties.Start + startTag.Index + valueGroup.Index;
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, operation.Value, proof.SourceElementSha256, proof.MutationPartPath);

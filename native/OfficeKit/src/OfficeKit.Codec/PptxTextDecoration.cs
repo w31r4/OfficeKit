@@ -1,0 +1,67 @@
+using A = DocumentFormat.OpenXml.Drawing;
+
+namespace OfficeKit.Codec;
+
+// Direct DrawingML text decorations are intentionally a small, source-bound
+// slice.  Underline effects (for example uFill/uLn) carry their own graph and
+// stay opaque; only a plain token on a:rPr/defRPr can be edited in place.
+internal static class PptxTextDecoration
+{
+    private static readonly HashSet<string> UnderlineValues = new(StringComparer.Ordinal)
+    {
+        "none", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy",
+        "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl",
+    };
+
+    private static readonly HashSet<string> StrikeValues = new(StringComparer.Ordinal)
+    {
+        "noStrike", "sngStrike", "dblStrike",
+    };
+
+    internal static string NormalizeUnderline(string value)
+    {
+        var token = value?.Trim() ?? string.Empty;
+        if (!UnderlineValues.Contains(token))
+            throw new CodecException("invalid_presentation_text", $"Unsupported Presentation underline token {value}.");
+        return token;
+    }
+
+    internal static string NormalizeStrike(string value)
+    {
+        var token = value?.Trim() ?? string.Empty;
+        if (!StrikeValues.Contains(token))
+            throw new CodecException("invalid_presentation_text", $"Unsupported Presentation strike token {value}.");
+        return token;
+    }
+
+    internal static bool TryUnderline(A.TextCharacterPropertiesType? source, out string value)
+    {
+        var raw = source?.Underline?.ToString();
+        if (raw is not null && UnderlineValues.Contains(raw) && source is not null && !HasUnderlineEffects(source))
+        {
+            value = raw;
+            return true;
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    internal static bool TryStrike(A.TextCharacterPropertiesType? source, out string value)
+    {
+        var raw = source?.Strike?.ToString();
+        if (raw is not null && StrikeValues.Contains(raw))
+        {
+            value = raw;
+            return true;
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    internal static bool IsUnderlineToken(string value) => UnderlineValues.Contains(value);
+
+    internal static bool IsStrikeToken(string value) => StrikeValues.Contains(value);
+
+    private static bool HasUnderlineEffects(A.TextCharacterPropertiesType source) =>
+        source.ChildElements.Any(child => child.LocalName is "uFillTx" or "uFill" or "uLnTx" or "uLn");
+}
