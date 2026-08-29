@@ -47,21 +47,21 @@
     },
     {
       "id": "artifact-template-aqua-impact-story",
-      "referenceSha256": "c478166531233aa0bfab8d5f9d66f3a3e81dda92036cb3dc4b41fb51a83527bf",
-      "mediaCount": 13,
+      "referenceSha256": "d0478b2420edd6b7b3646c2f62655ce749d371f80ceda11fcf9c9ec330f95c9b",
+      "mediaCount": 4,
       "pages": 6,
       "pageSize": "1199.99 x 675.014 pts",
-      "pdfBytes": 1264724,
-      "pdfSha256": "53aa05c407e3f182407ab632903d192e1db173d9b4c995453edd192289f3cecc",
+      "pdfBytes": 987618,
+      "pdfSha256": "e457f292e94897e7a30fc4e6ea1919246fcc98db2b2ff275ad47113998009e76",
       "firstPageRendered": true,
-      "firstPageSha256": "af79f270611556db53ed2f80d83315802586a0ad35da43b3454a12afee44132f",
+      "firstPageSha256": "7c5f0689c37f4874a29154a86136b42276325a651dd138659b0a395481f81efe",
       "pageSha256": [
-        "af79f270611556db53ed2f80d83315802586a0ad35da43b3454a12afee44132f",
-        "c8e5861c9e70e5326f70c41a5738a9b1d2da9e5fe39b9e0b6d9a7f4d71bbafe6",
-        "fe6c3ba77a65cd422e3600f7cc11b9ee21549bc8d5b210f6a2f7e041e3c88d61",
-        "c21948970dee2ff32da80bdc2fd8d315275656bbef8bb944482b780e87f5ca68",
-        "a1fe1deb34520ec9b2990e93b73c3aa69b14ef4e4a476532f48bbd3897d36acf",
-        "cc994150d9c38e4346431ac88ef1f1c32480657fc48efbbfcf0818c329c8e92d"
+        "7c5f0689c37f4874a29154a86136b42276325a651dd138659b0a395481f81efe",
+        "727f8c0499c7d9cfdf426f06a9b20c5ecd9c38cb581437641b3691ce0fdd4739",
+        "d1df823b47dace83ebb7fea93b2e4c57f99fc0854ca35fb6a7632dc9532ac8c9",
+        "346554454540f3c6f015fee6f02a555c46fdffdd454a805256f15f116a787db0",
+        "d46314ccb54fdb859d44cc0b1358a531bf3bf3f317a64fae1d2286ead7eaa332",
+        "b51f80edc92d21aff018e042de909626a6483ba714bdf50073b64dbace71d685"
       ],
       "allPagesRendered": true
     },

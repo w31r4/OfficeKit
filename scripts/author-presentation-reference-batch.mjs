@@ -891,6 +891,9 @@ function makeCover(presentation, style) {
   if (style.family === "finance-ledger" && (style.darkPages || style.sourceRelative === "finance/black-gold-ledger")) {
     return makeFinanceCover(presentation, style);
   }
+  if (style.sourceRelative === "promotion/aqua-charity-report") {
+    return makeAquaCover(presentation, style);
+  }
   if (style.sourceRelative === "promotion/silk-yellow-magazine") {
     return makeSilkYellowCover(presentation, style);
   }
@@ -1130,6 +1133,214 @@ function makeSilkYellowClose(presentation, style) {
   return slide;
 }
 
+// Aqua Impact's source grammar is an annual-impact report: a gallery-mat
+// boundary, a documentary cover, direct-labelled geography, a three-stage
+// action chain, paired field evidence, and a measured funding close.  Keep
+// those communication jobs distinct instead of routing every promotion style
+// through the same photo/text split.  All copy and imagery below are original
+// OfficeKit calibration material; only the visual grammar is carried over.
+function aquaColors(style) {
+  const c = style.palette;
+  return {
+    paper: c.paper || "#F3EFE4",
+    ink: c.ink || "#1D4150",
+    aqua: c.accent || "#0B8EA3",
+    yellow: c.secondary || "#E3C225",
+    blue: "#5493D3",
+    paleBlue: "#DDE9F6",
+    paleYellow: "#F8EED3",
+    rule: c.rule || "#D9D1C4",
+    white: "#FFFFFF",
+  };
+}
+
+function aquaFrame(slide, style, section, page, surface) {
+  const c = aquaColors(style);
+  addRect(slide, "aqua-outer-mat", 0, 0, WIDTH, HEIGHT, c.white, { fill: c.white, line: { fill: c.white, width: 0 } });
+  addRect(slide, "aqua-inner-field", 34, 28, WIDTH - 68, HEIGHT - 56, surface || c.paper, { fill: surface || c.paper, line: { fill: c.rule, width: 1 } });
+  addText(slide, "aqua-meta", `AQUA IMPACT STORY  ·  ${section.toUpperCase()}`, 92, 52, 760, 20, { fontSize: 13, bold: true, color: c.rule });
+  addText(slide, "aqua-page", `${String(page).padStart(2, "0")} / 06`, 1390, 52, 120, 20, { fontSize: 13, color: c.rule, alignment: "right" });
+}
+
+function aquaRule(slide, name, left, top, width, color) {
+  addRect(slide, name, left, top, width, 6, color, { fill: color, line: { fill: color, width: 0 } });
+}
+
+function makeAquaCover(presentation, style) {
+  const slide = presentation.slides.add({ name: "Opening proposition" });
+  const c = aquaColors(style);
+  addRect(slide, "aqua-cover-field", 0, 0, WIDTH, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  slide.images.add({
+    name: "aqua-cover-photo",
+    ...imageProps(style, "cover"),
+    position: { left: 0, top: 0, width: 846, height: HEIGHT },
+    fit: "cover",
+    accessibility: { description: "Documentary community landscape used as the cover carrier" },
+  });
+  addRect(slide, "aqua-cover-photo-edge", 820, 0, 72, HEIGHT, c.yellow, { fill: c.yellow, line: { fill: c.yellow, width: 0 } });
+  addRect(slide, "aqua-cover-title-field", 892, 0, WIDTH - 892, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  // Frames are kept inside the OfficeKit canvas; a large, off-edge circle is
+  // visually tempting but cannot be represented by the bounded shape API.
+  slide.shapes.add({ name: "aqua-cover-arc", geometry: "ellipse", position: { left: 1320, top: 0, width: 280, height: 280 }, fill: { color: c.blue, opacity: 0.62 }, line: { fill: c.blue, width: 0 } });
+  addText(slide, "aqua-cover-eyebrow", "ANNUAL IMPACT REPORT  ·  OFFICEKIT CALIBRATION", 984, 84, 520, 20, { fontSize: 13, bold: true, color: c.aqua });
+  addText(slide, "cover-title", style.coverTitle, 984, 176, 570, 112, { fontSize: 30, bold: true, color: c.ink });
+  addText(slide, "aqua-cover-claim", "Proof that a small watershed can change a whole neighborhood.", 988, 316, 560, 58, { fontSize: 19, bold: true, color: c.ink });
+  addText(slide, "aqua-cover-subtitle", "A documentary reference for public work, measured honestly.", 988, 404, 560, 28, { fontSize: 17, color: c.ink });
+  addLine(slide, "aqua-cover-rule", 988, 452, 1450, 452, c.rule, 1);
+  addText(slide, "aqua-cover-basis", "6 sites  ·  12 months  ·  3 linked outcomes", 988, 480, 450, 24, { fontSize: 16, color: c.rule });
+  addRect(slide, "aqua-cover-band", 0, 782, WIDTH, 78, c.yellow, { fill: c.yellow, line: { fill: c.yellow, width: 0 } });
+  addText(slide, "aqua-cover-band-text", "CARE FOR THE PLACE  ·  COUNT WHAT CHANGED", 96, 812, 940, 22, { fontSize: 17, bold: true, color: c.ink });
+  addText(slide, "aqua-cover-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 96, 868, 1120, 18, { fontSize: 12, color: c.rule });
+  addText(slide, "aqua-cover-page-number", "1 / 6", 1400, 868, 100, 18, { fontSize: 12, color: c.rule, alignment: "right" });
+  return slide;
+}
+
+function makeAquaArgument(presentation, style) {
+  const slide = presentation.slides.add({ name: "Argument" });
+  const c = aquaColors(style);
+  aquaFrame(slide, style, "baseline assessment", 2);
+  addText(slide, "argument-title", "Five pressure points converge on one connected intervention.", 96, 112, 1170, 52, { fontSize: 36, bold: true, color: c.ink });
+  addText(slide, "argument-basis", "The map is not decoration: position tells us where the next action earns attention.", 100, 182, 1080, 24, { fontSize: 17, color: c.rule });
+  aquaRule(slide, "aqua-map-rule", 100, 252, 118, c.yellow);
+  addText(slide, "aqua-map-label", "DIRECT-LABELLED SITES", 100, 274, 320, 20, { fontSize: 13, bold: true, color: c.aqua });
+  addRect(slide, "aqua-map-surface", 100, 316, 820, 320, c.paleBlue, { fill: c.paleBlue, line: { fill: c.blue, width: 1 } });
+  const regions = [
+    [144, 420, 190, 80, c.blue], [332, 372, 230, 112, c.aqua],
+    [552, 438, 166, 92, c.blue], [700, 350, 154, 112, c.aqua],
+    [240, 526, 230, 62, c.yellow], [508, 548, 178, 52, c.blue],
+  ];
+  regions.forEach(([left, top, width, height, fill], index) => {
+    slide.shapes.add({ name: `aqua-region-${index}`, geometry: "ellipse", position: { left, top, width, height }, fill: { color: fill, opacity: index % 2 ? 0.64 : 0.42 }, line: { fill: c.white, width: 2 } });
+  });
+  const labels = [["W01", "North bank", 162, 394, 42], ["W04", "Waterworks", 378, 344, 68], ["W09", "South inlet", 714, 324, 55], ["W12", "Community edge", 252, 600, 31]];
+  labels.forEach(([code, label, left, top, value], index) => {
+    addLine(slide, `aqua-map-leader-${index}`, left + 26, top + 30, left + 58, top + 62, c.ink, 1);
+    slide.shapes.add({ name: `aqua-map-dot-${index}`, geometry: "ellipse", position: { left: left + 16, top: top + 20, width: 20, height: 20 }, fill: index === 1 ? c.aqua : c.yellow, line: { fill: c.white, width: 2 } });
+    addText(slide, `aqua-map-label-${index}`, `${code}  ${label}\n${value}% pressure`, left + 64, top, 180, 42, { fontSize: 14, bold: true, color: c.ink });
+  });
+  addText(slide, "aqua-map-note", "5/12 sites  ·  430 ha in the connected catchment", 130, 664, 640, 22, { fontSize: 14, color: c.rule });
+  addText(slide, "aqua-argument-read-label", "THE READ-THROUGH", 1010, 332, 360, 20, { fontSize: 13, bold: true, color: c.aqua });
+  addText(slide, "aqua-argument-read-title", "The geography changes the intervention.", 1010, 378, 390, 74, { fontSize: 29, bold: true, color: c.ink });
+  addText(slide, "aqua-argument-read-body", "Protect the connected sites first; visibility and activity follow from that choice.", 1010, 488, 380, 70, { fontSize: 18, color: c.rule });
+  const stats = [["12", "sites assessed"], ["286 ha", "priority habitat"], ["39", "actions linked"]];
+  stats.forEach(([value, label], index) => {
+    const y = 608 + index * 58;
+    aquaRule(slide, `aqua-argument-stat-rule-${index}`, 1010, y, 66, index === 0 ? c.yellow : c.rule);
+    addText(slide, `aqua-argument-stat-value-${index}`, value, 1100, y - 4, 130, 28, { fontSize: 21, bold: true, color: c.ink });
+    addText(slide, `aqua-argument-stat-label-${index}`, label, 1240, y, 190, 20, { fontSize: 14, color: c.rule });
+  });
+  addText(slide, "aqua-argument-source", "OfficeKit original clean-room calibration · map regions are illustrative", 96, 868, 1150, 18, { fontSize: 12, color: c.rule });
+  return slide;
+}
+
+function makeAquaEvidence(presentation, style) {
+  const slide = presentation.slides.add({ name: "Evidence" });
+  const c = aquaColors(style);
+  aquaFrame(slide, style, "action chain", 3, c.paleYellow);
+  addText(slide, "evidence-title", "Three linked moves turn a visible problem into a durable result.", 96, 112, 1210, 52, { fontSize: 35, bold: true, color: c.ink });
+  addText(slide, "evidence-basis", "Each stage has a named output, a time window, and a measure that survives the handoff.", 100, 182, 1120, 24, { fontSize: 17, color: c.rule });
+  const chain = [
+    ["01", "IDENTIFY", "Make the pressure legible", "12 sites", "Jan–Mar", c.paleBlue, c.ink],
+    ["02", "RESTORE", "Fund the connected repair", "286 ha", "Apr–Sep", c.yellow, c.ink],
+    ["03", "VALIDATE", "Prove the outcome travels", "144 samples", "Oct–Dec", c.blue, c.white],
+  ];
+  chain.forEach(([number, label, text, value, period, fill, textColor], index) => {
+    const y = 312 + index * 142;
+    addRect(slide, `aqua-chain-${index}`, 100, y, 1360, 104, fill, { fill, line: { fill, width: 0 } });
+    addText(slide, `aqua-chain-number-${index}`, number, 130, y + 20, 70, 26, { fontSize: 18, bold: true, color: textColor });
+    addText(slide, `aqua-chain-label-${index}`, label, 238, y + 18, 250, 28, { fontSize: 22, bold: true, color: textColor });
+    addText(slide, `aqua-chain-text-${index}`, text, 238, y + 54, 520, 22, { fontSize: 15, color: textColor });
+    addText(slide, `aqua-chain-value-${index}`, value, 1010, y + 18, 220, 30, { fontSize: 23, bold: true, color: textColor });
+    addText(slide, `aqua-chain-period-${index}`, period, 1010, y + 57, 220, 20, { fontSize: 14, color: textColor });
+    if (index < chain.length - 1) addLine(slide, `aqua-chain-arrow-${index}`, 780, y + 52, 960, y + 52, c.aqua, 2);
+  });
+  aquaRule(slide, "aqua-chain-foot-rule", 100, 778, 120, c.yellow);
+  addText(slide, "aqua-chain-foot", "The chain is the evidence: no stage is allowed to hide the condition it inherits.", 250, 770, 1080, 28, { fontSize: 19, bold: true, color: c.ink });
+  addText(slide, "aqua-evidence-source", "OfficeKit original clean-room calibration · values are fictional", 96, 868, 1150, 18, { fontSize: 12, color: c.rule });
+  return slide;
+}
+
+function makeAquaDetail(presentation, style) {
+  const slide = presentation.slides.add({ name: "Detail" });
+  const c = aquaColors(style);
+  aquaFrame(slide, style, "field evidence", 4);
+  addText(slide, "detail-title", "From site repair to connected habitat, the proof stays close to the place.", 96, 112, 1230, 52, { fontSize: 34, bold: true, color: c.ink });
+  addText(slide, "detail-basis", "Two field frames, one outcome ladder, and the limitation that keeps the claim honest.", 100, 182, 1120, 24, { fontSize: 17, color: c.rule });
+  slide.images.add({ name: "aqua-field-photo-one", ...imageProps(style, "detail-one"), position: { left: 100, top: 322, width: 700, height: 190 }, fit: "cover", accessibility: { description: "Documentary field site before restoration" } });
+  slide.images.add({ name: "aqua-field-photo-two", ...imageProps(style, "detail-two"), position: { left: 100, top: 536, width: 700, height: 190 }, fit: "cover", accessibility: { description: "Documentary habitat site after restoration" } });
+  addText(slide, "aqua-field-caption-one", "BASELINE  ·  SHORELINE PRESSURE", 120, 486, 520, 18, { fontSize: 12, bold: true, color: c.white });
+  addText(slide, "aqua-field-caption-two", "FOLLOW-UP  ·  CONNECTED HABITAT", 120, 700, 520, 18, { fontSize: 12, bold: true, color: c.white });
+  addRect(slide, "aqua-detail-reading-plane", 890, 306, 550, 440, c.paper, { fill: c.paper, line: { fill: c.rule, width: 1 } });
+  addText(slide, "aqua-detail-label", "MEASURED FOLLOW-THROUGH", 930, 342, 430, 20, { fontSize: 13, bold: true, color: c.aqua });
+  const metrics = [["286 ha", "restored habitat", c.yellow], ["8.6 km", "shoreline connected", c.aqua], ["39", "actions revisited", c.blue], ["86.4%", "survival at follow-up", c.ink]];
+  metrics.forEach(([value, label, color], index) => {
+    const y = 392 + index * 78;
+    aquaRule(slide, `aqua-detail-metric-rule-${index}`, 930, y, 70, color);
+    addText(slide, `aqua-detail-metric-value-${index}`, value, 1030, y - 7, 180, 32, { fontSize: 25, bold: true, color: c.ink });
+    addText(slide, `aqua-detail-metric-label-${index}`, label, 1230, y, 170, 22, { fontSize: 14, color: c.rule });
+  });
+  addText(slide, "aqua-detail-limit", "Limit: follow-up covers one connected catchment, not every site.", 930, 690, 440, 38, { fontSize: 14, color: c.rule });
+  addText(slide, "aqua-detail-source", "OfficeKit original clean-room calibration · documentary images are authored assets", 96, 868, 1150, 18, { fontSize: 12, color: c.rule });
+  return slide;
+}
+
+function makeAquaVisual(presentation, style) {
+  const slide = presentation.slides.add({ name: "Visual carrier" });
+  const c = aquaColors(style);
+  aquaFrame(slide, style, "outcomes", 5, c.white);
+  addText(slide, "visual-title", "Four signals align when the outcome is measured at the source.", 96, 112, 1220, 52, { fontSize: 35, bold: true, color: c.ink });
+  addText(slide, "visual-body", "Baseline, follow-up and change remain on the same line so the reader can audit the movement.", 100, 182, 1120, 24, { fontSize: 17, color: c.rule });
+  const values = [
+    ["Water-quality compliance", "66.0%", "84.0%", "+18.0 pp", c.yellow],
+    ["Breeding success", "52.0%", "68.0%", "+16.0 pp", c.aqua],
+    ["Invasive control", "14.0%", "7.8%", "−6.2 pp", c.blue],
+    ["Species return", "20", "247", "+38 species", c.ink],
+  ];
+  addText(slide, "aqua-outcome-label", "OUTCOME LEDGER", 100, 300, 360, 20, { fontSize: 13, bold: true, color: c.aqua });
+  values.forEach(([label, baseline, followup, change, color], index) => {
+    const y = 348 + index * 86;
+    addLine(slide, `aqua-outcome-rule-${index}`, 100, y + 66, 930, y + 66, c.rule, 1);
+    aquaRule(slide, `aqua-outcome-color-${index}`, 100, y, 12, color);
+    addText(slide, `aqua-outcome-label-${index}`, label, 140, y - 2, 360, 22, { fontSize: 16, bold: true, color: c.ink });
+    addText(slide, `aqua-outcome-base-${index}`, baseline, 540, y - 4, 100, 25, { fontSize: 18, color: c.rule, alignment: "right" });
+    addText(slide, `aqua-outcome-follow-${index}`, followup, 690, y - 7, 110, 30, { fontSize: 23, bold: true, color: c.ink, alignment: "right" });
+    addText(slide, `aqua-outcome-change-${index}`, change, 832, y - 3, 100, 24, { fontSize: 16, bold: true, color });
+  });
+  addRect(slide, "aqua-outcome-side", 1030, 304, 390, 388, c.paleYellow, { fill: c.paleYellow, line: { fill: c.yellow, width: 1 } });
+  addText(slide, "aqua-outcome-side-label", "MEASUREMENT BASIS", 1070, 344, 280, 20, { fontSize: 13, bold: true, color: c.aqua });
+  addText(slide, "aqua-outcome-side-value", "95.2%", 1070, 400, 280, 66, { fontSize: 55, bold: true, color: c.ink });
+  addText(slide, "aqua-outcome-side-text", "of follow-up records carry a location, date, and named verifier.", 1070, 492, 280, 62, { fontSize: 18, color: c.ink });
+  aquaRule(slide, "aqua-outcome-side-rule", 1070, 600, 84, c.yellow);
+  addText(slide, "aqua-outcome-side-note", "A clear result is still bounded by its sampling frame.", 1070, 626, 280, 42, { fontSize: 15, color: c.rule });
+  addText(slide, "aqua-visual-source", "OfficeKit original clean-room calibration · values are fictional", 96, 868, 1150, 18, { fontSize: 12, color: c.rule });
+  return slide;
+}
+
+function makeAquaClose(presentation, style) {
+  const slide = presentation.slides.add({ name: "Decision close" });
+  const c = aquaColors(style);
+  addRect(slide, "aqua-close-field", 0, 0, WIDTH, HEIGHT, c.ink, { fill: c.ink, line: { fill: c.ink, width: 0 } });
+  slide.images.add({ name: "aqua-close-photo", ...imageProps(style, "close"), position: { left: 920, top: 0, width: 680, height: HEIGHT }, fit: "cover", accessibility: { description: "Documentary community landscape for the closing decision" } });
+  addRect(slide, "aqua-close-reading-plane", 0, 0, 970, HEIGHT, c.paper, { fill: c.paper, line: { fill: c.paper, width: 0 } });
+  aquaRule(slide, "aqua-close-rule", 96, 86, 120, c.yellow);
+  addText(slide, "aqua-close-eyebrow", "2026 DIRECTION  ·  DECISION FRAMEWORK", 96, 118, 700, 20, { fontSize: 13, bold: true, color: c.aqua });
+  addText(slide, "close-title", "Protect the connected sites before expanding the story.", 96, 184, 720, 118, { fontSize: 42, bold: true, color: c.ink });
+  addText(slide, "aqua-close-basis", "The next move is specific: scale what was measured, then return to the unresolved edge.", 100, 338, 680, 50, { fontSize: 18, color: c.rule });
+  const rows = [["01", "Scale", "12 connected sites", c.aqua], ["02", "Verify", "144 samples by Q4", c.yellow], ["03", "Return", "One unresolved catchment", c.blue]];
+  rows.forEach(([number, label, value, color], index) => {
+    const y = 478 + index * 78;
+    addText(slide, `aqua-close-number-${index}`, number, 100, y, 54, 22, { fontSize: 15, bold: true, color });
+    addText(slide, `aqua-close-label-${index}`, label, 180, y, 130, 22, { fontSize: 16, bold: true, color: c.ink });
+    addLine(slide, `aqua-close-row-rule-${index}`, 330, y + 12, 760, y + 12, c.rule, 1);
+    addText(slide, `aqua-close-value-${index}`, value, 790, y, 150, 22, { fontSize: 15, color: c.ink, alignment: "right" });
+  });
+  addRect(slide, "aqua-close-signal", 96, 760, 820, 64, c.yellow, { fill: c.yellow, line: { fill: c.yellow, width: 0 } });
+  addText(slide, "aqua-close-signal-text", "One network · one evidence chain · one next action", 122, 782, 740, 22, { fontSize: 17, bold: true, color: c.ink });
+  addText(slide, "aqua-close-source", "OfficeKit original clean-room calibration · fictional content · 2026-08-29", 96, 868, 1150, 18, { fontSize: 12, color: c.rule });
+  addText(slide, "aqua-close-page-number", "6 / 6", 1400, 868, 100, 18, { fontSize: 12, color: c.rule, alignment: "right" });
+  return slide;
+}
+
 // Blue Flame's source grammar uses one documentary image as a wide evidence
 // band on the cover, not as a full-slide background.  Keep that boundary
 // explicit: the image is an editable cover asset, while the title, KPI row
@@ -1341,6 +1552,9 @@ function makeBackdropSvg({ palette: c, category, dark }) {
 }
 
 function makeArgument(presentation, style) {
+  if (style.sourceRelative === "promotion/aqua-charity-report") {
+    return makeAquaArgument(presentation, style);
+  }
   if (style.sourceRelative === "promotion/silk-yellow-magazine") {
     return makeSilkYellowArgument(presentation, style);
   }
@@ -1372,6 +1586,9 @@ function makeArgument(presentation, style) {
 }
 
 function makeEvidence(presentation, style) {
+  if (style.sourceRelative === "promotion/aqua-charity-report") {
+    return makeAquaEvidence(presentation, style);
+  }
   if (style.sourceRelative === "promotion/silk-yellow-magazine") {
     return makeSilkYellowEvidence(presentation, style);
   }
@@ -1458,6 +1675,9 @@ function makeEvidence(presentation, style) {
 }
 
 function makeDetail(presentation, style) {
+  if (style.sourceRelative === "promotion/aqua-charity-report") {
+    return makeAquaDetail(presentation, style);
+  }
   if (style.sourceRelative === "promotion/silk-yellow-magazine") {
     return makeSilkYellowDetail(presentation, style);
   }
@@ -1515,6 +1735,9 @@ function detailEventColumns(slide, style) {
 }
 
 function makeVisual(presentation, style) {
+  if (style.sourceRelative === "promotion/aqua-charity-report") {
+    return makeAquaVisual(presentation, style);
+  }
   if (style.sourceRelative === "promotion/silk-yellow-magazine") {
     return makeSilkYellowVisual(presentation, style);
   }
@@ -1599,6 +1822,9 @@ function makeVisual(presentation, style) {
 }
 
 function makeClose(presentation, style) {
+  if (style.sourceRelative === "promotion/aqua-charity-report") {
+    return makeAquaClose(presentation, style);
+  }
   if (style.sourceRelative === "promotion/silk-yellow-magazine") {
     return makeSilkYellowClose(presentation, style);
   }

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/reference.pptx",
-    "sha256": "c478166531233aa0bfab8d5f9d66f3a3e81dda92036cb3dc4b41fb51a83527bf"
+    "sha256": "d0478b2420edd6b7b3646c2f62655ce749d371f80ceda11fcf9c9ec330f95c9b"
   },
   "evidence": {
     "source": [
@@ -28,12 +28,13 @@
       "renders/05.png",
       "renders/06.png",
       "native-render.v1.json",
-      "native-pdf-sha256:53aa05c407e3f182407ab632903d192e1db173d9b4c995453edd192289f3cecc",
-      "native-pages:6"
+      "native-pdf-sha256:e457f292e94897e7a30fc4e6ea1919246fcc98db2b2ff275ad47113998009e76",
+      "native-pages:6",
+      "all-pages-rendered"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:208",
+      "records:350",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -42,14 +43,11 @@
     ],
     "reimport": [
       "edited-roundtrip.pptx",
-      "assertion:cover-title-survives-second-import",
-      "template-reuse.v1.json",
-      "source-bound-slide-reuse:1",
-      "reimported-slides:7"
+      "assertion:cover-title-survives-second-import"
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:c478166531233aa0bfab8d5f9d66f3a3e81dda92036cb3dc4b41fb51a83527bf"
+      "reference-sha256:d0478b2420edd6b7b3646c2f62655ce749d371f80ceda11fcf9c9ec330f95c9b"
     ]
   },
   "visual": {
@@ -153,13 +151,10 @@
       ]
     },
     "reusableAssets": {
-      "score": 96,
+      "score": 88,
       "evidence": [
-        "template-reuse.v1.json",
         "reference.pptx",
-        "inspect.jsonl",
-        "source-bound-duplicate-reimport",
-        "templates:30"
+        "inspect.jsonl"
       ]
     },
     "roundTripStability": {
@@ -173,8 +168,8 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:53aa05c407e3f182407ab632903d192e1db173d9b4c995453edd192289f3cecc",
-        "native-pages:6",
+        "native-pdf-sha256:e457f292e94897e7a30fc4e6ea1919246fcc98db2b2ff275ad47113998009e76",
+        "pages:6",
         "all-pages-rendered"
       ]
     },
@@ -204,7 +199,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Image-led roles now use a deterministic, style-specific pool with 13 embedded media parts; visual restoration remains below the 95/95 bar and needs further style-specific iteration."
+    "Current category review remains below the 95/95 restoration bar (visual 80.0, functional 94.4); native rendering is now evidenced, while the style-specific visual carriers and reuse surface remain pending."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
