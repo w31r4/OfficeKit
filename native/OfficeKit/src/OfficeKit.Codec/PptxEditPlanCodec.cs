@@ -402,8 +402,8 @@ internal static partial class PptxEditPlanCodec
             }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
-                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
+                ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
+                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
                  (projectedElement.Source.TextEditable && LeafKind(operation) == "text" && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
@@ -763,9 +763,11 @@ internal static partial class PptxEditPlanCodec
             return fills.Length == 1 && fills[0] is A.SolidFill solid &&
                 (kind == "fillRgb" ? HasSafeNativeRgbFill(solid) : HasSafeNativeSchemeFill(solid));
         }
-        if (kind != "lineRgb") return false;
         var outlines = properties.Elements<A.Outline>().ToArray();
         if (outlines.Length != 1) return false;
+        if (kind == "lineWidthEmu")
+            return outlines[0].Width?.Value is > 0 and <= 20_116_800;
+        if (kind != "lineRgb") return false;
         var fillsOnLine = outlines[0].ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
         return fillsOnLine.Length == 1 && fillsOnLine[0] is A.SolidFill lineSolid && HasSafeNativeRgbFill(lineSolid);
     }
@@ -895,7 +897,7 @@ internal static partial class PptxEditPlanCodec
                 attribute = "val";
                 break;
             case "lineWidthEmu":
-                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineWidthEmu.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineWidthEmu.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 attribute = "w";
                 break;

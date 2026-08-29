@@ -43,18 +43,21 @@ editable leaves.
 
 The current six-sample pass exercises imported-edit paths across the corpus:
 six z-order edits, six image-crop edits, three bounded fill-color edits, four
-connector line-color edits, four connector line-width edits, one SVG style edit,
-one text edit on a slide with an existing animation graph, four table-cell edits,
-and six source-component continuations. A `blocked` status means that the source
+connector line-color edits, four connector line-width edits, five bounded direct
+shape line-width edits, one SVG style edit, one text edit on a slide with an
+existing animation graph, four table-cell edits, and six source-component
+continuations. A `blocked` status means that the source
 sample does not contain a safe leaf of that kind; it is retained as evidence
 rather than treated as a skipped or successful edit.
 
-The follow-up opaque-group style pass also selected one canonical descendant
-outline width in each of FROSTE, MMS, Data Particles, and Minimal Business.
-Each edit changed only its target `ppt/slides/slideN.xml` part and re-imported
-the requested EMU width. Business Infographic and Professional Minimalist did
-not expose a safe group-width target in this focused pass; this does not alter
-the frozen runner totals above.
+The follow-up style pass selected one canonical descendant outline width in each
+of FROSTE, MMS, Data Particles, and Minimal Business, and the main runner now
+selects one direct `p:sp` outline width where the source exposes a bounded
+positive `a:ln/@w`. Each edit changes only its target `ppt/slides/slideN.xml`
+part and re-imports the requested EMU width. Zero-width or missing-outline
+projections remain blocked because there is no safe token to edit; Business
+Infographic still has no bounded line-width target in this pass. This does not
+alter the frozen baseline totals.
 
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
 the same six inputs and a bounded placement edit. It includes per-slide PNG

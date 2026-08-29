@@ -199,7 +199,7 @@ function deriveNativeStyleLeaves(rawXml, nativeKind) {
       const lineOpen = /^<[^>]+>/u.exec(outlines[0].xml)?.[0];
       const widthAttributes = nativeTagAttributes(lineOpen || "")
         .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "w");
-      if (widthAttributes.length === 1 && /^(?:0|[1-9]\d*)$/u.test(widthAttributes[0].value)) {
+      if (widthAttributes.length === 1 && /^[1-9]\d*$/u.test(widthAttributes[0].value)) {
         const width = Number(widthAttributes[0].value);
         if (Number.isSafeInteger(width) && width <= MAX_NATIVE_LINE_WIDTH_EMU) {
           lineWidthLeaves.push({ leafKind: "lineWidthEmu", value: widthAttributes[0].value });

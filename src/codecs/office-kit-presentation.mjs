@@ -4084,6 +4084,33 @@ function createPresentationNativeLeafCapability(presentation, state) {
           apply(next) { model.fill = next; },
         });
       }
+      const lineWidth = String(wire.content.value.lineWidthEmu ?? "");
+      // A missing a:ln is projected as the protobuf default 0. Only issue a
+      // source-bound width leaf when the source proves a visible, positive
+      // width; the export-time proof still requires one bounded a:ln.
+      if (/^[1-9][0-9]*$/u.test(lineWidth) && BigInt(lineWidth) <= 20_116_800n) {
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "lineWidthEmu",
+          expectedValue: lineWidth,
+          value: Number(lineWidth),
+          unit: "emu",
+          normalize(next) {
+            if (typeof next !== "string" && typeof next !== "number") {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value.");
+            }
+            const token = String(next).trim();
+            let integer;
+            try { integer = BigInt(token); }
+            catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value."); }
+            if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf is outside the safe EMU range.");
+            }
+            return { raw: String(integer), publicValue: Number(integer) };
+          },
+          isNoop(next) { return next === lineWidth; },
+          apply(next) { model.line = { ...(model.line || {}), width: Number(next) / EMU_PER_POINT }; },
+        });
+      }
       if (wire.source?.textEditable !== true) return;
       for (const [field, leafKind] of [["fillRgb", "fillRgb"], ["lineRgb", "lineRgb"]]) {
         // The semantic projection carries opacity separately when the native
@@ -4133,12 +4160,32 @@ function createPresentationNativeLeafCapability(presentation, state) {
       return;
     }
     const scalarFields = isImage
-      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
+      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
       : PRESENTATION_SCALAR_LEAF_FIELDS;
     for (const [field, leafKind] of scalarFields) {
-      if (leafKind.endsWith("Emu") && connectedTargetIds.has(wire.id)) continue;
+      if (leafKind !== "lineWidthEmu" && leafKind.endsWith("Emu") && connectedTargetIds.has(wire.id)) continue;
       const raw = String(wire.content.value[field] ?? "");
-      if ((leafKind === "fillRgb" || leafKind === "lineRgb") && /^[0-9A-F]{6}$/iu.test(raw)) {
+      if (leafKind === "lineWidthEmu" && /^[1-9][0-9]*$/u.test(raw) && BigInt(raw) <= 20_116_800n) {
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw,
+          value: Number(raw), unit: "emu",
+          normalize(next) {
+            if (typeof next !== "string" && typeof next !== "number") {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value.");
+            }
+            const token = String(next).trim();
+            let integer;
+            try { integer = BigInt(token); }
+            catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value."); }
+            if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf is outside the safe EMU range.");
+            }
+            return { raw: String(integer), publicValue: Number(integer) };
+          },
+          isNoop(next) { return next === raw; },
+          apply(next) { model.line = { ...(model.line || {}), width: Number(next) / EMU_PER_POINT }; },
+        });
+      } else if ((leafKind === "fillRgb" || leafKind === "lineRgb") && /^[0-9A-F]{6}$/iu.test(raw)) {
         registerLeaf({
           wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw, value: `#${raw.toLowerCase()}`,
           normalize(next) {
@@ -4153,7 +4200,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
             else model.line = { ...model.line, fill: `#${next.toLowerCase()}` };
           },
         });
-      } else if (leafKind.endsWith("Emu") && /^-?[0-9]+$/u.test(raw)) {
+      } else if (leafKind !== "lineWidthEmu" && leafKind.endsWith("Emu") && /^-?[0-9]+$/u.test(raw)) {
         const frameField = ({ leftEmu: "left", topEmu: "top", widthEmu: "width", heightEmu: "height" })[leafKind];
         registerLeaf({
           wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw, value: Number(raw), unit: "emu",
@@ -4364,6 +4411,7 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
 const PRESENTATION_SCALAR_LEAF_FIELDS = Object.freeze([
   Object.freeze(["fillRgb", "fillRgb"]),
   Object.freeze(["lineRgb", "lineRgb"]),
+  Object.freeze(["lineWidthEmu", "lineWidthEmu"]),
   Object.freeze(["leftEmu", "leftEmu"]),
   Object.freeze(["topEmu", "topEmu"]),
   Object.freeze(["widthEmu", "widthEmu"]),
@@ -4391,8 +4439,8 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const beforeElement = original.content.value;
   const afterElement = requested.content.value;
   const scalarFields = contentCase === "image"
-    ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
-    : PRESENTATION_SCALAR_LEAF_FIELDS;
+      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
+      : PRESENTATION_SCALAR_LEAF_FIELDS;
   const changed = scalarFields.filter(([field]) => String(beforeElement[field] ?? "") !== String(afterElement[field] ?? ""));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;

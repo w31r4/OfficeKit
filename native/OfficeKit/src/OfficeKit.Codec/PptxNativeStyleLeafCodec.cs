@@ -99,7 +99,7 @@ internal static class PptxNativeStyleLeafCodec
         // Require the source token to be canonical so expectedHash and the
         // token splice remain deterministic across import/round-trip.
         var canonical = width.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (!string.Equals(attributes[0].Value, canonical, StringComparison.Ordinal)) return false;
+        if (!string.Equals(attributes[0].Value, canonical, StringComparison.Ordinal) || width == 0) return false;
         value = canonical;
         return true;
     }

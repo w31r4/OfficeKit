@@ -629,6 +629,29 @@ assert.equal(irregularStyleXml.replace("A1B2C3", "DBEAFE"), irregularShapeAccess
 const irregularStyleRoundTrip = await PresentationFile.importPptx(irregularStyleOutput);
 assert.equal(itemByName(irregularStyleRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill.toLowerCase(), "#a1b2c3");
 
+// Ordinary source-bound shapes expose the same bounded line-width token as
+// opaque groups. Keep this one direct-shape round-trip beside the existing
+// color contract; the rest of the effect space belongs to the real samples.
+const irregularWidthImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularWidthShape = itemByName(irregularWidthImported.slides.getItem(0).shapes.items, "decision-status");
+const irregularWidthLeaf = irregularWidthImported.inspect({ includeNativeLeaves: true, target: irregularWidthShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "lineWidthEmu");
+assert.ok(irregularWidthLeaf, "source-bound shapes should expose a safe line-width leaf");
+const irregularNextWidth = irregularWidthLeaf.value + 12_700;
+irregularWidthImported.editNativeLeaf(irregularWidthLeaf.targetId, irregularWidthLeaf.leafId, {
+  expectedHash: irregularWidthLeaf.expectedHash,
+  value: irregularNextWidth,
+});
+const irregularWidthOutput = await PresentationFile.exportPptx(irregularWidthImported);
+const irregularWidthOperation = irregularWidthOutput.metadata.editPlan.operations[0];
+assert.equal(irregularWidthOperation.leafKind, "lineWidthEmu");
+await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, irregularWidthOutput, irregularWidthOperation);
+const irregularWidthRoundTrip = await PresentationFile.importPptx(irregularWidthOutput);
+assert.equal(irregularWidthRoundTrip.resolve(irregularWidthShape.id).line.width, irregularNextWidth / 12_700);
+
 // A source-bound shape with a bare theme-color fill has the same narrow
 // token-splice boundary as an RGB fill. The theme token itself may change,
 // while the surrounding vendor markup must remain byte-for-byte untouched.
@@ -3245,7 +3268,7 @@ const groupedScalarLeaves = groupedColorLeafImported.inspect({ includeNativeLeav
   .filter(Boolean)
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
-assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "fillRgb", "lineRgb"]));
+assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "fillRgb", "lineRgb", "lineWidthEmu"]));
 const groupedFillLeaf = groupedScalarLeaves.find((record) => record.leafKind === "fillRgb");
 assert.ok(groupedFillLeaf);
 assert.equal(groupedFillLeaf.value, "#dbeafe");
