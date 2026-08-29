@@ -1362,9 +1362,9 @@ assert.equal(schemeShapeXml.replace('val="accent1"', 'val="accent2"'), schemeSha
 const schemeShapeRoundTrip = await PresentationFile.importPptx(schemeShapeOutput);
 assert.equal(itemByName(schemeShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill, "accent1");
 
-// An alpha-bearing fill is intentionally outside the token-splice profile:
-// the semantic color is visible, but its native alpha child must not be
-// discarded by a source-bound color edit. Such a leaf stays undisclosed.
+// An alpha-bearing fill exposes a separate token-splice leaf. RGB remains
+// undisclosed so changing the color cannot accidentally discard the alpha
+// child, while the proven alpha scalar can be edited independently.
 assert.match(irregularShapeAccessibilityXml, /<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE"\s*\/><\/a:solidFill>/);
 const alphaShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
 const alphaShapeAccessibilityXml = irregularShapeAccessibilityXml
@@ -1390,11 +1390,32 @@ const alphaShapeLeaves = alphaShapeAccessibilityImported.inspect({ includeNative
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
 assert.equal(alphaShapeLeaves.some((record) => record.leafKind === "fillRgb"), false);
+const alphaLeaf = alphaShapeLeaves.find((record) => record.leafKind === "fillOpacityThousandthPercent");
+assert.ok(alphaLeaf, "alpha-bearing source-bound fills should expose an opacity leaf");
+assert.equal(alphaLeaf.value, 0.5);
 assert.deepEqual(
   (await PresentationFile.exportPptx(alphaShapeAccessibilityImported)).bytes,
   alphaShapeAccessibilityFile.bytes,
   "alpha-bearing source-bound fills must retain an exact no-op package",
 );
+alphaShapeAccessibilityImported.editNativeLeaf(alphaLeaf.targetId, alphaLeaf.leafId, {
+  expectedHash: alphaLeaf.expectedHash,
+  value: 0.65,
+});
+const alphaShapeOutput = await PresentationFile.exportPptx(alphaShapeAccessibilityImported);
+assert.equal(alphaShapeOutput.metadata.editPlan.operations[0].leafKind, "fillOpacityThousandthPercent");
+const alphaShapeOutputZip = await JSZip.loadAsync(alphaShapeOutput.bytes);
+const alphaShapeOutputXml = await alphaShapeOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(alphaShapeOutputXml, /<a:alpha val="65000"\s*\/>/);
+assert.match(alphaShapeOutputXml, /fixture:opaque="kept"/);
+await assertOnlyDeclaredPptxFootprintChanged(
+  alphaShapeAccessibilityFile,
+  alphaShapeOutput,
+  alphaShapeOutput.metadata.editPlan.operations[0],
+);
+const alphaShapeRoundTrip = await PresentationFile.importPptx(alphaShapeOutput);
+const alphaShapeRoundTripModel = itemByName(alphaShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(alphaShapeRoundTripModel.fill.opacity, 0.65);
 
 const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
 const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
