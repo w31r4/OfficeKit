@@ -74,6 +74,7 @@ const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
   Object.freeze(["right", "textBodyInsetRightEmu", "rightInset"]),
   Object.freeze(["bottom", "textBodyInsetBottomEmu", "bottomInset"]),
 ]);
+const PRESENTATION_TEXT_BODY_WRAPS = new Set(["square", "none"]);
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -4437,6 +4438,28 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 ...(model.text.bodyProperties || {}),
                 insets: { ...(model.text.bodyProperties?.insets || {}), [side]: Number(next) / EMU_PER_PIXEL },
               };
+            },
+          });
+        }
+        const wrapping = bodyProperties?.wrapping;
+        if (wrapping?.case === "wrap" && PRESENTATION_TEXT_BODY_WRAPS.has(String(wrapping.value))) {
+          const raw = String(wrapping.value);
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyWrap",
+            expectedValue: raw,
+            value: raw,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_TEXT_BODY_WRAPS.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyWrap native leaf requires square or none.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === raw; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), wrap: next };
             },
           });
         }

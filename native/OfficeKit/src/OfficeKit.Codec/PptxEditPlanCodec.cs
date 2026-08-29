@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -442,7 +442,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -567,6 +567,13 @@ internal static partial class PptxEditPlanCodec
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
                 patches.Add(CompileTextBodyInsetXmlPatch(xml, range, proof));
+                continue;
+            }
+            if (leafKind == "textBodyWrap")
+            {
+                if (range.LocalName != "sp")
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyWrap target has the wrong native element type.", operation.SlidePartPath);
+                patches.Add(CompileTextBodyWrapXmlPatch(xml, range, proof));
                 continue;
             }
             if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb")
@@ -926,6 +933,16 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body inset.", operation.SlidePartPath);
             return value.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        if (kind == "textBodyWrap")
+        {
+            if (element is not P.Shape shape)
+                throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} textBodyWrap target is not a shape.", operation.SlidePartPath);
+            var wrap = shape.TextBody?.BodyProperties?.Wrap?.Value;
+            var name = TextBodyWrapName(wrap);
+            if (name.Length == 0)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded direct text-body wrap mode.", operation.SlidePartPath);
+            return name;
+        }
         if (kind == "fontSizePoints")
         {
             if (element is not P.Shape shape)
@@ -1246,6 +1263,34 @@ internal static partial class PptxEditPlanCodec
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
+    private static PptxXmlPatch CompileTextBodyWrapXmlPatch(
+        string xml,
+        XmlRange elementRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var elementXml = xml[elementRange.Start..elementRange.End];
+        var shapeRange = new XmlRange(0, elementXml.Length, "sp");
+        var txBody = DirectChildRange(elementXml, shapeRange, "sp", "txBody", operation);
+        var bodyPr = DirectChildRange(elementXml, txBody, "txBody", "bodyPr", operation);
+        var bodyPrXml = elementXml[bodyPr.Start..bodyPr.End];
+        var startTag = XmlTokenPattern().Matches(bodyPrXml).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == "bodyPr")
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} body properties tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "wrap")
+            .ToArray();
+        if (attributes.Length != 1)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} text-body wrap attribute is missing or ambiguous.", operation.SlidePartPath);
+        var valueGroup = attributes[0].Groups["value"];
+        var actual = TextBodyWrapName(System.Net.WebUtility.HtmlDecode(valueGroup.Value));
+        if (actual.Length == 0 || actual != operation.ExpectedValue)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw text-body wrap does not match the expected value.", operation.SlidePartPath);
+        var replacement = TextBodyWrapToken(operation.Value);
+        var start = elementRange.Start + bodyPr.Start + startTag.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
     private static string TextBodyInsetAttribute(string leafKind) => leafKind switch
     {
         "textBodyInsetLeftEmu" => "lIns",
@@ -1253,6 +1298,26 @@ internal static partial class PptxEditPlanCodec
         "textBodyInsetRightEmu" => "rIns",
         "textBodyInsetBottomEmu" => "bIns",
         _ => throw new CodecException("invalid_presentation_edit_target", $"Unsupported Presentation text-body inset leaf {leafKind}."),
+    };
+
+    private static string TextBodyWrapName(A.TextWrappingValues? value) => value is { } current && current == A.TextWrappingValues.Square
+        ? "square"
+        : value is { } none && none == A.TextWrappingValues.None
+            ? "none"
+            : string.Empty;
+
+    private static string TextBodyWrapName(string value) => value switch
+    {
+        "square" => "square",
+        "none" => "none",
+        _ => string.Empty,
+    };
+
+    private static string TextBodyWrapToken(string value) => value switch
+    {
+        "square" => "square",
+        "none" => "none",
+        _ => throw new CodecException("invalid_presentation_edit_target", $"Unsupported Presentation text-body wrap mode {value}."),
     };
 
     private static string ParseBoundedInsetToken(string value, PresentationEditOperation operation)
