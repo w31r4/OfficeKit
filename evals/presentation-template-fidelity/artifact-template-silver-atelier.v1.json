@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/reference.pptx",
-    "sha256": "8100fa9346e4a9cad54333ae5a0fd3c56f42551774ef02419eb8a85722c3cd22"
+    "sha256": "bba538be488a33a4d2eaf32e446ed22397b96eb6b2d3b2fe005d7f522ab91f46"
   },
   "evidence": {
     "source": [
@@ -27,11 +27,11 @@
       "renders/04.png",
       "renders/05.png",
       "renders/06.png",
-      "native-render.v1.json"
+      "native-render:unverified"
     ],
     "inspect": [
       "inspect.jsonl",
-      "records:208",
+      "records:206",
       "kinds:slide,shape,table,chart,image,connector,layer"
     ],
     "edits": [
@@ -44,7 +44,7 @@
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:8100fa9346e4a9cad54333ae5a0fd3c56f42551774ef02419eb8a85722c3cd22"
+      "reference-sha256:bba538be488a33a4d2eaf32e446ed22397b96eb6b2d3b2fe005d7f522ab91f46"
     ]
   },
   "visual": {
@@ -162,12 +162,9 @@
       ]
     },
     "nativeRendering": {
-      "score": 96,
+      "score": 0,
       "evidence": [
-        "native-render.v1.json",
-        "native-pdf-sha256:350f33bd9a69f6b2e1d90324eeda34bdc47012ed6c9833401e6d01d082b3a0dd",
-        "pages:6",
-        "first-page:rendered"
+        "native-render:unverified"
       ]
     },
     "backgroundAndLayerFidelity": {
@@ -196,7 +193,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Initial category review is below the 95/95 restoration bar (visual 80.0, functional 94.4); keep this template pending and iterate its style-specific carriers."
+    "Initial category review is below the 95/95 restoration bar (visual 80.0, functional 82.4); keep this template pending and iterate its style-specific carriers."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"

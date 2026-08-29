@@ -48,6 +48,9 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "editorial-archive-calibration-v1.jpg" },
     { file: "library-lounge-calibration-v1.jpg" },
     { file: "civic-workshop-calibration-v1.jpg" },
+    { file: "night-lab-calibration-v1.jpg" },
+    { file: "archive-map-calibration-v1.jpg" },
+    { file: "coastal-survey-calibration-v1.jpg" },
   ],
   consulting: [
     { file: "research-studio-calibration-v1.jpg" },
@@ -60,6 +63,10 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "editorial-archive-calibration-v1.jpg" },
     { file: "architectural-staircase-calibration-v1.jpg" },
     { file: "field-archive-calibration-v1.jpg" },
+    { file: "archive-map-calibration-v1.jpg" },
+    { file: "prototype-bench-calibration-v1.jpg" },
+    { file: "river-infrastructure-calibration-v1.jpg" },
+    { file: "data-center-calibration-v1.jpg" },
   ],
   finance: [
     { file: "brass-ledger-calibration-v1.jpg" },
@@ -70,6 +77,8 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "editorial-archive-calibration-v1.jpg" },
     { file: "industrial-control-room-calibration-v1.jpg" },
     { file: "civic-courtyard-calibration-v1.jpg" },
+    { file: "prototype-bench-calibration-v1.jpg" },
+    { file: "archive-map-calibration-v1.jpg" },
   ],
   promotion: [
     { file: "crafted-still-life-calibration-v1.jpg" },
@@ -84,6 +93,11 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "wetland-instrument-calibration-v1.jpg" },
     { file: "civic-workshop-calibration-v1.jpg" },
     { file: "industrial-technician-calibration-v1.jpg" },
+    { file: "glasshouse-light-calibration-v1.jpg" },
+    { file: "community-table-calibration-v1.jpg" },
+    { file: "coastal-survey-calibration-v1.jpg" },
+    { file: "prototype-bench-calibration-v1.jpg" },
+    { file: "river-infrastructure-calibration-v1.jpg" },
   ],
   work: [
     { file: "operations-floor-calibration-v1.jpg" },
@@ -98,7 +112,36 @@ const PHOTO_ASSET_POOLS = Object.freeze({
     { file: "architectural-staircase-calibration-v1.jpg" },
     { file: "civic-workshop-calibration-v1.jpg" },
     { file: "wetland-instrument-calibration-v1.jpg" },
+    { file: "data-center-calibration-v1.jpg" },
+    { file: "river-infrastructure-calibration-v1.jpg" },
+    { file: "prototype-bench-calibration-v1.jpg" },
+    { file: "night-lab-calibration-v1.jpg" },
+    { file: "glasshouse-light-calibration-v1.jpg" },
   ],
+});
+
+// Image-led styles get a small private pool instead of sharing the same first
+// three photographs with every other style in their category. The pools are
+// still assembled from the same authored calibration library, but their
+// ordering follows the visual job of the individual style (research, field,
+// product, editorial, or operations). This is what makes the published
+// references feel like distinct styles rather than one deck with recolored
+// pictures.
+const TEMPLATE_PHOTO_POOLS = Object.freeze({
+  "artifact-template-blueprint-lecture": ["night-lab-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "research-studio-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg"],
+  "artifact-template-paper-seminar": ["night-lab-calibration-v1.jpg", "library-quiet-study-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "field-archive-calibration-v1.jpg"],
+  "artifact-template-apricot-dossier": ["archive-map-calibration-v1.jpg", "stakeholder-room-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg", "research-studio-calibration-v1.jpg"],
+  "artifact-template-coastal-analysis": ["coastal-survey-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg", "archive-map-calibration-v1.jpg"],
+  "artifact-template-forest-strategy": ["data-center-calibration-v1.jpg", "industrial-control-room-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "operations-control-room-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg"],
+  "artifact-template-amber-committee-memo": ["brass-ledger-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg"],
+  "artifact-template-lake-research-journal": ["brass-ledger-calibration-v1.jpg", "archival-research-table-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "archive-map-calibration-v1.jpg"],
+  "artifact-template-aqua-impact-story": ["community-table-calibration-v1.jpg", "civic-courtyard-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "coastal-survey-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg"],
+  "artifact-template-noir-field-pictorial": ["prototype-bench-calibration-v1.jpg", "community-table-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "industrial-technician-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg"],
+  "artifact-template-saffron-editorial": ["glasshouse-light-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "editorial-archive-calibration-v1.jpg", "community-table-calibration-v1.jpg", "gallery-installation-calibration-v1.jpg"],
+  "artifact-template-silver-atelier": ["civic-courtyard-calibration-v1.jpg", "architectural-staircase-calibration-v1.jpg", "crafted-still-life-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg"],
+  "artifact-template-river-handbook": ["coastal-survey-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg", "field-archive-calibration-v1.jpg", "wetland-instrument-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg"],
+  "artifact-template-violet-operations": ["data-center-calibration-v1.jpg", "operations-floor-calibration-v1.jpg", "prototype-bench-calibration-v1.jpg", "night-lab-calibration-v1.jpg", "civic-workshop-calibration-v1.jpg"],
+  "artifact-template-moonlit-work-report": ["night-lab-calibration-v1.jpg", "glasshouse-light-calibration-v1.jpg", "research-studio-calibration-v1.jpg", "library-lounge-calibration-v1.jpg", "river-infrastructure-calibration-v1.jpg"],
 });
 
 const SOURCE_MAP = Object.freeze([
@@ -221,11 +264,12 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   // deck" requirements are intentionally excluded; those roles are handled
   // by coverImage/photoBand below. This keeps data-first styles vector-native
   // while allowing genuinely image-led styles to spend their full photo pool.
-  const bodyImageSignal = /(?:photography is mandatory on narrative\/case[- ]study slides?|photography is a hard requirement on narrative slides?|(?:case|body|narrative) slides?[^.\n]{0,160}must include[^.\n]{0,100}(?:photograph|photography|photo|image)|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,140}(?:every|each) body slide|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,180}(?:approximately|about|roughly)\s+(?:half|\d+\/\d+)\s+(?:of )?(?:the )?slides?\s+use|photography is mandatory:\s*photographic slides? must use|(?:alternating|alternate)[^.\n]{0,120}(?:photography|photographic)[^.\n]{0,100}(?:imagery|slides?|pages?|evidence)|full[- ]bleed real imagery|(?:full[- ]bleed|large[- ]scale)\s+(?:real|documentary)?\s*(?:photography|imagery|images?)\s+(?:across|throughout|on)\s+(?:body|narrative|content)?\s*(?:slides?|pages?)|approximately\s+(?:half|\d+\/\d+)\s+of\s+(?:the )?slides?\s+use\s+(?:documentary\s+)?photographs?)/iu;
+  const bodyImageSignal = /(?:photography is mandatory on narrative\/case[- ]study slides?|photography is a hard requirement on narrative slides?|(?:case|body|narrative) (?:slides?|pages?)[^.\n]{0,160}must include[^.\n]{0,100}(?:photograph|photography|photo|image)|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,140}(?:every|each) body slide|photography is (?:a )?hard (?:requirement|constraint):[^.\n]{0,180}(?:approximately|about|roughly)\s+(?:half|\d+\/\d+)\s+(?:of )?(?:the )?slides?\s+use|photography is mandatory:\s*photographic slides? must use|(?:alternating|alternate)[^.\n]{0,120}(?:photography|photographic)[^.\n]{0,100}(?:imagery|slides?|pages?|evidence)|full[- ]bleed real imagery|(?:full[- ]bleed|large[- ]scale)\s+(?:real|documentary)?\s*(?:photography|imagery|images?)\s+(?:across|throughout|on)\s+(?:body|narrative|content)?\s*(?:slides?|pages?)|approximately\s+(?:half|\d+\/\d+)\s+of\s+(?:the )?slides?\s+use\s+(?:documentary\s+)?photographs?)/iu;
   const bodyImage = !photoProhibition.test(signatureGuide) && bodyImageSignal.test(signatureGuide);
-  const coverImage = /(?:cover|section[- ]opening|section opener|chapter[- ]opening|article[- ]opening).{0,180}(?:photograph|photography|photo)|(?:photograph|photography|photo).{0,180}(?:cover|section[- ]opening|section opener|chapter[- ]opening|article[- ]opening)/iu.test(signatureGuide);
+  const coverImage = /(?:cover|section[- ]opening|section opener|chapter[- ]opening|chapter opening|chapter break|chapter divider|article[- ]opening|introduction|case[- ]study opening).{0,180}(?:photograph|photography|photo)|(?:photograph|photography|photo).{0,180}(?:cover|section[- ]opening|section opener|chapter[- ]opening|chapter opening|chapter break|chapter divider|article[- ]opening|introduction|case[- ]study opening)/iu.test(signatureGuide);
+  const sectionImage = !photoProhibition.test(signatureGuide) && /(?:section[- ]opening|section opener|chapter[- ]opening|chapter opening|chapter break|chapter divider|article[- ]opening|transition)[^.\n]{0,180}(?:photograph|photography|photo)|(?:photograph|photography|photo)[^.\n]{0,180}(?:section[- ]opening|section opener|chapter[- ]opening|chapter opening|chapter break|chapter divider|article[- ]opening|transition)/iu.test(signatureGuide);
   const imageLead = bodyImage;
-  const photoBand = /(?:photo(?:graph|graphy)?[- ](?:band|header)|photo(?:graph|graphy)?[^\n]{0,120}(?:top|header|title band|header background)[^\n]{0,60}(?:band|strip|background)?|(?:title band|header background)[^\n]{0,120}(?:photo(?:graph|graphy)?|image)|darkened technology-photo title band)/iu.test(signatureGuide);
+  const photoBand = /(?:photo(?:graph|graphy)?[- ](?:band|header)|photo(?:graph|graphy)?[^\n]{0,120}(?:top|header|title band|header background)[^\n]{0,60}(?:band|strip|background)?|(?:title band|header background)[^\n]{0,120}(?:photo(?:graph|graphy)?|image)|darkened technology[- ]?photo(?:graphy)? title band|technology\/person\/data photo band)/iu.test(signatureGuide);
   const processLed = /(?:process(?: |-)?diagram|causal (?:chain|sequence)|decision tree|flow diagram|method choice|timeline|relationship diagram)/iu.test(signatureGuide);
   const noCharts = /(?:chart count is always 0|source deck contains no data charts|no data charts (?:are|appear) (?:in|throughout) (?:the )?(?:deck|source)|no charts (?:are|appear) (?:in|throughout) (?:the )?(?:deck|source))/iu.test(signatureGuide);
   const tableLed = /(?:tables? (?:are|as) the protagonist|financial model tables|financial pages center on)/iu.test(sourceGuide);
@@ -255,8 +299,9 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
   const name = sidecar.displayName || templateId.replace(/^artifact-template-/u, "");
   const backdropSvg = makeBackdropSvg({ palette, category, dark });
   const backdropPng = await sharp(Buffer.from(backdropSvg, "utf8")).png().toBuffer();
-  const needsPhoto = Boolean(bodyImage || coverImage || photoBand);
-  const photoSources = needsPhoto ? (PHOTO_ASSET_POOLS[category] || []) : [];
+  const needsPhoto = Boolean(bodyImage || coverImage || sectionImage || photoBand);
+  const photoPool = TEMPLATE_PHOTO_POOLS[templateId] || PHOTO_ASSET_POOLS[category] || [];
+  const photoSources = needsPhoto ? photoPool.map((file) => typeof file === "string" ? { file } : file) : [];
   const imageSources = [];
   for (const source of photoSources) {
     const photoAssetPath = path.join(GENERATED_ASSET_ROOT, source.file);
@@ -284,6 +329,7 @@ async function loadStyle({ sourceDir, templateId, sourceRelative }) {
     imageLead,
     bodyImage,
     photoBand,
+    sectionImage,
     processLed,
     coverImage,
     noCharts,
@@ -474,7 +520,21 @@ function wrapHeading(value, maxChars) {
 function makeFinanceCover(presentation, style) {
   const slide = presentation.slides.add({ name: "Opening proposition" });
   const { palette: c } = style;
-  addRect(slide, "dark-field", 0, 0, WIDTH, HEIGHT, c.ink);
+  // A few finance signatures reserve photography for the cover only. Honor
+  // that explicit role while keeping the body pages data-first; the darker
+  // ledger styles still use the plain field below because their guides forbid
+  // lifestyle imagery.
+  if (style.coverImage && style.hasPhotoPool) {
+    setFullSlideImageBackground(slide, style, "cover");
+    addRect(slide, "cover-photo-scrim", 0, 0, WIDTH, HEIGHT, c.ink, {
+      fill: { color: c.ink, opacity: 0.58 },
+      line: { fill: c.ink, width: 0 },
+    });
+    addRect(slide, "cover-reading-plane", 0, 0, 860, HEIGHT, c.ink, {
+      fill: { color: c.ink, opacity: 0.78 },
+      line: { fill: c.ink, width: 0 },
+    });
+  } else addRect(slide, "dark-field", 0, 0, WIDTH, HEIGHT, c.ink);
   addRect(slide, "cover-evidence-field", 910, 0, WIDTH - 910, HEIGHT, c.panel, {
     fill: { color: c.panel, opacity: 0.12 },
     line: { fill: c.panel, width: 0 },
@@ -830,6 +890,22 @@ function makeVisual(presentation, style) {
     addText(slide, "visual-body", visualBody(style), 96, 338, 500, 72, { fontSize: 24, color: c.ink });
     addLine(slide, "visual-rule", 96, 470, 560, 470, c.accent, 3);
     addText(slide, "visual-label", "THE IMAGE IS EVIDENCE, NOT FILL", 96, 506, 520, 24, { fontSize: 16, bold: true, color: c.accent });
+  } else if (style.sectionImage) {
+    // Chapter/section photography is a deliberate transition, not a reason
+    // to turn every content page into a photo background. Use one full field
+    // with a readable paper plane so the image remains visible and the page
+    // still carries an editable title, thesis and next move.
+    setFullSlideImageBackground(slide, style, "section");
+    addRect(slide, "section-reading-plane", 0, 0, 820, HEIGHT, c.paper, {
+      fill: { color: c.paper, opacity: style.dark ? 0.9 : 0.94 },
+      line: { fill: c.paper, width: 0 },
+    });
+    addText(slide, "section-eyebrow", `${style.name.toUpperCase()} · SECTION`, 96, 96, 640, 24, { fontSize: 16, bold: true, color: c.accent });
+    addText(slide, "section-title", visualTitle(style), 96, 174, 620, 122, { fontSize: 46, bold: true, color: c.ink });
+    addLine(slide, "section-rule", 96, 334, 620, 334, c.accent, 3);
+    addText(slide, "section-body", visualBody(style), 96, 378, 560, 86, { fontSize: 24, color: c.ink });
+    addText(slide, "section-note", "ONE IMAGE · ONE THESIS · ONE TURN", 96, 550, 560, 24, { fontSize: 15, bold: true, color: c.accent });
+    addText(slide, "section-next", nextMove(style), 96, 606, 560, 50, { fontSize: 28, bold: true, color: c.ink });
   } else {
     addRect(slide, "background", 0, 0, WIDTH, HEIGHT, c.paper);
     addPageHeading(slide, style, {
