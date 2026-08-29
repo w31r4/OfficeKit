@@ -33,7 +33,7 @@ pending until they are proven. The reference archive, source descriptions,
 page images, names, and geometry are not distributed. Each shipped guide,
 calibration page, and reference deck is an original OfficeKit work.
 
-Image-led styles use a role-aware pool of 35 original calibration photographs.
+Image-led styles use a role-aware pool of 42 original calibration photographs.
 The batch author gives each image-led style its own small pool, assigns distinct
 scenes to cover, evidence, visual, detail, and closing roles, and uses several
 of those scenes before reusing an image. Styles whose source explicitly avoids

@@ -10,7 +10,7 @@
   ],
   "reference": {
     "path": "skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/reference.pptx",
-    "sha256": "b64de719d10f03f6487e79c83e00c066d5f76394908a43b446311400293932fa"
+    "sha256": "2f9b79e917659c5aa69e16fc3ef5066488570d58af78695d4d985cdf461b96e9"
   },
   "evidence": {
     "source": [
@@ -28,8 +28,9 @@
       "renders/05.png",
       "renders/06.png",
       "native-render.v1.json",
-      "native-pdf-sha256:6ec5524f001ef55fe74ed37e4ca22aac24922f2612ca3ddf3e58e267d48e847d",
-      "native-pages:6"
+      "native-pdf-sha256:17aafa852aa382fdb1c5e26b180d68752723c7994609b804bd53405b5a577d98",
+      "native-pages:6",
+      "native-media:13"
     ],
     "inspect": [
       "inspect.jsonl",
@@ -42,14 +43,11 @@
     ],
     "reimport": [
       "edited-roundtrip.pptx",
-      "assertion:cover-title-survives-second-import",
-      "template-reuse.v1.json",
-      "source-bound-slide-reuse:1",
-      "reimported-slides:7"
+      "assertion:cover-title-survives-second-import"
     ],
     "package": [
       "assets/reference.pptx",
-      "reference-sha256:b64de719d10f03f6487e79c83e00c066d5f76394908a43b446311400293932fa"
+      "reference-sha256:2f9b79e917659c5aa69e16fc3ef5066488570d58af78695d4d985cdf461b96e9"
     ]
   },
   "visual": {
@@ -153,13 +151,10 @@
       ]
     },
     "reusableAssets": {
-      "score": 96,
+      "score": 88,
       "evidence": [
-        "template-reuse.v1.json",
         "reference.pptx",
-        "inspect.jsonl",
-        "source-bound-duplicate-reimport",
-        "templates:30"
+        "inspect.jsonl"
       ]
     },
     "roundTripStability": {
@@ -173,9 +168,9 @@
       "score": 96,
       "evidence": [
         "native-render.v1.json",
-        "native-pdf-sha256:6ec5524f001ef55fe74ed37e4ca22aac24922f2612ca3ddf3e58e267d48e847d",
-        "native-pages:6",
-        "all-pages-rendered"
+        "native-pdf-sha256:17aafa852aa382fdb1c5e26b180d68752723c7994609b804bd53405b5a577d98",
+        "all-pages-rendered:6",
+        "media-count:13"
       ]
     },
     "backgroundAndLayerFidelity": {
@@ -204,7 +199,7 @@
   "notes": [
     "The source is image-only; the reference deck is authored by OfficeKit and does not copy an external PPTX.",
     "The rendered pages are calibration evidence, not fixed layouts to clone.",
-    "Image-led roles now use a deterministic, style-specific pool with 13 embedded media parts; visual restoration remains below the 95/95 bar and needs further style-specific iteration."
+    "Asset refresh v2: 13 embedded media assets across 6 natively rendered pages; visual restoration remains below the 95/95 bar (visual 80.0, functional 94.4) and this candidate stays pending."
   ],
   "candidate": true,
   "editedArtifact": "edited-roundtrip.pptx"
