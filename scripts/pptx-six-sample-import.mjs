@@ -109,6 +109,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeParagraphBlockSpacing = await verifyNativeParagraphBlockSpacingEdit(bytes);
     const nativeParagraphMargin = await verifyNativeParagraphLayoutEdit(bytes, "paragraphMarginLeftEmu");
     const nativeParagraphIndent = await verifyNativeParagraphLayoutEdit(bytes, "paragraphIndentEmu");
+    const nativeParagraphBullet = await verifyNativeParagraphBulletEdit(bytes);
+    const nativeParagraphLevel = await verifyNativeParagraphLevelEdit(bytes);
     const nativeVerticalAnchor = await verifyNativeVerticalAnchorEdit(bytes);
     const nativeTextBodyInset = await verifyNativeTextBodyInsetEdit(bytes);
     const nativeTextBodyWrap = await verifyNativeTextBodyWrapEdit(bytes);
@@ -168,6 +170,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeParagraphBlockSpacing,
       nativeParagraphMargin,
       nativeParagraphIndent,
+      nativeParagraphBullet,
+      nativeParagraphLevel,
       nativeVerticalAnchor,
       nativeTextBodyInset,
       nativeTextBodyWrap,
@@ -226,6 +230,8 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeParagraphBlockSpacingEdits: results.filter((result) => result.nativeParagraphBlockSpacing.status === "passed").length,
       nativeParagraphMarginEdits: results.filter((result) => result.nativeParagraphMargin.status === "passed").length,
       nativeParagraphIndentEdits: results.filter((result) => result.nativeParagraphIndent.status === "passed").length,
+      nativeParagraphBulletEdits: results.filter((result) => result.nativeParagraphBullet.status === "passed").length,
+      nativeParagraphLevelEdits: results.filter((result) => result.nativeParagraphLevel.status === "passed").length,
       nativeVerticalAnchorEdits: results.filter((result) => result.nativeVerticalAnchor.status === "passed").length,
       nativeTextBodyInsetEdits: results.filter((result) => result.nativeTextBodyInset.status === "passed").length,
       nativeTextBodyWrapEdits: results.filter((result) => result.nativeTextBodyWrap.status === "passed").length,
@@ -718,6 +724,58 @@ async function verifyNativeParagraphLayoutEdit(bytes, leafKind) {
     throw new Error(`Native ${leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphBulletEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphBulletCharacter");
+  if (!target) return { status: "blocked", reason: "no bounded direct character-bullet leaf was discovered" };
+  const oldValue = String(target.value);
+  const value = oldValue === "•" ? "◦" : "•";
+  if ([...oldValue].length !== 1 || [...value].length !== 1 || value === oldValue) {
+    return { status: "blocked", reason: "discovered character bullet has no safe alternate scalar" };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "paragraphBulletCharacter" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native character-bullet edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native character-bullet edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphLevelEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphLevel");
+  if (!target) return { status: "blocked", reason: "no explicit non-zero paragraph-level leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue < 8 ? oldValue + 1 : oldValue - 1;
+  if (!Number.isInteger(oldValue) || oldValue < 1 || oldValue > 8 || value < 1 || value > 8 || value === oldValue) {
+    return { status: "blocked", reason: "discovered paragraph level has no safe successor value" };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "paragraphLevel" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native paragraph-level edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native paragraph-level edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
 }
 
 async function verifyNativeVerticalAnchorEdit(bytes) {
