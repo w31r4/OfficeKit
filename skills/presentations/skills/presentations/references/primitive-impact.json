@@ -1,0 +1,112 @@
+{
+  "schema": "office-kit/presentation-primitive-impact/v1",
+  "description": "Maintenance map for propagating presentation primitive changes.",
+  "helpSource": "src/help/index.mjs",
+  "generatedDocs": "docs/api.md",
+  "families": [
+    {
+      "id": "deck-lifecycle",
+      "summary": "Create, import, order, duplicate, delete and export a deck.",
+      "helpPatterns": ["Presentation.*", "presentation.slideSize", "presentation.view*", "presentation.slides.*", "presentation.export", "presentation.customShows.*", "presentation.sections.*", "PresentationFile.*", "exportPptxWithOfficeKit", "importPptxWithOfficeKit", "slide.moveTo", "slide.visibilityCapability", "slide.deletionCapability", "slide.cloneCapability", "slide.continuationCapability", "slide.setHidden", "slide.hide", "slide.show", "slide.duplicate", "slide.delete"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/SKILL.md", "skills/presentations/skills/presentations/tasks/edit-existing.md", "skills/presentations/skills/presentations/tasks/continue.md", "skills/presentations/skills/presentations/references/primitives.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/presentation.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/slide.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-template-edit.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "scene-and-motion",
+      "summary": "Compose the cross-type scene stack, surfaces, transitions and animations.",
+      "helpPatterns": ["slide.setBackground", "slide.clearBackground", "slide.setBackgroundImage", "slide.clearBackgroundImage", "slide.setNativeBackgroundImage", "slide.clearNativeBackgroundImage", "slide.elements", "element.*", "slide.setTransition", "slide.clearTransition", "slide.animations.*", "slide.setMorph", "slide.clearMorph"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/SKILL.md", "skills/presentations/skills/presentations/tasks/create.md", "skills/presentations/skills/presentations/references/layered-composition.md", "skills/presentations/skills/presentations/references/motion.md", "skills/presentations/skills/presentations/references/primitives.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/fill.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/transitions.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-motion-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-scene-stack.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "text-layout-theme",
+      "summary": "Author text, typography, theme, Master, Layout and placeholders.",
+      "helpPatterns": ["shape.text.*", "presentation.textRange", "presentation.theme", "presentation.master*", "presentation.layouts.*", "presentation.layout.*", "slide.applyLayout", "slide.setLayout", "slide.placeholders.*", "presentation.fontFamilies", "nativeObject.setName", "nativeObject.setPosition"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/tasks/create.md", "skills/presentations/skills/presentations/tasks/create-from-template.md", "skills/presentations/skills/presentations/references/primitives.md", "skills/presentations/skills/presentations/references/fonts.md", "skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/rich-text.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/theme.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/layout.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-design-decisions-workflow.mjs", "skills/presentations/skills/presentations/examples/officekit-title-notes-edit-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-cjk-layout.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "shapes-connectors-groups",
+      "summary": "Build and safely edit native shapes, connectors and groups.",
+      "helpPatterns": ["slide.shapes.*", "shape.*", "connector.*", "slide.connectors.add", "slide.groups.add", "group.*", "compose.shape", "compose.rule"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/tasks/create.md", "skills/presentations/skills/presentations/tasks/edit-existing.md", "skills/presentations/skills/presentations/references/primitives.md", "skills/presentations/skills/presentations/references/layered-composition.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/shapes.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/connectors.md", "skills/presentations/skills/presentations/artifact_tool/api/references/grouping.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-slide-duplicate-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-scene-stack.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "compose-data",
+      "summary": "Compose charts, tables and visual relationships from data.",
+      "helpPatterns": ["slide.compose", "slide.autoLayout", "slide.tables.*", "table.*", "slide.charts.*", "chart.*", "compose.*"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/tasks/create.md", "skills/presentations/skills/presentations/references/primitives.md", "skills/presentations/skills/presentations/references/design-review.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/charts.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/tables.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/auto-layout.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-chart-families-workflow.mjs", "skills/presentations/skills/presentations/examples/officekit-chart-trendline-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-jsx.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "images-and-svg",
+      "summary": "Embed, crop, inspect and edit safe raster/SVG assets.",
+      "helpPatterns": ["slide.images.*", "image.*", "compose.image"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/tasks/create.md", "skills/presentations/skills/presentations/tasks/create-from-template.md", "skills/presentations/skills/presentations/references/layered-composition.md", "skills/presentations/skills/presentations/references/primitives.md", "skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/images.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-object-accessibility-edit-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-svg-leaves.mjs", "test/presentation-lazy-image-assets.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "imported-projection-and-native",
+      "summary": "Discover, reuse and edit imported components and recognized native payloads.",
+      "helpPatterns": ["presentation.inspect", "presentation.designProfile", "presentation.planTemplateGeneration", "presentation.editNativeLeaf", "presentation.editComponentOccurrence", "presentation.resolveComponentCandidate", "presentation.reuseSourceSlide", "presentation.reuseSourceComponent", "presentation.resolve", "nativeObject.*", "slide.addNotes", "slide.speakerNotes.*", "slide.comments.*", "slideCommentThread.*"],
+      "runtimePaths": ["src/presentation/**", "src/codecs/office-kit-presentation.mjs", "src/codecs/**"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/tasks/edit-existing.md", "skills/presentations/skills/presentations/tasks/continue.md", "skills/presentations/skills/presentations/references/advanced-imported-editing.md", "skills/presentations/skills/presentations/references/primitives.md", "skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/inspect.md", "skills/presentations/skills/presentations/artifact_tool/api/references/ole-workbooks.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/smartart-clone.spec.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-smartart-text-edit-workflow.mjs", "skills/presentations/skills/presentations/examples/officekit-ole-office-package-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/presentation-design-profile.mjs", "test/presentation-template-edit.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    },
+    {
+      "id": "review-accessibility-delivery",
+      "summary": "Review content, layout, accessibility, provenance and delivery evidence.",
+      "helpPatterns": ["presentation.validateLayout", "presentation.auditAccessibility", "presentation.verify", "shape.accessibilityCapability", "shape.setAccessibilityMetadata", "connector.accessibilityCapability", "connector.setAccessibilityMetadata", "group.accessibilityCapability", "group.setAccessibilityMetadata", "table.accessibilityCapability", "table.setAccessibilityMetadata", "chart.accessibilityCapability", "chart.setAccessibilityMetadata", "image.accessibilityCapability", "image.setAccessibilityMetadata"],
+      "runtimePaths": ["src/presentation/**", "src/review/**", "src/codecs/office-kit-presentation.mjs"],
+      "protocolPaths": ["proto/**"],
+      "consumerSkills": ["skills/presentations/skills/presentations/tasks/review-deliver.md", "skills/presentations/skills/presentations/references/design-review.md", "skills/presentations/skills/presentations/references/primitives.md", "skills/presentation-template-creator/skills/presentation-template-creator/SKILL.md"],
+      "references": ["skills/presentations/skills/presentations/artifact_tool/api/references/accessibility.spec.md", "skills/presentations/skills/presentations/artifact_tool/api/references/inspect.md"],
+      "examples": ["skills/presentations/skills/presentations/examples/officekit-accessibility-audit-workflow.mjs"],
+      "tests": ["test/presentation.mjs", "test/review.mjs"],
+      "evidence": ["docs/coverage.md", "docs/api.md"]
+    }
+  ],
+  "globalSurfaces": [
+    "src/help/index.mjs",
+    "docs/api.md",
+    "skills/presentations/skills/presentations/references/primitive-impact.json",
+    "skills/presentations/skills/presentations/references/primitives.md",
+    "skills/presentations/skills/presentations/references/fonts.md",
+    "docs/coverage.md"
+  ]
+}
