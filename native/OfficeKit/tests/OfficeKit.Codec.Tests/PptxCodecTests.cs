@@ -4,6 +4,7 @@ using DocumentFormat.OpenXml.Validation;
 using Google.Protobuf;
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using OfficeKit.Artifact.Wire.V1;
@@ -20,6 +21,54 @@ namespace OfficeKit.Codec.Tests;
 
 public sealed class PptxCodecTests
 {
+    [Fact]
+    public void PpjV1ValidatesAndExpandsCanonicalPresentationProgram()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+
+        var fixturePath = Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj");
+        var bytes = File.ReadAllBytes(fixturePath);
+        var result = PpjProgramValidator.Validate(bytes);
+        Assert.True(result.IsValid, string.Join(Environment.NewLine, result.Diagnostics));
+        Assert.NotNull(result.Expansion);
+        Assert.Equal(16, result.Expansion.ExpandedElementCount);
+        Assert.Contains(result.Expansion.Nodes, node => node.Id == "evidence-rows::evidence-row::hours::row-label");
+        Assert.Contains(result.Expansion.Nodes, node => node.Id == "evidence-rows::evidence-row::workload::row-value");
+        Assert.Contains(result.Expansion.Pages.SelectMany(page => page.Elements), element =>
+            element.Id == "evidence-rows::evidence-row::hours::row-label");
+
+        var repeated = PpjProgramValidator.Validate(bytes);
+        Assert.Equal(result.ProgramSha256, repeated.ProgramSha256);
+        Assert.Equal(result.Expansion.NodeMapSha256, repeated.Expansion!.NodeMapSha256);
+
+        var unknownField = JsonNode.Parse(bytes)!.AsObject();
+        unknownField["pages"]!.AsArray()[0]!.AsObject()["elements"]!.AsArray()[0]!.AsObject()["rawOoxml"] = "forbidden";
+        var rejectedField = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(unknownField.ToJsonString()));
+        Assert.False(rejectedField.IsValid);
+        Assert.Contains(rejectedField.Diagnostics, diagnostic =>
+            diagnostic.Code == "ppj.schema.unknownField" && diagnostic.Path == "$.pages[0].elements[0].rawOoxml");
+
+        var recursive = JsonNode.Parse(bytes)!.AsObject();
+        recursive["components"]!.AsArray()[0]!.AsObject()["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "self",
+            ["type"] = "component",
+            ["frame"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 1, ["height"] = 1 },
+            ["component"] = "evidence-row",
+        });
+        var rejectedCycle = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(recursive.ToJsonString()));
+        Assert.False(rejectedCycle.IsValid);
+        Assert.Contains(rejectedCycle.Diagnostics, diagnostic => diagnostic.Code == "ppj.component.cycle");
+    }
+
     [Fact]
     public void ImportedSlideBindingRequiresValidatedSourcePackageSnapshot()
     {

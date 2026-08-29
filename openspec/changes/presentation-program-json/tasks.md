@@ -5,15 +5,15 @@
 - [x] 1.3 Define shared identity, frame, accessibility, style, color, asset, source, nativeRef, and opaque descriptor schemas.
 - [x] 1.4 Define typed text, shape, image, chart, table, connector, group, media, placeholder, SmartArt, and OLE element schemas.
 - [x] 1.5 Define bounded component parameters, slots, variants, repeats, conditions, stable expansion IDs, and hard budgets.
-- [ ] 1.6 Add one canonical authored PPJ fixture and path-specific schema validation coverage in the existing Presentation test surface.
+- [x] 1.6 Add one canonical authored PPJ fixture and path-specific schema validation coverage in the existing Presentation test surface.
 
 ## 2. Native PPJ model and validation
 
 - [x] 2.1 Add additive proto v2 request/response messages and operations for PPTX projection and PPJ compilation.
-- [ ] 2.2 Implement C# PPJ root, deck, page, asset, source, component, and discriminated element models with strict JSON parsing.
-- [ ] 2.3 Implement semantic validation for IDs, references, paths, hashes, types, ordering, limits, and prohibited executable/native content.
-- [ ] 2.4 Implement deterministic component expansion with parameter, slot, variant, finite repeat, and simple condition support.
-- [ ] 2.5 Emit a normalized PPJ hash, expanded-node map, and path-specific diagnostics without mutating semantic input.
+- [x] 2.2 Implement C# PPJ root, deck, page, asset, source, component, and discriminated element models with strict JSON parsing.
+- [x] 2.3 Implement semantic validation for IDs, references, paths, hashes, types, ordering, limits, and prohibited executable/native content.
+- [x] 2.4 Implement deterministic component expansion with parameter, slot, variant, finite repeat, and simple condition support.
+- [x] 2.5 Emit a normalized PPJ hash, expanded-node map, and path-specific diagnostics without mutating semantic input.
 
 ## 3. Authored PPJ compilation
 
