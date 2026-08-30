@@ -16,4 +16,4 @@
   embedded recovery and unknown-name rejection.
 - [x] 3.2 Regenerate `ppj.md` and update icon, shape, coverage and license guidance.
 - [x] 3.3 Run only catalog check, focused contract, maintainer and strict OpenSpec.
-- [ ] 3.4 Commit atomically and fast-forward main without force pushing.
+- [x] 3.4 Commit atomically and fast-forward main without force pushing.
