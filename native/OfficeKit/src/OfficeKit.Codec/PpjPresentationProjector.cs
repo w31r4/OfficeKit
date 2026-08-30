@@ -1438,9 +1438,14 @@ internal static partial class PpjPresentationProjector
         foreach (var slide in presentation.Slides)
         {
             var pageId = context.PageId(slide.Id);
-            foreach (var comment in slide.LegacyComments)
+            for (var commentIndex = 0; commentIndex < slide.LegacyComments.Count; commentIndex++)
             {
+                var comment = slide.LegacyComments[commentIndex];
                 if (!DateTimeOffset.TryParse(comment.CreatedAt, out var createdAt) || string.IsNullOrWhiteSpace(comment.Text)) continue;
+                var capabilities = slide.Source?.LegacyCommentsEditable == true
+                    ? new[] { new CapabilitySpec("replaceText", ["text"]) }
+                    : [];
+                var commentHash = HashOrFallback(null, comment.ToByteArray());
                 output.Add(new JsonObject
                 {
                     ["id"] = context.UniqueId($"comment-{pageId}-{comment.Id}"),
@@ -1450,6 +1455,7 @@ internal static partial class PpjPresentationProjector
                     ["createdAt"] = createdAt.ToUniversalTime().ToString("O"),
                     ["resolved"] = false,
                     ["position"] = new JsonObject { ["x"] = Points(comment.PositionXEmu), ["y"] = Points(comment.PositionYEmu) },
+                    ["nativeRef"] = NativeRef(context, $"comment:{pageId}:{commentIndex}", commentHash, capabilities),
                 });
             }
         }

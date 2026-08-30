@@ -1984,6 +1984,10 @@ public sealed class PptxCodecTests
             Assert.False(projectedRoot.GetProperty("pages")[2].TryGetProperty("notes", out _));
             Assert.Contains(projectedRoot.GetProperty("pages")[2].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
                 capability.GetProperty("operation").GetString() == "setNotes");
+            var projectedComment = Assert.Single(projectedRoot.GetProperty("comments").EnumerateArray());
+            Assert.Contains(projectedComment.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "replaceText" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "text"));
             Assert.Equal("image", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("type").GetString());
             Assert.Equal("stretch", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("fit").GetString());
             Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
@@ -2381,6 +2385,9 @@ public sealed class PptxCodecTests
         richTitleChart["title"]!["paragraphs"]![0]!["runs"]![1]!["text"] = "−42% incidents";
         richTitleChart["title"]!["paragraphs"]![0]!["runs"]![1]!["style"]!["color"] = "#A83232";
         var richTitleChartId = richTitleChart["id"]!.GetValue<string>();
+        var editedComment = richTitleProgram["comments"]![0]!.AsObject();
+        editedComment["text"] = "Replace illustrative values with independently verified evidence.";
+        var editedCommentId = editedComment["id"]!.GetValue<string>();
         var richTitleEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -2394,9 +2401,14 @@ public sealed class PptxCodecTests
             },
         });
         Assert.True(richTitleEdit.Ok, Diagnostics(richTitleEdit));
-        var richTitlePart = Assert.Single(richTitleEdit.PresentationProgram.ChangedParts);
+        Assert.Equal(2, richTitleEdit.PresentationProgram.ChangedParts.Count);
+        var richTitlePart = Assert.Single(richTitleEdit.PresentationProgram.ChangedParts, part =>
+            part.StartsWith("ppt/slides/charts/chart", StringComparison.OrdinalIgnoreCase));
         Assert.StartsWith("ppt/slides/charts/chart", richTitlePart, StringComparison.Ordinal);
+        Assert.Single(richTitleEdit.PresentationProgram.ChangedParts, part =>
+            part.StartsWith("ppt/comments/comment", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(richTitleChartId, richTitleEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(editedCommentId, richTitleEdit.PresentationProgram.ChangedNodeIds);
         var richTitleReprojection = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -2417,6 +2429,9 @@ public sealed class PptxCodecTests
                 .GetProperty("title").GetProperty("paragraphs")[0].GetProperty("runs");
             Assert.Equal("−42% incidents", reprojectedTitle[1].GetProperty("text").GetString());
             Assert.Equal("#A83232", reprojectedTitle[1].GetProperty("style").GetProperty("color").GetString());
+            Assert.Equal(
+                "Replace illustrative values with independently verified evidence.",
+                richTitleJson.RootElement.GetProperty("comments")[0].GetProperty("text").GetString());
         }
 
         var changedSourceLayoutProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();

@@ -396,7 +396,8 @@ internal sealed record PpjCommentModel(
     string Author,
     string Text,
     bool Resolved,
-    PpjNativeRefModel? NativeRef);
+    PpjNativeRefModel? NativeRef,
+    JsonElement Raw);
 
 internal static class PpjProgramParser
 {
@@ -584,7 +585,8 @@ internal static class PpjProgramParser
         comment.GetProperty("author").GetString()!,
         comment.GetProperty("text").GetString()!,
         comment.GetProperty("resolved").GetBoolean(),
-        comment.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null);
+        comment.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
+        comment.Clone());
 
     internal static PpjElementModel ParseElement(JsonElement element)
     {

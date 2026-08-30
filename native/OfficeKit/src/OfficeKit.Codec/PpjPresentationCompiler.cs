@@ -127,6 +127,11 @@ internal static class PpjSourceBoundPresentationCompiler
             projected.NativeLeafBindings,
             changedNodeIds,
             mutations);
+        if (ApplyComments(baseline, requested, presentation, changedNodeIds))
+        {
+            mutations.SemanticChanges = true;
+            physicalChanges = true;
+        }
 
         if (request.ValidationOnly)
         {
@@ -217,7 +222,6 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported("$", "source-bound PPJ cannot introduce component definitions in this compiler slice");
         RequirePropertyEqual(baseline.Root, requested.Root, "sections", "$.sections");
         RequirePropertyEqual(baseline.Root, requested.Root, "customShows", "$.customShows");
-        RequirePropertyEqual(baseline.Root, requested.Root, "comments", "$.comments");
         var baselineDesign = baseline.Root.GetProperty("design");
         var requestedDesign = requested.Root.GetProperty("design");
         RequirePropertyEqual(baselineDesign, requestedDesign, "masters", "$.design.masters");
@@ -493,6 +497,57 @@ internal static class PpjSourceBoundPresentationCompiler
         }
         presentation.Slides.Clear();
         presentation.Slides.Add(requestedSlides);
+        return changed;
+    }
+
+    private static bool ApplyComments(
+        PpjProgramModel baseline,
+        PpjProgramModel requested,
+        PresentationArtifact presentation,
+        ISet<string> changedNodeIds)
+    {
+        if (baseline.Comments.Count != requested.Comments.Count)
+            throw Unsupported("$.comments", "adding or removing source-bound comments");
+        if (baseline.Comments.Count == 0) return false;
+        if (presentation.Slides.Count != requested.Pages.Count)
+            throw Unsupported("$.comments", "comment editing with changed page topology");
+
+        var slideByPageId = requested.Pages.Select((page, index) => new
+        {
+            page.Id,
+            Slide = presentation.Slides[index],
+        }).ToDictionary(item => item.Id, item => item.Slide, StringComparer.Ordinal);
+        var sourceComments = new Dictionary<string, (PresentationSlide Slide, PresentationLegacyComment Comment)>(StringComparer.Ordinal);
+        foreach (var pageGroup in baseline.Comments.GroupBy(comment => comment.PageId, StringComparer.Ordinal))
+        {
+            if (!slideByPageId.TryGetValue(pageGroup.Key, out var slide))
+                throw Unsupported("$.comments", "comments attached to a removed or unknown page");
+            var projected = pageGroup.ToArray();
+            if (projected.Length != slide.LegacyComments.Count)
+                throw Unsupported("$.comments", "comment projection no longer matches the fresh source slide");
+            for (var index = 0; index < projected.Length; index++)
+                sourceComments.Add(projected[index].Id, (slide, slide.LegacyComments[index]));
+        }
+
+        var changed = false;
+        for (var index = 0; index < baseline.Comments.Count; index++)
+        {
+            var before = baseline.Comments[index];
+            var after = requested.Comments[index];
+            var path = $"$.comments[{index}]";
+            if (!before.Id.Equals(after.Id, StringComparison.Ordinal) ||
+                !before.PageId.Equals(after.PageId, StringComparison.Ordinal) ||
+                !sourceComments.TryGetValue(before.Id, out var target))
+                throw Unsupported(path, "comment reorder, identity, or page change");
+            RequireNativeRef(before.Raw, after.Raw, path);
+            RequireEqualExcept(before.Raw, after.Raw, path, "text");
+            if (before.Text.Equals(after.Text, StringComparison.Ordinal)) continue;
+            RequireCapability(after.NativeRef, "replaceText", path + ".text");
+            target.Comment.Text = after.Text;
+            changedNodeIds.Add(after.Id);
+            changedNodeIds.Add(after.PageId);
+            changed = true;
+        }
         return changed;
     }
 
