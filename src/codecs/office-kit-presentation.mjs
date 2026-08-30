@@ -6440,7 +6440,9 @@ function presentationImportedEntryIsUnchanged(entry) {
       return entry.snapshot !== undefined &&
         presentationImportedConnectorSnapshot(entry.model) === entry.snapshot;
     case "opaque":
-      return entry.snapshot !== undefined && opaquePresentationSnapshot(entry.model) === entry.snapshot;
+      return !presentationCloneHasPendingNativeReplacement(entry.model) &&
+        entry.snapshot !== undefined &&
+        opaquePresentationSnapshot(entry.model) === entry.snapshot;
     default:
       return false;
   }
