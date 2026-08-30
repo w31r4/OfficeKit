@@ -23,6 +23,7 @@ internal static class PptxDefaultRunStyleCodec
         if (PptxTextDecoration.TryKerning(properties, out var kerning)) style.FontKerningPoints = double.Parse(kerning, System.Globalization.CultureInfo.InvariantCulture) / 100d;
         if (PptxTextDecoration.TryBaseline(properties, out var baseline)) style.FontBaselinePercent = double.Parse(baseline, System.Globalization.CultureInfo.InvariantCulture) / 1000d;
         if (PptxTextDecoration.TrySpacing(properties, out var spacing)) style.FontSpacingPoints = double.Parse(spacing, System.Globalization.CultureInfo.InvariantCulture) / 100d;
+        if (PptxTextDecoration.TryCaps(properties, out var caps)) style.FontCaps = caps;
         var latin = properties.Elements<A.LatinFont>().SingleOrDefault();
         if (latin is not null && ModeledLatinFont(latin)) style.FontFamily = latin.Typeface!.Value!;
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().Take(2).ToArray();
@@ -111,6 +112,7 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid("Presentation default-run font baseline must be finite and between -400% and 400%.");
         if (style.HasFontSpacingPoints && (!(style.FontSpacingPoints >= -768) || style.FontSpacingPoints > 768 || !double.IsFinite(style.FontSpacingPoints)))
             throw Invalid("Presentation default-run character spacing must be finite and between -768 and 768 points.");
+        if (style.HasFontCaps) PptxTextDecoration.NormalizeCaps(style.FontCaps);
         if (style.HasUnderline) PptxTextDecoration.NormalizeUnderline(style.Underline);
         if (style.HasStrike) PptxTextDecoration.NormalizeStrike(style.Strike);
         switch (style.ColorCase)
@@ -130,7 +132,7 @@ internal static class PptxDefaultRunStyleCodec
 
     private static bool HasFields(PresentationTextStyle style) =>
         style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
-        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasUnderline || style.HasStrike;
+        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasUnderline || style.HasStrike;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
     {
@@ -149,6 +151,7 @@ internal static class PptxDefaultRunStyleCodec
         target.Kerning = source.HasFontKerningPoints ? checked((int)Math.Round(source.FontKerningPoints * 100)) : null;
         target.Baseline = source.HasFontBaselinePercent ? checked((int)Math.Round(source.FontBaselinePercent * 1000)) : null;
         target.Spacing = source.HasFontSpacingPoints ? checked((int)Math.Round(source.FontSpacingPoints * 100)) : null;
+        target.Capital = source.HasFontCaps ? new A.TextCapsValues(PptxTextDecoration.NormalizeCaps(source.FontCaps)) : null;
         ApplyLatinFont(target, source);
         ApplyEastAsianFont(target, source);
         ApplyColor(target, source);
@@ -211,6 +214,7 @@ internal static class PptxDefaultRunStyleCodec
         target.Kerning = null;
         target.Baseline = null;
         target.Spacing = null;
+        target.Capital = null;
         if (PptxTextDecoration.TryUnderline(target, out _)) target.Underline = null;
         if (PptxTextDecoration.TryStrike(target, out _)) target.Strike = null;
         target.FontSize = null;

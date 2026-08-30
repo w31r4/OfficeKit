@@ -164,7 +164,7 @@ message PresentationEditOperation {
   // textBodyWrap, textBodyColumnCount,
   // fontSizePoints, fontFamily,
   // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
-  // fontKerningPoints, fontBaselinePercent, fontSpacingPoints,
+  // fontKerningPoints, fontBaselinePercent, fontSpacingPoints, fontCaps,
   // fontColorRgb, fontColorScheme, fillRgb, fillScheme,
   // lineRgb, lineScheme, lineStyle, lineCap, lineJoin, lineStartArrow,
   // lineEndArrow, lineWidthEmu,
@@ -2474,6 +2474,8 @@ message PresentationTextStyle {
   // Direct DrawingML a:defRPr/@spc value in hundredths of a point. Source-
   // bound edits retain the signed native token.
   optional double font_spacing_points = 12;
+  // Direct DrawingML a:defRPr/@cap token: none, small, or all.
+  optional string font_caps = 13;
 }
 
 message PresentationTextParagraph {
@@ -2611,6 +2613,8 @@ message PresentationTextRun {
   // Direct DrawingML a:rPr/@spc value in points. Source-bound edits retain
   // the native signed hundredths-of-a-point token.
   optional double font_spacing_points = 17;
+  // Direct DrawingML a:rPr/@cap token: none, small, or all.
+  optional string font_caps = 18;
 }
 
 message PresentationTextField {

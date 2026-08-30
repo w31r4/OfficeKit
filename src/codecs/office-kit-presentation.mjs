@@ -25,7 +25,7 @@ import { normalizePresentationTextBodyProperties } from "../presentation/text-bo
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
 import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
-import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
+import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
@@ -117,7 +117,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -934,6 +934,7 @@ function wireTextStyle(style = {}, shapeId) {
   if (fontSpacing !== undefined && (!Number.isFinite(fontSpacing) || fontSpacing < -768 || fontSpacing > 768)) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
+  const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.paragraphStyle.fontCaps`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
@@ -953,6 +954,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
+    ...(fontCaps === undefined ? {} : { fontCaps }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
@@ -1027,6 +1029,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   if (fontSpacing !== undefined && (!Number.isFinite(fontSpacing) || fontSpacing < -768 || fontSpacing > 768)) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
+  const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.fontCaps`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
   const colorToken = style.color == null ? undefined : String(style.color).trim();
@@ -1050,6 +1053,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
+    ...(fontCaps === undefined ? {} : { fontCaps }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
@@ -3505,6 +3509,14 @@ function normalizeNativeLeafSpacingValue(value) {
   return { raw: String(hundredths), publicValue: hundredths / 100 };
 }
 
+function normalizeNativeLeafCapsValue(value) {
+  const token = typeof value === "string" ? value.trim() : "";
+  if (!["none", "small", "all"].includes(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontCaps leaf requires none, small, or all.");
+  }
+  return { raw: token, publicValue: token };
+}
+
 function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
   if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
@@ -4674,6 +4686,30 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontSpacingPoints native leaf no longer resolves to the imported text run.");
               }
               run.style = { ...(run.style || {}), fontSpacing: Number(next) / 100 };
+            },
+            });
+        }
+        const fontCaps = leaf.run.fontCaps;
+        // Capitalization is a direct DrawingML token. Keep the capability
+        // source-bound and narrow so inherited paragraph/style capitalization
+        // is not mistaken for a local run edit.
+        if (!model.placeholder && typeof fontCaps === "string" && ["none", "small", "all"].includes(fontCaps)) {
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontCaps",
+            expectedValue: fontCaps,
+            value: fontCaps,
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              return normalizeNativeLeafCapsValue(next);
+            },
+            isNoop(next) { return next === fontCaps; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontCaps native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontCaps: next };
             },
           });
         }

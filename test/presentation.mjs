@@ -1073,6 +1073,47 @@ const fontSpacingRoundTripLeaf = fontSpacingRoundTrip.inspect({ includeNativeLea
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSpacingPoints" && record.value === -1.5);
 assert.equal(fontSpacingRoundTripLeaf.value, -1.5);
 
+// Direct DrawingML capitalization is a source-bound token.  Keep the
+// neighboring extension untouched while changing only a:rPr/@cap, then prove
+// the canonical value survives a second import.
+const fontCapsAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontCapsAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 cap="small"$2',
+);
+assert.match(fontCapsAccessibilityXml, /<a:rPr\b[^>]*\bcap="small"/);
+fontCapsAccessibilityZip.file("ppt/slides/slide1.xml", fontCapsAccessibilityXml);
+const fontCapsAccessibilityFile = new FileBlob(
+  await fontCapsAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontCapsImported = await PresentationFile.importPptx(fontCapsAccessibilityFile);
+const fontCapsShape = itemByName(fontCapsImported.slides.getItem(0).shapes.items, "decision-status");
+const fontCapsLeaf = fontCapsImported.inspect({ includeNativeLeaves: true, target: fontCapsShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontCaps");
+assert.ok(fontCapsLeaf, "source-bound shapes should expose a direct run capitalization leaf");
+assert.equal(fontCapsLeaf.value, "small");
+fontCapsImported.editNativeLeaf(fontCapsLeaf.targetId, fontCapsLeaf.leafId, {
+  expectedHash: fontCapsLeaf.expectedHash,
+  value: "all",
+});
+const fontCapsOutput = await PresentationFile.exportPptx(fontCapsImported);
+assert.equal(fontCapsOutput.metadata.editPlan.operations[0].leafKind, "fontCaps");
+await assertOnlyDeclaredPptxFootprintChanged(fontCapsAccessibilityFile, fontCapsOutput, fontCapsOutput.metadata.editPlan.operations);
+const fontCapsXml = await (await JSZip.loadAsync(fontCapsOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontCapsXml, /<a:rPr\b[^>]*\bcap="all"/);
+assert.match(fontCapsXml, /fixture:opaque="kept"/);
+const fontCapsRoundTrip = await PresentationFile.importPptx(fontCapsOutput);
+const fontCapsRoundTripLeaf = fontCapsRoundTrip.inspect({ includeNativeLeaves: true, target: fontCapsShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontCaps" && record.value === "all");
+assert.equal(fontCapsRoundTripLeaf.value, "all");
+
 // Direct paragraph alignment is a source-bound token leaf.  The fixture adds
 // one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
 // it must splice only that attribute and retain the vendor cNvPr extension.

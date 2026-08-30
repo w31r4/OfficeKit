@@ -23,6 +23,11 @@ internal static class PptxTextDecoration
         "noStrike", "sngStrike", "dblStrike",
     };
 
+    private static readonly HashSet<string> CapsValues = new(StringComparer.Ordinal)
+    {
+        "none", "small", "all",
+    };
+
     internal static string NormalizeUnderline(string value)
     {
         var token = value?.Trim() ?? string.Empty;
@@ -66,6 +71,28 @@ internal static class PptxTextDecoration
     internal static bool IsUnderlineToken(string value) => UnderlineValues.Contains(value);
 
     internal static bool IsStrikeToken(string value) => StrikeValues.Contains(value);
+
+    internal static bool TryCaps(A.TextCharacterPropertiesType? source, out string value)
+    {
+        var raw = source?.Capital?.InnerText;
+        if (raw is not null && CapsValues.Contains(raw))
+        {
+            value = raw;
+            return true;
+        }
+        value = string.Empty;
+        return false;
+    }
+
+    internal static string NormalizeCaps(string value)
+    {
+        var token = value?.Trim() ?? string.Empty;
+        if (!CapsValues.Contains(token))
+            throw new CodecException("invalid_presentation_text", $"Unsupported Presentation capitalization token {value}.");
+        return token;
+    }
+
+    internal static bool IsCapsToken(string value) => CapsValues.Contains(value);
 
     internal static bool TryKerning(A.TextCharacterPropertiesType? source, out string value)
     {

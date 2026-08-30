@@ -13,6 +13,7 @@ const PRESENTATION_UNDERLINE_VALUES = new Set([
   "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl",
 ]);
 const PRESENTATION_STRIKE_VALUES = new Set(["noStrike", "sngStrike", "dblStrike"]);
+const PRESENTATION_CAPS_VALUES = new Set(["none", "small", "all"]);
 let nextPresentationFieldId = 1;
 const AUTO_NUMBER_TYPES = new Set([
   "alphaLcParenBoth", "alphaLcParenR", "alphaLcPeriod", "alphaUcParenBoth", "alphaUcParenR", "alphaUcPeriod",
@@ -68,6 +69,12 @@ export function normalizePresentationStrike(value, label = "Presentation strike"
   return token;
 }
 
+export function normalizePresentationCaps(value, label = "Presentation caps") {
+  const token = String(value ?? "").trim();
+  if (!PRESENTATION_CAPS_VALUES.has(token)) throw new TypeError(`${label} must be none, small, or all.`);
+  return token;
+}
+
 function normalizeRunStyle(style = {}) {
   if (!style || typeof style !== "object" || Array.isArray(style)) throw new TypeError("Presentation run style must be an object.");
   const rawFontSize = style.fontSize == null ? undefined : String(style.fontSize).trim();
@@ -82,6 +89,7 @@ function normalizeRunStyle(style = {}) {
   const rawFontSpacing = style.fontSpacing == null ? undefined : String(style.fontSpacing).trim();
   const fontSpacing = rawFontSpacing == null ? undefined : finiteNumber(rawFontSpacing.replace(/pt$/i, ""));
   if (fontSpacing != null && !(fontSpacing >= -768 && fontSpacing <= 768)) throw new RangeError("Presentation run fontSpacing must be between -768 and 768 points.");
+  const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps);
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
@@ -91,6 +99,7 @@ function normalizeRunStyle(style = {}) {
     ...(fontKerning == null ? {} : { fontKerning }),
     ...(fontBaseline == null ? {} : { fontBaseline }),
     ...(fontSpacing == null ? {} : { fontSpacing }),
+    ...(fontCaps == null ? {} : { fontCaps }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),
