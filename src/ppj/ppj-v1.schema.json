@@ -4564,6 +4564,22 @@
         }
       }
     },
+    "sourceClone": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page",
+        "capability"
+      ],
+      "properties": {
+        "page": {
+          "$ref": "#/$defs/id"
+        },
+        "capability": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
     "page": {
       "type": "object",
       "additionalProperties": false,
@@ -4617,6 +4633,9 @@
         },
         "hidden": {
           "type": "boolean"
+        },
+        "sourceClone": {
+          "$ref": "#/$defs/sourceClone"
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef"

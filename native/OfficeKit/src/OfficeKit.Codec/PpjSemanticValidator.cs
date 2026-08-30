@@ -36,7 +36,7 @@ internal static class PpjSemanticValidator
             ["setHidden"] = Set("hidden"),
             ["setLocked"] = Set("locked"),
             ["delete"] = Set("element"),
-            ["duplicate"] = Set("element"),
+            ["duplicate"] = Set("element", "pageClone"),
             ["reorder"] = Set("zOrder", "pageOrder"),
         };
 
@@ -67,12 +67,14 @@ internal static class PpjSemanticValidator
         var globalElementIds = new HashSet<string>(StringComparer.Ordinal);
         var globalAnimationIds = new HashSet<string>(StringComparer.Ordinal);
         var pageElements = new Dictionary<string, IReadOnlyDictionary<string, PpjElementModel>>(StringComparer.Ordinal);
+        var clonedSourcePageIds = new HashSet<string>(StringComparer.Ordinal);
 
         for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
         {
             var page = program.Pages[pageIndex];
             var pagePath = $"$.pages[{pageIndex}]";
             ValidateNativeRef(page.NativeRef, program.Source, $"{pagePath}.nativeRef", diagnostics);
+            ValidateSourceClone(program, pages, page, pageIndex, pagePath, clonedSourcePageIds, diagnostics);
 
             var localElements = IndexElements(
                 page.Elements,
@@ -91,6 +93,50 @@ internal static class PpjSemanticValidator
         ValidatePresentationReferences(program, pageIds, pageElements, diagnostics);
         ValidateComponentGraph(program.Components, diagnostics);
         ValidateExpansionBudget(program, components, diagnostics);
+    }
+
+    private static void ValidateSourceClone(
+        PpjProgramModel program,
+        IReadOnlyDictionary<string, PpjPageModel> pages,
+        PpjPageModel page,
+        int pageIndex,
+        string path,
+        ISet<string> clonedSourcePageIds,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var clone = page.SourceClone;
+        if (clone is null) return;
+        if (program.Source is null)
+            diagnostics.Add(new("ppj.sourceClone.source", "sourceClone is only valid in a source-bound PPJ.", path + ".sourceClone"));
+        if (page.NativeRef is not null)
+            diagnostics.Add(new("ppj.sourceClone.nativeRef", "A pending sourceClone page cannot carry its own nativeRef before build and reimport.", path + ".nativeRef"));
+        if (page.Elements.Count != 0)
+            diagnostics.Add(new("ppj.sourceClone.elements", "A pending sourceClone page must keep elements empty until build and reimport.", path + ".elements"));
+        if (page.Name is not null || page.LayoutId is not null || page.Notes is not null || page.Hidden is not null ||
+            page.Transition is not null || page.Animations.Count != 0 || page.Raw.TryGetProperty("background", out _))
+            diagnostics.Add(new(
+                "ppj.sourceClone.immutable",
+                "A pending sourceClone cannot declare name, layout, background, notes, visibility, transition, or animation state before build and reimport.",
+                path));
+        if (!pages.TryGetValue(clone.PageId, out var sourcePage))
+        {
+            diagnostics.Add(new("ppj.sourceClone.page", $"Source page {clone.PageId} does not exist.", path + ".sourceClone.page"));
+            return;
+        }
+        if (sourcePage.SourceClone is not null)
+            diagnostics.Add(new("ppj.sourceClone.chain", "A pending sourceClone cannot clone another pending clone.", path + ".sourceClone.page"));
+        if (pageIndex == 0 || !program.Pages[pageIndex - 1].Id.Equals(clone.PageId, StringComparison.Ordinal))
+            diagnostics.Add(new("ppj.sourceClone.adjacent", "A pending sourceClone must immediately follow its retained source page.", path + ".sourceClone.page"));
+        if (!clonedSourcePageIds.Add(clone.PageId))
+            diagnostics.Add(new("ppj.sourceClone.budget", $"Source page {clone.PageId} can be cloned only once before build and reimport.", path + ".sourceClone.page"));
+        var capability = sourcePage.NativeRef?.Capabilities.FirstOrDefault(item => item.Id.Equals(clone.CapabilityId, StringComparison.Ordinal));
+        if (capability is null || !capability.Operation.Equals("duplicate", StringComparison.Ordinal) ||
+            !capability.Fields.Contains("pageClone", StringComparer.Ordinal) ||
+            !capability.ExpectedHash.Equals(sourcePage.NativeRef!.ObjectHash, StringComparison.OrdinalIgnoreCase))
+            diagnostics.Add(new(
+                "ppj.sourceClone.capability",
+                "The referenced source page did not issue this duplicate/pageClone capability.",
+                path + ".sourceClone.capability"));
     }
 
     private static void ValidateMasterLayoutState(

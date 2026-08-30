@@ -252,9 +252,8 @@ internal static partial class PpjPresentationProjector
             pageCapabilities.Add(new("setNotes", ["notes"]));
         if (slide.Source is not null && presentation.Slides.Count > 1 && !presentation.SectionsOpaque)
             pageCapabilities.Add(new("reorder", ["pageOrder"]));
-        // A native slide clone needs fresh page/element identities and a
-        // complete source-owned subtree mapping. Do not issue the underlying
-        // codec capability until PPJ can represent that bounded clone request.
+        if (slide.Source?.CloneCapability?.Supported == true)
+            pageCapabilities.Add(new("duplicate", ["pageClone"]));
 
         var elements = new JsonArray();
         for (var elementIndex = 0; elementIndex < slide.Elements.Count; elementIndex++)
