@@ -385,7 +385,14 @@ internal static class PpjSemanticValidator
                 ValidateStyleRef(placeholder.StyleRef, program.Design.TextStyleIds, $"{path}.styleRef", diagnostics);
                 break;
             case PpjSmartArtElementModel smartArt:
-                ValidateSmartArt(smartArt, path, program.Source, program.Design.TextStyleIds, diagnostics);
+                ValidateSmartArt(
+                    smartArt,
+                    path,
+                    program.Source,
+                    program.Design.TextStyleIds,
+                    program.Design.ShapeStyleIds,
+                    assetIds,
+                    diagnostics);
                 break;
             case PpjOleElementModel ole:
                 if (ole.PayloadAssetId is not null) ValidateAssetRef(ole.PayloadAssetId, assetIds, $"{path}.payloadAsset", diagnostics);
@@ -1504,6 +1511,8 @@ internal static class PpjSemanticValidator
         string path,
         PpjSourceModel? source,
         IReadOnlySet<string> textStyleIds,
+        IReadOnlySet<string> shapeStyleIds,
+        IReadOnlySet<string> assetIds,
         List<PpjDiagnostic> diagnostics)
     {
         if (smartArt.Mode == "authored" && smartArt.Layout is null)
@@ -1511,7 +1520,38 @@ internal static class PpjSemanticValidator
         if (smartArt.Mode == "source-bound" && smartArt.NativeRef is null && smartArt.Nodes.All(node => node.NativeRef is null))
             diagnostics.Add(new("ppj.smartArt.nativeRef", "Source-bound SmartArt requires an element or node nativeRef.", $"{path}.nativeRef"));
 
+        if (smartArt.Mode == "authored")
+        {
+            if (smartArt.NativeRef is not null || smartArt.Nodes.Any(node => node.NativeRef is not null))
+                diagnostics.Add(new("ppj.smartArt.nativeRef", "Authored diagrams cannot carry source-bound nativeRef authority.", path));
+            if (smartArt.Nodes.Count is < 1 or > 64)
+                diagnostics.Add(new("ppj.smartArt.nodeCount", "Authored diagrams require between 1 and 64 nodes.", $"{path}.nodes"));
+            if (smartArt.ShapeStyleRef is null)
+                diagnostics.Add(new("ppj.smartArt.shapeStyle", "Authored diagrams require an explicit default shapeStyleRef.", $"{path}.shapeStyleRef"));
+            if (smartArt.TextStyleRef is null)
+                diagnostics.Add(new("ppj.smartArt.textStyle", "Authored diagrams require an explicit default textStyleRef.", $"{path}.textStyleRef"));
+            if (smartArt.ShapeStyleRef is not null)
+                ValidateStyleRef(smartArt.ShapeStyleRef, shapeStyleIds, $"{path}.shapeStyleRef", diagnostics);
+            if (smartArt.TextStyleRef is not null)
+                ValidateStyleRef(smartArt.TextStyleRef, textStyleIds, $"{path}.textStyleRef", diagnostics);
+            if (smartArt.Raw.TryGetProperty("nodeGeometry", out var nodeGeometry))
+                ValidateDiagramGeometry(nodeGeometry, $"{path}.nodeGeometry", diagnostics);
+
+            var hasParentEdges = smartArt.Nodes.Any(node => node.ParentId is not null);
+            if (hasParentEdges && smartArt.Layout is ("list" or "process" or "cycle" or "matrix" or "pyramid" or "picture"))
+                diagnostics.Add(new("ppj.smartArt.topology", $"Authored {smartArt.Layout} diagrams use ordered nodes and cannot declare parent edges.", $"{path}.nodes"));
+            if (smartArt.Layout == "hierarchy" && smartArt.Nodes.Count > 1 && !hasParentEdges)
+                diagnostics.Add(new("ppj.smartArt.topology", "Authored hierarchy diagrams require parent edges.", $"{path}.nodes"));
+            if (smartArt.Nodes.Count > 1 && smartArt.Layout is ("process" or "cycle" or "hierarchy" or "relationship") &&
+                !smartArt.Raw.TryGetProperty("connector", out _))
+                diagnostics.Add(new("ppj.smartArt.connector", $"Authored {smartArt.Layout} diagrams require explicit connector styling.", $"{path}.connector"));
+            if ((smartArt.Nodes.Count < 2 || smartArt.Layout is ("list" or "matrix" or "pyramid" or "picture")) &&
+                smartArt.Raw.TryGetProperty("connector", out _))
+                diagnostics.Add(new("ppj.smartArt.connector", $"Authored {smartArt.Layout} diagrams do not emit connector edges for this node set.", $"{path}.connector"));
+        }
+
         var nodes = UniqueIndex(smartArt.Nodes, node => node.Id, $"{path}.nodes", diagnostics);
+        var rawNodes = smartArt.Raw.GetProperty("nodes").EnumerateArray().ToArray();
         for (var index = 0; index < smartArt.Nodes.Count; index++)
         {
             var node = smartArt.Nodes[index];
@@ -1519,6 +1559,15 @@ internal static class PpjSemanticValidator
             if (node.ParentId is not null && !nodes.ContainsKey(node.ParentId))
                 diagnostics.Add(new("ppj.smartArt.parent", $"SmartArt parent {node.ParentId} does not exist.", $"{nodePath}.parent"));
             ValidateStyleRef(node.StyleRef, textStyleIds, $"{nodePath}.styleRef", diagnostics);
+            ValidateStyleRef(node.ShapeStyleRef, shapeStyleIds, $"{nodePath}.shapeStyleRef", diagnostics);
+            if (rawNodes[index].TryGetProperty("geometry", out var geometry))
+                ValidateDiagramGeometry(geometry, $"{nodePath}.geometry", diagnostics);
+            if (node.AssetId is not null)
+                ValidateAssetRef(node.AssetId, assetIds, $"{nodePath}.asset", diagnostics);
+            if (smartArt.Mode == "authored" && smartArt.Layout == "picture" && node.AssetId is null)
+                diagnostics.Add(new("ppj.smartArt.pictureAsset", "Every authored picture-diagram node requires an image asset.", $"{nodePath}.asset"));
+            if (smartArt.Mode == "authored" && smartArt.Layout != "picture" && node.AssetId is not null)
+                diagnostics.Add(new("ppj.smartArt.pictureAsset", "Diagram node assets are only valid for the picture layout.", $"{nodePath}.asset"));
             ValidateNativeRef(node.NativeRef, source, $"{nodePath}.nativeRef", diagnostics);
         }
 
@@ -1535,6 +1584,20 @@ internal static class PpjSemanticValidator
                 }
             }
         }
+    }
+
+    private static void ValidateDiagramGeometry(
+        JsonElement geometry,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var kind = geometry.GetProperty("kind").GetString()!;
+        var preset = geometry.TryGetProperty("preset", out var presetValue) ? presetValue.GetString() : null;
+        var adjustments = geometry.TryGetProperty("adjustments", out var values)
+            ? values.EnumerateArray().Select(value => value.GetInt32()).ToArray()
+            : [];
+        ValidatePresetAdjustments(kind, preset, adjustments, path, diagnostics);
+        if (kind == "custom") ValidateCustomGeometry(geometry, path, diagnostics);
     }
 
     private static void ValidateComponentInstance(

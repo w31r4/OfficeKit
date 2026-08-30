@@ -4054,21 +4054,33 @@
                 "source-bound"
               ]
             },
-            "layout": {
-              "enum": [
-                "list",
+        "layout": {
+          "enum": [
+            "list",
                 "process",
                 "cycle",
                 "hierarchy",
                 "relationship",
                 "matrix",
                 "pyramid",
-                "picture"
-              ]
-            },
-            "nodes": {
-              "type": "array",
-              "maxItems": 10000,
+            "picture"
+          ]
+        },
+        "shapeStyleRef": {
+          "$ref": "#/$defs/id"
+        },
+        "textStyleRef": {
+          "$ref": "#/$defs/id"
+        },
+        "nodeGeometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "connector": {
+          "$ref": "#/$defs/smartArtConnector"
+        },
+        "nodes": {
+          "type": "array",
+          "maxItems": 64,
               "items": {
                 "$ref": "#/$defs/smartArtNode"
               }
@@ -4098,8 +4110,35 @@
         "styleRef": {
           "$ref": "#/$defs/id"
         },
+        "shapeStyleRef": {
+          "$ref": "#/$defs/id"
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "asset": {
+          "$ref": "#/$defs/id"
+        },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef"
+        }
+      }
+    },
+    "smartArtConnector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stroke"
+      ],
+      "properties": {
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "startArrow": {
+          "$ref": "#/$defs/arrowHead"
+        },
+        "endArrow": {
+          "$ref": "#/$defs/arrowHead"
         }
       }
     },

@@ -1106,6 +1106,83 @@ public sealed class PptxCodecTests
         var invalidArc = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidArcProgram.ToJsonString()));
         Assert.False(invalidArc.IsValid);
         Assert.Contains(invalidArc.Diagnostics, diagnostic => diagnostic.Code == "ppj.geometry.arcCurrentPoint");
+
+        static JsonObject DiagramNode(string id, string text, string? parent = null, bool picture = false)
+        {
+            var node = new JsonObject { ["id"] = id, ["text"] = text };
+            if (parent is not null) node["parent"] = parent;
+            if (picture) node["asset"] = "evidence-mark";
+            return node;
+        }
+
+        static JsonObject Diagram(
+            string layout,
+            double x,
+            double y,
+            JsonArray nodes,
+            bool connected = false,
+            string geometry = "roundRect")
+        {
+            var diagram = new JsonObject
+            {
+                ["id"] = $"authored-{layout}-diagram",
+                ["type"] = "smartArt",
+                ["role"] = $"authored {layout} diagram",
+                ["frame"] = new JsonObject { ["x"] = x, ["y"] = y, ["width"] = 210, ["height"] = 216 },
+                ["mode"] = "authored",
+                ["layout"] = layout,
+                ["shapeStyleRef"] = "decision-band",
+                ["textStyleRef"] = "body",
+                ["nodeGeometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = geometry },
+                ["nodes"] = nodes,
+                ["accessibility"] = new JsonObject
+                {
+                    ["decorative"] = false,
+                    ["description"] = $"Editable native {layout} diagram.",
+                },
+            };
+            if (connected)
+                diagram["connector"] = new JsonObject
+                {
+                    ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 1.5 },
+                    ["endArrow"] = "triangle",
+                };
+            return diagram;
+        }
+
+        authoredProgram["pages"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "page-authored-diagrams",
+            ["name"] = "Authored diagrams",
+            ["role"] = "Exercise bounded authored diagram layouts",
+            ["layout"] = "layout-evidence",
+            ["background"] = new JsonObject { ["type"] = "solid", ["color"] = new JsonObject { ["token"] = "paper" } },
+            ["elements"] = new JsonArray
+            {
+                Diagram("list", 24, 24, new JsonArray(
+                    DiagramNode("list-a", "Observe"), DiagramNode("list-b", "Measure"), DiagramNode("list-c", "Decide"))),
+                Diagram("process", 258, 24, new JsonArray(
+                    DiagramNode("process-a", "Input"), DiagramNode("process-b", "Evaluate"), DiagramNode("process-c", "Act")), connected: true),
+                Diagram("cycle", 492, 24, new JsonArray(
+                    DiagramNode("cycle-a", "Plan"), DiagramNode("cycle-b", "Run"), DiagramNode("cycle-c", "Learn")), connected: true, geometry: "ellipse"),
+                Diagram("hierarchy", 726, 24, new JsonArray(
+                    DiagramNode("hierarchy-root", "Program"),
+                    DiagramNode("hierarchy-left", "Evidence", "hierarchy-root"),
+                    DiagramNode("hierarchy-right", "Delivery", "hierarchy-root")), connected: true),
+                Diagram("relationship", 24, 282, new JsonArray(
+                    DiagramNode("relationship-core", "Decision"), DiagramNode("relationship-a", "Cost"),
+                    DiagramNode("relationship-b", "Risk"), DiagramNode("relationship-c", "Benefit")), connected: true, geometry: "ellipse"),
+                Diagram("matrix", 258, 282, new JsonArray(
+                    DiagramNode("matrix-a", "High / now"), DiagramNode("matrix-b", "High / later"),
+                    DiagramNode("matrix-c", "Low / now"), DiagramNode("matrix-d", "Low / later")), geometry: "rect"),
+                Diagram("pyramid", 492, 282, new JsonArray(
+                    DiagramNode("pyramid-a", "Signal"), DiagramNode("pyramid-b", "Evidence"), DiagramNode("pyramid-c", "Decision")), geometry: "rect"),
+                Diagram("picture", 726, 282, new JsonArray(
+                    DiagramNode("picture-a", "Baseline", picture: true), DiagramNode("picture-b", "Pilot", picture: true),
+                    DiagramNode("picture-c", "Review", picture: true), DiagramNode("picture-d", "Scale", picture: true)), geometry: "rect"),
+            },
+        });
+        authoredProgram["sections"]![0]!["pages"]!.AsArray().Add("page-authored-diagrams");
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -1149,7 +1226,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(28U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(36U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -1299,6 +1376,19 @@ public sealed class PptxCodecTests
                 shape => Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()));
             Assert.Contains(nativeSankey.Descendants<A.Text>(), text => text.Text == "Qualified");
             Assert.Contains(nativeSankey.Descendants<A.Text>(), text => text.Text == "100");
+            var diagramGroups = package.PresentationPart.SlideParts.ElementAt(2).Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>().ToArray();
+            Assert.Equal(8, diagramGroups.Length);
+            var nativeProcessDiagram = diagramGroups.Single(group =>
+                group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "authored process diagram");
+            Assert.Equal(3, nativeProcessDiagram.Elements<P.Shape>().Count());
+            Assert.Equal(2, nativeProcessDiagram.Elements<P.ConnectionShape>().Count());
+            Assert.Contains(nativeProcessDiagram.Descendants<A.Text>(), text => text.Text == "Evaluate");
+            var nativePictureDiagram = diagramGroups.Single(group =>
+                group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "authored picture diagram");
+            Assert.Equal(8, nativePictureDiagram.Elements<P.Shape>().Count());
+            Assert.Equal(4, nativePictureDiagram.Elements<P.Picture>().Count());
+            Assert.Contains(nativePictureDiagram.Descendants<A.Text>(), text => text.Text == "Review");
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -1325,7 +1415,16 @@ public sealed class PptxCodecTests
 
         var imported = Import(first.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
-        Assert.Equal(2, imported.Artifact.Presentation.Slides.Count);
+        Assert.Equal(3, imported.Artifact.Presentation.Slides.Count);
+        var importedDiagrams = imported.Artifact.Presentation.Slides[2].Elements
+            .Where(element => element.ContentCase == PresentationElement.ContentOneofCase.Group)
+            .ToArray();
+        Assert.Equal(8, importedDiagrams.Length);
+        var importedProcessDiagram = importedDiagrams.Single(element => element.Name == "authored process diagram").Group;
+        Assert.Equal(5, importedProcessDiagram.Children.Count);
+        Assert.Equal(2, importedProcessDiagram.Children.Count(child => child.ContentCase == PresentationElement.ContentOneofCase.Connector));
+        var importedPictureDiagram = importedDiagrams.Single(element => element.Name == "authored picture diagram").Group;
+        Assert.Equal(4, importedPictureDiagram.Children.Count(child => child.ContentCase == PresentationElement.ContentOneofCase.Image));
         var importedBackground = imported.Artifact.Presentation.Slides[0].Background.GradientFill;
         Assert.Equal(PresentationGradientFill.Types.Kind.Linear, importedBackground.Kind);
         Assert.Equal(3, importedBackground.Stops.Count);
@@ -1561,7 +1660,7 @@ public sealed class PptxCodecTests
             var projectedRoot = projectedJson.RootElement;
             Assert.Equal("office-kit/ppj/v1", projectedRoot.GetProperty("schema").GetString());
             Assert.Equal(projected.PresentationProgram.SourceSha256, projectedRoot.GetProperty("source").GetProperty("sha256").GetString());
-            Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
+            Assert.Equal(3, projectedRoot.GetProperty("pages").GetArrayLength());
             Assert.All(projectedRoot.GetProperty("pages").EnumerateArray(), page =>
                 Assert.StartsWith("layout-", page.GetProperty("layout").GetString(), StringComparison.Ordinal));
             Assert.Equal("linear", projectedRoot.GetProperty("pages")[0].GetProperty("background").GetProperty("kind").GetString());

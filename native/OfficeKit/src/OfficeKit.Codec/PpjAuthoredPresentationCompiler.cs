@@ -269,8 +269,11 @@ internal static class PpjAuthoredPresentationCompiler
                 break;
             case PpjMediaElementModel:
                 throw Unsupported(element.Id, "media authoring requires a typed native media compiler");
+            case PpjSmartArtElementModel { Mode: "authored" } diagram:
+                output.Group = BuildAuthoredDiagram(diagram, raw, catalog);
+                break;
             case PpjSmartArtElementModel:
-                throw Unsupported(element.Id, "source-free SmartArt authoring is not yet a PPJ compiler capability");
+                throw Unsupported(element.Id, "source-bound SmartArt requires a bound source package");
             case PpjOleElementModel:
                 throw Unsupported(element.Id, "source-free OLE authoring is not yet a PPJ compiler capability");
             case PpjOpaqueElementModel:
@@ -2902,6 +2905,413 @@ internal static class PpjAuthoredPresentationCompiler
         ApplyAccessibility(connector, element.Accessibility);
         return connector;
     }
+
+    private static PresentationGroup BuildAuthoredDiagram(
+        PpjSmartArtElementModel element,
+        JsonElement raw,
+        Catalog catalog)
+    {
+        var nodeJson = raw.GetProperty("nodes").EnumerateArray().ToDictionary(
+            node => node.GetProperty("id").GetString()!,
+            node => node,
+            StringComparer.Ordinal);
+        var layout = LayoutDiagramNodes(element);
+        if (layout.Any(item => item.Frame.Width < 8 || item.Frame.Height < 8) ||
+            element.Layout == "picture" && layout.Any(item =>
+                DiagramPictureImageFrame(item.Frame).Height < 8 || DiagramPictureLabelFrame(item.Frame).Height < 8))
+            throw Unsupported(element.Id, "authored diagram frame is too small for its layout and node count");
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(element.Frame.X),
+            TopEmu = Emu(element.Frame.Y),
+            WidthEmu = Emu(element.Frame.Width),
+            HeightEmu = Emu(element.Frame.Height),
+            ChildLeftEmu = Emu(element.Frame.X),
+            ChildTopEmu = Emu(element.Frame.Y),
+            ChildWidthEmu = Emu(element.Frame.Width),
+            ChildHeightEmu = Emu(element.Frame.Height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } transform) group.FrameTransform = transform;
+
+        var nodeIds = layout.ToDictionary(
+            item => item.Node.Id,
+            item => DiagramChildId(element.Id, "node", item.Node.Id),
+            StringComparer.Ordinal);
+        if (raw.TryGetProperty("connector", out var connectorStyle))
+        {
+            foreach (var edge in DiagramEdges(element, layout))
+            {
+                var from = layout[edge.FromIndex];
+                var to = layout[edge.ToIndex];
+                var connector = BuildDiagramConnector(
+                    from.Frame,
+                    to.Frame,
+                    nodeIds[from.Node.Id],
+                    nodeIds[to.Node.Id],
+                    connectorStyle,
+                    catalog,
+                    element.Layout!);
+                group.Children.Add(new PresentationElement
+                {
+                    Id = DiagramChildId(element.Id, "edge", $"{from.Node.Id}.{to.Node.Id}"),
+                    Name = $"{from.Node.Id} to {to.Node.Id}",
+                    Connector = connector,
+                });
+            }
+        }
+
+        for (var index = 0; index < layout.Count; index++)
+        {
+            var item = layout[index];
+            var rawNode = nodeJson[item.Node.Id];
+            var nodeId = nodeIds[item.Node.Id];
+            if (element.Layout == "picture")
+            {
+                group.Children.Add(new PresentationElement
+                {
+                    Id = nodeId,
+                    Name = DisplayName(null, null, item.Node.Id),
+                    Shape = BuildDiagramNodeShape(element, item, raw, rawNode, catalog, includeText: false),
+                });
+                group.Children.Add(new PresentationElement
+                {
+                    Id = DiagramChildId(element.Id, "image", item.Node.Id),
+                    Name = $"{item.Node.Id} image",
+                    Image = BuildDiagramNodeImage(item, catalog),
+                });
+                group.Children.Add(new PresentationElement
+                {
+                    Id = DiagramChildId(element.Id, "label", item.Node.Id),
+                    Name = $"{item.Node.Id} label",
+                    Shape = BuildDiagramNodeLabel(element, item, rawNode, catalog),
+                });
+            }
+            else
+            {
+                group.Children.Add(new PresentationElement
+                {
+                    Id = nodeId,
+                    Name = DisplayName(null, null, item.Node.Id),
+                    Shape = BuildDiagramNodeShape(element, item, raw, rawNode, catalog, includeText: true),
+                });
+            }
+        }
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static PresentationShape BuildDiagramNodeShape(
+        PpjSmartArtElementModel element,
+        DiagramLayoutNode item,
+        JsonElement rawElement,
+        JsonElement rawNode,
+        Catalog catalog,
+        bool includeText)
+    {
+        var geometry = Property(rawNode, "geometry") ?? Property(rawElement, "nodeGeometry");
+        var geometryKind = geometry is null ? "preset" : geometry.Value.GetProperty("kind").GetString();
+        var geometryName = geometryKind == "custom"
+            ? "custom"
+            : geometry is null ? "rect" : geometry.Value.GetProperty("preset").GetString()!;
+        var shape = ShapeFrame(item.Frame, geometryName);
+        var shapeStyle = catalog.ShapeStyle(item.Node.ShapeStyleRef ?? element.ShapeStyleRef);
+        ApplyShapeStyle(shape, shapeStyle, null, catalog, item.Node.Id, includeText);
+        if (geometry is { } value)
+        {
+            if (geometryKind == "custom") ApplyCustomGeometry(shape, value, item.Node.Id);
+            else if (value.TryGetProperty("adjustments", out var adjustments))
+                shape.PresetAdjustments.Add(adjustments.EnumerateArray().Select(item => item.GetInt32()));
+        }
+        if (includeText)
+        {
+            var textStyle = catalog.TextStyle(item.Node.StyleRef ?? element.TextStyleRef);
+            shape.TextBody = BuildTextBody(rawNode.GetProperty("text"), textStyle, null, catalog);
+            shape.Text = Flatten(shape.TextBody);
+        }
+        return shape;
+    }
+
+    private static PresentationShape BuildDiagramNodeLabel(
+        PpjSmartArtElementModel element,
+        DiagramLayoutNode item,
+        JsonElement rawNode,
+        Catalog catalog)
+    {
+        var frame = DiagramPictureLabelFrame(item.Frame);
+        var shape = ShapeFrame(frame, "textbox");
+        shape.LineStyle = "none";
+        var textStyle = catalog.TextStyle(item.Node.StyleRef ?? element.TextStyleRef);
+        shape.TextBody = BuildTextBody(rawNode.GetProperty("text"), textStyle, null, catalog);
+        shape.Text = Flatten(shape.TextBody);
+        return shape;
+    }
+
+    private static PresentationImage BuildDiagramNodeImage(DiagramLayoutNode item, Catalog catalog)
+    {
+        var frame = DiagramPictureImageFrame(item.Frame);
+        var image = new PresentationImage
+        {
+            AssetId = catalog.NativeAssetId(item.Node.AssetId!),
+            AltText = FlattenText(item.Node.Text),
+            LeftEmu = Emu(frame.X),
+            TopEmu = Emu(frame.Y),
+            WidthEmu = Emu(frame.Width),
+            HeightEmu = Emu(frame.Height),
+        };
+        if (catalog.AssetDimensions(item.Node.AssetId!) is { } dimensions)
+            image.Crop = DiagramCoverCrop(frame.Width, frame.Height, dimensions.Width, dimensions.Height);
+        return image;
+    }
+
+    private static PresentationImageCrop DiagramCoverCrop(
+        double frameWidth,
+        double frameHeight,
+        double imageWidth,
+        double imageHeight)
+    {
+        var crop = new PresentationImageCrop();
+        var frameRatio = frameWidth / frameHeight;
+        var imageRatio = imageWidth / imageHeight;
+        if (imageRatio > frameRatio)
+        {
+            var edge = checked((int)Math.Round((1 - frameRatio / imageRatio) * 50_000));
+            crop.LeftThousandthPercent = edge;
+            crop.RightThousandthPercent = edge;
+        }
+        else if (imageRatio < frameRatio)
+        {
+            var edge = checked((int)Math.Round((1 - imageRatio / frameRatio) * 50_000));
+            crop.TopThousandthPercent = edge;
+            crop.BottomThousandthPercent = edge;
+        }
+        return crop;
+    }
+
+    private static PresentationConnector BuildDiagramConnector(
+        PpjFrameModel from,
+        PpjFrameModel to,
+        string fromId,
+        string toId,
+        JsonElement style,
+        Catalog catalog,
+        string layout)
+    {
+        var horizontal = layout == "process" || Math.Abs((to.X + to.Width / 2) - (from.X + from.Width / 2)) >=
+            Math.Abs((to.Y + to.Height / 2) - (from.Y + from.Height / 2));
+        var forward = horizontal
+            ? to.X + to.Width / 2 >= from.X + from.Width / 2
+            : to.Y + to.Height / 2 >= from.Y + from.Height / 2;
+        var startX = horizontal ? (forward ? from.X + from.Width : from.X) : from.X + from.Width / 2;
+        var startY = horizontal ? from.Y + from.Height / 2 : (forward ? from.Y + from.Height : from.Y);
+        var endX = horizontal ? (forward ? to.X : to.X + to.Width) : to.X + to.Width / 2;
+        var endY = horizontal ? to.Y + to.Height / 2 : (forward ? to.Y : to.Y + to.Height);
+        var connector = new PresentationConnector
+        {
+            ConnectorType = layout == "hierarchy" ? "elbow" : "straight",
+            StartXEmu = Emu(startX),
+            StartYEmu = Emu(startY),
+            EndXEmu = Emu(endX),
+            EndYEmu = Emu(endY),
+            StartTargetId = fromId,
+            EndTargetId = toId,
+            StartConnectionSiteIndex = 0,
+            EndConnectionSiteIndex = 0,
+            StartArrow = Arrow(OptionalString(style, "startArrow")),
+            EndArrow = Arrow(OptionalString(style, "endArrow")),
+        };
+        ApplyLine(connector, style.GetProperty("stroke"), catalog);
+        return connector;
+    }
+
+    private static IReadOnlyList<DiagramEdge> DiagramEdges(
+        PpjSmartArtElementModel element,
+        IReadOnlyList<DiagramLayoutNode> layout)
+    {
+        if (layout.Count < 2) return [];
+        var indexes = layout.Select((item, index) => (item.Node.Id, index))
+            .ToDictionary(item => item.Id, item => item.index, StringComparer.Ordinal);
+        var explicitEdges = layout
+            .Select((item, index) => item.Node.ParentId is null
+                ? (DiagramEdge?)null
+                : new DiagramEdge(indexes[item.Node.ParentId], index))
+            .Where(item => item is not null)
+            .Select(item => item!.Value)
+            .ToArray();
+        if (explicitEdges.Length > 0) return explicitEdges;
+        if (element.Layout == "process")
+            return Enumerable.Range(0, layout.Count - 1).Select(index => new DiagramEdge(index, index + 1)).ToArray();
+        if (element.Layout == "cycle")
+            return Enumerable.Range(0, layout.Count).Select(index => new DiagramEdge(index, (index + 1) % layout.Count)).ToArray();
+        if (element.Layout == "relationship")
+            return Enumerable.Range(1, layout.Count - 1).Select(index => new DiagramEdge(0, index)).ToArray();
+        return [];
+    }
+
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramNodes(PpjSmartArtElementModel element) =>
+        element.Layout switch
+        {
+            "list" => LayoutDiagramGrid(element, 1),
+            "process" => LayoutDiagramGrid(element, element.Nodes.Count),
+            "cycle" => LayoutDiagramRadial(element, centerFirst: false),
+            "hierarchy" => LayoutDiagramHierarchy(element),
+            "relationship" => LayoutDiagramRadial(element, centerFirst: true),
+            "matrix" => LayoutDiagramGrid(element, (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count))),
+            "pyramid" => LayoutDiagramPyramid(element),
+            "picture" => LayoutDiagramGrid(element, (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count))),
+            _ => throw Unsupported(element.Id, $"authored diagram layout {element.Layout} is not compiler-owned"),
+        };
+
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramGrid(PpjSmartArtElementModel element, int columns)
+    {
+        columns = Math.Max(1, Math.Min(columns, element.Nodes.Count));
+        var rows = (int)Math.Ceiling(element.Nodes.Count / (double)columns);
+        var gap = DiagramGap(element.Frame, Math.Max(rows, columns));
+        var width = (element.Frame.Width - gap * (columns - 1)) / columns;
+        var height = (element.Frame.Height - gap * (rows - 1)) / rows;
+        return element.Nodes.Select((node, index) => new DiagramLayoutNode(
+            node,
+            new PpjFrameModel(
+                element.Frame.X + (index % columns) * (width + gap),
+                element.Frame.Y + (index / columns) * (height + gap),
+                width,
+                height,
+                0,
+                false,
+                false))).ToArray();
+    }
+
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramRadial(PpjSmartArtElementModel element, bool centerFirst)
+    {
+        if (element.Nodes.Count == 1)
+            return [new DiagramLayoutNode(element.Nodes[0], new PpjFrameModel(
+                element.Frame.X + element.Frame.Width * 0.3,
+                element.Frame.Y + element.Frame.Height * 0.3,
+                element.Frame.Width * 0.4,
+                element.Frame.Height * 0.4,
+                0,
+                false,
+                false))];
+        var radialCount = centerFirst ? element.Nodes.Count - 1 : element.Nodes.Count;
+        var nodeWidth = Math.Min(element.Frame.Width * 0.24, element.Frame.Width / Math.Max(2, Math.Ceiling(Math.Sqrt(radialCount))));
+        var nodeHeight = Math.Min(element.Frame.Height * 0.24, element.Frame.Height / Math.Max(2, Math.Ceiling(Math.Sqrt(radialCount))));
+        var centerX = element.Frame.X + element.Frame.Width / 2;
+        var centerY = element.Frame.Y + element.Frame.Height / 2;
+        var radiusX = Math.Max(0, (element.Frame.Width - nodeWidth) / 2);
+        var radiusY = Math.Max(0, (element.Frame.Height - nodeHeight) / 2);
+        var result = new List<DiagramLayoutNode>(element.Nodes.Count);
+        if (centerFirst)
+            result.Add(new DiagramLayoutNode(element.Nodes[0], new PpjFrameModel(
+                centerX - nodeWidth / 2,
+                centerY - nodeHeight / 2,
+                nodeWidth,
+                nodeHeight,
+                0,
+                false,
+                false)));
+        for (var index = 0; index < radialCount; index++)
+        {
+            var angle = -Math.PI / 2 + 2 * Math.PI * index / radialCount;
+            result.Add(new DiagramLayoutNode(
+                element.Nodes[centerFirst ? index + 1 : index],
+                new PpjFrameModel(
+                    centerX + radiusX * Math.Cos(angle) - nodeWidth / 2,
+                    centerY + radiusY * Math.Sin(angle) - nodeHeight / 2,
+                    nodeWidth,
+                    nodeHeight,
+                    0,
+                    false,
+                    false)));
+        }
+        return result;
+    }
+
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramHierarchy(PpjSmartArtElementModel element)
+    {
+        var byId = element.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
+        var depths = new Dictionary<string, int>(StringComparer.Ordinal);
+        int depth(PpjSmartArtNodeModel node)
+        {
+            if (depths.TryGetValue(node.Id, out var found)) return found;
+            var value = node.ParentId is null ? 0 : depth(byId[node.ParentId]) + 1;
+            depths[node.Id] = value;
+            return value;
+        }
+        foreach (var node in element.Nodes) depth(node);
+        var levels = element.Nodes.GroupBy(node => depths[node.Id]).OrderBy(group => group.Key).ToArray();
+        var verticalGap = DiagramGap(element.Frame, levels.Length);
+        var rowHeight = (element.Frame.Height - verticalGap * (levels.Length - 1)) / levels.Length;
+        var result = new List<DiagramLayoutNode>(element.Nodes.Count);
+        foreach (var level in levels)
+        {
+            var nodes = level.ToArray();
+            var horizontalGap = DiagramGap(element.Frame, nodes.Length);
+            var width = (element.Frame.Width - horizontalGap * (nodes.Length - 1)) / nodes.Length;
+            for (var index = 0; index < nodes.Length; index++)
+                result.Add(new DiagramLayoutNode(nodes[index], new PpjFrameModel(
+                    element.Frame.X + index * (width + horizontalGap),
+                    element.Frame.Y + level.Key * (rowHeight + verticalGap),
+                    width,
+                    rowHeight,
+                    0,
+                    false,
+                    false)));
+        }
+        return element.Nodes.Select(node => result.Single(item => item.Node.Id == node.Id)).ToArray();
+    }
+
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramPyramid(PpjSmartArtElementModel element)
+    {
+        var gap = DiagramGap(element.Frame, element.Nodes.Count);
+        var height = (element.Frame.Height - gap * (element.Nodes.Count - 1)) / element.Nodes.Count;
+        return element.Nodes.Select((node, index) =>
+        {
+            var scale = 0.45 + 0.55 * (index + 1) / element.Nodes.Count;
+            var width = element.Frame.Width * scale;
+            return new DiagramLayoutNode(node, new PpjFrameModel(
+                element.Frame.X + (element.Frame.Width - width) / 2,
+                element.Frame.Y + index * (height + gap),
+                width,
+                height,
+                0,
+                false,
+                false));
+        }).ToArray();
+    }
+
+    private static PpjFrameModel DiagramPictureImageFrame(PpjFrameModel frame) => new(
+        frame.X,
+        frame.Y,
+        frame.Width,
+        frame.Height * 0.7,
+        0,
+        false,
+        false);
+
+    private static PpjFrameModel DiagramPictureLabelFrame(PpjFrameModel frame) => new(
+        frame.X,
+        frame.Y + frame.Height * 0.7,
+        frame.Width,
+        frame.Height * 0.3,
+        0,
+        false,
+        false);
+
+    private static double DiagramGap(PpjFrameModel frame, int count) =>
+        count <= 1 ? 0 : Math.Min(18, Math.Max(4, Math.Min(frame.Width, frame.Height) * 0.025));
+
+    private static string DiagramChildId(string owner, string kind, string suffix)
+    {
+        var candidate = $"{owner}.{kind}.{suffix}";
+        if (candidate.Length <= 255) return candidate;
+        var ownerPrefix = owner.Length <= 180 ? owner : owner[..180];
+        return $"{ownerPrefix}.{kind}.{Sha256(Encoding.UTF8.GetBytes(candidate))[..24]}";
+    }
+
+    private static string FlattenText(PpjTextContentModel text) => text.PlainText ??
+        string.Join("\n", text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(run => run.Text))));
+
+    private sealed record DiagramLayoutNode(PpjSmartArtNodeModel Node, PpjFrameModel Frame);
+    private readonly record struct DiagramEdge(int FromIndex, int ToIndex);
 
     private static PresentationGroup BuildGroup(PpjGroupElementModel element, JsonElement raw, Catalog catalog)
     {

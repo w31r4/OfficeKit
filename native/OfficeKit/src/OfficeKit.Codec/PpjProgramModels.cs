@@ -232,6 +232,8 @@ internal sealed class PpjSmartArtElementModel : PpjElementModel
 {
     internal required string Mode { get; init; }
     internal string? Layout { get; init; }
+    internal string? ShapeStyleRef { get; init; }
+    internal string? TextStyleRef { get; init; }
     internal required IReadOnlyList<PpjSmartArtNodeModel> Nodes { get; init; }
 }
 
@@ -240,6 +242,8 @@ internal sealed record PpjSmartArtNodeModel(
     string? ParentId,
     PpjTextContentModel Text,
     string? StyleRef,
+    string? ShapeStyleRef,
+    string? AssetId,
     PpjNativeRefModel? NativeRef);
 
 internal sealed class PpjOleElementModel : PpjElementModel
@@ -635,6 +639,8 @@ internal static class PpjProgramParser
             {
                 Mode = element.GetProperty("mode").GetString()!,
                 Layout = OptionalString(element, "layout"),
+                ShapeStyleRef = OptionalString(element, "shapeStyleRef"),
+                TextStyleRef = OptionalString(element, "textStyleRef"),
                 Nodes = element.GetProperty("nodes").EnumerateArray().Select(ParseSmartArtNode).ToArray(),
             },
             "ole" => new PpjOleElementModel
@@ -740,6 +746,8 @@ internal static class PpjProgramParser
         OptionalString(node, "parent"),
         ParseText(node.GetProperty("text")),
         OptionalString(node, "styleRef"),
+        OptionalString(node, "shapeStyleRef"),
+        OptionalString(node, "asset"),
         node.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null);
 
     private static PpjTextContentModel ParseText(JsonElement text)
