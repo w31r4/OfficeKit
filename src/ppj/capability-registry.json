@@ -90,11 +90,11 @@
       "reason": "Authored tables support bounded rich cell text, body and paragraph layout, none/solid/gradient cell fills, direct borders, banding and one header row. More than one header row and image cell fills fail closed."
     },
     {
-      "feature": "theme-colored bullets and uncommon numbering schemes",
+      "feature": "native-theme bullet identity and uncommon numbering schemes",
       "ppjPath": "text.paragraphs[].style.bullet",
       "behavior": "partial",
       "sourceBound": "Existing paragraph bullet leaves are editable only when capability-issued.",
-      "reason": "Authored bullets currently accept explicit RGB plus the documented decimal, alpha and Roman schemes."
+      "reason": "Authored bullets accept literal RGB/alpha or deck-local color tokens resolved to RGB/alpha, plus the documented decimal, alpha and Roman schemes. Existing native theme-token identity remains source-bound and leaf-editable rather than being guessed during source-free authoring."
     },
     {
       "feature": "compound-shape global opacity",
