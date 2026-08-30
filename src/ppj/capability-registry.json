@@ -119,11 +119,18 @@
       "reason": "Authored ordinary and combo charts own Latin/East Asian typefaces, size, bold, italic and direct RGB/alpha at all five chart text locations. The bounded profile intentionally excludes theme transforms, shadows, effects and irregular rich-text topology."
     },
     {
-      "feature": "source-free media and OLE",
-      "ppjPath": "pages[].elements[] where type is media or ole",
+      "feature": "third-party media playback graphs",
+      "ppjPath": "pages[].elements[] where type is media and nativeRef is present",
       "behavior": "source-bound-only",
-      "sourceBound": "Imported objects are classified and preserved; only issued nativeRef or typed capabilities may change them.",
-      "reason": "PPJ models their persistent state, but authored native creation is not yet compiler-owned."
+      "sourceBound": "Imported audio/video pictures, media relationships and timing graphs remain opaque-preserved unless a future capability proves the complete playback closure.",
+      "reason": "Source-free PPJ owns a bounded canonical audio/video profile with an explicit poster, trim, loop and mute. It does not claim arbitrary third-party triggers, bookmarks, media effects or timing topology."
+    },
+    {
+      "feature": "source-free OLE",
+      "ppjPath": "pages[].elements[] where type is ole",
+      "behavior": "source-bound-only",
+      "sourceBound": "Imported OLE objects are classified and preserved; only issued nativeRef or typed capabilities may change them.",
+      "reason": "PPJ models OLE persistent state, but authored native OLE creation is not compiler-owned."
     },
     {
       "feature": "native Office SmartArt parts",

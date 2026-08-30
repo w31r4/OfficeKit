@@ -125,6 +125,15 @@ elements. NativeAOT build embeds the exact program and node map; importing only
 the PPTX recovers byte-identical PPJ, preserves stable IDs, and supports a
 subsequent one-slide edit without changing any other SlidePart.
 
+Source-free PPJ media now owns a bounded native profile: local MP4 video and
+MP3/M4A/WAV audio use an explicit poster, canonical media plus audio/video
+relationships, click-to-play action, bounded leading/trailing trim, loop/mute
+state, and native timing nodes. The comprehensive authored contract combines a
+video with existing object animation, passes the Office 2021 Open XML validator,
+and recovers both media bytes and exact PPJ from the authored PPTX. Arbitrary
+third-party media timing remains opaque-preserved; this is structural package
+evidence, not desktop playback evidence.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.

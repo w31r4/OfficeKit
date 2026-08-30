@@ -22,6 +22,48 @@ Do not present a generated or decorative image as documentary evidence. Keep
 required attribution visible or in an explicit credits page according to the
 license.
 
+## Authored audio and video
+
+Use a `media` element only for a local embedded asset whose playback role is
+part of the presentation. PPJ source-free authoring supports MP4 video and
+MP3, M4A, or WAV audio. Every media element requires an explicit image
+`posterAsset`; the poster is the editable native picture surface seen before
+playback and in static rendering.
+
+```json
+{
+  "id": "field-observation",
+  "type": "media",
+  "name": "Field observation video",
+  "role": "primary evidence",
+  "frame": { "x": 528, "y": 96, "width": 360, "height": 240 },
+  "accessibility": {
+    "decorative": false,
+    "description": "A short field observation showing the measured condition."
+  },
+  "mediaType": "video",
+  "asset": "field-observation-mp4",
+  "posterAsset": "field-observation-poster",
+  "startAtMs": 1200,
+  "endAtMs": 400,
+  "loop": false,
+  "mute": true
+}
+```
+
+`startAtMs` and `endAtMs` are bounded leading and trailing trim offsets, not
+timeline expressions. `loop` and `mute` compile to native playback state.
+OfficeKit owns the media relationships, click action, canonical timing nodes,
+poster relationship, and package part names; PPJ owns only the typed state
+above. Keep media below 64 MiB per asset and within the deck's aggregate asset
+budget.
+
+Static render and structural review prove the poster and package graph, not
+playback. Record desktop evidence separately when actual playback matters.
+Third-party media timing remains opaque/source-bound: importing it does not
+authorize rewriting triggers, bookmarks, effects, or an unfamiliar timing
+graph.
+
 ## Layer stack
 
 `pages[].elements[]` is the true back-to-front z-order. A common image-led page
