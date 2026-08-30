@@ -4,4 +4,4 @@
 - [x] Compile bullet color tokens and alpha.
 - [x] Extend one existing PPJ text contract.
 - [x] Synchronize Agent guidance and coverage evidence.
-- [ ] Commit atomically and fast-forward remote main.
+- [x] Commit atomically and fast-forward remote main.
