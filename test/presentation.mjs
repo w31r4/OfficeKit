@@ -719,7 +719,7 @@ const imageFilledCustomGeometryShape = itemByName(imageFilledCustomGeometryImpor
 assert.match(imageFilledCustomGeometryShape.imageFill?.assetId || "", /^asset\/presentation\/picture(?:-bullet)?\//u);
 assert.equal(imageFilledCustomGeometryShape.imageFill?.contentType, "image/png");
 assert.deepEqual(imageFilledCustomGeometryShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
-assert.equal(imageFilledCustomGeometryShape.customPaths.length, 0, "unsupported source geometry remains opaque inside the image-filled shape");
+assert.equal(imageFilledCustomGeometryShape.customPaths.length, 1, "supported image-filled custom geometry remains modeled");
 const imageFilledCustomGeometryRecord = imageFilledCustomGeometryShape.inspectRecord();
 assert.equal(imageFilledCustomGeometryRecord.imageFill?.contentType, "image/png");
 const imageFilledCustomGeometryOldPosition = { ...imageFilledCustomGeometryShape.position };
