@@ -233,7 +233,15 @@ public sealed class PptxCodecTests
             ["visible"] = true,
             ["title"] = "Half-year",
             ["tickLabelInterval"] = 1,
-            ["textStyle"] = new JsonObject { ["fontSize"] = 9 },
+            ["textStyle"] = new JsonObject
+            {
+                ["fontSize"] = 9,
+                ["fontFamily"] = "Aptos",
+                ["fontFamilyEastAsia"] = "Noto Sans CJK SC",
+                ["bold"] = true,
+                ["italic"] = false,
+                ["color"] = "#16324FCC",
+            },
         };
         authoredChart["yAxis"] = new JsonObject
         {
@@ -369,7 +377,15 @@ public sealed class PptxCodecTests
             ["style"] = new JsonObject
             {
                 ["legend"] = "none",
-                ["titleTextStyle"] = new JsonObject { ["fontSize"] = 17 },
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 17,
+                    ["fontFamily"] = "Georgia",
+                    ["fontFamilyEastAsia"] = "Noto Serif CJK SC",
+                    ["bold"] = true,
+                    ["italic"] = true,
+                    ["color"] = "#0B8F8FCC",
+                },
                 ["smooth"] = false,
                 ["varyColors"] = true,
             },
@@ -512,6 +528,12 @@ public sealed class PptxCodecTests
             element.ContentCase == PresentationElement.ContentOneofCase.Chart &&
             element.Chart.Type == SpreadsheetChartType.Line).Chart;
         Assert.Equal(17, importedLine.TitleTextStyle.FontSizePoints);
+        Assert.Equal("Georgia", importedLine.TitleTextStyle.FontFamily);
+        Assert.Equal("Noto Serif CJK SC", importedLine.TitleTextStyle.FontFamilyEastAsia);
+        Assert.True(importedLine.TitleTextStyle.Bold);
+        Assert.True(importedLine.TitleTextStyle.Italic);
+        Assert.Equal("0B8F8F", importedLine.TitleTextStyle.ColorRgb);
+        Assert.Equal(80_000U, importedLine.TitleTextStyle.OpacityThousandthPercent);
         Assert.True(importedLine.LineOptions.HasSmooth);
         Assert.False(importedLine.LineOptions.Smooth);
         Assert.True(importedLine.LineOptions.VaryColors);
@@ -545,6 +567,13 @@ public sealed class PptxCodecTests
         Assert.Equal("Half-year", importedChart.XAxis.Title);
         Assert.Equal(1U, importedChart.XAxis.TickLabelInterval);
         Assert.Equal(9, importedChart.XAxis.TextStyle.FontSizePoints);
+        Assert.Equal("Aptos", importedChart.XAxis.TextStyle.FontFamily);
+        Assert.Equal("Noto Sans CJK SC", importedChart.XAxis.TextStyle.FontFamilyEastAsia);
+        Assert.True(importedChart.XAxis.TextStyle.Bold);
+        Assert.True(importedChart.XAxis.TextStyle.HasItalic);
+        Assert.False(importedChart.XAxis.TextStyle.Italic);
+        Assert.Equal("16324F", importedChart.XAxis.TextStyle.ColorRgb);
+        Assert.Equal(80_000U, importedChart.XAxis.TextStyle.OpacityThousandthPercent);
         Assert.Equal("Incident hours", importedChart.YAxis.Title);
         Assert.Equal(0, importedChart.YAxis.Minimum);
         Assert.Equal(80, importedChart.YAxis.Maximum);
@@ -720,7 +749,15 @@ public sealed class PptxCodecTests
             var projectedLine = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "line");
-            Assert.Equal(17, projectedLine.GetProperty("style").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
+            var projectedLineTitleStyle = projectedLine.GetProperty("style").GetProperty("titleTextStyle");
+            Assert.Equal(17, projectedLineTitleStyle.GetProperty("fontSize").GetDouble());
+            Assert.Equal("Georgia", projectedLineTitleStyle.GetProperty("fontFamily").GetString());
+            Assert.Equal("Noto Serif CJK SC", projectedLineTitleStyle.GetProperty("fontFamilyEastAsia").GetString());
+            Assert.True(projectedLineTitleStyle.GetProperty("bold").GetBoolean());
+            Assert.True(projectedLineTitleStyle.GetProperty("italic").GetBoolean());
+            Assert.Equal("#0B8F8FCC", projectedLineTitleStyle.GetProperty("color").GetString());
+            Assert.Contains(projectedLine.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setChartTextStyle");
             Assert.False(projectedLine.GetProperty("style").GetProperty("smooth").GetBoolean());
             Assert.True(projectedLine.GetProperty("style").GetProperty("varyColors").GetBoolean());
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
@@ -785,6 +822,65 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var chartTextStyleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var chartTextStyleChart = chartTextStyleProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "line");
+        chartTextStyleChart["style"]!["titleTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = 19,
+            ["fontFamily"] = "Aptos Display",
+            ["fontFamilyEastAsia"] = "Noto Sans CJK SC",
+            ["bold"] = false,
+            ["italic"] = true,
+            ["color"] = "#C0404080",
+        };
+        var chartTextStyleId = chartTextStyleChart["id"]!.GetValue<string>();
+        var chartTextStyleEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(chartTextStyleProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
+        Assert.Equal(
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/slide1.xml"],
+            chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
+        Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
+        var chartTextStyleReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = chartTextStyleEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/chart-text-style-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(chartTextStyleReprojection.Ok, Diagnostics(chartTextStyleReprojection));
+        using (var chartTextStyleJson = JsonDocument.Parse(chartTextStyleReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedStyle = chartTextStyleJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == chartTextStyleId)
+                .GetProperty("style").GetProperty("titleTextStyle");
+            Assert.Equal(19, reprojectedStyle.GetProperty("fontSize").GetDouble());
+            Assert.Equal("Aptos Display", reprojectedStyle.GetProperty("fontFamily").GetString());
+            Assert.Equal("Noto Sans CJK SC", reprojectedStyle.GetProperty("fontFamilyEastAsia").GetString());
+            Assert.True(reprojectedStyle.TryGetProperty("bold", out var reprojectedBold));
+            Assert.False(reprojectedBold.GetBoolean());
+            Assert.True(reprojectedStyle.GetProperty("italic").GetBoolean());
+            Assert.Equal("#C0404080", reprojectedStyle.GetProperty("color").GetString());
+        }
 
         var imagePaintProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var imagePaintBackground = imagePaintProgram["pages"]![1]!["background"]!.AsObject();
