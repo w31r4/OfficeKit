@@ -2802,6 +2802,36 @@ const opaqueConnector = itemByName(opaqueConnectorImported.slides.getItem(0).nat
 assert.equal(opaqueConnector.nativeKind, "connector");
 assert.equal(opaqueConnector.position.height, 0);
 assert.equal(opaqueConnector.placementCapability.supported, true);
+const opaqueConnectorArrowEdit = await PresentationFile.importPptx(opaqueConnectorFile);
+const opaqueConnectorArrowTarget = itemByName(opaqueConnectorArrowEdit.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+const opaqueConnectorArrowLeaves = opaqueConnectorArrowEdit.inspect({ includeNativeLeaves: true, target: opaqueConnectorArrowTarget.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.deepEqual(
+  opaqueConnectorArrowLeaves.filter((record) => record.leafKind === "lineStartArrow" || record.leafKind === "lineEndArrow").map((record) => [record.leafKind, record.value]),
+  [["lineStartArrow", "arrow"], ["lineEndArrow", "diamond"]],
+  "opaque connector arrowheads must be issued as bounded native leaves",
+);
+const opaqueConnectorArrowLeaf = opaqueConnectorArrowLeaves.find((record) => record.leafKind === "lineEndArrow");
+assert.ok(opaqueConnectorArrowLeaf);
+opaqueConnectorArrowEdit.editNativeLeaf(opaqueConnectorArrowLeaf.targetId, opaqueConnectorArrowLeaf.leafId, {
+  expectedHash: opaqueConnectorArrowLeaf.expectedHash,
+  value: "oval",
+});
+const opaqueConnectorArrowRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(opaqueConnectorArrowEdit));
+const opaqueConnectorArrowRoundTripObject = itemByName(opaqueConnectorArrowRoundTrip.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+const opaqueConnectorArrowRoundTripLeaves = opaqueConnectorArrowRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueConnectorArrowRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(
+  opaqueConnectorArrowRoundTripLeaves.find((record) => record.leafKind === "lineEndArrow")?.value,
+  "oval",
+  "opaque connector arrowhead edits must survive re-import",
+);
 opaqueConnector.setPosition({ top: opaqueConnector.position.top + 1 });
 const opaqueConnectorOutput = await PresentationFile.exportPptx(opaqueConnectorImported);
 const opaqueConnectorOutputZip = await JSZip.loadAsync(opaqueConnectorOutput.bytes);
