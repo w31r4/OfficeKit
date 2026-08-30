@@ -4952,6 +4952,40 @@ function createPresentationNativeLeafCapability(presentation, state) {
             },
           });
         }
+        // A direct run language is a bounded source token, not an inferred
+        // deck default.  Keep it editable only for ordinary non-placeholder
+        // runs so changing a localized string splices its one `lang` token
+        // without reserializing inherited text styles or placeholder owners.
+        const fontLanguage = leaf.run.language;
+        if (!model.placeholder && typeof fontLanguage === "string" &&
+            fontLanguage.length >= 2 && fontLanguage.length <= 63 &&
+            PRESENTATION_LANGUAGE_TAG.test(fontLanguage)) {
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontLanguage",
+            expectedValue: fontLanguage,
+            value: fontLanguage,
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              if (typeof next !== "string") {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontLanguage native leaf requires a bounded BCP-47 language tag.");
+              }
+              const normalized = next.trim();
+              if (normalized.length < 2 || normalized.length > 63 || !PRESENTATION_LANGUAGE_TAG.test(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontLanguage native leaf requires a bounded BCP-47 language tag.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === fontLanguage; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontLanguage native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), language: next };
+            },
+          });
+        }
         const fontKerningPoints = Number(leaf.run.fontKerningPoints);
         // Kerning is a direct run scalar in hundredths of a point. Keep the
         // source-bound capability narrow so transformed/inherited typography
