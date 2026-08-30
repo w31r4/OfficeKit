@@ -161,12 +161,12 @@ internal static partial class PpjPresentationProjector
         ["theme"] = new JsonObject
         {
             ["name"] = "Source-owned presentation theme",
-            ["colors"] = new JsonArray(new JsonObject
-            {
-                ["id"] = "source-neutral",
-                ["value"] = "#000000",
-                ["role"] = "Fallback only; imported native styling remains source-owned",
-            }),
+            // Imported run and bullet styles may retain a direct theme token
+            // even though the source theme graph is opaque to the bounded
+            // writer. Keep every standard token addressable with a neutral
+            // fallback so the PPJ projection stays valid without claiming
+            // that these fallback RGB values replace the source theme.
+            ["colors"] = ImportedThemeColors(),
         },
         ["fonts"] = new JsonArray(new JsonObject
         {
@@ -322,6 +322,12 @@ internal static partial class PpjPresentationProjector
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
             !CanProjectCustomGeometry(shape) && !sourceImageFill)
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
+        // A legacy line stored as p:sp has no connector endpoints in the
+        // public PPJ model. Keep it source-owned (with the generic bounded
+        // frame/reorder capabilities) instead of emitting an invalid shape
+        // preset that cannot round-trip as a connector.
+        if (shape.Geometry == "line")
+            return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source line without connector endpoint semantics.");
 
         var common = ElementBase(id, element.Name, frame, Accessibility(shape.Accessibility), nativeRef);
         if (shape.Placeholder is not null)
@@ -1018,6 +1024,11 @@ internal static partial class PpjPresentationProjector
             _ => null,
         };
         if (bullet is null) return null;
+        // Font, color, and size metadata on a noBullet paragraph are inert
+        // native residue. Do not emit them into the closed `none` PPJ shape;
+        // the source-bound leaves still preserve and edit those tokens.
+        if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.NoBullet)
+            return bullet;
         if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber && paragraph.AutoNumber.HasStartAt)
             bullet["startAt"] = checked((int)paragraph.AutoNumber.StartAt);
         if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
@@ -1031,6 +1042,38 @@ internal static partial class PpjPresentationProjector
         else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)
             bullet["sizePercent"] = paragraph.BulletSizePercent;
         return bullet;
+    }
+
+    private static JsonArray ImportedThemeColors()
+    {
+        var output = new JsonArray();
+        foreach (var item in new[]
+        {
+            (Id: "source-neutral", Value: "#000000"),
+            (Id: "bg1", Value: "#FFFFFF"),
+            (Id: "tx1", Value: "#000000"),
+            (Id: "bg2", Value: "#EEECE1"),
+            (Id: "tx2", Value: "#1F497D"),
+            (Id: "accent1", Value: "#4F81BD"),
+            (Id: "accent2", Value: "#C0504D"),
+            (Id: "accent3", Value: "#9BBB59"),
+            (Id: "accent4", Value: "#8064A2"),
+            (Id: "accent5", Value: "#4BACC6"),
+            (Id: "accent6", Value: "#F79646"),
+            (Id: "hlink", Value: "#0000FF"),
+            (Id: "folHlink", Value: "#800080"),
+            (Id: "dk1", Value: "#000000"),
+            (Id: "lt1", Value: "#FFFFFF"),
+            (Id: "dk2", Value: "#1F497D"),
+            (Id: "lt2", Value: "#EEECE1"),
+        })
+            output.Add(new JsonObject
+            {
+                ["id"] = item.Id,
+                ["value"] = item.Value,
+                ["role"] = "Fallback only; imported native styling remains source-owned",
+            });
+        return output;
     }
 
     private static JsonObject TextBoxStyle(PresentationTextBody? body)
