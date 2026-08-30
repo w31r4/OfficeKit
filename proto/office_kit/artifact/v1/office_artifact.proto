@@ -2739,6 +2739,8 @@ message PresentationTextStyle {
     string highlight_rgb = 15;
     string highlight_scheme = 16;
   }
+  // Direct DrawingML a:defRPr/@lang BCP-47 language tag.
+  optional string language = 17;
 }
 
 message PresentationTextParagraph {
@@ -2887,6 +2889,8 @@ message PresentationTextRun {
     string highlight_rgb = 20;
     string highlight_scheme = 21;
   }
+  // Direct DrawingML a:rPr/@lang BCP-47 language tag.
+  optional string language = 22;
 }
 
 message PresentationTextField {
