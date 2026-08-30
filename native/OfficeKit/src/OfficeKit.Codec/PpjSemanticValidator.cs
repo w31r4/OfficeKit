@@ -695,6 +695,22 @@ internal static class PpjSemanticValidator
                     diagnostics.Add(new("ppj.nativeRef.capabilityField", $"Operation {capability.Operation} cannot issue field {field}.", $"{capabilityPath}.fields"));
             }
         }
+        var leafIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < nativeRef.Leaves.Count; index++)
+        {
+            var leaf = nativeRef.Leaves[index];
+            var leafPath = $"{path}.leaves[{index}]";
+            if (!leafIds.Add(leaf.Id))
+                diagnostics.Add(new("ppj.nativeRef.leafId", $"Native leaf ID {leaf.Id} is duplicated.", $"{leafPath}.id"));
+            try
+            {
+                _ = PpjNativeLeafProjection.NormalizeValue(leaf.Kind, leaf.Value, $"{leafPath}.value");
+            }
+            catch (CodecException error)
+            {
+                diagnostics.Add(new(error.Code, error.Message, error.SourcePath ?? $"{leafPath}.value"));
+            }
+        }
     }
 
     private static void ValidateConnectorEndpoint(

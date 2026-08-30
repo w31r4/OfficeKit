@@ -12,7 +12,8 @@ namespace OfficeKit.Codec;
 internal sealed record PpjProjectionResult(
     PresentationProgramResult Program,
     IReadOnlyList<Diagnostic> Diagnostics,
-    ArtifactEnvelope? SourceArtifact);
+    ArtifactEnvelope? SourceArtifact,
+    IReadOnlyDictionary<string, PpjNativeLeafBinding> NativeLeafBindings);
 
 /// <summary>
 /// Projects a validated PPTX package into the bounded public PPJ language.
@@ -44,7 +45,7 @@ internal static partial class PpjPresentationProjector
         EffectiveCodecLimits limits)
     {
         if (PpjEmbeddedProgramCodec.TryRecover(sourceBytes, request, limits) is { } recovered)
-            return new(recovered.Program, recovered.Diagnostics, null);
+            return new(recovered.Program, recovered.Diagnostics, null, new Dictionary<string, PpjNativeLeafBinding>(StringComparer.Ordinal));
 
         var imported = PptxCodec.Import(sourceBytes, limits);
         var envelope = imported.Artifact;
@@ -135,7 +136,7 @@ internal static partial class PpjPresentationProjector
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         result.Assets.Add(context.ResultAssets.Select(asset => asset.Clone()));
-        return new(result, imported.Diagnostics, envelope);
+        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings);
     }
 
     private static JsonObject ImportedIntent() => new()
@@ -243,8 +244,16 @@ internal static partial class PpjPresentationProjector
         // codec capability until PPJ can represent that bounded clone request.
 
         var elements = new JsonArray();
-        foreach (var element in slide.Elements)
-            elements.Add(ProjectElement(element, pageId, context));
+        for (var elementIndex = 0; elementIndex < slide.Elements.Count; elementIndex++)
+        {
+            var element = slide.Elements[elementIndex];
+            elements.Add(ProjectElement(
+                element,
+                slide,
+                pageId,
+                context,
+                [element.Source?.ShapeTreeIndex ?? checked((uint)elementIndex)]));
+        }
 
         var page = new JsonObject
         {
@@ -264,12 +273,24 @@ internal static partial class PpjPresentationProjector
         return page;
     }
 
-    private static JsonObject ProjectElement(PresentationElement element, string pageId, ProjectionContext context)
+    private static JsonObject ProjectElement(
+        PresentationElement element,
+        PresentationSlide slide,
+        string pageId,
+        ProjectionContext context,
+        IReadOnlyList<uint> shapeTreePath)
     {
         var id = context.ElementId(pageId, element.Id);
         var hash = HashOrFallback(element.Source?.ElementSha256, element.ToByteArray());
         var capabilities = Capabilities(element);
-        var nativeRef = NativeRef(context, $"element:{pageId}:{id}", hash, capabilities);
+        var leaves = PpjNativeLeafProjection.Describe(
+            context.SourceSha256,
+            pageId,
+            id,
+            element,
+            shapeTreePath,
+            context.RecordNativeLeaf);
+        var nativeRef = NativeRef(context, $"element:{pageId}:{id}", hash, capabilities, leaves);
         JsonObject projected = element.ContentCase switch
         {
             PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef),
@@ -277,13 +298,16 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef),
             PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
             PresentationElement.ContentOneofCase.Chart => ProjectChart(element, id, nativeRef),
-            PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, pageId, context),
+            PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, slide, pageId, context, shapeTreePath),
             PresentationElement.ContentOneofCase.Opaque => ProjectOpaque(element, id, nativeRef),
             _ => ProjectOpaque(element, id, nativeRef, "unknown"),
         };
         if (projected["type"]!.GetValue<string>() == "opaque")
         {
-            nativeRef = NativeRef(context, $"element:{pageId}:{id}", hash, OpaqueCapabilities(element));
+            // ProjectShape/ProjectImage may conservatively fall back to opaque
+            // after the first nativeRef already owns this JsonArray. Clone the
+            // issued leaf descriptors; a JsonNode cannot have two parents.
+            nativeRef = NativeRef(context, $"element:{pageId}:{id}", hash, OpaqueCapabilities(element), leaves.DeepClone().AsArray());
             projected["nativeRef"] = nativeRef;
         }
         context.RecordNode(pageId, id, projected["type"]!.GetValue<string>(), nativeRef);
@@ -308,18 +332,21 @@ internal static partial class PpjPresentationProjector
             common["placeholderType"] = PlaceholderType(shape.Placeholder.Type);
             common["index"] = shape.Placeholder.Index;
             if (hasText) common["text"] = text;
+            if (TextBoxStyle(shape.TextBody) is { Count: > 0 } placeholderStyle) common["style"] = placeholderStyle;
             return common;
         }
         if (shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry))
         {
             common["type"] = "text";
             common["text"] = text;
+            if (TextBoxStyle(shape.TextBody) is { Count: > 0 } textStyle) common["style"] = textStyle;
             ApplyTextContainerStyle(common, shape);
             return common;
         }
         common["type"] = "shape";
         common["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
         if (hasText) common["text"] = text;
+        if (TextBoxStyle(shape.TextBody) is { Count: > 0 } shapeTextStyle) common["textStyle"] = shapeTextStyle;
         var style = ShapeStyle(shape);
         if (style.Count > 0) common["style"] = style;
         return common;
@@ -490,8 +517,10 @@ internal static partial class PpjPresentationProjector
         PresentationElement element,
         string id,
         JsonObject nativeRef,
+        PresentationSlide slide,
         string pageId,
-        ProjectionContext context)
+        ProjectionContext context,
+        IReadOnlyList<uint> shapeTreePath)
     {
         var group = element.Group;
         if (group.Children.Count == 0)
@@ -499,7 +528,16 @@ internal static partial class PpjPresentationProjector
         var output = ElementBase(id, element.Name, GroupFrame(group), Accessibility(group.Accessibility), nativeRef);
         output["type"] = "group";
         var children = new JsonArray();
-        foreach (var child in group.Children) children.Add(ProjectElement(child, pageId, context));
+        for (var index = 0; index < group.Children.Count; index++)
+        {
+            var child = group.Children[index];
+            children.Add(ProjectElement(
+                child,
+                slide,
+                pageId,
+                context,
+                shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray()));
+        }
         output["elements"] = children;
         return output;
     }
@@ -592,10 +630,17 @@ internal static partial class PpjPresentationProjector
                 paragraphStyle["hanging"] = -Points(source.IndentEmu);
             if (source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingPoints)
                 paragraphStyle["lineSpacing"] = Math.Max(0.001, source.LineSpacingPoints);
+            if (source.LineSpacingCase == PresentationTextParagraph.LineSpacingOneofCase.LineSpacingMultiplier)
+                paragraphStyle["lineSpacingMultiplier"] = Math.Max(0.00001, source.LineSpacingMultiplier);
             if (source.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforePoints)
                 paragraphStyle["spaceBefore"] = Math.Max(0, source.SpaceBeforePoints);
+            if (source.SpaceBeforeCase == PresentationTextParagraph.SpaceBeforeOneofCase.SpaceBeforeMultiplier)
+                paragraphStyle["spaceBeforeMultiplier"] = Math.Max(0, source.SpaceBeforeMultiplier);
             if (source.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterPoints)
                 paragraphStyle["spaceAfter"] = Math.Max(0, source.SpaceAfterPoints);
+            if (source.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterMultiplier)
+                paragraphStyle["spaceAfterMultiplier"] = Math.Max(0, source.SpaceAfterMultiplier);
+            if (ProjectBullet(source) is { } bullet) paragraphStyle["bullet"] = bullet;
             if (paragraphStyle.Count > 0) paragraph["style"] = paragraphStyle;
 
             var runs = new JsonArray();
@@ -621,11 +666,80 @@ internal static partial class PpjPresentationProjector
     {
         var style = new JsonObject();
         if (run.HasFontFamily) style["fontFamily"] = run.FontFamily;
+        if (run.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = run.FontFamilyEastAsia;
         if (run.HasFontSizePoints && run.FontSizePoints > 0) style["size"] = run.FontSizePoints;
         if (run.HasBold) style["bold"] = run.Bold;
         if (run.HasItalic) style["italic"] = run.Italic;
         if (run.HasColorRgb && !string.IsNullOrEmpty(run.ColorRgb)) style["color"] = Color(run.ColorRgb);
+        else if (run.HasColorScheme && !string.IsNullOrEmpty(run.ColorScheme)) style["color"] = new JsonObject { ["token"] = run.ColorScheme };
+        if (run.HasUnderline) style["underline"] = run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline };
+        if (run.HasStrike) style["strike"] = run.Strike;
+        if (run.HasFontKerningPoints) style["kerning"] = run.FontKerningPoints;
+        if (run.HasFontBaselinePercent) style["baseline"] = run.FontBaselinePercent;
+        if (run.HasFontSpacingPoints) style["letterSpacing"] = run.FontSpacingPoints;
+        if (run.HasFontCaps) style["capitalization"] = run.FontCaps;
         return style;
+    }
+
+    private static JsonObject? ProjectBullet(PresentationTextParagraph paragraph)
+    {
+        JsonObject? bullet = paragraph.BulletCase switch
+        {
+            PresentationTextParagraph.BulletOneofCase.NoBullet => new JsonObject { ["type"] = "none" },
+            PresentationTextParagraph.BulletOneofCase.BulletCharacter => new JsonObject
+            {
+                ["type"] = "character",
+                ["character"] = paragraph.BulletCharacter,
+            },
+            PresentationTextParagraph.BulletOneofCase.AutoNumber => new JsonObject
+            {
+                ["type"] = "number",
+                ["scheme"] = paragraph.AutoNumber.Scheme,
+            },
+            _ => null,
+        };
+        if (bullet is null) return null;
+        if (paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.AutoNumber && paragraph.AutoNumber.HasStartAt)
+            bullet["startAt"] = checked((int)paragraph.AutoNumber.StartAt);
+        if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
+            bullet["fontFamily"] = paragraph.BulletFontFamily;
+        if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
+            bullet["color"] = Color(paragraph.BulletColorRgb);
+        else if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme)
+            bullet["color"] = new JsonObject { ["token"] = paragraph.BulletColorScheme };
+        if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints)
+            bullet["size"] = paragraph.BulletSizePoints;
+        else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)
+            bullet["sizePercent"] = paragraph.BulletSizePercent;
+        return bullet;
+    }
+
+    private static JsonObject TextBoxStyle(PresentationTextBody? body)
+    {
+        var output = new JsonObject();
+        var properties = body?.BodyProperties;
+        if (properties is null) return output;
+        if (properties.AnchorCase == PresentationTextBodyProperties.AnchorOneofCase.VerticalAnchor)
+            output["verticalAlignment"] = properties.VerticalAnchor == "center" ? "middle" : properties.VerticalAnchor;
+        if (properties.WrappingCase == PresentationTextBodyProperties.WrappingOneofCase.Wrap)
+            output["wrap"] = properties.Wrap;
+        if (properties.AutoFitCase == PresentationTextBodyProperties.AutoFitOneofCase.AutoFitMode)
+            output["autoFit"] = properties.AutoFitMode switch { "shrinkText" => "shrink-text", "resizeShape" => "resize-shape", _ => "none" };
+        var margins = new JsonObject();
+        if (properties.LeftInsetCase == PresentationTextBodyProperties.LeftInsetOneofCase.LeftInsetEmu) margins["left"] = Points(properties.LeftInsetEmu);
+        if (properties.TopInsetCase == PresentationTextBodyProperties.TopInsetOneofCase.TopInsetEmu) margins["top"] = Points(properties.TopInsetEmu);
+        if (properties.RightInsetCase == PresentationTextBodyProperties.RightInsetOneofCase.RightInsetEmu) margins["right"] = Points(properties.RightInsetEmu);
+        if (properties.BottomInsetCase == PresentationTextBodyProperties.BottomInsetOneofCase.BottomInsetEmu) margins["bottom"] = Points(properties.BottomInsetEmu);
+        if (margins.Count > 0) output["margins"] = margins;
+        if (properties.ColumnCountCase == PresentationTextBodyProperties.ColumnCountOneofCase.Columns)
+            output["columns"] = checked((int)properties.Columns);
+        if (properties.ColumnSpacingCase == PresentationTextBodyProperties.ColumnSpacingOneofCase.ColumnSpacingEmu)
+            output["columnGap"] = Points(properties.ColumnSpacingEmu);
+        if (properties.ColumnDirectionCase == PresentationTextBodyProperties.ColumnDirectionOneofCase.RightToLeftColumns)
+            output["columnDirection"] = properties.RightToLeftColumns ? "right-to-left" : "left-to-right";
+        if (properties.VerticalTextCase == PresentationTextBodyProperties.VerticalTextOneofCase.VerticalTextMode)
+            output["verticalText"] = properties.VerticalTextMode;
+        return output;
     }
 
     private static string? ParagraphAlignment(string value) => value switch
@@ -858,7 +972,8 @@ internal static partial class PpjPresentationProjector
         ProjectionContext context,
         string scope,
         string objectHash,
-        IEnumerable<CapabilitySpec> capabilities)
+        IEnumerable<CapabilitySpec> capabilities,
+        JsonArray? leaves = null)
     {
         var capabilityArray = new JsonArray();
         foreach (var capability in capabilities
@@ -875,7 +990,7 @@ internal static partial class PpjPresentationProjector
                 ["fields"] = fields,
             });
         }
-        return new JsonObject
+        var output = new JsonObject
         {
             ["handle"] = $"nr-{Sha256(Encoding.UTF8.GetBytes(context.SourceSha256 + "\0" + scope))}",
             ["sourceSha256"] = context.SourceSha256,
@@ -884,6 +999,8 @@ internal static partial class PpjPresentationProjector
             ["capabilitySetSha256"] = Sha256(CanonicalBytes(capabilityArray)),
             ["capabilities"] = capabilityArray,
         };
+        if (leaves is { Count: > 0 }) output["leaves"] = leaves;
+        return output;
     }
 
     private static JsonObject ShapeFrame(PresentationShape shape)
@@ -1104,6 +1221,7 @@ internal static partial class PpjPresentationProjector
         private readonly JsonArray programAssets = new();
         private readonly List<Asset> resultAssets = [];
         private readonly JsonArray nodes = new();
+        private readonly Dictionary<string, PpjNativeLeafBinding> nativeLeafBindings = new(StringComparer.Ordinal);
 
         internal ProjectionContext(
             string sourceSha256,
@@ -1119,6 +1237,13 @@ internal static partial class PpjPresentationProjector
 
         internal string SourceSha256 { get; }
         internal string Revision { get; }
+        internal IReadOnlyDictionary<string, PpjNativeLeafBinding> NativeLeafBindings => nativeLeafBindings;
+
+        internal void RecordNativeLeaf(PpjNativeLeafBinding binding)
+        {
+            if (!nativeLeafBindings.TryAdd(binding.Id, binding))
+                throw new CodecException("ppj.nativeRef.leafId", $"Duplicate projected native leaf ID {binding.Id}.");
+        }
         internal string AssetRoot { get; }
         internal int VisibleObjectCount { get; private set; }
         internal JsonArray ProgramAssets => programAssets;

@@ -68,13 +68,20 @@ internal sealed record PpjNativeCapabilityModel(
     string ExpectedHash,
     IReadOnlyList<string> Fields);
 
+internal sealed record PpjNativeLeafModel(
+    string Id,
+    string Kind,
+    string ExpectedHash,
+    JsonElement Value);
+
 internal sealed record PpjNativeRefModel(
     string Handle,
     string SourceSha256,
     string Revision,
     string ObjectHash,
     string CapabilitySetSha256,
-    IReadOnlyList<PpjNativeCapabilityModel> Capabilities);
+    IReadOnlyList<PpjNativeCapabilityModel> Capabilities,
+    IReadOnlyList<PpjNativeLeafModel> Leaves);
 
 internal abstract class PpjElementModel
 {
@@ -652,7 +659,14 @@ internal static class PpjProgramParser
             capability.GetProperty("id").GetString()!,
             capability.GetProperty("operation").GetString()!,
             capability.GetProperty("expectedHash").GetString()!,
-            Strings(capability.GetProperty("fields")))).ToArray());
+            Strings(capability.GetProperty("fields")))).ToArray(),
+        nativeRef.TryGetProperty("leaves", out var leaves)
+            ? leaves.EnumerateArray().Select(leaf => new PpjNativeLeafModel(
+                leaf.GetProperty("id").GetString()!,
+                leaf.GetProperty("kind").GetString()!,
+                leaf.GetProperty("expectedHash").GetString()!,
+                leaf.GetProperty("value").Clone())).ToArray()
+            : []);
 
     private static PpjRepeatModel ParseRepeat(JsonElement repeat)
     {

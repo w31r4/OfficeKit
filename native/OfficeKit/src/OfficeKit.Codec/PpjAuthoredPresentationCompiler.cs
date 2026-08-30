@@ -604,14 +604,27 @@ internal static class PpjAuthoredPresentationCompiler
         var color = FirstProperty(inlineRun, inlineDefault, namedDefault, "color");
         var font = FirstProperty(inlineRun, inlineDefault, namedDefault, "font");
         var family = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamily");
+        var eastAsia = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamilyEastAsia");
+        var underline = FirstProperty(inlineRun, inlineDefault, namedDefault, "underline");
+        var strike = FirstProperty(inlineRun, inlineDefault, namedDefault, "strike");
+        var kerning = FirstProperty(inlineRun, inlineDefault, namedDefault, "kerning");
+        var spacing = FirstProperty(inlineRun, inlineDefault, namedDefault, "letterSpacing");
+        var baseline = FirstProperty(inlineRun, inlineDefault, namedDefault, "baseline");
+        var capitalization = FirstProperty(inlineRun, inlineDefault, namedDefault, "capitalization");
         if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
         if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
         if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
         if (color is { } colorValue) run.ColorRgb = catalog.Color(colorValue).Rgb;
         if (family is { } familyValue) run.FontFamily = familyValue.GetString()!;
         else if (font is { } fontValue) run.FontFamily = catalog.Font(fontValue.GetString()!);
-        if (run.FontFamily.Length > 0) run.FontFamilyEastAsia = run.FontFamily;
-        RejectTextEffects(inlineRun);
+        if (eastAsia is { } eastAsiaValue) run.FontFamilyEastAsia = eastAsiaValue.GetString()!;
+        else if (run.FontFamily.Length > 0) run.FontFamilyEastAsia = run.FontFamily;
+        if (underline is { } underlineValue) run.Underline = NativeUnderline(underlineValue.GetString()!);
+        if (strike is { } strikeValue) run.Strike = NativeStrike(strikeValue);
+        if (kerning is { } kerningValue) run.FontKerningPoints = kerningValue.GetDouble();
+        if (spacing is { } spacingValue) run.FontSpacingPoints = spacingValue.GetDouble();
+        if (baseline is { } baselineValue) run.FontBaselinePercent = baselineValue.GetDouble();
+        if (capitalization is { } capitalizationValue) run.FontCaps = capitalizationValue.GetString()!;
         return run;
     }
 
@@ -625,8 +638,14 @@ internal static class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("color", out var color)) output.ColorRgb = catalog.Color(color).Rgb;
         if (value.TryGetProperty("fontFamily", out var family)) output.FontFamily = family.GetString()!;
         else if (value.TryGetProperty("font", out var font)) output.FontFamily = catalog.Font(font.GetString()!);
-        if (output.HasFontFamily) output.FontFamilyEastAsia = output.FontFamily;
-        RejectTextEffects(style);
+        if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = eastAsia.GetString()!;
+        else if (output.HasFontFamily) output.FontFamilyEastAsia = output.FontFamily;
+        if (value.TryGetProperty("underline", out var underline)) output.Underline = NativeUnderline(underline.GetString()!);
+        if (value.TryGetProperty("strike", out var strike)) output.Strike = NativeStrike(strike);
+        if (value.TryGetProperty("kerning", out var kerning)) output.FontKerningPoints = kerning.GetDouble();
+        if (value.TryGetProperty("letterSpacing", out var spacing)) output.FontSpacingPoints = spacing.GetDouble();
+        if (value.TryGetProperty("baseline", out var baseline)) output.FontBaselinePercent = baseline.GetDouble();
+        if (value.TryGetProperty("capitalization", out var capitalization)) output.FontCaps = capitalization.GetString()!;
         return output;
     }
 
@@ -646,6 +665,8 @@ internal static class PpjAuthoredPresentationCompiler
                 "resize-shape" => "resizeShape",
                 _ => "none",
             };
+        var wrap = FirstProperty(inline, named, "wrap");
+        if (wrap is { } wrapValue) target.Wrap = wrapValue.GetString()!;
         var margins = FirstProperty(inline, named, "margins");
         if (margins is { } inset)
         {
@@ -658,6 +679,10 @@ internal static class PpjAuthoredPresentationCompiler
         if (columns is { } columnCount) target.Columns = checked((uint)columnCount.GetInt32());
         var gap = FirstProperty(inline, named, "columnGap");
         if (gap is { } columnGap) target.ColumnSpacingEmu = Emu(columnGap.GetDouble());
+        var columnDirection = FirstProperty(inline, named, "columnDirection");
+        if (columnDirection is { } direction) target.RightToLeftColumns = direction.GetString() == "right-to-left";
+        var verticalText = FirstProperty(inline, named, "verticalText");
+        if (verticalText is { } textMode) target.VerticalTextMode = textMode.GetString()!;
     }
 
     private static void ApplyParagraphStyle(PresentationTextParagraph target, JsonElement? style)
@@ -668,14 +693,30 @@ internal static class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("indent", out var indent)) target.MarginLeftEmu = Emu(indent.GetDouble());
         if (value.TryGetProperty("hanging", out var hanging)) target.IndentEmu = -Emu(hanging.GetDouble());
         if (value.TryGetProperty("spaceBefore", out var before)) target.SpaceBeforePoints = before.GetDouble();
+        if (value.TryGetProperty("spaceBeforeMultiplier", out var beforeMultiplier)) target.SpaceBeforeMultiplier = beforeMultiplier.GetDouble();
         if (value.TryGetProperty("spaceAfter", out var after)) target.SpaceAfterPoints = after.GetDouble();
+        if (value.TryGetProperty("spaceAfterMultiplier", out var afterMultiplier)) target.SpaceAfterMultiplier = afterMultiplier.GetDouble();
         if (value.TryGetProperty("lineSpacing", out var spacing)) target.LineSpacingPoints = spacing.GetDouble();
+        if (value.TryGetProperty("lineSpacingMultiplier", out var spacingMultiplier)) target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
         if (value.TryGetProperty("bullet", out var bullet))
         {
-            var kind = bullet.GetProperty("kind").GetString();
+            var kind = bullet.GetProperty("type").GetString();
             if (kind == "none") target.NoBullet = true;
             else if (kind == "character") target.BulletCharacter = bullet.GetProperty("character").GetString()!;
-            else throw Unsupported("text", "numbered and image PPJ bullets require their native bullet compiler");
+            else if (kind == "number")
+            {
+                target.AutoNumber = new PresentationAutoNumberBullet
+                {
+                    Scheme = bullet.TryGetProperty("scheme", out var scheme)
+                        ? scheme.GetString()!
+                        : NumberScheme(bullet.GetProperty("format").GetString()!),
+                };
+                if (bullet.TryGetProperty("startAt", out var startAt)) target.AutoNumber.StartAt = checked((uint)startAt.GetInt32());
+            }
+            if (bullet.TryGetProperty("fontFamily", out var bulletFont)) target.BulletFontFamily = bulletFont.GetString()!;
+            if (bullet.TryGetProperty("color", out var bulletColor)) target.BulletColorRgb = NormalizeRgbToken(bulletColor);
+            if (bullet.TryGetProperty("size", out var bulletSize)) target.BulletSizePoints = bulletSize.GetDouble();
+            if (bullet.TryGetProperty("sizePercent", out var bulletSizePercent)) target.BulletSizePercent = bulletSizePercent.GetDouble();
         }
     }
 
@@ -1078,13 +1119,34 @@ internal static class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, $"{name} is valid PPJ but not yet compiler-owned for this element");
     }
 
-    private static void RejectTextEffects(JsonElement? value)
+    private static string NativeUnderline(string value) => value switch
     {
-        if (value is not { } style) return;
-        if (style.TryGetProperty("underline", out var underline) && underline.GetString() != "none" ||
-            style.TryGetProperty("strike", out var strike) && strike.GetBoolean() ||
-            style.TryGetProperty("letterSpacing", out _) || style.TryGetProperty("baseline", out _))
-            throw Unsupported("text", "underline, strike, letter spacing, and baseline require the extended native text compiler");
+        "single" => "sng",
+        "double" => "dbl",
+        _ => value,
+    };
+
+    private static string NativeStrike(JsonElement value) => value.ValueKind == JsonValueKind.True
+        ? "sngStrike"
+        : value.ValueKind == JsonValueKind.False
+            ? "noStrike"
+            : value.GetString()!;
+
+    private static string NumberScheme(string value) => value switch
+    {
+        "decimal" => "arabicPeriod",
+        "lower-alpha" => "alphaLcPeriod",
+        "upper-alpha" => "alphaUcPeriod",
+        "lower-roman" => "romanLcPeriod",
+        "upper-roman" => "romanUcPeriod",
+        _ => throw Unsupported("text", $"unsupported numbered bullet format {value}"),
+    };
+
+    private static string NormalizeRgbToken(JsonElement color)
+    {
+        if (color.ValueKind != JsonValueKind.String)
+            throw Unsupported("text", "theme bullet colors require the theme-aware text compiler");
+        return NormalizeRgb(color.GetString()!);
     }
 
     private static string Flatten(PpjTextContentModel text) =>

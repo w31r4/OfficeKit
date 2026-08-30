@@ -90,7 +90,31 @@ public sealed class PptxCodecTests
             root = root.Parent;
         Assert.NotNull(root);
         var fixtureDirectory = Path.Combine(root!.FullName, "test", "fixtures", "presentation");
-        var programBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "evidence-ledger-canonical.ppj"));
+        var authoredProgram = JsonNode.Parse(File.ReadAllBytes(Path.Combine(fixtureDirectory, "evidence-ledger-canonical.ppj")))!.AsObject();
+        var authoredTitle = authoredProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "claim-title");
+        authoredTitle["style"] = new JsonObject
+        {
+            ["wrap"] = "square",
+            ["columnDirection"] = "left-to-right",
+            ["verticalText"] = "horizontal",
+        };
+        var authoredParagraph = authoredTitle["text"]!["paragraphs"]![0]!.AsObject();
+        authoredParagraph["style"] = new JsonObject
+        {
+            ["lineSpacingMultiplier"] = 1.1,
+            ["spaceAfterMultiplier"] = 0.2,
+        };
+        var authoredRunStyle = authoredParagraph["runs"]![0]!["style"]!.AsObject();
+        authoredRunStyle["fontFamilyEastAsia"] = "Arial";
+        authoredRunStyle["underline"] = "single";
+        authoredRunStyle["strike"] = false;
+        authoredRunStyle["kerning"] = 12;
+        authoredRunStyle["letterSpacing"] = 0.4;
+        authoredRunStyle["baseline"] = 0;
+        authoredRunStyle["capitalization"] = "none";
+        var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
         {
@@ -262,6 +286,12 @@ public sealed class PptxCodecTests
             Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("type").GetString() == "image");
+            Assert.Contains(
+                projectedRoot.GetProperty("pages").EnumerateArray()
+                    .SelectMany(page => page.GetProperty("elements").EnumerateArray()),
+                item => item.GetProperty("type").GetString() == "table" &&
+                    item.GetProperty("nativeRef").GetProperty("leaves").EnumerateArray().Any(leaf =>
+                        leaf.GetProperty("kind").GetString() == "tableCellText"));
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
@@ -376,6 +406,63 @@ public sealed class PptxCodecTests
         Assert.True(sourceEditRoundTrip.Ok, Diagnostics(sourceEditRoundTrip));
         Assert.Contains(sourceEditRoundTrip.Artifact.Presentation.Slides.SelectMany(slide => slide.Elements), element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Text.Contains(sourceBoundReplacement, StringComparison.Ordinal));
+
+        // One integrated native-leaf contract is enough here: projection
+        // issues the scalar, PPJ changes only value, the source-bound compiler
+        // lowers it through the mature Edit Plan, and a fresh projection sees
+        // the new value without exposing package paths or raw XML.
+        var nativeLeafProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var nativeLeafOwner = nativeLeafProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .First(element => element["nativeRef"]?["leaves"]?.AsArray() is { } leaves &&
+                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "fillRgb") &&
+                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "widthEmu"));
+        var nativeLeaf = nativeLeafOwner["nativeRef"]!["leaves"]!.AsArray()
+            .First(leaf => leaf!["kind"]!.GetValue<string>() == "fillRgb")!.AsObject();
+        var nativeWidthLeaf = nativeLeafOwner["nativeRef"]!["leaves"]!.AsArray()
+            .First(leaf => leaf!["kind"]!.GetValue<string>() == "widthEmu")!.AsObject();
+        const string replacementFill = "#123456";
+        var replacementWidth = nativeWidthLeaf["value"]!.GetValue<long>() + 12_700;
+        nativeLeaf["value"] = replacementFill;
+        nativeWidthLeaf["value"] = replacementWidth;
+        var nativeLeafEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(nativeLeafProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(nativeLeafEdit.Ok, Diagnostics(nativeLeafEdit));
+        Assert.Single(nativeLeafEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(nativeLeafOwner["id"]!.GetValue<string>(), nativeLeafEdit.PresentationProgram.ChangedNodeIds);
+        var nativeLeafReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = nativeLeafEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-leaf-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(nativeLeafReprojection.Ok, Diagnostics(nativeLeafReprojection));
+        var nativeLeafReprojectedProgram = JsonNode.Parse(nativeLeafReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var reprojectedOwner = nativeLeafReprojectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == nativeLeafOwner["id"]!.GetValue<string>());
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "fillRgb" && leaf["value"]!.GetValue<string>() == replacementFill);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "widthEmu" && leaf["value"]!.GetValue<long>() == replacementWidth);
 
         var tableSlidePath = ZipPartPaths(thirdPartySource).Single(path =>
             Regex.IsMatch(path, "^ppt/slides/slide[0-9]+\\.xml$", RegexOptions.CultureInvariant) &&

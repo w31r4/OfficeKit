@@ -1023,6 +1023,106 @@
         }
       }
     },
+    "nativeLeaf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "expectedHash",
+        "value"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "tableCellText",
+            "nativeText",
+            "paragraphAlignment",
+            "paragraphLineSpacingPoints",
+            "paragraphLineSpacingMultiplier",
+            "paragraphSpaceBeforePoints",
+            "paragraphSpaceBeforeMultiplier",
+            "paragraphSpaceAfterPoints",
+            "paragraphSpaceAfterMultiplier",
+            "paragraphMarginLeftEmu",
+            "paragraphIndentEmu",
+            "paragraphBulletCharacter",
+            "paragraphBulletAutoNumberScheme",
+            "paragraphBulletAutoNumberStartAt",
+            "paragraphBulletFontFamily",
+            "paragraphBulletColorRgb",
+            "paragraphBulletColorScheme",
+            "paragraphBulletSizePoints",
+            "paragraphBulletSizePercent",
+            "paragraphLevel",
+            "verticalAnchor",
+            "textBodyInsetLeftEmu",
+            "textBodyInsetTopEmu",
+            "textBodyInsetRightEmu",
+            "textBodyInsetBottomEmu",
+            "textBodyWrap",
+            "textBodyColumnCount",
+            "textBodyAutoFit",
+            "textBodyColumnDirection",
+            "textBodyVerticalText",
+            "fontSizePoints",
+            "fontFamily",
+            "fontFamilyEastAsia",
+            "fontBold",
+            "fontItalic",
+            "fontUnderline",
+            "fontStrike",
+            "fontColorRgb",
+            "fontColorScheme",
+            "fontKerningPoints",
+            "fontBaselinePercent",
+            "fontSpacingPoints",
+            "fontCaps",
+            "fillRgb",
+            "fillOpacityThousandthPercent",
+            "fillScheme",
+            "lineRgb",
+            "lineScheme",
+            "lineStyle",
+            "lineCap",
+            "lineJoin",
+            "lineStartArrow",
+            "lineEndArrow",
+            "lineWidthEmu",
+            "leftEmu",
+            "topEmu",
+            "widthEmu",
+            "heightEmu",
+            "rotationDegrees",
+            "flipHorizontal",
+            "flipVertical"
+          ]
+        },
+        "expectedHash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 1000000
+            },
+            {
+              "type": "number",
+              "minimum": -1000000000,
+              "maximum": 1000000000
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        }
+      }
+    },
     "nativeRef": {
       "type": "object",
       "additionalProperties": false,
@@ -1060,6 +1160,13 @@
           "maxItems": 64,
           "items": {
             "$ref": "#/$defs/nativeCapability"
+          }
+        },
+        "leaves": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/nativeLeaf"
           }
         }
       }
@@ -1319,6 +1426,11 @@
           "minLength": 1,
           "maxLength": 256
         },
+        "fontFamilyEastAsia": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
         "size": {
           "type": "number",
           "exclusiveMinimum": 0,
@@ -1334,11 +1446,39 @@
           "enum": [
             "none",
             "single",
-            "double"
+            "double",
+            "words",
+            "sng",
+            "dbl",
+            "heavy",
+            "dotted",
+            "dottedHeavy",
+            "dash",
+            "dashHeavy",
+            "dashLong",
+            "dashLongHeavy",
+            "dotDash",
+            "dotDashHeavy",
+            "dotDotDash",
+            "dotDotDashHeavy",
+            "wavy",
+            "wavyHeavy",
+            "wavyDbl"
           ]
         },
         "strike": {
-          "type": "boolean"
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "enum": [
+                "noStrike",
+                "sngStrike",
+                "dblStrike"
+              ]
+            }
+          ]
         },
         "color": {
           "$ref": "#/$defs/color"
@@ -1348,13 +1488,25 @@
         },
         "letterSpacing": {
           "type": "number",
-          "minimum": -100,
-          "maximum": 1000
+          "minimum": -768,
+          "maximum": 768
+        },
+        "kerning": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 768
         },
         "baseline": {
           "type": "number",
-          "minimum": -100,
-          "maximum": 100
+          "minimum": -400,
+          "maximum": 400
+        },
+        "capitalization": {
+          "enum": [
+            "none",
+            "small",
+            "all"
+          ]
         }
       }
     },
@@ -1386,12 +1538,27 @@
           "minimum": 0,
           "maximum": 10000
         },
+        "spaceBeforeMultiplier": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
         "spaceAfter": {
           "type": "number",
           "minimum": 0,
           "maximum": 10000
         },
+        "spaceAfterMultiplier": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
         "lineSpacing": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "lineSpacingMultiplier": {
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 1000
@@ -1435,6 +1602,24 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 8
+            },
+            "fontFamily": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "size": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "sizePercent": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
             }
           }
         },
@@ -1462,6 +1647,66 @@
               "type": "integer",
               "minimum": 1,
               "maximum": 32767
+            },
+            "fontFamily": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "size": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "sizePercent": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "scheme"
+          ],
+          "properties": {
+            "type": {
+              "const": "number"
+            },
+            "scheme": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Za-z][A-Za-z0-9]*$"
+            },
+            "startAt": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32767
+            },
+            "fontFamily": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "color": {
+              "$ref": "#/$defs/color"
+            },
+            "size": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
+            },
+            "sizePercent": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1000
             }
           }
         }
@@ -1572,6 +1817,12 @@
             "bottom"
           ]
         },
+        "wrap": {
+          "enum": [
+            "square",
+            "none"
+          ]
+        },
         "autoFit": {
           "enum": [
             "none",
@@ -1591,6 +1842,19 @@
           "type": "number",
           "minimum": 0,
           "maximum": 10000
+        },
+        "columnDirection": {
+          "enum": [
+            "left-to-right",
+            "right-to-left"
+          ]
+        },
+        "verticalText": {
+          "enum": [
+            "horizontal",
+            "vertical",
+            "vertical270"
+          ]
         }
       }
     },

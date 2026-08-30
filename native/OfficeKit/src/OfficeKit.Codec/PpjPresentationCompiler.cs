@@ -55,15 +55,16 @@ internal static class PpjSourceBoundPresentationCompiler
     private sealed class MutationState
     {
         internal bool SemanticChanges { get; set; }
-        internal List<TextLeafMutation> TextLeaves { get; } = [];
+        internal List<NativeLeafMutation> NativeLeaves { get; } = [];
     }
 
-    private sealed record TextLeafMutation(
+    private sealed record NativeLeafMutation(
         string ProgramElementId,
         PresentationSlide Slide,
         PresentationElement Element,
         IReadOnlyList<uint> ShapeTreePath,
-        uint LeafIndex,
+        uint NativeLeafIndex,
+        uint TextLeafIndex,
         string Before,
         string After,
         string LeafKind);
@@ -118,7 +119,14 @@ internal static class PpjSourceBoundPresentationCompiler
         var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact);
         var changedNodeIds = new HashSet<string>(StringComparer.Ordinal);
         var mutations = new MutationState();
-        var physicalChanges = ApplyPages(baseline, requested, presentation, assetIds, changedNodeIds, mutations);
+        var physicalChanges = ApplyPages(
+            baseline,
+            requested,
+            presentation,
+            assetIds,
+            projected.NativeLeafBindings,
+            changedNodeIds,
+            mutations);
 
         if (request.ValidationOnly)
         {
@@ -146,11 +154,11 @@ internal static class PpjSourceBoundPresentationCompiler
             output = sourceBytes;
             diagnostics = projected.Diagnostics;
         }
-        else if (mutations.TextLeaves.Count > 0)
+        else if (mutations.NativeLeaves.Count > 0)
         {
             if (mutations.SemanticChanges)
-                throw Unsupported("$.pages", "mixing precise text-leaf edits with other semantic edits in one source-bound build");
-            var edited = PptxEditPlanCodec.Apply(sourceBytes, TextLeafEditPlan(sourceSha256, mutations.TextLeaves), limits);
+                throw Unsupported("$.pages", "mixing precise native-leaf edits with other semantic edits in one source-bound build");
+            var edited = PptxEditPlanCodec.Apply(sourceBytes, NativeLeafEditPlan(sourceSha256, mutations.NativeLeaves), limits);
             output = edited.File;
             diagnostics = projected.Diagnostics.Concat(edited.Diagnostics).ToArray();
         }
@@ -265,6 +273,7 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjProgramModel requested,
         PresentationArtifact presentation,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, PpjNativeLeafBinding> nativeLeafBindings,
         ISet<string> changedNodeIds,
         MutationState mutations)
     {
@@ -315,7 +324,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 var beforeElement = sourceElements[after.Elements[elementIndex].Id];
                 var wireElement = beforeElement.Wire;
                 var shapeTreePath = new[] { wireElement.Source?.ShapeTreeIndex ?? checked((uint)elementIndex) };
-                if (ApplyElement(beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, changedNodeIds, mutations, elementPath))
+                if (ApplyElement(beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, nativeLeafBindings, changedNodeIds, mutations, elementPath))
                 {
                     changed = true;
                     changedNodeIds.Add(after.Id);
@@ -380,6 +389,7 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationSlide slide,
         IReadOnlyList<uint> shapeTreePath,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, PpjNativeLeafBinding> nativeLeafBindings,
         ISet<string> changedNodeIds,
         MutationState mutations,
         string path)
@@ -387,6 +397,16 @@ internal static class PpjSourceBoundPresentationCompiler
         if (!before.Id.Equals(after.Id, StringComparison.Ordinal) || !before.Type.Equals(after.Type, StringComparison.Ordinal))
             throw Unsupported(path, "source-bound element reorder, identity, or type change");
         RequireNativeRef(before.Raw, after.Raw, path);
+        var nativeLeafChanged = CollectIssuedNativeLeafMutations(
+            before.NativeRef,
+            after.NativeRef,
+            nativeLeafBindings,
+            slide,
+            target,
+            shapeTreePath,
+            after.Id,
+            mutations,
+            path + ".nativeRef.leaves");
 
         bool changed;
         switch (before)
@@ -417,7 +437,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjGroupElementModel beforeGroup when after is PpjGroupElementModel afterGroup && target.ContentCase == PresentationElement.ContentOneofCase.Group:
-                changed = ApplyGroupElement(beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, changedNodeIds, mutations, path);
+                changed = ApplyGroupElement(beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, nativeLeafBindings, changedNodeIds, mutations, path);
                 break;
             case PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque:
                 changed = ApplyOpaqueElement(beforeOpaque, afterOpaque, target, slide, shapeTreePath, mutations, path);
@@ -425,6 +445,7 @@ internal static class PpjSourceBoundPresentationCompiler
             default:
                 throw Unsupported(path, "the exact source object no longer matches its PPJ projection type");
         }
+        changed |= nativeLeafChanged;
         if (changed) changedNodeIds.Add(after.Id);
         return changed;
     }
@@ -622,6 +643,7 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationSlide slide,
         IReadOnlyList<uint> shapeTreePath,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, PpjNativeLeafBinding> nativeLeafBindings,
         ISet<string> changedNodeIds,
         MutationState mutations,
         string path)
@@ -646,7 +668,7 @@ internal static class PpjSourceBoundPresentationCompiler
             var sourceChild = sourceChildren[after.Elements[index].Id];
             var child = sourceChild.Wire;
             var childPath = shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray();
-            changed |= ApplyElement(sourceChild.Program, after.Elements[index], child, slide, childPath, assets, changedNodeIds, mutations, $"{path}.elements[{index}]");
+            changed |= ApplyElement(sourceChild.Program, after.Elements[index], child, slide, childPath, assets, nativeLeafBindings, changedNodeIds, mutations, $"{path}.elements[{index}]");
             requestedChildren.Add(child);
         }
         var sourceOrder = before.Elements.Select(element => element.Id).ToArray();
@@ -703,11 +725,12 @@ internal static class PpjSourceBoundPresentationCompiler
             for (var index = 0; index < before.VisibleText.Count; index++)
             {
                 if (before.VisibleText[index] == after.VisibleText[index]) continue;
-                mutations.TextLeaves.Add(new TextLeafMutation(
+                mutations.NativeLeaves.Add(new NativeLeafMutation(
                     after.Id,
                     slide,
                     target,
                     shapeTreePath,
+                    0,
                     checked((uint)index),
                     before.VisibleText[index],
                     after.VisibleText[index],
@@ -831,11 +854,12 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.TextBody.Paragraphs[0].Runs[0].ContentCase != PresentationTextRun.ContentOneofCase.Text)
                 throw Unsupported(path, "plain/rich text conversion or multi-leaf plain replacement");
             if (before.PlainText != after.PlainText)
-                mutations.TextLeaves.Add(new TextLeafMutation(
+                mutations.NativeLeaves.Add(new NativeLeafMutation(
                     programElementId,
                     slide,
                     element,
                     shapeTreePath,
+                    0,
                     0,
                     before.PlainText,
                     after.PlainText,
@@ -859,11 +883,12 @@ internal static class PpjSourceBoundPresentationCompiler
                     var oldText = before.Paragraphs[paragraph].Runs[run].Text;
                     var newText = after.Paragraphs[paragraph].Runs[run].Text;
                     if (oldText != newText)
-                        mutations.TextLeaves.Add(new TextLeafMutation(
+                        mutations.NativeLeaves.Add(new NativeLeafMutation(
                             programElementId,
                             slide,
                             element,
                             shapeTreePath,
+                            0,
                             leafIndex,
                             oldText,
                             newText,
@@ -1008,11 +1033,85 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         if (!before.TryGetProperty("nativeRef", out var oldReference) ||
             !after.TryGetProperty("nativeRef", out var newReference) ||
-            !JsonEqual(oldReference, newReference))
+            !NativeRefEqualExceptLeafValues(oldReference, newReference))
             throw new CodecException(
                 "ppj.nativeRef.stale",
-                "The source-bound PPJ nativeRef is missing, changed, or no longer matches the exact source projection.",
+                "The source-bound PPJ nativeRef is missing, changed outside an issued leaf value, or no longer matches the exact source projection.",
                 path + ".nativeRef");
+    }
+
+    private static bool CollectIssuedNativeLeafMutations(
+        PpjNativeRefModel? before,
+        PpjNativeRefModel? after,
+        IReadOnlyDictionary<string, PpjNativeLeafBinding> bindings,
+        PresentationSlide slide,
+        PresentationElement element,
+        IReadOnlyList<uint> shapeTreePath,
+        string programElementId,
+        MutationState mutations,
+        string path)
+    {
+        if (before is null || after is null || before.Leaves.Count == 0) return false;
+        if (before.Leaves.Count != after.Leaves.Count)
+            throw new CodecException("ppj.nativeRef.stale", "The issued native-leaf set changed.", path);
+
+        var changed = false;
+        for (var index = 0; index < before.Leaves.Count; index++)
+        {
+            var oldLeaf = before.Leaves[index];
+            var newLeaf = after.Leaves[index];
+            var leafPath = $"{path}[{index}]";
+            if (!oldLeaf.Id.Equals(newLeaf.Id, StringComparison.Ordinal) ||
+                !oldLeaf.Kind.Equals(newLeaf.Kind, StringComparison.Ordinal) ||
+                !oldLeaf.ExpectedHash.Equals(newLeaf.ExpectedHash, StringComparison.OrdinalIgnoreCase))
+                throw new CodecException("ppj.nativeRef.stale", "A native leaf changed its issued identity, kind, or expected hash.", leafPath);
+            if (JsonEqual(oldLeaf.Value, newLeaf.Value)) continue;
+            if (!bindings.TryGetValue(oldLeaf.Id, out var binding) ||
+                !binding.ElementId.Equals(programElementId, StringComparison.Ordinal) ||
+                !binding.Kind.Equals(oldLeaf.Kind, StringComparison.Ordinal))
+                throw new CodecException("ppj.nativeRef.stale", "The native leaf is not part of the fresh source projection.", leafPath);
+
+            var expectedHash = Sha256(Encoding.UTF8.GetBytes(binding.ExpectedValue));
+            if (!oldLeaf.ExpectedHash.Equals(expectedHash, StringComparison.OrdinalIgnoreCase))
+                throw new CodecException("ppj.nativeRef.stale", "The native leaf expected hash no longer matches the exact source value.", leafPath + ".expectedHash");
+            var oldValue = PpjNativeLeafProjection.NormalizeValue(oldLeaf.Kind, oldLeaf.Value, leafPath + ".value");
+            if (!oldValue.Equals(binding.ExpectedValue, StringComparison.Ordinal))
+                throw new CodecException("ppj.nativeRef.stale", "The native leaf baseline value no longer matches the exact source projection.", leafPath + ".value");
+            var newValue = PpjNativeLeafProjection.NormalizeValue(newLeaf.Kind, newLeaf.Value, leafPath + ".value");
+            if (newValue.Equals(oldValue, StringComparison.Ordinal)) continue;
+
+            mutations.NativeLeaves.Add(new NativeLeafMutation(
+                programElementId,
+                slide,
+                element,
+                shapeTreePath,
+                binding.NativeLeafIndex,
+                binding.TextLeafIndex,
+                oldValue,
+                newValue,
+                binding.Kind));
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static bool NativeRefEqualExceptLeafValues(JsonElement before, JsonElement after)
+    {
+        var oldBytes = PpjCanonicalJson.Write(before);
+        var newBytes = PpjCanonicalJson.Write(after);
+        var oldNode = System.Text.Json.Nodes.JsonNode.Parse(oldBytes)!.AsObject();
+        var newNode = System.Text.Json.Nodes.JsonNode.Parse(newBytes)!.AsObject();
+        MaskLeafValues(oldNode);
+        MaskLeafValues(newNode);
+        using var oldDocument = JsonDocument.Parse(oldNode.ToJsonString());
+        using var newDocument = JsonDocument.Parse(newNode.ToJsonString());
+        return JsonEqual(oldDocument.RootElement, newDocument.RootElement);
+    }
+
+    private static void MaskLeafValues(System.Text.Json.Nodes.JsonObject nativeRef)
+    {
+        if (nativeRef["leaves"] is not System.Text.Json.Nodes.JsonArray leaves) return;
+        foreach (var leaf in leaves.OfType<System.Text.Json.Nodes.JsonObject>()) leaf["value"] = null;
     }
 
     private static void RequireCapability(PpjElementModel element, string operation, string path)
@@ -1042,7 +1141,11 @@ internal static class PpjSourceBoundPresentationCompiler
             if (allowedNames.Contains(name)) continue;
             var oldPresent = before.TryGetProperty(name, out var oldValue);
             var newPresent = after.TryGetProperty(name, out var newValue);
-            if (oldPresent != newPresent || oldPresent && !JsonEqual(oldValue, newValue))
+            var equal = oldPresent && newPresent &&
+                (name == "nativeRef"
+                    ? NativeRefEqualExceptLeafValues(oldValue, newValue)
+                    : JsonEqual(oldValue, newValue));
+            if (oldPresent != newPresent || oldPresent && !equal)
                 throw Unsupported(path + "." + name, $"changing source-owned {name}");
         }
     }
@@ -1113,9 +1216,9 @@ internal static class PpjSourceBoundPresentationCompiler
                (row = oneBasedRow - 1) >= 0 && (column = oneBasedColumn - 1) >= 0;
     }
 
-    private static PresentationEditPlanRequest TextLeafEditPlan(
+    private static PresentationEditPlanRequest NativeLeafEditPlan(
         string sourceSha256,
-        IReadOnlyList<TextLeafMutation> mutations)
+        IReadOnlyList<NativeLeafMutation> mutations)
     {
         var plan = new PresentationEditPlanRequest { ExpectedSourceSha256 = sourceSha256 };
         foreach (var mutation in mutations)
@@ -1128,7 +1231,8 @@ internal static class PpjSourceBoundPresentationCompiler
                 string.IsNullOrEmpty(slideSource.SlideXmlSha256) || string.IsNullOrEmpty(elementSource.ElementSha256) ||
                 string.IsNullOrEmpty(elementSource.SemanticSha256))
                 throw new CodecException("ppj.nativeRef.stale", "Text edit has an incomplete source-bound compiler binding.", mutation.ProgramElementId);
-            var seed = string.Join("\0", sourceSha256, mutation.ProgramElementId, mutation.LeafKind, mutation.LeafIndex, mutation.Before, mutation.After);
+            var seed = string.Join("\0", sourceSha256, mutation.ProgramElementId, mutation.LeafKind,
+                mutation.NativeLeafIndex, mutation.TextLeafIndex, mutation.Before, mutation.After);
             var operation = new PresentationEditOperation
             {
                 OperationId = $"ppj-{mutation.LeafKind}-{Sha256(Encoding.UTF8.GetBytes(seed))[..20]}",
@@ -1139,7 +1243,8 @@ internal static class PpjSourceBoundPresentationCompiler
                 ShapeTreeIndex = mutation.ShapeTreePath[0],
                 ExpectedElementSha256 = elementSource.ElementSha256,
                 ExpectedSemanticSha256 = elementSource.SemanticSha256,
-                TextLeafIndex = mutation.LeafIndex,
+                NativeLeafIndex = mutation.NativeLeafIndex,
+                TextLeafIndex = mutation.TextLeafIndex,
                 ExpectedTextSha256 = Sha256(Encoding.UTF8.GetBytes(mutation.Before)),
                 ExpectedValue = mutation.Before,
                 Value = mutation.After,
