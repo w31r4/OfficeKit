@@ -428,6 +428,11 @@ internal static class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("visible", out var visible)) axis.Visible = visible.GetBoolean();
         if (source.TryGetProperty("textStyle", out var textStyle))
             axis.TextStyle = BuildChartTextStyle(textStyle, catalog);
+        if (source.TryGetProperty("titleTextStyle", out var titleTextStyle))
+        {
+            if (axis.Title.Length == 0) throw Unsupported("chart axis", "titleTextStyle requires a non-empty axis title");
+            axis.TitleTextStyle = BuildChartTextStyle(titleTextStyle, catalog);
+        }
         return axis;
     }
 
@@ -1324,6 +1329,12 @@ internal static class PpjAuthoredPresentationCompiler
                 throw Unsupported(elementId, "titleTextStyle requires a non-empty chart title");
             chart.TitleTextStyle = BuildChartTextStyle(titleTextStyle, catalog);
         }
+        if (FirstProperty(inline, named, "legendTextStyle") is { } legendTextStyle)
+        {
+            if (!chart.HasLegend)
+                throw Unsupported(elementId, "legendTextStyle requires a visible legend");
+            chart.LegendTextStyle = BuildChartTextStyle(legendTextStyle, catalog);
+        }
         var smooth = FirstProperty(inline, named, "smooth");
         var varyColors = FirstProperty(inline, named, "varyColors");
         if (smooth is not null || varyColors is not null)
@@ -1352,6 +1363,8 @@ internal static class PpjAuthoredPresentationCompiler
             if (dataLabels.TryGetProperty("showSeries", out var showSeries)) chart.DataLabels.ShowSeriesName = showSeries.GetBoolean();
             if (dataLabels.TryGetProperty("showPercent", out var showPercent)) chart.DataLabels.ShowPercent = showPercent.GetBoolean();
             if (dataLabels.TryGetProperty("position", out var position)) chart.DataLabels.Position = LabelPosition(position.GetString()!);
+            if (dataLabels.TryGetProperty("textStyle", out var textStyle))
+                chart.DataLabels.TextStyle = BuildChartTextStyle(textStyle, catalog);
         }
         else if (labels is { } showLabels && showLabels.GetBoolean())
         {

@@ -118,6 +118,7 @@ internal static partial class PptxChartCodec
                 HeightEmu = source.HeightEmu,
             },
         };
+        if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         output.Categories.Add(source.Categories);
         output.Series.Add(series.Select(item => item.Clone()));
         if (source.XAxis is not null) output.XAxis = source.XAxis.Clone();
@@ -206,16 +207,13 @@ internal static partial class PptxChartCodec
         chart.HasLegend = legend is not null;
         if (legend is not null)
         {
-            var position = (string?)legend.Element(ChartNs + "legendPos")?.Attribute("val");
-            chart.LegendPosition = position switch
+            var legendProbe = new SpreadsheetChartArtifact();
+            if (!OpenXmlChartSpaceCodec.TryReadLegend(legend, legendProbe)) editable = false;
+            else
             {
-                "t" => "top",
-                "b" => "bottom",
-                "l" => "left",
-                "r" => "right",
-                _ => string.Empty,
-            };
-            if (chart.LegendPosition.Length == 0) editable = false;
+                chart.LegendPosition = legendProbe.LegendPosition;
+                if (legendProbe.LegendTextStyle is not null) chart.LegendTextStyle = legendProbe.LegendTextStyle.Clone();
+            }
         }
 
         if (!TryReadComboSeries(barPlot, SpreadsheetChartType.Bar, PresentationChartAxisGroup.Primary, out var barSeries) ||
@@ -374,7 +372,7 @@ internal static partial class PptxChartCodec
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
         nativeChart.Add(plotArea);
-        if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition));
+        if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition, chart.LegendTextStyle));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
         var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), nativeChart);
         if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Presentation combo chart area") is { } chartFill) chartSpace.Add(chartFill);
@@ -385,7 +383,7 @@ internal static partial class PptxChartCodec
     {
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
         OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
-        OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition);
+        OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle);
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
         var barPlot = plotArea.Element(ChartNs + "barChart")!;
         var linePlot = plotArea.Element(ChartNs + "lineChart")!;

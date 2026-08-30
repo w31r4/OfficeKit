@@ -558,6 +558,8 @@ internal static partial class PpjPresentationProjector
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
         if (chart.TitleTextStyle is not null)
             style["titleTextStyle"] = ProjectChartTextStyle(chart.TitleTextStyle);
+        if (chart.LegendTextStyle is not null)
+            style["legendTextStyle"] = ProjectChartTextStyle(chart.LegendTextStyle);
         if (chart.LineOptions?.HasSmooth == true) style["smooth"] = chart.LineOptions.Smooth;
         if (chart.LineOptions?.VaryColors == true) style["varyColors"] = true;
         if (chart.DataLabels is not null)
@@ -571,6 +573,8 @@ internal static partial class PpjPresentationProjector
             if (chart.DataLabels.HasShowPercent) labels["showPercent"] = chart.DataLabels.ShowPercent;
             if (chart.DataLabels.HasPosition && DataLabelPosition(chart.DataLabels.Position) is { } position)
                 labels["position"] = position;
+            if (chart.DataLabels.TextStyle is not null)
+                labels["textStyle"] = ProjectChartTextStyle(chart.DataLabels.TextStyle);
             style["dataLabels"] = labels;
         }
         output["style"] = style;
@@ -654,6 +658,8 @@ internal static partial class PpjPresentationProjector
         if (axis.HasVisible) output["visible"] = axis.Visible;
         if (axis.TextStyle is not null)
             output["textStyle"] = ProjectChartTextStyle(axis.TextStyle);
+        if (axis.TitleTextStyle is not null)
+            output["titleTextStyle"] = ProjectChartTextStyle(axis.TitleTextStyle);
         return output;
     }
 

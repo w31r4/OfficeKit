@@ -698,7 +698,7 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationChart target,
         string path)
     {
-        var changed = ApplyChartTitleTextStyle(before, after, target, path);
+        var changed = ApplyChartStyleTextStyles(before, after, target, path);
         changed |= ApplyChartAxisTextStyle(before, after, target.XAxis, "xAxis", path);
         changed |= ApplyChartAxisTextStyle(before, after, target.YAxis, "yAxis", path);
         changed |= ApplyChartAxisTextStyle(before, after, target.SecondaryXAxis, "secondaryXAxis", path);
@@ -706,7 +706,7 @@ internal static class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
-    private static bool ApplyChartTitleTextStyle(
+    private static bool ApplyChartStyleTextStyles(
         PpjChartElementModel before,
         PpjChartElementModel after,
         PresentationChart target,
@@ -715,11 +715,52 @@ internal static class PpjSourceBoundPresentationCompiler
         var oldStyle = OptionalProperty(before.Raw, "style");
         var newStyle = OptionalProperty(after.Raw, "style");
         if (JsonEqual(oldStyle, newStyle)) return false;
-        RequireOnlyBoundedProperty(oldStyle, newStyle, path + ".style", "titleTextStyle");
-        if (!PropertyChanged(oldStyle, newStyle, "titleTextStyle")) return false;
-        RequireCapability(after, "setChartTextStyle", path + ".style.titleTextStyle");
-        target.TitleTextStyle = SourceBoundChartTextStyle(newStyle, "titleTextStyle", path + ".style.titleTextStyle");
-        return true;
+        RequireOnlyBoundedProperties(
+            oldStyle,
+            newStyle,
+            path + ".style",
+            "titleTextStyle",
+            "legendTextStyle",
+            "dataLabels");
+
+        var changed = false;
+        if (PropertyChanged(oldStyle, newStyle, "titleTextStyle"))
+        {
+            RequireCapability(after, "setChartTextStyle", path + ".style.titleTextStyle");
+            var titleTextStyle = SourceBoundChartTextStyle(newStyle, "titleTextStyle", path + ".style.titleTextStyle");
+            if (titleTextStyle is not null && target.Title.Length == 0)
+                throw Unsupported(path + ".style.titleTextStyle", "chart-title style without an existing title");
+            target.TitleTextStyle = titleTextStyle;
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "legendTextStyle"))
+        {
+            RequireCapability(after, "setChartTextStyle", path + ".style.legendTextStyle");
+            var legendTextStyle = SourceBoundChartTextStyle(newStyle, "legendTextStyle", path + ".style.legendTextStyle");
+            if (legendTextStyle is not null && !target.HasLegend)
+                throw Unsupported(path + ".style.legendTextStyle", "chart-legend style without an existing legend");
+            target.LegendTextStyle = legendTextStyle;
+            changed = true;
+        }
+
+        var oldLabels = oldStyle is { } oldStyleValue ? OptionalProperty(oldStyleValue, "dataLabels") : null;
+        var newLabels = newStyle is { } newStyleValue ? OptionalProperty(newStyleValue, "dataLabels") : null;
+        if (!JsonEqual(oldLabels, newLabels))
+        {
+            if (oldLabels is null || newLabels is null || target.DataLabels is null)
+                throw Unsupported(path + ".style.dataLabels", "source-bound chart-data-label topology change");
+            RequireEqualExcept(oldLabels.Value, newLabels.Value, path + ".style.dataLabels", "textStyle");
+            if (PropertyChanged(oldLabels, newLabels, "textStyle"))
+            {
+                RequireCapability(after, "setChartTextStyle", path + ".style.dataLabels.textStyle");
+                target.DataLabels.TextStyle = SourceBoundChartTextStyle(
+                    newLabels,
+                    "textStyle",
+                    path + ".style.dataLabels.textStyle");
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     private static bool ApplyChartAxisTextStyle(
@@ -734,23 +775,43 @@ internal static class PpjSourceBoundPresentationCompiler
         if (JsonEqual(oldAxis, newAxis)) return false;
         if (oldAxis is null || newAxis is null || target is null)
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
-        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName, "textStyle");
-        if (!PropertyChanged(oldAxis, newAxis, "textStyle")) return false;
-        RequireCapability(after, "setChartTextStyle", path + "." + axisName + ".textStyle");
-        target.TextStyle = SourceBoundChartTextStyle(newAxis, "textStyle", path + "." + axisName + ".textStyle");
-        return true;
+        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName, "textStyle", "titleTextStyle");
+        var changed = false;
+        if (PropertyChanged(oldAxis, newAxis, "textStyle"))
+        {
+            RequireCapability(after, "setChartTextStyle", path + "." + axisName + ".textStyle");
+            target.TextStyle = SourceBoundChartTextStyle(newAxis, "textStyle", path + "." + axisName + ".textStyle");
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "titleTextStyle"))
+        {
+            RequireCapability(after, "setChartTextStyle", path + "." + axisName + ".titleTextStyle");
+            var titleTextStyle = SourceBoundChartTextStyle(
+                newAxis,
+                "titleTextStyle",
+                path + "." + axisName + ".titleTextStyle");
+            if (titleTextStyle is not null && target.Title.Length == 0)
+                throw Unsupported(path + "." + axisName + ".titleTextStyle", "axis-title style without an existing title");
+            target.TitleTextStyle = titleTextStyle;
+            changed = true;
+        }
+        return changed;
     }
 
-    private static void RequireOnlyBoundedProperty(JsonElement? before, JsonElement? after, string path, string property)
+    private static void RequireOnlyBoundedProperties(
+        JsonElement? before,
+        JsonElement? after,
+        string path,
+        params string[] properties)
     {
         if (before is { } oldValue && after is { } newValue)
         {
-            RequireEqualExcept(oldValue, newValue, path, property);
+            RequireEqualExcept(oldValue, newValue, path, properties);
             return;
         }
         var present = before ?? after!.Value;
         foreach (var item in present.EnumerateObject())
-            if (!item.Name.Equals(property, StringComparison.Ordinal))
+            if (!properties.Contains(item.Name, StringComparer.Ordinal))
                 throw Unsupported(path + "." + item.Name, $"changing source-owned {item.Name}");
     }
 

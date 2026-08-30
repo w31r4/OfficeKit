@@ -207,6 +207,7 @@ internal static partial class PptxChartCodec
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
+        if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
         return output;
     }
@@ -238,6 +239,7 @@ internal static partial class PptxChartCodec
         if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         if (source.TitleTextStyle is not null) output.TitleTextStyle = source.TitleTextStyle.Clone();
+        if (source.LegendTextStyle is not null) output.LegendTextStyle = source.LegendTextStyle.Clone();
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
         return output;
     }

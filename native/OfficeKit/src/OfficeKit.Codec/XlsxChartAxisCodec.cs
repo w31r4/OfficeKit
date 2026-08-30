@@ -261,7 +261,7 @@ internal static class XlsxChartAxisCodec
 
     private static void AppendTitleAndNumberFormat(XElement axis, SpreadsheetChartAxisArtifact semantic)
     {
-        if (semantic.Title.Length > 0) axis.Add(TitleElement(semantic.Title));
+        if (semantic.Title.Length > 0) axis.Add(XlsxChartTextStyleCodec.TitleElement(semantic.Title, semantic.TitleTextStyle));
         if (semantic.NumberFormatCode.Length > 0) axis.Add(NumberFormatElement(semantic.NumberFormatCode));
     }
 
@@ -269,7 +269,7 @@ internal static class XlsxChartAxisCodec
     {
         PatchValue(native, "delete", target.HasVisible, target.Visible ? 0 : 1, ["axPos", "majorGridlines", "title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
         if (!category) PatchMajorGridlines(native, target);
-        PatchTitle(native, target.Title);
+        PatchTitle(native, target.Title, target.TitleTextStyle);
         PatchNumberFormat(native, target.NumberFormatCode);
         XlsxChartTextStyleCodec.PatchAxis(native, target.TextStyle);
         if (category)
@@ -300,19 +300,20 @@ internal static class XlsxChartAxisCodec
         InsertBefore(axis, new XElement(ChartNs + "majorGridlines"), ["title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
     }
 
-    private static void PatchTitle(XElement owner, string title)
+    private static void PatchTitle(XElement owner, string title, SpreadsheetChartTextStyleArtifact? style)
     {
         var existing = owner.Element(ChartNs + "title");
         if (title.Length == 0) { existing?.Remove(); return; }
         if (existing is null)
         {
-            InsertBefore(owner, TitleElement(title), ["numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+            InsertBefore(owner, XlsxChartTextStyleCodec.TitleElement(title, style), ["numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
             return;
         }
         var runs = existing.Descendants(DrawingNs + "t").ToArray();
         if (runs.Length == 0) throw new CodecException("unsupported_spreadsheet_chart_edit", "Referenced worksheet-chart axis titles are read-only.");
         runs[0].Value = title;
         foreach (var run in runs.Skip(1)) run.Value = string.Empty;
+        XlsxChartTextStyleCodec.PatchTitle(existing, style);
     }
 
     private static void PatchNumberFormat(XElement owner, string code)
@@ -343,12 +344,6 @@ internal static class XlsxChartAxisCodec
         if (next is null) owner.Add(value);
         else next.AddBeforeSelf(value);
     }
-
-    private static XElement TitleElement(string title) => new(ChartNs + "title",
-        new XElement(ChartNs + "tx", new XElement(ChartNs + "rich",
-            new XElement(DrawingNs + "bodyPr"), new XElement(DrawingNs + "lstStyle"),
-            new XElement(DrawingNs + "p", new XElement(DrawingNs + "r", new XElement(DrawingNs + "t", title))))),
-        new XElement(ChartNs + "layout"));
 
     private static XElement NumberFormatElement(string code) => new(ChartNs + "numFmt", new XAttribute("formatCode", code), new XAttribute("sourceLinked", "0"));
     private static XElement ValueElement<T>(string name, T value) => new(ChartNs + name, new XAttribute("val", Format(value)));
@@ -391,6 +386,7 @@ internal static class XlsxChartAxisCodec
         axis.HasMajorUnit ? axis.MajorUnit.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasVisible ? (axis.Visible ? "visible" : "hidden") : "default-visible",
         axis.HasShowMajorGridlines ? (axis.ShowMajorGridlines ? "gridlines" : "no-gridlines") : "default-gridlines",
-        XlsxChartTextStyleCodec.Semantics(axis.TextStyle));
+        XlsxChartTextStyleCodec.Semantics(axis.TextStyle),
+        XlsxChartTextStyleCodec.Semantics(axis.TitleTextStyle));
     private static CodecException Invalid(string worksheetId, string chartId, string message) => new("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chartId} {message}");
 }

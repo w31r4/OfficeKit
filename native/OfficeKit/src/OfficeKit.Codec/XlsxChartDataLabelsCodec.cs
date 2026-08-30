@@ -12,7 +12,7 @@ internal static class XlsxChartDataLabelsCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"];
-    private static readonly HashSet<string> AllowedChildren = new(["dLblPos", .. OrderedFlags], StringComparer.Ordinal);
+    private static readonly HashSet<string> AllowedChildren = new(["txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
     private static readonly HashSet<string> BooleanValues = new(StringComparer.Ordinal) { "0", "1", "false", "true" };
     private static readonly HashSet<string> PositionValues = new(StringComparer.Ordinal) { "bestFit", "b", "ctr", "inBase", "inEnd", "l", "outEnd", "r", "t" };
 
@@ -67,12 +67,15 @@ internal static class XlsxChartDataLabelsCodec
             if (!TryScalar(nativePosition, PositionValues, out var positionValue) || !TryPosition(positionValue!, out var position)) return false;
             dataLabels.Position = position;
         }
+        if (!XlsxChartTextStyleCodec.TryReadTextProperties(labels, out var textStyle)) return false;
+        if (textStyle is not null) dataLabels.TextStyle = textStyle;
         chart.DataLabels = dataLabels;
         return true;
     }
 
     internal static XElement? Element(SpreadsheetChartDataLabelsArtifact? labels) => labels is null ? null :
         new XElement(ChartNs + "dLbls",
+            labels.TextStyle is null ? null : XlsxChartTextStyleCodec.TextPropertiesElement(labels.TextStyle),
             PositionElement(labels),
             BooleanElement("showVal", labels.ShowValue),
             BooleanElement("showCatName", labels.ShowCategoryName),
@@ -96,6 +99,7 @@ internal static class XlsxChartDataLabelsCodec
             }
             return;
         }
+        XlsxChartTextStyleCodec.PatchTextProperties(existing, labels.TextStyle, AllowedChildren);
         var existingPosition = existing.Element(ChartNs + "dLblPos");
         var replacementPosition = PositionElement(labels);
         if (replacementPosition is null) existingPosition?.Remove();
@@ -114,7 +118,7 @@ internal static class XlsxChartDataLabelsCodec
 
     internal static string Semantics(SpreadsheetChartDataLabelsArtifact? labels) => labels is null
         ? "-"
-        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")}";
+        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)}";
 
     private static XElement BooleanElement(string name, bool value) =>
         new(ChartNs + name, new XAttribute("val", value ? "1" : "0"));

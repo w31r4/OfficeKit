@@ -19,26 +19,43 @@ internal static class XlsxChartTextStyleCodec
         ValidateStyle(chart.TitleTextStyle, worksheetId, chart.Id, "title_text_style");
         if (chart.TitleTextStyle is not null && chart.Title.Length == 0)
             throw Invalid(worksheetId, chart.Id, "title_text_style requires a non-empty title.");
+        ValidateStyle(chart.LegendTextStyle, worksheetId, chart.Id, "legend_text_style");
+        if (chart.LegendTextStyle is not null && !chart.HasLegend)
+            throw Invalid(worksheetId, chart.Id, "legend_text_style requires an enabled legend.");
+        ValidateStyle(chart.DataLabels?.TextStyle, worksheetId, chart.Id, "data_labels.text_style");
         ValidateStyle(chart.XAxis?.TextStyle, worksheetId, chart.Id, "x_axis.text_style");
         ValidateStyle(chart.YAxis?.TextStyle, worksheetId, chart.Id, "y_axis.text_style");
+        ValidateAxisTitleStyle(chart.XAxis, worksheetId, chart.Id, "x_axis.title_text_style");
+        ValidateAxisTitleStyle(chart.YAxis, worksheetId, chart.Id, "y_axis.title_text_style");
     }
 
     internal static bool TryReadTitle(XElement title, SpreadsheetChartArtifact chart)
     {
-        if (!TryExactTitleRun(title, out var run)) return false;
-        var properties = run.Element(DrawingNs + "rPr");
-        if (properties is null) return true;
-        if (!TryExactStyleProperties(properties, out var style)) return false;
-        chart.TitleTextStyle = style;
+        if (!TryReadTitleStyle(title, out var style)) return false;
+        if (style is not null) chart.TitleTextStyle = style;
         return true;
     }
 
     internal static bool TryReadAxis(XElement axis, SpreadsheetChartAxisArtifact semantic)
     {
-        var properties = axis.Elements(ChartNs + "txPr").Take(2).ToArray();
+        if (!TryReadTextProperties(axis, out var style)) return false;
+        if (style is not null) semantic.TextStyle = style;
+        var title = axis.Element(ChartNs + "title");
+        if (title is not null)
+        {
+            if (!TryReadTitleStyle(title, out var titleStyle)) return false;
+            if (titleStyle is not null) semantic.TitleTextStyle = titleStyle;
+        }
+        return true;
+    }
+
+    internal static bool TryReadTextProperties(XElement owner, out SpreadsheetChartTextStyleArtifact? style)
+    {
+        style = null;
+        var properties = owner.Elements(ChartNs + "txPr").Take(2).ToArray();
         if (properties.Length == 0) return true;
-        if (properties.Length != 1 || !TryExactAxisTextProperties(properties[0], out var style)) return false;
-        semantic.TextStyle = style;
+        if (properties.Length != 1 || !TryExactAxisTextProperties(properties[0], out var parsed)) return false;
+        style = parsed;
         return true;
     }
 
@@ -85,6 +102,23 @@ internal static class XlsxChartTextStyleCodec
         else existing.ReplaceWith(replacement);
     }
 
+    internal static XElement TextPropertiesElement(SpreadsheetChartTextStyleArtifact style) => AxisTextProperties(style);
+
+    internal static void PatchTextProperties(
+        XElement owner,
+        SpreadsheetChartTextStyleArtifact? style,
+        IReadOnlySet<string> laterNames)
+    {
+        var existing = owner.Element(ChartNs + "txPr");
+        if (style is null) { existing?.Remove(); return; }
+        if (existing is not null && !TryExactAxisTextProperties(existing, out _)) throw ReadOnly(owner.Name.LocalName);
+        var replacement = AxisTextProperties(style);
+        if (existing is not null) { existing.ReplaceWith(replacement); return; }
+        var next = owner.Elements().FirstOrDefault(element => laterNames.Contains(element.Name.LocalName));
+        if (next is null) owner.Add(replacement);
+        else next.AddBeforeSelf(replacement);
+    }
+
     internal static string Semantics(SpreadsheetChartTextStyleArtifact? style)
     {
         if (style is null) return "-";
@@ -96,6 +130,24 @@ internal static class XlsxChartTextStyleCodec
             style.HasItalic ? style.Italic.ToString(CultureInfo.InvariantCulture) : "default-italic",
             style.ColorRgb.Length > 0 ? style.ColorRgb.ToUpperInvariant() : "default-color",
             style.HasOpacityThousandthPercent ? style.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "default-alpha");
+    }
+
+    private static bool TryReadTitleStyle(XElement title, out SpreadsheetChartTextStyleArtifact? style)
+    {
+        style = null;
+        if (!TryExactTitleRun(title, out var run)) return false;
+        var properties = run.Element(DrawingNs + "rPr");
+        if (properties is null) return true;
+        if (!TryExactStyleProperties(properties, out var parsed)) return false;
+        style = parsed;
+        return true;
+    }
+
+    private static void ValidateAxisTitleStyle(SpreadsheetChartAxisArtifact? axis, string worksheetId, string chartId, string field)
+    {
+        ValidateStyle(axis?.TitleTextStyle, worksheetId, chartId, field);
+        if (axis?.TitleTextStyle is not null && axis.Title.Length == 0)
+            throw Invalid(worksheetId, chartId, $"{field} requires a non-empty axis title.");
     }
 
     private static void ValidateStyle(SpreadsheetChartTextStyleArtifact? style, string worksheetId, string chartId, string field)
