@@ -162,6 +162,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel { ChartType: "heatmap" } heatmap:
                 output.Group = BuildHeatmap(heatmap, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "candlestick" } candlestick:
+                output.Group = BuildCandlestick(candlestick, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -460,7 +463,7 @@ internal static class PpjAuthoredPresentationCompiler
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
 
         if (titleText.Length > 0)
-            group.Children.Add(HeatmapTextElement(
+            group.Children.Add(VectorChartTextElement(
                 HeatmapNativeId(element.Id, "title"),
                 "heatmap title",
                 x,
@@ -475,7 +478,7 @@ internal static class PpjAuthoredPresentationCompiler
 
         for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
         {
-            group.Children.Add(HeatmapTextElement(
+            group.Children.Add(VectorChartTextElement(
                 HeatmapNativeId(element.Id, $"row/{rowIndex}"),
                 $"heatmap row {rowIndex + 1}",
                 x,
@@ -521,7 +524,7 @@ internal static class PpjAuthoredPresentationCompiler
                 if (showValues && value is not null)
                 {
                     var contrast = HeatmapLuminance(cellColor!.Value) > 0.52 ? "111827" : "FFFFFF";
-                    group.Children.Add(HeatmapTextElement(
+                    group.Children.Add(VectorChartTextElement(
                         HeatmapNativeId(element.Id, $"value/{rowIndex}/{columnIndex}"),
                         $"heatmap value {rowIndex + 1},{columnIndex + 1}",
                         cellX + 1,
@@ -539,7 +542,7 @@ internal static class PpjAuthoredPresentationCompiler
         }
 
         for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
-            group.Children.Add(HeatmapTextElement(
+            group.Children.Add(VectorChartTextElement(
                 HeatmapNativeId(element.Id, $"column/{columnIndex}"),
                 $"heatmap column {columnIndex + 1}",
                 gridX + columnIndex * cellWidth,
@@ -605,7 +608,7 @@ internal static class PpjAuthoredPresentationCompiler
         }
     }
 
-    private static PresentationElement HeatmapTextElement(
+    private static PresentationElement VectorChartTextElement(
         string id,
         string name,
         double x,
@@ -636,12 +639,12 @@ internal static class PpjAuthoredPresentationCompiler
             },
         };
         var paragraph = new PresentationTextParagraph { Alignment = alignment };
-        paragraph.Runs.Add(BuildHeatmapRun(text, style, catalog, defaultFontSize, fallbackColor));
+        paragraph.Runs.Add(BuildVectorChartRun(text, style, catalog, defaultFontSize, fallbackColor));
         shape.TextBody.Paragraphs.Add(paragraph);
         return new PresentationElement { Id = id, Name = name, Shape = shape };
     }
 
-    private static PresentationTextRun BuildHeatmapRun(
+    private static PresentationTextRun BuildVectorChartRun(
         string text,
         JsonElement? style,
         Catalog catalog,
@@ -707,7 +710,7 @@ internal static class PpjAuthoredPresentationCompiler
         group.Children.Add(new PresentationElement { Id = HeatmapNativeId(elementId, "colorbar"), Name = "heatmap color scale", Shape = bar });
         var labelX = x + barWidth + 4;
         var labelWidth = Math.Max(20, width - barWidth - 4);
-        group.Children.Add(HeatmapTextElement(
+        group.Children.Add(VectorChartTextElement(
             HeatmapNativeId(elementId, "colorbar/max"),
             "heatmap scale maximum",
             labelX,
@@ -719,7 +722,7 @@ internal static class PpjAuthoredPresentationCompiler
             catalog,
             7,
             "left"));
-        group.Children.Add(HeatmapTextElement(
+        group.Children.Add(VectorChartTextElement(
             HeatmapNativeId(elementId, "colorbar/min"),
             "heatmap scale minimum",
             labelX,
@@ -732,7 +735,7 @@ internal static class PpjAuthoredPresentationCompiler
             7,
             "left"));
         if (scale == "diverging")
-            group.Children.Add(HeatmapTextElement(
+            group.Children.Add(VectorChartTextElement(
                 HeatmapNativeId(elementId, "colorbar/mid"),
                 "heatmap scale midpoint",
                 labelX,
@@ -793,6 +796,354 @@ internal static class PpjAuthoredPresentationCompiler
         }
         return 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
     }
+
+    private static PresentationGroup BuildCandlestick(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector candlestick titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateCandlestickCompileProfile(element, raw, namedStyle, inlineStyle);
+        var candlestick = FirstProperty(inlineStyle, namedStyle, "candlestick")!.Value;
+        var series = element.Data.Series[0];
+        var categories = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var closeValues = series.Values.Select(value => value!.Value).ToArray();
+        var openValues = series.OpenValues;
+        var highValues = series.HighValues;
+        var lowValues = series.LowValues;
+        var isOhlc = openValues.Count != 0;
+
+        var xAxis = Property(raw, "xAxis");
+        var yAxis = Property(raw, "yAxis");
+        var showXAxis = xAxis is null || OptionalBoolean(xAxis.Value, "visible") != false;
+        var showYAxis = yAxis is null || OptionalBoolean(yAxis.Value, "visible") != false;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+        var axisStyle = Property(candlestick, "axisTextStyle");
+        var valueStyle = Property(candlestick, "valueTextStyle");
+        var xAxisTextStyle = Property(xAxis, "textStyle") ?? axisStyle;
+        var yAxisTextStyle = Property(yAxis, "textStyle") ?? axisStyle;
+        var xAxisTitleStyle = Property(xAxis, "titleTextStyle") ?? axisStyle;
+        var yAxisTitleStyle = Property(yAxis, "titleTextStyle") ?? axisStyle;
+        var showCloseValues = OptionalBoolean(candlestick, "showCloseValues") ?? false;
+        if (showCloseValues && categories.Length > 16)
+            throw Unsupported(element.Id, "showCloseValues is limited to 16 candlesticks to keep labels readable");
+
+        var dataMinimum = lowValues.Min();
+        var dataMaximum = highValues.Max();
+        var dataRange = dataMaximum - dataMinimum;
+        if (dataRange <= 0) dataRange = Math.Max(1, Math.Abs(dataMaximum) * 0.1);
+        var majorUnit = yAxis is { } y && OptionalDouble(y, "majorUnit") is { } explicitMajor
+            ? explicitMajor
+            : NiceVectorChartStep(dataRange / 4);
+        var pad = dataRange * 0.05;
+        var minimum = yAxis is { } minimumAxis && OptionalDouble(minimumAxis, "min") is { } explicitMinimum
+            ? explicitMinimum
+            : Math.Floor((dataMinimum - pad) / majorUnit) * majorUnit;
+        var maximum = yAxis is { } maximumAxis && OptionalDouble(maximumAxis, "max") is { } explicitMaximum
+            ? explicitMaximum
+            : Math.Ceiling((dataMaximum + pad) / majorUnit) * majorUnit;
+        if (maximum <= minimum) throw Unsupported(element.Id, "candlestick yAxis maximum must be greater than its minimum");
+
+        var tickCount = checked((int)Math.Floor((maximum - minimum) / majorUnit + 1e-9)) + 1;
+        if (tickCount is < 2 or > 12)
+            throw Unsupported(element.Id, "candlestick yAxis must expand to between 2 and 12 major ticks");
+
+        var x = element.Frame.X;
+        var yPosition = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var leftInset = showYAxis ? Math.Clamp(width * 0.1, 42, 68) : 8;
+        var rightInset = showCloseValues ? Math.Clamp(width * 0.08, 32, 48) : 10;
+        var bottomInset = showXAxis
+            ? (xAxis is { } xAxisValue && xAxisValue.TryGetProperty("title", out _) ? 38 : 24)
+            : 8;
+        var topInset = titleHeight + 8;
+        var plotX = x + leftInset;
+        var plotY = yPosition + topInset;
+        var plotWidth = width - leftInset - rightInset;
+        var plotHeight = height - topInset - bottomInset;
+        if (plotWidth < 120 || plotHeight < 80)
+            throw Unsupported(element.Id, "candlestick frame is too small for native axes and editable marks");
+        var slotWidth = plotWidth / categories.Length;
+        if (slotWidth < 4.5)
+            throw Unsupported(element.Id, "candlestick frame is too narrow for the requested observation count");
+
+        var bodyWidthRatio = OptionalDouble(candlestick, "bodyWidthRatio") ?? 0.55;
+        var bodyWidth = Math.Max(1.25, slotWidth * bodyWidthRatio);
+        var labelInterval = xAxis is { } xAxisLabel && OptionalDouble(xAxisLabel, "tickLabelInterval") is { } interval
+            ? checked((int)interval)
+            : Math.Max(1, checked((int)Math.Ceiling(categories.Length / 12d)));
+        var numberFormat = yAxis is { } formattedAxis ? OptionalString(formattedAxis, "numberFormat") : null;
+        if (numberFormat is not null && !CandlestickNumberFormats.Contains(numberFormat, StringComparer.Ordinal))
+            throw Unsupported(element.Id, $"candlestick yAxis numberFormat {numberFormat} is outside the bounded profile");
+
+        double PlotY(double value) => plotY + (maximum - value) * plotHeight / (maximum - minimum);
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(yPosition),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(yPosition),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                CandlestickNativeId(element.Id, "title"),
+                "candlestick title",
+                x,
+                yPosition,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        if (showYAxis)
+        {
+            var gridlineStroke = Property(candlestick, "gridlineStroke");
+            for (var tickIndex = 0; tickIndex < tickCount; tickIndex++)
+            {
+                var tickValue = minimum + tickIndex * majorUnit;
+                var tickY = PlotY(tickValue);
+                if (gridlineStroke is { } gridline)
+                    group.Children.Add(VectorChartLineElement(
+                        CandlestickNativeId(element.Id, $"grid/{tickIndex}"),
+                        $"candlestick gridline {tickIndex + 1}",
+                        plotX,
+                        tickY,
+                        plotX + plotWidth,
+                        tickY,
+                        gridline,
+                        catalog));
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, $"y-label/{tickIndex}"),
+                    $"candlestick value-axis label {tickIndex + 1}",
+                    x,
+                    tickY - 7,
+                    leftInset - 7,
+                    14,
+                    FormatCandlestickValue(tickValue, numberFormat),
+                    yAxisTextStyle,
+                    catalog,
+                    8,
+                    "right"));
+            }
+            if (yAxis is { } yAxisWithTitle && yAxisWithTitle.TryGetProperty("title", out var yTitle))
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, "y-title"),
+                    "candlestick value-axis title",
+                    x,
+                    plotY - 18,
+                    leftInset + Math.Min(120, plotWidth * 0.3),
+                    16,
+                    yTitle.GetString()!,
+                    yAxisTitleStyle,
+                    catalog,
+                    8,
+                    "left"));
+        }
+
+        var wickStyle = candlestick.GetProperty("wick");
+        for (var index = 0; index < categories.Length; index++)
+        {
+            var centerX = plotX + (index + 0.5) * slotWidth;
+            group.Children.Add(VectorChartLineElement(
+                CandlestickNativeId(element.Id, $"wick/{index}"),
+                $"candlestick wick {index + 1}",
+                centerX,
+                PlotY(highValues[index]),
+                centerX,
+                PlotY(lowValues[index]),
+                wickStyle,
+                catalog));
+
+            if (isOhlc)
+            {
+                var open = openValues[index];
+                var close = closeValues[index];
+                var top = PlotY(Math.Max(open, close));
+                var bottom = PlotY(Math.Min(open, close));
+                var bodyHeight = Math.Max(1.5, bottom - top);
+                if (bodyHeight > bottom - top) top = Math.Clamp((top + bottom - bodyHeight) / 2, plotY, plotY + plotHeight - bodyHeight);
+                var role = close >= open ? "up" : "down";
+                var bodyStyle = candlestick.GetProperty(role);
+                var body = ShapeFrame(
+                    new PpjFrameModel(centerX - bodyWidth / 2, top, bodyWidth, bodyHeight, 0, false, false),
+                    "rect");
+                ApplyTextBoxFill(body, bodyStyle.GetProperty("fill"), catalog);
+                if (bodyStyle.TryGetProperty("stroke", out var bodyStroke)) ApplyLine(body, bodyStroke, catalog);
+                else body.LineStyle = "none";
+                group.Children.Add(new PresentationElement
+                {
+                    Id = CandlestickNativeId(element.Id, $"body/{index}"),
+                    Name = $"candlestick {role} body {index + 1}",
+                    Shape = body,
+                });
+            }
+            else
+            {
+                var closeY = PlotY(closeValues[index]);
+                group.Children.Add(VectorChartLineElement(
+                    CandlestickNativeId(element.Id, $"close/{index}"),
+                    $"candlestick close tick {index + 1}",
+                    centerX,
+                    closeY,
+                    centerX + bodyWidth / 2,
+                    closeY,
+                    wickStyle,
+                    catalog));
+            }
+
+            if (showXAxis && index % labelInterval == 0)
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, $"x-label/{index}"),
+                    $"candlestick category label {index + 1}",
+                    plotX + index * slotWidth,
+                    plotY + plotHeight + 3,
+                    Math.Max(slotWidth, 30),
+                    15,
+                    categories[index],
+                    xAxisTextStyle,
+                    catalog,
+                    Math.Clamp(slotWidth * 0.24, 6, 9),
+                    "center"));
+
+            if (showCloseValues)
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, $"close-value/{index}"),
+                    $"candlestick close value {index + 1}",
+                    centerX - slotWidth / 2,
+                    Math.Max(plotY, PlotY(highValues[index]) - 16),
+                    slotWidth,
+                    14,
+                    FormatCandlestickValue(closeValues[index], numberFormat),
+                    valueStyle,
+                    catalog,
+                    Math.Clamp(slotWidth * 0.22, 6, 8),
+                    "center"));
+        }
+
+        if (showXAxis && xAxis is { } xAxisWithTitle && xAxisWithTitle.TryGetProperty("title", out var xTitle))
+            group.Children.Add(VectorChartTextElement(
+                CandlestickNativeId(element.Id, "x-title"),
+                "candlestick category-axis title",
+                plotX,
+                yPosition + height - 17,
+                plotWidth,
+                16,
+                xTitle.GetString()!,
+                xAxisTitleStyle,
+                catalog,
+                8,
+                "center"));
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateCandlestickCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.Data.Categories.Count is < 1 or > 64 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != element.Data.Categories.Count)
+            throw Unsupported(element.Id, "candlestick categories must be 1..64 unique non-empty strings");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "candlestick charts require exactly one OHLC or HLC series");
+        var series = element.Data.Series[0];
+        var count = element.Data.Categories.Count;
+        if (series.Values.Count != count || series.Values.Any(value => value is null) ||
+            series.HighValues.Count != count || series.LowValues.Count != count ||
+            (series.OpenValues.Count != 0 && series.OpenValues.Count != count))
+            throw Unsupported(element.Id, "candlestick open/high/low/close channels must align with the category count");
+        for (var index = 0; index < count; index++)
+        {
+            var low = series.LowValues[index];
+            var high = series.HighValues[index];
+            var close = series.Values[index]!.Value;
+            if (low > high || close < low || close > high ||
+                (series.OpenValues.Count != 0 && (series.OpenValues[index] < low || series.OpenValues[index] > high)))
+                throw Unsupported(element.Id, "every open and close must lie inside its low/high interval");
+        }
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"candlestick series do not support {property}");
+        foreach (var property in new[] { "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "candlestick charts do not support secondary axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"candlestick charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "candlestick") is not { } candlestick)
+            throw Unsupported(element.Id, "candlestick charts require style.candlestick");
+        foreach (var role in new[] { "up", "down" })
+        {
+            var fillType = candlestick.GetProperty(role).GetProperty("fill").GetProperty("type").GetString();
+            if (fillType is "none" or "image")
+                throw Unsupported(element.Id, $"candlestick {role} fill must be solid or a bounded gradient");
+        }
+        if (raw.TryGetProperty("yAxis", out var yAxis))
+        {
+            var lowest = series.LowValues.Min();
+            var highest = series.HighValues.Max();
+            if (OptionalDouble(yAxis, "min") is { } minimum && minimum > lowest)
+                throw Unsupported(element.Id, "candlestick yAxis.min must not clip the lowest observation");
+            if (OptionalDouble(yAxis, "max") is { } maximum && maximum < highest)
+                throw Unsupported(element.Id, "candlestick yAxis.max must not clip the highest observation");
+        }
+    }
+
+    private static PresentationElement VectorChartLineElement(
+        string id,
+        string name,
+        double startX,
+        double startY,
+        double endX,
+        double endY,
+        JsonElement stroke,
+        Catalog catalog)
+    {
+        var connector = new PresentationConnector
+        {
+            ConnectorType = "straight",
+            StartXEmu = Emu(startX),
+            StartYEmu = Emu(startY),
+            EndXEmu = Emu(endX),
+            EndYEmu = Emu(endY),
+        };
+        ApplyLine(connector, stroke, catalog);
+        return new PresentationElement { Id = id, Name = name, Connector = connector };
+    }
+
+    private static string CandlestickNativeId(string elementId, string suffix) =>
+        $"{elementId}/candlestick/{suffix}";
+
+    private static double NiceVectorChartStep(double raw)
+    {
+        if (!double.IsFinite(raw) || raw <= 0) return 1;
+        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var normalized = raw / magnitude;
+        var nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+        return nice * magnitude;
+    }
+
+    private static readonly string[] CandlestickNumberFormats = ["0", "0.0", "0.00", "#,##0", "#,##0.0", "#,##0.00"];
+
+    private static string FormatCandlestickValue(double value, string? numberFormat) =>
+        value.ToString(numberFormat ?? "0.##", CultureInfo.InvariantCulture);
 
     private static void ValidateWaterfallCompileProfile(
         PpjChartElementModel element,

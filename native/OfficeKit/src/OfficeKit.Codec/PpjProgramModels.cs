@@ -138,6 +138,9 @@ internal sealed record PpjChartSeriesModel(
     IReadOnlyList<string> PointRoles,
     IReadOnlyList<double> XValues,
     IReadOnlyList<double> BubbleSizes,
+    IReadOnlyList<double> OpenValues,
+    IReadOnlyList<double> HighValues,
+    IReadOnlyList<double> LowValues,
     string? ChartType,
     string? Axis,
     JsonElement Raw);
@@ -623,6 +626,15 @@ internal static class PpjProgramParser
                 : [],
             series.TryGetProperty("bubbleSizes", out var bubbleSizes)
                 ? bubbleSizes.EnumerateArray().Select(value => value.GetDouble()).ToArray()
+                : [],
+            series.TryGetProperty("openValues", out var openValues)
+                ? openValues.EnumerateArray().Select(value => value.GetDouble()).ToArray()
+                : [],
+            series.TryGetProperty("highValues", out var highValues)
+                ? highValues.EnumerateArray().Select(value => value.GetDouble()).ToArray()
+                : [],
+            series.TryGetProperty("lowValues", out var lowValues)
+                ? lowValues.EnumerateArray().Select(value => value.GetDouble()).ToArray()
                 : [],
             OptionalString(series, "chartType"),
             OptionalString(series, "axis"),

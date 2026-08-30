@@ -319,6 +319,12 @@ internal static class PpjSemanticValidator
                 if (series.BubbleSizes.Count != 0)
                     diagnostics.Add(new("ppj.chart.bubbleSizeType", "bubbleSizes applies only to bubble charts.", seriesPath + ".bubbleSizes"));
             }
+            if (chart.ChartType != "candlestick" &&
+                (series.OpenValues.Count != 0 || series.HighValues.Count != 0 || series.LowValues.Count != 0))
+                diagnostics.Add(new(
+                    "ppj.chart.ohlcType",
+                    "openValues, highValues, and lowValues apply only to candlestick charts.",
+                    seriesPath));
             if (series.Raw.TryGetProperty("trendlines", out var trendlines))
             {
                 var trendlineIndex = 0;
@@ -355,6 +361,9 @@ internal static class PpjSemanticValidator
         if (chart.ChartType == "heatmap") ValidateHeatmap(chart, path, diagnostics);
         else if (chart.Raw.TryGetProperty("style", out var heatmapStyle) && heatmapStyle.TryGetProperty("heatmap", out _))
             diagnostics.Add(new("ppj.chart.heatmapStyleType", "style.heatmap applies only to heatmap charts.", path + ".style.heatmap"));
+        if (chart.ChartType == "candlestick") ValidateCandlestick(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var candlestickStyle) && candlestickStyle.TryGetProperty("candlestick", out _))
+            diagnostics.Add(new("ppj.chart.candlestickStyleType", "style.candlestick applies only to candlestick charts.", path + ".style.candlestick"));
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
@@ -482,6 +491,120 @@ internal static class PpjSemanticValidator
                     "ppj.chart.heatmapMidpointType",
                     "Heatmap midpoint applies only to a diverging scale.",
                     path + ".style.heatmap.midpoint"));
+        }
+    }
+
+    private static void ValidateCandlestick(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Categories.Count is < 1 or > 64)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickCategoryCount",
+                "Candlestick charts require between 1 and 64 ordered categories.",
+                path + ".data.categories"));
+        var categories = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < chart.Data.Categories.Count; index++)
+        {
+            var category = chart.Data.Categories[index];
+            if (category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString()))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickCategory",
+                    "Candlestick categories must be non-empty strings.",
+                    $"{path}.data.categories[{index}]"));
+            else if (!categories.Add(category.GetString()!))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickCategoryDuplicate",
+                    $"Candlestick category {category.GetString()} is duplicated.",
+                    $"{path}.data.categories[{index}]"));
+        }
+        if (chart.Data.Series.Count != 1)
+        {
+            diagnostics.Add(new(
+                "ppj.chart.candlestickSeriesCount",
+                "Candlestick charts require exactly one OHLC or HLC series.",
+                path + ".data.series"));
+            return;
+        }
+
+        var series = chart.Data.Series[0];
+        var seriesPath = path + ".data.series[0]";
+        var count = chart.Data.Categories.Count;
+        if (series.Values.Any(value => value is null))
+            diagnostics.Add(new(
+                "ppj.chart.candlestickMissingClose",
+                "Candlestick close values cannot be missing.",
+                seriesPath + ".values"));
+        if (series.HighValues.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickHighLength",
+                "Candlestick highValues must contain one value per category.",
+                seriesPath + ".highValues"));
+        if (series.LowValues.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickLowLength",
+                "Candlestick lowValues must contain one value per category.",
+                seriesPath + ".lowValues"));
+        if (series.OpenValues.Count != 0 && series.OpenValues.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickOpenLength",
+                "Candlestick openValues must be omitted for HLC or contain one value per category for OHLC.",
+                seriesPath + ".openValues"));
+
+        if (series.Values.Count == count && series.Values.All(value => value is not null) &&
+            series.HighValues.Count == count && series.LowValues.Count == count &&
+            (series.OpenValues.Count == 0 || series.OpenValues.Count == count))
+        {
+            for (var index = 0; index < count; index++)
+            {
+                var high = series.HighValues[index];
+                var low = series.LowValues[index];
+                var close = series.Values[index]!.Value;
+                if (low > high || close < low || close > high ||
+                    (series.OpenValues.Count != 0 && (series.OpenValues[index] < low || series.OpenValues[index] > high)))
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickRange",
+                        "Each low must not exceed high, and open/close must lie inside that range.",
+                        $"{seriesPath}.values[{index}]"));
+            }
+
+            var lowest = series.LowValues.Min();
+            var highest = series.HighValues.Max();
+            if (chart.Raw.TryGetProperty("yAxis", out var yAxis))
+            {
+                if (yAxis.TryGetProperty("min", out var minimum) && minimum.GetDouble() > lowest)
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickAxisClip",
+                        "Explicit yAxis.min must not clip the lowest observation.",
+                        path + ".yAxis.min"));
+                if (yAxis.TryGetProperty("max", out var maximum) && maximum.GetDouble() < highest)
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickAxisClip",
+                        "Explicit yAxis.max must not clip the highest observation.",
+                        path + ".yAxis.max"));
+            }
+        }
+
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickSeriesField",
+                    $"{property} is not part of the bounded candlestick series profile.",
+                    $"{seriesPath}.{property}"));
+
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("candlestick", out var candlestick)) return;
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickStyleField",
+                    $"{property} is not part of the bounded vector candlestick style profile.",
+                    $"{path}.style.{property}"));
+        foreach (var role in new[] { "up", "down" })
+        {
+            var fill = candlestick.GetProperty(role).GetProperty("fill");
+            if (fill.GetProperty("type").GetString() is "none" or "image")
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickBodyFill",
+                    "Candlestick body fills must be solid or bounded gradients.",
+                    $"{path}.style.candlestick.{role}.fill"));
         }
     }
 
@@ -845,10 +968,10 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.animation.textBuild", "textBuild requires a text-bearing target.", $"{path}.textBuild"));
             if (animation.ChartBuild is not null && target is not PpjChartElementModel)
                 diagnostics.Add(new("ppj.animation.chartBuild", "chartBuild requires a chart target.", $"{path}.chartBuild"));
-            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" })
+            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" or "candlestick" })
                 diagnostics.Add(new(
-                    "ppj.animation.heatmapChartBuild",
-                    "Vector heatmaps compile to one editable group and support whole-object animation, not ChartPart build modes.",
+                    "ppj.animation.vectorChartBuild",
+                    "Vector-lowered charts compile to one editable group and support whole-object animation, not ChartPart build modes.",
                     $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));

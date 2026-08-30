@@ -700,6 +700,99 @@ public sealed class PptxCodecTests
                 ["description"] = "Three customer segments by four operating measures, colored from negative to positive relationship strength.",
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-candlestick-main",
+            ["type"] = "chart",
+            ["role"] = "daily price range",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 275, ["width"] = 540, ["height"] = 195 },
+            ["chartType"] = "candlestick",
+            ["title"] = "Daily OHLC",
+            ["xAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["title"] = "Session",
+                ["tickLabelInterval"] = 1,
+                ["textStyle"] = new JsonObject { ["fontSize"] = 7.5, ["color"] = "#52606D" },
+            },
+            ["yAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["title"] = "USD",
+                ["numberFormat"] = "0.0",
+                ["min"] = 88,
+                ["max"] = 120,
+                ["majorUnit"] = 8,
+            },
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["candlestick"] = new JsonObject
+                {
+                    ["up"] = new JsonObject
+                    {
+                        ["fill"] = new JsonObject
+                        {
+                            ["type"] = "gradient",
+                            ["kind"] = "linear",
+                            ["angle"] = 90,
+                            ["stops"] = new JsonArray
+                            {
+                                new JsonObject { ["offset"] = 0, ["color"] = "#DCEFEA" },
+                                new JsonObject { ["offset"] = 1, ["color"] = "#0B8F8F" },
+                            },
+                        },
+                        ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.6 },
+                    },
+                    ["down"] = new JsonObject
+                    {
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#C8644A" },
+                        ["stroke"] = new JsonObject { ["color"] = "#8B3E2F", ["width"] = 0.6 },
+                    },
+                    ["wick"] = new JsonObject { ["color"] = "#16324F", ["width"] = 0.8, ["cap"] = "round" },
+                    ["bodyWidthRatio"] = 0.5,
+                    ["showCloseValues"] = true,
+                    ["gridlineStroke"] = new JsonObject { ["color"] = "#CBD5E1", ["width"] = 0.5, ["opacity"] = 0.7 },
+                    ["axisTextStyle"] = new JsonObject { ["fontSize"] = 8, ["color"] = "#52606D" },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 7, ["bold"] = true, ["color"] = "#16324F" },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "daily-ohlc",
+                        ["name"] = "Price",
+                        ["openValues"] = new JsonArray(92, 96, 94, 101, 99, 108, 111, 109),
+                        ["highValues"] = new JsonArray(98, 99, 103, 104, 110, 114, 115, 117),
+                        ["lowValues"] = new JsonArray(90, 91, 92, 96, 97, 104, 106, 107),
+                        ["values"] = new JsonArray(96, 94, 101, 99, 108, 111, 109, 116),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Eight ordered daily open, high, low, and close observations.",
+            },
+        });
+        var invalidCandlestickProgram = authoredProgram.DeepClone().AsObject();
+        invalidCandlestickProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-candlestick-main")
+            ["data"]!["series"]![0]!["lowValues"]![2] = 110;
+        var invalidCandlestick = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidCandlestickProgram.ToJsonString()));
+        Assert.False(invalidCandlestick.IsValid);
+        Assert.Contains(invalidCandlestick.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.candlestickRange");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -776,7 +869,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(24U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(25U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -875,6 +968,16 @@ public sealed class PptxCodecTests
             Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "Enterprise");
             Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "-6");
             Assert.NotNull(nativeHeatmap.Descendants<A.GradientFill>().Single());
+            var nativeCandlestick = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "daily price range");
+            Assert.Equal(8, nativeCandlestick.Elements<P.ConnectionShape>().Count(connector =>
+                connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("candlestick wick ", StringComparison.Ordinal) == true));
+            Assert.Equal(8, nativeCandlestick.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.Contains(" body ", StringComparison.Ordinal) == true));
+            Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "Daily OHLC");
+            Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "116.0");
+            Assert.NotEmpty(nativeCandlestick.Descendants<A.GradientFill>());
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -1242,6 +1345,14 @@ public sealed class PptxCodecTests
                 item.GetProperty("name").GetString() == "heatmap cell 1,1");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "correlation intensity matrix" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedCandlestick = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "daily price range");
+            Assert.Contains(projectedCandlestick.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "candlestick wick 1");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "daily price range" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&

@@ -2531,6 +2531,7 @@
                 "radar",
                 "waterfall",
                 "heatmap",
+                "candlestick",
                 "combo"
               ]
             },
@@ -2673,6 +2674,27 @@
             "exclusiveMinimum": 0
           }
         },
+        "openValues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "number"
+          }
+        },
+        "highValues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "number"
+          }
+        },
+        "lowValues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "number"
+          }
+        },
         "chartType": {
           "enum": [
             "bar",
@@ -2802,6 +2824,9 @@
         },
         "heatmap": {
           "$ref": "#/$defs/heatmapStyle"
+        },
+        "candlestick": {
+          "$ref": "#/$defs/candlestickStyle"
         }
       }
     },
@@ -2893,6 +2918,58 @@
           "$ref": "#/$defs/color"
         },
         "cellStroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "axisTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        }
+      }
+    },
+    "candlestickBodyStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fill"
+      ],
+      "properties": {
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        }
+      }
+    },
+    "candlestickStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "up",
+        "down",
+        "wick"
+      ],
+      "properties": {
+        "up": {
+          "$ref": "#/$defs/candlestickBodyStyle"
+        },
+        "down": {
+          "$ref": "#/$defs/candlestickBodyStyle"
+        },
+        "wick": {
+          "$ref": "#/$defs/stroke"
+        },
+        "bodyWidthRatio": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 0.9
+        },
+        "showCloseValues": {
+          "type": "boolean"
+        },
+        "gridlineStroke": {
           "$ref": "#/$defs/stroke"
         },
         "axisTextStyle": {
