@@ -1107,9 +1107,9 @@ internal static class PpjAuthoredPresentationCompiler
         {
             var color = catalog.Color(fill.GetProperty("color"));
             var opacity = OptionalDouble(fill, "opacity") ?? color.Alpha;
-            if (opacity != 1)
-                throw Unsupported("background", "translucent solid slide backgrounds are not yet compiler-owned");
-            return new PresentationBackground { Solid = true, ColorRgb = color.Rgb };
+            var background = new PresentationBackground { Solid = true, ColorRgb = color.Rgb };
+            if (opacity < 1) background.OpacityThousandthPercent = Opacity(opacity);
+            return background;
         }
         if (type == "gradient") return new PresentationBackground
         {

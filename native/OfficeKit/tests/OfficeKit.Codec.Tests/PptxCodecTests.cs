@@ -521,6 +521,22 @@ public sealed class PptxCodecTests
             },
         };
 
+        var translucentBackgroundProgram = authoredProgram.DeepClone().AsObject();
+        translucentBackgroundProgram["pages"]![0]!["background"] = new JsonObject
+        {
+            ["type"] = "solid",
+            ["color"] = "#0A84FF80",
+        };
+        var translucentBackgroundRequest = request.Clone();
+        translucentBackgroundRequest.PresentationProgram.ProgramJson =
+            ByteString.CopyFromUtf8(translucentBackgroundProgram.ToJsonString());
+        var translucentBackground = Invoke(translucentBackgroundRequest);
+        Assert.True(translucentBackground.Ok, Diagnostics(translucentBackground));
+        using (var stream = new MemoryStream(translucentBackground.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Equal(50_196, OrderedSlides(package)[0].Slide!.CommonSlideData!.Background!
+                .Descendants<A.Alpha>().Single().Val!.Value);
+
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
         Assert.Equal(21U, first.PresentationProgram.ExpandedElementCount);
@@ -4515,6 +4531,7 @@ public sealed class PptxCodecTests
         {
             ColorRgb = "F1F5F9",
             Solid = true,
+            OpacityThousandthPercent = 45_000,
         };
         var authored = Invoke(request);
         Assert.True(authored.Ok, Diagnostics(authored));
@@ -4524,6 +4541,7 @@ public sealed class PptxCodecTests
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
             var slide = Assert.Single(package.PresentationPart!.SlideParts).Slide!;
             Assert.Equal("F1F5F9", slide.CommonSlideData!.Background!.Descendants<A.RgbColorModelHex>().Single().Val!.Value);
+            Assert.Equal(45_000, slide.CommonSlideData.Background.Descendants<A.Alpha>().Single().Val!.Value);
             Assert.Null(package.PresentationPart.SlideMasterParts.Single().SlideLayoutParts.Single().SlideLayout!.CommonSlideData!.Background);
         }
 
@@ -4532,6 +4550,23 @@ public sealed class PptxCodecTests
         var slideArtifact = Assert.Single(imported.Artifact.Presentation.Slides);
         Assert.True(slideArtifact.Source.BackgroundEditable);
         Assert.Equal("F1F5F9", slideArtifact.Background.ColorRgb);
+        Assert.True(slideArtifact.Background.HasOpacityThousandthPercent);
+        Assert.Equal(45_000U, slideArtifact.Background.OpacityThousandthPercent);
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = authored.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/background-opacity.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        using (var projectedJson = JsonDocument.Parse(projected.PresentationProgram.ProgramJson.ToByteArray()))
+            Assert.Equal(0.45, projectedJson.RootElement.GetProperty("pages")[0].GetProperty("background").GetProperty("opacity").GetDouble(), 3);
         slideArtifact.Background = new PresentationBackground
         {
             ColorScheme = "accent2",

@@ -1079,7 +1079,12 @@ internal static partial class PpjPresentationProjector
         if (background.GradientFill is not null)
             return Gradient(background.GradientFill);
         if (!string.IsNullOrEmpty(background.ColorRgb))
-            return new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
+        {
+            var output = new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
+            if (background.HasOpacityThousandthPercent)
+                output["opacity"] = Unit(background.OpacityThousandthPercent);
+            return output;
+        }
         return null;
     }
 
