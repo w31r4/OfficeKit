@@ -294,25 +294,25 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (element.ChartType == "waterfall")
-            throw Unsupported(element.Id, $"{element.ChartType} chart authoring is not yet compiler-owned");
         if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
             throw Unsupported(element.Id, "rich chart-title formatting is not yet compiler-owned");
 
+        var isWaterfall = element.ChartType == "waterfall";
         var chart = new PresentationChart
         {
             LeftEmu = Emu(element.Frame.X),
             TopEmu = Emu(element.Frame.Y),
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
-            Type = ChartType(element.ChartType),
+            Type = isWaterfall ? SpreadsheetChartType.Bar : ChartType(element.ChartType),
             Title = element.Title is null ? string.Empty : Flatten(element.Title),
-            BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType == "column" ? "column" : string.Empty,
+            BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType is "column" or "waterfall" ? "column" : string.Empty,
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) chart.FrameTransform = frameTransform;
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
+        if (isWaterfall) ValidateWaterfallCompileProfile(element, raw, namedStyle, inlineStyle);
         ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id);
 
         var rawXAxis = Property(raw, "xAxis");
@@ -342,6 +342,12 @@ internal static class PpjAuthoredPresentationCompiler
         }
 
         var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
+        if (isWaterfall)
+        {
+            BuildWaterfallSeries(chart, element, namedStyle, inlineStyle, catalog);
+            ApplyAccessibility(chart, element.Accessibility);
+            return chart;
+        }
         for (var index = 0; index < element.Data.Series.Count; index++)
         {
             var source = element.Data.Series[index];
@@ -370,6 +376,141 @@ internal static class PpjAuthoredPresentationCompiler
         }
         ApplyAccessibility(chart, element.Accessibility);
         return chart;
+    }
+
+    private static void ValidateWaterfallCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "waterfall charts require exactly one semantic series");
+        var series = raw.GetProperty("data").GetProperty("series")[0];
+        RejectProperties(
+            series,
+            element.Id,
+            "chartType",
+            "axis",
+            "color",
+            "fill",
+            "stroke",
+            "marker",
+            "trendlines",
+            "errorBars",
+            "xValues",
+            "bubbleSizes");
+        foreach (var name in new[] { "stacking", "showDataLabels", "dataLabelPosition", "dataLabels", "smooth", "varyColors" })
+            if (FirstProperty(inlineStyle, namedStyle, name) is not null)
+                throw Unsupported(element.Id, $"{name} is outside the bounded waterfall style profile");
+        if (FirstProperty(inlineStyle, namedStyle, "legend") is { } legend && legend.GetString() != "none")
+            throw Unsupported(element.Id, "waterfall charts do not expose their internal lowering series through a legend");
+        if (FirstProperty(inlineStyle, namedStyle, "waterfall") is not { } waterfall)
+            throw Unsupported(element.Id, "waterfall charts require style.waterfall increase, decrease, and total role styles");
+        foreach (var role in new[] { "increase", "decrease", "total" })
+        {
+            var fillType = waterfall.GetProperty(role).GetProperty("fill").GetProperty("type").GetString();
+            if (fillType is "none" or "image")
+                throw Unsupported(element.Id, $"waterfall {role} fill must be solid or a bounded gradient");
+        }
+    }
+
+    private static void BuildWaterfallSeries(
+        PresentationChart chart,
+        PpjChartElementModel element,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle,
+        Catalog catalog)
+    {
+        var semantic = element.Data.Series[0];
+        if (semantic.PointRoles.Count != semantic.Values.Count || semantic.Values.Any(value => value is null))
+            throw Unsupported(element.Id, "waterfall values and pointRoles must be complete and aligned");
+
+        var count = semantic.Values.Count;
+        var offset = new double[count];
+        var increase = new double[count];
+        var decrease = new double[count];
+        var total = new double[count];
+        var increaseMissing = new List<uint>(count);
+        var decreaseMissing = new List<uint>(count);
+        var totalMissing = new List<uint>(count);
+        var running = 0d;
+        for (var index = 0; index < count; index++)
+        {
+            var value = semantic.Values[index]!.Value;
+            if (semantic.PointRoles[index] == "total")
+            {
+                offset[index] = 0;
+                total[index] = value;
+                increaseMissing.Add(checked((uint)index));
+                decreaseMissing.Add(checked((uint)index));
+                running = value;
+                continue;
+            }
+
+            var next = running + value;
+            offset[index] = Math.Min(running, next);
+            if (value >= 0)
+            {
+                increase[index] = value;
+                decreaseMissing.Add(checked((uint)index));
+            }
+            else
+            {
+                decrease[index] = -value;
+                increaseMissing.Add(checked((uint)index));
+            }
+            totalMissing.Add(checked((uint)index));
+            running = next;
+        }
+
+        var waterfall = FirstProperty(inlineStyle, namedStyle, "waterfall")!.Value;
+        chart.Grouping = "stacked";
+        if (!chart.HasGapWidth) chart.GapWidth = 60;
+        chart.HasLegend = false;
+        chart.LegendPosition = string.Empty;
+        chart.DataLabels = null;
+        chart.YAxis ??= new SpreadsheetChartAxisArtifact();
+        if (!chart.YAxis.HasMinimum) chart.YAxis.Minimum = 0;
+
+        var offsetSeries = new SpreadsheetChartSeriesArtifact
+        {
+            Name = "__offset__",
+            SeriesFill = new SpreadsheetChartSurfaceFill { NoFill = true },
+            Line = new SpreadsheetChartLineStyleArtifact
+            {
+                Color = new SpreadsheetColor { Rgb = "000000" },
+                WidthPoints = 0,
+                OpacityThousandthPercent = 0,
+            },
+        };
+        offsetSeries.Values.Add(offset);
+        chart.Series.Add(offsetSeries);
+        chart.Series.Add(WaterfallRoleSeries(
+            waterfall.GetProperty("increase"), increase, increaseMissing, catalog, element.Id, "increase"));
+        chart.Series.Add(WaterfallRoleSeries(
+            waterfall.GetProperty("decrease"), decrease, decreaseMissing, catalog, element.Id, "decrease"));
+        chart.Series.Add(WaterfallRoleSeries(
+            waterfall.GetProperty("total"), total, totalMissing, catalog, element.Id, "total"));
+    }
+
+    private static SpreadsheetChartSeriesArtifact WaterfallRoleSeries(
+        JsonElement role,
+        IReadOnlyList<double> values,
+        IEnumerable<uint> missingIndexes,
+        Catalog catalog,
+        string elementId,
+        string roleName)
+    {
+        var output = new SpreadsheetChartSeriesArtifact
+        {
+            Name = role.GetProperty("label").GetString()!,
+            SeriesFill = BuildChartFill(role.GetProperty("fill"), catalog, $"{elementId} waterfall {roleName} fill"),
+        };
+        output.Values.Add(values);
+        output.MissingValueIndexes.Add(missingIndexes);
+        if (role.TryGetProperty("stroke", out var stroke)) output.Line = BuildChartLine(stroke, catalog);
+        return output;
     }
 
     private static SpreadsheetChartSeriesArtifact BuildSeries(

@@ -58,8 +58,8 @@ spatial relationship, never to decorate a page.
 
 The authored chart compiler owns these native visual controls:
 
-- bar, column, line, area, pie, doughnut, scatter, bubble, standard radar, and
-  bounded bar-line combo plots;
+- bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
+  bounded semantic waterfall, and bounded bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -249,6 +249,50 @@ to reuse a category chart. On imported charts, the current `setChartData`
 capability does not authorize changing X values, bubble sizes, or the positions
 of missing Y observations.
 
+Use `waterfall` for a cumulative bridge whose opening/closing totals and signed
+changes must remain explicit. Author one semantic series rather than exposing
+the four implementation series used by the native lowering:
+
+```json
+{
+  "type": "chart",
+  "id": "operating-bridge",
+  "chartType": "waterfall",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Operating bridge",
+  "yAxis": { "title": "Run-rate", "min": 0, "max": 180, "majorUnit": 30 },
+  "style": {
+    "legend": "none",
+    "gapWidth": 55,
+    "waterfall": {
+      "increase": { "label": "Increase", "fill": { "type": "solid", "color": "#0B8F8F" } },
+      "decrease": { "label": "Decrease", "fill": { "type": "solid", "color": "#C8644A" } },
+      "total": { "label": "Total", "fill": { "type": "solid", "color": "#16324F" } }
+    }
+  },
+  "data": {
+    "categories": ["Opening", "Growth", "Churn", "Cost", "Closing"],
+    "series": [{
+      "id": "run-rate",
+      "name": "Run-rate",
+      "values": [120, 40, -25, -10, 125],
+      "pointRoles": ["total", "delta", "delta", "delta", "total"]
+    }]
+  }
+}
+```
+
+A `total` value is absolute. A `delta` value is added to the running total;
+every later total must equal that computed value. The bounded profile keeps the
+cumulative value non-negative and requires explicit increase, decrease, and
+total styles. It deliberately omits legends, automatic data labels, secondary
+axes, trendlines, markers, and error bars because those would expose or confuse
+the hidden offset series. OfficeKit compiles the result to one editable native
+stacked-column ChartPart; it does not fake the bridge with rectangles. Exact
+waterfall intent recovers from the embedded PPJ. If that snapshot is removed,
+ordinary PPTX import truthfully exposes the four native series instead of
+guessing that an arbitrary stacked chart is a waterfall.
+
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
 replacement for precise lookup or ordered ranking:
@@ -281,10 +325,10 @@ legend, labels, chart surfaces and fixed-topology source continuation use the
 same chart contracts as the other category families. Filled, marker-only, 3D,
 extension-bearing and irregular native radar variants remain source-owned.
 
-Chart image/pattern paint, theme-transformed gradients, missing-value caches,
-and waterfall still fail closed. Existing unsupported native chart
-graphs remain source-preserved; they are not simplified during an unrelated
-imported edit.
+Chart image/pattern paint, theme-transformed gradients, irregular sparse
+caches, and unrecognized waterfall/ChartEx graphs still fail closed. Existing
+unsupported native chart graphs remain source-preserved; they are not
+simplified during an unrelated imported edit.
 
 The authored table compiler owns a physical column/row grid, finite rectangular
 merges, one optional header row, row/column banding flags, bounded rich text,

@@ -257,6 +257,8 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.id.duplicate", $"Chart series ID {series.Id} is duplicated.", $"{seriesPath}.id"));
             if (seriesType is not ("scatter" or "bubble") && series.Values.Count != chart.Data.Categories.Count)
                 diagnostics.Add(new("ppj.chart.lengthMismatch", $"Series {series.Id} has {series.Values.Count} values for {chart.Data.Categories.Count} categories.", $"{seriesPath}.values"));
+            if (chart.ChartType != "waterfall" && series.PointRoles.Count != 0)
+                diagnostics.Add(new("ppj.chart.pointRoleType", "pointRoles applies only to waterfall charts.", $"{seriesPath}.pointRoles"));
             if (chart.ChartType == "combo" && string.IsNullOrEmpty(series.ChartType))
                 diagnostics.Add(new("ppj.chart.comboSeriesType", "Every combo-chart series requires chartType.", $"{seriesPath}.chartType"));
             if (chart.ChartType != "combo" && series.ChartType is not null && !string.Equals(series.ChartType, chart.ChartType, StringComparison.Ordinal))
@@ -309,6 +311,10 @@ internal static class PpjSemanticValidator
             }
         }
 
+        if (chart.ChartType == "waterfall") ValidateWaterfall(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var ordinaryStyle) && ordinaryStyle.TryGetProperty("waterfall", out _))
+            diagnostics.Add(new("ppj.chart.waterfallStyleType", "style.waterfall applies only to waterfall charts.", path + ".style.waterfall"));
+
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
             (style.TryGetProperty("showDataLabels", out _) || style.TryGetProperty("dataLabelPosition", out _)))
@@ -330,6 +336,103 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidateWaterfall(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Series.Count != 1)
+        {
+            diagnostics.Add(new(
+                "ppj.chart.waterfallSeriesCount",
+                "Waterfall charts require exactly one semantic series.",
+                path + ".data.series"));
+            return;
+        }
+
+        var series = chart.Data.Series[0];
+        var seriesPath = path + ".data.series[0]";
+        if (series.PointRoles.Count != series.Values.Count)
+            diagnostics.Add(new(
+                "ppj.chart.waterfallRoleLength",
+                "Waterfall pointRoles must contain exactly one delta or total role per value.",
+                seriesPath + ".pointRoles"));
+        if (series.Values.Any(value => value is null))
+            diagnostics.Add(new(
+                "ppj.chart.waterfallMissingValue",
+                "Waterfall values cannot be missing.",
+                seriesPath + ".values"));
+
+        foreach (var property in new[] { "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars", "xValues", "bubbleSizes" })
+            if (series.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.waterfallSeriesField",
+                    $"{property} is not part of the bounded waterfall series profile.",
+                    $"{seriesPath}.{property}"));
+
+        if (series.PointRoles.Count == series.Values.Count && series.Values.All(value => value is not null))
+        {
+            const double tolerance = 1e-9;
+            var running = 0d;
+            for (var index = 0; index < series.Values.Count; index++)
+            {
+                var value = series.Values[index]!.Value;
+                if (series.PointRoles[index] == "total")
+                {
+                    if (value < -tolerance)
+                        diagnostics.Add(new(
+                            "ppj.chart.waterfallNegativeTotal",
+                            "Waterfall total values must be non-negative in the bounded profile.",
+                            $"{seriesPath}.values[{index}]"));
+                    if (index > 0 && Math.Abs(value - running) > tolerance)
+                        diagnostics.Add(new(
+                            "ppj.chart.waterfallTotalMismatch",
+                            $"Waterfall total {value.ToString(System.Globalization.CultureInfo.InvariantCulture)} does not equal the computed running total {running.ToString(System.Globalization.CultureInfo.InvariantCulture)}.",
+                            $"{seriesPath}.values[{index}]"));
+                    running = value;
+                }
+                else
+                {
+                    running += value;
+                    if (running < -tolerance)
+                        diagnostics.Add(new(
+                            "ppj.chart.waterfallNegativeRunningTotal",
+                            "Waterfall cumulative values cannot cross below zero in the bounded profile.",
+                            $"{seriesPath}.values[{index}]"));
+                }
+            }
+        }
+
+        if (chart.Raw.TryGetProperty("secondaryXAxis", out _) || chart.Raw.TryGetProperty("secondaryYAxis", out _))
+            diagnostics.Add(new("ppj.chart.waterfallSecondaryAxis", "Waterfall charts do not support secondary axes.", path));
+        if (chart.Raw.TryGetProperty("yAxis", out var yAxis) &&
+            yAxis.TryGetProperty("min", out var minimum) && minimum.GetDouble() > 0)
+            diagnostics.Add(new(
+                "ppj.chart.waterfallAxisMinimum",
+                "Waterfall value-axis minimum must include zero.",
+                path + ".yAxis.min"));
+
+        if (!chart.Raw.TryGetProperty("style", out var style)) return;
+        foreach (var property in new[] { "stacking", "showDataLabels", "dataLabelPosition", "dataLabels", "smooth", "varyColors" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.waterfallStyleField",
+                    $"{property} is not part of the bounded waterfall style profile.",
+                    $"{path}.style.{property}"));
+        if (style.TryGetProperty("legend", out var legend) && legend.GetString() != "none")
+            diagnostics.Add(new(
+                "ppj.chart.waterfallLegend",
+                "Waterfall charts do not expose the internal lowering series through a legend.",
+                path + ".style.legend"));
+        if (!style.TryGetProperty("waterfall", out var waterfall)) return;
+        foreach (var role in new[] { "increase", "decrease", "total" })
+        {
+            var roleFill = waterfall.GetProperty(role).GetProperty("fill");
+            if (roleFill.GetProperty("type").GetString() is "none" or "image")
+                diagnostics.Add(new(
+                    "ppj.chart.waterfallRoleFill",
+                    "Waterfall role fills must be solid or bounded gradients.",
+                    $"{path}.style.waterfall.{role}.fill"));
+        }
     }
 
     private static void ValidateAxisKinds(

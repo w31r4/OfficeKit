@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using Google.Protobuf;
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -543,6 +544,71 @@ public sealed class PptxCodecTests
                 },
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "waterfall-bridge-main",
+            ["type"] = "chart",
+            ["role"] = "cumulative operating bridge",
+            ["frame"] = new JsonObject { ["x"] = 620, ["y"] = 300, ["width"] = 280, ["height"] = 160 },
+            ["chartType"] = "waterfall",
+            ["title"] = "Operating bridge",
+            ["yAxis"] = new JsonObject { ["title"] = "Run-rate", ["min"] = 0, ["max"] = 180, ["majorUnit"] = 30 },
+            ["style"] = new JsonObject
+            {
+                ["legend"] = "none",
+                ["gapWidth"] = 55,
+                ["chartAreaFill"] = new JsonObject { ["type"] = "none" },
+                ["plotAreaFill"] = new JsonObject { ["type"] = "none" },
+                ["waterfall"] = new JsonObject
+                {
+                    ["increase"] = new JsonObject
+                    {
+                        ["label"] = "Increase",
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#0B8F8F" },
+                        ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.5 },
+                    },
+                    ["decrease"] = new JsonObject
+                    {
+                        ["label"] = "Decrease",
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#C8644A" },
+                        ["stroke"] = new JsonObject { ["color"] = "#C8644A", ["width"] = 0.5 },
+                    },
+                    ["total"] = new JsonObject
+                    {
+                        ["label"] = "Total",
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#16324F" },
+                        ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 0.5 },
+                    },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Opening", "Growth", "Churn", "Cost", "Closing"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "run-rate-bridge",
+                        ["name"] = "Run-rate",
+                        ["values"] = new JsonArray(120, 40, -25, -10, 125),
+                        ["pointRoles"] = new JsonArray("total", "delta", "delta", "delta", "total"),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Run-rate opens at 120, rises 40, falls 25 and 10, and closes at 125.",
+            },
+        });
+        var invalidWaterfallProgram = authoredProgram.DeepClone().AsObject();
+        invalidWaterfallProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "waterfall-bridge-main")
+            ["data"]!["series"]![0]!["values"]![4] = 124;
+        var invalidWaterfall = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidWaterfallProgram.ToJsonString()));
+        Assert.False(invalidWaterfall.IsValid);
+        Assert.Contains(invalidWaterfall.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.waterfallTotalMismatch");
         var invalidAdjustmentProgram = authoredProgram.DeepClone().AsObject();
         invalidAdjustmentProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -594,7 +660,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(22U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(23U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -649,6 +715,23 @@ public sealed class PptxCodecTests
                 .Element(chartNamespace + "numLit")!;
             Assert.Equal("3", lineValues.Element(chartNamespace + "ptCount")!.Attribute("val")!.Value);
             Assert.Equal(["0", "2"], lineValues.Elements(chartNamespace + "pt").Select(point => point.Attribute("idx")!.Value));
+            var waterfallChartPart = package.PresentationPart.SlideParts.First().ChartParts
+                .Single(part => part.ChartSpace!.Descendants<C.BarChart>().Any(chart =>
+                    chart.Descendants<C.SeriesText>().Any(text => text.InnerText == "__offset__")));
+            var waterfallChart = waterfallChartPart.ChartSpace!.Descendants<C.BarChart>().Single();
+            Assert.Equal(C.BarGroupingValues.Stacked, waterfallChart.BarGrouping!.Val!.Value);
+            var waterfallSeries = waterfallChart.Elements<C.BarChartSeries>().ToArray();
+            Assert.Equal(4, waterfallSeries.Length);
+            Assert.Equal(["__offset__", "Increase", "Decrease", "Total"],
+                waterfallSeries.Select(series => series.SeriesText!.InnerText));
+            Assert.NotNull(waterfallSeries[0].ChartShapeProperties!.GetFirstChild<A.NoFill>());
+            static Dictionary<uint, double> LiteralValues(C.BarChartSeries series) =>
+                series.GetFirstChild<C.Values>()!.GetFirstChild<C.NumberLiteral>()!.Elements<C.NumericPoint>()
+                    .ToDictionary(point => point.Index!.Value, point => double.Parse(point.NumericValue!.Text, CultureInfo.InvariantCulture));
+            Assert.Equal(new Dictionary<uint, double> { [0] = 0, [1] = 120, [2] = 135, [3] = 125, [4] = 0 }, LiteralValues(waterfallSeries[0]));
+            Assert.Equal(new Dictionary<uint, double> { [1] = 40 }, LiteralValues(waterfallSeries[1]));
+            Assert.Equal(new Dictionary<uint, double> { [2] = 25, [3] = 10 }, LiteralValues(waterfallSeries[2]));
+            Assert.Equal(new Dictionary<uint, double> { [0] = 120, [4] = 125 }, LiteralValues(waterfallSeries[3]));
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -1189,7 +1272,7 @@ public sealed class PptxCodecTests
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
         Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart4.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart5.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
             chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
