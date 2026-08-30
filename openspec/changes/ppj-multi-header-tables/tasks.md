@@ -9,4 +9,4 @@
 - [x] 2.1 Update generated PPJ and focused table guidance.
 - [x] 2.2 Extend the existing comprehensive PPJ contract with one two-row header.
 - [x] 2.3 Run the owning contract, maintainer check, and strict OpenSpec validation.
-- [ ] 2.4 Commit atomically and fast-forward main.
+- [x] 2.4 Commit atomically and fast-forward main.
