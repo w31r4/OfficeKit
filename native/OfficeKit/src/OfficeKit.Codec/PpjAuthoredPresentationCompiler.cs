@@ -453,8 +453,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("fill", out var fill))
         {
             var color = catalog.Color(fill);
-            if (color.Alpha != 1) throw Unsupported("chart marker", "fill opacity is not compiler-owned");
             marker.Fill = new SpreadsheetColor { Rgb = color.Rgb };
+            if (color.Alpha < 1) marker.FillOpacityThousandthPercent = Opacity(color.Alpha);
         }
         if (source.TryGetProperty("stroke", out var stroke)) marker.Line = BuildChartLine(stroke, catalog);
         return marker;

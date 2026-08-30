@@ -601,7 +601,15 @@ internal static partial class PpjPresentationProjector
                     var marker = new JsonObject { ["symbol"] = symbol };
                     if (series.Marker.HasSize) marker["size"] = series.Marker.Size;
                     if (series.Marker.Fill is not null && !string.IsNullOrEmpty(series.Marker.Fill.Rgb))
-                        marker["fill"] = Color(series.Marker.Fill.Rgb);
+                    {
+                        var color = Color(series.Marker.Fill.Rgb);
+                        if (series.Marker.HasFillOpacityThousandthPercent)
+                        {
+                            var alpha = Math.Clamp((int)Math.Round(Unit(series.Marker.FillOpacityThousandthPercent) * 255), 0, 255);
+                            color += $"{alpha:X2}";
+                        }
+                        marker["fill"] = color;
+                    }
                     if (series.Marker.Line is not null && !string.IsNullOrEmpty(series.Marker.Line.Color?.Rgb))
                         marker["stroke"] = ProjectChartLine(series.Marker.Line);
                     output["marker"] = marker;
