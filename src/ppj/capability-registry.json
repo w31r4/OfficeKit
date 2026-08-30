@@ -109,6 +109,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "editable pictographic bars",
+      "ppjPath": "pages[].elements[] where chartType is bar or column and data.series[0].symbol is present",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact pictographic chart from its embedded PPJ program. Without that private program, repeated units import truthfully as an editable group; arbitrary third-party shapes are never inferred as chart data and receive no pictographic mutation capability.",
+      "reason": "The compiler expands one bounded series into stable editable named-icon or preset-geometry units. It requires 2..12 categories, exact positive unit divisibility, at most 32 units per category and 192 total. Fractional symbols, multiple series, axes, ChartPart build animation and unsupported series options fail closed."
+    },
+    {
       "feature": "editable streamgraph",
       "ppjPath": "pages[].elements[] where chartType is area and style.stacking is stream",
       "behavior": "partial",

@@ -7,6 +7,7 @@ Choose the visual from the relationship the audience must understand.
 | trend or change over ordered time | line, area, or ordered columns |
 | changing composition and total magnitude over ordered time | streamgraph |
 | magnitude across categories | bars or columns with a common baseline |
+| small exact counts where one repeated glyph has a declared unit | pictographic bar or column |
 | distribution or correlation | scatter, bubble, or distribution view |
 | intensity across two categorical dimensions | heatmap |
 | open/high/low/close movement over ordered periods | candlestick |
@@ -66,9 +67,9 @@ The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
-  candlestick, bounded vector streamgraph, bounded vector treemap, bounded
-  vector sunburst, bounded vector sankey, and bounded column-line-area category
-  combo plots;
+  candlestick, bounded vector streamgraph, bounded vector pictographic bars and
+  columns, bounded vector treemap, bounded vector sunburst, bounded vector
+  sankey, and bounded column-line-area category combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -475,6 +476,54 @@ PPTX import returns the truthful editable group instead of guessing a
 streamgraph from arbitrary paths. Whole-object animation is valid; native
 `chartBuild`, secondary axes, markers, trendlines, error bars, missing/negative
 values, and per-point labels are not.
+
+Use a pictographic bar only when a small whole count becomes easier to grasp by
+repeating one meaningful symbol. State the conversion explicitly. Do not use
+icons as decorative replacements for a precise common-baseline bar chart, and
+do not suggest a fractional person, site, device, or event.
+
+```json
+{
+  "type": "chart",
+  "id": "verified-participants",
+  "chartType": "bar",
+  "frame": { "x": 72, "y": 112, "width": 720, "height": 280 },
+  "title": "Verified participants by cohort",
+  "data": {
+    "categories": ["Control", "Pilot", "Follow-up"],
+    "series": [
+      {
+        "id": "participants",
+        "name": "Participants",
+        "values": [30, 50, 20],
+        "color": "#0B8F8F",
+        "symbol": {
+          "kind": "icon",
+          "iconName": "fas:user",
+          "unit": 10,
+          "gap": 2,
+          "showValue": true,
+          "unitLabel": "participants"
+        }
+      }
+    ]
+  }
+}
+```
+
+The bounded profile accepts one bar or column series, 2–12 unique string
+categories, complete non-negative values, at most 32 symbols per category and
+192 total. Every value must divide exactly by `unit`; OfficeKit rejects rather
+than clips or rounds a symbol. `kind: "preset"` with an existing DrawingML
+preset such as `star5` is the alternative to a pinned offline `iconName`.
+Series `color`, solid/gradient `fill`, and optional `stroke` control the units.
+
+Each unit, category label, value label, title and unit statement remains an
+editable native object with a stable child ID. Embedded PPJ restores the exact
+chart. Without it, import returns the honest editable group and never guesses
+counts from repeated shapes. Whole-object animation is valid; native
+`chartBuild`, multiple series, axes, fractional symbols, markers, trendlines,
+error bars and other ChartPart-only options fail closed.
 
 Use `waterfall` for a cumulative bridge whose opening/closing totals and signed
 changes must remain explicit. Author one semantic series rather than exposing
