@@ -132,7 +132,8 @@ internal sealed record PpjChartSeriesModel(
     string Name,
     IReadOnlyList<double?> Values,
     string? ChartType,
-    string? Axis);
+    string? Axis,
+    JsonElement Raw);
 
 internal sealed class PpjTableElementModel : PpjElementModel
 {
@@ -598,7 +599,8 @@ internal static class PpjProgramParser
             series.GetProperty("name").GetString()!,
             series.GetProperty("values").EnumerateArray().Select(value => value.ValueKind == JsonValueKind.Null ? (double?)null : value.GetDouble()).ToArray(),
             OptionalString(series, "chartType"),
-            OptionalString(series, "axis"))).ToArray());
+            OptionalString(series, "axis"),
+            series.Clone())).ToArray());
 
     private static PpjTableRowModel ParseTableRow(JsonElement row) => new(
         OptionalString(row, "id"),

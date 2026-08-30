@@ -1067,6 +1067,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void ApplyChartSeries(PpjChartSeriesModel before, PpjChartSeriesModel after, SpreadsheetChartSeriesArtifact target, string path)
     {
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         target.Name = after.Name;
