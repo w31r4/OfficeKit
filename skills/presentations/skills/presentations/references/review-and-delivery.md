@@ -43,6 +43,13 @@ must remain factually and visually valid. On imported pages, change `name` or
 a page again rather than removing the field. Neither edit changes custom-show
 membership or presentation order.
 
+Sections and custom shows are different route structures. `sections[]` must
+partition every page exactly once in presentation order; `customShows[]` are
+named ordered subsets and may repeat a page. On imported decks, change `name`
+or `pages` only when that item's nativeRef advertises `setName` or `setPages`.
+Keep array count, order, item ID, and nativeRef unchanged, then re-import and
+review both the ordinary slide sequence and every alternate show route.
+
 Imported legacy comments are source-bound review evidence. Edit an existing
 `comments[].text` only when that comment's nativeRef advertises `replaceText`;
 keep its ID, page, author, timestamp, position, resolution state, nativeRef, and

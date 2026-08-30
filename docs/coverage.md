@@ -163,6 +163,15 @@ author, timestamp, position, resolution state, order, author catalog, and
 topology remain source-owned; additions, removals, metadata edits, replies, and
 modern-comment graphs fail closed.
 
+Canonical imported PowerPoint sections and custom shows now project item-level
+nativeRefs with `setName` and `setPages`. One comprehensive PPJ transaction
+renames and repartitions a fixed two-section graph, renames and reorders a
+custom show with a repeated page, changes only `ppt/presentation.xml`, and
+recovers the exact route state after second projection. Section partitions are
+still complete and in slide order; custom shows remain ordered subsets. Item
+count/order, facade and native identity, page topology, source hashes, opaque
+extensions, and hyperlink identity remain source-owned and fail closed.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.
