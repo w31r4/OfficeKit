@@ -66,7 +66,7 @@ The authored chart compiler owns these native visual controls:
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
   candlestick, bounded vector treemap, bounded vector sunburst, bounded vector
-  sankey, and bounded bar-line combo plots;
+  sankey, and bounded column-line-area category combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -255,6 +255,66 @@ Y `values` may contain `null`. Do not encode numeric X values as strings merely
 to reuse a category chart. On imported charts, the current `setChartData`
 capability does not authorize changing X values, bubble sizes, or the positions
 of missing Y observations.
+
+Use `combo` only when two or three different plot families share one real
+ordered category domain. Each series declares `chartType: "column" | "line" | "area"`
+and `axis: "primary" | "secondary"`. At least two distinct plot families are
+required, one family must remain primary, and all series of the same family use
+the same axis pair:
+
+```json
+{
+  "type": "chart",
+  "id": "volume-margin-band",
+  "chartType": "combo",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Volume grew while margin stayed inside plan",
+  "xAxis": { "title": "Quarter" },
+  "yAxis": { "title": "Units", "min": 0 },
+  "secondaryXAxis": { "visible": false },
+  "secondaryYAxis": { "title": "Margin (%)", "min": 0, "max": 40 },
+  "style": { "legend": "bottom", "gapWidth": 80 },
+  "data": {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [
+      {
+        "id": "volume",
+        "name": "Volume",
+        "values": [120, 138, 151, 172],
+        "chartType": "column",
+        "axis": "primary",
+        "fill": { "type": "solid", "color": "#CBD5E1" }
+      },
+      {
+        "id": "plan-band",
+        "name": "Plan band",
+        "values": [24, 26, 29, 31],
+        "chartType": "area",
+        "axis": "secondary",
+        "fill": { "type": "solid", "color": "#0B8F8F", "opacity": 0.18 }
+      },
+      {
+        "id": "margin",
+        "name": "Margin",
+        "values": [22, 27, 28, 33],
+        "chartType": "line",
+        "axis": "secondary",
+        "stroke": { "color": "#0B8F8F", "width": 2.5 },
+        "marker": "circle"
+      }
+    ]
+  }
+}
+```
+
+OfficeKit emits separate native `c:areaChart`, `c:barChart` and `c:lineChart`
+plots in one editable ChartPart. Area is written behind columns and the line is
+written last so its evidence stroke remains visible. A secondary pair is
+optional, but must be complete and must serve at least one whole plot family.
+Horizontal bars, scatter/bubble overlays, splitting one family across both
+axis pairs and a one-family pseudo-combo are rejected. Use an ordinary scatter
+or bubble chart for numeric X values; PPJ does not disguise a numeric-axis mix
+as a categorical combo.
 
 Use `waterfall` for a cumulative bridge whose opening/closing totals and signed
 changes must remain explicit. Author one semantic series rather than exposing

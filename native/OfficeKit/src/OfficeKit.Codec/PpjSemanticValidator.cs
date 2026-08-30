@@ -383,6 +383,7 @@ internal static class PpjSemanticValidator
         if (chart.ChartType == "sankey") ValidateSankey(chart, path, diagnostics);
         else if (chart.Raw.TryGetProperty("style", out var sankeyStyle) && sankeyStyle.TryGetProperty("sankey", out _))
             diagnostics.Add(new("ppj.chart.sankeyStyleType", "style.sankey applies only to sankey charts.", path + ".style.sankey"));
+        if (chart.ChartType == "combo") ValidateCombo(chart, path, diagnostics);
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
@@ -405,6 +406,56 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidateCombo(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        var typed = chart.Data.Series
+            .Where(series => !string.IsNullOrEmpty(series.ChartType))
+            .ToArray();
+        var families = typed
+            .Select(series => series.ChartType!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (families.Length < 2)
+            diagnostics.Add(new(
+                "ppj.chart.comboFamilies",
+                "Combo charts require at least two distinct column, line, or area plot families.",
+                path + ".data.series"));
+
+        foreach (var family in families)
+        {
+            var axes = typed
+                .Where(series => string.Equals(series.ChartType, family, StringComparison.Ordinal))
+                .Select(series => series.Axis ?? "primary")
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (axes.Length > 1)
+                diagnostics.Add(new(
+                    "ppj.chart.comboFamilyAxis",
+                    $"All {family} series in one combo chart must use the same axis pair.",
+                    path + ".data.series"));
+        }
+
+        var hasSecondary = typed.Any(series => string.Equals(series.Axis, "secondary", StringComparison.Ordinal));
+        var hasPrimary = typed.Any(series => !string.Equals(series.Axis, "secondary", StringComparison.Ordinal));
+        if (!hasPrimary)
+            diagnostics.Add(new(
+                "ppj.chart.comboPrimaryAxis",
+                "A combo chart requires at least one primary-axis plot family.",
+                path + ".data.series"));
+        var hasSecondaryXAxis = chart.Raw.TryGetProperty("secondaryXAxis", out _);
+        var hasSecondaryYAxis = chart.Raw.TryGetProperty("secondaryYAxis", out _);
+        if (hasSecondaryXAxis != hasSecondaryYAxis)
+            diagnostics.Add(new(
+                "ppj.chart.comboSecondaryAxisPair",
+                "Combo secondary axes must be declared as a complete X/Y pair or omitted together.",
+                path));
+        if (!hasSecondary && (hasSecondaryXAxis || hasSecondaryYAxis))
+            diagnostics.Add(new(
+                "ppj.chart.comboUnusedSecondaryAxis",
+                "Secondary axes require at least one complete secondary plot family.",
+                path));
     }
 
     private static void ValidateHeatmap(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)

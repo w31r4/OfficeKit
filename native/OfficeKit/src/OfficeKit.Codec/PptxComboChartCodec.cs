@@ -5,11 +5,10 @@ using OfficeKit.Artifact.Wire.V1;
 
 namespace OfficeKit.Codec;
 
-// Owns the one deliberate mixed-plot profile: literal primary-axis clustered
-// bars plus all-primary or all-secondary standard lines. Keeping this topology
-// separate prevents the ordinary chart codec from accumulating type-specific
-// branches while making every unsupported combo graph source-bound rather than
-// reconstructed.
+// Owns one deliberate categorical mixed-plot profile: literal column, line and
+// area families over a shared category domain, with one optional secondary
+// axis pair. Keeping numeric scatter/bubble combinations outside this codec
+// prevents incompatible category/value-axis semantics from being coerced.
 internal static partial class PptxChartCodec
 {
     private sealed record ComboNativeSeries(SpreadsheetChartType Type, PresentationChartAxisGroup AxisGroup, XElement Element, uint Order);
@@ -55,47 +54,45 @@ internal static partial class PptxChartCodec
         if (chart.ComboSeries.Count is < 2 or > MaxSeries) throw Invalid(elementId, $"must contain 2 through {MaxSeries} combo_series entries");
         if (chart.Categories.Count > MaxPoints || chart.Categories.Any(value => value.Length > 32_767 || HasControls(value))) throw Invalid(elementId, "contains invalid categories");
 
-        var bar = new List<SpreadsheetChartSeriesArtifact>();
-        var line = new List<SpreadsheetChartSeriesArtifact>();
-        var hasSecondaryLine = false;
+        var families = new Dictionary<SpreadsheetChartType, List<PresentationComboSeriesArtifact>>();
         foreach (var entry in chart.ComboSeries)
         {
             if (entry.Series is null) throw Invalid(elementId, "contains a combo series without payload");
-            var axisGroup = ComboAxisGroup(entry);
-            if (entry.Type == SpreadsheetChartType.Bar)
-            {
-                if (axisGroup != PresentationChartAxisGroup.Primary) throw Invalid(elementId, "supports bar series only on the primary axis pair");
-                bar.Add(entry.Series);
-            }
-            else if (entry.Type == SpreadsheetChartType.Line)
-            {
-                hasSecondaryLine |= axisGroup == PresentationChartAxisGroup.Secondary;
-                line.Add(entry.Series);
-            }
-            else throw Invalid(elementId, "combo series type must be bar or line");
+            if (entry.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area))
+                throw Invalid(elementId, "combo series type must be column, line, or area");
+            if (!families.TryGetValue(entry.Type, out var family)) families[entry.Type] = family = [];
+            family.Add(entry);
             if (!string.IsNullOrWhiteSpace(entry.Series.CategoryFormula) || !string.IsNullOrWhiteSpace(entry.Series.ValueFormula) ||
                 !string.IsNullOrWhiteSpace(entry.Series.XValueFormula) || !string.IsNullOrWhiteSpace(entry.Series.BubbleSizeFormula) || ErrorBarsUseFormula(entry.Series))
                 throw Invalid(elementId, "must use literal categories and values without workbook formulas");
         }
-        if (bar.Count == 0 || line.Count == 0) throw Invalid(elementId, "must contain at least one bar series and one line series");
-        if (hasSecondaryLine && chart.ComboSeries.Where(entry => entry.Type == SpreadsheetChartType.Line).Any(entry => ComboAxisGroup(entry) != PresentationChartAxisGroup.Secondary))
-            throw Invalid(elementId, "cannot mix primary and secondary line series");
-        if (!hasSecondaryLine && (chart.SecondaryXAxis is not null || chart.SecondaryYAxis is not null))
-            throw Invalid(elementId, "cannot carry secondary axes without a secondary line plot");
+        if (families.Count < 2) throw Invalid(elementId, "must contain at least two distinct column, line, or area plot families");
+        if (families.ContainsKey(SpreadsheetChartType.Bar) && chart.BarDirection == "bar")
+            throw Invalid(elementId, "horizontal bars cannot share the categorical combo-axis profile; use columns");
+        if (chart.HasGapWidth && !families.ContainsKey(SpreadsheetChartType.Bar))
+            throw Invalid(elementId, "gap_width requires a column plot family");
+        foreach (var (type, family) in families)
+            if (family.Select(ComboAxisGroup).Distinct().Count() != 1)
+                throw Invalid(elementId, $"cannot split one {type.ToString().ToLowerInvariant()} plot family across primary and secondary axes");
+
+        var hasPrimaryPlot = chart.ComboSeries.Any(entry => ComboAxisGroup(entry) == PresentationChartAxisGroup.Primary);
+        var hasSecondaryPlot = HasSecondaryComboPlot(chart);
+        if (!hasPrimaryPlot) throw Invalid(elementId, "requires at least one primary-axis plot family");
+        if (!hasSecondaryPlot && (chart.SecondaryXAxis is not null || chart.SecondaryYAxis is not null))
+            throw Invalid(elementId, "cannot carry secondary axes without a secondary plot family");
         if ((chart.SecondaryXAxis is null) != (chart.SecondaryYAxis is null))
             throw Invalid(elementId, "must carry both secondary axes or neither");
 
-        foreach (var (type, series) in new[] { (SpreadsheetChartType.Bar, (IReadOnlyList<SpreadsheetChartSeriesArtifact>)bar), (SpreadsheetChartType.Line, (IReadOnlyList<SpreadsheetChartSeriesArtifact>)line) })
+        foreach (var (type, family) in families)
         {
-            try { XlsxChartCodec.Validate([ComboSpreadsheetChart(chart, elementId, name, type, series)], $"presentation/{elementId}"); }
-            catch (CodecException error) when (error.Code == "invalid_spreadsheet_chart") { throw Invalid(elementId, error.Message); }
-        }
-        if (hasSecondaryLine && chart.SecondaryXAxis is not null)
-        {
-            var secondaryProbe = ComboSpreadsheetChart(chart, elementId, name, SpreadsheetChartType.Line, line);
-            secondaryProbe.XAxis = chart.SecondaryXAxis.Clone();
-            secondaryProbe.YAxis = chart.SecondaryYAxis!.Clone();
-            try { XlsxChartCodec.Validate([secondaryProbe], $"presentation/{elementId}"); }
+            var series = family.Select(entry => entry.Series).ToArray();
+            var probe = ComboSpreadsheetChart(chart, elementId, name, type, series);
+            if (ComboAxisGroup(family[0]) == PresentationChartAxisGroup.Secondary)
+            {
+                probe.XAxis = chart.SecondaryXAxis?.Clone();
+                probe.YAxis = chart.SecondaryYAxis?.Clone();
+            }
+            try { XlsxChartCodec.Validate([probe], $"presentation/{elementId}"); }
             catch (CodecException error) when (error.Code == "invalid_spreadsheet_chart") { throw Invalid(elementId, error.Message); }
         }
     }
@@ -167,8 +164,8 @@ internal static partial class PptxChartCodec
             ? PresentationChartAxisGroup.Secondary
             : PresentationChartAxisGroup.Primary;
 
-    private static bool HasSecondaryComboLine(PresentationChart chart) =>
-        chart.ComboSeries.Any(entry => entry.Type == SpreadsheetChartType.Line && ComboAxisGroup(entry) == PresentationChartAxisGroup.Secondary);
+    private static bool HasSecondaryComboPlot(PresentationChart chart) =>
+        chart.ComboSeries.Any(entry => ComboAxisGroup(entry) == PresentationChartAxisGroup.Secondary);
 
     private static bool TryReadComboChart(string xml, out PresentationChart chart, out XDocument document, out bool editable)
     {
@@ -181,14 +178,40 @@ internal static partial class PptxChartCodec
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
         if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
         var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();
-        if (plots.Length != 2) return false;
-        var barPlot = plots.SingleOrDefault(item => item.Name == ChartNs + "barChart");
-        var linePlot = plots.SingleOrDefault(item => item.Name == ChartNs + "lineChart");
-        if (barPlot is null || linePlot is null ||
-            !TryReadComboPlotStyle(barPlot, SpreadsheetChartType.Bar, out var barGrouping, out var barDirection, out var hasGapWidth, out var gapWidth) ||
-            !TryReadComboPlotStyle(linePlot, SpreadsheetChartType.Line, out var lineGrouping, out _, out _, out _) ||
-            barGrouping != lineGrouping) return false;
-        var lineUsesSecondaryAxes = !SharesPrimaryAxes(barPlot, linePlot);
+        if (plots.Length is < 2 or > 3 ||
+            plots.Any(plot => !TryComboPlotType(plot, out _)) ||
+            plots.Select(plot => { TryComboPlotType(plot, out var type); return type; }).Distinct().Count() != plots.Length)
+            return false;
+        XElement? primaryPlot = null;
+        XElement? secondaryPlot = null;
+        var nativePlots = new List<(XElement Plot, SpreadsheetChartType Type, PresentationChartAxisGroup AxisGroup)>();
+        string? commonGrouping = null;
+        foreach (var plot in plots)
+        {
+            if (!TryComboPlotType(plot, out var type) ||
+                !TryReadComboPlotStyle(plot, type, out var grouping, out var barDirection, out var hasGapWidth, out var gapWidth)) return false;
+            commonGrouping ??= grouping;
+            if (!string.Equals(commonGrouping, grouping, StringComparison.Ordinal)) return false;
+            if (!TryComboAxisGroup(plotArea, plot, out var axisGroup)) return false;
+            if (axisGroup == PresentationChartAxisGroup.Primary)
+            {
+                if (primaryPlot is not null && !SharesComboAxes(primaryPlot, plot)) return false;
+                primaryPlot ??= plot;
+            }
+            else
+            {
+                if (secondaryPlot is not null && !SharesComboAxes(secondaryPlot, plot)) return false;
+                secondaryPlot ??= plot;
+            }
+            if (type == SpreadsheetChartType.Bar)
+            {
+                if (barDirection != "column") return false;
+                chart.BarDirection = barDirection;
+                if (hasGapWidth) chart.GapWidth = gapWidth;
+            }
+            nativePlots.Add((plot, type, axisGroup));
+        }
+        if (primaryPlot is null) return false;
 
         var title = nativeChart.Element(ChartNs + "title");
         if (title is not null)
@@ -202,9 +225,7 @@ internal static partial class PptxChartCodec
             if (titleProbe.TitleTextStyle is not null) chart.TitleTextStyle = titleProbe.TitleTextStyle.Clone();
         }
         chart.Type = SpreadsheetChartType.Combo;
-        chart.Grouping = barGrouping;
-        chart.BarDirection = barDirection;
-        if (hasGapWidth) chart.GapWidth = gapWidth;
+        chart.Grouping = commonGrouping ?? string.Empty;
         var legend = nativeChart.Element(ChartNs + "legend");
         chart.HasLegend = legend is not null;
         if (legend is not null)
@@ -218,9 +239,13 @@ internal static partial class PptxChartCodec
             }
         }
 
-        if (!TryReadComboSeries(barPlot, SpreadsheetChartType.Bar, PresentationChartAxisGroup.Primary, out var barSeries) ||
-            !TryReadComboSeries(linePlot, SpreadsheetChartType.Line, lineUsesSecondaryAxes ? PresentationChartAxisGroup.Secondary : PresentationChartAxisGroup.Primary, out var lineSeries)) return false;
-        var orderedSeries = barSeries.Concat(lineSeries).OrderBy(item => item.Order).ToArray();
+        var collectedSeries = new List<ComboNativeSeries>();
+        foreach (var nativePlot in nativePlots)
+        {
+            if (!TryReadComboSeries(nativePlot.Plot, nativePlot.Type, nativePlot.AxisGroup, out var plotSeries)) return false;
+            collectedSeries.AddRange(plotSeries);
+        }
+        var orderedSeries = collectedSeries.OrderBy(item => item.Order).ToArray();
         if (orderedSeries.Length is < 2 or > MaxSeries || orderedSeries.Select(item => item.Order).Distinct().Count() != orderedSeries.Length ||
             !orderedSeries.Select(item => item.Order).SequenceEqual(Enumerable.Range(0, orderedSeries.Length).Select(index => (uint)index))) return false;
 
@@ -237,24 +262,29 @@ internal static partial class PptxChartCodec
         chart.Categories.Add(commonCategories ?? []);
         if (chart.Categories.Count > MaxPoints) return false;
 
-        var barLabels = new SpreadsheetChartArtifact();
-        var lineLabels = new SpreadsheetChartArtifact();
-        if (!XlsxChartDataLabelsCodec.TryRead(barPlot, barLabels) || !XlsxChartDataLabelsCodec.TryRead(linePlot, lineLabels) ||
-            XlsxChartDataLabelsCodec.Semantics(barLabels.DataLabels) != XlsxChartDataLabelsCodec.Semantics(lineLabels.DataLabels)) return false;
-        if (barLabels.DataLabels is not null) chart.DataLabels = barLabels.DataLabels;
+        string? labelSemantics = null;
+        foreach (var plot in plots)
+        {
+            var labelProbe = new SpreadsheetChartArtifact();
+            if (!XlsxChartDataLabelsCodec.TryRead(plot, labelProbe)) return false;
+            var semantics = XlsxChartDataLabelsCodec.Semantics(labelProbe.DataLabels);
+            labelSemantics ??= semantics;
+            if (!string.Equals(labelSemantics, semantics, StringComparison.Ordinal)) return false;
+            if (chart.DataLabels is null && labelProbe.DataLabels is not null) chart.DataLabels = labelProbe.DataLabels;
+        }
 
         var axisCarrier = ComboAxisCarrier(chart, "combo", "combo");
-        if (!XlsxChartAxisCodec.TryRead(plotArea, barPlot, axisCarrier, out var axesEditable)) return false;
+        if (!XlsxChartAxisCodec.TryRead(plotArea, primaryPlot, axisCarrier, out var axesEditable)) return false;
         chart.XAxis = axisCarrier.XAxis;
         chart.YAxis = axisCarrier.YAxis;
         if (chart.XAxis?.HasVisible == true) chart.ShowCategoryAxis = chart.XAxis.Visible;
         if (chart.YAxis?.HasVisible == true) chart.ShowValueAxis = chart.YAxis.Visible;
         if (chart.YAxis?.HasShowMajorGridlines == true) chart.ShowGridlines = chart.YAxis.ShowMajorGridlines;
         editable &= axesEditable;
-        if (lineUsesSecondaryAxes)
+        if (secondaryPlot is not null)
         {
             var secondaryAxisCarrier = ComboAxisCarrier(chart, "combo", "combo", secondary: true);
-            if (!XlsxChartAxisCodec.TryReadPresentationSecondary(plotArea, linePlot, secondaryAxisCarrier, out var secondaryAxesEditable)) return false;
+            if (!XlsxChartAxisCodec.TryReadPresentationSecondary(plotArea, secondaryPlot, secondaryAxisCarrier, out var secondaryAxesEditable)) return false;
             chart.SecondaryXAxis = secondaryAxisCarrier.XAxis;
             chart.SecondaryYAxis = secondaryAxisCarrier.YAxis;
             editable &= secondaryAxesEditable;
@@ -309,7 +339,7 @@ internal static partial class PptxChartCodec
         if (!ComboScalar(plot.Element(ChartNs + "grouping"), out var nativeGrouping) ||
             nativeGrouping is not ("clustered" or "standard" or "stacked" or "percentStacked")) return false;
         if ((type == SpreadsheetChartType.Bar && nativeGrouping == "standard") ||
-            (type == SpreadsheetChartType.Line && nativeGrouping == "clustered")) return false;
+            (type is SpreadsheetChartType.Line or SpreadsheetChartType.Area && nativeGrouping == "clustered")) return false;
         grouping = nativeGrouping switch
         {
             "clustered" or "standard" => "none",
@@ -330,11 +360,64 @@ internal static partial class PptxChartCodec
         return axisIds.Length == 2 && axisIds.All(item => ComboScalar(item, out _));
     }
 
-    private static bool SharesPrimaryAxes(XElement barPlot, XElement linePlot)
+    private static bool TryComboPlotType(XElement plot, out SpreadsheetChartType type)
     {
-        var barIds = barPlot.Elements(ChartNs + "axId").Select(item => ComboScalar(item, out var value) ? value : string.Empty).ToArray();
-        var lineIds = linePlot.Elements(ChartNs + "axId").Select(item => ComboScalar(item, out var value) ? value : string.Empty).ToArray();
-        return barIds.Length == 2 && lineIds.Length == 2 && barIds.Distinct(StringComparer.Ordinal).Count() == 2 && barIds.SequenceEqual(lineIds, StringComparer.Ordinal);
+        type = plot.Name.LocalName switch
+        {
+            "barChart" => SpreadsheetChartType.Bar,
+            "lineChart" => SpreadsheetChartType.Line,
+            "areaChart" => SpreadsheetChartType.Area,
+            _ => SpreadsheetChartType.Unspecified,
+        };
+        return type != SpreadsheetChartType.Unspecified;
+    }
+
+    private static XName ComboPlotName(SpreadsheetChartType type) => type switch
+    {
+        SpreadsheetChartType.Bar => ChartNs + "barChart",
+        SpreadsheetChartType.Line => ChartNs + "lineChart",
+        SpreadsheetChartType.Area => ChartNs + "areaChart",
+        _ => throw new ArgumentOutOfRangeException(nameof(type)),
+    };
+
+    private static int ComboPlotOrder(SpreadsheetChartType type) => type switch
+    {
+        SpreadsheetChartType.Area => 0,
+        SpreadsheetChartType.Bar => 1,
+        SpreadsheetChartType.Line => 2,
+        _ => 3,
+    };
+
+    private static bool SharesComboAxes(XElement firstPlot, XElement secondPlot)
+    {
+        var firstIds = firstPlot.Elements(ChartNs + "axId").Select(item => ComboScalar(item, out var value) ? value : string.Empty).ToArray();
+        var secondIds = secondPlot.Elements(ChartNs + "axId").Select(item => ComboScalar(item, out var value) ? value : string.Empty).ToArray();
+        return firstIds.Length == 2 && secondIds.Length == 2 && firstIds.Distinct(StringComparer.Ordinal).Count() == 2 && firstIds.SequenceEqual(secondIds, StringComparer.Ordinal);
+    }
+
+    private static bool TryComboAxisGroup(XElement plotArea, XElement plot, out PresentationChartAxisGroup axisGroup)
+    {
+        axisGroup = PresentationChartAxisGroup.Primary;
+        var ids = plot.Elements(ChartNs + "axId")
+            .Select(item => ComboScalar(item, out var value) ? value : string.Empty)
+            .ToHashSet(StringComparer.Ordinal);
+        if (ids.Count != 2 || ids.Contains(string.Empty)) return false;
+        var categoryAxes = plotArea.Elements(ChartNs + "catAx")
+            .Where(axis => ComboScalar(axis.Element(ChartNs + "axId"), out var id) && ids.Contains(id))
+            .ToArray();
+        var valueAxes = plotArea.Elements(ChartNs + "valAx")
+            .Where(axis => ComboScalar(axis.Element(ChartNs + "axId"), out var id) && ids.Contains(id))
+            .ToArray();
+        if (categoryAxes.Length != 1 || valueAxes.Length != 1 ||
+            !ComboScalar(categoryAxes[0].Element(ChartNs + "axPos"), out var categoryPosition) ||
+            !ComboScalar(valueAxes[0].Element(ChartNs + "axPos"), out var valuePosition)) return false;
+        if (categoryPosition == "b" && valuePosition == "l") return true;
+        if (categoryPosition == "t" && valuePosition == "r")
+        {
+            axisGroup = PresentationChartAxisGroup.Secondary;
+            return true;
+        }
+        return false;
     }
 
     private static bool ComboScalar(XElement? element, out string value)
@@ -350,26 +433,14 @@ internal static partial class PptxChartCodec
     private static XDocument BuildComboChartDocument(PresentationChart chart, string id, string name)
     {
         var indexed = chart.ComboSeries.Select((item, index) => new ComboNativeSeries(item.Type, ComboAxisGroup(item), OpenXmlChartSpaceCodec.SeriesElement(item.Series, chart.Categories, index, item.Type), checked((uint)index))).ToArray();
-        var barSeries = indexed.Where(item => item.Type == SpreadsheetChartType.Bar).Select(item => item.Element).ToArray();
-        var lineSeries = indexed.Where(item => item.Type == SpreadsheetChartType.Line).Select(item => item.Element).ToArray();
-        var lineUsesSecondaryAxes = indexed.Any(item => item.Type == SpreadsheetChartType.Line && item.AxisGroup == PresentationChartAxisGroup.Secondary);
-        var barPlot = new XElement(ChartNs + "barChart",
-            new XElement(ChartNs + "barDir", new XAttribute("val", OpenXmlChartSpaceCodec.BarDirectionToken(chart.BarDirection))),
-            new XElement(ChartNs + "grouping", new XAttribute("val", OpenXmlChartSpaceCodec.GroupingToken(chart.Grouping, clustered: true))),
-            barSeries,
-            XlsxChartDataLabelsCodec.Element(chart.DataLabels),
-            chart.HasGapWidth ? new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)) : null,
-            new XElement(ChartNs + "axId", new XAttribute("val", "1")),
-            new XElement(ChartNs + "axId", new XAttribute("val", "2")));
-        var linePlot = new XElement(ChartNs + "lineChart",
-            new XElement(ChartNs + "grouping", new XAttribute("val", OpenXmlChartSpaceCodec.GroupingToken(chart.Grouping, clustered: false))),
-            lineSeries,
-            XlsxChartDataLabelsCodec.Element(chart.DataLabels),
-            new XElement(ChartNs + "axId", new XAttribute("val", lineUsesSecondaryAxes ? "3" : "1")),
-            new XElement(ChartNs + "axId", new XAttribute("val", lineUsesSecondaryAxes ? "4" : "2")));
-        var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), barPlot, linePlot);
+        var plots = indexed
+            .GroupBy(item => item.Type)
+            .OrderBy(group => ComboPlotOrder(group.Key))
+            .Select(group => BuildComboPlot(chart, group.Key, group.First().AxisGroup, group.Select(item => item.Element)))
+            .ToArray();
+        var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), plots);
         XlsxChartAxisCodec.AppendAuthored(plotArea, ComboAxisCarrier(chart, id, name));
-        if (lineUsesSecondaryAxes) XlsxChartAxisCodec.AppendAuthoredPresentationSecondary(plotArea, ComboAxisCarrier(chart, id, name, secondary: true));
+        if (HasSecondaryComboPlot(chart)) XlsxChartAxisCodec.AppendAuthoredPresentationSecondary(plotArea, ComboAxisCarrier(chart, id, name, secondary: true));
         if (XlsxChartSurfaceFillCodec.Element(chart.PlotAreaFill, "Presentation combo chart plot area") is { } plotFill) plotArea.Add(plotFill);
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
@@ -381,24 +452,55 @@ internal static partial class PptxChartCodec
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
     }
 
+    private static XElement BuildComboPlot(
+        PresentationChart chart,
+        SpreadsheetChartType type,
+        PresentationChartAxisGroup axisGroup,
+        IEnumerable<XElement> series)
+    {
+        var plot = new XElement(ComboPlotName(type));
+        if (type == SpreadsheetChartType.Bar)
+            plot.Add(new XElement(ChartNs + "barDir", new XAttribute("val", OpenXmlChartSpaceCodec.BarDirectionToken(chart.BarDirection))));
+        plot.Add(new XElement(ChartNs + "grouping", new XAttribute("val", OpenXmlChartSpaceCodec.GroupingToken(chart.Grouping, clustered: type == SpreadsheetChartType.Bar))));
+        plot.Add(series);
+        plot.Add(XlsxChartDataLabelsCodec.Element(chart.DataLabels));
+        if (type == SpreadsheetChartType.Bar && chart.HasGapWidth)
+            plot.Add(new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)));
+        var secondary = axisGroup == PresentationChartAxisGroup.Secondary;
+        plot.Add(new XElement(ChartNs + "axId", new XAttribute("val", secondary ? "3" : "1")));
+        plot.Add(new XElement(ChartNs + "axId", new XAttribute("val", secondary ? "4" : "2")));
+        return plot;
+    }
+
     private static void PatchComboChart(XDocument document, PresentationChart target, string id, string name)
     {
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
         OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
         OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle);
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
-        var barPlot = plotArea.Element(ChartNs + "barChart")!;
-        var linePlot = plotArea.Element(ChartNs + "lineChart")!;
-        PatchComboScalar(barPlot, "barDir", OpenXmlChartSpaceCodec.BarDirectionToken(target.BarDirection));
-        PatchComboScalar(barPlot, "grouping", OpenXmlChartSpaceCodec.GroupingToken(target.Grouping, clustered: true));
-        PatchComboScalar(linePlot, "grouping", OpenXmlChartSpaceCodec.GroupingToken(target.Grouping, clustered: false));
-        PatchComboGapWidth(barPlot, target);
-        var lineUsesSecondaryAxes = !SharesPrimaryAxes(barPlot, linePlot);
-        if (lineUsesSecondaryAxes != HasSecondaryComboLine(target) ||
-            !TryReadComboSeries(barPlot, SpreadsheetChartType.Bar, PresentationChartAxisGroup.Primary, out var barSeries) ||
-            !TryReadComboSeries(linePlot, SpreadsheetChartType.Line, lineUsesSecondaryAxes ? PresentationChartAxisGroup.Secondary : PresentationChartAxisGroup.Primary, out var lineSeries))
-            throw new CodecException("unsupported_presentation_edit", "Presentation combo chart no longer matches the bounded native series profile.");
-        var nativeSeries = barSeries.Concat(lineSeries).OrderBy(item => item.Order).ToArray();
+        var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();
+        if (plots.Length is < 2 or > 3) throw new CodecException("unsupported_presentation_edit", "Presentation combo chart no longer has two or three bounded plots.");
+        XElement? primaryPlot = null;
+        XElement? secondaryPlot = null;
+        var collectedSeries = new List<ComboNativeSeries>();
+        foreach (var plot in plots)
+        {
+            if (!TryComboPlotType(plot, out var type) || !TryComboAxisGroup(plotArea, plot, out var axisGroup) ||
+                !TryReadComboSeries(plot, type, axisGroup, out var plotSeries))
+                throw new CodecException("unsupported_presentation_edit", "Presentation combo chart no longer matches the bounded native plot profile.");
+            if (axisGroup == PresentationChartAxisGroup.Primary) primaryPlot ??= plot;
+            else secondaryPlot ??= plot;
+            if (type == SpreadsheetChartType.Bar)
+            {
+                PatchComboScalar(plot, "barDir", OpenXmlChartSpaceCodec.BarDirectionToken(target.BarDirection));
+                PatchComboGapWidth(plot, target);
+            }
+            PatchComboScalar(plot, "grouping", OpenXmlChartSpaceCodec.GroupingToken(target.Grouping, clustered: type == SpreadsheetChartType.Bar));
+            collectedSeries.AddRange(plotSeries);
+        }
+        if (primaryPlot is null || (secondaryPlot is not null) != HasSecondaryComboPlot(target))
+            throw new CodecException("unsupported_presentation_edit", "Presentation combo chart axis topology no longer matches the bounded profile.");
+        var nativeSeries = collectedSeries.OrderBy(item => item.Order).ToArray();
         if (nativeSeries.Length != target.ComboSeries.Count || nativeSeries.Select(item => item.Order).Distinct().Count() != nativeSeries.Length ||
             !nativeSeries.Select(item => item.Order).SequenceEqual(Enumerable.Range(0, nativeSeries.Length).Select(index => (uint)index)))
             throw new CodecException("presentation_chart_topology_changed", "Presentation combo chart series topology changed unexpectedly.");
@@ -408,10 +510,9 @@ internal static partial class PptxChartCodec
             if (requested.Type != nativeSeries[index].Type || ComboAxisGroup(requested) != nativeSeries[index].AxisGroup || requested.Series is null) throw new CodecException("presentation_chart_topology_changed", "Presentation combo chart series type or axis group changed unexpectedly.");
             OpenXmlChartSpaceCodec.PatchSeries(nativeSeries[index].Element, requested.Series, target.Categories, requested.Type, "presentation_chart_topology_changed", "Presentation combo chart");
         }
-        XlsxChartDataLabelsCodec.Patch(barPlot, target.DataLabels);
-        XlsxChartDataLabelsCodec.Patch(linePlot, target.DataLabels);
-        XlsxChartAxisCodec.Patch(plotArea, barPlot, ComboAxisCarrier(target, id, name));
-        if (lineUsesSecondaryAxes) XlsxChartAxisCodec.PatchPresentationSecondary(plotArea, linePlot, ComboAxisCarrier(target, id, name, secondary: true));
+        foreach (var plot in plots) XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
+        XlsxChartAxisCodec.Patch(plotArea, primaryPlot, ComboAxisCarrier(target, id, name));
+        if (secondaryPlot is not null) XlsxChartAxisCodec.PatchPresentationSecondary(plotArea, secondaryPlot, ComboAxisCarrier(target, id, name, secondary: true));
         XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, "Presentation combo chart area");
         XlsxChartSurfaceFillCodec.Patch(plotArea, target.PlotAreaFill, "Presentation combo chart plot area");
     }

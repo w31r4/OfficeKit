@@ -454,6 +454,21 @@ public sealed class PptxCodecTests
                 new JsonObject { ["offset"] = 1, ["color"] = "#F2C14E", ["opacity"] = 0.7 },
             },
         };
+        authoredChart["data"]!["series"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "confidence-band",
+            ["name"] = "Expected operating band",
+            ["values"] = new JsonArray(22, 24, 26, 28, 31, 34, 37, 40),
+            ["chartType"] = "area",
+            ["axis"] = "primary",
+            ["fill"] = new JsonObject
+            {
+                ["type"] = "solid",
+                ["color"] = "#0B8F8F",
+                ["opacity"] = 0.18,
+            },
+            ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.75, ["opacity"] = 0.45 },
+        });
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
             ["id"] = "evidence-bubble-main",
@@ -1316,6 +1331,10 @@ public sealed class PptxCodecTests
         Assert.Equal(90U, importedChart.GapWidth);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Cap);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Join);
+        Assert.Equal(SpreadsheetChartType.Area, importedChart.ComboSeries[2].Type);
+        Assert.Equal(PresentationChartAxisGroup.Primary, importedChart.ComboSeries[2].AxisGroup);
+        Assert.Equal("Expected operating band", importedChart.ComboSeries[2].Series.Name);
+        Assert.Equal(40, importedChart.ComboSeries[2].Series.Values[^1]);
         Assert.Equal("Half-year", importedChart.XAxis.Title);
         Assert.Equal(1U, importedChart.XAxis.TickLabelInterval);
         Assert.Equal(9, importedChart.XAxis.TextStyle.FontSizePoints);
@@ -1528,6 +1547,9 @@ public sealed class PptxCodecTests
             Assert.Equal("none", projectedChart.GetProperty("style").GetProperty("chartAreaFill").GetProperty("type").GetString());
             Assert.Equal("radial", projectedChart.GetProperty("style").GetProperty("plotAreaFill").GetProperty("kind").GetString());
             Assert.Equal("linear", projectedChart.GetProperty("data").GetProperty("series")[0].GetProperty("fill").GetProperty("kind").GetString());
+            Assert.Equal("area", projectedChart.GetProperty("data").GetProperty("series")[2].GetProperty("chartType").GetString());
+            Assert.Equal("primary", projectedChart.GetProperty("data").GetProperty("series")[2].GetProperty("axis").GetString());
+            Assert.Equal(40, projectedChart.GetProperty("data").GetProperty("series")[2].GetProperty("values")[7].GetDouble());
             var projectedBubble = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "bubble");
@@ -6741,7 +6763,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void LiteralPrimaryAxisBarLineComboAuthorsImportsAndEdits()
+    public void LiteralPrimaryAxisCategoryComboAuthorsImportsAndEdits()
     {
         var request = ExportRequest();
         var chart = new PresentationChart
@@ -6784,6 +6806,20 @@ public sealed class PptxCodecTests
             },
         });
         chart.ComboSeries[1].Series.Values.Add([12, 15, 18]);
+        chart.ComboSeries.Add(new PresentationComboSeriesArtifact
+        {
+            Type = SpreadsheetChartType.Area,
+            Series = new SpreadsheetChartSeriesArtifact
+            {
+                Name = "Operating band",
+                SeriesFill = new SpreadsheetChartSurfaceFill
+                {
+                    SolidRgb = "93C5FD",
+                    OpacityThousandthPercent = 25_000,
+                },
+            },
+        });
+        chart.ComboSeries[2].Series.Values.Add([20, 22, 25]);
         request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
         {
             Id = "presentation/slide/1/chart/combo",
@@ -6803,15 +6839,21 @@ public sealed class PptxCodecTests
             var plotArea = document.Root!.Element(chartNs + "chart")!.Element(chartNs + "plotArea")!;
             var barPlot = Assert.Single(plotArea.Elements(chartNs + "barChart"));
             var linePlot = Assert.Single(plotArea.Elements(chartNs + "lineChart"));
+            var areaPlot = Assert.Single(plotArea.Elements(chartNs + "areaChart"));
             Assert.Equal("clustered", barPlot.Element(chartNs + "grouping")!.Attribute("val")!.Value);
             Assert.Equal("standard", linePlot.Element(chartNs + "grouping")!.Attribute("val")!.Value);
             Assert.Equal(
                 barPlot.Elements(chartNs + "axId").Select(item => item.Attribute("val")!.Value),
                 linePlot.Elements(chartNs + "axId").Select(item => item.Attribute("val")!.Value));
+            Assert.Equal(
+                barPlot.Elements(chartNs + "axId").Select(item => item.Attribute("val")!.Value),
+                areaPlot.Elements(chartNs + "axId").Select(item => item.Attribute("val")!.Value));
             Assert.Single(barPlot.Elements(chartNs + "ser"));
             Assert.Single(linePlot.Elements(chartNs + "ser"));
+            Assert.Single(areaPlot.Elements(chartNs + "ser"));
             Assert.NotNull(barPlot.Element(chartNs + "dLbls"));
             Assert.NotNull(linePlot.Element(chartNs + "dLbls"));
+            Assert.NotNull(areaPlot.Element(chartNs + "dLbls"));
         }
 
         var imported = Import(authored.File.ToByteArray());
@@ -6832,10 +6874,17 @@ public sealed class PptxCodecTests
                 Assert.Equal(SpreadsheetChartType.Line, line.Type);
                 Assert.Equal("Margin", line.Series.Name);
                 Assert.Equal(15, line.Series.Values[1]);
+            },
+            area =>
+            {
+                Assert.Equal(SpreadsheetChartType.Area, area.Type);
+                Assert.Equal("Operating band", area.Series.Name);
+                Assert.Equal(25, area.Series.Values[2]);
             });
 
         importedElement.Chart.Title = "Updated revenue and margin";
         importedElement.Chart.ComboSeries[1].Series.Values[1] = 16;
+        importedElement.Chart.ComboSeries[2].Series.Values[2] = 27;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
@@ -6843,9 +6892,11 @@ public sealed class PptxCodecTests
         var roundTripChart = Assert.Single(Assert.Single(roundTrip.Artifact.Presentation.Slides).Elements, item => item.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
         Assert.Equal("Updated revenue and margin", roundTripChart.Title);
         Assert.Equal(16, roundTripChart.ComboSeries[1].Series.Values[1]);
+        Assert.Equal(27, roundTripChart.ComboSeries[2].Series.Values[2]);
 
         var invalid = ExportRequest();
         var barOnly = chart.Clone();
+        barOnly.ComboSeries.RemoveAt(2);
         barOnly.ComboSeries.RemoveAt(1);
         invalid.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
         {
