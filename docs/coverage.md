@@ -105,6 +105,12 @@ changed, removed, exported, and recovered after a second import. An unrelated
 image frame edit keeps the original border, shadow, and alpha token byte-safe;
 effect graphs outside this profile remain source-bound.
 
+Imported shape and connector lines with one direct theme color and bounded
+alpha now retain `lineScheme` and `line.opacity` in the JavaScript projection;
+an exact no-op keeps the original `a:schemeClr` and `a:alpha` tokens instead of
+flattening them to an RGB/default stroke. Transformed, multi-child, or
+otherwise irregular line graphs remain source-owned.
+
 Picture frames that explicitly carry DrawingML's canonical invisible outline
 (`cmpd="sng"`, `algn="ctr"`, default miter and empty line ends) are now also
 recognized as editable images. A geometry edit preserves that inert outline
