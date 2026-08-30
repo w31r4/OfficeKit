@@ -1557,7 +1557,7 @@ internal static class PptxCodec
             drawing.Id?.Value is null or 0 || drawing.Name?.Value is not { Length: <= 1_024 } ||
             !HasOnlyAttributes(groupDrawing) || !HasOnlyAttributes(application) ||
             properties.ChildElements.Count != 1 || properties.FirstChild != transform || !HasOnlyAttributes(properties) ||
-            !HasOnlyAttributes(transform) || transform.ChildElements.Count != 4 ||
+            !PptxFrameTransformCodec.TryRead(transform, out var frameTransform) || transform.ChildElements.Count != 4 ||
             transform.ChildElements[0] is not A.Offset offset ||
             transform.ChildElements[1] is not A.Extents extents ||
             transform.ChildElements[2] is not A.ChildOffset childOffset ||
@@ -1576,6 +1576,7 @@ internal static class PptxCodec
         group.ChildTopEmu = childOffset.Y?.Value ?? 0;
         group.ChildWidthEmu = childExtents.Cx?.Value ?? 0;
         group.ChildHeightEmu = childExtents.Cy?.Value ?? 0;
+        group.FrameTransform = frameTransform;
         group.Accessibility = PptxNonVisualAccessibilityCodec.Read(drawing);
         var children = GroupElements(source);
         if (children.Length == 0) return false;
@@ -2161,16 +2162,18 @@ internal static class PptxCodec
         var group = element.Group;
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeIdsByElementId[element.Id], Name = element.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, group.Accessibility);
+        var transform = new A.TransformGroup(
+            new A.Offset { X = group.LeftEmu, Y = group.TopEmu },
+            new A.Extents { Cx = group.WidthEmu, Cy = group.HeightEmu },
+            new A.ChildOffset { X = group.ChildLeftEmu, Y = group.ChildTopEmu },
+            new A.ChildExtents { Cx = group.ChildWidthEmu, Cy = group.ChildHeightEmu });
+        PptxFrameTransformCodec.Apply(transform, group.FrameTransform);
         var output = new P.GroupShape(
             new P.NonVisualGroupShapeProperties(
                 nonVisual,
                 new P.NonVisualGroupShapeDrawingProperties(),
                 new P.ApplicationNonVisualDrawingProperties()),
-            new P.GroupShapeProperties(new A.TransformGroup(
-                new A.Offset { X = group.LeftEmu, Y = group.TopEmu },
-                new A.Extents { Cx = group.WidthEmu, Cy = group.HeightEmu },
-                new A.ChildOffset { X = group.ChildLeftEmu, Y = group.ChildTopEmu },
-                new A.ChildExtents { Cx = group.ChildWidthEmu, Cy = group.ChildHeightEmu })));
+            new P.GroupShapeProperties(transform));
         foreach (var child in group.Children)
             output.Append(BuildElement(child, nativeIdsByElementId, slideContext, slidePart));
         return output;
@@ -2266,7 +2269,8 @@ internal static class PptxCodec
             requested.Group.LeftEmu != original.Group.LeftEmu || requested.Group.TopEmu != original.Group.TopEmu ||
             requested.Group.WidthEmu != original.Group.WidthEmu || requested.Group.HeightEmu != original.Group.HeightEmu ||
             requested.Group.ChildLeftEmu != original.Group.ChildLeftEmu || requested.Group.ChildTopEmu != original.Group.ChildTopEmu ||
-            requested.Group.ChildWidthEmu != original.Group.ChildWidthEmu || requested.Group.ChildHeightEmu != original.Group.ChildHeightEmu)
+            requested.Group.ChildWidthEmu != original.Group.ChildWidthEmu || requested.Group.ChildHeightEmu != original.Group.ChildHeightEmu ||
+            !Equals(requested.Group.FrameTransform, original.Group.FrameTransform))
         {
             source.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name = requested.Name;
             var transform = source.GroupShapeProperties!.GetFirstChild<A.TransformGroup>()!;
@@ -2278,6 +2282,7 @@ internal static class PptxCodec
             transform.ChildOffset.Y = requested.Group.ChildTopEmu;
             transform.ChildExtents!.Cx = requested.Group.ChildWidthEmu;
             transform.ChildExtents.Cy = requested.Group.ChildHeightEmu;
+            PptxFrameTransformCodec.Apply(transform, requested.Group.FrameTransform);
             changed = true;
         }
 
@@ -2805,6 +2810,7 @@ internal static class PptxCodec
         {
             var group = element.Group;
             PptxNonVisualAccessibilityCodec.Validate(group.Accessibility, element.Id, "group");
+            PptxFrameTransformCodec.Validate(group.FrameTransform, element.Id, "group");
             if (group.LeftEmu < 0 || group.TopEmu < 0 || group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
                 group.ChildWidthEmu <= 0 || group.ChildHeightEmu <= 0 || group.Children.Count == 0)
                 throw new CodecException("invalid_presentation_group", $"Presentation group {element.Id} requires positive outer/child extents and at least one child.");
@@ -3554,6 +3560,7 @@ internal static class PptxCodec
             transform.ChildOffset.Y = 0L;
             transform.ChildExtents!.Cx = 1L;
             transform.ChildExtents.Cy = 1L;
+            PptxFrameTransformCodec.Scrub(transform);
         }
         return HashElement(clone);
     }
@@ -4373,6 +4380,7 @@ internal static class PptxCodec
         transform.Offset.Y = 0L;
         transform.Extents!.Cx = 1L;
         transform.Extents.Cy = 1L;
+        PptxFrameTransformCodec.Scrub(transform);
     }
 
     private static void ScrubFrame(A.Transform2D transform)
@@ -4387,6 +4395,7 @@ internal static class PptxCodec
         transform.Offset.Y = 0L;
         transform.Extents!.Cx = 1L;
         transform.Extents.Cy = 1L;
+        PptxFrameTransformCodec.Scrub(transform);
     }
 
     private static string MasterResidualHash(P.SlideMaster source, PptxPartContext partContext)
