@@ -450,6 +450,17 @@ or opaque content can be inspected and edited through its newly issued
 capabilities. One source page may have only one pending clone, and the same
 build cannot also delete/reorder pages or change section/custom-show routes.
 
+To reuse one exact top-level component instead of the full page, add
+\`retainElement: "<source-element-id>"\` to that same \`sourceClone\`. The ID
+must name one direct entry in the source page's \`elements[]\`; keep the owning
+top-level group when the desired object is nested. Every omitted sibling must
+freshly advertise \`delete\` with \`element\`. The compiler retains the selected
+native graph unchanged and lowers all sibling removals through the existing
+deletion proofs. The pending page stays empty until build and re-import, when
+the retained component becomes an ordinary source-bound typed or opaque node
+with fresh nativeRef capabilities. This is not arbitrary graph extraction and
+does not port the JavaScript repeated-candidate workflow into PPJ.
+
 To continue an ordinary imported page without cloning it, require the page's
 \`nativeRef\` to advertise \`appendElement\` with \`elements\`. Keep every
 source-projected element unchanged and in its original order, then append new

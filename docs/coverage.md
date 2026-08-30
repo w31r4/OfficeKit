@@ -196,6 +196,18 @@ Slide XML, and second projection expands the result into an ordinary
 source-bound page. Pending clones cannot be edited, chained, repeated, mixed
 with page deletion/reorder or route changes, or used from source-free PPJ.
 
+The same finite `sourceClone` macro now accepts one optional `retainElement`
+ID for source-component reuse. It names one direct top-level element on the
+retained source page; NativeAOT keeps that exact wire element and lowers every
+sibling through its freshly issued `delete/element` capability. The existing
+native clone writer independently re-proves shape-tree order, drawing IDs,
+relationships, connector targets, and deletion closure. The focused contract
+keeps one rich-text title, proves the original SlidePart XML unchanged, proves
+the new slide contains only that title, and reprojects it as an ordinary typed
+text element with nativeRef. Nested-child extraction, multiple retained
+siblings, immediate edits, and any sibling without an independent deletion
+proof remain blocked.
+
 Ordinary imported pages now also issue `appendElement/elements`. PPJ retains
 the complete source element array as an unchanged prefix and appends fresh
 typed text, bounded rect/roundRect/ellipse shapes, or embedded rectangular

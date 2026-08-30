@@ -105,9 +105,26 @@ SlidePart through the proven source graph copier. Re-import that PPTX before
 editing the new page; only then does its full typed/opaque content and fresh
 capability set exist.
 
-A source component still requires its separately issued bounded reuse path.
-New PPJ objects may be composed only after the reused native graph has crossed
-the required build/reimport boundary.
+To reuse one exact top-level component rather than the full page, add its
+source element ID to the same finite macro:
+
+```json
+"sourceClone": {
+  "page": "page-source",
+  "capability": "cap-duplicate-…",
+  "retainElement": "element-source-group"
+}
+```
+
+Use only an ID that appears directly in the source page's `elements[]`. If the
+desired object is nested, retain its owning top-level group. Every other direct
+element must advertise `delete/element`; otherwise the build fails closed.
+OfficeKit clones the complete native slide graph, keeps the selected object
+unchanged, and removes only independently proven siblings. Re-import before
+editing or adding content. The result then contains one ordinary typed or
+opaque source-bound element with fresh capabilities. PPJ does not require the
+retired JavaScript candidate ID or expose shape-tree indices, relationships, or
+raw XML.
 
 ## Add a typed overlay to an imported page
 
