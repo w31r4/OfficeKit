@@ -260,6 +260,35 @@ public sealed class PptxCodecTests
             ["showSeries"] = false,
             ["position"] = "outside-end",
         };
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-bubble-main",
+            ["type"] = "chart",
+            ["role"] = "numeric relationship evidence",
+            ["frame"] = new JsonObject { ["x"] = 620, ["y"] = 300, ["width"] = 280, ["height"] = 160 },
+            ["chartType"] = "bubble",
+            ["title"] = "Risk vs. reach",
+            ["xAxis"] = new JsonObject { ["title"] = "Reach", ["min"] = 0, ["max"] = 40, ["majorUnit"] = 10 },
+            ["yAxis"] = new JsonObject { ["title"] = "Risk", ["min"] = 0, ["max"] = 20, ["majorUnit"] = 5 },
+            ["style"] = new JsonObject { ["legend"] = "none", ["showGridlines"] = true },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray(),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "risk-reach",
+                        ["name"] = "Sites",
+                        ["xValues"] = new JsonArray(10, 20, 34),
+                        ["values"] = new JsonArray(5, 12, 8),
+                        ["bubbleSizes"] = new JsonArray(4, 9, 16),
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#0B8F8F" },
+                        ["stroke"] = new JsonObject { ["color"] = "#F2C14E", ["width"] = 1 },
+                    },
+                },
+            },
+        });
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -287,7 +316,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(16U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(17U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -343,6 +372,12 @@ public sealed class PptxCodecTests
         Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Equal("Rising evidence line", importedImage.AltText);
+        var importedBubble = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
+        Assert.Equal(SpreadsheetChartType.Bubble, importedBubble.Type);
+        Assert.Equal([10D, 20D, 34D], Assert.Single(importedBubble.Series).XValues);
+        Assert.Equal([4D, 9D, 16D], importedBubble.Series[0].BubbleSizes);
+        Assert.Equal(40, importedBubble.XAxis.Maximum);
         var importedClaim = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
             element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal)).Shape;
@@ -505,6 +540,10 @@ public sealed class PptxCodecTests
             Assert.Equal("linear", projectedSeries.GetProperty("trendlines")[0].GetProperty("type").GetString());
             Assert.Equal("standard-error", projectedSeries.GetProperty("errorBars").GetProperty("valueType").GetString());
             Assert.True(projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("showValue").GetBoolean());
+            var projectedBubble = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "chart");
+            Assert.Equal(20, projectedBubble.GetProperty("data").GetProperty("series")[0].GetProperty("xValues")[1].GetDouble());
+            Assert.Equal(16, projectedBubble.GetProperty("data").GetProperty("series")[0].GetProperty("bubbleSizes")[2].GetDouble());
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
@@ -577,6 +616,24 @@ public sealed class PptxCodecTests
         });
         Assert.False(rejectedChartStyleEdit.Ok);
         Assert.Contains(rejectedChartStyleEdit.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
+        var rejectedBubbleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var rejectedBubble = rejectedBubbleProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart");
+        rejectedBubble["data"]!["series"]![0]!["bubbleSizes"]![1] = 12;
+        var rejectedBubbleEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(rejectedBubbleProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejectedBubbleEdit.Ok);
+        Assert.Contains(rejectedBubbleEdit.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
         var sourceValidationRequest = new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,

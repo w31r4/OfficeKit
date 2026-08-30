@@ -6,12 +6,12 @@
 ## 2. Compiler and projection
 
 - [x] 2.1 Lower numeric channels into existing native chart series
-- [ ] 2.2 Project recognized numeric caches back into PPJ
-- [ ] 2.3 Preserve the narrow source-bound data-edit boundary
+- [x] 2.2 Project recognized numeric caches back into PPJ
+- [x] 2.3 Preserve the narrow source-bound data-edit boundary
 
 ## 3. Agent surface and delivery
 
 - [ ] 3.1 Regenerate the PPJ manual and focused chart guidance
-- [ ] 3.2 Extend the existing integrated PPJ test
+- [x] 3.2 Extend the existing integrated PPJ test
 - [ ] 3.3 Run narrow native, Skill, and OpenSpec checks
 - [ ] 3.4 Commit atomically and fast-forward main

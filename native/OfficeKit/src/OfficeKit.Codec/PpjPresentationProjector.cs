@@ -482,7 +482,14 @@ internal static partial class PpjPresentationProjector
         var series = chart.Type == SpreadsheetChartType.Combo
             ? chart.ComboSeries.Select(item => item.Series).ToArray()
             : chart.Series.ToArray();
-        if (type is null || series.Length == 0 || series.Any(item => item.Values.Count != chart.Categories.Count))
+        var numericX = chart.Type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble;
+        var invalidSeries = numericX
+            ? chart.Categories.Count != 0 || series.Any(item =>
+                item.Values.Count != item.XValues.Count ||
+                chart.Type == SpreadsheetChartType.Bubble && item.Values.Count != item.BubbleSizes.Count ||
+                chart.Type == SpreadsheetChartType.Scatter && item.BubbleSizes.Count != 0)
+            : series.Any(item => item.Values.Count != chart.Categories.Count || item.XValues.Count != 0 || item.BubbleSizes.Count != 0);
+        if (type is null || series.Length == 0 || invalidSeries)
             return ProjectOpaque(element, id, nativeRef, "chart", "Preserved source chart outside the bounded PPJ data profile.");
 
         var output = ElementBase(id, element.Name, ChartFrame(chart), Accessibility(chart.Accessibility), nativeRef);
@@ -503,6 +510,18 @@ internal static partial class PpjPresentationProjector
                 ["name"] = item.Name ?? string.Empty,
                 ["values"] = values,
             };
+            if (item.XValues.Count > 0)
+            {
+                var xValues = new JsonArray();
+                foreach (var value in item.XValues) xValues.Add(NumberNode(value));
+                entry["xValues"] = xValues;
+            }
+            if (item.BubbleSizes.Count > 0)
+            {
+                var bubbleSizes = new JsonArray();
+                foreach (var value in item.BubbleSizes) bubbleSizes.Add(NumberNode(value));
+                entry["bubbleSizes"] = bubbleSizes;
+            }
             if (chart.Type == SpreadsheetChartType.Combo)
             {
                 entry["chartType"] = chart.ComboSeries[index].Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar"
