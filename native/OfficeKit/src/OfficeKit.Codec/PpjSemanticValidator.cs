@@ -757,6 +757,16 @@ internal static class PpjSemanticValidator
                 path + ".data.series"));
         }
         if (chart.ChartType == "combo") ValidateCombo(chart, path, diagnostics);
+        if (chart.Raw.TryGetProperty("spokeAxis", out var spokeAxis))
+        {
+            if (chart.ChartType != "radar")
+                diagnostics.Add(new(
+                    "ppj.chart.spokeAxisType",
+                    "spokeAxis applies only to radar charts.",
+                    path + ".spokeAxis"));
+            else
+                ValidateRadarSpokeAxis(chart, spokeAxis, path, diagnostics);
+        }
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
@@ -813,6 +823,36 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidateRadarSpokeAxis(
+        PpjChartElementModel chart,
+        JsonElement spokeAxis,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        foreach (var axisName in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(axisName, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.spokeAxisConflict",
+                    "Radar spokeAxis cannot be combined with generic or secondary chart axes.",
+                    path + "." + axisName));
+
+        if (chart.Raw.TryGetProperty("style", out var style))
+            foreach (var propertyName in new[] { "showCategoryAxis", "showValueAxis", "showGridlines" })
+                if (style.TryGetProperty(propertyName, out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.spokeAxisStyleConflict",
+                        $"Radar spokeAxis cannot be combined with legacy style.{propertyName}.",
+                        path + ".style." + propertyName));
+
+        if (spokeAxis.TryGetProperty("min", out var minimum) &&
+            spokeAxis.TryGetProperty("max", out var maximum) &&
+            minimum.GetDouble() >= maximum.GetDouble())
+            diagnostics.Add(new(
+                "ppj.chart.spokeAxisDomain",
+                "Radar spokeAxis minimum must be smaller than maximum.",
+                path + ".spokeAxis"));
     }
 
     private static void ValidatePictographicChart(

@@ -2895,6 +2895,9 @@
             "yAxis": {
               "$ref": "#/$defs/chartAxis"
             },
+            "spokeAxis": {
+              "$ref": "#/$defs/radarSpokeAxis"
+            },
             "secondaryXAxis": {
               "$ref": "#/$defs/chartAxis"
             },
@@ -3734,6 +3737,93 @@
               "$ref": "#/$defs/stroke"
             }
           ]
+        },
+        "tickLabelsVisible": {
+          "type": "boolean"
+        }
+      }
+    },
+    "radarSpokeAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "show": {
+          "type": "boolean"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "majorUnit": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "label": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/radarSpokeLabel"
+            }
+          ]
+        },
+        "axisLine": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/stroke"
+            }
+          ]
+        },
+        "gridLine": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/stroke"
+            }
+          ]
+        }
+      }
+    },
+    "radarSpokeLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "numberFormat": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "fontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "fontFamily": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "fontFamilyEastAsia": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
         }
       }
     },
