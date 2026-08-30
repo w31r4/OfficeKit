@@ -12,12 +12,15 @@ internal static class XlsxChartDataLabelsCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly string[] OrderedFlags = ["showLegendKey", "showVal", "showCatName", "showSerName", "showPercent", "showBubbleSize"];
-    private static readonly HashSet<string> AllowedChildren = new(["txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
+    private static readonly HashSet<string> AllowedChildren = new(["numFmt", "txPr", "dLblPos", .. OrderedFlags], StringComparer.Ordinal);
     private static readonly HashSet<string> BooleanValues = new(StringComparer.Ordinal) { "0", "1", "false", "true" };
     private static readonly HashSet<string> PositionValues = new(StringComparer.Ordinal) { "bestFit", "b", "ctr", "inBase", "inEnd", "l", "outEnd", "r", "t" };
 
     internal static void Validate(SpreadsheetChartArtifact chart, string worksheetId)
     {
+        if (chart.DataLabels is { NumberFormatCode.Length: > 0 } labels &&
+            (labels.NumberFormatCode.Length > 255 || labels.NumberFormatCode.Any(char.IsControl)))
+            throw new CodecException("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chart.Id} data-label number format is invalid.");
         if (chart.DataLabels?.HasShowPercent == true && chart.DataLabels.ShowPercent && chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
             throw new CodecException("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chart.Id} percentage data labels require a pie or doughnut chart.");
         if (chart.DataLabels?.HasPosition == true && chart.DataLabels.Position is not (
@@ -48,6 +51,18 @@ internal static class XlsxChartDataLabelsCodec
             if (element is not null && (!TryBoolean(element, out var enabled) || enabled)) return false;
         }
         var dataLabels = new SpreadsheetChartDataLabelsArtifact { ShowValue = value, ShowCategoryName = categoryName };
+        var numberFormat = children.SingleOrDefault(child => child.Name == ChartNs + "numFmt");
+        if (numberFormat is not null)
+        {
+            var attributes = numberFormat.Attributes().Where(attribute => !attribute.IsNamespaceDeclaration).ToArray();
+            var code = (string?)numberFormat.Attribute("formatCode");
+            var sourceLinked = (string?)numberFormat.Attribute("sourceLinked");
+            if (numberFormat.HasElements || HasUnexpectedText(numberFormat) || attributes.Length != 2 ||
+                attributes.Any(attribute => attribute.Name != "formatCode" && attribute.Name != "sourceLinked") ||
+                code is null || code.Length > 255 || code.Any(char.IsControl) || sourceLinked is not ("0" or "false"))
+                return false;
+            dataLabels.NumberFormatCode = code;
+        }
         var showSeriesName = children.SingleOrDefault(child => child.Name == ChartNs + "showSerName");
         if (showSeriesName is not null)
         {
@@ -75,6 +90,7 @@ internal static class XlsxChartDataLabelsCodec
 
     internal static XElement? Element(SpreadsheetChartDataLabelsArtifact? labels) => labels is null ? null :
         new XElement(ChartNs + "dLbls",
+            labels.NumberFormatCode.Length == 0 ? null : NumberFormatElement(labels.NumberFormatCode),
             labels.TextStyle is null ? null : XlsxChartTextStyleCodec.TextPropertiesElement(labels.TextStyle),
             PositionElement(labels),
             BooleanElement("showVal", labels.ShowValue),
@@ -100,6 +116,7 @@ internal static class XlsxChartDataLabelsCodec
             return;
         }
         XlsxChartTextStyleCodec.PatchTextProperties(existing, labels.TextStyle, AllowedChildren);
+        PatchNumberFormat(existing, labels.NumberFormatCode);
         var existingPosition = existing.Element(ChartNs + "dLblPos");
         var replacementPosition = PositionElement(labels);
         if (replacementPosition is null) existingPosition?.Remove();
@@ -118,7 +135,24 @@ internal static class XlsxChartDataLabelsCodec
 
     internal static string Semantics(SpreadsheetChartDataLabelsArtifact? labels) => labels is null
         ? "-"
-        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)}";
+        : $"value:{(labels.ShowValue ? 1 : 0)};category:{(labels.ShowCategoryName ? 1 : 0)};series:{(labels.HasShowSeriesName ? labels.ShowSeriesName ? "1" : "0" : "-")};percent:{(labels.HasShowPercent ? labels.ShowPercent ? "1" : "0" : "-")};position:{(labels.HasPosition ? PositionValue(labels.Position) : "-")};format:{labels.NumberFormatCode};text:{XlsxChartTextStyleCodec.Semantics(labels.TextStyle)}";
+
+    private static void PatchNumberFormat(XElement labels, string code)
+    {
+        var existing = labels.Element(ChartNs + "numFmt");
+        if (code.Length == 0) { existing?.Remove(); return; }
+        if (existing is not null && (string?)existing.Attribute("formatCode") == code &&
+            (string?)existing.Attribute("sourceLinked") is "0" or "false") return;
+        var replacement = NumberFormatElement(code);
+        if (existing is not null) { existing.ReplaceWith(replacement); return; }
+        var next = labels.Elements().FirstOrDefault(element => element.Name == ChartNs + "txPr" || element.Name == ChartNs + "dLblPos" || OrderedFlags.Contains(element.Name.LocalName, StringComparer.Ordinal));
+        if (next is null) labels.AddFirst(replacement);
+        else next.AddBeforeSelf(replacement);
+    }
+
+    private static XElement NumberFormatElement(string code) => new(ChartNs + "numFmt",
+        new XAttribute("formatCode", code),
+        new XAttribute("sourceLinked", "0"));
 
     private static XElement BooleanElement(string name, bool value) =>
         new(ChartNs + name, new XAttribute("val", value ? "1" : "0"));

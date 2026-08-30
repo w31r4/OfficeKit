@@ -6,8 +6,8 @@ namespace OfficeKit.Codec;
 
 // Owns the bounded primary category/value or numeric-X value/value-axis projection for worksheet charts.
 // Axis identity and all unmodeled formatting remain in the ChartPart; this
-// module reads and patches only titles, number formats, category label interval,
-// linear value-axis bounds/unit, and the delegated bounded tick-label style.
+// module reads and patches titles, number formats, category label interval,
+// linear value-axis bounds/unit, orientation, and bounded line/text styles.
 internal static class XlsxChartAxisCodec
 {
     private const uint MaxTickLabelInterval = 1_048_576;
@@ -104,9 +104,16 @@ internal static class XlsxChartAxisCodec
     {
         if (axis.Title.Length > 32_767 || HasControls(axis.Title)) throw Invalid(worksheetId, chartId, $"{axisName}-axis title is invalid.");
         if (axis.NumberFormatCode.Length > 255 || HasControls(axis.NumberFormatCode)) throw Invalid(worksheetId, chartId, $"{axisName}-axis number format is invalid.");
+        if (axis.AxisLine is not null && axis.HasAxisLineVisible && !axis.AxisLineVisible)
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden axis line with a line style.");
+        if (axis.MajorGridlineStyle is not null && (!axis.HasShowMajorGridlines || !axis.ShowMajorGridlines))
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis grid-line style requires visible major gridlines.");
+        if (axis.MajorGridlineStyle is not null && axis.HasMajorGridlineVisible && !axis.MajorGridlineVisible)
+            throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden major gridline with a line style.");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(axis.AxisLine, worksheetId, chartId, axisName, "axis line");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MajorGridlineStyle, worksheetId, chartId, axisName, "major gridline");
         if (category)
         {
-            if (axis.HasShowMajorGridlines) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry value-axis major gridlines.");
             if (axis.HasMinimum || axis.HasMaximum || axis.HasMajorUnit) throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot carry numeric minimum, maximum, or major unit.");
             if (axis.HasTickLabelInterval && axis.TickLabelInterval is < 1 or > MaxTickLabelInterval) throw Invalid(worksheetId, chartId, $"{axisName}-axis tick label interval must be 1 through {MaxTickLabelInterval}.");
             return;
@@ -160,7 +167,9 @@ internal static class XlsxChartAxisCodec
         axis = new SpreadsheetChartAxisArtifact();
         editable = true;
         if (!Singleton(source, "scaling", out var scaling) || scaling is null ||
-            !Singleton(scaling, "orientation", out var orientation) || orientation is null || AxisValue(orientation) != "minMax") return false;
+            !Singleton(scaling, "orientation", out var orientation) || orientation is null ||
+            AxisValue(orientation) is not ("minMax" or "maxMin")) return false;
+        axis.Reverse = AxisValue(orientation) == "maxMin";
         if (scaling.Element(ChartNs + "logBase") is not null) editable = false;
         if (!Singleton(source, "delete", out var deleted)) return false;
         if (deleted is not null)
@@ -175,6 +184,21 @@ internal static class XlsxChartAxisCodec
         axis.Title = title;
         axis.NumberFormatCode = numberFormat;
         editable &= titleEditable && numberFormatEditable && XlsxChartTextStyleCodec.TryReadAxis(source, axis);
+        if (!TryReadLineContainer(source.Element(ChartNs + "spPr"), out var axisLineVisible, out var axisLine, out var axisLineEditable)) return false;
+        if (axisLineVisible is { } visible) axis.AxisLineVisible = visible;
+        if (axisLine is not null) axis.AxisLine = axisLine;
+        editable &= axisLineEditable;
+        if (!Singleton(source, "majorGridlines", out var majorGridlines)) return false;
+        if (majorGridlines is not null)
+        {
+            axis.ShowMajorGridlines = true;
+            if (majorGridlines.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration)) editable = false;
+            if (!TryReadLineContainer(majorGridlines.Element(ChartNs + "spPr"), out var gridVisible, out var gridLine, out var gridEditable)) return false;
+            if (majorGridlines.Elements().Any(element => element.Name != ChartNs + "spPr")) editable = false;
+            if (gridVisible is { } gridLineVisible) axis.MajorGridlineVisible = gridLineVisible;
+            if (gridLine is not null) axis.MajorGridlineStyle = gridLine;
+            editable &= gridEditable;
+        }
         if (category)
         {
             if (scaling.Element(ChartNs + "min") is not null || scaling.Element(ChartNs + "max") is not null) editable = false;
@@ -188,12 +212,6 @@ internal static class XlsxChartAxisCodec
         if (hasMinimum) axis.Minimum = minimum;
         if (hasMaximum) axis.Maximum = maximum;
         if (hasMajorUnit) axis.MajorUnit = majorUnit;
-        if (!Singleton(source, "majorGridlines", out var majorGridlines)) return false;
-        if (majorGridlines is not null)
-        {
-            axis.ShowMajorGridlines = true;
-            if (majorGridlines.HasAttributes || majorGridlines.HasElements) editable = false;
-        }
         if (hasMinimum && hasMaximum && minimum >= maximum || hasMajorUnit && majorUnit <= 0) return false;
         return true;
     }
@@ -231,10 +249,14 @@ internal static class XlsxChartAxisCodec
     {
         var output = new XElement(ChartNs + "catAx",
             new XElement(ChartNs + "axId", new XAttribute("val", axisId)),
-            new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", "minMax"))),
+            new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", axis.HasReverse && axis.Reverse ? "maxMin" : "minMax"))),
             new XElement(ChartNs + "axPos", new XAttribute("val", position)));
         if (axis.HasVisible) output.Element(ChartNs + "axPos")!.AddBeforeSelf(new XElement(ChartNs + "delete", new XAttribute("val", axis.Visible ? "0" : "1")));
+        if (axis.HasShowMajorGridlines && axis.ShowMajorGridlines)
+            output.Add(new XElement(ChartNs + "majorGridlines",
+                GridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
+        if (AxisLineProperties(axis) is { } shapeProperties) output.Add(shapeProperties);
         XlsxChartTextStyleCodec.AppendAuthoredAxis(output, axis.TextStyle);
         output.Add(new XElement(ChartNs + "crossAx", new XAttribute("val", crossAxisId)));
         if (axis.HasTickLabelInterval) output.Add(ValueElement("tickLblSkip", axis.TickLabelInterval));
@@ -243,15 +265,18 @@ internal static class XlsxChartAxisCodec
 
     private static XElement BuildValueAxis(SpreadsheetChartAxisArtifact axis, string axisId, string crossAxisId, string position, string? crosses = null)
     {
-        var scaling = new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", "minMax")));
+        var scaling = new XElement(ChartNs + "scaling", new XElement(ChartNs + "orientation", new XAttribute("val", axis.HasReverse && axis.Reverse ? "maxMin" : "minMax")));
         if (axis.HasMaximum) scaling.Add(ValueElement("max", axis.Maximum));
         if (axis.HasMinimum) scaling.Add(ValueElement("min", axis.Minimum));
         var output = new XElement(ChartNs + "valAx",
             new XElement(ChartNs + "axId", new XAttribute("val", axisId)), scaling,
             new XElement(ChartNs + "axPos", new XAttribute("val", position)));
         if (axis.HasVisible) output.Element(ChartNs + "axPos")!.AddBeforeSelf(new XElement(ChartNs + "delete", new XAttribute("val", axis.Visible ? "0" : "1")));
-        if (axis.HasShowMajorGridlines && axis.ShowMajorGridlines) output.Add(new XElement(ChartNs + "majorGridlines"));
+        if (axis.HasShowMajorGridlines && axis.ShowMajorGridlines)
+            output.Add(new XElement(ChartNs + "majorGridlines",
+                GridLineProperties(axis)));
         AppendTitleAndNumberFormat(output, axis);
+        if (AxisLineProperties(axis) is { } shapeProperties) output.Add(shapeProperties);
         XlsxChartTextStyleCodec.AppendAuthoredAxis(output, axis.TextStyle);
         output.Add(new XElement(ChartNs + "crossAx", new XAttribute("val", crossAxisId)));
         if (crosses is not null) output.Add(new XElement(ChartNs + "crosses", new XAttribute("val", crosses)));
@@ -267,17 +292,19 @@ internal static class XlsxChartAxisCodec
 
     private static void PatchAxis(XElement native, SpreadsheetChartAxisArtifact target, bool category)
     {
+        var scaling = native.Element(ChartNs + "scaling")!;
+        SetRequiredOrientation(scaling, target.HasReverse && target.Reverse ? "maxMin" : "minMax");
         PatchValue(native, "delete", target.HasVisible, target.Visible ? 0 : 1, ["axPos", "majorGridlines", "title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
-        if (!category) PatchMajorGridlines(native, target);
+        PatchMajorGridlines(native, target);
         PatchTitle(native, target.Title, target.TitleTextStyle);
         PatchNumberFormat(native, target.NumberFormatCode);
+        PatchAxisLine(native, target);
         XlsxChartTextStyleCodec.PatchAxis(native, target.TextStyle);
         if (category)
         {
             PatchValue(native, "tickLblSkip", target.HasTickLabelInterval, target.TickLabelInterval, ["tickMarkSkip", "noMultiLvlLbl", "extLst"]);
             return;
         }
-        var scaling = native.Element(ChartNs + "scaling")!;
         PatchValue(scaling, "max", target.HasMaximum, target.Maximum, ["min", "extLst"]);
         PatchValue(scaling, "min", target.HasMinimum, target.Minimum, ["extLst"]);
         PatchValue(native, "majorUnit", target.HasMajorUnit, target.MajorUnit, ["minorUnit", "dispUnits", "extLst"]);
@@ -293,11 +320,109 @@ internal static class XlsxChartAxisCodec
         }
         if (existing is not null)
         {
-            if (existing.HasAttributes || existing.HasElements)
+            if (existing.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+                existing.Elements().Any(element => element.Name != ChartNs + "spPr"))
                 throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart major gridlines use an unmodeled style graph.");
+            PatchLineContainer(existing, target.MajorGridlineStyle,
+                !target.HasMajorGridlineVisible || target.MajorGridlineVisible);
             return;
         }
-        InsertBefore(axis, new XElement(ChartNs + "majorGridlines"), ["title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+        InsertBefore(axis, new XElement(ChartNs + "majorGridlines",
+            GridLineProperties(target)), ["title", "numFmt", "majorTickMark", "minorTickMark", "tickLblPos", "spPr", "txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+    }
+
+    private static bool TryReadLineContainer(
+        XElement? shapeProperties,
+        out bool? visible,
+        out SpreadsheetChartLineStyleArtifact? line,
+        out bool editable)
+    {
+        visible = null;
+        line = null;
+        editable = true;
+        if (shapeProperties is null) return true;
+        if (shapeProperties.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+            shapeProperties.Elements().Any(element => element.Name != DrawingNs + "ln"))
+        {
+            editable = false;
+            return true;
+        }
+        var lines = shapeProperties.Elements(DrawingNs + "ln").Take(2).ToArray();
+        if (lines.Length != 1)
+        {
+            editable = false;
+            return true;
+        }
+        var nativeLine = lines[0];
+        if (nativeLine.Attributes().All(attribute => attribute.IsNamespaceDeclaration) &&
+            nativeLine.Elements().Count() == 1 && nativeLine.Element(DrawingNs + "noFill") is { } noFill &&
+            !noFill.HasElements && noFill.Attributes().All(attribute => attribute.IsNamespaceDeclaration))
+        {
+            visible = false;
+            return true;
+        }
+        if (!XlsxChartSeriesLineStyleCodec.TryReadLine(shapeProperties, out var parsed) ||
+            parsed?.Color is null || !parsed.HasWidthPoints)
+        {
+            editable = false;
+            return true;
+        }
+        visible = true;
+        line = parsed;
+        return true;
+    }
+
+    private static XElement? AxisLineProperties(SpreadsheetChartAxisArtifact axis)
+    {
+        if (axis.AxisLine is not null) return LineProperties(axis.AxisLine);
+        if (axis.HasAxisLineVisible && !axis.AxisLineVisible) return HiddenLineProperties();
+        return null;
+    }
+
+    private static XElement? GridLineProperties(SpreadsheetChartAxisArtifact axis)
+    {
+        if (axis.MajorGridlineStyle is not null) return LineProperties(axis.MajorGridlineStyle);
+        if (axis.HasMajorGridlineVisible && !axis.MajorGridlineVisible) return HiddenLineProperties();
+        return null;
+    }
+
+    private static XElement LineProperties(SpreadsheetChartLineStyleArtifact line) =>
+        new(ChartNs + "spPr", XlsxChartSeriesLineStyleCodec.Element(line));
+
+    private static XElement HiddenLineProperties() =>
+        new(ChartNs + "spPr", new XElement(DrawingNs + "ln", new XElement(DrawingNs + "noFill")));
+
+    private static void PatchAxisLine(XElement axis, SpreadsheetChartAxisArtifact target)
+    {
+        var visible = target.AxisLine is not null || !target.HasAxisLineVisible || target.AxisLineVisible;
+        PatchLineContainer(axis, target.AxisLine, visible);
+    }
+
+    private static void PatchLineContainer(XElement owner, SpreadsheetChartLineStyleArtifact? line, bool visible)
+    {
+        var existing = owner.Element(ChartNs + "spPr");
+        if (LineContainerMatches(existing, line, visible)) return;
+        XElement? replacement = line is not null ? LineProperties(line) : visible ? null : HiddenLineProperties();
+        if (replacement is null) { existing?.Remove(); return; }
+        if (existing is not null) { existing.ReplaceWith(replacement); return; }
+        InsertBefore(owner, replacement, ["txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
+    }
+
+    private static bool LineContainerMatches(XElement? existing, SpreadsheetChartLineStyleArtifact? line, bool visible)
+    {
+        if (!TryReadLineContainer(existing, out var existingVisible, out var existingLine, out var editable) || !editable)
+            return false;
+        if (line is not null)
+            return existingVisible == true &&
+                   XlsxChartSeriesLineStyleCodec.Semantics(existingLine) == XlsxChartSeriesLineStyleCodec.Semantics(line);
+        return visible ? existing is null : existingVisible == false;
+    }
+
+    private static void SetRequiredOrientation(XElement scaling, string value)
+    {
+        var orientation = scaling.Element(ChartNs + "orientation")
+            ?? throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart axis has no canonical orientation node.");
+        orientation.SetAttributeValue("val", value);
     }
 
     private static void PatchTitle(XElement owner, string title, SpreadsheetChartTextStyleArtifact? style)
@@ -385,7 +510,12 @@ internal static class XlsxChartAxisCodec
         axis.HasMaximum ? axis.Maximum.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasMajorUnit ? axis.MajorUnit.ToString("R", CultureInfo.InvariantCulture) : "-",
         axis.HasVisible ? (axis.Visible ? "visible" : "hidden") : "default-visible",
+        axis.HasReverse ? (axis.Reverse ? "reverse" : "forward") : "default-direction",
+        axis.HasAxisLineVisible ? (axis.AxisLineVisible ? "axis-line" : "no-axis-line") : "default-axis-line",
+        XlsxChartSeriesLineStyleCodec.Semantics(axis.AxisLine),
         axis.HasShowMajorGridlines ? (axis.ShowMajorGridlines ? "gridlines" : "no-gridlines") : "default-gridlines",
+        axis.HasMajorGridlineVisible ? (axis.MajorGridlineVisible ? "visible-gridline" : "hidden-gridline") : "default-gridline-visibility",
+        XlsxChartSeriesLineStyleCodec.Semantics(axis.MajorGridlineStyle),
         XlsxChartTextStyleCodec.Semantics(axis.TextStyle),
         XlsxChartTextStyleCodec.Semantics(axis.TitleTextStyle));
     private static CodecException Invalid(string worksheetId, string chartId, string message) => new("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chartId} {message}");

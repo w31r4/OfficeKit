@@ -1187,10 +1187,10 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         var changed = ApplyChartStyleTextStyles(before, after, target, path);
-        changed |= ApplyChartAxisTextStyle(before, after, target.XAxis, "xAxis", path);
-        changed |= ApplyChartAxisTextStyle(before, after, target.YAxis, "yAxis", path);
-        changed |= ApplyChartAxisTextStyle(before, after, target.SecondaryXAxis, "secondaryXAxis", path);
-        changed |= ApplyChartAxisTextStyle(before, after, target.SecondaryYAxis, "secondaryYAxis", path);
+        changed |= ApplyChartAxisStyle(before, after, target.XAxis, "xAxis", path);
+        changed |= ApplyChartAxisStyle(before, after, target.YAxis, "yAxis", path);
+        changed |= ApplyChartAxisStyle(before, after, target.SecondaryXAxis, "secondaryXAxis", path);
+        changed |= ApplyChartAxisStyle(before, after, target.SecondaryYAxis, "secondaryYAxis", path);
         return changed;
     }
 
@@ -1213,7 +1213,9 @@ internal static class PpjSourceBoundPresentationCompiler
             "chartAreaFill",
             "plotAreaFill",
             "startAngle",
-            "holeSize");
+            "holeSize",
+            "bubbleScale",
+            "bubbleSizeMode");
 
         var changed = false;
         if (PropertyChanged(oldStyle, newStyle, "titleTextStyle"))
@@ -1241,7 +1243,7 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             if (oldLabels is null || newLabels is null || target.DataLabels is null)
                 throw Unsupported(path + ".style.dataLabels", "source-bound chart-data-label topology change");
-            RequireEqualExcept(oldLabels.Value, newLabels.Value, path + ".style.dataLabels", "textStyle");
+            RequireEqualExcept(oldLabels.Value, newLabels.Value, path + ".style.dataLabels", "textStyle", "numberFormat");
             if (PropertyChanged(oldLabels, newLabels, "textStyle"))
             {
                 RequireCapability(after, "setChartTextStyle", path + ".style.dataLabels.textStyle");
@@ -1249,6 +1251,14 @@ internal static class PpjSourceBoundPresentationCompiler
                     newLabels,
                     "textStyle",
                     path + ".style.dataLabels.textStyle");
+                changed = true;
+            }
+            if (PropertyChanged(oldLabels, newLabels, "numberFormat"))
+            {
+                RequireCapability(after, "setChartLabels", path + ".style.dataLabels.numberFormat");
+                target.DataLabels.NumberFormatCode = newLabels.Value.TryGetProperty("numberFormat", out var format)
+                    ? format.GetString()!
+                    : string.Empty;
                 changed = true;
             }
         }
@@ -1286,10 +1296,31 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.ClearDoughnutHoleSize();
             changed = true;
         }
+        if (PropertyChanged(oldStyle, newStyle, "bubbleScale"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.bubbleScale");
+            if (target.Type != SpreadsheetChartType.Bubble)
+                throw Unsupported(path + ".style.bubbleScale", "bubble scale on a non-bubble chart");
+            if (newStyle is { } owner && owner.TryGetProperty("bubbleScale", out var value))
+                target.BubbleScale = checked((uint)value.GetInt32());
+            else
+                target.ClearBubbleScale();
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "bubbleSizeMode"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.bubbleSizeMode");
+            if (target.Type != SpreadsheetChartType.Bubble)
+                throw Unsupported(path + ".style.bubbleSizeMode", "bubble size mode on a non-bubble chart");
+            target.BubbleSizeMode = newStyle is { } owner && owner.TryGetProperty("bubbleSizeMode", out var value)
+                ? value.GetString()!
+                : string.Empty;
+            changed = true;
+        }
         return changed;
     }
 
-    private static bool ApplyChartAxisTextStyle(
+    private static bool ApplyChartAxisStyle(
         PpjChartElementModel before,
         PpjChartElementModel after,
         SpreadsheetChartAxisArtifact? target,
@@ -1301,7 +1332,7 @@ internal static class PpjSourceBoundPresentationCompiler
         if (JsonEqual(oldAxis, newAxis)) return false;
         if (oldAxis is null || newAxis is null || target is null)
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
-        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName, "textStyle", "titleTextStyle");
+        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName, "textStyle", "titleTextStyle", "reverse", "axisLine", "gridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "textStyle"))
         {
@@ -1319,6 +1350,48 @@ internal static class PpjSourceBoundPresentationCompiler
             if (titleTextStyle is not null && target.Title.Length == 0)
                 throw Unsupported(path + "." + axisName + ".titleTextStyle", "axis-title style without an existing title");
             target.TitleTextStyle = titleTextStyle;
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "reverse"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".reverse");
+            if (newAxis.Value.TryGetProperty("reverse", out var reverse)) target.Reverse = reverse.GetBoolean();
+            else target.ClearReverse();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "axisLine"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".axisLine");
+            target.AxisLine = null;
+            if (!newAxis.Value.TryGetProperty("axisLine", out var axisLine)) target.ClearAxisLineVisible();
+            else if (axisLine.ValueKind is JsonValueKind.True or JsonValueKind.False) target.AxisLineVisible = axisLine.GetBoolean();
+            else
+            {
+                target.AxisLineVisible = true;
+                target.AxisLine = SourceBoundChartLine(axisLine, path + "." + axisName + ".axisLine");
+            }
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "gridLine"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".gridLine");
+            target.MajorGridlineStyle = null;
+            if (!newAxis.Value.TryGetProperty("gridLine", out var gridLine))
+            {
+                target.ClearShowMajorGridlines();
+                target.ClearMajorGridlineVisible();
+            }
+            else if (gridLine.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                target.ShowMajorGridlines = true;
+                target.MajorGridlineVisible = gridLine.GetBoolean();
+            }
+            else
+            {
+                target.ShowMajorGridlines = true;
+                target.MajorGridlineVisible = true;
+                target.MajorGridlineStyle = SourceBoundChartLine(gridLine, path + "." + axisName + ".gridLine");
+            }
             changed = true;
         }
         return changed;
@@ -1364,6 +1437,29 @@ internal static class PpjSourceBoundPresentationCompiler
             if (value.Length == 8)
                 output.OpacityThousandthPercent = Unit(Convert.ToByte(value[6..], 16) / 255d);
         }
+        return output;
+    }
+
+    private static SpreadsheetChartLineStyleArtifact SourceBoundChartLine(JsonElement source, string path)
+    {
+        var color = Rgb(source.GetProperty("color"), path + ".color");
+        var output = new SpreadsheetChartLineStyleArtifact
+        {
+            Color = new SpreadsheetColor { Rgb = color },
+            DashStyle = source.TryGetProperty("dash", out var dash) ? dash.GetString() switch
+            {
+                "solid" => SpreadsheetChartLineDashStyle.Solid,
+                "dash" or "long-dash" => SpreadsheetChartLineDashStyle.Dashed,
+                "dot" => SpreadsheetChartLineDashStyle.Dotted,
+                "dash-dot" => SpreadsheetChartLineDashStyle.DashDot,
+                _ => throw Unsupported(path + ".dash", "unsupported chart line dash"),
+            } : SpreadsheetChartLineDashStyle.Solid,
+            WidthPoints = source.GetProperty("width").GetDouble(),
+            Cap = source.TryGetProperty("cap", out var cap) ? cap.GetString()! : string.Empty,
+            Join = source.TryGetProperty("join", out var join) ? join.GetString()! : string.Empty,
+        };
+        if (source.TryGetProperty("opacity", out var opacity) && opacity.GetDouble() < 1)
+            output.OpacityThousandthPercent = Unit(opacity.GetDouble());
         return output;
     }
 

@@ -99,7 +99,7 @@ internal static class OpenXmlChartSpaceCodec
             SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.HasFirstSliceAngle ? chart.FirstSliceAngle : 0U)), new XElement(ChartNs + "holeSize", new XAttribute("val", chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U))),
             SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", "marker")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", "100")), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", "area")), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", chart.HasBubbleScale ? chart.BubbleScale : 100U)), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", BubbleSizeModeToken(chart.BubbleSizeMode))), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Radar => new XElement(ChartNs + "radarChart", new XElement(ChartNs + "radarStyle", new XAttribute("val", "standard")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Pie => new XElement(ChartNs + "pieChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasFirstSliceAngle ? new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.FirstSliceAngle)) : null),
             _ => throw new InvalidOperationException("Validated chart type is unsupported."),
@@ -386,6 +386,15 @@ internal static class OpenXmlChartSpaceCodec
                    plot.Element(ChartNs + "barDir") is null;
         }
 
+        if (chart.Type == SpreadsheetChartType.Bubble)
+        {
+            if (!TryOptionalUInt(plot, "bubbleScale", 0, 300, out var hasScale, out var scale) ||
+                !TryScalar(plot, "sizeRepresents", new[] { "area", "w" }, required: false, out var sizeMode))
+                return false;
+            if (hasScale) chart.BubbleScale = scale;
+            if (sizeMode is not null) chart.BubbleSizeMode = sizeMode == "w" ? "width" : "area";
+        }
+
         return plot.Element(ChartNs + "grouping") is null &&
                plot.Element(ChartNs + "gapWidth") is null &&
                plot.Element(ChartNs + "barDir") is null &&
@@ -423,7 +432,14 @@ internal static class OpenXmlChartSpaceCodec
             SetRequiredScalar(plot, "holeSize", (chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U).ToString(CultureInfo.InvariantCulture));
             return;
         }
-        if (chart.HasGapWidth || chart.Grouping.Length > 0 || chart.BarDirection.Length > 0 || chart.HasFirstSliceAngle || chart.HasDoughnutHoleSize)
+        if (chart.Type == SpreadsheetChartType.Bubble)
+        {
+            PatchOptionalUInt(plot, "bubbleScale", chart.HasBubbleScale, chart.BubbleScale);
+            if (chart.BubbleSizeMode.Length == 0) plot.Element(ChartNs + "sizeRepresents")?.Remove();
+            else SetRequiredScalar(plot, "sizeRepresents", BubbleSizeModeToken(chart.BubbleSizeMode));
+            return;
+        }
+        if (chart.HasGapWidth || chart.Grouping.Length > 0 || chart.BarDirection.Length > 0 || chart.HasFirstSliceAngle || chart.HasDoughnutHoleSize || chart.HasBubbleScale || chart.BubbleSizeMode.Length > 0)
             throw new CodecException("invalid_chart_style", "The selected chart type cannot carry grouping, gap width, bar direction, or circular-plot geometry.");
     }
 
@@ -527,7 +543,7 @@ internal static class OpenXmlChartSpaceCodec
         if (type == SpreadsheetChartType.Area) return true;
         if (type == SpreadsheetChartType.Doughnut) return true;
         if (type == SpreadsheetChartType.Scatter) return ScalarEquals(plot, "scatterStyle", "marker", required: true);
-        if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "bubbleScale", "100", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false) && ScalarEquals(plot, "sizeRepresents", "area", required: false);
+        if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false);
         if (type == SpreadsheetChartType.Radar) return ScalarEquals(plot, "radarStyle", "standard", required: true) && ScalarEquals(plot, "varyColors", "0", required: false);
         return true;
     }
@@ -540,6 +556,13 @@ internal static class OpenXmlChartSpaceCodec
         var element = matches[0];
         return (string?)element.Attribute("val") == expected && !element.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val") && !element.Nodes().Any(node => node is XText text ? !string.IsNullOrWhiteSpace(text.Value) : true);
     }
+
+    private static string BubbleSizeModeToken(string value) => value switch
+    {
+        "" or "area" => "area",
+        "width" => "w",
+        _ => throw new CodecException("invalid_chart_style", $"Unsupported bubble size mode {value}."),
+    };
 
     private static bool TryStringData(XElement source, out string[] values, out string formula)
     {

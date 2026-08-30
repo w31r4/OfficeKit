@@ -1159,6 +1159,8 @@
             "setChartData",
             "setChartTextStyle",
             "setChartFill",
+            "setChartLabels",
+            "setChartAxis",
             "setChartPlot",
             "setSmartArtText",
             "setOlePayload",
@@ -1212,6 +1214,8 @@
               "chart.data",
               "chart.textStyle",
               "chart.fill",
+              "chart.labels",
+              "chart.axis",
               "chart.plot",
               "smartArt.text",
               "ole.payload",
@@ -3157,6 +3161,17 @@
           "minimum": 10,
           "maximum": 90
         },
+        "bubbleScale": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 300
+        },
+        "bubbleSizeMode": {
+          "enum": [
+            "area",
+            "width"
+          ]
+        },
         "showCategoryAxis": {
           "type": "boolean"
         },
@@ -3611,6 +3626,29 @@
         },
         "titleTextStyle": {
           "$ref": "#/$defs/chartTextStyle"
+        },
+        "reverse": {
+          "type": "boolean"
+        },
+        "axisLine": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/stroke"
+            }
+          ]
+        },
+        "gridLine": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "$ref": "#/$defs/stroke"
+            }
+          ]
         }
       }
     },
@@ -3676,6 +3714,10 @@
         },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
+        },
+        "numberFormat": {
+          "type": "string",
+          "maxLength": 255
         }
       }
     },

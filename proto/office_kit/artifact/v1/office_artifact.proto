@@ -996,6 +996,10 @@ message SpreadsheetChartArtifact {
   // and doughnut charts; doughnut_hole_size applies only to doughnut charts.
   optional uint32 first_slice_angle = 27;
   optional uint32 doughnut_hole_size = 28;
+  // Native bubble-plot scaling. bubble_scale is 0..300 percent and
+  // bubble_size_mode is area or width; both apply only to bubble charts.
+  optional uint32 bubble_scale = 29;
+  string bubble_size_mode = 30;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -1066,6 +1070,19 @@ message SpreadsheetChartAxisArtifact {
   // Typography for the canonical rich-text axis title. This is independent
   // from text_style, which owns tick labels.
   SpreadsheetChartTextStyleArtifact title_text_style = 10;
+  // Presence-aware c:scaling/c:orientation. true writes maxMin; false writes
+  // minMax. Omission retains the canonical default.
+  optional bool reverse = 11;
+  // Axis-line visibility is independent from the whole-axis `visible` flag.
+  // A direct line style implies visible=true and owns one bounded a:ln graph.
+  optional bool axis_line_visible = 12;
+  SpreadsheetChartLineStyleArtifact axis_line = 13;
+  // Present only when show_major_gridlines is true and the grid uses one
+  // bounded direct RGB/width/dash/cap/join line graph.
+  SpreadsheetChartLineStyleArtifact major_gridline_style = 14;
+  // Distinguishes a present major-gridline container with a:noFill from an
+  // omitted container. A direct style implies visible=true.
+  optional bool major_gridline_visible = 15;
 }
 
 message SpreadsheetChartSurfaceFill {
@@ -2459,6 +2476,8 @@ message PresentationChart {
   // Presence-aware circular-plot geometry mirrored from the native ChartPart.
   optional uint32 first_slice_angle = 31;
   optional uint32 doughnut_hole_size = 32;
+  optional uint32 bubble_scale = 33;
+  string bubble_size_mode = 34;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from
@@ -4088,6 +4107,9 @@ message SpreadsheetChartDataLabelsArtifact {
   // Canonical plot-level c:dLbls/c:txPr typography. Per-point label runs and
   // effect-bearing text graphs remain source-owned.
   SpreadsheetChartTextStyleArtifact text_style = 6;
+  // Direct plot-level c:numFmt with sourceLinked=false. Per-point formats and
+  // source-linked workbook formats remain source-owned.
+  string number_format_code = 7;
 }
 
 // Appended to preserve every pre-existing generated descriptor index while the

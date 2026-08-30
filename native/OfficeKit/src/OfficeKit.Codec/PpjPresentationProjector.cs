@@ -666,6 +666,8 @@ internal static partial class PpjPresentationProjector
         if (chart.HasGapWidth) style["gapWidth"] = chart.GapWidth;
         if (chart.HasFirstSliceAngle) style["startAngle"] = chart.FirstSliceAngle;
         if (chart.HasDoughnutHoleSize) style["holeSize"] = chart.DoughnutHoleSize;
+        if (chart.HasBubbleScale) style["bubbleScale"] = chart.BubbleScale;
+        if (chart.BubbleSizeMode.Length > 0) style["bubbleSizeMode"] = chart.BubbleSizeMode;
         if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
         if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
         if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
@@ -690,6 +692,8 @@ internal static partial class PpjPresentationProjector
                 labels["position"] = position;
             if (chart.DataLabels.TextStyle is not null)
                 labels["textStyle"] = ProjectChartTextStyle(chart.DataLabels.TextStyle);
+            if (chart.DataLabels.NumberFormatCode.Length > 0)
+                labels["numberFormat"] = chart.DataLabels.NumberFormatCode;
             style["dataLabels"] = labels;
         }
         output["style"] = style;
@@ -781,6 +785,17 @@ internal static partial class PpjPresentationProjector
         if (axis.HasMaximum) output["max"] = axis.Maximum;
         if (axis.HasMajorUnit) output["majorUnit"] = axis.MajorUnit;
         if (axis.HasVisible) output["visible"] = axis.Visible;
+        if (axis.HasReverse) output["reverse"] = axis.Reverse;
+        if (axis.AxisLine is not null && !string.IsNullOrEmpty(axis.AxisLine.Color?.Rgb))
+            output["axisLine"] = ProjectChartLine(axis.AxisLine);
+        else if (axis.HasAxisLineVisible)
+            output["axisLine"] = axis.AxisLineVisible;
+        if (axis.MajorGridlineStyle is not null && !string.IsNullOrEmpty(axis.MajorGridlineStyle.Color?.Rgb))
+            output["gridLine"] = ProjectChartLine(axis.MajorGridlineStyle);
+        else if (axis.HasMajorGridlineVisible)
+            output["gridLine"] = axis.MajorGridlineVisible;
+        else if (axis.HasShowMajorGridlines)
+            output["gridLine"] = axis.ShowMajorGridlines;
         if (axis.TextStyle is not null)
             output["textStyle"] = ProjectChartTextStyle(axis.TextStyle);
         if (axis.TitleTextStyle is not null)
@@ -1638,7 +1653,12 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
                 output.Add(new("setChartFill", ["chart.fill"]));
-                if (element.Chart.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut)
+                if (element.Chart.DataLabels is not null)
+                    output.Add(new("setChartLabels", ["chart.labels"]));
+                if (element.Chart.XAxis is not null || element.Chart.YAxis is not null ||
+                    element.Chart.SecondaryXAxis is not null || element.Chart.SecondaryYAxis is not null)
+                    output.Add(new("setChartAxis", ["chart.axis"]));
+                if (element.Chart.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Bubble)
                     output.Add(new("setChartPlot", ["chart.plot"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;

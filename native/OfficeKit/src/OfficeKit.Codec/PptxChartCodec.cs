@@ -226,6 +226,8 @@ internal static partial class PptxChartCodec
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
         if (source.HasFirstSliceAngle) output.FirstSliceAngle = source.FirstSliceAngle;
         if (source.HasDoughnutHoleSize) output.DoughnutHoleSize = source.DoughnutHoleSize;
+        if (source.HasBubbleScale) output.BubbleScale = source.BubbleScale;
+        output.BubbleSizeMode = source.BubbleSizeMode;
         return output;
     }
 
@@ -260,6 +262,8 @@ internal static partial class PptxChartCodec
         if (source.LineOptions is not null) output.LineOptions = source.LineOptions.Clone();
         if (source.HasFirstSliceAngle) output.FirstSliceAngle = source.FirstSliceAngle;
         if (source.HasDoughnutHoleSize) output.DoughnutHoleSize = source.DoughnutHoleSize;
+        if (source.HasBubbleScale) output.BubbleScale = source.BubbleScale;
+        output.BubbleSizeMode = source.BubbleSizeMode;
         return output;
     }
 
