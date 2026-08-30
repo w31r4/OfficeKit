@@ -944,6 +944,17 @@ importable and byte-identical on no-op export. The Data Particles and Minimal
 Business samples now pass the same source-bound no-op path as the other four
 six-sample references; editing that gradient still fails closed.
 
+### Imported text effects and nested-group semantics
+
+Imported direct shadows now retain observed RGB/theme color, alpha, blur,
+distance, direction, alignment, and rotate-with-shape attributes without
+inventing omitted DrawingML values. Bounded run gradients and shadows survive
+source-bound text edits, including text nested inside groups. Recursive
+semantic-hash normalization treats writer-materialized default `en-US`
+language as equivalent to an omitted source value. The existing presentation
+smoke and real MMS text-edit dogfood cover this profile; arbitrary effect
+graphs and complete six-sample edit coverage remain open.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
