@@ -161,15 +161,19 @@ internal static class OpenXmlChartSpaceCodec
         {
             var xValue = source.Element(ChartNs + "xVal");
             var yValue = source.Element(ChartNs + "yVal");
-            if (xValue is null || yValue is null || !TryNumericData(xValue, out var xValues, out var xFormula) || !TryNumericData(yValue, out var values, out var valueFormula) || xValues.Length != values.Length || values.Length > MaxPoints) return false;
+            if (xValue is null || yValue is null ||
+                !TryNumericData(xValue, allowMissing: false, out var xValues, out _, out var xFormula) ||
+                !TryNumericData(yValue, allowMissing: true, out var values, out var missingValueIndexes, out var valueFormula) ||
+                xValues.Length != values.Length || values.Length > MaxPoints) return false;
             series.XValueFormula = xFormula;
             series.ValueFormula = valueFormula;
             series.XValues.Add(xValues);
             series.Values.Add(values);
+            series.MissingValueIndexes.Add(missingValueIndexes);
             if (chartType == SpreadsheetChartType.Bubble)
             {
                 var bubbleSize = source.Element(ChartNs + "bubbleSize");
-                if (bubbleSize is null || !TryNumericData(bubbleSize, out var bubbleSizes, out var bubbleFormula) || bubbleSizes.Length != values.Length || bubbleSizes.Any(value => value <= 0)) return false;
+                if (bubbleSize is null || !TryNumericData(bubbleSize, allowMissing: false, out var bubbleSizes, out _, out var bubbleFormula) || bubbleSizes.Length != values.Length || bubbleSizes.Any(value => value <= 0)) return false;
                 series.BubbleSizeFormula = bubbleFormula;
                 series.BubbleSizes.Add(bubbleSizes);
                 editable &= ScalarEquals(source, "bubble3D", "0", required: false);
@@ -179,10 +183,13 @@ internal static class OpenXmlChartSpaceCodec
         {
             var category = source.Element(ChartNs + "cat");
             var value = source.Element(ChartNs + "val");
-            if (category is null || value is null || !TryStringData(category, out categories, out var categoryFormula) || !TryNumericData(value, out var values, out var valueFormula) || categories.Length != values.Length || categories.Length > MaxPoints) return false;
+            if (category is null || value is null || !TryStringData(category, out categories, out var categoryFormula) ||
+                !TryNumericData(value, allowMissing: true, out var values, out var missingValueIndexes, out var valueFormula) ||
+                categories.Length != values.Length || categories.Length > MaxPoints) return false;
             series.CategoryFormula = categoryFormula;
             series.ValueFormula = valueFormula;
             series.Values.Add(values);
+            series.MissingValueIndexes.Add(missingValueIndexes);
         }
         editable &= XlsxChartSeriesStyleCodec.TryRead(source, series);
         editable &= XlsxChartSeriesLineStyleCodec.TryRead(source, series, chartType);
@@ -204,10 +211,14 @@ internal static class OpenXmlChartSpaceCodec
             OpenXmlChartErrorBarsCodec.Element(series.ErrorBars));
         if (UsesNumericXAxis(chartType))
         {
-            output.Add(new XElement(ChartNs + "xVal", NumericData(series.XValues, series.XValueFormula)), new XElement(ChartNs + "yVal", NumericData(series.Values, series.ValueFormula)));
-            if (chartType == SpreadsheetChartType.Bubble) output.Add(new XElement(ChartNs + "bubbleSize", NumericData(series.BubbleSizes, series.BubbleSizeFormula)));
+            output.Add(
+                new XElement(ChartNs + "xVal", NumericData(series.XValues, [], series.XValueFormula)),
+                new XElement(ChartNs + "yVal", NumericData(series.Values, series.MissingValueIndexes, series.ValueFormula)));
+            if (chartType == SpreadsheetChartType.Bubble) output.Add(new XElement(ChartNs + "bubbleSize", NumericData(series.BubbleSizes, [], series.BubbleSizeFormula)));
         }
-        else output.Add(new XElement(ChartNs + "cat", StringData(categories, series.CategoryFormula)), new XElement(ChartNs + "val", NumericData(series.Values, series.ValueFormula)));
+        else output.Add(
+            new XElement(ChartNs + "cat", StringData(categories, series.CategoryFormula)),
+            new XElement(ChartNs + "val", NumericData(series.Values, series.MissingValueIndexes, series.ValueFormula)));
         return output;
     }
 
@@ -258,14 +269,14 @@ internal static class OpenXmlChartSpaceCodec
         OpenXmlChartErrorBarsCodec.Patch(native, target, errorCode, subject);
         if (UsesNumericXAxis(chartType))
         {
-            PatchNumericData(native.Element(ChartNs + "xVal"), target.XValues, target.XValueFormula, errorCode, subject);
-            PatchNumericData(native.Element(ChartNs + "yVal"), target.Values, target.ValueFormula, errorCode, subject);
-            if (chartType == SpreadsheetChartType.Bubble) PatchNumericData(native.Element(ChartNs + "bubbleSize"), target.BubbleSizes, target.BubbleSizeFormula, errorCode, subject);
+            PatchNumericData(native.Element(ChartNs + "xVal"), target.XValues, [], target.XValueFormula, errorCode, subject);
+            PatchNumericData(native.Element(ChartNs + "yVal"), target.Values, target.MissingValueIndexes, target.ValueFormula, errorCode, subject);
+            if (chartType == SpreadsheetChartType.Bubble) PatchNumericData(native.Element(ChartNs + "bubbleSize"), target.BubbleSizes, [], target.BubbleSizeFormula, errorCode, subject);
         }
         else
         {
             PatchStringData(native.Element(ChartNs + "cat"), categories, target.CategoryFormula, errorCode, subject);
-            PatchNumericData(native.Element(ChartNs + "val"), target.Values, target.ValueFormula, errorCode, subject);
+            PatchNumericData(native.Element(ChartNs + "val"), target.Values, target.MissingValueIndexes, target.ValueFormula, errorCode, subject);
         }
     }
 
@@ -498,9 +509,14 @@ internal static class OpenXmlChartSpaceCodec
         return values.All(value => value.Length <= 32_767 && !HasControls(value));
     }
 
-    private static bool TryNumericData(XElement source, out double[] values, out string formula)
+    private static bool TryNumericData(
+        XElement source,
+        bool allowMissing,
+        out double[] values,
+        out uint[] missingIndexes,
+        out string formula)
     {
-        formula = string.Empty; values = [];
+        formula = string.Empty; values = []; missingIndexes = [];
         var literal = source.Element(ChartNs + "numLit");
         var reference = source.Element(ChartNs + "numRef");
         if ((literal is null) == (reference is null)) return false;
@@ -512,14 +528,54 @@ internal static class OpenXmlChartSpaceCodec
             cache = reference.Element(ChartNs + "numCache");
         }
         else cache = literal;
-        if (cache is null || !TryOrderedPoints(cache, out var points)) return false;
-        var output = new List<double>();
+        if (cache is null || !TryNumericPoints(cache, allowMissing, out var points, out var count, out missingIndexes)) return false;
+        var output = new double[count];
         foreach (var point in points)
         {
             if (!double.TryParse(point.Element(ChartNs + "v")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) || !double.IsFinite(number)) return false;
-            output.Add(number);
+            output[checked((int)(uint)point.Attribute("idx")!)] = number;
         }
-        values = output.ToArray();
+        values = output;
+        return true;
+    }
+
+    private static bool TryNumericPoints(
+        XElement source,
+        bool allowMissing,
+        out XElement[] points,
+        out int count,
+        out uint[] missingIndexes)
+    {
+        points = source.Elements(ChartNs + "pt").ToArray();
+        count = 0;
+        missingIndexes = [];
+        if (points.Length > MaxPoints) return false;
+        var declaredCount = (uint?)source.Element(ChartNs + "ptCount")?.Attribute("val");
+        if (declaredCount is null)
+        {
+            count = points.Length;
+            for (var index = 0; index < points.Length; index++)
+                if ((uint?)points[index].Attribute("idx") != (uint)index) return false;
+            return true;
+        }
+        if (declaredCount.Value > MaxPoints || (uint)points.Length > declaredCount.Value) return false;
+        count = checked((int)declaredCount.Value);
+        uint? previous = null;
+        foreach (var point in points)
+        {
+            var index = (uint?)point.Attribute("idx");
+            if (index is null || index.Value >= declaredCount.Value || previous is not null && index.Value <= previous.Value) return false;
+            previous = index;
+        }
+        if (!allowMissing) return points.Length == count;
+        var missing = new List<uint>(count - points.Length);
+        var pointOffset = 0;
+        for (uint index = 0; index < declaredCount.Value; index++)
+        {
+            if (pointOffset < points.Length && (uint)points[pointOffset].Attribute("idx")! == index) pointOffset++;
+            else missing.Add(index);
+        }
+        missingIndexes = missing.ToArray();
         return true;
     }
 
@@ -545,11 +601,26 @@ internal static class OpenXmlChartSpaceCodec
         return formula.Length > 0 ? new XElement(ChartNs + "strRef", new XElement(ChartNs + "f", formula), cache) : cache;
     }
 
-    private static XElement NumericData(IEnumerable<double> values, string formula)
+    private static XElement NumericData(IEnumerable<double> values, IEnumerable<uint> missingIndexes, string formula)
     {
         var cache = new XElement(ChartNs + (formula.Length > 0 ? "numCache" : "numLit"), new XElement(ChartNs + "formatCode", "General"));
-        AppendPoints(cache, values, value => value.ToString("R", CultureInfo.InvariantCulture));
+        AppendNumericPoints(cache, values, missingIndexes);
         return formula.Length > 0 ? new XElement(ChartNs + "numRef", new XElement(ChartNs + "f", formula), cache) : cache;
+    }
+
+    private static void AppendNumericPoints(XElement cache, IEnumerable<double> values, IEnumerable<uint> missingIndexes)
+    {
+        var array = values.ToArray();
+        var missing = missingIndexes.ToHashSet();
+        cache.Add(new XElement(ChartNs + "ptCount", new XAttribute("val", array.Length)));
+        for (var index = 0; index < array.Length; index++)
+        {
+            if (missing.Contains((uint)index)) continue;
+            cache.Add(new XElement(
+                ChartNs + "pt",
+                new XAttribute("idx", index),
+                new XElement(ChartNs + "v", array[index].ToString("R", CultureInfo.InvariantCulture))));
+        }
     }
 
     private static void AppendPoints<T>(XElement cache, IEnumerable<T> values, Func<T, string> format)
@@ -567,12 +638,40 @@ internal static class OpenXmlChartSpaceCodec
         PatchPoints(formula.Length > 0 ? branch.Element(ChartNs + "strCache") : branch, values, value => value, errorCode, subject);
     }
 
-    private static void PatchNumericData(XElement? holder, IEnumerable<double> values, string formula, string errorCode, string subject)
+    private static void PatchNumericData(
+        XElement? holder,
+        IEnumerable<double> values,
+        IEnumerable<uint> missingIndexes,
+        string formula,
+        string errorCode,
+        string subject)
     {
         if (holder is null) throw Topology(errorCode, subject, "numeric cache topology changed unexpectedly");
         var branch = holder.Element(ChartNs + (formula.Length > 0 ? "numRef" : "numLit")) ?? throw Topology(errorCode, subject, "numeric literal/reference topology changed unexpectedly");
         if (formula.Length > 0) (branch.Element(ChartNs + "f") ?? throw Topology(errorCode, subject, "numeric formula topology changed unexpectedly")).Value = formula;
-        PatchPoints(formula.Length > 0 ? branch.Element(ChartNs + "numCache") : branch, values, value => value.ToString("R", CultureInfo.InvariantCulture), errorCode, subject);
+        PatchNumericPoints(formula.Length > 0 ? branch.Element(ChartNs + "numCache") : branch, values, missingIndexes, errorCode, subject);
+    }
+
+    private static void PatchNumericPoints(
+        XElement? cache,
+        IEnumerable<double> values,
+        IEnumerable<uint> missingIndexes,
+        string errorCode,
+        string subject)
+    {
+        if (cache is null) throw Topology(errorCode, subject, "numeric cache topology changed unexpectedly");
+        var requested = values.ToArray();
+        var requestedMissing = missingIndexes.ToArray();
+        if (!TryNumericPoints(cache, allowMissing: true, out var points, out var count, out var existingMissing) ||
+            count != requested.Length || !existingMissing.SequenceEqual(requestedMissing))
+            throw Topology(errorCode, subject, "numeric point topology changed unexpectedly");
+        cache.Element(ChartNs + "ptCount")?.SetAttributeValue("val", requested.Length);
+        foreach (var point in points)
+        {
+            var index = checked((int)(uint)point.Attribute("idx")!);
+            (point.Element(ChartNs + "v") ?? throw Topology(errorCode, subject, "point value topology changed unexpectedly")).Value =
+                requested[index].ToString("R", CultureInfo.InvariantCulture);
+        }
     }
 
     private static void PatchPoints<T>(XElement? cache, IEnumerable<T> values, Func<T, string> format, string errorCode, string subject)

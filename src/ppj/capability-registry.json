@@ -62,11 +62,11 @@
       "reason": "Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived."
     },
     {
-      "feature": "waterfall and missing chart points",
-      "ppjPath": "chart.chartType or chart.data.series[].values[]",
+      "feature": "waterfall charts",
+      "ppjPath": "chart.chartType",
       "behavior": "fail-closed",
       "sourceBound": "Existing chart parts remain source-preserved; title and proven data-point edits use typed operations.",
-      "reason": "The authored chart compiler owns finite bounded chart families including standard radar, numeric scatter/bubble channels, and typed axes, labels, markers, trendlines and non-formula error bars where the native family permits them."
+      "reason": "The authored chart compiler owns finite bounded chart families including standard radar, nullable Y observations, numeric scatter/bubble channels, and typed axes, labels, markers, trendlines and non-formula error bars where the native family permits them."
     },
     {
       "feature": "effect-bearing and irregular chart typography",

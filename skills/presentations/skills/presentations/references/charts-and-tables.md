@@ -24,6 +24,14 @@ and a chart that merely repeats one large number.
 - Show missing values and estimates honestly.
 - Put the exact source and as-of date on the page or in a visible source area.
 
+Use JSON `null` for a genuinely missing Y observation. OfficeKit keeps the
+logical point count and writes a native chart gap; it does not coerce the value
+to zero or invent an estimate. This works for the bounded authored chart
+families, including numeric scatter/bubble Y values. Numeric `xValues` and
+`bubbleSizes` remain complete arrays. In a source-bound chart, edit measured
+values around an existing gap, but do not add or remove gaps: missing-point
+topology remains tied to the exact source cache.
+
 Lines, markers, labels, confidence intervals, error bars, and decision
 thresholds are protected foreground evidence. Bars, areas, fills, masks, and
 annotations may not hide them. For truthful combo charts, first keep the real
@@ -234,10 +242,12 @@ labels:
 ```
 
 `xValues` is required for scatter and bubble; `bubbleSizes` is required only
-for bubble. Each vector has exactly the same length as `values`, bubble sizes
-are positive, and `categories` is empty. Do not encode numeric X values as
-strings merely to reuse a category chart. On imported charts, the current
-`setChartData` capability does not authorize changing X values or bubble sizes.
+for bubble. Each vector has exactly the same logical length as `values`, X
+values are finite, bubble sizes are positive, and `categories` is empty. Only
+Y `values` may contain `null`. Do not encode numeric X values as strings merely
+to reuse a category chart. On imported charts, the current `setChartData`
+capability does not authorize changing X values, bubble sizes, or the positions
+of missing Y observations.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a

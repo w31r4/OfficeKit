@@ -509,7 +509,9 @@ internal static partial class PpjPresentationProjector
         {
             var item = series[index];
             var values = new JsonArray();
-            foreach (var value in item.Values) values.Add(NumberNode(value));
+            var missingValueIndexes = item.MissingValueIndexes.ToHashSet();
+            for (var valueIndex = 0; valueIndex < item.Values.Count; valueIndex++)
+                values.Add(missingValueIndexes.Contains((uint)valueIndex) ? null : NumberNode(item.Values[valueIndex]));
             var entry = new JsonObject
             {
                 ["id"] = $"series-{index + 1}",

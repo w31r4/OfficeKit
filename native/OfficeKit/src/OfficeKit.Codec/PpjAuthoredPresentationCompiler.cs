@@ -287,8 +287,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (element.Data.Series.Any(series => series.Values.Any(value => value is null)))
-            throw Unsupported(element.Id, "null chart values require a missing-value-aware native chart cache");
         if (element.ChartType == "waterfall")
             throw Unsupported(element.Id, $"{element.ChartType} chart authoring is not yet compiler-owned");
         if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
@@ -376,7 +374,16 @@ internal static class PpjAuthoredPresentationCompiler
         if (raw.TryGetProperty("fill", out _) && raw.TryGetProperty("color", out _))
             throw Unsupported(source.Id, "chart-series color and fill are aliases and cannot both be present");
         var series = new SpreadsheetChartSeriesArtifact { Name = source.Name };
-        series.Values.Add(source.Values.Select(value => value!.Value));
+        for (var index = 0; index < source.Values.Count; index++)
+        {
+            var value = source.Values[index];
+            if (value is null)
+            {
+                series.Values.Add(0d);
+                series.MissingValueIndexes.Add(checked((uint)index));
+            }
+            else series.Values.Add(value.Value);
+        }
         series.XValues.Add(source.XValues);
         series.BubbleSizes.Add(source.BubbleSizes);
         if (raw.TryGetProperty("fill", out var fill))

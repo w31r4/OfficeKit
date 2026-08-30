@@ -1035,6 +1035,11 @@ message SpreadsheetChartSeriesArtifact {
   // fill field remains the untinted opaque-solid compatibility branch and
   // must not be combined with series_fill.
   SpreadsheetChartSurfaceFill series_fill = 14;
+  // Zero-based logical Y-value indexes that have no observation. values keeps
+  // the complete logical point count and stores canonical zero placeholders at
+  // these positions; ChartSpace omits the corresponding c:pt while retaining
+  // the full c:ptCount. Indexes are strictly increasing, unique, and in range.
+  repeated uint32 missing_value_indexes = 15;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x

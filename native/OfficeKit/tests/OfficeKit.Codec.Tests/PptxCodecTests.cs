@@ -464,7 +464,7 @@ public sealed class PptxCodecTests
                     {
                         ["id"] = "measured-trend",
                         ["name"] = "Index",
-                        ["values"] = new JsonArray(92, 106, 121),
+                        ["values"] = new JsonArray(JsonValue.Create(92), null, JsonValue.Create(121)),
                     },
                 },
             },
@@ -585,6 +585,16 @@ public sealed class PptxCodecTests
                 .Single();
             Assert.NotNull(nativeTiledPicture.BlipFill!.GetFirstChild<A.Tile>());
             Assert.Null(nativeTiledPicture.BlipFill.GetFirstChild<A.Stretch>());
+            var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
+                .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
+                .Uri.OriginalString.TrimStart('/');
+            var lineChartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), lineChartPath)));
+            XNamespace chartNamespace = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            var lineValues = lineChartXml.Descendants(chartNamespace + "lineChart").Single()
+                .Descendants(chartNamespace + "val").Single()
+                .Element(chartNamespace + "numLit")!;
+            Assert.Equal("3", lineValues.Element(chartNamespace + "ptCount")!.Attribute("val")!.Value);
+            Assert.Equal(["0", "2"], lineValues.Elements(chartNamespace + "pt").Select(point => point.Attribute("idx")!.Value));
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -644,6 +654,8 @@ public sealed class PptxCodecTests
         Assert.True(importedLine.LineOptions.HasSmooth);
         Assert.False(importedLine.LineOptions.Smooth);
         Assert.True(importedLine.LineOptions.VaryColors);
+        Assert.Equal([92D, 0D, 121D], Assert.Single(importedLine.Series).Values);
+        Assert.Equal([1U], importedLine.Series[0].MissingValueIndexes);
         var importedClaim = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
             element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal)).Shape;
@@ -902,6 +914,8 @@ public sealed class PptxCodecTests
                 capability.GetProperty("operation").GetString() == "setChartTextStyle");
             Assert.False(projectedLine.GetProperty("style").GetProperty("smooth").GetBoolean());
             Assert.True(projectedLine.GetProperty("style").GetProperty("varyColors").GetBoolean());
+            Assert.Equal(JsonValueKind.Null, projectedLine.GetProperty("data").GetProperty("series")[0]
+                .GetProperty("values")[1].ValueKind);
             var projectedRadar = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "radar");
@@ -972,6 +986,67 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var missingPointEditProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var missingPointChart = missingPointEditProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "line");
+        missingPointChart["data"]!["series"]![0]!["values"]![0] = 95;
+        var missingPointEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(missingPointEditProgram.ToJsonString()),
+            },
+        });
+        Assert.True(missingPointEdit.Ok, Diagnostics(missingPointEdit));
+        var missingPointReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = missingPointEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/missing-point-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(missingPointReprojection.Ok, Diagnostics(missingPointReprojection));
+        using (var missingPointJson = JsonDocument.Parse(missingPointReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedValues = missingPointJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("type").GetString() == "chart" &&
+                    element.GetProperty("chartType").GetString() == "line")
+                .GetProperty("data").GetProperty("series")[0].GetProperty("values");
+            Assert.Equal(95, reprojectedValues[0].GetDouble());
+            Assert.Equal(JsonValueKind.Null, reprojectedValues[1].ValueKind);
+        }
+
+        var rejectedMissingTopologyProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var rejectedMissingTopologyChart = rejectedMissingTopologyProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "line");
+        rejectedMissingTopologyChart["data"]!["series"]![0]!["values"]![1] = 106;
+        var rejectedMissingTopology = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(rejectedMissingTopologyProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejectedMissingTopology.Ok);
+        Assert.Contains(rejectedMissingTopology.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
 
         var chartTextStyleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var chartTextStyleChart = chartTextStyleProgram["pages"]![0]!["elements"]!.AsArray()

@@ -1441,12 +1441,20 @@ internal static class PpjSourceBoundPresentationCompiler
         RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "fill");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
+        if (!before.Values.Select(value => value is null).SequenceEqual(after.Values.Select(value => value is null)))
+            throw Unsupported(path, "source-bound chart missing-point topology change");
         target.Name = after.Name;
         target.Values.Clear();
-        foreach (var value in after.Values)
+        target.MissingValueIndexes.Clear();
+        for (var index = 0; index < after.Values.Count; index++)
         {
-            if (value is null) throw Unsupported(path, "null source-bound chart point");
-            target.Values.Add(value.Value);
+            var value = after.Values[index];
+            if (value is null)
+            {
+                target.Values.Add(0d);
+                target.MissingValueIndexes.Add(checked((uint)index));
+            }
+            else target.Values.Add(value.Value);
         }
         if (PropertyChanged(before.Raw, after.Raw, "fill"))
         {
