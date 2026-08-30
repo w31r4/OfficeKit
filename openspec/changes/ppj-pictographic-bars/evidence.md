@@ -41,3 +41,8 @@ the compiler output and truthful editable projection were unchanged.
   this bounded primitive slice.
 - Fractional icons, multiple series, axes, `chartBuild`, network icons and
   inference from arbitrary third-party groups remain unsupported by design.
+
+## Integration
+
+- The four implementation commits were pushed normally and fast-forwarded to
+  `main` without squash, rebase or force push.

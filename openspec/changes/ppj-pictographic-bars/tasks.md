@@ -13,4 +13,4 @@
 - [x] 3.1 Extend one existing authored PPJ contract.
 - [x] 3.2 Update registry, generated PPJ manual, chart guidance and coverage.
 - [x] 3.3 Run focused C#, maintainer and strict OpenSpec checks.
-- [ ] 3.4 Commit atomically and fast-forward main without force pushing.
+- [x] 3.4 Commit atomically and fast-forward main without force pushing.
