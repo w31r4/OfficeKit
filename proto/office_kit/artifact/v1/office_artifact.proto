@@ -1036,8 +1036,9 @@ message SpreadsheetChartAxisArtifact {
   optional double minimum = 4;
   optional double maximum = 5;
   optional double major_unit = 6;
-  // Tick-label style, not the axis-title style. The initial bounded profile
-  // owns only font_size_points; complex native txPr graphs remain opaque.
+  // Tick-label style, not the axis-title style. The bounded profile owns a
+  // canonical typeface, emphasis, direct RGB/alpha, and size graph; complex
+  // native txPr graphs remain opaque.
   SpreadsheetChartTextStyleArtifact text_style = 7;
   optional bool visible = 8;
   optional bool show_major_gridlines = 9;
@@ -2373,8 +2374,9 @@ message PresentationChart {
   SpreadsheetChartSurfaceFill chart_area_fill = 23;
   SpreadsheetChartSurfaceFill plot_area_fill = 24;
   string bar_direction = 25;
-  // Explicit chart-title text styling. The bounded profile initially owns
-  // only DrawingML font size and shares the worksheet-chart value contract.
+  // Explicit chart-title text styling. The bounded profile owns canonical
+  // typeface, emphasis, direct RGB/alpha, and size and shares the worksheet
+  // chart value contract.
   SpreadsheetChartTextStyleArtifact title_text_style = 26;
   // Canonical line-plot behavior for ordinary line charts. Combo charts keep
   // mixed-plot behavior separate and leave this message unset.
@@ -3799,11 +3801,18 @@ message DocumentOpaqueBlock {
 }
 
 // Bounded worksheet-chart text style. Optional presence distinguishes an
-// inherited/native default from an explicit size. DrawingML stores this value
-// in hundredths of a point and permits 1 through 4,000 points. It is declared
-// at the end so additive wire evolution does not renumber generated descriptors.
+// inherited/native default from explicit size/emphasis. The canonical native
+// profile owns Latin/East Asian typefaces plus one direct RGB fill and alpha;
+// theme transforms and other rich-text effects remain source-owned. It is
+// declared at the end so additive wire evolution does not renumber descriptors.
 message SpreadsheetChartTextStyleArtifact {
   optional double font_size_points = 1;
+  string font_family = 2;
+  string font_family_east_asia = 3;
+  optional bool bold = 4;
+  optional bool italic = 5;
+  string color_rgb = 6;
+  optional uint32 opacity_thousandth_percent = 7;
 }
 
 enum SpreadsheetChartLineDashStyle {
