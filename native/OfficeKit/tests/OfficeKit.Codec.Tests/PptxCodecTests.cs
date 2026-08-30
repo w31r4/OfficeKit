@@ -5891,6 +5891,28 @@ public sealed class PptxCodecTests
         Assert.Equal("round", importedLines[0].Shape.LineCap);
         Assert.Equal("bevel", importedLines[0].Shape.LineJoin);
 
+        // Imported separator rules are often placed a few points outside the
+        // canvas.  Keep that source-bound line editable without widening the
+        // negative-frame exception to ordinary shapes.
+        var negativeLineSource = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+        {
+            var updated = new Regex("<a:off\\s+x=\"400000\"[^>]*/>", RegexOptions.CultureInvariant)
+                .Replace(xml, match => match.Value.Replace("x=\"400000\"", "x=\"-591436\"", StringComparison.Ordinal), 1);
+            Assert.NotEqual(xml, updated);
+            return updated;
+        });
+        var negativeLineImport = Import(negativeLineSource);
+        Assert.True(negativeLineImport.Ok, Diagnostics(negativeLineImport));
+        var negativeLine = Assert.Single(negativeLineImport.Artifact.Presentation.Slides).Elements[0];
+        Assert.True(negativeLine.Source.Editable);
+        Assert.Equal(-591_436, negativeLine.Shape.LeftEmu);
+        negativeLine.Shape.LeftEmu = -500_000;
+        var negativeLineEdited = Export(negativeLineImport.Artifact);
+        Assert.True(negativeLineEdited.Ok, Diagnostics(negativeLineEdited));
+        var negativeLineRoundTrip = Import(negativeLineEdited.File.ToByteArray());
+        Assert.True(negativeLineRoundTrip.Ok, Diagnostics(negativeLineRoundTrip));
+        Assert.Equal(-500_000, Assert.Single(negativeLineRoundTrip.Artifact.Presentation.Slides).Elements[0].Shape.LeftEmu);
+
         var originalSlideXml = ZipBytes(authored.File.ToByteArray(), "ppt/slides/slide1.xml");
         var unchanged = Export(imported.Artifact);
         Assert.True(unchanged.Ok, Diagnostics(unchanged));
