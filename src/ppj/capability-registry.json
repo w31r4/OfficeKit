@@ -54,11 +54,11 @@
       "reason": "Authored backgrounds currently support none, solid and native image background."
     },
     {
-      "feature": "custom paths and adjusted preset geometry",
-      "ppjPath": "shape.geometry.paths or shape.geometry.adjustments",
+      "feature": "adjusted preset geometry",
+      "ppjPath": "shape.geometry.adjustments",
       "behavior": "fail-closed",
-      "sourceBound": "Unknown geometry remains opaque and unrelated edits preserve it.",
-      "reason": "The authored path and guide-formula lowerer is not implemented."
+      "sourceBound": "Unknown adjusted geometry remains opaque and unrelated edits preserve it.",
+      "reason": "Authored literal custom paths are compiler-owned; preset adjustment formulas are not yet lowered."
     },
     {
       "feature": "custom or adjusted image masks",

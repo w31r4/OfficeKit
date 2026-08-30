@@ -322,7 +322,8 @@ internal static partial class PpjPresentationProjector
         var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
-        if (!isPlaceholder && !isTextBox && !PresetGeometries.Contains(shape.Geometry))
+        if (!isPlaceholder && !isTextBox && !PresetGeometries.Contains(shape.Geometry) &&
+            !CanProjectCustomGeometry(shape))
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
 
         var common = ElementBase(id, element.Name, frame, Accessibility(shape.Accessibility), nativeRef);
@@ -344,13 +345,100 @@ internal static partial class PpjPresentationProjector
             return common;
         }
         common["type"] = "shape";
-        common["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
+        common["geometry"] = shape.Geometry == "custom"
+            ? ProjectCustomGeometry(shape)
+            : new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
         if (hasText) common["text"] = text;
         if (TextBoxStyle(shape.TextBody) is { Count: > 0 } shapeTextStyle) common["textStyle"] = shapeTextStyle;
         var style = ShapeStyle(shape);
         if (style.Count > 0) common["style"] = style;
         return common;
     }
+
+    private static bool CanProjectCustomGeometry(PresentationShape shape)
+    {
+        if (shape.Geometry != "custom" || shape.CustomPaths.Count == 0 ||
+            shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
+            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 ||
+            shape.TextRectangle is not null)
+            return false;
+        var width = shape.CustomPaths[0].Width;
+        var height = shape.CustomPaths[0].Height;
+        if (width <= 0 || height <= 0 || shape.CustomPaths.Any(path => path.Width != width || path.Height != height))
+            return false;
+        return shape.CustomPaths.SelectMany(path => path.Commands).All(command => command.CommandCase switch
+        {
+            PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => Literal(command.MoveTo),
+            PresentationCustomGeometryCommand.CommandOneofCase.LineTo => Literal(command.LineTo),
+            PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo =>
+                Literal(command.QuadraticBezierTo.Control) && Literal(command.QuadraticBezierTo.End),
+            PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo =>
+                Literal(command.CubicBezierTo.Control1) && Literal(command.CubicBezierTo.Control2) && Literal(command.CubicBezierTo.End),
+            PresentationCustomGeometryCommand.CommandOneofCase.Close => true,
+            _ => false,
+        });
+    }
+
+    private static bool Literal(PresentationCustomGeometryPoint point) =>
+        !point.HasXReference && !point.HasYReference;
+
+    private static JsonObject ProjectCustomGeometry(PresentationShape shape)
+    {
+        var width = shape.CustomPaths[0].Width / 1_000d;
+        var height = shape.CustomPaths[0].Height / 1_000d;
+        var paths = new JsonArray();
+        foreach (var source in shape.CustomPaths)
+        {
+            var commands = new JsonArray();
+            foreach (var command in source.Commands) commands.Add(ProjectCustomCommand(command));
+            var path = new JsonObject { ["commands"] = commands };
+            if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.Normal) path["fill"] = true;
+            else if (source.FillMode == PresentationCustomGeometryPath.Types.FillMode.None) path["fill"] = false;
+            if (source.HasStroke) path["stroke"] = source.Stroke;
+            paths.Add(path);
+        }
+        return new JsonObject
+        {
+            ["kind"] = "custom",
+            ["viewBox"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = width, ["height"] = height },
+            ["paths"] = paths,
+        };
+    }
+
+    private static JsonObject ProjectCustomCommand(PresentationCustomGeometryCommand command) => command.CommandCase switch
+    {
+        PresentationCustomGeometryCommand.CommandOneofCase.MoveTo => ProjectCustomPoint("moveTo", command.MoveTo),
+        PresentationCustomGeometryCommand.CommandOneofCase.LineTo => ProjectCustomPoint("lineTo", command.LineTo),
+        PresentationCustomGeometryCommand.CommandOneofCase.QuadraticBezierTo => new JsonObject
+        {
+            ["op"] = "quadraticTo",
+            ["x1"] = CustomPathPoint(command.QuadraticBezierTo.Control.X),
+            ["y1"] = CustomPathPoint(command.QuadraticBezierTo.Control.Y),
+            ["x"] = CustomPathPoint(command.QuadraticBezierTo.End.X),
+            ["y"] = CustomPathPoint(command.QuadraticBezierTo.End.Y),
+        },
+        PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo => new JsonObject
+        {
+            ["op"] = "cubicTo",
+            ["x1"] = CustomPathPoint(command.CubicBezierTo.Control1.X),
+            ["y1"] = CustomPathPoint(command.CubicBezierTo.Control1.Y),
+            ["x2"] = CustomPathPoint(command.CubicBezierTo.Control2.X),
+            ["y2"] = CustomPathPoint(command.CubicBezierTo.Control2.Y),
+            ["x"] = CustomPathPoint(command.CubicBezierTo.End.X),
+            ["y"] = CustomPathPoint(command.CubicBezierTo.End.Y),
+        },
+        PresentationCustomGeometryCommand.CommandOneofCase.Close => new JsonObject { ["op"] = "close" },
+        _ => throw new InvalidOperationException("Unsupported PPJ custom path command passed the projection gate."),
+    };
+
+    private static JsonObject ProjectCustomPoint(string operation, PresentationCustomGeometryPoint point) => new()
+    {
+        ["op"] = operation,
+        ["x"] = CustomPathPoint(point.X),
+        ["y"] = CustomPathPoint(point.Y),
+    };
+
+    private static double CustomPathPoint(long value) => value / 1_000d;
 
     private static JsonObject ProjectImage(
         PresentationElement element,

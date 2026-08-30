@@ -20,6 +20,7 @@ internal sealed record PpjCompileResult(
 internal static class PpjAuthoredPresentationCompiler
 {
     private const double EmuPerPoint = 12_700d;
+    private const double CustomPathUnitsPerPoint = 1_000d;
 
     internal static PpjCompileResult ValidateOnly(
         PresentationProgramRequest request,
@@ -955,10 +956,72 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId)
     {
-        if (!geometry.TryGetProperty("paths", out _))
+        if (!geometry.TryGetProperty("viewBox", out var viewBox) ||
+            !geometry.TryGetProperty("paths", out var paths))
             throw Unsupported(elementId, "custom geometry has no compiler-owned path graph");
-        throw Unsupported(elementId, "custom PPJ path lowering is not yet implemented");
+        var originX = viewBox.GetProperty("x").GetDouble();
+        var originY = viewBox.GetProperty("y").GetDouble();
+        var width = CustomPathCoordinate(viewBox.GetProperty("width").GetDouble());
+        var height = CustomPathCoordinate(viewBox.GetProperty("height").GetDouble());
+        foreach (var sourcePath in paths.EnumerateArray())
+        {
+            var path = new PresentationCustomGeometryPath { Width = width, Height = height };
+            if (sourcePath.TryGetProperty("fill", out var fill))
+                path.FillMode = fill.GetBoolean()
+                    ? PresentationCustomGeometryPath.Types.FillMode.Normal
+                    : PresentationCustomGeometryPath.Types.FillMode.None;
+            if (sourcePath.TryGetProperty("stroke", out var stroke)) path.Stroke = stroke.GetBoolean();
+            foreach (var sourceCommand in sourcePath.GetProperty("commands").EnumerateArray())
+            {
+                var command = new PresentationCustomGeometryCommand();
+                switch (sourceCommand.GetProperty("op").GetString())
+                {
+                    case "moveTo":
+                        command.MoveTo = CustomPoint(sourceCommand, originX, originY, "x", "y");
+                        break;
+                    case "lineTo":
+                        command.LineTo = CustomPoint(sourceCommand, originX, originY, "x", "y");
+                        break;
+                    case "quadraticTo":
+                        command.QuadraticBezierTo = new PresentationCustomGeometryQuadraticBezier
+                        {
+                            Control = CustomPoint(sourceCommand, originX, originY, "x1", "y1"),
+                            End = CustomPoint(sourceCommand, originX, originY, "x", "y"),
+                        };
+                        break;
+                    case "cubicTo":
+                        command.CubicBezierTo = new PresentationCustomGeometryCubicBezier
+                        {
+                            Control1 = CustomPoint(sourceCommand, originX, originY, "x1", "y1"),
+                            Control2 = CustomPoint(sourceCommand, originX, originY, "x2", "y2"),
+                            End = CustomPoint(sourceCommand, originX, originY, "x", "y"),
+                        };
+                        break;
+                    case "close":
+                        command.Close = true;
+                        break;
+                    default:
+                        throw Unsupported(elementId, "custom geometry contains a path operation outside the PPJ vocabulary");
+                }
+                path.Commands.Add(command);
+            }
+            target.CustomPaths.Add(path);
+        }
     }
+
+    private static PresentationCustomGeometryPoint CustomPoint(
+        JsonElement command,
+        double originX,
+        double originY,
+        string xName,
+        string yName) => new()
+    {
+        X = CustomPathCoordinate(command.GetProperty(xName).GetDouble() - originX),
+        Y = CustomPathCoordinate(command.GetProperty(yName).GetDouble() - originY),
+    };
+
+    private static long CustomPathCoordinate(double value) =>
+        checked((long)Math.Round(value * CustomPathUnitsPerPoint, MidpointRounding.AwayFromZero));
 
     private static void ApplyAccessibility(PresentationShape target, PpjAccessibilityModel? source) =>
         target.Accessibility = Accessibility(source);

@@ -6,9 +6,9 @@
 
 ## 2. Geometry
 
-- [ ] 2.1 Lower custom PPJ paths into the existing native custom-geometry IR
-- [ ] 2.2 Preserve deterministic viewBox scaling and validate path budgets
-- [ ] 2.3 Keep preset adjustments explicit and fail-closed
+- [x] 2.1 Lower custom PPJ paths into the existing native custom-geometry IR
+- [x] 2.2 Preserve deterministic viewBox scaling and validate path budgets
+- [x] 2.3 Keep preset adjustments explicit and fail-closed
 
 ## 3. Paint and layers
 

@@ -23,6 +23,36 @@ semantic form. Keep its path finite and editable. Do not trace a decorative
 illustration into arbitrary geometry when an image or SVG asset is the honest
 carrier.
 
+PPJ compiles literal custom paths directly into editable DrawingML geometry.
+Use one finite `viewBox` plus ordered `moveTo`, `lineTo`, `quadraticTo`,
+`cubicTo`, and `close` commands. Path order is drawing order; `fill` and
+`stroke` control whether the shared shape paint applies to that path. A
+non-zero view-box origin is normalized deterministically during compilation.
+Preset adjustment formulas, arcs, guides, handles, connection sites, and text
+rectangles remain outside the authored PPJ subset; use a supported preset or
+an explicit literal path instead.
+
+```json
+{
+  "type": "shape",
+  "id": "signal-wave",
+  "frame": { "x": 72, "y": 180, "width": 420, "height": 96 },
+  "geometry": {
+    "kind": "custom",
+    "viewBox": { "x": 10, "y": 20, "width": 100, "height": 40 },
+    "paths": [{
+      "fill": false,
+      "stroke": true,
+      "commands": [
+        { "op": "moveTo", "x": 10, "y": 40 },
+        { "op": "cubicTo", "x1": 35, "y1": 10, "x2": 75, "y2": 70, "x": 110, "y": 40 }
+      ]
+    }]
+  },
+  "style": { "stroke": { "color": "#0B8F8F", "width": 2 } }
+}
+```
+
 ## Protect reading and evidence
 
 Order `pages[].elements[]` from back to front. Keep evidence-bearing lines,

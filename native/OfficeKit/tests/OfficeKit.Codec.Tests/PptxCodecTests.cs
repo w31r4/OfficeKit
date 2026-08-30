@@ -114,6 +114,30 @@ public sealed class PptxCodecTests
         authoredRunStyle["letterSpacing"] = 0.4;
         authoredRunStyle["baseline"] = 0;
         authoredRunStyle["capitalization"] = "none";
+        var authoredCustomShape = authoredProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "claim-rule");
+        authoredCustomShape["geometry"] = new JsonObject
+        {
+            ["kind"] = "custom",
+            ["viewBox"] = new JsonObject { ["x"] = 10, ["y"] = 20, ["width"] = 100, ["height"] = 100 },
+            ["paths"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["fill"] = true,
+                    ["stroke"] = false,
+                    ["commands"] = new JsonArray
+                    {
+                        new JsonObject { ["op"] = "moveTo", ["x"] = 10, ["y"] = 20 },
+                        new JsonObject { ["op"] = "lineTo", ["x"] = 110, ["y"] = 20 },
+                        new JsonObject { ["op"] = "quadraticTo", ["x1"] = 110, ["y1"] = 70, ["x"] = 60, ["y"] = 120 },
+                        new JsonObject { ["op"] = "cubicTo", ["x1"] = 35, ["y1"] = 120, ["x2"] = 10, ["y2"] = 95, ["x"] = 10, ["y"] = 20 },
+                        new JsonObject { ["op"] = "close" },
+                    },
+                },
+            },
+        };
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -188,6 +212,10 @@ public sealed class PptxCodecTests
         Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
         Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
         Assert.Equal("Main decision claim", importedClaim.Accessibility.Description);
+        var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
+        Assert.Equal("custom", importedCustomShape.Geometry);
+        Assert.Equal(5, Assert.Single(importedCustomShape.CustomPaths).Commands.Count);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
@@ -286,6 +314,9 @@ public sealed class PptxCodecTests
             Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("type").GetString() == "image");
+            Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "claim-rule" &&
+                item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
             Assert.Contains(
                 projectedRoot.GetProperty("pages").EnumerateArray()
                     .SelectMany(page => page.GetProperty("elements").EnumerateArray()),
