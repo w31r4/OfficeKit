@@ -27,4 +27,4 @@
 
 - [x] 5.1 Add one comprehensive authored primitive check and one imported multi-leaf PPJ round trip in existing tests
 - [x] 5.2 Run the narrow PPJ, Presentation, proto, generated-reference, and OpenSpec checks
-- [ ] 5.3 Commit by integration, registry, runtime, reference, and evidence boundaries; push and fast-forward remote main
+- [x] 5.3 Commit by integration, registry, runtime, reference, and evidence boundaries; push and fast-forward remote main
