@@ -364,7 +364,25 @@ internal static class PpjSourceBoundPresentationCompiler
             var slide = sourcePage.Wire;
             var path = $"$.pages[{index}]";
             RequireNativeRef(before.Raw, after.Raw, path);
-            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "background", "transition", "notes", "elements");
+            RequireEqualExcept(before.Raw, after.Raw, path, "name", "role", "claim", "background", "transition", "notes", "elements", "hidden");
+            if (PropertyChanged(before.Raw, after.Raw, "name"))
+            {
+                RequireCapability(after.NativeRef, "setName", path + ".name");
+                slide.Name = after.Name ?? string.Empty;
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            if (PropertyChanged(before.Raw, after.Raw, "hidden"))
+            {
+                RequireCapability(after.NativeRef, "setHidden", path + ".hidden");
+                if (after.Hidden is null)
+                    throw Unsupported(path + ".hidden", "removing an issued slide visibility state; set an explicit boolean instead");
+                slide.Hidden = after.Hidden.Value;
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             if (PropertyChanged(before.Raw, after.Raw, "background"))
             {
                 RequireCapability(after.NativeRef, "setBackground", path + ".background");

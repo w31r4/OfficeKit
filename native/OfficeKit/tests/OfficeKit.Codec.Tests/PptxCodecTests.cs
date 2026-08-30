@@ -2180,6 +2180,9 @@ public sealed class PptxCodecTests
         stateClaim["hidden"] = false;
         stateClaim["locked"] = false;
         var stateClaimId = stateClaim["id"]!.GetValue<string>();
+        stateProgram["pages"]![0]!["name"] = "Decision gate";
+        stateProgram["pages"]![0]!["hidden"] = true;
+        var statePageId = stateProgram["pages"]![0]!["id"]!.GetValue<string>();
         var stateEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -2195,6 +2198,7 @@ public sealed class PptxCodecTests
         Assert.True(stateEdit.Ok, Diagnostics(stateEdit));
         Assert.Equal(["ppt/slides/slide1.xml"], stateEdit.PresentationProgram.ChangedParts);
         Assert.Contains(stateClaimId, stateEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(statePageId, stateEdit.PresentationProgram.ChangedNodeIds);
         using (var stateStream = new MemoryStream(stateEdit.File.ToByteArray(), writable: false))
         using (var statePackage = PresentationDocument.Open(stateStream, false))
         {
@@ -2218,6 +2222,8 @@ public sealed class PptxCodecTests
         Assert.True(stateReprojection.Ok, Diagnostics(stateReprojection));
         using (var stateJson = JsonDocument.Parse(stateReprojection.PresentationProgram.ProgramJson.ToByteArray()))
         {
+            Assert.Equal("Decision gate", stateJson.RootElement.GetProperty("pages")[0].GetProperty("name").GetString());
+            Assert.True(stateJson.RootElement.GetProperty("pages")[0].GetProperty("hidden").GetBoolean());
             var unlockedClaim = stateJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(element => element.GetProperty("id").GetString() == stateClaimId);
             Assert.False(unlockedClaim.TryGetProperty("hidden", out _));

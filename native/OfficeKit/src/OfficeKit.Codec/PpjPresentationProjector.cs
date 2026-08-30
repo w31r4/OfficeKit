@@ -226,6 +226,10 @@ internal static partial class PpjPresentationProjector
         var pageId = context.PageId(slide.Id);
         var pageHash = HashOrFallback(slide.Source?.SlideXmlSha256, slide.ToByteArray());
         var pageCapabilities = new List<CapabilitySpec>();
+        if (slide.Source is not null)
+            pageCapabilities.Add(new("setName", ["name"]));
+        if (slide.Source?.VisibilityEditable == true)
+            pageCapabilities.Add(new("setHidden", ["hidden"]));
         if (slide.Source?.DeletionCapability?.Supported == true)
             pageCapabilities.Add(new("delete", ["element"]));
         if (slide.Source?.BackgroundEditable == true)
