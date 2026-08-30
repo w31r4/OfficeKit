@@ -276,6 +276,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel { ChartType: "area" } streamgraph when IsStreamgraph(streamgraph, raw, catalog):
                 output.Group = BuildStreamgraph(streamgraph, raw, catalog);
                 break;
+            case PpjChartElementModel pictograph when IsPictographicChart(pictograph):
+                output.Group = BuildPictographicChart(pictograph, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -875,6 +878,365 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static string StreamgraphNativeId(string elementId, string suffix) =>
         $"{elementId}/stream/{suffix}";
+
+    private static bool IsPictographicChart(PpjChartElementModel element) =>
+        element.ChartType is "bar" or "column" &&
+        element.Data.Series.Any(series => series.Raw.TryGetProperty("symbol", out _));
+
+    private static PresentationGroup BuildPictographicChart(
+        PpjChartElementModel element,
+        JsonElement raw,
+        Catalog catalog)
+    {
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidatePictographicCompileProfile(element, raw, namedStyle, inlineStyle);
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        const double unitCaptionHeight = 16;
+        var contentY = y + titleHeight + unitCaptionHeight + 8;
+        var contentHeight = height - titleHeight - unitCaptionHeight - 12;
+        if (contentHeight < 76 || width < 220)
+            throw Unsupported(element.Id, "pictographic frame is too small for editable symbols and labels");
+
+        var series = element.Data.Series[0];
+        var seriesJson = raw.GetProperty("data").GetProperty("series")[0];
+        var symbol = seriesJson.GetProperty("symbol");
+        var unit = symbol.GetProperty("unit").GetDouble();
+        var gap = OptionalDouble(symbol, "gap") ?? 2;
+        var showValue = OptionalBoolean(symbol, "showValue") is not false;
+        var unitLabel = OptionalString(symbol, "unitLabel");
+        var categories = element.Data.Categories.Select(CategoryText).ToArray();
+        var counts = series.Values.Select(value => checked((int)Math.Round(value!.Value / unit))).ToArray();
+        var maximumCount = counts.Max();
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTitleElement(
+                PictographNativeId(element.Id, "title"),
+                "pictographic chart title",
+                x,
+                y,
+                width,
+                titleHeight,
+                raw.GetProperty("title"),
+                FirstProperty(inlineStyle, namedStyle, "titleTextStyle"),
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var unitText = $"1 symbol = {FormatPictographValue(unit)}{(unitLabel is null ? string.Empty : " " + unitLabel)}";
+        group.Children.Add(VectorChartTextElement(
+            PictographNativeId(element.Id, "unit"),
+            "pictographic unit",
+            x,
+            y + titleHeight,
+            width,
+            unitCaptionHeight,
+            unitText,
+            null,
+            catalog,
+            7.5,
+            "right",
+            "52606D"));
+
+        if (element.ChartType == "bar")
+            BuildHorizontalPictograph(
+                group, element, symbol, seriesJson, catalog, categories, counts,
+                x, contentY, width, contentHeight, maximumCount, gap, showValue, unitLabel);
+        else
+            BuildVerticalPictograph(
+                group, element, symbol, seriesJson, catalog, categories, counts,
+                x, contentY, width, contentHeight, maximumCount, gap, showValue, unitLabel);
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void BuildHorizontalPictograph(
+        PresentationGroup group,
+        PpjChartElementModel element,
+        JsonElement symbol,
+        JsonElement series,
+        Catalog catalog,
+        IReadOnlyList<string> categories,
+        IReadOnlyList<int> counts,
+        double x,
+        double y,
+        double width,
+        double height,
+        int maximumCount,
+        double gap,
+        bool showValue,
+        string? unitLabel)
+    {
+        var categoryWidth = Math.Clamp(width * 0.2, 70, 130);
+        var valueWidth = showValue ? Math.Clamp(width * 0.12, 48, 86) : 0;
+        const double plotGap = 10;
+        var plotX = x + categoryWidth + plotGap;
+        var plotWidth = width - categoryWidth - valueWidth - plotGap * 2;
+        var rowHeight = height / categories.Count;
+        var symbolSize = Math.Min(rowHeight * 0.62, (plotWidth - gap * (maximumCount - 1)) / maximumCount);
+        if (symbolSize < 6)
+            throw Unsupported(element.Id, "pictographic bar symbols would be smaller than 6 points");
+
+        for (var categoryIndex = 0; categoryIndex < categories.Count; categoryIndex++)
+        {
+            var rowY = y + categoryIndex * rowHeight;
+            group.Children.Add(VectorChartTextElement(
+                PictographNativeId(element.Id, $"category/{categoryIndex}"),
+                $"pictographic category {categories[categoryIndex]}",
+                x,
+                rowY,
+                categoryWidth,
+                rowHeight,
+                categories[categoryIndex],
+                null,
+                catalog,
+                8,
+                "left",
+                "16324F"));
+            for (var symbolIndex = 0; symbolIndex < counts[categoryIndex]; symbolIndex++)
+            {
+                var symbolX = plotX + symbolIndex * (symbolSize + gap);
+                var symbolY = rowY + (rowHeight - symbolSize) / 2;
+                group.Children.Add(PictographSymbolElement(
+                    element.Id, symbol, series, catalog, categoryIndex, symbolIndex,
+                    new PpjFrameModel(symbolX, symbolY, symbolSize, symbolSize, 0, false, false)));
+            }
+            if (showValue)
+                group.Children.Add(VectorChartTextElement(
+                    PictographNativeId(element.Id, $"value/{categoryIndex}"),
+                    $"pictographic value {categories[categoryIndex]}",
+                    x + width - valueWidth,
+                    rowY,
+                    valueWidth,
+                    rowHeight,
+                    PictographValueLabel(element.Data.Series[0].Values[categoryIndex]!.Value, unitLabel),
+                    null,
+                    catalog,
+                    8,
+                    "right",
+                    "16324F"));
+        }
+    }
+
+    private static void BuildVerticalPictograph(
+        PresentationGroup group,
+        PpjChartElementModel element,
+        JsonElement symbol,
+        JsonElement series,
+        Catalog catalog,
+        IReadOnlyList<string> categories,
+        IReadOnlyList<int> counts,
+        double x,
+        double y,
+        double width,
+        double height,
+        int maximumCount,
+        double gap,
+        bool showValue,
+        string? unitLabel)
+    {
+        const double categoryHeight = 20;
+        var valueHeight = showValue ? 18 : 0;
+        var plotY = y + valueHeight;
+        var plotHeight = height - categoryHeight - valueHeight;
+        var columnWidth = width / categories.Count;
+        var symbolSize = Math.Min(columnWidth * 0.62, (plotHeight - gap * (maximumCount - 1)) / maximumCount);
+        if (symbolSize < 6)
+            throw Unsupported(element.Id, "pictographic column symbols would be smaller than 6 points");
+        var baseline = plotY + plotHeight;
+
+        for (var categoryIndex = 0; categoryIndex < categories.Count; categoryIndex++)
+        {
+            var symbolX = x + categoryIndex * columnWidth + (columnWidth - symbolSize) / 2;
+            for (var symbolIndex = 0; symbolIndex < counts[categoryIndex]; symbolIndex++)
+            {
+                var symbolY = baseline - (symbolIndex + 1) * symbolSize - symbolIndex * gap;
+                group.Children.Add(PictographSymbolElement(
+                    element.Id, symbol, series, catalog, categoryIndex, symbolIndex,
+                    new PpjFrameModel(symbolX, symbolY, symbolSize, symbolSize, 0, false, false)));
+            }
+            if (showValue)
+            {
+                var stackTop = baseline - counts[categoryIndex] * symbolSize - Math.Max(0, counts[categoryIndex] - 1) * gap;
+                group.Children.Add(VectorChartTextElement(
+                    PictographNativeId(element.Id, $"value/{categoryIndex}"),
+                    $"pictographic value {categories[categoryIndex]}",
+                    x + categoryIndex * columnWidth,
+                    Math.Max(y, stackTop - valueHeight),
+                    columnWidth,
+                    valueHeight,
+                    PictographValueLabel(element.Data.Series[0].Values[categoryIndex]!.Value, unitLabel),
+                    null,
+                    catalog,
+                    8,
+                    "center",
+                    "16324F"));
+            }
+            group.Children.Add(VectorChartTextElement(
+                PictographNativeId(element.Id, $"category/{categoryIndex}"),
+                $"pictographic category {categories[categoryIndex]}",
+                x + categoryIndex * columnWidth,
+                baseline + 2,
+                columnWidth,
+                categoryHeight,
+                categories[categoryIndex],
+                null,
+                catalog,
+                8,
+                "center",
+                "16324F"));
+        }
+    }
+
+    private static PresentationElement PictographSymbolElement(
+        string elementId,
+        JsonElement symbol,
+        JsonElement series,
+        Catalog catalog,
+        int categoryIndex,
+        int symbolIndex,
+        PpjFrameModel frame)
+    {
+        var kind = symbol.GetProperty("kind").GetString();
+        PresentationShape shape;
+        if (kind == "icon")
+        {
+            shape = ShapeFrame(frame, "custom");
+            shape.CatalogIconName = symbol.GetProperty("iconName").GetString()!;
+            ApplyIconGeometry(shape, PpjIconCatalog.Resolve(shape.CatalogIconName), frame, elementId);
+        }
+        else
+        {
+            var preset = symbol.GetProperty("preset").GetString()!;
+            PptxPresetGeometryAdjustmentCodec.Validate(preset, [], elementId);
+            shape = ShapeFrame(frame, preset);
+        }
+        ApplyPictographPaint(shape, series, catalog, elementId);
+        return new PresentationElement
+        {
+            Id = PictographNativeId(elementId, $"category/{categoryIndex}/symbol/{symbolIndex}"),
+            Name = $"pictographic symbol {categoryIndex + 1}.{symbolIndex + 1}",
+            Shape = shape,
+        };
+    }
+
+    private static void ApplyPictographPaint(
+        PresentationShape target,
+        JsonElement series,
+        Catalog catalog,
+        string elementId)
+    {
+        if (series.TryGetProperty("fill", out var fill))
+        {
+            if (fill.GetProperty("type").GetString() == "gradient")
+                target.GradientFill = BuildGradientFill(fill, color => catalog.Color(color));
+            else
+            {
+                var resolved = FillColor(fill, catalog) ??
+                    throw Unsupported(elementId, "pictographic symbols cannot use a no-fill paint");
+                target.FillRgb = resolved.Rgb;
+                if (resolved.Opacity < 1) target.FillOpacityThousandthPercent = Opacity(resolved.Opacity);
+            }
+        }
+        else if (series.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            target.FillRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) target.FillOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        else target.FillRgb = catalog.Theme.AccentRgb[0];
+
+        if (series.TryGetProperty("stroke", out var stroke)) ApplyLine(target, stroke, catalog);
+        else target.LineStyle = "none";
+    }
+
+    private static void ValidatePictographicCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.ChartType is not ("bar" or "column") || element.Data.Series.Count != 1 ||
+            !element.Data.Series[0].Raw.TryGetProperty("symbol", out var symbol))
+            throw Unsupported(element.Id, "pictographic charts require one bar or column series with a symbol");
+        if (element.Data.Categories.Count is < 2 or > 12 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != element.Data.Categories.Count)
+            throw Unsupported(element.Id, "pictographic categories must be 2..12 unique non-empty labels");
+        var kind = symbol.GetProperty("kind").GetString();
+        if (kind == "icon") _ = PpjIconCatalog.Resolve(symbol.GetProperty("iconName").GetString()!);
+        else
+        {
+            var preset = symbol.GetProperty("preset").GetString()!;
+            if (preset is "textbox" or "line" || !PptxPresetGeometryAdjustmentCodec.HasProfile(preset))
+                throw Unsupported(element.Id, $"pictographic preset {preset} is not a closed authored preset");
+        }
+        if (symbol.TryGetProperty("unitLabel", out var unitLabel) && string.IsNullOrWhiteSpace(unitLabel.GetString()))
+            throw Unsupported(element.Id, "pictographic unitLabel must be non-empty");
+        var unit = symbol.GetProperty("unit").GetDouble();
+        var total = 0;
+        foreach (var value in element.Data.Series[0].Values)
+        {
+            if (value is null || !double.IsFinite(value.Value) || value.Value < 0)
+                throw Unsupported(element.Id, "pictographic values must be finite, complete and non-negative");
+            var quotient = value.Value / unit;
+            var rounded = Math.Round(quotient);
+            if (Math.Abs(quotient - rounded) > 1e-9 * Math.Max(1, Math.Abs(quotient)))
+                throw Unsupported(element.Id, $"pictographic value {value.Value} is not an exact multiple of unit {unit}");
+            if (rounded > 32) throw Unsupported(element.Id, "one pictographic category exceeds the 32-symbol budget");
+            total = checked(total + (int)rounded);
+        }
+        if (total is < 1 or > 192)
+            throw Unsupported(element.Id, "pictographic charts require 1..192 total symbols");
+
+        foreach (var property in element.Data.Series[0].Raw.EnumerateObject())
+            if (property.Name is not ("id" or "name" or "values" or "color" or "fill" or "stroke" or "symbol"))
+                throw Unsupported(element.Id, $"pictographic series do not support {property.Name}");
+        var series = element.Data.Series[0].Raw;
+        if (series.TryGetProperty("color", out _) && series.TryGetProperty("fill", out _))
+            throw Unsupported(element.Id, "pictographic series color and fill are aliases and cannot both be present");
+        if (series.TryGetProperty("fill", out var fill) && fill.GetProperty("type").GetString() is not ("solid" or "gradient"))
+            throw Unsupported(element.Id, "pictographic symbol fill must be solid or gradient");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "pictographic charts generate their own categorical layout and do not accept axes");
+        foreach (var style in new[] { namedStyle, inlineStyle })
+        {
+            if (style is not { ValueKind: JsonValueKind.Object } value) continue;
+            foreach (var property in value.EnumerateObject())
+                if (property.Name != "titleTextStyle")
+                    throw Unsupported(element.Id, $"pictographic charts do not support chart style field {property.Name}");
+        }
+    }
+
+    private static string PictographValueLabel(double value, string? unitLabel) =>
+        $"{FormatPictographValue(value)}{(unitLabel is null ? string.Empty : " " + unitLabel)}";
+
+    private static string FormatPictographValue(double value) =>
+        value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static string PictographNativeId(string elementId, string suffix) =>
+        $"{elementId}/pictograph/{suffix}";
 
     internal static PresentationTextBody BuildChartTitleBody(
         PpjProgramModel program,
