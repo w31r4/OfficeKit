@@ -2055,6 +2055,45 @@ const alphaShapeRoundTrip = await PresentationFile.importPptx(alphaShapeOutput);
 const alphaShapeRoundTripModel = itemByName(alphaShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status");
 assert.equal(alphaShapeRoundTripModel.fill.opacity, 0.65);
 
+// Imported theme fills may carry bounded luminance transforms alongside the
+// alpha child. The native opacity leaf must change only that alpha token and
+// leave the source-owned lumMod/lumOff paint intact.
+const schemeOpacityShapeAccessibilityXml = alphaShapeAccessibilityXml.replace(
+  /<a:srgbClr val="DBEAFE"><a:alpha val="50000"\s*\/><\/a:srgbClr>/u,
+  '<a:schemeClr val="accent6"><a:lumMod val="40000"/><a:lumOff val="60000"/><a:alpha val="29000"/></a:schemeClr>',
+);
+assert.match(schemeOpacityShapeAccessibilityXml, /<a:schemeClr val="accent6"><a:lumMod val="40000"\/><a:lumOff val="60000"\/><a:alpha val="29000"\/><\/a:schemeClr>/);
+const schemeOpacityShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+schemeOpacityShapeAccessibilityZip.file("ppt/slides/slide1.xml", schemeOpacityShapeAccessibilityXml);
+const schemeOpacityShapeAccessibilityFile = new FileBlob(
+  await schemeOpacityShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const schemeOpacityShapeAccessibilityImported = await PresentationFile.importPptx(schemeOpacityShapeAccessibilityFile);
+const schemeOpacityShape = itemByName(schemeOpacityShapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(schemeOpacityShape.fill.color, "accent6");
+assert.equal(schemeOpacityShape.fill.opacity, 0.29);
+const schemeOpacityLeaves = schemeOpacityShapeAccessibilityImported.inspect({ includeNativeLeaves: true, target: schemeOpacityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const schemeOpacityLeaf = schemeOpacityLeaves.find((record) => record.leafKind === "fillOpacityThousandthPercent");
+assert.ok(schemeOpacityLeaf, "theme fills with bounded luminance transforms should expose an opacity leaf");
+assert.equal(schemeOpacityLeaf.value, 0.29);
+schemeOpacityShapeAccessibilityImported.editNativeLeaf(schemeOpacityLeaf.targetId, schemeOpacityLeaf.leafId, {
+  expectedHash: schemeOpacityLeaf.expectedHash,
+  value: 0.4,
+});
+const schemeOpacityShapeOutput = await PresentationFile.exportPptx(schemeOpacityShapeAccessibilityImported);
+const schemeOpacityOperation = schemeOpacityShapeOutput.metadata.editPlan.operations[0];
+assert.equal(schemeOpacityOperation.leafKind, "fillOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(schemeOpacityShapeAccessibilityFile, schemeOpacityShapeOutput, schemeOpacityOperation);
+const schemeOpacityShapeOutputXml = await (await JSZip.loadAsync(schemeOpacityShapeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(schemeOpacityShapeOutputXml, /<a:schemeClr val="accent6"><a:lumMod val="40000"\/><a:lumOff val="60000"\/><a:alpha val="40000"\/><\/a:schemeClr>/);
+const schemeOpacityShapeRoundTrip = await PresentationFile.importPptx(schemeOpacityShapeOutput);
+assert.deepEqual(schemeOpacityShapeRoundTrip.resolve(schemeOpacityShape.id).fill, { color: "accent6", opacity: 0.4 });
+
 const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
 const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
 const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeNativeLeaves: true, target: nativeImageGeometry.id }).ndjson
