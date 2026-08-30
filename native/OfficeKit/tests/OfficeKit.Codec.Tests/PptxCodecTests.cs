@@ -1574,6 +1574,78 @@ public sealed class PptxCodecTests
         var invalidSankeyColor = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSankeyColorProgram.ToJsonString()));
         Assert.False(invalidSankeyColor.IsValid);
         Assert.Contains(invalidSankeyColor.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sankeyNodeColor");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-stream-main",
+            ["type"] = "chart",
+            ["role"] = "audience composition stream",
+            ["frame"] = new JsonObject { ["x"] = 48, ["y"] = 272, ["width"] = 560, ["height"] = 190 },
+            ["chartType"] = "area",
+            ["title"] = "Audience composition changed without losing reach",
+            ["xAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["textStyle"] = new JsonObject { ["fontSize"] = 7, ["color"] = "#52606D" },
+            },
+            ["style"] = new JsonObject
+            {
+                ["stacking"] = "stream",
+                ["legend"] = "right",
+                ["titleTextStyle"] = new JsonObject { ["fontSize"] = 13, ["bold"] = true, ["color"] = "#16324F" },
+                ["legendTextStyle"] = new JsonObject { ["fontSize"] = 7.5, ["color"] = "#16324F" },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Jan", "Feb", "Mar", "Apr", "May", "Jun"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "new-users",
+                        ["name"] = "New",
+                        ["values"] = new JsonArray(22, 28, 35, 31, 38, 44),
+                        ["fill"] = new JsonObject
+                        {
+                            ["type"] = "gradient",
+                            ["kind"] = "linear",
+                            ["angle"] = 0,
+                            ["stops"] = new JsonArray
+                            {
+                                new JsonObject { ["offset"] = 0, ["color"] = "#0B8F8F" },
+                                new JsonObject { ["offset"] = 1, ["color"] = "#74C7C7", ["opacity"] = 0.82 },
+                            },
+                        },
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "returning-users",
+                        ["name"] = "Returning",
+                        ["values"] = new JsonArray(31, 34, 30, 39, 42, 46),
+                        ["color"] = "#F2C14ECC",
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "enterprise-users",
+                        ["name"] = "Enterprise",
+                        ["values"] = new JsonArray(12, 14, 18, 22, 29, 36),
+                        ["color"] = "#C8644AE6",
+                        ["stroke"] = new JsonObject { ["color"] = "#8F3D2E", ["width"] = 0.5, ["opacity"] = 0.7 },
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Three centered flowing bands compare audience composition from January through June.",
+            },
+        });
+        var invalidStreamProgram = authoredProgram.DeepClone().AsObject();
+        invalidStreamProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-stream-main")["chartType"] = "line";
+        var invalidStream = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidStreamProgram.ToJsonString()));
+        Assert.False(invalidStream.IsValid);
+        Assert.Contains(invalidStream.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.streamType");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -1927,7 +1999,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(40U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(41U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -2206,6 +2278,21 @@ public sealed class PptxCodecTests
             Assert.Equal(
                 trialNode.ShapeProperties!.Transform2D!.Offset!.X!.Value,
                 directNode.ShapeProperties!.Transform2D!.Offset!.X!.Value);
+            var nativeStream = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "audience composition stream");
+            Assert.Equal(3, nativeStream.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("stream band ", StringComparison.Ordinal) == true));
+            Assert.All(nativeStream.Elements<P.Shape>().Where(shape =>
+                    shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("stream band ", StringComparison.Ordinal) == true),
+                shape =>
+                {
+                    Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>());
+                    Assert.NotEmpty(shape.Descendants<A.CubicBezierCurveTo>());
+                });
+            Assert.Contains(nativeStream.Descendants<A.Text>(), text => text.Text == "Audience composition changed without losing reach");
+            Assert.Contains(nativeStream.Descendants<A.Text>(), text => text.Text == "Enterprise");
+            Assert.NotEmpty(nativeStream.Descendants<A.GradientFill>());
             var diagramGroups = package.PresentationPart.SlideParts.ElementAt(2).Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>().ToArray();
             Assert.Equal(8, diagramGroups.Length);
@@ -2802,6 +2889,17 @@ public sealed class PptxCodecTests
                 item.GetProperty("name").GetString() == "sankey node Paid");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "customer conversion flow" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedStream = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "audience composition stream");
+            Assert.Equal(3, projectedStream.GetProperty("elements").EnumerateArray().Count(item =>
+                item.GetProperty("name").GetString()!.StartsWith("stream band ", StringComparison.Ordinal)));
+            Assert.Contains(projectedStream.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "stream band Enterprise" &&
+                    item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "audience composition stream" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&
