@@ -99,6 +99,19 @@ The compact result is `evals/presentation-six-sample-import/evidence.v1.json`.
 This is structural/package evidence on macOS, not a claim of complete OOXML
 semantics or Windows PowerPoint acceptance.
 
+The packed PPJ continuation check is recorded separately in
+`evals/presentation-six-sample-import/ppj-packed-resume.v1.json`. A fresh Codex
+context used only the installed package and Presentations Skill to create a
+data-only task, import the Business Infographic sample, change one issued
+`lineStyle` leaf, check/build/render/review, reopen the reviewed revision with
+`officekit ppj resume`, and import the candidate again. The source stayed exact;
+the resumed and reimported leaf remained `dashed`; and an independent 231-part
+OPC comparison found only `ppt/slides/slide6.xml` changed. Masking the declared
+`solid` to `dash` token recovered that SlidePart byte-for-byte. The rendered
+target page showed the requested dashed divider without new clipping or
+evidence-obscuring overlap. This is package, task, NativeAOT, and one-page
+LibreOffice/Poppler evidence, not Windows PowerPoint host evidence.
+
 Imported canonical picture effects now project through the public
 `ImageElement`: RGB/dashed borders and one bounded outer shadow can be read,
 changed, removed, exported, and recovered after a second import. An unrelated
@@ -1068,7 +1081,7 @@ inspect/review, or host-only. The bundled
 keeps PowerPoint Live host-only, and regenerates the PPJ language manual without
 initializing a codec, provider, renderer, or bridge. This proves discoverability
 only; it does not replace visual or host review. Public Help exposes only
-`officekit ppj import|inspect|check|build|render|review`; legacy facade records
+`officekit ppj import|inspect|check|build|render|review|resume`; legacy facade records
 are repository-internal compiler evidence.
 
 ### PPTX template-conditioned generation

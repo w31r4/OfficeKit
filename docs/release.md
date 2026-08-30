@@ -58,6 +58,18 @@ The receipt includes revision, candidate, and review state; no JavaScript heap
 or command replay is restored. The existing task smoke covers both an authored
 program and a source-bound program with one local asset.
 
+A clean packed `office-kit@2.0.0` rehearsal then gave the installed
+Presentations Skill and one frozen third-party PPTX to a fresh Codex context.
+It created the task without the REPL, edited one capability-issued line-style
+leaf, built and reviewed the candidate, resumed the reviewed program in a new
+process, and recovered the same value after a second import. The source SHA-256
+remained exact. An independent 231-part OPC oracle found only the target
+SlidePart changed; masking the declared `solid` to `dash` token recovered that
+XML byte-for-byte. LibreOffice/Poppler rendered the requested dashed divider on
+page 6 without a new visible obstruction. Compact evidence is in
+`evals/presentation-six-sample-import/ppj-packed-resume.v1.json`; Windows
+PowerPoint remains outside this change.
+
 ## Unreleased: Presentation scene stack
 
 Presentation authoring now uses one bottom-to-top scene stack across shapes,

@@ -1,0 +1,94 @@
+{
+  "schema": "office-kit/pptx-six-sample-ppj-packed-resume-evidence/v1",
+  "recordedAt": "2026-08-31T05:02:16+08:00",
+  "productCommit": "86322561",
+  "installation": {
+    "package": "office-kit@2.0.0",
+    "tarballSha256": "cbac40db253fbaa8b9b7e972dbe34a85fc9245cb3634c536ba15403f87f0d5c9",
+    "tarballBytes": 29841556,
+    "nativePackage": "office-kit-codec-darwin-arm64@2.0.0",
+    "nativeTarballSha256": "86eb536f59dfbed531430eda46516a9a0404b364c6b5551ce2163a763e7c0725",
+    "nativeTarballBytes": 21844178,
+    "cleanInstall": true,
+    "repositorySourceUsedByAgent": false
+  },
+  "agent": {
+    "host": "Codex",
+    "freshContext": true,
+    "taskId": "t_<redacted>",
+    "installedPresentationSkillRead": true,
+    "completed": true,
+    "prohibitedRoutesUsed": {
+      "rawOoxml": false,
+      "python": false,
+      "html": false,
+      "pptd": false,
+      "mjsPresentationApi": false
+    }
+  },
+  "source": {
+    "id": "slidescarnival-business-infographic",
+    "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+    "sizeBytes": 19436162,
+    "unchanged": true
+  },
+  "operation": {
+    "pageId": "page-ppt-slides-slide6.xml",
+    "elementId": "page-ppt-slides-slide6.xml-element-10",
+    "elementName": "AutoShape 29",
+    "leafId": "nl_63ccea0720d001faa5f2f5a23a09eb85",
+    "leafKind": "lineStyle",
+    "expectedHash": "4b3d4a0dd732f791ca897e95488b5d63caf128d8691b6f5bbc54f866b9b97054",
+    "oldValue": "solid",
+    "newValue": "dashed",
+    "onlyRequestedPpjValueChanged": true
+  },
+  "task": {
+    "createdWithoutRepl": true,
+    "status": "reviewed",
+    "reviewedProgramSha256": "fb9623bc23967234af43f63a263f020cfd39dcf0eae95460befe390e36c9f925",
+    "resumeMaterializedOutsideTaskStore": true,
+    "resumedProgramSha256": "fb9623bc23967234af43f63a263f020cfd39dcf0eae95460befe390e36c9f925",
+    "resumedLeafValue": "dashed"
+  },
+  "candidate": {
+    "sha256": "8f888163057c193646ee4ceb165f4ea5f7d14e93058b584d0f2bb2933c553220",
+    "sizeBytes": 19436017,
+    "secondImportProgramSha256": "df1be07ec198b2394d82d8da69e55235b8a39f3e49411332c6cb1daea01ef863",
+    "secondImportElementId": "page-ppt-slides-slide6.xml-element-10",
+    "secondImportLeafId": "nl_d9c0a9f9e02f86f92978cff309f2380c",
+    "secondImportLeafValue": "dashed"
+  },
+  "independentOracle": {
+    "opcPartCount": 231,
+    "partSetIdentical": true,
+    "changedParts": [
+      "ppt/slides/slide6.xml"
+    ],
+    "allNonTargetPartContentsByteIdentical": true,
+    "targetXmlSourceToken": "solid",
+    "targetXmlCandidateToken": "dash",
+    "targetXmlEqualAfterMaskingDeclaredEdit": true,
+    "secondImportRecoveredRequestedValue": true
+  },
+  "render": {
+    "renderer": "libreoffice-poppler",
+    "page": 6,
+    "pngSha256": "d6967d1a43f6f41fb92bacc343b06d26d6ab846a95c48c5fcf76d14206ea333f",
+    "pngBytes": 105796,
+    "modelVisualInspection": "complete",
+    "requestedDashedLineVisible": true,
+    "newClippingOrEvidenceObscuringOverlapObserved": false
+  },
+  "review": {
+    "verdict": "passed-with-limitations",
+    "visualReview": "unavailable",
+    "playbackEvidence": "structural",
+    "baselineMatchedIssues": 282,
+    "baselineNewIssues": 0
+  },
+  "limitations": [
+    "Only the target page was rendered in this packed rehearsal; the frozen six-sample render evidence separately covers non-target-page pixel identity.",
+    "Windows Microsoft PowerPoint open, save, and playback are explicit non-goals for this change."
+  ]
+}

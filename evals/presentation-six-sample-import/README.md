@@ -71,5 +71,14 @@ resume/edit/commit → resume/verify/publish` rehearsal for every sample. It
 stores only source, revision, and published hashes plus compact commit data;
 task directories and reference files remain disposable.
 
+`ppj-packed-resume.v1.json` records the release-surface continuation check. A
+fresh Codex context used only a packed `office-kit@2.0.0` install and its
+installed Presentations Skill to create a task without the REPL, import one
+frozen sample as source-bound PPJ, change one issued `lineStyle` leaf, check,
+build, render, review, resume in a separate process, and import the candidate
+again. An independent package oracle then compared all 231 OPC parts: only the
+target SlidePart changed, and masking `solid` to `dash` recovered the target XML
+byte-for-byte.
+
 This is structural/package evidence.  Windows desktop PowerPoint open/save and
 playback remain a separate, not-yet-run host validation.
