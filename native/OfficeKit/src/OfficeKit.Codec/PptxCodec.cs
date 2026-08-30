@@ -1692,7 +1692,7 @@ internal static class PptxCodec
             Text = PptxTextCodec.Flatten(textBody),
             TextBody = textBody,
             FillRgb = PptxColor.SolidRgb(solidFill),
-            FillScheme = PptxColor.SolidScheme(solidFill),
+            FillScheme = PptxColor.SolidSchemeWithOpacity(solidFill),
             GradientFill = gradientSemantic.Stops.Count > 0 ? gradientSemantic : null,
             ImageFill = imageSemantic.AssetId.Length > 0 ? imageSemantic : null,
             Placeholder = placeholder,
@@ -1794,8 +1794,11 @@ internal static class PptxCodec
 
     private static uint? ReadFillOpacity(A.SolidFill? solid)
     {
-        var alpha = solid?.GetFirstChild<A.RgbColorModelHex>()?.GetFirstChild<A.Alpha>();
-        return alpha?.Val?.Value is { } value ? checked((uint)value) : null;
+        if (PptxColor.TryDirectSolidRgbWithOpacity(solid, out _, out var rgbOpacity) && rgbOpacity is not null)
+            return rgbOpacity;
+        if (PptxColor.TryDirectSolidSchemeWithOpacity(solid, out _, out var schemeOpacity) && schemeOpacity is not null)
+            return schemeOpacity;
+        return null;
     }
 
     private static void ApplyShape(P.Shape shape, PresentationElement source, PptxPartContext slideContext)
@@ -1971,6 +1974,8 @@ internal static class PptxCodec
             return PptxImagePaintCodec.Build(source.ImageFill, context, "shape fill");
         if (source.GradientFill is not null)
             return PptxGradientFillCodec.Build(source.GradientFill, "Presentation shape fill");
+        if (!string.IsNullOrWhiteSpace(source.FillScheme))
+            return PptxColor.BuildSolidScheme(source.FillScheme, source.HasFillOpacityThousandthPercent ? source.FillOpacityThousandthPercent : null);
         if (string.IsNullOrWhiteSpace(source.FillRgb)) return new A.NoFill();
         var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(source.FillRgb) };
         if (source.HasFillOpacityThousandthPercent)
@@ -2005,6 +2010,10 @@ internal static class PptxCodec
         var solid = PptxColor.SolidRgb(solidFill);
         if (solid.Length > 0)
             return requested.Equals(solid, StringComparison.OrdinalIgnoreCase) && ReadFillOpacity(solidFill) == opacity;
+        var requestedScheme = string.IsNullOrWhiteSpace(source.FillScheme) ? string.Empty : PptxColor.NormalizeScheme(source.FillScheme);
+        var scheme = PptxColor.SolidSchemeWithOpacity(solidFill);
+        if (scheme.Length > 0)
+            return requestedScheme.Equals(scheme, StringComparison.OrdinalIgnoreCase) && ReadFillOpacity(solidFill) == opacity;
         return requested.Length == 0 && opacity is null && !parent.ChildElements.Any(child => child.LocalName.EndsWith("Fill", StringComparison.Ordinal));
     }
 
@@ -2724,6 +2733,12 @@ internal static class PptxCodec
 
     private static void NormalizeSemanticForHash(PresentationElement element)
     {
+        // Imported visibility/locking readers materialize an explicit false
+        // for an absent native attribute.  Treat that default presence as
+        // equivalent to omission so a content-only source edit does not fail
+        // post-write semantic validation.
+        if (element.HasHidden && !element.Hidden) element.ClearHidden();
+        if (element.HasLocked && !element.Locked) element.ClearLocked();
         if (element.ContentCase == PresentationElement.ContentOneofCase.Shape)
         {
             PptxTextCodec.NormalizeSemantics(element.Shape);
@@ -2959,7 +2974,7 @@ internal static class PptxCodec
                 _ = assetCatalog.Get(element.Shape.ImageFillAssetId);
             }
             if (element.Shape.HasFillOpacityThousandthPercent &&
-                (string.IsNullOrWhiteSpace(element.Shape.FillRgb) || element.Shape.GradientFill is not null ||
+                ((string.IsNullOrWhiteSpace(element.Shape.FillRgb) && string.IsNullOrWhiteSpace(element.Shape.FillScheme)) || element.Shape.GradientFill is not null ||
                  element.Shape.ImageFill is not null ||
                  element.Shape.FillOpacityThousandthPercent > 100_000))
                 throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} has invalid solid-fill opacity.");
