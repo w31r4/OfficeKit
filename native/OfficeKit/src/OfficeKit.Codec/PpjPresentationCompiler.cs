@@ -455,6 +455,38 @@ internal static class PpjSourceBoundPresentationCompiler
                 clone.CloneSource = cloneOrigin.Wire.Source.Clone();
                 clone.Source = null;
                 clone.ElementDeletions.Clear();
+                if (sourceClone.RetainElementId is { } retainedElementId)
+                {
+                    if (cloneOrigin.Program.Elements.Count != clone.Elements.Count)
+                        throw Unsupported(path + ".sourceClone.retainElement", "inconsistent source element topology");
+                    var retainedIndex = -1;
+                    for (var elementIndex = 0; elementIndex < cloneOrigin.Program.Elements.Count; elementIndex++)
+                    {
+                        if (!cloneOrigin.Program.Elements[elementIndex].Id.Equals(retainedElementId, StringComparison.Ordinal)) continue;
+                        retainedIndex = elementIndex;
+                        break;
+                    }
+                    if (retainedIndex < 0)
+                        throw Unsupported(path + ".sourceClone.retainElement", $"unknown direct source element {retainedElementId}");
+
+                    var retainedWire = clone.Elements[retainedIndex].Clone();
+                    for (var elementIndex = 0; elementIndex < cloneOrigin.Program.Elements.Count; elementIndex++)
+                    {
+                        if (elementIndex == retainedIndex) continue;
+                        var sibling = cloneOrigin.Program.Elements[elementIndex];
+                        var siblingWire = clone.Elements[elementIndex];
+                        RequireCapabilityField(sibling, "delete", "element", path + ".sourceClone.retainElement");
+                        if (siblingWire.Source?.DeletionCapability?.Supported != true)
+                            throw Unsupported(path + ".sourceClone.retainElement", $"deleting sibling {sibling.Id} without a re-proven native deletion profile");
+                        clone.ElementDeletions.Add(new PresentationElementDeletion
+                        {
+                            Id = siblingWire.Id,
+                            Source = siblingWire.Source.Clone(),
+                        });
+                    }
+                    clone.Elements.Clear();
+                    clone.Elements.Add(retainedWire);
+                }
                 requestedSlides.Add(clone);
                 changedNodeIds.Add(after.Id);
                 mutations.SemanticChanges = true;
@@ -2051,6 +2083,19 @@ internal static class PpjSourceBoundPresentationCompiler
     private static void RequireCapability(PpjElementModel element, string operation, string path)
     {
         RequireCapability(element.NativeRef, operation, path);
+    }
+
+    private static void RequireCapabilityField(PpjElementModel element, string operation, string field, string path)
+    {
+        var reference = element.NativeRef ?? throw new CodecException("ppj.nativeRef.missing", "Source-bound edits require a nativeRef.", path);
+        var capability = reference.Capabilities.FirstOrDefault(item =>
+            item.Operation.Equals(operation, StringComparison.Ordinal) &&
+            item.Fields.Contains(field, StringComparer.Ordinal));
+        if (capability is null || !capability.ExpectedHash.Equals(reference.ObjectHash, StringComparison.OrdinalIgnoreCase))
+            throw new CodecException(
+                "ppj.nativeRef.capabilityMissing",
+                $"The exact source object did not issue the {operation}/{field} capability required by this edit.",
+                path);
     }
 
     private static void RequireCapability(PpjNativeRefModel? nativeRef, string operation, string path)
