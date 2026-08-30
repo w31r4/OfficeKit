@@ -2567,6 +2567,10 @@ message PresentationImageBorder {
   string cap = 4;
   string join = 5;
   optional uint32 opacity_thousandth_percent = 6;
+  // Direct DrawingML theme color for an imported picture outline. RGB and
+  // scheme colors are mutually exclusive at the codec boundary; transforms
+  // and effect children remain source-owned.
+  string color_scheme = 7;
 }
 
 message PresentationImageTransform {

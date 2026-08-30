@@ -533,20 +533,36 @@ internal static class PptxPictureCodec
         if (noLine && (noFill[0].HasAttributes || noFill[0].HasChildren)) return false;
 
         string rgb = string.Empty;
+        string scheme = string.Empty;
         uint? opacity = null;
         if (!noLine)
         {
             var solid = solidFill[0];
-            if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color ||
-                !HasOnlyAttributes(solid) || !HasOnlyAttributes(color, "val") ||
-                color.Val?.Value is not { Length: 6 } directRgb || !directRgb.All(Uri.IsHexDigit)) return false;
-            var alphas = color.Elements<A.Alpha>().ToArray();
-            if (color.ChildElements.Count != alphas.Length || alphas.Length > 1 ||
-                alphas.Length == 1 && (alphas[0].Val?.Value is not (>= 0 and <= 100_000) || !HasOnlyAttributes(alphas[0], "val")))
-                return false;
-            rgb = directRgb;
-            if (alphas.SingleOrDefault()?.Val?.Value is { } alphaValue)
-                opacity = checked((uint)alphaValue);
+            if (solid.ChildElements.Count != 1 || !HasOnlyAttributes(solid)) return false;
+            if (solid.FirstChild is A.RgbColorModelHex color)
+            {
+                if (!HasOnlyAttributes(color, "val") ||
+                    color.Val?.Value is not { Length: 6 } directRgb || !directRgb.All(Uri.IsHexDigit)) return false;
+                rgb = directRgb;
+                var alphas = color.Elements<A.Alpha>().ToArray();
+                if (color.ChildElements.Count != alphas.Length || alphas.Length > 1 ||
+                    alphas.Length == 1 && (alphas[0].Val?.Value is not (>= 0 and <= 100_000) || !HasOnlyAttributes(alphas[0], "val")))
+                    return false;
+                if (alphas.SingleOrDefault()?.Val?.Value is { } alphaValue)
+                    opacity = checked((uint)alphaValue);
+            }
+            else if (solid.FirstChild is A.SchemeColor schemeColor)
+            {
+                if (!HasOnlyAttributes(schemeColor, "val") || schemeColor.Val?.Value is not { } rawScheme ||
+                    !PptxColor.TrySchemeToken(rawScheme, out scheme)) return false;
+                var alphas = schemeColor.Elements<A.Alpha>().ToArray();
+                if (schemeColor.ChildElements.Count != alphas.Length || alphas.Length > 1 ||
+                    alphas.Length == 1 && (alphas[0].Val?.Value is not (>= 0 and <= 100_000) || !HasOnlyAttributes(alphas[0], "val")))
+                    return false;
+                if (alphas.SingleOrDefault()?.Val?.Value is { } alphaValue)
+                    opacity = checked((uint)alphaValue);
+            }
+            else return false;
         }
         var dashes = outline.Elements<A.PresetDash>().ToArray();
         if (dashes.Length > 1 || dashes.SingleOrDefault() is { } dash &&
@@ -570,7 +586,8 @@ internal static class PptxPictureCodec
         if (noLine) return true;
         border = new PresentationImageBorder
         {
-            ColorRgb = PptxColor.Normalize(rgb),
+            ColorRgb = string.IsNullOrEmpty(scheme) ? PptxColor.Normalize(rgb) : string.Empty,
+            ColorScheme = scheme,
             WidthEmu = outline.Width?.Value ?? 0L,
             Style = style,
             Cap = cap,
@@ -584,7 +601,10 @@ internal static class PptxPictureCodec
     private static void ValidateBorder(PresentationImageBorder? border, string elementId)
     {
         if (border is null) return;
-        PptxColor.Normalize(border.ColorRgb);
+        if (string.IsNullOrEmpty(border.ColorRgb) == string.IsNullOrEmpty(border.ColorScheme))
+            throw Invalid(elementId, "border must use exactly one RGB or theme color");
+        if (!string.IsNullOrEmpty(border.ColorRgb)) PptxColor.Normalize(border.ColorRgb);
+        else PptxColor.NormalizeScheme(border.ColorScheme);
         if (border.WidthEmu is < 0 or > int.MaxValue ||
             border.Style is not ("solid" or "dashed" or "dotted" or "dash-dot" or "dash-dot-dot") ||
             border.Cap is not ("" or "flat" or "round" or "square") ||
@@ -603,7 +623,9 @@ internal static class PptxPictureCodec
             "flat" => A.LineCapValues.Flat,
             _ => null,
         };
-        var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(border.ColorRgb) };
+        OpenXmlElement color = !string.IsNullOrEmpty(border.ColorScheme)
+            ? new A.SchemeColor { Val = PptxColor.SchemeValue(border.ColorScheme) }
+            : new A.RgbColorModelHex { Val = PptxColor.Normalize(border.ColorRgb) };
         if (border.HasOpacityThousandthPercent)
             color.Append(new A.Alpha { Val = checked((int)border.OpacityThousandthPercent) });
         outline.Append(new A.SolidFill(color));
