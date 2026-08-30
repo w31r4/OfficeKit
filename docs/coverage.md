@@ -371,6 +371,16 @@ width/length attributes are retained, while custom dash graphs, miter limits,
 missing/ambiguous paints, malformed or absent endpoints, effects, and other
 unsupported line graphs remain opaque.
 
+Canonical third-party connector style references are covered separately: when a
+`p:cxnSp` has no direct outline paint but its `p:style/a:lnRef` contains one bare
+RGB or theme color and the complete four-reference graph is validated, the
+source-bound connector exposes `lineRgb` or `lineScheme`. Editing splices only
+that `a:srgbClr/@val` or `a:schemeClr/@val`; the line endpoint, style references,
+opaque attributes, and connector topology remain unchanged. NASA FROSTE provides
+two real `accent5` connectors; changing one to `accent1` changed only
+`ppt/slides/slide9.xml` and survived second import. Transformed, ambiguous, or
+partial style-reference graphs remain opaque.
+
 The imported style boundary also includes bounded direct run baseline leaves:
 `fontBaselinePercent` maps to a signed `a:rPr/@baseline` token in
 thousandths of a percent. It is source-bound and does not imply inherited or
