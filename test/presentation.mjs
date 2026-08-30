@@ -543,6 +543,84 @@ assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].access
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
 assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
 
+// A third-party shape may use an image-filled custom path that the semantic
+// geometry reader cannot model. It is still a safe frame-edit boundary when
+// the embedded image fill is strict and source-bound: expose the asset identity
+// while preserving the native custom geometry and blip relationship verbatim.
+const imageFilledCustomGeometryZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const imageFilledCustomGeometryRelsPath = relationshipPartPath("ppt/slides/slide1.xml");
+const imageFilledCustomGeometryRels = await imageFilledCustomGeometryZip.file(imageFilledCustomGeometryRelsPath).async("text");
+const imageFilledCustomGeometryImageRel = [...imageFilledCustomGeometryRels.matchAll(/<Relationship\b[^>]*\bType="[^"]+\/image"[^>]*>/gu)]
+  .map(([tag]) => /\bId="([^"]+)"/u.exec(tag)?.[1])
+  .find(Boolean);
+assert.ok(imageFilledCustomGeometryImageRel, "image-filled custom geometry fixture must have an embedded image relationship");
+const imageFilledCustomGeometrySourceXml = await imageFilledCustomGeometryZip.file("ppt/slides/slide1.xml").async("text");
+const imageFilledCustomGeometryNamePosition = imageFilledCustomGeometrySourceXml.indexOf('name="decision-status"');
+const imageFilledCustomGeometryShapeStart = imageFilledCustomGeometrySourceXml.lastIndexOf("<p:sp>", imageFilledCustomGeometryNamePosition);
+const imageFilledCustomGeometryShapeEnd = imageFilledCustomGeometrySourceXml.indexOf("</p:sp>", imageFilledCustomGeometryNamePosition) + "</p:sp>".length;
+assert.ok(imageFilledCustomGeometryShapeStart >= 0 && imageFilledCustomGeometryShapeEnd > imageFilledCustomGeometryShapeStart);
+const imageFilledCustomGeometryShapeXml = imageFilledCustomGeometrySourceXml.slice(imageFilledCustomGeometryShapeStart, imageFilledCustomGeometryShapeEnd);
+const imageFilledCustomGeometrySpPrStart = imageFilledCustomGeometryShapeXml.indexOf("<p:spPr>");
+const imageFilledCustomGeometrySpPrEnd = imageFilledCustomGeometryShapeXml.indexOf("</p:spPr>", imageFilledCustomGeometrySpPrStart) + "</p:spPr>".length;
+const imageFilledCustomGeometryXfrm = imageFilledCustomGeometryShapeXml.match(/<a:xfrm\b[\s\S]*?<\/a:xfrm>/u)?.[0];
+assert.ok(imageFilledCustomGeometryXfrm);
+const imageFilledCustomGeometrySpPr = `<p:spPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${imageFilledCustomGeometryXfrm}<a:custGeom><a:rect b="b" l="l" r="r" t="t"/><a:pathLst><a:path extrusionOk="0" h="838200" w="3429000"><a:moveTo><a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="3429000" y="0"/></a:lnTo><a:lnTo><a:pt x="3429000" y="838200"/></a:lnTo><a:lnTo><a:pt x="0" y="838200"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom><a:blipFill rotWithShape="1"><a:blip r:embed="${imageFilledCustomGeometryImageRel}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><a:alphaModFix/></a:blip><a:stretch><a:fillRect b="0" l="0" r="0" t="0"/></a:stretch></a:blipFill><a:ln><a:noFill/></a:ln></p:spPr>`;
+assert.ok(imageFilledCustomGeometrySpPrStart >= 0 && imageFilledCustomGeometrySpPrEnd > imageFilledCustomGeometrySpPrStart);
+const imageFilledCustomGeometryXml = imageFilledCustomGeometrySourceXml.slice(0, imageFilledCustomGeometryShapeStart)
+  + imageFilledCustomGeometryShapeXml.slice(0, imageFilledCustomGeometrySpPrStart)
+  + imageFilledCustomGeometrySpPr
+  + imageFilledCustomGeometryShapeXml.slice(imageFilledCustomGeometrySpPrEnd)
+  + imageFilledCustomGeometrySourceXml.slice(imageFilledCustomGeometryShapeEnd);
+assert.notEqual(imageFilledCustomGeometryXml, imageFilledCustomGeometrySourceXml);
+imageFilledCustomGeometryZip.file("ppt/slides/slide1.xml", imageFilledCustomGeometryXml);
+const imageFilledCustomGeometryFile = new FileBlob(
+  await imageFilledCustomGeometryZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageFilledCustomGeometryImported = await PresentationFile.importPptx(imageFilledCustomGeometryFile);
+const imageFilledCustomGeometryShape = itemByName(imageFilledCustomGeometryImported.slides.getItem(0).shapes.items, "decision-status");
+assert.match(imageFilledCustomGeometryShape.imageFill?.assetId || "", /^asset\/presentation\/picture(?:-bullet)?\//u);
+assert.equal(imageFilledCustomGeometryShape.imageFill?.contentType, "image/png");
+assert.deepEqual(imageFilledCustomGeometryShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.equal(imageFilledCustomGeometryShape.customPaths.length, 0, "unsupported source geometry remains opaque inside the image-filled shape");
+const imageFilledCustomGeometryRecord = imageFilledCustomGeometryShape.inspectRecord();
+assert.equal(imageFilledCustomGeometryRecord.imageFill?.contentType, "image/png");
+const imageFilledCustomGeometryOldPosition = { ...imageFilledCustomGeometryShape.position };
+imageFilledCustomGeometryShape.position = { ...imageFilledCustomGeometryOldPosition, left: imageFilledCustomGeometryOldPosition.left + 7 };
+const imageFilledCustomGeometryOutput = await PresentationFile.exportPptx(imageFilledCustomGeometryImported);
+assert.deepEqual(imageFilledCustomGeometryOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const imageFilledCustomGeometryOutputZip = await JSZip.loadAsync(imageFilledCustomGeometryOutput.bytes);
+const imageFilledCustomGeometryOutputXml = await imageFilledCustomGeometryOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(imageFilledCustomGeometryOutputXml, /<a:custGeom>[\s\S]*?<a:blipFill\b[\s\S]*?<a:alphaModFix\s*\/>[\s\S]*?<\/a:blipFill>/u);
+const imageFilledCustomGeometryNormalizeOffset = (xml) => xml.replace(/(<a:off\b[^>]*?)\bx="[^"]+"/u, '$1x="MASKED"');
+const imageFilledCustomGeometryOutputShapeXml = imageFilledCustomGeometryOutputXml.slice(
+  imageFilledCustomGeometryOutputXml.lastIndexOf("<p:sp>", imageFilledCustomGeometryOutputXml.indexOf('name="decision-status"')),
+  imageFilledCustomGeometryOutputXml.indexOf("</p:sp>", imageFilledCustomGeometryOutputXml.indexOf('name="decision-status"')) + "</p:sp>".length,
+);
+const imageFilledCustomGeometryShapeProperties = (xml) => {
+  const shapeStart = xml.lastIndexOf("<p:sp>", xml.indexOf('name="decision-status"'));
+  const propertiesStart = xml.indexOf("<p:spPr", shapeStart);
+  const propertiesEnd = xml.indexOf("</p:spPr>", propertiesStart) + "</p:spPr>".length;
+  return xml.slice(propertiesStart, propertiesEnd);
+};
+assert.equal(
+  imageFilledCustomGeometryNormalizeOffset(imageFilledCustomGeometryShapeProperties(imageFilledCustomGeometryOutputShapeXml)),
+  imageFilledCustomGeometryNormalizeOffset(imageFilledCustomGeometryShapeProperties(imageFilledCustomGeometryXml.slice(imageFilledCustomGeometryShapeStart, imageFilledCustomGeometryShapeEnd))),
+  "image-filled custom geometry frame edit must preserve the native shape body",
+);
+for (const [partPath, entry] of Object.entries(imageFilledCustomGeometryZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await imageFilledCustomGeometryOutputZip.file(partPath).async("uint8array"),
+    await imageFilledCustomGeometryZip.file(partPath).async("uint8array"),
+    `image-filled custom geometry edit changed non-target part ${partPath}`,
+  );
+}
+const imageFilledCustomGeometryRoundTrip = await PresentationFile.importPptx(imageFilledCustomGeometryOutput);
+const imageFilledCustomGeometryRoundTripShape = itemByName(imageFilledCustomGeometryRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(imageFilledCustomGeometryRoundTripShape.imageFill?.assetId, imageFilledCustomGeometryShape.imageFill?.assetId);
+assert.equal(imageFilledCustomGeometryRoundTripShape.position.left, imageFilledCustomGeometryOldPosition.left + 7);
+
 const blobImageEdit = await PresentationFile.importPptx(shapeAccessibilitySource);
 const blobImage = itemByName(blobImageEdit.slides.getItem(0).images.items, "decision-evidence");
 blobImage.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }) });
