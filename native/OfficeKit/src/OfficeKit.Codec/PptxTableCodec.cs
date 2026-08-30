@@ -240,6 +240,12 @@ internal static class PptxTableCodec
             if (table.DefaultTextStyle.HasFontSizePoints && table.DefaultTextStyle.FontSizePoints is <= 0 or > 1000)
                 throw Invalid(elementId, "default text font size must be from 0 through 1000 points");
             if (table.DefaultTextStyle.HasColorRgb) PptxColor.Normalize(table.DefaultTextStyle.ColorRgb);
+            if (table.DefaultTextStyle.HasColorScheme) PptxColor.NormalizeScheme(table.DefaultTextStyle.ColorScheme);
+            if (table.DefaultTextStyle.HasColorOpacityThousandthPercent &&
+                table.DefaultTextStyle.ColorCase == PresentationTextStyle.ColorOneofCase.None)
+                throw Invalid(elementId, "default text color opacity requires a modeled color");
+            if (table.DefaultTextStyle.HasColorOpacityThousandthPercent && table.DefaultTextStyle.ColorOpacityThousandthPercent > 100_000)
+                throw Invalid(elementId, "default text color opacity must be at most 100000 thousandths of a percent");
         }
         _ = CreateMergePlan(table, elementId);
     }
@@ -467,10 +473,12 @@ internal static class PptxTableCodec
             Bold = style?.HasBold == true ? style.Bold || header : header,
             Italic = style?.HasItalic == true ? style.Italic : null,
         };
-        runProperties.Append(new A.SolidFill(new A.RgbColorModelHex
-        {
-            Val = style?.HasColorRgb == true ? style.ColorRgb : header ? "000000" : "0F172A",
-        }));
+        var colorOpacity = style?.HasColorOpacityThousandthPercent == true
+            ? style.ColorOpacityThousandthPercent
+            : (uint?)null;
+        runProperties.Append(style?.HasColorScheme == true
+            ? PptxColor.BuildSolidScheme(style.ColorScheme, colorOpacity)
+            : PptxColor.BuildSolidRgb(style?.HasColorRgb == true ? style.ColorRgb : header ? "000000" : "0F172A", colorOpacity));
         if (style?.HasFontFamily == true)
         {
             runProperties.Append(new A.LatinFont { Typeface = style.FontFamily });
