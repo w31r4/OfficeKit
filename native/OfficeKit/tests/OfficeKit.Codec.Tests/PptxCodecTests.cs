@@ -1964,6 +1964,10 @@ public sealed class PptxCodecTests
             var projectedRoot = projectedJson.RootElement;
             Assert.Equal("office-kit/ppj/v1", projectedRoot.GetProperty("schema").GetString());
             Assert.Equal(projected.PresentationProgram.SourceSha256, projectedRoot.GetProperty("source").GetProperty("sha256").GetString());
+            var projectedCanvas = projectedRoot.GetProperty("design").GetProperty("canvas");
+            Assert.Contains(projectedCanvas.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setCanvas" &&
+                capability.GetProperty("fields").EnumerateArray().Select(field => field.GetString()).SequenceEqual(["canvas.width", "canvas.height"]));
             Assert.Equal(3, projectedRoot.GetProperty("pages").GetArrayLength());
             Assert.All(projectedRoot.GetProperty("pages").EnumerateArray(), page =>
                 Assert.StartsWith("layout-", page.GetProperty("layout").GetString(), StringComparison.Ordinal));
@@ -2313,6 +2317,9 @@ public sealed class PptxCodecTests
         var sourceCommentPageId = reorderProgram["comments"]![0]!["page"]!.GetValue<string>();
         var sourceShowPages = reorderProgram["customShows"]![0]!["pages"]!.AsArray()
             .Select(page => page!.GetValue<string>()).ToArray();
+        var sourceCanvasHeight = reorderProgram["design"]!["canvas"]!["height"]!.GetValue<double>();
+        var requestedCanvasWidth = reorderProgram["design"]!["canvas"]!["width"]!.GetValue<double>() + 72;
+        reorderProgram["design"]!["canvas"]!["width"] = requestedCanvasWidth;
         reorderProgram["pages"] = new JsonArray(sourcePageNodes[2], sourcePageNodes[0], sourcePageNodes[1]);
         reorderProgram["sections"]![0]!["pages"] = new JsonArray(sourcePageIds[2], sourcePageIds[0]);
         reorderProgram["sections"]![1]!["pages"] = new JsonArray(sourcePageIds[1]);
@@ -2347,6 +2354,9 @@ public sealed class PptxCodecTests
         Assert.True(reorderReprojection.Ok, Diagnostics(reorderReprojection));
         using (var reorderJson = JsonDocument.Parse(reorderReprojection.PresentationProgram.ProgramJson.ToByteArray()))
         {
+            var reorderedCanvas = reorderJson.RootElement.GetProperty("design").GetProperty("canvas");
+            Assert.Equal(requestedCanvasWidth, reorderedCanvas.GetProperty("width").GetDouble());
+            Assert.Equal(sourceCanvasHeight, reorderedCanvas.GetProperty("height").GetDouble());
             var reorderedPages = reorderJson.RootElement.GetProperty("pages");
             Assert.Equal(reorderedPageIds, reorderedPages.EnumerateArray().Select(page => page.GetProperty("id").GetString()));
             foreach (var page in reorderedPages.EnumerateArray())

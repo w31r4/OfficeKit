@@ -620,6 +620,9 @@
         },
         "unit": {
           "const": "pt"
+        },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef"
         }
       }
     },
@@ -1142,6 +1145,7 @@
             "setOpacity",
             "setFrame",
             "setGeometry",
+            "setCanvas",
             "setBackground",
             "setTransition",
             "setNotes",
@@ -1187,6 +1191,8 @@
               "frame.flipH",
               "frame.flipV",
               "geometry.adjustments",
+              "canvas.width",
+              "canvas.height",
               "pageOrder",
               "background",
               "transition",

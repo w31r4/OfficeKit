@@ -16,6 +16,7 @@ internal static class PpjSemanticValidator
             ["setOpacity"] = Set("opacity"),
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
             ["setGeometry"] = Set("geometry.adjustments"),
+            ["setCanvas"] = Set("canvas.width", "canvas.height"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
@@ -60,6 +61,7 @@ internal static class PpjSemanticValidator
         ValidateTextEffects(program.Root, "$", diagnostics);
         ValidateMasterLayoutState(program, masters, layouts, diagnostics);
         ValidateComponentDefinitions(program, components, assetIds, diagnostics);
+        ValidateNativeRef(program.Design.CanvasNativeRef, program.Source, "$.design.canvas.nativeRef", diagnostics);
 
         var globalElementIds = new HashSet<string>(StringComparer.Ordinal);
         var globalAnimationIds = new HashSet<string>(StringComparer.Ordinal);

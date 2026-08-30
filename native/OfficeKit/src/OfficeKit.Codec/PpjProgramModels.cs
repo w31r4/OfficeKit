@@ -27,6 +27,7 @@ internal sealed record PpjIntentModel(
 internal sealed record PpjDesignModel(
     double Width,
     double Height,
+    PpjNativeRefModel? CanvasNativeRef,
     IReadOnlySet<string> ColorIds,
     IReadOnlySet<string> FontIds,
     IReadOnlySet<string> TextStyleIds,
@@ -436,6 +437,7 @@ internal static class PpjProgramParser
             new PpjDesignModel(
                 canvas.GetProperty("width").GetDouble(),
                 canvas.GetProperty("height").GetDouble(),
+                canvas.TryGetProperty("nativeRef", out var canvasNativeRef) ? ParseNativeRef(canvasNativeRef) : null,
                 IdSet(design.GetProperty("theme").GetProperty("colors")),
                 IdSet(design.GetProperty("fonts")),
                 OptionalIdSet(styles, "text"),

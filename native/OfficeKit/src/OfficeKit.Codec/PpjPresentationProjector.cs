@@ -83,7 +83,7 @@ internal static partial class PpjPresentationProjector
                 ["description"] = "Source-derived PPJ projection. Unmodeled native content remains in the hash-bound PPTX source package.",
             },
             ["intent"] = ImportedIntent(),
-            ["design"] = ImportedDesign(presentation),
+            ["design"] = ImportedDesign(presentation, context),
             ["assets"] = assets,
             ["source"] = new JsonObject
             {
@@ -155,9 +155,9 @@ internal static partial class PpjPresentationProjector
         },
     };
 
-    private static JsonObject ImportedDesign(PresentationArtifact presentation) => new()
+    private static JsonObject ImportedDesign(PresentationArtifact presentation, ProjectionContext context) => new()
     {
-        ["canvas"] = FrameDimensions(presentation),
+        ["canvas"] = ProjectCanvas(presentation, context),
         ["theme"] = new JsonObject
         {
             ["name"] = "Source-owned presentation theme",
@@ -196,6 +196,18 @@ internal static partial class PpjPresentationProjector
         ["height"] = Points(presentation.SlideHeightEmu),
         ["unit"] = "pt",
     };
+
+    private static JsonObject ProjectCanvas(PresentationArtifact presentation, ProjectionContext context)
+    {
+        var canvas = FrameDimensions(presentation);
+        var objectHash = Sha256(CanonicalBytes(canvas));
+        canvas["nativeRef"] = NativeRef(
+            context,
+            "canvas",
+            objectHash,
+            [new("setCanvas", ["canvas.width", "canvas.height"])]);
+        return canvas;
+    }
 
     private static void RegisterIds(PresentationArtifact presentation, ProjectionContext context)
     {

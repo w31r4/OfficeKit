@@ -119,14 +119,16 @@ internal static class PpjSourceBoundPresentationCompiler
         var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact);
         var changedNodeIds = new HashSet<string>(StringComparer.Ordinal);
         var mutations = new MutationState();
-        var physicalChanges = ApplyPages(
+        var physicalChanges = ApplyCanvas(baseline, requested, presentation, changedNodeIds, mutations);
+        if (ApplyPages(
             baseline,
             requested,
             presentation,
             assetIds,
             projected.NativeLeafBindings,
             changedNodeIds,
-            mutations);
+            mutations))
+            physicalChanges = true;
         if (ApplySections(baseline, requested, presentation, changedNodeIds))
         {
             mutations.SemanticChanges = true;
@@ -156,7 +158,7 @@ internal static class PpjSourceBoundPresentationCompiler
             };
             validationReceipt.Assets.Add(projected.Program.Assets.Select(asset => asset.Clone()));
             validationReceipt.ChangedNodeIds.Add(changedNodeIds.OrderBy(id => id, StringComparer.Ordinal));
-            return new([], validationReceipt, projected.Diagnostics);
+        return new([], validationReceipt, projected.Diagnostics);
         }
 
         byte[] output;
@@ -337,6 +339,30 @@ internal static class PpjSourceBoundPresentationCompiler
             return new PresentationBackground { Solid = true, ColorRgb = Rgb(fill.GetProperty("color"), path + ".color") };
         }
         throw Unsupported(path, $"background fill {type}");
+    }
+
+    private static bool ApplyCanvas(
+        PpjProgramModel baseline,
+        PpjProgramModel requested,
+        PresentationArtifact presentation,
+        ISet<string> changedNodeIds,
+        MutationState mutations)
+    {
+        if (baseline.Design.Width.Equals(requested.Design.Width) &&
+            baseline.Design.Height.Equals(requested.Design.Height))
+            return false;
+
+        var before = baseline.Root.GetProperty("design").GetProperty("canvas");
+        var after = requested.Root.GetProperty("design").GetProperty("canvas");
+        RequireNativeRef(before, after, "$.design.canvas");
+        RequireEqualExcept(before, after, "$.design.canvas", "width", "height");
+        RequireCapability(requested.Design.CanvasNativeRef, "setCanvas", "$.design.canvas");
+
+        presentation.SlideWidthEmu = Emu(requested.Design.Width);
+        presentation.SlideHeightEmu = Emu(requested.Design.Height);
+        foreach (var page in requested.Pages) changedNodeIds.Add(page.Id);
+        mutations.SemanticChanges = true;
+        return true;
     }
 
     private static bool ApplyPages(
