@@ -72,8 +72,12 @@ The authored chart compiler owns these native visual controls:
   supports it;
 - pie/doughnut first-slice orientation from 0 through 360 degrees and
   doughnut center-hole size from 10 through 90 percent;
+- bubble scale from 0 through 300 percent and native size interpretation by
+  bubble area or width;
 - bar direction, gap width, category/value-axis visibility, major gridlines,
   data-label visibility and bounded label position;
+- presence-aware axis reversal plus direct RGB/no-fill axis and major-grid
+  lines with bounded width, dash, opacity, cap, and join;
 - chart-area, plot-area, and series none, solid, or bounded direct-RGB gradient
   fills, including solid and per-stop opacity;
 - editable series line width, dash, opacity, cap, join, and bounded markers;
@@ -82,8 +86,8 @@ The authored chart compiler owns these native visual controls:
   unit; bounded combo charts may declare the matching secondary pair;
 - chart-title Latin/East Asian typeface, size, bold, italic and direct
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
-- structured data labels for value, category, series, percentage and native
-  position;
+- structured data labels for value, category, series, percentage, native
+  position, and one chart-level native number format;
 - direct marker symbol, size, RGB/alpha fill and bounded stroke;
 - exponential, linear, logarithmic, moving-average, polynomial and power
   trendlines on bar, column and line series;
@@ -96,10 +100,25 @@ shapes:
 
 ```json
 {
-  "xAxis": { "title": "Quarter", "tickLabelInterval": 1 },
-  "yAxis": { "title": "Conversion rate", "numberFormat": "0.0%", "min": 0, "max": 0.4, "majorUnit": 0.1 },
+  "xAxis": {
+    "title": "Quarter",
+    "tickLabelInterval": 1,
+    "axisLine": { "color": "#16697A", "width": 1 }
+  },
+  "yAxis": {
+    "title": "Conversion rate",
+    "numberFormat": "0.0%",
+    "min": 0,
+    "max": 0.4,
+    "majorUnit": 0.1,
+    "gridLine": { "color": "#D8E1E8", "width": 0.75, "dash": "dot" }
+  },
   "style": {
-    "dataLabels": { "showValue": true, "position": "outside-end" }
+    "dataLabels": {
+      "showValue": true,
+      "position": "outside-end",
+      "numberFormat": "0.0%"
+    }
   },
   "data": {
     "categories": ["Q1", "Q2", "Q3", "Q4"],
@@ -294,6 +313,17 @@ labels:
 ```json
 {
   "chartType": "bubble",
+  "style": {
+    "bubbleScale": 145,
+    "bubbleSizeMode": "area"
+  },
+  "xAxis": {
+    "reverse": false,
+    "axisLine": { "color": "#355C7D", "width": 1 }
+  },
+  "yAxis": {
+    "gridLine": { "color": "#D7DEE5", "width": 0.75, "dash": "dot" }
+  },
   "data": {
     "categories": [],
     "series": [{
@@ -311,9 +341,19 @@ labels:
 for bubble. Each vector has exactly the same logical length as `values`, X
 values are finite, bubble sizes are positive, and `categories` is empty. Only
 Y `values` may contain `null`. Do not encode numeric X values as strings merely
-to reuse a category chart. On imported charts, the current `setChartData`
-capability does not authorize changing X values, bubble sizes, or the positions
-of missing Y observations.
+to reuse a category chart. `bubbleScale` changes the native chart-wide scale,
+not each datum's meaning; `bubbleSizeMode` chooses whether the native size
+values represent area or width. PPJ intentionally has no pixel-radius range:
+PowerPoint does not store that semantic as a stable native chart property.
+
+On imported charts, `setChartData` owns only the bounded data vectors and does
+not authorize changing X values, bubble sizes, or the positions of missing Y
+observations. Bubble scale and size semantics require `setChartPlot`; label
+format requires `setChartLabels`; axis direction and line styling require
+`setChartAxis`. When the matching capability is absent, preserve the native
+graph rather than redrawing it with shapes. Per-point label formats,
+logarithmic transforms, axis arrows, theme/effect line graphs, and other
+irregular native formatting remain source-owned.
 
 Use `combo` only when two or three different plot families share one real
 ordered category domain. Each series declares `chartType: "column" | "line" | "area"`
