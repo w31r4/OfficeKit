@@ -929,6 +929,11 @@ internal static class PpjSourceBoundPresentationCompiler
             case PpjGroupElementModel beforeGroup when after is PpjGroupElementModel afterGroup && target.ContentCase == PresentationElement.ContentOneofCase.Group:
                 changed = ApplyGroupElement(program, beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, path);
                 break;
+            case PpjSmartArtElementModel beforeSmartArt when after is PpjSmartArtElementModel afterSmartArt &&
+                target.ContentCase == PresentationElement.ContentOneofCase.Opaque && target.Opaque.DiagramText is not null:
+                changed = ApplySourceSmartArtElement(beforeSmartArt, afterSmartArt, target.Opaque, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
             case PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque:
                 changed = ApplyOpaqueElement(beforeOpaque, afterOpaque, target, slide, shapeTreePath, mutations, path);
                 break;
@@ -1506,6 +1511,60 @@ internal static class PpjSourceBoundPresentationCompiler
             }
         }
         return changed;
+    }
+
+    private static bool ApplySourceSmartArtElement(
+        PpjSmartArtElementModel before,
+        PpjSmartArtElementModel after,
+        PresentationOpaqueElement target,
+        string path)
+    {
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "nodes");
+        if (before.Mode != "source-bound" || after.Mode != "source-bound" || target.DiagramText is null)
+            throw Unsupported(path, "source-bound SmartArt identity or mode change");
+        if (before.Nodes.Count != after.Nodes.Count || before.Nodes.Count != target.DiagramText.Nodes.Count)
+            throw Unsupported(path + ".nodes", "source-bound SmartArt node topology change");
+
+        var changed = ApplyFrame(before, after, target, path);
+        for (var index = 0; index < before.Nodes.Count; index++)
+        {
+            var oldNode = before.Nodes[index];
+            var newNode = after.Nodes[index];
+            var targetNode = target.DiagramText.Nodes[index];
+            var nodePath = $"{path}.nodes[{index}]";
+            if (!oldNode.Id.Equals(newNode.Id, StringComparison.Ordinal))
+                throw Unsupported(nodePath + ".id", "source-bound SmartArt node identity change");
+            RequireNativeRef(oldNode.Raw, newNode.Raw, nodePath);
+            RequireEqualExcept(oldNode.Raw, newNode.Raw, nodePath, "text");
+
+            var oldRuns = SmartArtTextRuns(oldNode.Text, nodePath + ".text");
+            var newRuns = SmartArtTextRuns(newNode.Text, nodePath + ".text");
+            var sourceRuns = targetNode.RunTexts.Count > 0 ? targetNode.RunTexts.ToArray() : [targetNode.Text];
+            if (!oldRuns.SequenceEqual(sourceRuns, StringComparer.Ordinal))
+                throw new CodecException(
+                    "ppj.nativeRef.stale",
+                    "The projected SmartArt node text no longer matches the exact source binding.",
+                    nodePath + ".text");
+            if (oldRuns.SequenceEqual(newRuns, StringComparer.Ordinal)) continue;
+            if (oldRuns.Count != newRuns.Count)
+                throw Unsupported(nodePath + ".text", "source-bound SmartArt run topology change");
+            RequireCapabilityField(after.NativeRef, "setSmartArtText", "smartArt.text", nodePath + ".text");
+            RequireCapabilityField(newNode.NativeRef, "setSmartArtText", "smartArt.text", nodePath + ".text");
+
+            targetNode.Text = string.Concat(newRuns);
+            targetNode.RunTexts.Clear();
+            targetNode.RunTexts.Add(newRuns);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static IReadOnlyList<string> SmartArtTextRuns(PpjTextContentModel text, string path)
+    {
+        if (text.PlainText is not null) return [text.PlainText];
+        if (text.Paragraphs.Count != 1 || text.Paragraphs[0].Runs.Count == 0)
+            throw Unsupported(path, "source-bound SmartArt paragraph or run topology change");
+        return text.Paragraphs[0].Runs.Select(run => run.Text).ToArray();
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationShape target, string path)
