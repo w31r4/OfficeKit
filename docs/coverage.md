@@ -232,6 +232,18 @@ semantics. Opaque timing, Morph pages, raw presets, sound, arbitrary motion
 paths, and animation of a just-appended overlay remain blocked. This is
 structural round-trip evidence, not desktop playback evidence.
 
+Imported SmartArt with one proven closed DiagramDataPart text profile now
+projects as typed `smartArt` with `mode: "source-bound"` instead of a generic
+opaque object. Ordered nodes retain stable PPJ IDs and exact native run-value
+boundaries; element and node nativeRefs issue `setSmartArtText/smartArt.text`.
+Changing one PPJ node string lowers into the existing diagram binding and its
+native graph writer, while node/run topology, layout, edges, colors, quick
+styles, relationships, and every unrelated part remain source-owned. The
+focused contract changed only `ppt/diagrams/clone-data.xml`, kept the SlidePart,
+slide relationships and the other three diagram parts byte-identical, and
+reprojected the requested text as typed SmartArt. Unsupported or stale diagrams
+remain opaque and fail closed.
+
 Imported PPJ canvas state now carries its own source-bound nativeRef and issues
 `setCanvas` for `canvas.width` and `canvas.height`. The compiler converts point
 dimensions to deterministic EMUs and reuses the existing canvas-only native

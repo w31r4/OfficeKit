@@ -46,8 +46,8 @@ not for ordinary authored layout.
 
 No-op build must return the source bytes exactly. A supported edit may change
 only the target part and necessary dependencies. Unrelated parts,
-relationships, master/layout/theme state, unknown timing, OLE, SmartArt, and
-other opaque topology must remain stable.
+relationships, master/layout/theme state, unknown timing, OLE, source-owned
+SmartArt topology, and other opaque content must remain stable.
 
 Some imported shapes with a strict direct embedded `a:blipFill` and a custom
 geometry that is not yet semantically decoded may expose a source-bound
@@ -78,6 +78,37 @@ Stale hash, ambiguous target, unsupported field, unsafe relationship change,
 cross-object mutation, or topology rewrite must fail. Do not patch raw OOXML,
 replace the whole slide with an image, flatten the deck, or rebuild it through
 an authored route to make the request appear successful.
+
+## Edit source-bound SmartArt text
+
+A proven imported SmartArt frame appears as `type: "smartArt"` with
+`mode: "source-bound"` instead of a generic opaque object. Edit only an
+existing node's `text` after confirming that both the element and node
+nativeRefs advertise `setSmartArtText` for `smartArt.text`:
+
+```json
+{
+  "id": "page-brief-node-1",
+  "text": {
+    "paragraphs": [{
+      "id": "paragraph-1",
+      "runs": [
+        { "id": "run-1", "text": "Revised" },
+        { "id": "run-2", "text": " evidence" }
+      ]
+    }]
+  },
+  "nativeRef": { "...": "keep the complete issued value unchanged" }
+}
+```
+
+One native run projects as a string; multiple formatted runs project as one
+ordered PPJ run list. Change only the string values. Never add, remove,
+reorder, restyle, or reparent nodes or runs. Layout, connectors, geometry,
+colors, quick styles, relationship identity, and all non-data parts remain
+source-owned. If the graph is not fully proven, it stays opaque and no
+SmartArt text capability exists. Build to a new PPTX, then re-import before a
+second edit because node IDs and capabilities are revision-bound.
 
 ## Source continuation
 
