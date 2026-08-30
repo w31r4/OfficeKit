@@ -14,7 +14,7 @@
 - [x] 3.1 Regenerate `ppj.md` and update continuation guidance and coverage.
 - [x] 3.2 Extend one existing clone round-trip with component reuse and reimport.
 - [x] 3.3 Run the focused test, Skill maintainer, and strict OpenSpec check once.
-- [ ] 3.4 Commit atomically and fast-forward main without force pushing.
+- [x] 3.4 Commit atomically and fast-forward main without force pushing.
 
 ## Evidence
 
