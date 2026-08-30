@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -422,6 +422,13 @@ internal static partial class PptxEditPlanCodec
                     operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} fillOpacityThousandthPercent must use a changed canonical value from 0 through 100000.");
             }
+            if (leafKind is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment")
+            {
+                if (!ValidShadowGeometryToken(leafKind, operation.ExpectedValue) ||
+                    !ValidShadowGeometryToken(leafKind, operation.Value) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} {leafKind} must use a changed bounded native shadow geometry token.");
+            }
             if (leafKind == "imageOpacityThousandthPercent")
             {
                 if (!ValidOpacityToken(operation.ExpectedValue) || !ValidOpacityToken(operation.Value) ||
@@ -630,8 +637,10 @@ internal static partial class PptxEditPlanCodec
             }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
-                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
+                 ((projectedElement.Source.Editable &&
+                   (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" ||
+                    (LeafKind(operation) is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment") && shape.ShapeProperties is not null && HasSafeNativeShadowGeometry(shape.ShapeProperties, LeafKind(operation)))) ||
+                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
                  (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
@@ -1182,6 +1191,8 @@ internal static partial class PptxEditPlanCodec
     {
         var properties = shape.ShapeProperties;
         if (properties is null) return false;
+        if (kind is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment")
+            return HasSafeNativeShadowGeometry(properties, kind);
         if (kind is "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme")
         {
             var fills = properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
@@ -1205,6 +1216,36 @@ internal static partial class PptxEditPlanCodec
             (kind == "lineRgb" && HasSafeNativeRgbFill(lineSolid) ||
              kind == "lineScheme" && HasSafeNativeSchemeFill(lineSolid) ||
              kind == "lineStyle" && (HasSafeNativeRgbFill(lineSolid) || HasSafeNativeSchemeFill(lineSolid)));
+    }
+
+    private static bool HasSafeNativeShadowGeometry(OpenXmlCompositeElement properties, string kind)
+    {
+        if (!PptxShadowCodec.TryRead(properties, out var shadow) || shadow is null)
+            return false;
+        var lists = properties.Elements<A.EffectList>().ToArray();
+        if (lists.Length != 1 || lists[0].ChildElements.Count != 1 || lists[0].FirstChild is not A.OuterShadow outer ||
+            outer.ChildElements.Count != 1 || outer.GetAttributes().Any(attribute =>
+                attribute.NamespaceUri.Length != 0 || attribute.LocalName is not ("blurRad" or "dist" or "dir" or "algn" or "rotWithShape")))
+            return false;
+        var attributeName = kind switch
+        {
+            "shadowBlurRadiusEmu" => "blurRad",
+            "shadowDistanceEmu" => "dist",
+            "shadowDirectionDegrees" => "dir",
+            "shadowAlignment" => "algn",
+            _ => string.Empty,
+        };
+        var attributes = outer.GetAttributes().Where(attribute => attribute.LocalName == attributeName).ToArray();
+        if (attributes.Length != 1 || string.IsNullOrEmpty(attributes[0].Value)) return false;
+        if (kind is "shadowBlurRadiusEmu" or "shadowDistanceEmu")
+            return long.TryParse(attributes[0].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var coordinate) &&
+                coordinate is >= 0 and <= 2_147_483_647 &&
+                coordinate.ToString(System.Globalization.CultureInfo.InvariantCulture) == attributes[0].Value;
+        if (kind == "shadowDirectionDegrees")
+            return long.TryParse(attributes[0].Value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var direction) &&
+                direction is >= 0 and < 21_600_000 &&
+                direction.ToString(System.Globalization.CultureInfo.InvariantCulture) == attributes[0].Value;
+        return attributes[0].Value is "tl" or "t" or "tr" or "l" or "ctr" or "r" or "bl" or "b" or "br";
     }
 
     private static bool HasSafeNativePictureOpacity(P.Picture picture)
@@ -1601,6 +1642,24 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit image mask preset.", operation.SlidePartPath);
             return mask;
         }
+        if (kind is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment")
+        {
+            if (element is not P.Shape shadowShape || shadowShape.ShapeProperties is null ||
+                !HasSafeNativeShadowGeometry(shadowShape.ShapeProperties, kind))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit shadow {kind} leaf.", operation.SlidePartPath);
+            var effectList = shadowShape.ShapeProperties.Elements<A.EffectList>().Single();
+            var outerShadow = (A.OuterShadow)effectList.FirstChild!;
+            var attributeName = kind switch
+            {
+                "shadowBlurRadiusEmu" => "blurRad",
+                "shadowDistanceEmu" => "dist",
+                "shadowDirectionDegrees" => "dir",
+                "shadowAlignment" => "algn",
+                _ => throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported shadow geometry.", operation.SlidePartPath),
+            };
+            var attribute = outerShadow.GetAttributes().Single(item => item.LocalName == attributeName);
+            return attribute.Value ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} shadow geometry attribute has no value.", operation.SlidePartPath);
+        }
         if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu") && element is P.GroupShape group)
         {
             if (!PptxNativeStyleLeafCodec.TryResolve(group, operation.NativeLeafIndex, out var leaf) || leaf.Kind != kind)
@@ -1760,6 +1819,22 @@ internal static partial class PptxEditPlanCodec
                 var solidFill = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "srgbClr", operation);
                 leaf = DirectChildRange(xml, solidFill, "srgbClr", "alpha", operation);
                 attribute = "val";
+                break;
+            case "shadowBlurRadiusEmu":
+            case "shadowDistanceEmu":
+            case "shadowDirectionDegrees":
+            case "shadowAlignment":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose {LeafKind(operation)}.", operation.SlidePartPath);
+                var shadowEffectList = DirectChildRange(xml, properties, "spPr", "effectLst", operation);
+                leaf = DirectChildRange(xml, shadowEffectList, "effectLst", "outerShdw", operation);
+                attribute = LeafKind(operation) switch
+                {
+                    "shadowBlurRadiusEmu" => "blurRad",
+                    "shadowDistanceEmu" => "dist",
+                    "shadowDirectionDegrees" => "dir",
+                    "shadowAlignment" => "algn",
+                    _ => throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported shadow geometry.", operation.SlidePartPath),
+                };
                 break;
             case "imageOpacityThousandthPercent":
                 if (owner != "pic") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose image opacity.", operation.SlidePartPath);
@@ -3577,6 +3652,22 @@ internal static partial class PptxEditPlanCodec
         uint.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var opacity) &&
         opacity <= 100_000 &&
         opacity.ToString(System.Globalization.CultureInfo.InvariantCulture) == value;
+    private static bool ValidShadowGeometryToken(string kind, string value)
+    {
+        if (kind is "shadowBlurRadiusEmu" or "shadowDistanceEmu")
+        {
+            return long.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var coordinate) &&
+                coordinate is >= 0 and <= 2_147_483_647 &&
+                coordinate.ToString(System.Globalization.CultureInfo.InvariantCulture) == value;
+        }
+        if (kind == "shadowDirectionDegrees")
+        {
+            return long.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var direction) &&
+                direction is >= 0 and < 21_600_000 &&
+                direction.ToString(System.Globalization.CultureInfo.InvariantCulture) == value;
+        }
+        return kind == "shadowAlignment" && (value is "tl" or "t" or "tr" or "l" or "ctr" or "r" or "bl" or "b" or "br");
+    }
     private static bool TryCanonicalBoolean(string value, out string canonical)
     {
         switch (System.Net.WebUtility.HtmlDecode(value).ToLowerInvariant())
