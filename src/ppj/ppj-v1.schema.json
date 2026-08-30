@@ -2546,6 +2546,9 @@
                 "bubble",
                 "radar",
                 "waterfall",
+                "heatmap",
+                "candlestick",
+                "treemap",
                 "combo"
               ]
             },
@@ -2688,6 +2691,43 @@
             "exclusiveMinimum": 0
           }
         },
+        "openValues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "number"
+          }
+        },
+        "highValues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "number"
+          }
+        },
+        "lowValues": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "number"
+          }
+        },
+        "parents": {
+          "type": "array",
+          "maxItems": 128,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
         "chartType": {
           "enum": [
             "bar",
@@ -2814,6 +2854,15 @@
         },
         "waterfall": {
           "$ref": "#/$defs/waterfallStyle"
+        },
+        "heatmap": {
+          "$ref": "#/$defs/heatmapStyle"
+        },
+        "candlestick": {
+          "$ref": "#/$defs/candlestickStyle"
+        },
+        "treemap": {
+          "$ref": "#/$defs/treemapStyle"
         }
       }
     },
@@ -2855,6 +2904,159 @@
         },
         "total": {
           "$ref": "#/$defs/waterfallRoleStyle"
+        }
+      }
+    },
+    "heatmapStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colors"
+      ],
+      "properties": {
+        "scale": {
+          "enum": [
+            "linear",
+            "diverging"
+          ]
+        },
+        "colors": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "domain": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          }
+        },
+        "midpoint": {
+          "type": "number"
+        },
+        "showValues": {
+          "type": "boolean"
+        },
+        "showColorBar": {
+          "type": "boolean"
+        },
+        "cellGap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "missingFill": {
+          "$ref": "#/$defs/color"
+        },
+        "cellStroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "axisTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        }
+      }
+    },
+    "candlestickBodyStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fill"
+      ],
+      "properties": {
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        }
+      }
+    },
+    "candlestickStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "up",
+        "down",
+        "wick"
+      ],
+      "properties": {
+        "up": {
+          "$ref": "#/$defs/candlestickBodyStyle"
+        },
+        "down": {
+          "$ref": "#/$defs/candlestickBodyStyle"
+        },
+        "wick": {
+          "$ref": "#/$defs/stroke"
+        },
+        "bodyWidthRatio": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 0.9
+        },
+        "showCloseValues": {
+          "type": "boolean"
+        },
+        "gridlineStroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "axisTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        }
+      }
+    },
+    "treemapStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootColors"
+      ],
+      "properties": {
+        "rootColors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "border": {
+          "$ref": "#/$defs/stroke"
+        },
+        "gap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "headerHeight": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "depthLighten": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.25
+        },
+        "showValues": {
+          "type": "boolean"
+        },
+        "labelTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
         }
       }
     },

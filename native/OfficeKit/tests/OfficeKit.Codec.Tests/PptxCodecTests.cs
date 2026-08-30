@@ -637,6 +637,233 @@ public sealed class PptxCodecTests
                 ["description"] = "Run-rate opens at 120, rises 40, falls 25 and 10, and closes at 125.",
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-heatmap-main",
+            ["type"] = "chart",
+            ["role"] = "correlation intensity matrix",
+            ["frame"] = new JsonObject { ["x"] = 610, ["y"] = 275, ["width"] = 300, ["height"] = 195 },
+            ["chartType"] = "heatmap",
+            ["title"] = "Observed relationship strength",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["heatmap"] = new JsonObject
+                {
+                    ["scale"] = "diverging",
+                    ["colors"] = new JsonArray("#C8644A", "#F8F6EF", "#0B8F8F"),
+                    ["domain"] = new JsonArray(-10, 10),
+                    ["midpoint"] = 0,
+                    ["showValues"] = true,
+                    ["showColorBar"] = true,
+                    ["cellGap"] = 2,
+                    ["missingFill"] = "#E5E7EB",
+                    ["cellStroke"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.5 },
+                    ["axisTextStyle"] = new JsonObject { ["fontSize"] = 7.5, ["color"] = "#52606D" },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 8, ["bold"] = true },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Acquisition", "Retention", "Margin", "Reliability"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "segment-enterprise",
+                        ["name"] = "Enterprise",
+                        ["values"] = new JsonArray(8, 5, JsonValue.Create(2), null),
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "segment-midmarket",
+                        ["name"] = "Mid-market",
+                        ["values"] = new JsonArray(4, -2, 6, 7),
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "segment-smb",
+                        ["name"] = "SMB",
+                        ["values"] = new JsonArray(-6, -4, 1, 3),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Three customer segments by four operating measures, colored from negative to positive relationship strength.",
+            },
+        });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-candlestick-main",
+            ["type"] = "chart",
+            ["role"] = "daily price range",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 275, ["width"] = 540, ["height"] = 195 },
+            ["chartType"] = "candlestick",
+            ["title"] = "Daily OHLC",
+            ["xAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["title"] = "Session",
+                ["tickLabelInterval"] = 1,
+                ["textStyle"] = new JsonObject { ["fontSize"] = 7.5, ["color"] = "#52606D" },
+            },
+            ["yAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["title"] = "USD",
+                ["numberFormat"] = "0.0",
+                ["min"] = 88,
+                ["max"] = 120,
+                ["majorUnit"] = 8,
+            },
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["candlestick"] = new JsonObject
+                {
+                    ["up"] = new JsonObject
+                    {
+                        ["fill"] = new JsonObject
+                        {
+                            ["type"] = "gradient",
+                            ["kind"] = "linear",
+                            ["angle"] = 90,
+                            ["stops"] = new JsonArray
+                            {
+                                new JsonObject { ["offset"] = 0, ["color"] = "#DCEFEA" },
+                                new JsonObject { ["offset"] = 1, ["color"] = "#0B8F8F" },
+                            },
+                        },
+                        ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.6 },
+                    },
+                    ["down"] = new JsonObject
+                    {
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#C8644A" },
+                        ["stroke"] = new JsonObject { ["color"] = "#8B3E2F", ["width"] = 0.6 },
+                    },
+                    ["wick"] = new JsonObject { ["color"] = "#16324F", ["width"] = 0.8, ["cap"] = "round" },
+                    ["bodyWidthRatio"] = 0.5,
+                    ["showCloseValues"] = true,
+                    ["gridlineStroke"] = new JsonObject { ["color"] = "#CBD5E1", ["width"] = 0.5, ["opacity"] = 0.7 },
+                    ["axisTextStyle"] = new JsonObject { ["fontSize"] = 8, ["color"] = "#52606D" },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 7, ["bold"] = true, ["color"] = "#16324F" },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "daily-ohlc",
+                        ["name"] = "Price",
+                        ["openValues"] = new JsonArray(92, 96, 94, 101, 99, 108, 111, 109),
+                        ["highValues"] = new JsonArray(98, 99, 103, 104, 110, 114, 115, 117),
+                        ["lowValues"] = new JsonArray(90, 91, 92, 96, 97, 104, 106, 107),
+                        ["values"] = new JsonArray(96, 94, 101, 99, 108, 111, 109, 116),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Eight ordered daily open, high, low, and close observations.",
+            },
+        });
+        var invalidCandlestickProgram = authoredProgram.DeepClone().AsObject();
+        invalidCandlestickProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-candlestick-main")
+            ["data"]!["series"]![0]!["lowValues"]![2] = 110;
+        var invalidCandlestick = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidCandlestickProgram.ToJsonString()));
+        Assert.False(invalidCandlestick.IsValid);
+        Assert.Contains(invalidCandlestick.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.candlestickRange");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-treemap-main",
+            ["type"] = "chart",
+            ["role"] = "hierarchical budget allocation",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 275, ["width"] = 540, ["height"] = 195 },
+            ["chartType"] = "treemap",
+            ["title"] = "Budget allocation",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["treemap"] = new JsonObject
+                {
+                    ["rootColors"] = new JsonArray("#0B8F8F", "#C8644A", "#F2C14E"),
+                    ["border"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.75, ["opacity"] = 0.9 },
+                    ["gap"] = 2,
+                    ["headerHeight"] = 17,
+                    ["depthLighten"] = 0.1,
+                    ["showValues"] = true,
+                    ["labelTextStyle"] = new JsonObject { ["fontSize"] = 8, ["bold"] = true },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 7 },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray(
+                    "Engineering", "Frontend", "Backend",
+                    "Sales", "Enterprise", "SMB",
+                    "Design", "Research", "Product"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "budget-hierarchy",
+                        ["name"] = "Budget",
+                        ["values"] = new JsonArray(1000, 400, 600, 800, 500, 300, 400, 150, 250),
+                        ["parents"] = new JsonArray(
+                            null, "Engineering", "Engineering",
+                            null, "Sales", "Sales",
+                            null, "Design", "Design"),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Three department budgets partitioned into six direct child allocations.",
+            },
+        });
+        var invalidTreemapProgram = authoredProgram.DeepClone().AsObject();
+        invalidTreemapProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-treemap-main")
+            ["data"]!["series"]![0]!["parents"]![0] = "Backend";
+        var invalidTreemap = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidTreemapProgram.ToJsonString()));
+        Assert.False(invalidTreemap.IsValid);
+        Assert.Contains(invalidTreemap.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.treemapCycle");
+        var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
+        invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-heatmap-main")
+            ["style"]!["heatmap"]!["domain"] = new JsonArray(10, 20);
+        var invalidHeatmap = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidHeatmapProgram.ToJsonString()));
+        Assert.False(invalidHeatmap.IsValid);
+        Assert.Contains(invalidHeatmap.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.heatmapMidpoint");
         var invalidWaterfallProgram = authoredProgram.DeepClone().AsObject();
         invalidWaterfallProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -705,7 +932,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(23U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(26U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -794,6 +1021,34 @@ public sealed class PptxCodecTests
             Assert.Equal(new Dictionary<uint, double> { [1] = 40 }, LiteralValues(waterfallSeries[1]));
             Assert.Equal(new Dictionary<uint, double> { [2] = 25, [3] = 10 }, LiteralValues(waterfallSeries[2]));
             Assert.Equal(new Dictionary<uint, double> { [0] = 120, [4] = 125 }, LiteralValues(waterfallSeries[3]));
+            Assert.Equal(5, package.PresentationPart.SlideParts.SelectMany(slide => slide.ChartParts).Count());
+            var nativeHeatmap = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "correlation intensity matrix");
+            Assert.Equal(12, nativeHeatmap.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("heatmap cell ", StringComparison.Ordinal) == true));
+            Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "Observed relationship strength");
+            Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "Enterprise");
+            Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "-6");
+            Assert.NotNull(nativeHeatmap.Descendants<A.GradientFill>().Single());
+            var nativeCandlestick = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "daily price range");
+            Assert.Equal(8, nativeCandlestick.Elements<P.ConnectionShape>().Count(connector =>
+                connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("candlestick wick ", StringComparison.Ordinal) == true));
+            Assert.Equal(8, nativeCandlestick.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.Contains(" body ", StringComparison.Ordinal) == true));
+            Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "Daily OHLC");
+            Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "116.0");
+            Assert.NotEmpty(nativeCandlestick.Descendants<A.GradientFill>());
+            var nativeTreemap = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "hierarchical budget allocation");
+            Assert.Equal(9, nativeTreemap.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("treemap node ", StringComparison.Ordinal) == true));
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Engineering");
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Frontend");
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "400");
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -953,7 +1208,7 @@ public sealed class PptxCodecTests
         Assert.Equal("Pilot method table", importedTable.Accessibility.Description);
         Assert.Equal(3, importedTable.Rows.Count);
         var importedGroup = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
+            element.ContentCase == PresentationElement.ContentOneofCase.Group && element.Name == "frame transform contract").Group;
         Assert.Equal(720_000, importedGroup.FrameTransform.RotationAngle60000);
         Assert.True(importedGroup.FrameTransform.FlipHorizontal);
         Assert.Equal("round2SameRect", Assert.Single(importedGroup.Children).Shape.Geometry);
@@ -1154,8 +1409,33 @@ public sealed class PptxCodecTests
                 .GetProperty("values")[3].GetDouble());
             Assert.Equal("circle", projectedRadar.GetProperty("data").GetProperty("series")[0]
                 .GetProperty("marker").GetProperty("symbol").GetString());
+            var projectedHeatmap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "correlation intensity matrix");
+            Assert.Contains(projectedHeatmap.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "heatmap cell 1,1");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "correlation intensity matrix" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedCandlestick = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "daily price range");
+            Assert.Contains(projectedCandlestick.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "candlestick wick 1");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "daily price range" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedTreemap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "hierarchical budget allocation");
+            Assert.Contains(projectedTreemap.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "treemap node Frontend");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "hierarchical budget allocation" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(item => item.GetProperty("type").GetString() == "group")
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "frame transform contract")
                 .GetProperty("elements")[0];
             Assert.Equal("round2SameRect", projectedAdjustedShape.GetProperty("geometry").GetProperty("preset").GetString());
             Assert.Equal(18000, projectedAdjustedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
@@ -1571,7 +1851,8 @@ public sealed class PptxCodecTests
         var adjustedGeometryProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var adjustedGeometryShape = adjustedGeometryProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "group")["elements"]![0]!.AsObject();
+            .Single(element => element["type"]!.GetValue<string>() == "group" &&
+                element["name"]!.GetValue<string>() == "frame transform contract")["elements"]![0]!.AsObject();
         adjustedGeometryShape["geometry"]!["adjustments"]![0] = 22000;
         var adjustedGeometryId = adjustedGeometryShape["id"]!.GetValue<string>();
         var sourceGeometryEdit = Invoke(new CodecRequest
@@ -1605,7 +1886,8 @@ public sealed class PptxCodecTests
         using (var geometryJson = JsonDocument.Parse(geometryReprojection.PresentationProgram.ProgramJson.ToByteArray()))
         {
             var reprojectedShape = geometryJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(element => element.GetProperty("type").GetString() == "group")
+                .Single(element => element.GetProperty("type").GetString() == "group" &&
+                    element.GetProperty("name").GetString() == "frame transform contract")
                 .GetProperty("elements")[0];
             Assert.Equal(22000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
         }

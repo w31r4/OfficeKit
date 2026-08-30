@@ -7,6 +7,9 @@ Choose the visual from the relationship the audience must understand.
 | trend or change over ordered time | line, area, or ordered columns |
 | magnitude across categories | bars or columns with a common baseline |
 | distribution or correlation | scatter, bubble, or distribution view |
+| intensity across two categorical dimensions | heatmap |
+| open/high/low/close movement over ordered periods | candlestick |
+| hierarchical part-to-whole allocation | treemap |
 | multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
@@ -59,7 +62,8 @@ spatial relationship, never to decorate a page.
 The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
-  bounded semantic waterfall, and bounded bar-line combo plots;
+  bounded semantic waterfall, bounded vector heatmap, bounded vector
+  candlestick, bounded vector treemap, and bounded bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -292,6 +296,171 @@ stacked-column ChartPart; it does not fake the bridge with rectangles. Exact
 waterfall intent recovers from the embedded PPJ. If that snapshot is removed,
 ordinary PPTX import truthfully exposes the four native series instead of
 guessing that an arbitrary stacked chart is a waterfall.
+
+Use `heatmap` only when the audience must compare a genuine two-dimensional
+matrix. `data.categories` are the ordered columns; each series `name` is one
+row label and its `values` are that row. Do not use a heatmap as a decorative
+grid or to disguise a small ranked list that bars would explain more clearly.
+
+```json
+{
+  "type": "chart",
+  "id": "segment-signal-matrix",
+  "chartType": "heatmap",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Observed relationship strength",
+  "style": {
+    "heatmap": {
+      "scale": "diverging",
+      "colors": ["#C8644A", "#F8F6EF", "#0B8F8F"],
+      "domain": [-10, 10],
+      "midpoint": 0,
+      "showValues": true,
+      "showColorBar": true,
+      "cellGap": 2,
+      "missingFill": "#E5E7EB",
+      "cellStroke": { "color": "#FFFFFF", "width": 0.5 },
+      "axisTextStyle": { "fontSize": 8, "color": "#52606D" },
+      "valueTextStyle": { "fontSize": 8, "bold": true }
+    }
+  },
+  "data": {
+    "categories": ["Acquisition", "Retention", "Margin", "Reliability"],
+    "series": [
+      { "id": "enterprise", "name": "Enterprise", "values": [8, 5, 2, null] },
+      { "id": "mid-market", "name": "Mid-market", "values": [4, -2, 6, 7] },
+      { "id": "smb", "name": "SMB", "values": [-6, -4, 1, 3] }
+    ]
+  }
+}
+```
+
+The bounded profile accepts 1–32 rows and 1–32 columns, unique non-empty
+labels, explicit missing cells, a two-color linear scale or three-color
+diverging scale, optional value labels, and one editable vertical color bar.
+An explicit diverging domain must contain its midpoint; values outside the
+domain clamp to its endpoint colors. Tiny frames reject instead of silently
+making labels unreadable.
+
+PowerPoint has no standard native heatmap ChartPart. OfficeKit therefore
+lowers this semantic node to one editable DrawingML group of rectangles and
+text, not a PNG. The embedded PPJ restores the exact matrix intent. If that
+program is removed, import returns the truthful ordinary group rather than
+guessing that an arbitrary shape grid was a heatmap. Whole-object animation is
+valid; `chartBuild` modes are not, because there is no native ChartPart.
+
+Use `candlestick` when the body and wick encode real ordered open/high/low/close
+observations. Do not use it as a generic trend line or infer missing OHLC values
+from a close-only series. `values` carries close, `highValues` and `lowValues`
+are required, and `openValues` distinguishes OHLC from HLC:
+
+```json
+{
+  "type": "chart",
+  "id": "daily-price-range",
+  "chartType": "candlestick",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Daily OHLC",
+  "xAxis": { "title": "Session", "tickLabelInterval": 1 },
+  "yAxis": { "title": "USD", "numberFormat": "0.0", "min": 88, "max": 120, "majorUnit": 8 },
+  "style": {
+    "candlestick": {
+      "up": {
+        "fill": { "type": "solid", "color": "#0B8F8F" },
+        "stroke": { "color": "#086E6E", "width": 0.6 }
+      },
+      "down": {
+        "fill": { "type": "solid", "color": "#C8644A" },
+        "stroke": { "color": "#8B3E2F", "width": 0.6 }
+      },
+      "wick": { "color": "#16324F", "width": 0.8, "cap": "round" },
+      "bodyWidthRatio": 0.55,
+      "showCloseValues": false,
+      "gridlineStroke": { "color": "#CBD5E1", "width": 0.5 },
+      "axisTextStyle": { "fontSize": 8, "color": "#52606D" }
+    }
+  },
+  "data": {
+    "categories": ["D1", "D2", "D3", "D4"],
+    "series": [{
+      "id": "price",
+      "name": "Price",
+      "openValues": [92, 96, 94, 101],
+      "highValues": [98, 99, 103, 104],
+      "lowValues": [90, 91, 92, 96],
+      "values": [96, 94, 101, 99]
+    }]
+  }
+}
+```
+
+The profile accepts one series and 1–64 unique ordered string categories. Every
+open and close must lie inside its low/high interval. Omit `openValues` for HLC;
+OfficeKit then draws an editable close tick instead of inventing a body.
+`showCloseValues` is limited to 16 observations, and the frame must leave enough
+width for native marks and labels. Bounded axis number formats are `0`, `0.0`,
+`0.00`, `#,##0`, `#,##0.0`, and `#,##0.00`.
+
+PowerPoint has no portable authored candlestick ChartPart in this compiler
+profile. OfficeKit lowers the semantic node to one editable DrawingML group of
+native wick connectors, body shapes, axes, gridlines, and text. Embedded PPJ
+restores exact OHLC/HLC intent; without it, import truthfully returns the group
+and does not reverse-engineer arbitrary marks into financial evidence.
+Whole-object animation remains available, while `chartBuild`, secondary axes,
+legends, trendlines, error bars, markers, and automatic data labels fail closed.
+
+Use `treemap` for hierarchical part-to-whole evidence when area is the intended
+comparison. It is not a substitute for a ranked bar chart when exact ordering
+or small differences matter. `categories`, `values`, and `parents` are aligned;
+each parent name references one globally unique category, and `null` marks a
+root:
+
+```json
+{
+  "type": "chart",
+  "id": "budget-allocation",
+  "chartType": "treemap",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Budget allocation",
+  "style": {
+    "treemap": {
+      "rootColors": ["#0B8F8F", "#C8644A", "#F2C14E"],
+      "border": { "color": "#FFFFFF", "width": 0.75 },
+      "gap": 2,
+      "headerHeight": 17,
+      "depthLighten": 0.1,
+      "showValues": true,
+      "labelTextStyle": { "fontSize": 9, "bold": true },
+      "valueTextStyle": { "fontSize": 8 }
+    }
+  },
+  "data": {
+    "categories": ["Engineering", "Frontend", "Backend", "Sales", "Enterprise", "SMB"],
+    "series": [{
+      "id": "budget",
+      "name": "Budget",
+      "values": [1000, 400, 600, 800, 500, 300],
+      "parents": [null, "Engineering", "Engineering", null, "Sales", "Sales"]
+    }]
+  }
+}
+```
+
+The bounded profile accepts one series, 1–128 positive nodes, 1–16 roots, and
+at most eight hierarchy levels. Every named parent must exist, parent chains
+must be acyclic, and each non-leaf value must equal the sum of its direct
+children. Those checks prevent a visually plausible rectangle mosaic from
+silently contradicting its evidence.
+
+NativeAOT uses a deterministic squarified layout and emits one editable
+DrawingML group of rectangles and text. Root colors cycle in root order;
+descendants retain the root hue and lighten by the declared depth step. Labels
+are omitted only when a native rectangle is too small to hold readable text;
+the node remains an editable named shape and the group retains accessibility
+evidence. Embedded PPJ restores the exact forest; without it, import truthfully
+returns the ordinary group. Whole-object animation is supported, but
+`chartBuild`, axes, legends, trendlines, error bars, and arbitrary per-node
+expression-driven paint are not.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a

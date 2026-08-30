@@ -319,6 +319,17 @@ internal static class PpjSemanticValidator
                 if (series.BubbleSizes.Count != 0)
                     diagnostics.Add(new("ppj.chart.bubbleSizeType", "bubbleSizes applies only to bubble charts.", seriesPath + ".bubbleSizes"));
             }
+            if (chart.ChartType != "candlestick" &&
+                (series.OpenValues.Count != 0 || series.HighValues.Count != 0 || series.LowValues.Count != 0))
+                diagnostics.Add(new(
+                    "ppj.chart.ohlcType",
+                    "openValues, highValues, and lowValues apply only to candlestick charts.",
+                    seriesPath));
+            if (chart.ChartType != "treemap" && series.Parents.Count != 0)
+                diagnostics.Add(new(
+                    "ppj.chart.parentsType",
+                    "parents applies only to treemap charts.",
+                    seriesPath + ".parents"));
             if (series.Raw.TryGetProperty("trendlines", out var trendlines))
             {
                 var trendlineIndex = 0;
@@ -352,6 +363,15 @@ internal static class PpjSemanticValidator
         if (chart.ChartType == "waterfall") ValidateWaterfall(chart, path, diagnostics);
         else if (chart.Raw.TryGetProperty("style", out var ordinaryStyle) && ordinaryStyle.TryGetProperty("waterfall", out _))
             diagnostics.Add(new("ppj.chart.waterfallStyleType", "style.waterfall applies only to waterfall charts.", path + ".style.waterfall"));
+        if (chart.ChartType == "heatmap") ValidateHeatmap(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var heatmapStyle) && heatmapStyle.TryGetProperty("heatmap", out _))
+            diagnostics.Add(new("ppj.chart.heatmapStyleType", "style.heatmap applies only to heatmap charts.", path + ".style.heatmap"));
+        if (chart.ChartType == "candlestick") ValidateCandlestick(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var candlestickStyle) && candlestickStyle.TryGetProperty("candlestick", out _))
+            diagnostics.Add(new("ppj.chart.candlestickStyleType", "style.candlestick applies only to candlestick charts.", path + ".style.candlestick"));
+        if (chart.ChartType == "treemap") ValidateTreemap(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var treemapStyle) && treemapStyle.TryGetProperty("treemap", out _))
+            diagnostics.Add(new("ppj.chart.treemapStyleType", "style.treemap applies only to treemap charts.", path + ".style.treemap"));
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
@@ -374,6 +394,375 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidateHeatmap(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Categories.Count is < 1 or > 32)
+            diagnostics.Add(new(
+                "ppj.chart.heatmapCategoryCount",
+                "Heatmaps require between 1 and 32 x-axis categories.",
+                path + ".data.categories"));
+        if (chart.Data.Series.Count is < 1 or > 32)
+            diagnostics.Add(new(
+                "ppj.chart.heatmapSeriesCount",
+                "Heatmaps require between 1 and 32 named y-axis series.",
+                path + ".data.series"));
+
+        var categories = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < chart.Data.Categories.Count; index++)
+        {
+            var category = chart.Data.Categories[index];
+            if (category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString()))
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapCategory",
+                    "Heatmap categories must be non-empty strings.",
+                    $"{path}.data.categories[{index}]"));
+            else if (!categories.Add(category.GetString()!))
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapCategoryDuplicate",
+                    $"Heatmap category {category.GetString()} is duplicated.",
+                    $"{path}.data.categories[{index}]"));
+        }
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        var hasValue = false;
+        for (var index = 0; index < chart.Data.Series.Count; index++)
+        {
+            var series = chart.Data.Series[index];
+            var seriesPath = $"{path}.data.series[{index}]";
+            if (string.IsNullOrWhiteSpace(series.Name))
+                diagnostics.Add(new("ppj.chart.heatmapSeriesName", "Heatmap series names must be non-empty.", seriesPath + ".name"));
+            else if (!names.Add(series.Name))
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapSeriesNameDuplicate",
+                    $"Heatmap series name {series.Name} is duplicated.",
+                    seriesPath + ".name"));
+            hasValue |= series.Values.Any(value => value is not null);
+            foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+                if (series.Raw.TryGetProperty(property, out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.heatmapSeriesField",
+                        $"{property} is not part of the bounded heatmap series profile.",
+                        $"{seriesPath}.{property}"));
+        }
+        if (!hasValue)
+            diagnostics.Add(new("ppj.chart.heatmapEmpty", "Heatmaps require at least one numeric value.", path + ".data.series"));
+
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapAxis",
+                    "Heatmap axes are generated from matrix labels and do not accept ChartPart axis configuration.",
+                    $"{path}.{property}"));
+
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("heatmap", out var heatmap)) return;
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapStyleField",
+                    $"{property} is not part of the bounded vector heatmap style profile.",
+                    $"{path}.style.{property}"));
+
+        var scale = heatmap.TryGetProperty("scale", out var scaleValue) ? scaleValue.GetString() : "linear";
+        var colors = heatmap.GetProperty("colors").GetArrayLength();
+        if ((scale == "linear" && colors != 2) || (scale == "diverging" && colors != 3))
+            diagnostics.Add(new(
+                "ppj.chart.heatmapColorCount",
+                scale == "diverging" ? "Diverging heatmaps require exactly three colors." : "Linear heatmaps require exactly two colors.",
+                path + ".style.heatmap.colors"));
+
+        double? minimum = null;
+        double? maximum = null;
+        if (heatmap.TryGetProperty("domain", out var domain))
+        {
+            minimum = domain[0].GetDouble();
+            maximum = domain[1].GetDouble();
+            if (minimum >= maximum)
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapDomain",
+                    "Heatmap domain minimum must be smaller than its maximum.",
+                    path + ".style.heatmap.domain"));
+            var effectiveMidpoint = heatmap.TryGetProperty("midpoint", out var configuredMidpoint)
+                ? configuredMidpoint.GetDouble()
+                : 0;
+            if (scale == "diverging" && minimum < maximum && (effectiveMidpoint <= minimum || effectiveMidpoint >= maximum))
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapMidpoint",
+                    "Diverging heatmap midpoint must lie strictly inside the explicit domain.",
+                    path + ".style.heatmap.midpoint"));
+        }
+        if (heatmap.TryGetProperty("midpoint", out var midpoint))
+        {
+            if (scale != "diverging")
+                diagnostics.Add(new(
+                    "ppj.chart.heatmapMidpointType",
+                    "Heatmap midpoint applies only to a diverging scale.",
+                    path + ".style.heatmap.midpoint"));
+        }
+    }
+
+    private static void ValidateCandlestick(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Categories.Count is < 1 or > 64)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickCategoryCount",
+                "Candlestick charts require between 1 and 64 ordered categories.",
+                path + ".data.categories"));
+        var categories = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < chart.Data.Categories.Count; index++)
+        {
+            var category = chart.Data.Categories[index];
+            if (category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString()))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickCategory",
+                    "Candlestick categories must be non-empty strings.",
+                    $"{path}.data.categories[{index}]"));
+            else if (!categories.Add(category.GetString()!))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickCategoryDuplicate",
+                    $"Candlestick category {category.GetString()} is duplicated.",
+                    $"{path}.data.categories[{index}]"));
+        }
+        if (chart.Data.Series.Count != 1)
+        {
+            diagnostics.Add(new(
+                "ppj.chart.candlestickSeriesCount",
+                "Candlestick charts require exactly one OHLC or HLC series.",
+                path + ".data.series"));
+            return;
+        }
+
+        var series = chart.Data.Series[0];
+        var seriesPath = path + ".data.series[0]";
+        var count = chart.Data.Categories.Count;
+        if (series.Values.Any(value => value is null))
+            diagnostics.Add(new(
+                "ppj.chart.candlestickMissingClose",
+                "Candlestick close values cannot be missing.",
+                seriesPath + ".values"));
+        if (series.HighValues.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickHighLength",
+                "Candlestick highValues must contain one value per category.",
+                seriesPath + ".highValues"));
+        if (series.LowValues.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickLowLength",
+                "Candlestick lowValues must contain one value per category.",
+                seriesPath + ".lowValues"));
+        if (series.OpenValues.Count != 0 && series.OpenValues.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.candlestickOpenLength",
+                "Candlestick openValues must be omitted for HLC or contain one value per category for OHLC.",
+                seriesPath + ".openValues"));
+
+        if (series.Values.Count == count && series.Values.All(value => value is not null) &&
+            series.HighValues.Count == count && series.LowValues.Count == count &&
+            (series.OpenValues.Count == 0 || series.OpenValues.Count == count))
+        {
+            for (var index = 0; index < count; index++)
+            {
+                var high = series.HighValues[index];
+                var low = series.LowValues[index];
+                var close = series.Values[index]!.Value;
+                if (low > high || close < low || close > high ||
+                    (series.OpenValues.Count != 0 && (series.OpenValues[index] < low || series.OpenValues[index] > high)))
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickRange",
+                        "Each low must not exceed high, and open/close must lie inside that range.",
+                        $"{seriesPath}.values[{index}]"));
+            }
+
+            var lowest = series.LowValues.Min();
+            var highest = series.HighValues.Max();
+            if (chart.Raw.TryGetProperty("yAxis", out var yAxis))
+            {
+                if (yAxis.TryGetProperty("min", out var minimum) && minimum.GetDouble() > lowest)
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickAxisClip",
+                        "Explicit yAxis.min must not clip the lowest observation.",
+                        path + ".yAxis.min"));
+                if (yAxis.TryGetProperty("max", out var maximum) && maximum.GetDouble() < highest)
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickAxisClip",
+                        "Explicit yAxis.max must not clip the highest observation.",
+                        path + ".yAxis.max"));
+            }
+        }
+
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickSeriesField",
+                    $"{property} is not part of the bounded candlestick series profile.",
+                    $"{seriesPath}.{property}"));
+
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("candlestick", out var candlestick)) return;
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickStyleField",
+                    $"{property} is not part of the bounded vector candlestick style profile.",
+                    $"{path}.style.{property}"));
+        foreach (var role in new[] { "up", "down" })
+        {
+            var fill = candlestick.GetProperty(role).GetProperty("fill");
+            if (fill.GetProperty("type").GetString() is "none" or "image")
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickBodyFill",
+                    "Candlestick body fills must be solid or bounded gradients.",
+                    $"{path}.style.candlestick.{role}.fill"));
+        }
+    }
+
+    private static void ValidateTreemap(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        var count = chart.Data.Categories.Count;
+        if (count is < 1 or > 128)
+            diagnostics.Add(new(
+                "ppj.chart.treemapNodeCount",
+                "Treemap charts require between 1 and 128 nodes.",
+                path + ".data.categories"));
+        if (chart.Data.Series.Count != 1)
+        {
+            diagnostics.Add(new(
+                "ppj.chart.treemapSeriesCount",
+                "Treemap charts require exactly one hierarchy series.",
+                path + ".data.series"));
+            return;
+        }
+
+        var names = new string?[count];
+        var indexes = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var index = 0; index < count; index++)
+        {
+            var category = chart.Data.Categories[index];
+            if (category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString()))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapCategory",
+                    "Treemap categories must be non-empty strings.",
+                    $"{path}.data.categories[{index}]"));
+            else
+            {
+                names[index] = category.GetString()!;
+                if (!indexes.TryAdd(names[index]!, index))
+                    diagnostics.Add(new(
+                        "ppj.chart.treemapCategoryDuplicate",
+                        $"Treemap category {names[index]} is duplicated.",
+                        $"{path}.data.categories[{index}]"));
+            }
+        }
+
+        var series = chart.Data.Series[0];
+        var seriesPath = path + ".data.series[0]";
+        if (series.Parents.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.treemapParentLength",
+                "Treemap parents must contain one string or null per category.",
+                seriesPath + ".parents"));
+        if (series.Values.Any(value => value is null || value <= 0))
+            diagnostics.Add(new(
+                "ppj.chart.treemapValue",
+                "Treemap values must be present and strictly positive.",
+                seriesPath + ".values"));
+
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapSeriesField",
+                    $"{property} is not part of the bounded treemap series profile.",
+                    $"{seriesPath}.{property}"));
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapAxis",
+                    "Treemap charts do not use Cartesian axes.",
+                    $"{path}.{property}"));
+
+        if (series.Parents.Count == count && indexes.Count == count)
+        {
+            var roots = 0;
+            for (var index = 0; index < count; index++)
+            {
+                var parent = series.Parents[index];
+                if (parent is null)
+                {
+                    roots++;
+                    continue;
+                }
+                if (!indexes.ContainsKey(parent))
+                    diagnostics.Add(new(
+                        "ppj.chart.treemapMissingParent",
+                        $"Treemap parent {parent} does not name a declared category.",
+                        $"{seriesPath}.parents[{index}]"));
+                else if (string.Equals(parent, names[index], StringComparison.Ordinal))
+                    diagnostics.Add(new(
+                        "ppj.chart.treemapCycle",
+                        "A treemap node cannot parent itself.",
+                        $"{seriesPath}.parents[{index}]"));
+            }
+            if (roots is < 1 or > 16)
+                diagnostics.Add(new(
+                    "ppj.chart.treemapRootCount",
+                    "Treemap charts require between 1 and 16 roots.",
+                    seriesPath + ".parents"));
+
+            for (var index = 0; index < count; index++)
+            {
+                var seen = new HashSet<int>();
+                var current = index;
+                var depth = 0;
+                while (true)
+                {
+                    if (!seen.Add(current))
+                    {
+                        diagnostics.Add(new(
+                            "ppj.chart.treemapCycle",
+                            $"Treemap parent chain for {names[index]} contains a cycle.",
+                            $"{seriesPath}.parents[{index}]"));
+                        break;
+                    }
+                    var parent = series.Parents[current];
+                    if (parent is null || !indexes.TryGetValue(parent, out current)) break;
+                    depth++;
+                    if (depth > 8)
+                    {
+                        diagnostics.Add(new(
+                            "ppj.chart.treemapDepth",
+                            $"Treemap node {names[index]} exceeds the maximum hierarchy depth of eight.",
+                            $"{seriesPath}.parents[{index}]"));
+                        break;
+                    }
+                }
+            }
+
+            if (series.Values.Count == count && series.Values.All(value => value is > 0))
+            {
+                var childSums = new Dictionary<int, double>();
+                for (var index = 0; index < count; index++)
+                    if (series.Parents[index] is { } parent && indexes.TryGetValue(parent, out var parentIndex))
+                        childSums[parentIndex] = childSums.GetValueOrDefault(parentIndex) + series.Values[index]!.Value;
+                foreach (var pair in childSums)
+                {
+                    var declared = series.Values[pair.Key]!.Value;
+                    var tolerance = Math.Max(1e-9, Math.Abs(declared) * 1e-9);
+                    if (Math.Abs(declared - pair.Value) > tolerance)
+                        diagnostics.Add(new(
+                            "ppj.chart.treemapTotal",
+                            $"Treemap parent {names[pair.Key]} value {declared} does not equal its direct-child sum {pair.Value}.",
+                            $"{seriesPath}.values[{pair.Key}]"));
+                }
+            }
+        }
+
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("treemap", out _)) return;
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapStyleField",
+                    $"{property} is not part of the bounded vector treemap style profile.",
+                    $"{path}.style.{property}"));
     }
 
     private static void ValidateWaterfall(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
@@ -736,6 +1125,11 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.animation.textBuild", "textBuild requires a text-bearing target.", $"{path}.textBuild"));
             if (animation.ChartBuild is not null && target is not PpjChartElementModel)
                 diagnostics.Add(new("ppj.animation.chartBuild", "chartBuild requires a chart target.", $"{path}.chartBuild"));
+            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" or "candlestick" or "treemap" })
+                diagnostics.Add(new(
+                    "ppj.animation.vectorChartBuild",
+                    "Vector-lowered charts compile to one editable group and support whole-object animation, not ChartPart build modes.",
+                    $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));
 

@@ -159,6 +159,15 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjImageElementModel image:
                 output.Image = BuildImage(image, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "heatmap" } heatmap:
+                output.Group = BuildHeatmap(heatmap, raw, catalog);
+                break;
+            case PpjChartElementModel { ChartType: "candlestick" } candlestick:
+                output.Group = BuildCandlestick(candlestick, raw, catalog);
+                break;
+            case PpjChartElementModel { ChartType: "treemap" } treemap:
+                output.Group = BuildTreemap(treemap, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -367,6 +376,1188 @@ internal static class PpjAuthoredPresentationCompiler
         ApplyAccessibility(chart, element.Accessibility);
         return chart;
     }
+
+    private static PresentationGroup BuildHeatmap(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector heatmap titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateHeatmapCompileProfile(element, raw, namedStyle, inlineStyle);
+        var style = FirstProperty(inlineStyle, namedStyle, "heatmap")!.Value;
+        var scale = OptionalString(style, "scale") ?? "linear";
+        var colors = style.GetProperty("colors").EnumerateArray()
+            .Select(color => HeatmapColor(catalog.Color(color)))
+            .ToArray();
+        var values = element.Data.Series.SelectMany(series => series.Values)
+            .Where(value => value is not null)
+            .Select(value => value!.Value)
+            .ToArray();
+        var inferredMinimum = values.Min();
+        var inferredMaximum = values.Max();
+        double minimum;
+        double maximum;
+        if (style.TryGetProperty("domain", out var domain))
+        {
+            minimum = domain[0].GetDouble();
+            maximum = domain[1].GetDouble();
+        }
+        else if (scale == "diverging")
+        {
+            var extent = Math.Max(Math.Abs(inferredMinimum), Math.Abs(inferredMaximum));
+            if (extent == 0) extent = 1;
+            minimum = -extent;
+            maximum = extent;
+        }
+        else if (inferredMinimum == inferredMaximum)
+        {
+            var extent = Math.Max(1, Math.Abs(inferredMinimum) * 0.05);
+            minimum = inferredMinimum - extent;
+            maximum = inferredMaximum + extent;
+        }
+        else
+        {
+            minimum = inferredMinimum;
+            maximum = inferredMaximum;
+        }
+        var midpoint = OptionalDouble(style, "midpoint") ?? 0;
+
+        var showValues = OptionalBoolean(style, "showValues") ?? false;
+        var showColorBar = OptionalBoolean(style, "showColorBar") ?? true;
+        var cellGap = OptionalDouble(style, "cellGap") ?? 1.5;
+        var axisStyle = Property(style, "axisTextStyle");
+        var valueStyle = Property(style, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.11, 20, 36);
+        var longestRowLabel = element.Data.Series.Max(series => series.Name.Length);
+        var maximumLabelWidth = Math.Max(52, Math.Min(150, width * 0.24));
+        var leftLabelWidth = Math.Clamp(24 + longestRowLabel * 4.8, 52, maximumLabelWidth);
+        var bottomLabelHeight = Math.Clamp(height * 0.09, 20, 36);
+        var colorBarWidth = showColorBar ? Math.Clamp(width * 0.09, 46, 72) : 0;
+        var gridX = x + leftLabelWidth;
+        var gridY = y + titleHeight;
+        var gridWidth = width - leftLabelWidth - colorBarWidth;
+        var gridHeight = height - titleHeight - bottomLabelHeight;
+        var columnCount = element.Data.Categories.Count;
+        var rowCount = element.Data.Series.Count;
+        var cellWidth = gridWidth / columnCount;
+        var cellHeight = gridHeight / rowCount;
+        if (cellWidth < 8 || cellHeight < 8 || cellGap >= cellWidth || cellGap >= cellHeight)
+            throw Unsupported(element.Id, "vector heatmap frame is too small for its matrix and cell gap");
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                HeatmapNativeId(element.Id, "title"),
+                "heatmap title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
+        {
+            group.Children.Add(VectorChartTextElement(
+                HeatmapNativeId(element.Id, $"row/{rowIndex}"),
+                $"heatmap row {rowIndex + 1}",
+                x,
+                gridY + rowIndex * cellHeight,
+                leftLabelWidth - 6,
+                cellHeight,
+                element.Data.Series[rowIndex].Name,
+                axisStyle,
+                catalog,
+                Math.Clamp(cellHeight * 0.34, 6, 10),
+                "right"));
+
+            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            {
+                var value = element.Data.Series[rowIndex].Values[columnIndex];
+                var cellX = gridX + columnIndex * cellWidth + cellGap / 2;
+                var cellY = gridY + rowIndex * cellHeight + cellGap / 2;
+                var cellShape = ShapeFrame(
+                    new PpjFrameModel(cellX, cellY, cellWidth - cellGap, cellHeight - cellGap, 0, false, false),
+                    "rect");
+                cellShape.LineStyle = "none";
+                (byte R, byte G, byte B, double Alpha)? cellColor = null;
+                if (value is not null)
+                {
+                    cellColor = HeatmapInterpolate(value.Value, minimum, maximum, midpoint, scale, colors);
+                    cellShape.FillRgb = HeatmapHex(cellColor.Value);
+                    if (cellColor.Value.Alpha < 1) cellShape.FillOpacityThousandthPercent = Opacity(cellColor.Value.Alpha);
+                }
+                else if (style.TryGetProperty("missingFill", out var missingFill))
+                {
+                    cellColor = HeatmapColor(catalog.Color(missingFill));
+                    cellShape.FillRgb = HeatmapHex(cellColor.Value);
+                    if (cellColor.Value.Alpha < 1) cellShape.FillOpacityThousandthPercent = Opacity(cellColor.Value.Alpha);
+                }
+                if (style.TryGetProperty("cellStroke", out var cellStroke)) ApplyLine(cellShape, cellStroke, catalog);
+                group.Children.Add(new PresentationElement
+                {
+                    Id = HeatmapNativeId(element.Id, $"cell/{rowIndex}/{columnIndex}"),
+                    Name = $"heatmap cell {rowIndex + 1},{columnIndex + 1}",
+                    Shape = cellShape,
+                });
+
+                if (showValues && value is not null)
+                {
+                    var contrast = HeatmapLuminance(cellColor!.Value) > 0.52 ? "111827" : "FFFFFF";
+                    group.Children.Add(VectorChartTextElement(
+                        HeatmapNativeId(element.Id, $"value/{rowIndex}/{columnIndex}"),
+                        $"heatmap value {rowIndex + 1},{columnIndex + 1}",
+                        cellX + 1,
+                        cellY + 1,
+                        cellWidth - cellGap - 2,
+                        cellHeight - cellGap - 2,
+                        value.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                        valueStyle,
+                        catalog,
+                        Math.Clamp(Math.Min(cellWidth, cellHeight) * 0.28, 6, 10),
+                        "center",
+                        contrast));
+                }
+            }
+        }
+
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            group.Children.Add(VectorChartTextElement(
+                HeatmapNativeId(element.Id, $"column/{columnIndex}"),
+                $"heatmap column {columnIndex + 1}",
+                gridX + columnIndex * cellWidth,
+                gridY + gridHeight + 3,
+                cellWidth,
+                bottomLabelHeight - 3,
+                element.Data.Categories[columnIndex].GetString()!,
+                axisStyle,
+                catalog,
+                Math.Clamp(bottomLabelHeight * 0.3, 6, 9),
+                "center"));
+
+        if (showColorBar)
+            AddHeatmapColorBar(group, element.Id, gridX + gridWidth + 15, gridY, colorBarWidth - 15, gridHeight, minimum, maximum, midpoint, scale, colors, axisStyle, catalog);
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateHeatmapCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.Data.Categories.Count is < 1 or > 32 || element.Data.Series.Count is < 1 or > 32)
+            throw Unsupported(element.Id, "vector heatmaps support a 1..32 by 1..32 matrix");
+        if (element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != element.Data.Categories.Count)
+            throw Unsupported(element.Id, "vector heatmap categories must be unique non-empty strings");
+        if (element.Data.Series.Any(series => string.IsNullOrWhiteSpace(series.Name)) ||
+            element.Data.Series.Select(series => series.Name).Distinct(StringComparer.Ordinal).Count() != element.Data.Series.Count)
+            throw Unsupported(element.Id, "vector heatmap series names must be unique and non-empty");
+        if (element.Data.Series.Any(series => series.Values.Count != element.Data.Categories.Count) ||
+            element.Data.Series.SelectMany(series => series.Values).All(value => value is null))
+            throw Unsupported(element.Id, "vector heatmap rows must match the category count and contain at least one numeric value");
+        foreach (var series in element.Data.Series)
+            foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+                if (series.Raw.TryGetProperty(property, out _))
+                    throw Unsupported(element.Id, $"vector heatmap series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _)) throw Unsupported(element.Id, "vector heatmaps generate their own matrix labels");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"vector heatmaps do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "heatmap") is not { } heatmap)
+            throw Unsupported(element.Id, "vector heatmaps require style.heatmap");
+        var scale = OptionalString(heatmap, "scale") ?? "linear";
+        var colorCount = heatmap.GetProperty("colors").GetArrayLength();
+        if ((scale == "linear" && colorCount != 2) || (scale == "diverging" && colorCount != 3))
+            throw Unsupported(element.Id, scale == "diverging" ? "diverging heatmaps require three colors" : "linear heatmaps require two colors");
+        if (heatmap.TryGetProperty("domain", out var domain))
+        {
+            if (domain[0].GetDouble() >= domain[1].GetDouble())
+                throw Unsupported(element.Id, "vector heatmap domain minimum must be smaller than its maximum");
+            var effectiveMidpoint = OptionalDouble(heatmap, "midpoint") ?? 0;
+            if (scale == "diverging" && (effectiveMidpoint <= domain[0].GetDouble() || effectiveMidpoint >= domain[1].GetDouble()))
+                throw Unsupported(element.Id, "diverging heatmap midpoint must lie inside its explicit domain");
+        }
+        if (heatmap.TryGetProperty("midpoint", out var midpoint))
+        {
+            if (scale != "diverging") throw Unsupported(element.Id, "heatmap midpoint requires a diverging scale");
+        }
+    }
+
+    private static PresentationElement VectorChartTextElement(
+        string id,
+        string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        string text,
+        JsonElement? style,
+        Catalog catalog,
+        double defaultFontSize,
+        string alignment,
+        string? fallbackColor = null)
+    {
+        var shape = ShapeFrame(new PpjFrameModel(x, y, width, height, 0, false, false), "textbox");
+        shape.LineStyle = "none";
+        shape.Text = text;
+        shape.TextBody = new PresentationTextBody
+        {
+            BodyProperties = new PresentationTextBodyProperties
+            {
+                NoLeftInset = true,
+                NoTopInset = true,
+                NoRightInset = true,
+                NoBottomInset = true,
+                VerticalAnchor = "center",
+                Wrap = "none",
+                AutoFitMode = "shrinkText",
+            },
+        };
+        var paragraph = new PresentationTextParagraph { Alignment = alignment };
+        paragraph.Runs.Add(BuildVectorChartRun(text, style, catalog, defaultFontSize, fallbackColor));
+        shape.TextBody.Paragraphs.Add(paragraph);
+        return new PresentationElement { Id = id, Name = name, Shape = shape };
+    }
+
+    private static PresentationTextRun BuildVectorChartRun(
+        string text,
+        JsonElement? style,
+        Catalog catalog,
+        double defaultFontSize,
+        string? fallbackColor)
+    {
+        var run = new PresentationTextRun { Text = text, FontSizePoints = defaultFontSize };
+        if (style is not { } value)
+        {
+            if (fallbackColor is not null) run.ColorRgb = fallbackColor;
+            return run;
+        }
+        if (value.TryGetProperty("fontSize", out var fontSize)) run.FontSizePoints = fontSize.GetDouble();
+        if (value.TryGetProperty("fontFamily", out var fontFamily)) run.FontFamily = fontFamily.GetString()!;
+        if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) run.FontFamilyEastAsia = eastAsia.GetString()!;
+        else if (run.HasFontFamily) run.FontFamilyEastAsia = run.FontFamily;
+        if (value.TryGetProperty("bold", out var bold)) run.Bold = bold.GetBoolean();
+        if (value.TryGetProperty("italic", out var italic)) run.Italic = italic.GetBoolean();
+        if (value.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            run.ColorRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) run.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        else if (fallbackColor is not null) run.ColorRgb = fallbackColor;
+        return run;
+    }
+
+    private static void AddHeatmapColorBar(
+        PresentationGroup group,
+        string elementId,
+        double x,
+        double y,
+        double width,
+        double height,
+        double minimum,
+        double maximum,
+        double midpoint,
+        string scale,
+        IReadOnlyList<(byte R, byte G, byte B, double Alpha)> colors,
+        JsonElement? axisStyle,
+        Catalog catalog)
+    {
+        var barWidth = Math.Min(12, Math.Max(6, width * 0.32));
+        var bar = ShapeFrame(new PpjFrameModel(x, y, barWidth, height, 0, false, false), "rect");
+        bar.LineStyle = "none";
+        bar.GradientFill = new PresentationGradientFill
+        {
+            Kind = PresentationGradientFill.Types.Kind.Linear,
+            Angle60000 = Angle(90),
+        };
+        for (var index = 0; index < colors.Count; index++)
+        {
+            var color = colors[index];
+            var stop = new PresentationGradientStop
+            {
+                PositionThousandthPercent = colors.Count == 1 ? 0U : checked((uint)Math.Round(index * 100_000d / (colors.Count - 1))),
+                ColorRgb = HeatmapHex(color),
+            };
+            if (color.Alpha < 1) stop.OpacityThousandthPercent = Opacity(color.Alpha);
+            bar.GradientFill.Stops.Add(stop);
+        }
+        group.Children.Add(new PresentationElement { Id = HeatmapNativeId(elementId, "colorbar"), Name = "heatmap color scale", Shape = bar });
+        var labelX = x + barWidth + 4;
+        var labelWidth = Math.Max(20, width - barWidth - 4);
+        group.Children.Add(VectorChartTextElement(
+            HeatmapNativeId(elementId, "colorbar/max"),
+            "heatmap scale maximum",
+            labelX,
+            y,
+            labelWidth,
+            14,
+            maximum.ToString("0.##", CultureInfo.InvariantCulture),
+            axisStyle,
+            catalog,
+            7,
+            "left"));
+        group.Children.Add(VectorChartTextElement(
+            HeatmapNativeId(elementId, "colorbar/min"),
+            "heatmap scale minimum",
+            labelX,
+            y + height - 14,
+            labelWidth,
+            14,
+            minimum.ToString("0.##", CultureInfo.InvariantCulture),
+            axisStyle,
+            catalog,
+            7,
+            "left"));
+        if (scale == "diverging")
+            group.Children.Add(VectorChartTextElement(
+                HeatmapNativeId(elementId, "colorbar/mid"),
+                "heatmap scale midpoint",
+                labelX,
+                y + height / 2 - 7,
+                labelWidth,
+                14,
+                midpoint.ToString("0.##", CultureInfo.InvariantCulture),
+                axisStyle,
+                catalog,
+                7,
+                "left"));
+    }
+
+    private static (byte R, byte G, byte B, double Alpha) HeatmapColor((string Rgb, double Alpha) color) => (
+        byte.Parse(color.Rgb.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+        byte.Parse(color.Rgb.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+        byte.Parse(color.Rgb.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+        color.Alpha);
+
+    private static string HeatmapNativeId(string elementId, string suffix) =>
+        $"{elementId}/heatmap/{suffix}";
+
+    private static (byte R, byte G, byte B, double Alpha) HeatmapInterpolate(
+        double value,
+        double minimum,
+        double maximum,
+        double midpoint,
+        string scale,
+        IReadOnlyList<(byte R, byte G, byte B, double Alpha)> colors)
+    {
+        if (scale == "diverging")
+        {
+            if (value <= midpoint)
+                return HeatmapMix(colors[0], colors[1], (Math.Clamp(value, minimum, midpoint) - minimum) / (midpoint - minimum));
+            return HeatmapMix(colors[1], colors[2], (Math.Clamp(value, midpoint, maximum) - midpoint) / (maximum - midpoint));
+        }
+        return HeatmapMix(colors[0], colors[1], (Math.Clamp(value, minimum, maximum) - minimum) / (maximum - minimum));
+    }
+
+    private static (byte R, byte G, byte B, double Alpha) HeatmapMix(
+        (byte R, byte G, byte B, double Alpha) from,
+        (byte R, byte G, byte B, double Alpha) to,
+        double amount) => (
+            checked((byte)Math.Round(from.R + (to.R - from.R) * amount)),
+            checked((byte)Math.Round(from.G + (to.G - from.G) * amount)),
+            checked((byte)Math.Round(from.B + (to.B - from.B) * amount)),
+            from.Alpha + (to.Alpha - from.Alpha) * amount);
+
+    private static string HeatmapHex((byte R, byte G, byte B, double Alpha) color) =>
+        $"{color.R:X2}{color.G:X2}{color.B:X2}";
+
+    private static double HeatmapLuminance((byte R, byte G, byte B, double Alpha) color)
+    {
+        static double Channel(byte value)
+        {
+            var normalized = value / 255d;
+            return normalized <= 0.03928 ? normalized / 12.92 : Math.Pow((normalized + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
+    }
+
+    private static PresentationGroup BuildCandlestick(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector candlestick titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateCandlestickCompileProfile(element, raw, namedStyle, inlineStyle);
+        var candlestick = FirstProperty(inlineStyle, namedStyle, "candlestick")!.Value;
+        var series = element.Data.Series[0];
+        var categories = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var closeValues = series.Values.Select(value => value!.Value).ToArray();
+        var openValues = series.OpenValues;
+        var highValues = series.HighValues;
+        var lowValues = series.LowValues;
+        var isOhlc = openValues.Count != 0;
+
+        var xAxis = Property(raw, "xAxis");
+        var yAxis = Property(raw, "yAxis");
+        var showXAxis = xAxis is null || OptionalBoolean(xAxis.Value, "visible") != false;
+        var showYAxis = yAxis is null || OptionalBoolean(yAxis.Value, "visible") != false;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+        var axisStyle = Property(candlestick, "axisTextStyle");
+        var valueStyle = Property(candlestick, "valueTextStyle");
+        var xAxisTextStyle = Property(xAxis, "textStyle") ?? axisStyle;
+        var yAxisTextStyle = Property(yAxis, "textStyle") ?? axisStyle;
+        var xAxisTitleStyle = Property(xAxis, "titleTextStyle") ?? axisStyle;
+        var yAxisTitleStyle = Property(yAxis, "titleTextStyle") ?? axisStyle;
+        var showCloseValues = OptionalBoolean(candlestick, "showCloseValues") ?? false;
+        if (showCloseValues && categories.Length > 16)
+            throw Unsupported(element.Id, "showCloseValues is limited to 16 candlesticks to keep labels readable");
+
+        var dataMinimum = lowValues.Min();
+        var dataMaximum = highValues.Max();
+        var dataRange = dataMaximum - dataMinimum;
+        if (dataRange <= 0) dataRange = Math.Max(1, Math.Abs(dataMaximum) * 0.1);
+        var majorUnit = yAxis is { } y && OptionalDouble(y, "majorUnit") is { } explicitMajor
+            ? explicitMajor
+            : NiceVectorChartStep(dataRange / 4);
+        var pad = dataRange * 0.05;
+        var minimum = yAxis is { } minimumAxis && OptionalDouble(minimumAxis, "min") is { } explicitMinimum
+            ? explicitMinimum
+            : Math.Floor((dataMinimum - pad) / majorUnit) * majorUnit;
+        var maximum = yAxis is { } maximumAxis && OptionalDouble(maximumAxis, "max") is { } explicitMaximum
+            ? explicitMaximum
+            : Math.Ceiling((dataMaximum + pad) / majorUnit) * majorUnit;
+        if (maximum <= minimum) throw Unsupported(element.Id, "candlestick yAxis maximum must be greater than its minimum");
+
+        var tickCount = checked((int)Math.Floor((maximum - minimum) / majorUnit + 1e-9)) + 1;
+        if (tickCount is < 2 or > 12)
+            throw Unsupported(element.Id, "candlestick yAxis must expand to between 2 and 12 major ticks");
+
+        var x = element.Frame.X;
+        var yPosition = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var leftInset = showYAxis ? Math.Clamp(width * 0.1, 42, 68) : 8;
+        var rightInset = showCloseValues ? Math.Clamp(width * 0.08, 32, 48) : 10;
+        var bottomInset = showXAxis
+            ? (xAxis is { } xAxisValue && xAxisValue.TryGetProperty("title", out _) ? 38 : 24)
+            : 8;
+        var topInset = titleHeight + 8;
+        var plotX = x + leftInset;
+        var plotY = yPosition + topInset;
+        var plotWidth = width - leftInset - rightInset;
+        var plotHeight = height - topInset - bottomInset;
+        if (plotWidth < 120 || plotHeight < 80)
+            throw Unsupported(element.Id, "candlestick frame is too small for native axes and editable marks");
+        var slotWidth = plotWidth / categories.Length;
+        if (slotWidth < 4.5)
+            throw Unsupported(element.Id, "candlestick frame is too narrow for the requested observation count");
+
+        var bodyWidthRatio = OptionalDouble(candlestick, "bodyWidthRatio") ?? 0.55;
+        var bodyWidth = Math.Max(1.25, slotWidth * bodyWidthRatio);
+        var labelInterval = xAxis is { } xAxisLabel && OptionalDouble(xAxisLabel, "tickLabelInterval") is { } interval
+            ? checked((int)interval)
+            : Math.Max(1, checked((int)Math.Ceiling(categories.Length / 12d)));
+        var numberFormat = yAxis is { } formattedAxis ? OptionalString(formattedAxis, "numberFormat") : null;
+        if (numberFormat is not null && !CandlestickNumberFormats.Contains(numberFormat, StringComparer.Ordinal))
+            throw Unsupported(element.Id, $"candlestick yAxis numberFormat {numberFormat} is outside the bounded profile");
+
+        double PlotY(double value) => plotY + (maximum - value) * plotHeight / (maximum - minimum);
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(yPosition),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(yPosition),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                CandlestickNativeId(element.Id, "title"),
+                "candlestick title",
+                x,
+                yPosition,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        if (showYAxis)
+        {
+            var gridlineStroke = Property(candlestick, "gridlineStroke");
+            for (var tickIndex = 0; tickIndex < tickCount; tickIndex++)
+            {
+                var tickValue = minimum + tickIndex * majorUnit;
+                var tickY = PlotY(tickValue);
+                if (gridlineStroke is { } gridline)
+                    group.Children.Add(VectorChartLineElement(
+                        CandlestickNativeId(element.Id, $"grid/{tickIndex}"),
+                        $"candlestick gridline {tickIndex + 1}",
+                        plotX,
+                        tickY,
+                        plotX + plotWidth,
+                        tickY,
+                        gridline,
+                        catalog));
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, $"y-label/{tickIndex}"),
+                    $"candlestick value-axis label {tickIndex + 1}",
+                    x,
+                    tickY - 7,
+                    leftInset - 7,
+                    14,
+                    FormatCandlestickValue(tickValue, numberFormat),
+                    yAxisTextStyle,
+                    catalog,
+                    8,
+                    "right"));
+            }
+            if (yAxis is { } yAxisWithTitle && yAxisWithTitle.TryGetProperty("title", out var yTitle))
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, "y-title"),
+                    "candlestick value-axis title",
+                    x,
+                    plotY - 18,
+                    leftInset + Math.Min(120, plotWidth * 0.3),
+                    16,
+                    yTitle.GetString()!,
+                    yAxisTitleStyle,
+                    catalog,
+                    8,
+                    "left"));
+        }
+
+        var wickStyle = candlestick.GetProperty("wick");
+        for (var index = 0; index < categories.Length; index++)
+        {
+            var centerX = plotX + (index + 0.5) * slotWidth;
+            group.Children.Add(VectorChartLineElement(
+                CandlestickNativeId(element.Id, $"wick/{index}"),
+                $"candlestick wick {index + 1}",
+                centerX,
+                PlotY(highValues[index]),
+                centerX,
+                PlotY(lowValues[index]),
+                wickStyle,
+                catalog));
+
+            if (isOhlc)
+            {
+                var open = openValues[index];
+                var close = closeValues[index];
+                var top = PlotY(Math.Max(open, close));
+                var bottom = PlotY(Math.Min(open, close));
+                var bodyHeight = Math.Max(1.5, bottom - top);
+                if (bodyHeight > bottom - top) top = Math.Clamp((top + bottom - bodyHeight) / 2, plotY, plotY + plotHeight - bodyHeight);
+                var role = close >= open ? "up" : "down";
+                var bodyStyle = candlestick.GetProperty(role);
+                var body = ShapeFrame(
+                    new PpjFrameModel(centerX - bodyWidth / 2, top, bodyWidth, bodyHeight, 0, false, false),
+                    "rect");
+                ApplyTextBoxFill(body, bodyStyle.GetProperty("fill"), catalog);
+                if (bodyStyle.TryGetProperty("stroke", out var bodyStroke)) ApplyLine(body, bodyStroke, catalog);
+                else body.LineStyle = "none";
+                group.Children.Add(new PresentationElement
+                {
+                    Id = CandlestickNativeId(element.Id, $"body/{index}"),
+                    Name = $"candlestick {role} body {index + 1}",
+                    Shape = body,
+                });
+            }
+            else
+            {
+                var closeY = PlotY(closeValues[index]);
+                group.Children.Add(VectorChartLineElement(
+                    CandlestickNativeId(element.Id, $"close/{index}"),
+                    $"candlestick close tick {index + 1}",
+                    centerX,
+                    closeY,
+                    centerX + bodyWidth / 2,
+                    closeY,
+                    wickStyle,
+                    catalog));
+            }
+
+            if (showXAxis && index % labelInterval == 0)
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, $"x-label/{index}"),
+                    $"candlestick category label {index + 1}",
+                    plotX + index * slotWidth,
+                    plotY + plotHeight + 3,
+                    Math.Max(slotWidth, 30),
+                    15,
+                    categories[index],
+                    xAxisTextStyle,
+                    catalog,
+                    Math.Clamp(slotWidth * 0.24, 6, 9),
+                    "center"));
+
+            if (showCloseValues)
+                group.Children.Add(VectorChartTextElement(
+                    CandlestickNativeId(element.Id, $"close-value/{index}"),
+                    $"candlestick close value {index + 1}",
+                    centerX - slotWidth / 2,
+                    Math.Max(plotY, PlotY(highValues[index]) - 16),
+                    slotWidth,
+                    14,
+                    FormatCandlestickValue(closeValues[index], numberFormat),
+                    valueStyle,
+                    catalog,
+                    Math.Clamp(slotWidth * 0.22, 6, 8),
+                    "center"));
+        }
+
+        if (showXAxis && xAxis is { } xAxisWithTitle && xAxisWithTitle.TryGetProperty("title", out var xTitle))
+            group.Children.Add(VectorChartTextElement(
+                CandlestickNativeId(element.Id, "x-title"),
+                "candlestick category-axis title",
+                plotX,
+                yPosition + height - 17,
+                plotWidth,
+                16,
+                xTitle.GetString()!,
+                xAxisTitleStyle,
+                catalog,
+                8,
+                "center"));
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateCandlestickCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.Data.Categories.Count is < 1 or > 64 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != element.Data.Categories.Count)
+            throw Unsupported(element.Id, "candlestick categories must be 1..64 unique non-empty strings");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "candlestick charts require exactly one OHLC or HLC series");
+        var series = element.Data.Series[0];
+        var count = element.Data.Categories.Count;
+        if (series.Values.Count != count || series.Values.Any(value => value is null) ||
+            series.HighValues.Count != count || series.LowValues.Count != count ||
+            (series.OpenValues.Count != 0 && series.OpenValues.Count != count))
+            throw Unsupported(element.Id, "candlestick open/high/low/close channels must align with the category count");
+        for (var index = 0; index < count; index++)
+        {
+            var low = series.LowValues[index];
+            var high = series.HighValues[index];
+            var close = series.Values[index]!.Value;
+            if (low > high || close < low || close > high ||
+                (series.OpenValues.Count != 0 && (series.OpenValues[index] < low || series.OpenValues[index] > high)))
+                throw Unsupported(element.Id, "every open and close must lie inside its low/high interval");
+        }
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"candlestick series do not support {property}");
+        foreach (var property in new[] { "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "candlestick charts do not support secondary axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"candlestick charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "candlestick") is not { } candlestick)
+            throw Unsupported(element.Id, "candlestick charts require style.candlestick");
+        foreach (var role in new[] { "up", "down" })
+        {
+            var fillType = candlestick.GetProperty(role).GetProperty("fill").GetProperty("type").GetString();
+            if (fillType is "none" or "image")
+                throw Unsupported(element.Id, $"candlestick {role} fill must be solid or a bounded gradient");
+        }
+        if (raw.TryGetProperty("yAxis", out var yAxis))
+        {
+            var lowest = series.LowValues.Min();
+            var highest = series.HighValues.Max();
+            if (OptionalDouble(yAxis, "min") is { } minimum && minimum > lowest)
+                throw Unsupported(element.Id, "candlestick yAxis.min must not clip the lowest observation");
+            if (OptionalDouble(yAxis, "max") is { } maximum && maximum < highest)
+                throw Unsupported(element.Id, "candlestick yAxis.max must not clip the highest observation");
+        }
+    }
+
+    private static PresentationElement VectorChartLineElement(
+        string id,
+        string name,
+        double startX,
+        double startY,
+        double endX,
+        double endY,
+        JsonElement stroke,
+        Catalog catalog)
+    {
+        var connector = new PresentationConnector
+        {
+            ConnectorType = "straight",
+            StartXEmu = Emu(startX),
+            StartYEmu = Emu(startY),
+            EndXEmu = Emu(endX),
+            EndYEmu = Emu(endY),
+        };
+        ApplyLine(connector, stroke, catalog);
+        return new PresentationElement { Id = id, Name = name, Connector = connector };
+    }
+
+    private static string CandlestickNativeId(string elementId, string suffix) =>
+        $"{elementId}/candlestick/{suffix}";
+
+    private static double NiceVectorChartStep(double raw)
+    {
+        if (!double.IsFinite(raw) || raw <= 0) return 1;
+        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(raw)));
+        var normalized = raw / magnitude;
+        var nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+        return nice * magnitude;
+    }
+
+    private static readonly string[] CandlestickNumberFormats = ["0", "0.0", "0.00", "#,##0", "#,##0.0", "#,##0.00"];
+
+    private static string FormatCandlestickValue(double value, string? numberFormat) =>
+        value.ToString(numberFormat ?? "0.##", CultureInfo.InvariantCulture);
+
+    private static PresentationGroup BuildTreemap(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector treemap titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateTreemapCompileProfile(element, raw, namedStyle, inlineStyle);
+        var treemap = FirstProperty(inlineStyle, namedStyle, "treemap")!.Value;
+        var series = element.Data.Series[0];
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var values = series.Values.Select(value => value!.Value).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var nodes = names.Select((name, index) => new TreemapNode(
+            index,
+            name,
+            values[index],
+            series.Parents[index] is { } parent ? indexes[parent] : null)).ToArray();
+        foreach (var node in nodes)
+            if (node.ParentIndex is { } parentIndex) nodes[parentIndex].Children.Add(node.Index);
+        var roots = nodes.Where(node => node.ParentIndex is null).Select(node => node.Index).ToArray();
+
+        var rootColors = treemap.GetProperty("rootColors").EnumerateArray()
+            .Select(catalog.Color)
+            .ToArray();
+        var border = Property(treemap, "border");
+        var gap = OptionalDouble(treemap, "gap") ?? 2;
+        var headerHeight = OptionalDouble(treemap, "headerHeight") ?? 17;
+        var depthLighten = OptionalDouble(treemap, "depthLighten") ?? 0.08;
+        var showValues = OptionalBoolean(treemap, "showValues") ?? false;
+        var labelStyle = Property(treemap, "labelTextStyle");
+        var valueStyle = Property(treemap, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var plot = new TreemapRectangle(x, y + titleHeight + 4, width, height - titleHeight - 4);
+        if (plot.Width < 140 || plot.Height < 90)
+            throw Unsupported(element.Id, "treemap frame is too small for a readable native hierarchy");
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                TreemapNativeId(element.Id, "title"),
+                "treemap title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var rootPlacements = SquarifyTreemap(roots, nodes, plot);
+        for (var rootOrder = 0; rootOrder < rootPlacements.Count; rootOrder++)
+        {
+            var placement = rootPlacements[rootOrder];
+            RenderTreemapNode(
+                group,
+                element.Id,
+                nodes,
+                placement.NodeIndex,
+                placement.Rectangle,
+                rootColors[rootOrder % rootColors.Length],
+                depth: 0,
+                gap,
+                headerHeight,
+                depthLighten,
+                showValues,
+                border,
+                labelStyle,
+                valueStyle,
+                catalog);
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateTreemapCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var count = element.Data.Categories.Count;
+        if (count is < 1 or > 128 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != count)
+            throw Unsupported(element.Id, "treemap categories must be 1..128 unique non-empty strings");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "treemap charts require exactly one hierarchy series");
+        var series = element.Data.Series[0];
+        if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
+            throw Unsupported(element.Id, "treemap values and parents must be complete, aligned, and strictly positive");
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"treemap series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "treemap charts do not use Cartesian axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"treemap charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "treemap") is null)
+            throw Unsupported(element.Id, "treemap charts require style.treemap");
+
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var rootCount = 0;
+        for (var index = 0; index < count; index++)
+        {
+            var parent = series.Parents[index];
+            if (parent is null)
+            {
+                rootCount++;
+                continue;
+            }
+            if (!indexes.ContainsKey(parent))
+                throw Unsupported(element.Id, $"treemap parent {parent} does not name a declared category");
+            if (string.Equals(parent, names[index], StringComparison.Ordinal))
+                throw Unsupported(element.Id, "a treemap node cannot parent itself");
+        }
+        if (rootCount is < 1 or > 16)
+            throw Unsupported(element.Id, "treemap charts require between 1 and 16 roots");
+
+        for (var index = 0; index < count; index++)
+        {
+            var seen = new HashSet<int>();
+            var current = index;
+            var depth = 0;
+            while (true)
+            {
+                if (!seen.Add(current)) throw Unsupported(element.Id, $"treemap parent chain for {names[index]} contains a cycle");
+                var parent = series.Parents[current];
+                if (parent is null) break;
+                current = indexes[parent];
+                depth++;
+                if (depth > 8) throw Unsupported(element.Id, $"treemap node {names[index]} exceeds the maximum depth of eight");
+            }
+        }
+
+        var childSums = new Dictionary<int, double>();
+        for (var index = 0; index < count; index++)
+            if (series.Parents[index] is { } parent)
+            {
+                var parentIndex = indexes[parent];
+                childSums[parentIndex] = childSums.GetValueOrDefault(parentIndex) + series.Values[index]!.Value;
+            }
+        foreach (var pair in childSums)
+        {
+            var declared = series.Values[pair.Key]!.Value;
+            var tolerance = Math.Max(1e-9, Math.Abs(declared) * 1e-9);
+            if (Math.Abs(declared - pair.Value) > tolerance)
+                throw Unsupported(element.Id, $"treemap parent {names[pair.Key]} must equal its direct-child sum");
+        }
+    }
+
+    private static void RenderTreemapNode(
+        PresentationGroup group,
+        string elementId,
+        IReadOnlyList<TreemapNode> nodes,
+        int nodeIndex,
+        TreemapRectangle allocated,
+        (string Rgb, double Alpha) rootColor,
+        int depth,
+        double gap,
+        double headerHeight,
+        double depthLighten,
+        bool showValues,
+        JsonElement? border,
+        JsonElement? labelStyle,
+        JsonElement? valueStyle,
+        Catalog catalog)
+    {
+        var node = nodes[nodeIndex];
+        var localGap = Math.Min(gap, Math.Max(0, Math.Min(allocated.Width, allocated.Height) - 0.5) / 2);
+        var rectangle = allocated.Inset(localGap / 2);
+        if (rectangle.Width < 0.5 || rectangle.Height < 0.5)
+            throw Unsupported(elementId, $"treemap node {node.Name} is too small for a stable native rectangle");
+
+        var color = LightenTreemapColor(rootColor, Math.Min(0.72, depth * depthLighten));
+        var shape = ShapeFrame(
+            new PpjFrameModel(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height, 0, false, false),
+            "rect");
+        shape.FillRgb = color.Rgb;
+        if (color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(color.Alpha);
+        if (border is { } stroke) ApplyLine(shape, stroke, catalog);
+        else shape.LineStyle = "none";
+        group.Children.Add(new PresentationElement
+        {
+            Id = TreemapNativeId(elementId, $"node/{node.Index}"),
+            Name = $"treemap node {node.Name}",
+            Shape = shape,
+        });
+
+        var contrast = TreemapLuminance(color.Rgb) > 0.5 ? "111827" : "FFFFFF";
+        if (node.Children.Count != 0)
+        {
+            var effectiveHeader = Math.Min(headerHeight, Math.Max(0, rectangle.Height * 0.28));
+            if (effectiveHeader >= 9 && rectangle.Width >= 28)
+                group.Children.Add(VectorChartTextElement(
+                    TreemapNativeId(elementId, $"label/{node.Index}"),
+                    $"treemap label {node.Name}",
+                    rectangle.X + 3,
+                    rectangle.Y + 1,
+                    rectangle.Width - 6,
+                    effectiveHeader - 2,
+                    node.Name,
+                    labelStyle,
+                    catalog,
+                    Math.Clamp(Math.Min(effectiveHeader * 0.55, rectangle.Width / Math.Max(4, node.Name.Length) * 1.4), 6, 11),
+                    "left",
+                    contrast));
+            var childArea = new TreemapRectangle(
+                rectangle.X,
+                rectangle.Y + effectiveHeader,
+                rectangle.Width,
+                rectangle.Height - effectiveHeader);
+            if (childArea.Width < 1 || childArea.Height < 1)
+                throw Unsupported(elementId, $"treemap node {node.Name} leaves no room for its children");
+            foreach (var placement in SquarifyTreemap(node.Children, nodes, childArea))
+                RenderTreemapNode(
+                    group,
+                    elementId,
+                    nodes,
+                    placement.NodeIndex,
+                    placement.Rectangle,
+                    rootColor,
+                    depth + 1,
+                    gap,
+                    headerHeight,
+                    depthLighten,
+                    showValues,
+                    border,
+                    labelStyle,
+                    valueStyle,
+                    catalog);
+            return;
+        }
+
+        if (rectangle.Width < 28 || rectangle.Height < 14) return;
+        var labelHeight = showValues && rectangle.Height >= 28 ? rectangle.Height * 0.58 : rectangle.Height;
+        group.Children.Add(VectorChartTextElement(
+            TreemapNativeId(elementId, $"label/{node.Index}"),
+            $"treemap label {node.Name}",
+            rectangle.X + 3,
+            rectangle.Y + 1,
+            rectangle.Width - 6,
+            Math.Max(10, labelHeight - 2),
+            node.Name,
+            labelStyle,
+            catalog,
+            Math.Clamp(Math.Min(labelHeight * 0.34, rectangle.Width / Math.Max(4, node.Name.Length) * 1.5), 6, 12),
+            "left",
+            contrast));
+        if (showValues && rectangle.Height >= 28)
+            group.Children.Add(VectorChartTextElement(
+                TreemapNativeId(elementId, $"value/{node.Index}"),
+                $"treemap value {node.Name}",
+                rectangle.X + 3,
+                rectangle.Y + labelHeight,
+                rectangle.Width - 6,
+                rectangle.Height - labelHeight - 2,
+                node.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                valueStyle,
+                catalog,
+                Math.Clamp((rectangle.Height - labelHeight) * 0.45, 6, 10),
+                "left",
+                contrast));
+    }
+
+    private static IReadOnlyList<TreemapPlacement> SquarifyTreemap(
+        IReadOnlyList<int> nodeIndexes,
+        IReadOnlyList<TreemapNode> nodes,
+        TreemapRectangle rectangle)
+    {
+        var total = nodeIndexes.Sum(index => nodes[index].Value);
+        var scale = rectangle.Width * rectangle.Height / total;
+        var pending = nodeIndexes
+            .Select((nodeIndex, order) => new TreemapArea(nodeIndex, nodes[nodeIndex].Value * scale, order))
+            .OrderByDescending(item => item.Area)
+            .ThenBy(item => item.Order)
+            .ToList();
+        var placements = new List<TreemapPlacement>(pending.Count);
+        var row = new List<TreemapArea>();
+        var remaining = rectangle;
+        while (pending.Count != 0)
+        {
+            var candidate = pending[0];
+            var side = Math.Min(remaining.Width, remaining.Height);
+            if (row.Count == 0 || TreemapWorst(row.Append(candidate), side) <= TreemapWorst(row, side))
+            {
+                row.Add(candidate);
+                pending.RemoveAt(0);
+                continue;
+            }
+            remaining = LayoutTreemapRow(row, remaining, placements);
+            row.Clear();
+        }
+        if (row.Count != 0) LayoutTreemapRow(row, remaining, placements);
+        return placements;
+    }
+
+    private static double TreemapWorst(IEnumerable<TreemapArea> row, double side)
+    {
+        var values = row.Select(item => item.Area).ToArray();
+        var sum = values.Sum();
+        var squaredSide = side * side;
+        return Math.Max(squaredSide * values.Max() / (sum * sum), (sum * sum) / (squaredSide * values.Min()));
+    }
+
+    private static TreemapRectangle LayoutTreemapRow(
+        IReadOnlyList<TreemapArea> row,
+        TreemapRectangle rectangle,
+        ICollection<TreemapPlacement> placements)
+    {
+        var area = row.Sum(item => item.Area);
+        if (rectangle.Width >= rectangle.Height)
+        {
+            var rowWidth = area / rectangle.Height;
+            var cursorY = rectangle.Y;
+            for (var index = 0; index < row.Count; index++)
+            {
+                var height = index == row.Count - 1
+                    ? rectangle.Y + rectangle.Height - cursorY
+                    : row[index].Area / rowWidth;
+                placements.Add(new TreemapPlacement(row[index].NodeIndex, new TreemapRectangle(rectangle.X, cursorY, rowWidth, height)));
+                cursorY += height;
+            }
+            return new TreemapRectangle(rectangle.X + rowWidth, rectangle.Y, Math.Max(0, rectangle.Width - rowWidth), rectangle.Height);
+        }
+
+        var rowHeight = area / rectangle.Width;
+        var cursorX = rectangle.X;
+        for (var index = 0; index < row.Count; index++)
+        {
+            var width = index == row.Count - 1
+                ? rectangle.X + rectangle.Width - cursorX
+                : row[index].Area / rowHeight;
+            placements.Add(new TreemapPlacement(row[index].NodeIndex, new TreemapRectangle(cursorX, rectangle.Y, width, rowHeight)));
+            cursorX += width;
+        }
+        return new TreemapRectangle(rectangle.X, rectangle.Y + rowHeight, rectangle.Width, Math.Max(0, rectangle.Height - rowHeight));
+    }
+
+    private static (string Rgb, double Alpha) LightenTreemapColor((string Rgb, double Alpha) color, double amount)
+    {
+        byte Lighten(byte channel) => checked((byte)Math.Round(channel + (255 - channel) * amount));
+        var red = byte.Parse(color.Rgb.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var green = byte.Parse(color.Rgb.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var blue = byte.Parse(color.Rgb.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return ($"{Lighten(red):X2}{Lighten(green):X2}{Lighten(blue):X2}", color.Alpha);
+    }
+
+    private static double TreemapLuminance(string rgb)
+    {
+        static double Channel(byte value)
+        {
+            var normalized = value / 255d;
+            return normalized <= 0.03928 ? normalized / 12.92 : Math.Pow((normalized + 0.055) / 1.055, 2.4);
+        }
+        var red = byte.Parse(rgb.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var green = byte.Parse(rgb.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var blue = byte.Parse(rgb.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return 0.2126 * Channel(red) + 0.7152 * Channel(green) + 0.0722 * Channel(blue);
+    }
+
+    private static string TreemapNativeId(string elementId, string suffix) =>
+        $"{elementId}/treemap/{suffix}";
+
+    private sealed class TreemapNode(int index, string name, double value, int? parentIndex)
+    {
+        internal int Index { get; } = index;
+        internal string Name { get; } = name;
+        internal double Value { get; } = value;
+        internal int? ParentIndex { get; } = parentIndex;
+        internal List<int> Children { get; } = [];
+    }
+
+    private readonly record struct TreemapRectangle(double X, double Y, double Width, double Height)
+    {
+        internal TreemapRectangle Inset(double amount) => new(
+            X + amount,
+            Y + amount,
+            Math.Max(0, Width - amount * 2),
+            Math.Max(0, Height - amount * 2));
+    }
+
+    private readonly record struct TreemapPlacement(int NodeIndex, TreemapRectangle Rectangle);
+    private readonly record struct TreemapArea(int NodeIndex, double Area, int Order);
 
     private static void ValidateWaterfallCompileProfile(
         PpjChartElementModel element,
@@ -1959,6 +3150,9 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static double? OptionalDouble(JsonElement value, string name) =>
         value.TryGetProperty(name, out var property) ? property.GetDouble() : null;
+
+    private static bool? OptionalBoolean(JsonElement value, string name) =>
+        value.TryGetProperty(name, out var property) ? property.GetBoolean() : null;
 
     private static JsonElement? Property(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out var property) ? property : null;
