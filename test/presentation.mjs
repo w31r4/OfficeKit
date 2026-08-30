@@ -935,6 +935,50 @@ assert.throws(() => irregularAccessibilityShape.setAccessibilityMetadata({ title
 const irregularShapeNoOp = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.deepEqual(irregularShapeNoOp.bytes, irregularShapeAccessibilityFile.bytes, "a source-bound no-op must return the exact original PPTX bytes");
 
+// A canonical imported outer shadow keeps its alpha as a separate native leaf.
+// The edit must splice only that value, preserving the shadow color/geometry
+// and the vendor attribute that made the owning shape source-bound.
+const shadowOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const shadowOpacityNamePosition = irregularShapeAccessibilityXml.indexOf('name="decision-status"');
+const shadowOpacityShapeStart = irregularShapeAccessibilityXml.lastIndexOf("<p:sp>", shadowOpacityNamePosition);
+const shadowOpacityShapeEnd = irregularShapeAccessibilityXml.indexOf("</p:sp>", shadowOpacityNamePosition) + "</p:sp>".length;
+const shadowOpacityShapeXml = irregularShapeAccessibilityXml.slice(shadowOpacityShapeStart, shadowOpacityShapeEnd);
+const shadowOpacityShapeWithEffect = shadowOpacityShapeXml.replace(
+  "</p:spPr>",
+  '<a:effectLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:outerShdw blurRad="28575" dist="9525" dir="2700000" rotWithShape="0" algn="bl"><a:schemeClr val="dk1"><a:alpha val="43000"/></a:schemeClr></a:outerShdw></a:effectLst></p:spPr>',
+);
+assert.notEqual(shadowOpacityShapeWithEffect, shadowOpacityShapeXml);
+shadowOpacityZip.file(
+  "ppt/slides/slide1.xml",
+  irregularShapeAccessibilityXml.slice(0, shadowOpacityShapeStart) + shadowOpacityShapeWithEffect + irregularShapeAccessibilityXml.slice(shadowOpacityShapeEnd),
+);
+const shadowOpacityFile = new FileBlob(
+  await shadowOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const shadowOpacityImported = await PresentationFile.importPptx(shadowOpacityFile);
+const shadowOpacityShape = itemByName(shadowOpacityImported.slides.getItem(0).shapes.items, "decision-status");
+const shadowOpacityLeaf = shadowOpacityImported.inspect({ includeNativeLeaves: true, target: shadowOpacityShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowOpacityThousandthPercent");
+assert.ok(shadowOpacityLeaf, "source-bound shapes should expose a canonical outer-shadow opacity leaf");
+assert.equal(shadowOpacityLeaf.value, 0.43);
+shadowOpacityImported.editNativeLeaf(shadowOpacityLeaf.targetId, shadowOpacityLeaf.leafId, {
+  expectedHash: shadowOpacityLeaf.expectedHash,
+  value: 0.2,
+});
+const shadowOpacityOutput = await PresentationFile.exportPptx(shadowOpacityImported);
+assert.equal(shadowOpacityOutput.metadata.editPlan.operations[0].leafKind, "shadowOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(shadowOpacityFile, shadowOpacityOutput, shadowOpacityOutput.metadata.editPlan.operations);
+const shadowOpacityOutputXml = await (await JSZip.loadAsync(shadowOpacityOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowOpacityOutputXml, /<a:outerShdw\b[^>]*blurRad="28575"[\s\S]*?<a:schemeClr\s+val="dk1"><a:alpha\s+val="20000"\s*\/>/u);
+assert.match(shadowOpacityOutputXml, /fixture:opaque="kept"/u);
+const shadowOpacityRoundTrip = await PresentationFile.importPptx(shadowOpacityOutput);
+const shadowOpacityRoundTripLeaf = shadowOpacityRoundTrip.inspect({ includeNativeLeaves: true, target: shadowOpacityShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowOpacityThousandthPercent");
+assert.equal(shadowOpacityRoundTripLeaf.value, 0.2);
+
 const nativeLeafSourceFree = Presentation.create();
 nativeLeafSourceFree.slides.add().shapes.add({ text: "Source-free" });
 assert.throws(
