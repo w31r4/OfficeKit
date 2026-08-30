@@ -8,6 +8,7 @@ import {
   PresentationDiagramTextNodeSchema,
   PresentationElementSchema,
   PresentationElementSourceBindingSchema,
+  PresentationGradientFill_Kind,
   PresentationModernCommentAnchor_Kind,
   PresentationSlideSchema,
   PresentationSlideGuide_Orientation,
@@ -28,6 +29,7 @@ import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation
 import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
+import { isPresentationGradientFill, normalizePresentationGradientFill } from "../presentation/gradient-fills.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
@@ -746,7 +748,7 @@ function duplicateImportedPresentationSlide(presentation, state, slide) {
     after: slide,
     name: slide.name,
     hidden: slide.hidden,
-    ...(slide.background?.fill || slide.background?.image ? { background: clonedPresentationValue(slide.background) } : {}),
+    ...(slide.background?.fill || slide.background?.gradient || slide.background?.image ? { background: clonedPresentationValue(slide.background) } : {}),
     ...(slide.transition?.configured ? { transition: slide.transition.toJSON() } : {}),
     ...(source.wire.speakerNotes
       ? { notes: source.wire.speakerNotes.textBody ? slide.speakerNotes?.textFrame?.paragraphs || [] : slide.speakerNotes?.text || "" }
@@ -870,8 +872,28 @@ function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
   return Math.round(opacity * 100_000);
 }
 
+function modelPresentationGradientFill(source) {
+  if (!source?.stops?.length) return undefined;
+  const kind = source.kind === PresentationGradientFill_Kind.RADIAL ? "radial" : "linear";
+  return normalizePresentationGradientFill({
+    type: "gradient",
+    kind,
+    ...(kind === "linear" && source.angle60000 !== undefined
+      ? { angle: Number(source.angle60000) / ROTATION_UNITS_PER_DEGREE }
+      : {}),
+    stops: source.stops.map((stop) => ({
+      offset: Number(stop.positionThousandthPercent) / 100_000,
+      color: `#${String(stop.colorRgb).toLowerCase()}`,
+      ...(stop.opacityThousandthPercent === undefined
+        ? {}
+        : { opacity: Number(stop.opacityThousandthPercent) / 100_000 }),
+    })),
+  }, "Imported Presentation gradient fill");
+}
+
 function modelPresentationShapeFill(shape) {
   const color = shape.fillScheme || (shape.fillRgb ? `#${shape.fillRgb}` : "transparent");
+  if (shape.gradientFill?.stops?.length) return modelPresentationGradientFill(shape.gradientFill);
   return shape.fillOpacityThousandthPercent === undefined
     ? color
     : { color, opacity: Number(shape.fillOpacityThousandthPercent) / 100_000 };
@@ -1476,11 +1498,14 @@ function wireMasterTextStyles(master, original, assetCatalog) {
 }
 
 function hasPresentationBackground(background) {
-  return Boolean(background && (background.fill || background.image));
+  return Boolean(background && (background.fill || background.gradient || background.image));
 }
 
 function wireBackground(background, ownerId, assetCatalog) {
   if (!background) return undefined;
+  if (background.gradient) {
+    return { gradientFill: presentationGradientFill(background.gradient, `${ownerId}.background.gradient`) };
+  }
   if (background.image) {
     const image = background.image;
     const assetId = image.dataUrl ? assetCatalog.addDataUrl(image.dataUrl) : String(image.assetId || "").trim();
@@ -1507,6 +1532,9 @@ function wireBackground(background, ownerId, assetCatalog) {
 }
 
 function modelBackground(background, assetCatalog) {
+  if (background?.gradientFill?.stops?.length) {
+    return { gradient: modelPresentationGradientFill(background.gradientFill) };
+  }
   if (background?.imageAssetId) {
     const assetId = String(background.imageAssetId);
     return { image: { assetId, dataUrl: assetCatalog.dataUrl(assetId), fit: "stretch", ...(background.imageAlphaModulationFixed ? { alphaModulationFixed: true } : {}) } };
@@ -2032,6 +2060,21 @@ function presentationCustomGeometryTextRectangleToWire(rectangle) {
   )));
 }
 
+function presentationGradientFill(value, name) {
+  const fill = normalizePresentationGradientFill(value, name);
+  return {
+    kind: fill.kind === "radial" ? PresentationGradientFill_Kind.RADIAL : PresentationGradientFill_Kind.LINEAR,
+    stops: fill.stops.map((stop, index) => ({
+      positionThousandthPercent: Math.round(stop.offset * 100_000),
+      colorRgb: presentationRgb(stop.color, `${name}.stops[${index}].color`),
+      ...(stop.opacity == null ? {} : { opacityThousandthPercent: Math.round(stop.opacity * 100_000) }),
+    })),
+    ...(fill.kind === "linear" && fill.angle != null
+      ? { angle60000: Math.round(fill.angle * ROTATION_UNITS_PER_DEGREE) }
+      : {}),
+  };
+}
+
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
   if (!new Set(["rect", "ellipse", "roundRect", "textbox", "line", "custom"]).has(shape.geometry)) {
@@ -2153,8 +2196,13 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   // wire instead of forcing presentationRgb() to interpret it as RGB. This is
   // needed when an unrelated source-bound leaf (for example a run font size)
   // causes the owner shape to be serialized for an edit plan.
-  const fillRgb = preserveSourceFillScheme ? "" : presentationRgb(shape.fill, `${shape.id}.fill`);
-  const fillOpacityThousandthPercent = presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
+  const gradientFill = isPresentationGradientFill(shape.fill)
+    ? presentationGradientFill(shape.fill, `${shape.id}.fill`)
+    : undefined;
+  const fillRgb = gradientFill || preserveSourceFillScheme ? "" : presentationRgb(shape.fill, `${shape.id}.fill`);
+  const fillOpacityThousandthPercent = gradientFill
+    ? undefined
+    : presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
   return {
     id: original?.id || shape.id,
     name: shape.name || original?.name || "",
@@ -2171,6 +2219,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         textBody,
         fillRgb,
         ...(preserveSourceFillScheme ? { fillScheme: sourceFillScheme } : {}),
+        ...(gradientFill ? { gradientFill } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
