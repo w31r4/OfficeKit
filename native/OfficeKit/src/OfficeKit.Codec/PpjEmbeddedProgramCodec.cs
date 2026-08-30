@@ -165,7 +165,7 @@ internal static class PpjEmbeddedProgramCodec
             .OrderBy(part => part.Key, StringComparer.Ordinal)
             .Select(part => (Path: part.Key, Sha256: Sha256(part.Value)))
             .ToArray();
-        var bindings = NativeBindings(presentation);
+        var bindings = NativeBindings(presentation, validation.Expansion);
         var map = WriteProgramMap(validation, assets, bindings, nativeParts);
 
         parts[ContentTypesPath] = AddContentTypes(parts[ContentTypesPath], assets);
@@ -233,8 +233,11 @@ internal static class PpjEmbeddedProgramCodec
         return output;
     }
 
-    private static IReadOnlyList<NativeBinding> NativeBindings(PresentationArtifact presentation)
+    private static IReadOnlyList<NativeBinding> NativeBindings(
+        PresentationArtifact presentation,
+        PpjExpansionResult expansion)
     {
+        var semanticIds = expansion.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
         var output = new List<NativeBinding>();
         for (var pageIndex = 0; pageIndex < presentation.Slides.Count; pageIndex++)
         {
@@ -243,6 +246,12 @@ internal static class PpjEmbeddedProgramCodec
             for (var index = 0; index < flattened.Length; index++)
             {
                 var element = flattened[index];
+                // A bounded semantic primitive may lower to several native
+                // DrawingML children (for example a PPJ heatmap becomes one
+                // editable group of cells and labels). Those compiler-owned
+                // children are not independent PPJ nodes. Keep their native
+                // slots in the ID count, but bind only stable program IDs.
+                if (!semanticIds.Contains(element.Id)) continue;
                 output.Add(new(
                     slide.Id,
                     element.Id,

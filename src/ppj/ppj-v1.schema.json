@@ -2530,6 +2530,7 @@
                 "bubble",
                 "radar",
                 "waterfall",
+                "heatmap",
                 "combo"
               ]
             },
@@ -2798,6 +2799,9 @@
         },
         "waterfall": {
           "$ref": "#/$defs/waterfallStyle"
+        },
+        "heatmap": {
+          "$ref": "#/$defs/heatmapStyle"
         }
       }
     },
@@ -2839,6 +2843,63 @@
         },
         "total": {
           "$ref": "#/$defs/waterfallRoleStyle"
+        }
+      }
+    },
+    "heatmapStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "colors"
+      ],
+      "properties": {
+        "scale": {
+          "enum": [
+            "linear",
+            "diverging"
+          ]
+        },
+        "colors": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "domain": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          }
+        },
+        "midpoint": {
+          "type": "number"
+        },
+        "showValues": {
+          "type": "boolean"
+        },
+        "showColorBar": {
+          "type": "boolean"
+        },
+        "cellGap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "missingFill": {
+          "$ref": "#/$defs/color"
+        },
+        "cellStroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "axisTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
         }
       }
     },

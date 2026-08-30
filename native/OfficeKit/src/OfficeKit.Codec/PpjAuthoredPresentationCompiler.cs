@@ -159,6 +159,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjImageElementModel image:
                 output.Image = BuildImage(image, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "heatmap" } heatmap:
+                output.Group = BuildHeatmap(heatmap, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -366,6 +369,429 @@ internal static class PpjAuthoredPresentationCompiler
         }
         ApplyAccessibility(chart, element.Accessibility);
         return chart;
+    }
+
+    private static PresentationGroup BuildHeatmap(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector heatmap titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateHeatmapCompileProfile(element, raw, namedStyle, inlineStyle);
+        var style = FirstProperty(inlineStyle, namedStyle, "heatmap")!.Value;
+        var scale = OptionalString(style, "scale") ?? "linear";
+        var colors = style.GetProperty("colors").EnumerateArray()
+            .Select(color => HeatmapColor(catalog.Color(color)))
+            .ToArray();
+        var values = element.Data.Series.SelectMany(series => series.Values)
+            .Where(value => value is not null)
+            .Select(value => value!.Value)
+            .ToArray();
+        var inferredMinimum = values.Min();
+        var inferredMaximum = values.Max();
+        double minimum;
+        double maximum;
+        if (style.TryGetProperty("domain", out var domain))
+        {
+            minimum = domain[0].GetDouble();
+            maximum = domain[1].GetDouble();
+        }
+        else if (scale == "diverging")
+        {
+            var extent = Math.Max(Math.Abs(inferredMinimum), Math.Abs(inferredMaximum));
+            if (extent == 0) extent = 1;
+            minimum = -extent;
+            maximum = extent;
+        }
+        else if (inferredMinimum == inferredMaximum)
+        {
+            var extent = Math.Max(1, Math.Abs(inferredMinimum) * 0.05);
+            minimum = inferredMinimum - extent;
+            maximum = inferredMaximum + extent;
+        }
+        else
+        {
+            minimum = inferredMinimum;
+            maximum = inferredMaximum;
+        }
+        var midpoint = OptionalDouble(style, "midpoint") ?? 0;
+
+        var showValues = OptionalBoolean(style, "showValues") ?? false;
+        var showColorBar = OptionalBoolean(style, "showColorBar") ?? true;
+        var cellGap = OptionalDouble(style, "cellGap") ?? 1.5;
+        var axisStyle = Property(style, "axisTextStyle");
+        var valueStyle = Property(style, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.11, 20, 36);
+        var longestRowLabel = element.Data.Series.Max(series => series.Name.Length);
+        var maximumLabelWidth = Math.Max(52, Math.Min(150, width * 0.24));
+        var leftLabelWidth = Math.Clamp(24 + longestRowLabel * 4.8, 52, maximumLabelWidth);
+        var bottomLabelHeight = Math.Clamp(height * 0.09, 20, 36);
+        var colorBarWidth = showColorBar ? Math.Clamp(width * 0.09, 46, 72) : 0;
+        var gridX = x + leftLabelWidth;
+        var gridY = y + titleHeight;
+        var gridWidth = width - leftLabelWidth - colorBarWidth;
+        var gridHeight = height - titleHeight - bottomLabelHeight;
+        var columnCount = element.Data.Categories.Count;
+        var rowCount = element.Data.Series.Count;
+        var cellWidth = gridWidth / columnCount;
+        var cellHeight = gridHeight / rowCount;
+        if (cellWidth < 8 || cellHeight < 8 || cellGap >= cellWidth || cellGap >= cellHeight)
+            throw Unsupported(element.Id, "vector heatmap frame is too small for its matrix and cell gap");
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        if (titleText.Length > 0)
+            group.Children.Add(HeatmapTextElement(
+                HeatmapNativeId(element.Id, "title"),
+                "heatmap title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        for (var rowIndex = 0; rowIndex < rowCount; rowIndex++)
+        {
+            group.Children.Add(HeatmapTextElement(
+                HeatmapNativeId(element.Id, $"row/{rowIndex}"),
+                $"heatmap row {rowIndex + 1}",
+                x,
+                gridY + rowIndex * cellHeight,
+                leftLabelWidth - 6,
+                cellHeight,
+                element.Data.Series[rowIndex].Name,
+                axisStyle,
+                catalog,
+                Math.Clamp(cellHeight * 0.34, 6, 10),
+                "right"));
+
+            for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            {
+                var value = element.Data.Series[rowIndex].Values[columnIndex];
+                var cellX = gridX + columnIndex * cellWidth + cellGap / 2;
+                var cellY = gridY + rowIndex * cellHeight + cellGap / 2;
+                var cellShape = ShapeFrame(
+                    new PpjFrameModel(cellX, cellY, cellWidth - cellGap, cellHeight - cellGap, 0, false, false),
+                    "rect");
+                cellShape.LineStyle = "none";
+                (byte R, byte G, byte B, double Alpha)? cellColor = null;
+                if (value is not null)
+                {
+                    cellColor = HeatmapInterpolate(value.Value, minimum, maximum, midpoint, scale, colors);
+                    cellShape.FillRgb = HeatmapHex(cellColor.Value);
+                    if (cellColor.Value.Alpha < 1) cellShape.FillOpacityThousandthPercent = Opacity(cellColor.Value.Alpha);
+                }
+                else if (style.TryGetProperty("missingFill", out var missingFill))
+                {
+                    cellColor = HeatmapColor(catalog.Color(missingFill));
+                    cellShape.FillRgb = HeatmapHex(cellColor.Value);
+                    if (cellColor.Value.Alpha < 1) cellShape.FillOpacityThousandthPercent = Opacity(cellColor.Value.Alpha);
+                }
+                if (style.TryGetProperty("cellStroke", out var cellStroke)) ApplyLine(cellShape, cellStroke, catalog);
+                group.Children.Add(new PresentationElement
+                {
+                    Id = HeatmapNativeId(element.Id, $"cell/{rowIndex}/{columnIndex}"),
+                    Name = $"heatmap cell {rowIndex + 1},{columnIndex + 1}",
+                    Shape = cellShape,
+                });
+
+                if (showValues && value is not null)
+                {
+                    var contrast = HeatmapLuminance(cellColor!.Value) > 0.52 ? "111827" : "FFFFFF";
+                    group.Children.Add(HeatmapTextElement(
+                        HeatmapNativeId(element.Id, $"value/{rowIndex}/{columnIndex}"),
+                        $"heatmap value {rowIndex + 1},{columnIndex + 1}",
+                        cellX + 1,
+                        cellY + 1,
+                        cellWidth - cellGap - 2,
+                        cellHeight - cellGap - 2,
+                        value.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                        valueStyle,
+                        catalog,
+                        Math.Clamp(Math.Min(cellWidth, cellHeight) * 0.28, 6, 10),
+                        "center",
+                        contrast));
+                }
+            }
+        }
+
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            group.Children.Add(HeatmapTextElement(
+                HeatmapNativeId(element.Id, $"column/{columnIndex}"),
+                $"heatmap column {columnIndex + 1}",
+                gridX + columnIndex * cellWidth,
+                gridY + gridHeight + 3,
+                cellWidth,
+                bottomLabelHeight - 3,
+                element.Data.Categories[columnIndex].GetString()!,
+                axisStyle,
+                catalog,
+                Math.Clamp(bottomLabelHeight * 0.3, 6, 9),
+                "center"));
+
+        if (showColorBar)
+            AddHeatmapColorBar(group, element.Id, gridX + gridWidth + 15, gridY, colorBarWidth - 15, gridHeight, minimum, maximum, midpoint, scale, colors, axisStyle, catalog);
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateHeatmapCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.Data.Categories.Count is < 1 or > 32 || element.Data.Series.Count is < 1 or > 32)
+            throw Unsupported(element.Id, "vector heatmaps support a 1..32 by 1..32 matrix");
+        if (element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != element.Data.Categories.Count)
+            throw Unsupported(element.Id, "vector heatmap categories must be unique non-empty strings");
+        if (element.Data.Series.Any(series => string.IsNullOrWhiteSpace(series.Name)) ||
+            element.Data.Series.Select(series => series.Name).Distinct(StringComparer.Ordinal).Count() != element.Data.Series.Count)
+            throw Unsupported(element.Id, "vector heatmap series names must be unique and non-empty");
+        if (element.Data.Series.Any(series => series.Values.Count != element.Data.Categories.Count) ||
+            element.Data.Series.SelectMany(series => series.Values).All(value => value is null))
+            throw Unsupported(element.Id, "vector heatmap rows must match the category count and contain at least one numeric value");
+        foreach (var series in element.Data.Series)
+            foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+                if (series.Raw.TryGetProperty(property, out _))
+                    throw Unsupported(element.Id, $"vector heatmap series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _)) throw Unsupported(element.Id, "vector heatmaps generate their own matrix labels");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"vector heatmaps do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "heatmap") is not { } heatmap)
+            throw Unsupported(element.Id, "vector heatmaps require style.heatmap");
+        var scale = OptionalString(heatmap, "scale") ?? "linear";
+        var colorCount = heatmap.GetProperty("colors").GetArrayLength();
+        if ((scale == "linear" && colorCount != 2) || (scale == "diverging" && colorCount != 3))
+            throw Unsupported(element.Id, scale == "diverging" ? "diverging heatmaps require three colors" : "linear heatmaps require two colors");
+        if (heatmap.TryGetProperty("domain", out var domain))
+        {
+            if (domain[0].GetDouble() >= domain[1].GetDouble())
+                throw Unsupported(element.Id, "vector heatmap domain minimum must be smaller than its maximum");
+            var effectiveMidpoint = OptionalDouble(heatmap, "midpoint") ?? 0;
+            if (scale == "diverging" && (effectiveMidpoint <= domain[0].GetDouble() || effectiveMidpoint >= domain[1].GetDouble()))
+                throw Unsupported(element.Id, "diverging heatmap midpoint must lie inside its explicit domain");
+        }
+        if (heatmap.TryGetProperty("midpoint", out var midpoint))
+        {
+            if (scale != "diverging") throw Unsupported(element.Id, "heatmap midpoint requires a diverging scale");
+        }
+    }
+
+    private static PresentationElement HeatmapTextElement(
+        string id,
+        string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        string text,
+        JsonElement? style,
+        Catalog catalog,
+        double defaultFontSize,
+        string alignment,
+        string? fallbackColor = null)
+    {
+        var shape = ShapeFrame(new PpjFrameModel(x, y, width, height, 0, false, false), "textbox");
+        shape.LineStyle = "none";
+        shape.Text = text;
+        shape.TextBody = new PresentationTextBody
+        {
+            BodyProperties = new PresentationTextBodyProperties
+            {
+                NoLeftInset = true,
+                NoTopInset = true,
+                NoRightInset = true,
+                NoBottomInset = true,
+                VerticalAnchor = "center",
+                Wrap = "none",
+                AutoFitMode = "shrinkText",
+            },
+        };
+        var paragraph = new PresentationTextParagraph { Alignment = alignment };
+        paragraph.Runs.Add(BuildHeatmapRun(text, style, catalog, defaultFontSize, fallbackColor));
+        shape.TextBody.Paragraphs.Add(paragraph);
+        return new PresentationElement { Id = id, Name = name, Shape = shape };
+    }
+
+    private static PresentationTextRun BuildHeatmapRun(
+        string text,
+        JsonElement? style,
+        Catalog catalog,
+        double defaultFontSize,
+        string? fallbackColor)
+    {
+        var run = new PresentationTextRun { Text = text, FontSizePoints = defaultFontSize };
+        if (style is not { } value)
+        {
+            if (fallbackColor is not null) run.ColorRgb = fallbackColor;
+            return run;
+        }
+        if (value.TryGetProperty("fontSize", out var fontSize)) run.FontSizePoints = fontSize.GetDouble();
+        if (value.TryGetProperty("fontFamily", out var fontFamily)) run.FontFamily = fontFamily.GetString()!;
+        if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) run.FontFamilyEastAsia = eastAsia.GetString()!;
+        else if (run.HasFontFamily) run.FontFamilyEastAsia = run.FontFamily;
+        if (value.TryGetProperty("bold", out var bold)) run.Bold = bold.GetBoolean();
+        if (value.TryGetProperty("italic", out var italic)) run.Italic = italic.GetBoolean();
+        if (value.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            run.ColorRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) run.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        else if (fallbackColor is not null) run.ColorRgb = fallbackColor;
+        return run;
+    }
+
+    private static void AddHeatmapColorBar(
+        PresentationGroup group,
+        string elementId,
+        double x,
+        double y,
+        double width,
+        double height,
+        double minimum,
+        double maximum,
+        double midpoint,
+        string scale,
+        IReadOnlyList<(byte R, byte G, byte B, double Alpha)> colors,
+        JsonElement? axisStyle,
+        Catalog catalog)
+    {
+        var barWidth = Math.Min(12, Math.Max(6, width * 0.32));
+        var bar = ShapeFrame(new PpjFrameModel(x, y, barWidth, height, 0, false, false), "rect");
+        bar.LineStyle = "none";
+        bar.GradientFill = new PresentationGradientFill
+        {
+            Kind = PresentationGradientFill.Types.Kind.Linear,
+            Angle60000 = Angle(90),
+        };
+        for (var index = 0; index < colors.Count; index++)
+        {
+            var color = colors[index];
+            var stop = new PresentationGradientStop
+            {
+                PositionThousandthPercent = colors.Count == 1 ? 0U : checked((uint)Math.Round(index * 100_000d / (colors.Count - 1))),
+                ColorRgb = HeatmapHex(color),
+            };
+            if (color.Alpha < 1) stop.OpacityThousandthPercent = Opacity(color.Alpha);
+            bar.GradientFill.Stops.Add(stop);
+        }
+        group.Children.Add(new PresentationElement { Id = HeatmapNativeId(elementId, "colorbar"), Name = "heatmap color scale", Shape = bar });
+        var labelX = x + barWidth + 4;
+        var labelWidth = Math.Max(20, width - barWidth - 4);
+        group.Children.Add(HeatmapTextElement(
+            HeatmapNativeId(elementId, "colorbar/max"),
+            "heatmap scale maximum",
+            labelX,
+            y,
+            labelWidth,
+            14,
+            maximum.ToString("0.##", CultureInfo.InvariantCulture),
+            axisStyle,
+            catalog,
+            7,
+            "left"));
+        group.Children.Add(HeatmapTextElement(
+            HeatmapNativeId(elementId, "colorbar/min"),
+            "heatmap scale minimum",
+            labelX,
+            y + height - 14,
+            labelWidth,
+            14,
+            minimum.ToString("0.##", CultureInfo.InvariantCulture),
+            axisStyle,
+            catalog,
+            7,
+            "left"));
+        if (scale == "diverging")
+            group.Children.Add(HeatmapTextElement(
+                HeatmapNativeId(elementId, "colorbar/mid"),
+                "heatmap scale midpoint",
+                labelX,
+                y + height / 2 - 7,
+                labelWidth,
+                14,
+                midpoint.ToString("0.##", CultureInfo.InvariantCulture),
+                axisStyle,
+                catalog,
+                7,
+                "left"));
+    }
+
+    private static (byte R, byte G, byte B, double Alpha) HeatmapColor((string Rgb, double Alpha) color) => (
+        byte.Parse(color.Rgb.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+        byte.Parse(color.Rgb.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+        byte.Parse(color.Rgb.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+        color.Alpha);
+
+    private static string HeatmapNativeId(string elementId, string suffix) =>
+        $"{elementId}/heatmap/{suffix}";
+
+    private static (byte R, byte G, byte B, double Alpha) HeatmapInterpolate(
+        double value,
+        double minimum,
+        double maximum,
+        double midpoint,
+        string scale,
+        IReadOnlyList<(byte R, byte G, byte B, double Alpha)> colors)
+    {
+        if (scale == "diverging")
+        {
+            if (value <= midpoint)
+                return HeatmapMix(colors[0], colors[1], (Math.Clamp(value, minimum, midpoint) - minimum) / (midpoint - minimum));
+            return HeatmapMix(colors[1], colors[2], (Math.Clamp(value, midpoint, maximum) - midpoint) / (maximum - midpoint));
+        }
+        return HeatmapMix(colors[0], colors[1], (Math.Clamp(value, minimum, maximum) - minimum) / (maximum - minimum));
+    }
+
+    private static (byte R, byte G, byte B, double Alpha) HeatmapMix(
+        (byte R, byte G, byte B, double Alpha) from,
+        (byte R, byte G, byte B, double Alpha) to,
+        double amount) => (
+            checked((byte)Math.Round(from.R + (to.R - from.R) * amount)),
+            checked((byte)Math.Round(from.G + (to.G - from.G) * amount)),
+            checked((byte)Math.Round(from.B + (to.B - from.B) * amount)),
+            from.Alpha + (to.Alpha - from.Alpha) * amount);
+
+    private static string HeatmapHex((byte R, byte G, byte B, double Alpha) color) =>
+        $"{color.R:X2}{color.G:X2}{color.B:X2}";
+
+    private static double HeatmapLuminance((byte R, byte G, byte B, double Alpha) color)
+    {
+        static double Channel(byte value)
+        {
+            var normalized = value / 255d;
+            return normalized <= 0.03928 ? normalized / 12.92 : Math.Pow((normalized + 0.055) / 1.055, 2.4);
+        }
+        return 0.2126 * Channel(color.R) + 0.7152 * Channel(color.G) + 0.0722 * Channel(color.B);
     }
 
     private static void ValidateWaterfallCompileProfile(
@@ -1959,6 +2385,9 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static double? OptionalDouble(JsonElement value, string name) =>
         value.TryGetProperty(name, out var property) ? property.GetDouble() : null;
+
+    private static bool? OptionalBoolean(JsonElement value, string name) =>
+        value.TryGetProperty(name, out var property) ? property.GetBoolean() : null;
 
     private static JsonElement? Property(JsonElement value, string name) =>
         value.ValueKind == JsonValueKind.Object && value.TryGetProperty(name, out var property) ? property : null;

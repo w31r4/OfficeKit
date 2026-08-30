@@ -637,6 +637,77 @@ public sealed class PptxCodecTests
                 ["description"] = "Run-rate opens at 120, rises 40, falls 25 and 10, and closes at 125.",
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-heatmap-main",
+            ["type"] = "chart",
+            ["role"] = "correlation intensity matrix",
+            ["frame"] = new JsonObject { ["x"] = 610, ["y"] = 275, ["width"] = 300, ["height"] = 195 },
+            ["chartType"] = "heatmap",
+            ["title"] = "Observed relationship strength",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["heatmap"] = new JsonObject
+                {
+                    ["scale"] = "diverging",
+                    ["colors"] = new JsonArray("#C8644A", "#F8F6EF", "#0B8F8F"),
+                    ["domain"] = new JsonArray(-10, 10),
+                    ["midpoint"] = 0,
+                    ["showValues"] = true,
+                    ["showColorBar"] = true,
+                    ["cellGap"] = 2,
+                    ["missingFill"] = "#E5E7EB",
+                    ["cellStroke"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.5 },
+                    ["axisTextStyle"] = new JsonObject { ["fontSize"] = 7.5, ["color"] = "#52606D" },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 8, ["bold"] = true },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Acquisition", "Retention", "Margin", "Reliability"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "segment-enterprise",
+                        ["name"] = "Enterprise",
+                        ["values"] = new JsonArray(8, 5, JsonValue.Create(2), null),
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "segment-midmarket",
+                        ["name"] = "Mid-market",
+                        ["values"] = new JsonArray(4, -2, 6, 7),
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "segment-smb",
+                        ["name"] = "SMB",
+                        ["values"] = new JsonArray(-6, -4, 1, 3),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Three customer segments by four operating measures, colored from negative to positive relationship strength.",
+            },
+        });
+        var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
+        invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-heatmap-main")
+            ["style"]!["heatmap"]!["domain"] = new JsonArray(10, 20);
+        var invalidHeatmap = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidHeatmapProgram.ToJsonString()));
+        Assert.False(invalidHeatmap.IsValid);
+        Assert.Contains(invalidHeatmap.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.heatmapMidpoint");
         var invalidWaterfallProgram = authoredProgram.DeepClone().AsObject();
         invalidWaterfallProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -705,7 +776,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(23U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(24U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -794,6 +865,16 @@ public sealed class PptxCodecTests
             Assert.Equal(new Dictionary<uint, double> { [1] = 40 }, LiteralValues(waterfallSeries[1]));
             Assert.Equal(new Dictionary<uint, double> { [2] = 25, [3] = 10 }, LiteralValues(waterfallSeries[2]));
             Assert.Equal(new Dictionary<uint, double> { [0] = 120, [4] = 125 }, LiteralValues(waterfallSeries[3]));
+            Assert.Equal(5, package.PresentationPart.SlideParts.SelectMany(slide => slide.ChartParts).Count());
+            var nativeHeatmap = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "correlation intensity matrix");
+            Assert.Equal(12, nativeHeatmap.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("heatmap cell ", StringComparison.Ordinal) == true));
+            Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "Observed relationship strength");
+            Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "Enterprise");
+            Assert.Contains(nativeHeatmap.Descendants<A.Text>(), text => text.Text == "-6");
+            Assert.NotNull(nativeHeatmap.Descendants<A.GradientFill>().Single());
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -953,7 +1034,7 @@ public sealed class PptxCodecTests
         Assert.Equal("Pilot method table", importedTable.Accessibility.Description);
         Assert.Equal(3, importedTable.Rows.Count);
         var importedGroup = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
+            element.ContentCase == PresentationElement.ContentOneofCase.Group && element.Name == "frame transform contract").Group;
         Assert.Equal(720_000, importedGroup.FrameTransform.RotationAngle60000);
         Assert.True(importedGroup.FrameTransform.FlipHorizontal);
         Assert.Equal("round2SameRect", Assert.Single(importedGroup.Children).Shape.Geometry);
@@ -1154,8 +1235,17 @@ public sealed class PptxCodecTests
                 .GetProperty("values")[3].GetDouble());
             Assert.Equal("circle", projectedRadar.GetProperty("data").GetProperty("series")[0]
                 .GetProperty("marker").GetProperty("symbol").GetString());
+            var projectedHeatmap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "correlation intensity matrix");
+            Assert.Contains(projectedHeatmap.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "heatmap cell 1,1");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "correlation intensity matrix" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(item => item.GetProperty("type").GetString() == "group")
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "frame transform contract")
                 .GetProperty("elements")[0];
             Assert.Equal("round2SameRect", projectedAdjustedShape.GetProperty("geometry").GetProperty("preset").GetString());
             Assert.Equal(18000, projectedAdjustedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
@@ -1571,7 +1661,8 @@ public sealed class PptxCodecTests
         var adjustedGeometryProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var adjustedGeometryShape = adjustedGeometryProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "group")["elements"]![0]!.AsObject();
+            .Single(element => element["type"]!.GetValue<string>() == "group" &&
+                element["name"]!.GetValue<string>() == "frame transform contract")["elements"]![0]!.AsObject();
         adjustedGeometryShape["geometry"]!["adjustments"]![0] = 22000;
         var adjustedGeometryId = adjustedGeometryShape["id"]!.GetValue<string>();
         var sourceGeometryEdit = Invoke(new CodecRequest
@@ -1605,7 +1696,8 @@ public sealed class PptxCodecTests
         using (var geometryJson = JsonDocument.Parse(geometryReprojection.PresentationProgram.ProgramJson.ToByteArray()))
         {
             var reprojectedShape = geometryJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(element => element.GetProperty("type").GetString() == "group")
+                .Single(element => element.GetProperty("type").GetString() == "group" &&
+                    element.GetProperty("name").GetString() == "frame transform contract")
                 .GetProperty("elements")[0];
             Assert.Equal(22000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
         }

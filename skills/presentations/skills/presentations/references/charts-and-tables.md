@@ -7,6 +7,7 @@ Choose the visual from the relationship the audience must understand.
 | trend or change over ordered time | line, area, or ordered columns |
 | magnitude across categories | bars or columns with a common baseline |
 | distribution or correlation | scatter, bubble, or distribution view |
+| intensity across two categorical dimensions | heatmap |
 | multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
@@ -59,7 +60,8 @@ spatial relationship, never to decorate a page.
 The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
-  bounded semantic waterfall, and bounded bar-line combo plots;
+  bounded semantic waterfall, bounded vector heatmap, and bounded bar-line
+  combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -292,6 +294,58 @@ stacked-column ChartPart; it does not fake the bridge with rectangles. Exact
 waterfall intent recovers from the embedded PPJ. If that snapshot is removed,
 ordinary PPTX import truthfully exposes the four native series instead of
 guessing that an arbitrary stacked chart is a waterfall.
+
+Use `heatmap` only when the audience must compare a genuine two-dimensional
+matrix. `data.categories` are the ordered columns; each series `name` is one
+row label and its `values` are that row. Do not use a heatmap as a decorative
+grid or to disguise a small ranked list that bars would explain more clearly.
+
+```json
+{
+  "type": "chart",
+  "id": "segment-signal-matrix",
+  "chartType": "heatmap",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Observed relationship strength",
+  "style": {
+    "heatmap": {
+      "scale": "diverging",
+      "colors": ["#C8644A", "#F8F6EF", "#0B8F8F"],
+      "domain": [-10, 10],
+      "midpoint": 0,
+      "showValues": true,
+      "showColorBar": true,
+      "cellGap": 2,
+      "missingFill": "#E5E7EB",
+      "cellStroke": { "color": "#FFFFFF", "width": 0.5 },
+      "axisTextStyle": { "fontSize": 8, "color": "#52606D" },
+      "valueTextStyle": { "fontSize": 8, "bold": true }
+    }
+  },
+  "data": {
+    "categories": ["Acquisition", "Retention", "Margin", "Reliability"],
+    "series": [
+      { "id": "enterprise", "name": "Enterprise", "values": [8, 5, 2, null] },
+      { "id": "mid-market", "name": "Mid-market", "values": [4, -2, 6, 7] },
+      { "id": "smb", "name": "SMB", "values": [-6, -4, 1, 3] }
+    ]
+  }
+}
+```
+
+The bounded profile accepts 1–32 rows and 1–32 columns, unique non-empty
+labels, explicit missing cells, a two-color linear scale or three-color
+diverging scale, optional value labels, and one editable vertical color bar.
+An explicit diverging domain must contain its midpoint; values outside the
+domain clamp to its endpoint colors. Tiny frames reject instead of silently
+making labels unreadable.
+
+PowerPoint has no standard native heatmap ChartPart. OfficeKit therefore
+lowers this semantic node to one editable DrawingML group of rectangles and
+text, not a PNG. The embedded PPJ restores the exact matrix intent. If that
+program is removed, import returns the truthful ordinary group rather than
+guessing that an arbitrary shape grid was a heatmap. Whole-object animation is
+valid; `chartBuild` modes are not, because there is no native ChartPart.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
