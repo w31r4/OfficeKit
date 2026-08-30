@@ -915,24 +915,40 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw table-cell index is out of range.", operation.SlidePartPath);
         var cell = cells[operation.TextLeafIndex];
         var leaves = TextLeafPattern().Matches(cell.Value)
-            .Where(IsNonSelfClosingTextLeaf)
             .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
             .ToArray();
-        if (leaves.Length != 1)
-            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} table cell does not contain exactly one non-empty text leaf.", operation.SlidePartPath);
-        var leaf = leaves[0];
-        var prefix = leaf.Groups["prefix"].Value;
-        if (DecodeTextLeaf(leaf.Value, prefix) != operation.ExpectedValue)
-            throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw table-cell leaf does not match the expected text.", operation.SlidePartPath);
-        var open = leaf.Groups["open"].Value;
-        if (NeedsPreserve(operation.Value) && !PreserveSpacePattern().IsMatch(open))
-            open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
-        var start = elementRange.Start + cell.Index + leaf.Index;
+        if (leaves.Length == 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} table cell has no bounded text leaves.", operation.SlidePartPath);
+        var sourceLines = leaves.Select(leaf => DecodeTextLeaf(leaf.Value, leaf.Groups["prefix"].Value)).ToArray();
+        if (string.Join("\n", sourceLines) != operation.ExpectedValue)
+            throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw table-cell leaves do not match the expected text.", operation.SlidePartPath);
+        var requestedLines = operation.Value.Split('\n');
+        if (requestedLines.Length != leaves.Length)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} must preserve the source paragraph count when editing a multi-paragraph table cell.", operation.SlidePartPath);
+
+        // Replace all paragraph leaves inside one source span so the wire
+        // result remains one logical operation/result while preserving every
+        // paragraph, run property and interstitial XML token byte-for-byte.
+        var firstStart = leaves[0].Index;
+        var lastEnd = leaves[^1].Index + leaves[^1].Length;
+        var replacement = cell.Value[firstStart..lastEnd];
+        for (var index = leaves.Length - 1; index >= 0; index--)
+        {
+            var leaf = leaves[index];
+            var open = leaf.Groups["open"].Value;
+            if (NeedsPreserve(requestedLines[index]) && !PreserveSpacePattern().IsMatch(open))
+                open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
+            var replacementLeaf = ReplaceTextLeaf(leaf, leaf.Groups["prefix"].Value, requestedLines[index], open);
+            var start = leaf.Index - firstStart;
+            var end = start + leaf.Length;
+            replacement = replacement[..start] + replacementLeaf + replacement[end..];
+        }
+        var absoluteStart = elementRange.Start + cell.Index + firstStart;
         return new PptxXmlPatch(
             operation,
-            start,
-            start + leaf.Length,
-            open + EscapeText(operation.Value) + leaf.Groups["close"].Value,
+            absoluteStart,
+            absoluteStart + (lastEnd - firstStart),
+            replacement,
             proof.SourceElementSha256,
             proof.MutationPartPath);
     }

@@ -8,7 +8,7 @@ namespace OfficeKit.Codec;
 // Owns a bounded, source-preserving DrawingML table projection. Table
 // topology, merge ranges, and cell formatting remain fixed after import;
 // name, complete outer frame, non-visible title/description, and a cell's
-// single text leaf are the only source-bound edits. Recognized PowerPoint
+// one-text-leaf-per-paragraph value are the only source-bound edits. Recognized PowerPoint
 // style/extension shells stay in the source graph instead of being rebuilt.
 internal static class PptxTableCodec
 {
@@ -83,14 +83,17 @@ internal static class PptxTableCodec
             var nativeCells = new List<A.TableCell[]>(rows.Length);
             foreach (var nativeRow in rows)
             {
-                if (nativeRow.Height?.Value is null or <= 0 || !TableRowSupported(nativeRow)) return false;
+                if (nativeRow.Height?.Value is null or <= 0 || !TableRowSupported(nativeRow))
+                    return false;
                 var cells = nativeRow.Elements<A.TableCell>().ToArray();
-                if (cells.Length != columns.Length) return false;
+                if (cells.Length != columns.Length)
+                    return false;
                 nativeCells.Add(cells);
                 var row = new PresentationTableRow { HeightEmu = nativeRow.Height.Value };
                 foreach (var cell in cells)
                 {
-                    if (!TryReadCell(cell, out var text)) return false;
+                    if (!TryReadCell(cell, out var text))
+                        return false;
                     row.Cells.Add(new PresentationTableCell { Text = text });
                 }
                 result.Rows.Add(row);
@@ -187,15 +190,19 @@ internal static class PptxTableCodec
             var cells = rows[rowIndex].Elements<A.TableCell>().ToArray();
             for (var columnIndex = 0; columnIndex < cells.Length; columnIndex++)
             {
-                var text = SingleText(cells[columnIndex]);
+                var textLeaves = TextLeaves(cells[columnIndex]);
                 var requestedText = table.Rows[rowIndex].Cells[columnIndex].Text;
-                if (text is null)
+                if (textLeaves is null)
                 {
                     if (requestedText.Length != 0)
                         throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} cannot add text to an empty or covered cell without a source text leaf.");
                     continue;
                 }
-                text.Text = requestedText;
+                var lines = requestedText.Split('\n');
+                if (lines.Length != textLeaves.Count)
+                    throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} must preserve the source paragraph count when editing a multi-paragraph cell.");
+                for (var lineIndex = 0; lineIndex < textLeaves.Count; lineIndex++)
+                    textLeaves[lineIndex].Text = lines[lineIndex];
             }
         }
     }
@@ -253,7 +260,7 @@ internal static class PptxTableCodec
         {
             row.Height = 1L;
             foreach (var cell in row.Elements<A.TableCell>())
-                if (SingleText(cell) is { } text) text.Text = string.Empty;
+                foreach (var text in TextLeaves(cell) ?? []) text.Text = string.Empty;
         }
     }
 
@@ -309,11 +316,33 @@ internal static class PptxTableCodec
         if (body.ChildElements.Count < 3 || body.ChildElements[0] is not A.BodyProperties ||
             body.ChildElements[1] is not A.ListStyle || body.ChildElements.Skip(2).Any(child => child is not A.Paragraph))
             return false;
-        var texts = body.Descendants<A.Text>().ToArray();
-        if (texts.Length > 1 || texts.Any(value => value.Text.Length > MaxCellTextLength)) return false;
-        if (texts.Length == 1 && texts[0].Parent is not A.Run) return false;
-        text = texts.Length == 1 ? texts[0].Text : string.Empty;
-        return true;
+
+        // Keep the table model plain, but accept the common source-bound form
+        // where one cell contains several paragraphs and each paragraph has
+        // exactly one run. Joining those paragraphs gives the Agent a single
+        // editable cell value without flattening any run properties; Apply()
+        // splices the same paragraph/run leaves in place.
+        var paragraphs = body.Elements<A.Paragraph>().ToArray();
+        var lines = new List<string>(paragraphs.Length);
+        var hasAnyText = paragraphs.Any(paragraph => paragraph.Descendants<A.Text>().Any());
+        if (!hasAnyText)
+        {
+            // A normal empty cell has a paragraph shell but no source text
+            // leaf. Keep the cell readable; adding text remains fail-closed.
+            text = string.Empty;
+            return true;
+        }
+        foreach (var paragraph in paragraphs)
+        {
+            var runs = paragraph.Elements<A.Run>().ToArray();
+            var textLeaves = paragraph.Descendants<A.Text>().ToArray();
+            if (runs.Length != 1 || textLeaves.Length != 1 ||
+                textLeaves.Any(value => value.Parent is not A.Run || value.Text.Contains('\n')))
+                return false;
+            lines.Add(textLeaves[0].Text);
+        }
+        text = string.Join("\n", lines);
+        return text.Length <= MaxCellTextLength;
     }
 
     private static bool TryReadMergeRanges(IReadOnlyList<A.TableCell[]> nativeRows, PresentationTable table)
@@ -464,20 +493,33 @@ internal static class PptxTableCodec
                 ? table.DefaultCellFillRgb
                 : header ? "EDEDED" : "FFFFFF",
         }));
+        var paragraphs = text.Split('\n').Select(line => new A.Paragraph(
+            new A.Run((A.RunProperties)runProperties.CloneNode(true), new A.Text(line)),
+            new A.EndParagraphRunProperties { Language = "en-US", FontSize = 1_350 })).ToArray();
+        var textBody = new A.TextBody(new A.BodyProperties(), new A.ListStyle());
+        textBody.Append(paragraphs);
         return new A.TableCell(
-            new A.TextBody(
-                new A.BodyProperties(),
-                new A.ListStyle(),
-                new A.Paragraph(
-                    new A.Run(runProperties, new A.Text(text)),
-                    new A.EndParagraphRunProperties { Language = "en-US", FontSize = 1_350 })),
+            textBody,
             cellProperties);
     }
 
-    private static A.Text? SingleText(A.TableCell cell)
+    private static IReadOnlyList<A.Text>? TextLeaves(A.TableCell cell)
     {
-        var texts = cell.GetFirstChild<A.TextBody>()?.Descendants<A.Text>().ToArray() ?? [];
-        return texts.Length == 1 ? texts[0] : null;
+        if (cell.ChildElements.Count == 0) return null;
+        var body = cell.GetFirstChild<A.TextBody>();
+        if (body is null) return null;
+        var paragraphs = body.Elements<A.Paragraph>().ToArray();
+        if (paragraphs.Length == 0 || paragraphs.Any(paragraph => paragraph.Elements<A.Run>().Count() != 1 || paragraph.Descendants<A.Text>().Count() != 1)) return null;
+        var leaves = new List<A.Text>(paragraphs.Length);
+        foreach (var paragraph in paragraphs)
+        {
+            var runs = paragraph.Elements<A.Run>().ToArray();
+            var textLeaves = paragraph.Descendants<A.Text>().ToArray();
+            if (runs.Length != 1 || textLeaves.Length != 1 ||
+                textLeaves.Any(value => value.Parent is not A.Run || value.Text.Contains('\n'))) return null;
+            leaves.Add(textLeaves[0]);
+        }
+        return leaves;
     }
 
     private static bool TablePropertiesSupported(A.TableProperties properties)
