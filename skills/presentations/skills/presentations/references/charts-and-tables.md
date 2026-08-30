@@ -56,6 +56,8 @@ The authored chart compiler owns these native visual controls:
 - category/value-axis titles, number formats, label interval, tick-label size,
   value bounds and major unit; bounded combo charts may declare the matching
   secondary pair;
+- chart-title font size plus canonical line-chart smoothing and direct color
+  variation;
 - structured data labels for value, category, series, percentage and native
   position;
 - direct marker symbol, size, fill and stroke;
@@ -88,6 +90,29 @@ shapes:
   }
 }
 ```
+
+Use title typography and line behavior as explicit chart state rather than
+rebuilding the visual with shapes:
+
+```json
+{
+  "chartType": "line",
+  "title": "Retention after launch",
+  "style": {
+    "titleTextStyle": { "fontSize": 16 },
+    "smooth": false,
+    "varyColors": true
+  }
+}
+```
+
+`smooth` preserves an explicit true or false native value. `varyColors: true`
+authors one direct native color-variation flag; false is canonical omission.
+Both line-behavior fields are line-chart-only. Font family, weight, color,
+legend typography and data-label typography remain outside the bounded chart
+writer. A projected imported chart may expose these recognized values for
+inspection, but changing them requires a dedicated source capability; ordinary
+`setChartTitle` and `setChartData` do not authorize a style mutation.
 
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
