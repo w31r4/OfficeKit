@@ -2013,6 +2013,9 @@ message PresentationBackground {
   // profile; legacy image_asset_id/image_alpha_modulation_fixed remain readable
   // for wire-v2 compatibility and must not be combined with image_paint.
   PresentationImagePaint image_paint = 8;
+  // Present only for a direct solid background color. Values use
+  // 0..100000 and lower to one direct DrawingML a:alpha transform.
+  optional uint32 opacity_thousandth_percent = 9;
 }
 
 // Bounded embedded DrawingML image paint shared by shape fills and native
