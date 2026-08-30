@@ -2,9 +2,11 @@
 
 ## Verified current facts
 
-- Generated PPJ reference: 2,202 lines.
+- Generated PPJ reference before this batch: 2,202 lines; after schema sync:
+  2,233 lines.
 - Compared finite DSL reference: 1,886 lines.
-- PPJ preset geometries: 176.
+- PPJ preset geometries before this batch: 176; after adding the two missing
+  public presets: 178.
 - Compared preset geometries: 177 after excluding the table header.
 - Exact preset difference: PPJ lacks `upArrow` and `lineInv`; PPJ alone has
   `flowChartData`.
@@ -34,3 +36,18 @@
 
 This audit compares observable language contracts. It does not copy a third
 party implementation or claim parity from a visually similar raster result.
+
+## Implemented batch
+
+- `upArrow` and `lineInv` now share the same schema/profile source as the other
+  authored preset geometries.
+- Tables now have a bounded base style, cycling body-row styles, structural
+  first/last row and column styles, explicit row/column conflict order, and
+  cell-local final precedence.
+- Sankey charts now support reverse-depth `right` alignment and exact
+  declared-node color overrides; unknown node names fail validation.
+- `connector` is explicitly documented as the one ordinary line primitive.
+
+The existing comprehensive authored PPJ contract exercised all new state in
+one compile/native inspection/import/determinism run. No effect matrix, new
+fixture farm, or full test suite was added.
