@@ -4580,6 +4580,9 @@
         },
         "capability": {
           "$ref": "#/$defs/id"
+        },
+        "retainElement": {
+          "$ref": "#/$defs/id"
         }
       }
     },

@@ -311,7 +311,8 @@ internal sealed record PpjPageModel(
 
 internal sealed record PpjSourceCloneModel(
     string PageId,
-    string CapabilityId);
+    string CapabilityId,
+    string? RetainElementId);
 
 internal sealed record PpjAnimationModel(
     string Id,
@@ -538,7 +539,8 @@ internal static class PpjProgramParser
         page.TryGetProperty("transition", out var transition) ? ParseTransition(transition) : null,
         page.TryGetProperty("sourceClone", out var sourceClone) ? new PpjSourceCloneModel(
             sourceClone.GetProperty("page").GetString()!,
-            sourceClone.GetProperty("capability").GetString()!) : null,
+            sourceClone.GetProperty("capability").GetString()!,
+            OptionalString(sourceClone, "retainElement")) : null,
         page.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         page.Clone());
 

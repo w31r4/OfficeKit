@@ -138,6 +138,29 @@ internal static class PpjSemanticValidator
                 "ppj.sourceClone.capability",
                 "The referenced source page did not issue this duplicate/pageClone capability.",
                 path + ".sourceClone.capability"));
+
+        if (clone.RetainElementId is not { } retainedElementId) return;
+        if (!sourcePage.Elements.Any(element => element.Id.Equals(retainedElementId, StringComparison.Ordinal)))
+        {
+            diagnostics.Add(new(
+                "ppj.sourceClone.retainElement",
+                $"Source page {clone.PageId} has no direct element {retainedElementId}.",
+                path + ".sourceClone.retainElement"));
+            return;
+        }
+
+        foreach (var sibling in sourcePage.Elements.Where(element => !element.Id.Equals(retainedElementId, StringComparison.Ordinal)))
+        {
+            var deletion = sibling.NativeRef?.Capabilities.FirstOrDefault(item =>
+                item.Operation.Equals("delete", StringComparison.Ordinal) &&
+                item.Fields.Contains("element", StringComparer.Ordinal));
+            if (deletion is not null &&
+                deletion.ExpectedHash.Equals(sibling.NativeRef!.ObjectHash, StringComparison.OrdinalIgnoreCase)) continue;
+            diagnostics.Add(new(
+                "ppj.sourceClone.siblingDelete",
+                $"Source element {sibling.Id} did not issue the delete/element capability required by component reuse.",
+                path + ".sourceClone.retainElement"));
+        }
     }
 
     private static void ValidateMasterLayoutState(
