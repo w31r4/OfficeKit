@@ -706,6 +706,15 @@ zero-by-zero, negative, missing, or duplicate frames remain read-only. This
 closes a common diagram-editing gap observed in the six-sample corpus without
 promoting arbitrary connector topology to the semantic model.
 
+### Imported bleeding picture frames
+
+Source-bound opaque pictures with a bounded negative left/top offset now retain
+their direct frame as an editable placement leaf when the unique image
+relationship and payload graph are proven safe. FROSTE's top-edge bleed and
+Minimal Business's left-cropped picture both complete move → export → import
+round trips; image bytes, effects, crop, and relationships remain untouched.
+Unbounded, ambiguous, or malformed picture frames remain read-only.
+
 ## PDF
 
 | Capability | Status | Notes |

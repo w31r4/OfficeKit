@@ -42,6 +42,11 @@ extension children untouched. Zero-by-zero, negative, missing, or ambiguous
 connector frames remain read-only; this is not permission to rewrite connector
 topology.
 
+Source-bound opaque pictures may likewise retain a bounded negative left/top
+offset when the picture frame and unique image relationship are proven safe.
+This supports intentional edge bleed and crop layouts; the image payload,
+effects, crop, and relationship remain source-owned.
+
 Stale hash, ambiguous target, unsupported field, unsafe relationship change,
 cross-object mutation, or topology rewrite must fail. Do not patch raw OOXML,
 replace the whole slide with an image, flatten the deck, or rebuild it through

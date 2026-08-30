@@ -12,6 +12,7 @@ namespace OfficeKit.Codec;
 // this catalog records only the relationship roots and reachable part paths.
 internal sealed class PptxNativeObjectCatalog
 {
+    private const long MaxPictureFrameCoordinateEmu = 100_000_000L;
     private const string SpreadsheetContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private const string DocumentContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private const string PowerPoint2010Namespace = "http://schemas.microsoft.com/office/powerpoint/2010/main";
@@ -326,10 +327,10 @@ internal sealed class PptxNativeObjectCatalog
             var cropAttributes = crop?.GetAttributes().ToArray() ?? [];
             var cropSafe = crop is null || (!crop.HasChildren &&
                 cropAttributes.All(attribute => attribute.LocalName is "l" or "t" or "r" or "b"));
-            var frameSafe = transform?.Offset?.X?.Value is >= 0 &&
-                            transform.Offset.Y?.Value is >= 0 &&
-                            transform.Extents?.Cx?.Value is > 0 &&
-                            transform.Extents.Cy?.Value is > 0;
+            var frameSafe = transform?.Offset?.X?.Value is >= -MaxPictureFrameCoordinateEmu and <= MaxPictureFrameCoordinateEmu &&
+                            transform.Offset.Y?.Value is >= -MaxPictureFrameCoordinateEmu and <= MaxPictureFrameCoordinateEmu &&
+                            transform.Extents?.Cx?.Value is > 0 and <= MaxPictureFrameCoordinateEmu &&
+                            transform.Extents.Cy?.Value is > 0 and <= MaxPictureFrameCoordinateEmu;
             var blipEmbeds = blipAttributes.Where(attribute => (attribute.LocalName is "embed" or "link") && RelationshipNamespaces.Contains(attribute.NamespaceUri)).ToArray();
             var blipStates = blipAttributes.Where(attribute => attribute.LocalName == "cstate" && attribute.NamespaceUri.Length == 0).ToArray();
             var blipAttributesSafe = blipEmbeds.Length == 1 && blipStates.Length <= 1 &&

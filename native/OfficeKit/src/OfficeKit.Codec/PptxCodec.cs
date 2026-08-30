@@ -2923,7 +2923,8 @@ internal static class PptxCodec
 
     private static bool HasValidSourceBoundNativeFrame(PresentationOpaqueElement frame, bool allowNegativeOffset = false)
     {
-        if ((!allowNegativeOffset && (frame.LeftEmu < 0 || frame.TopEmu < 0)) ||
+        var negativeOffsetAllowed = allowNegativeOffset || frame.NativeKind == "picture";
+        if ((!negativeOffsetAllowed && (frame.LeftEmu < 0 || frame.TopEmu < 0)) ||
             frame.WidthEmu < 0 || frame.HeightEmu < 0)
             return false;
 
@@ -2932,7 +2933,11 @@ internal static class PptxCodec
         // remain the source-bound payload; this operation only updates the
         // direct frame.  Require at least one positive extent so an invisible
         // zero-by-zero object is not promoted to an editable placement root.
-        if (frame.NativeKind == "connector")
+        // Older imported envelopes may omit NativeKind on a nested opaque
+        // connector; its source-bound capability has already been proven by
+        // the native catalog before this validation runs.  Treat the empty
+        // and native element-name forms as the same connector profile.
+        if (frame.NativeKind is "connector" or "cxnSp" or "")
             return frame.WidthEmu > 0 || frame.HeightEmu > 0;
 
         return frame.WidthEmu > 0 && frame.HeightEmu > 0;

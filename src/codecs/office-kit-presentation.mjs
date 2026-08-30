@@ -3168,7 +3168,12 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
       // native objects strict and reject invisible zero-by-zero connectors.
       const zeroExtentConnector = object.nativeKind === "connector" &&
         widthEmu >= 0n && heightEmu >= 0n && (widthEmu > 0n || heightEmu > 0n);
-      if (leftEmu < 0n || topEmu < 0n || widthEmu < 0n || heightEmu < 0n ||
+      // Pictures are also allowed to bleed past a slide edge in DrawingML;
+      // the native catalog proves their bounded direct frame separately from
+      // the opaque payload.  Other native roots retain non-negative offsets.
+      const negativeOffsetPicture = object.nativeKind === "picture";
+      if ((!negativeOffsetPicture && (leftEmu < 0n || topEmu < 0n)) ||
+          widthEmu < 0n || heightEmu < 0n ||
           (!zeroExtentConnector && (widthEmu === 0n || heightEmu === 0n))) {
         throw new OfficeKitCodecError(`Presentation native element ${object.id} requires a non-negative position and positive size.`, [], { code: "invalid_presentation_frame" });
       }

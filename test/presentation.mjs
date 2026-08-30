@@ -1932,6 +1932,33 @@ assert.match(opaquePictureOutputXml, /fixture:opaque="kept"/);
 const opaquePictureRoundTrip = await PresentationFile.importPptx(opaquePictureOutput);
 assert.equal(opaquePictureRoundTrip.resolve(opaquePicture.id).position.left, opaquePictureNextLeft / 9_525);
 
+// A source-bound picture may intentionally bleed past the slide edge (for
+// example, a cropped background).  Its negative frame offset is safe to move
+// independently of the opaque payload when the direct picture frame remains
+// bounded and the relationship is unique.
+const negativeOpaquePictureZip = await JSZip.loadAsync(opaquePictureFile.bytes);
+const negativeOpaquePictureXml = opaquePictureXml.replace(
+  /(<p:pic\b[\s\S]*?\bname="decision-evidence"[\s\S]*?<a:off\b[^>]*\bx=")([0-9]+)(")/u,
+  '$1-$2$3',
+);
+assert.match(negativeOpaquePictureXml, /<a:off\b[^>]*\bx="-[0-9]+"/u);
+negativeOpaquePictureZip.file("ppt/slides/slide1.xml", negativeOpaquePictureXml);
+const negativeOpaquePictureFile = new FileBlob(
+  await negativeOpaquePictureZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const negativeOpaquePictureImported = await PresentationFile.importPptx(negativeOpaquePictureFile);
+const negativeOpaquePicture = itemByName(negativeOpaquePictureImported.slides.getItem(0).nativeObjects.items, "decision-evidence");
+assert.equal(negativeOpaquePicture.nativeKind, "picture");
+assert.ok(negativeOpaquePicture.position.left < 0);
+assert.equal(negativeOpaquePicture.placementCapability.supported, true);
+negativeOpaquePicture.setPosition({ left: negativeOpaquePicture.position.left + 1 });
+const negativeOpaquePictureOutput = await PresentationFile.exportPptx(negativeOpaquePictureImported);
+const negativeOpaquePictureRoundTrip = await PresentationFile.importPptx(negativeOpaquePictureOutput);
+const negativeOpaquePictureRebound = itemByName(negativeOpaquePictureRoundTrip.slides.getItem(0).nativeObjects.items, "decision-evidence");
+assert.equal(negativeOpaquePictureRebound.position.left, negativeOpaquePicture.position.left);
+assert.match(await (await JSZip.loadAsync(negativeOpaquePictureOutput.bytes)).file("ppt/slides/slide1.xml").async("text"), /fixture:opaque="kept"/);
+
 const nativeShapeGeometryDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 nativeShapeGeometryDeck.slides.add().shapes.add({
   name: "multi-geometry",
