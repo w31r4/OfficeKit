@@ -19,6 +19,6 @@ advertises a visual primitive that cannot be built, inspected or continued.
 
 - Additive protobuf enum; protocol version remains 2.
 - The PPJ schema is unchanged because `radar` is already declared.
-- The shared chart codec recognizes one bounded standard-radar profile in PPTX
-  and XLSX package graphs; PPJ remains the public Presentation authoring path.
-
+- The shared ChartSpace codec owns one bounded standard-radar representation,
+  while only the PPJ/PPTX route enables it in this change. The Spreadsheet
+  public surface remains unchanged.

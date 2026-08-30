@@ -90,7 +90,7 @@ internal sealed class XlsxChartCodec
         _dirtyPartPaths.Add(Path(part));
     }
 
-    internal static void Validate(IEnumerable<SpreadsheetChartArtifact> charts, string worksheetId)
+    internal static void Validate(IEnumerable<SpreadsheetChartArtifact> charts, string worksheetId, bool allowStandardRadar = false)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var count = 0;
@@ -106,7 +106,11 @@ internal sealed class XlsxChartCodec
                 chart.HasLegend && chart.LegendPosition is not ("" or "top" or "bottom" or "left" or "right"))
                 throw InvalidChart(worksheetId, chart.Id, "legend position must be top, bottom, left, or right when a legend is enabled.");
             XlsxNonVisualAccessibilityCodec.Validate(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart), worksheetId, chart.Id, "chart");
-            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble or SpreadsheetChartType.Radar)) throw InvalidChart(worksheetId, chart.Id, "type must be bar, line, pie, area, doughnut, scatter, bubble, or radar.");
+            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble) &&
+                !(allowStandardRadar && chart.Type == SpreadsheetChartType.Radar))
+                throw InvalidChart(worksheetId, chart.Id, allowStandardRadar
+                    ? "type must be bar, line, pie, area, doughnut, scatter, bubble, or radar."
+                    : "type must be bar, line, pie, area, doughnut, scatter, or bubble.");
             XlsxChartAxisCodec.Validate(chart, worksheetId);
             XlsxChartTextStyleCodec.Validate(chart, worksheetId);
             XlsxChartLineOptionsCodec.Validate(chart, worksheetId);
@@ -255,7 +259,7 @@ internal sealed class XlsxChartCodec
                 continue;
             }
             var chartXml = ReadXml(chartPart);
-            if (!OpenXmlChartSpaceCodec.TryRead(chartXml, out var chart, out var document, out var editable)) continue;
+            if (!OpenXmlChartSpaceCodec.TryRead(chartXml, out var chart, out var document, out var editable) || chart.Type == SpreadsheetChartType.Radar) continue;
             chart.Id = $"{worksheetId}/chart/{ordinal + 1}";
             chart.Name = nonVisual.Name?.Value ?? $"Chart {ordinal + 1}";
             var accessibilityEditable = XlsxNonVisualAccessibilityCodec.TryRead(nonVisual, out var accessibility);
