@@ -7,6 +7,7 @@ Choose the visual from the relationship the audience must understand.
 | trend or change over ordered time | line, area, or ordered columns |
 | magnitude across categories | bars or columns with a common baseline |
 | distribution or correlation | scatter, bubble, or distribution view |
+| multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
 | mixed measures sharing a truthful category axis | deliberate combo chart |
@@ -49,8 +50,8 @@ spatial relationship, never to decorate a page.
 
 The authored chart compiler owns these native visual controls:
 
-- bar, column, line, area, pie, doughnut, scatter, bubble, and bounded bar-line
-  combo plots;
+- bar, column, line, area, pie, doughnut, scatter, bubble, standard radar, and
+  bounded bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -232,8 +233,40 @@ are positive, and `categories` is empty. Do not encode numeric X values as
 strings merely to reuse a category chart. On imported charts, the current
 `setChartData` capability does not authorize changing X values or bubble sizes.
 
+Use radar only when every series is measured against the same small set of
+meaningful dimensions and a common scale. It is a profile comparison, not a
+replacement for precise lookup or ordered ranking:
+
+```json
+{
+  "type": "chart",
+  "id": "risk-profile",
+  "chartType": "radar",
+  "frame": { "x": 72, "y": 110, "width": 420, "height": 300 },
+  "title": "Operating resilience",
+  "data": {
+    "categories": ["Liquidity", "Growth", "Margin", "Resilience"],
+    "series": [{
+      "id": "current",
+      "name": "Current",
+      "values": [72, 81, 64, 77],
+      "stroke": { "color": "#0A84FF", "width": 2 },
+      "marker": { "symbol": "circle", "size": 5 }
+    }]
+  },
+  "xAxis": {},
+  "yAxis": { "min": 0, "max": 100, "majorUnit": 20 }
+}
+```
+
+PPJ compiles this to editable native `standard` radar rather than drawing a
+polygon from shapes. Category/value axes, series stroke, bounded markers,
+legend, labels, chart surfaces and fixed-topology source continuation use the
+same chart contracts as the other category families. Filled, marker-only, 3D,
+extension-bearing and irregular native radar variants remain source-owned.
+
 Chart image/pattern paint, theme-transformed gradients, missing-value caches,
-radar, and waterfall still fail closed. Existing unsupported native chart
+and waterfall still fail closed. Existing unsupported native chart
 graphs remain source-preserved; they are not simplified during an unrelated
 imported edit.
 
