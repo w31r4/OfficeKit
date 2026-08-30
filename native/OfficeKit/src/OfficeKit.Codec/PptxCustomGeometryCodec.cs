@@ -85,10 +85,13 @@ internal static class PptxCustomGeometryCodec
     private static bool TryProfile(A.CustomGeometry? geometry, long widthEmu, long heightEmu, out Profile profile)
     {
         profile = null!;
-        if (geometry is null || geometry.HasAttributes || geometry.ChildElements.Count < 2 ||
-            geometry.ChildElements[0] is not A.AdjustValueList adjustments)
+        if (geometry is null || geometry.HasAttributes || geometry.ChildElements.Count < 1)
             return false;
-        var index = 1;
+        var index = 0;
+        var adjustments = geometry.ChildElements[index] is A.AdjustValueList sourceAdjustments
+            ? sourceAdjustments
+            : new A.AdjustValueList();
+        if (geometry.ChildElements[index] is A.AdjustValueList) index++;
         A.ShapeGuideList? guideList = null;
         if (index < geometry.ChildElements.Count && geometry.ChildElements[index] is A.ShapeGuideList sourceGuides)
         {
@@ -227,6 +230,10 @@ internal static class PptxCustomGeometryCodec
         var widthEmu = transform?.Extents?.Cx?.Value ?? shape.WidthEmu;
         var heightEmu = transform?.Extents?.Cy?.Value ?? shape.HeightEmu;
         var existingGeometry = properties.GetFirstChild<A.CustomGeometry>();
+        var omitAdjustmentList = existingGeometry is not null &&
+            existingGeometry.ChildElements.Count > 0 &&
+            existingGeometry.ChildElements[0] is not A.AdjustValueList &&
+            shape.CustomAdjustments.Count == 0;
         if (existingGeometry is not null && TryProfile(existingGeometry, widthEmu, heightEmu, out var existingProfile))
         {
             if (existingProfile.ConnectionSites.Count != shape.CustomConnectionSites.Count)
@@ -236,12 +243,12 @@ internal static class PptxCustomGeometryCodec
         }
         properties.GetFirstChild<A.PresetGeometry>()?.Remove();
         existingGeometry?.Remove();
-        OpenXmlElement geometry = Build(shape, widthEmu, heightEmu, shapeId);
+        OpenXmlElement geometry = Build(shape, widthEmu, heightEmu, shapeId, omitAdjustmentList);
         if (transform is null) properties.PrependChild(geometry);
         else properties.InsertAfter(geometry, transform);
     }
 
-    private static A.CustomGeometry Build(PresentationShape shape, long widthEmu, long heightEmu, string shapeId)
+    private static A.CustomGeometry Build(PresentationShape shape, long widthEmu, long heightEmu, string shapeId, bool omitAdjustmentList = false)
     {
         var paths = new A.PathList();
         foreach (var source in shape.CustomPaths)
@@ -274,7 +281,8 @@ internal static class PptxCustomGeometryCodec
             paths.Append(path);
         }
         var adjustments = new A.AdjustValueList(shape.CustomAdjustments.Select(PptxCustomGeometryFormulaCodec.Write));
-        var geometry = new A.CustomGeometry(adjustments);
+        var geometry = new A.CustomGeometry();
+        if (!omitAdjustmentList) geometry.Append(adjustments);
         var formulaGraph = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
         var textRectangle = shape.TextRectangle is null
             ? null

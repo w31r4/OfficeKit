@@ -1772,6 +1772,8 @@ internal static class PptxCodec
             return PptxImagePaintCodec.TryRead(image, slideContext, out _) ||
                 allowSourceBoundCustomImageFill && PptxShapeImageFillCodec.TryRead(image, slideContext, out _);
         var solid = (A.SolidFill)fills[0];
+        if (PptxColor.TryDirectSolidSchemeWithOpacity(solid, out _, out var schemeOpacity))
+            return schemeOpacity is null;
         if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color || !HasOnlyAttributes(color, "val")) return false;
         var alphas = color.Elements<A.Alpha>().ToArray();
         return color.ChildElements.Count == alphas.Length && alphas.Length <= 1 &&
