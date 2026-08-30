@@ -876,6 +876,14 @@ zero-by-zero, negative, missing, or duplicate frames remain read-only. This
 closes a common diagram-editing gap observed in the six-sample corpus without
 promoting arbitrary connector topology to the semantic model.
 
+Opaque connector shells now expose the same bounded line leaves to PPJ as the
+JavaScript native-object projection: width, RGB/theme paint, preset dash,
+cap, join, and explicit endpoint type. The PPJ compiler still re-proves the
+exact `p:cxnSp` against the source SlidePart before token-splicing one selected
+value; connector topology, targets, effects, and all other native children
+remain opaque. This keeps imported connectors discoverable and selectively
+editable without promoting an unsupported connector graph to typed state.
+
 ### Imported bleeding picture frames
 
 Source-bound opaque pictures with a bounded negative left/top offset now retain
