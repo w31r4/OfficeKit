@@ -484,6 +484,8 @@ internal static class PpjSourceBoundPresentationCompiler
             after.Id,
             mutations,
             path + ".nativeRef.leaves");
+        var stateChanged = ApplyElementState(before, after, target, path);
+        if (stateChanged) mutations.SemanticChanges = true;
 
         bool changed;
         switch (before)
@@ -522,8 +524,34 @@ internal static class PpjSourceBoundPresentationCompiler
             default:
                 throw Unsupported(path, "the exact source object no longer matches its PPJ projection type");
         }
-        changed |= nativeLeafChanged;
+        changed |= nativeLeafChanged || stateChanged;
         if (changed) changedNodeIds.Add(after.Id);
+        return changed;
+    }
+
+    private static bool ApplyElementState(
+        PpjElementModel before,
+        PpjElementModel after,
+        PresentationElement target,
+        string path)
+    {
+        var changed = false;
+        if ((before.Hidden ?? false) != (after.Hidden ?? false))
+        {
+            if (after.Hidden is null)
+                throw Unsupported(path + ".hidden", "removing an issued hidden state; set an explicit boolean instead");
+            RequireCapability(after, "setHidden", path + ".hidden");
+            target.Hidden = after.Hidden.Value;
+            changed = true;
+        }
+        if ((before.Locked ?? false) != (after.Locked ?? false))
+        {
+            if (after.Locked is null)
+                throw Unsupported(path + ".locked", "removing an issued locked state; set an explicit boolean instead");
+            RequireCapability(after, "setLocked", path + ".locked");
+            target.Locked = after.Locked.Value;
+            changed = true;
+        }
         return changed;
     }
 
@@ -539,7 +567,7 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         var target = element.Shape;
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "text", "fill", "stroke");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "text", "fill", "stroke");
         var semanticChanged = ApplyFrame(before, after, target, path);
         var changed = semanticChanged;
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -567,7 +595,7 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         var target = element.Shape;
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "geometry", "text", "style");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "geometry", "text", "style");
         var semanticChanged = ApplyFrame(before, after, target, path);
         var changed = semanticChanged;
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -604,7 +632,7 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         var target = element.Shape;
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "text");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "text");
         var semanticChanged = ApplyFrame(before, after, target, path);
         var changed = semanticChanged;
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -627,7 +655,7 @@ internal static class PpjSourceBoundPresentationCompiler
         IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "asset", "fit", "crop", "opacity", "mask");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "asset", "fit", "crop", "opacity", "mask");
         var changed = ApplyFrame(before, after, target, path);
         if (!before.AssetId.Equals(after.AssetId, StringComparison.Ordinal))
         {
@@ -675,7 +703,7 @@ internal static class PpjSourceBoundPresentationCompiler
     private static bool ApplyChartElement(PpjChartElementModel before, PpjChartElementModel after, PresentationChart target, string path)
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
-            "role", "tags", "frame", "title", "data", "style",
+            "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
             "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "title"))
@@ -883,7 +911,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static bool ApplyTableElement(PpjTableElementModel before, PpjTableElementModel after, PresentationTable target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "rows");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "rows");
         var changed = ApplyFrame(before, after, target, path);
         if (!PropertyChanged(before.Raw, after.Raw, "rows")) return changed;
         RequireCapability(after, "replaceText", path + ".rows");
@@ -914,7 +942,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static bool ApplyConnectorElement(PpjConnectorElementModel before, PpjConnectorElementModel after, PresentationConnector target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "stroke");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "stroke");
         var oldFrame = before.Frame;
         var changed = ApplyConnectorFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "stroke"))
@@ -940,7 +968,7 @@ internal static class PpjSourceBoundPresentationCompiler
         MutationState mutations,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "elements");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "elements");
         var changed = ApplyFrame(before, after, target, path);
         if (changed) mutations.SemanticChanges = true;
         if (before.Elements.Count != after.Elements.Count || before.Elements.Count != target.Children.Count)
@@ -989,7 +1017,7 @@ internal static class PpjSourceBoundPresentationCompiler
         MutationState mutations,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "visibleText");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "visibleText");
         var changed = false;
         if (FrameChanged(before, after))
         {

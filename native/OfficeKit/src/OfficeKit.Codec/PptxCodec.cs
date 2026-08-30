@@ -1015,6 +1015,14 @@ internal static class PptxCodec
                         diagramTextReplacement = PptxDiagramTextCodec.PrepareReplacement(slidePart, sourceElement, original.Opaque, requested.Opaque);
                     }
                     if (SemanticHash(requested).Equals(elementBinding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
+                    var stateChanged = PptxElementStateCodec.StateChanged(original, requested);
+                    var contentChanged = !PptxElementStateCodec.EqualExceptState(original, requested);
+                    if (stateChanged)
+                    {
+                        PptxElementStateCodec.ApplyBound(sourceElement, original, requested);
+                        changed = true;
+                    }
+                    if (!contentChanged) continue;
                     if (!elementBinding.Editable)
                     {
                         if (elementBinding.TextEditable &&
@@ -1461,6 +1469,7 @@ internal static class PptxCodec
                     _ => null,
                 })),
         };
+        PptxElementStateCodec.Populate(source, element);
         element.Source.SemanticSha256 = SemanticHash(element);
         return element;
     }
@@ -1558,6 +1567,8 @@ internal static class PptxCodec
             binding.DirectFramePresenceEditable != original.Source.DirectFramePresenceEditable ||
             binding.TextEditable != original.Source.TextEditable ||
             binding.AccessibilityEditable != original.Source.AccessibilityEditable ||
+            binding.VisibilityEditable != original.Source.VisibilityEditable ||
+            binding.LockingEditable != original.Source.LockingEditable ||
             binding.DeletionCapability is null ||
             binding.DeletionCapability.Supported != deletionPlan.Supported ||
             binding.DeletionCapability.NativeId != deletionPlan.NativeId ||
@@ -1647,6 +1658,7 @@ internal static class PptxCodec
     private static bool SupportsGroupDrawingProperties(P.NonVisualGroupShapeDrawingProperties groupDrawing)
     {
         if (!HasOnlyAttributes(groupDrawing) || groupDrawing.ChildElements.Count == 0) return groupDrawing.ChildElements.Count == 0;
+        if (PptxElementStateCodec.RecognizesGroupLockProfile(groupDrawing)) return true;
         if (groupDrawing.ChildElements.Count != 1 || groupDrawing.FirstChild is not A.GroupShapeLocks locks ||
             locks.ChildElements.Count != 0)
             return false;
@@ -1847,6 +1859,10 @@ internal static class PptxCodec
     {
         var allowed = original.Clone();
         allowed.Name = requested.Name;
+        if (requested.HasHidden) allowed.Hidden = requested.Hidden;
+        else allowed.ClearHidden();
+        if (requested.HasLocked) allowed.Locked = requested.Locked;
+        else allowed.ClearLocked();
         allowed.Opaque.LeftEmu = requested.Opaque.LeftEmu;
         allowed.Opaque.TopEmu = requested.Opaque.TopEmu;
         allowed.Opaque.WidthEmu = requested.Opaque.WidthEmu;
@@ -2269,7 +2285,9 @@ internal static class PptxCodec
         IReadOnlyDictionary<string, uint> nativeIdsByElementId,
         PptxPartContext slideContext,
         SlidePart slidePart,
-        PresentationDocument? package = null) => element.ContentCase switch
+        PresentationDocument? package = null)
+    {
+        OpenXmlElement output = element.ContentCase switch
         {
             PresentationElement.ContentOneofCase.Shape => BuildShape(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Image => PptxPictureCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
@@ -2284,6 +2302,9 @@ internal static class PptxCodec
                 $"Presentation media {element.Id} can be authored only in a source-free PPJ build."),
             _ => throw new CodecException("unsupported_presentation_element", $"Opaque presentation element {element.Id} requires its validated source package and cannot be authored from scratch."),
         };
+        PptxElementStateCodec.ApplyAuthored(output, element);
+        return output;
+    }
 
     private static P.GroupShape BuildGroup(
         PresentationElement element,
@@ -2437,6 +2458,8 @@ internal static class PptxCodec
                 binding.Editable != originalChild.Source?.Editable ||
                 binding.TextEditable != originalChild.Source?.TextEditable ||
                 binding.AccessibilityEditable != originalChild.Source?.AccessibilityEditable ||
+                binding.VisibilityEditable != originalChild.Source?.VisibilityEditable ||
+                binding.LockingEditable != originalChild.Source?.LockingEditable ||
                 binding.ZOrderCapability is null ||
                 binding.ZOrderCapability.Supported != zOrderPlan.Supported ||
                 !binding.ZOrderCapability.BlockedReason.Equals(zOrderPlan.BlockedReason, StringComparison.Ordinal) ||
@@ -2447,6 +2470,14 @@ internal static class PptxCodec
                     $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} does not match its owner-local source binding.",
                     PartPath(slideContext.Owner));
             if (SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
+            var stateChanged = PptxElementStateCodec.StateChanged(originalChild, requestedChild);
+            var contentChanged = !PptxElementStateCodec.EqualExceptState(originalChild, requestedChild);
+            if (stateChanged)
+            {
+                PptxElementStateCodec.ApplyBound(sourceChild, originalChild, requestedChild);
+                changed = true;
+            }
+            if (!contentChanged) continue;
             if (!binding.Editable)
             {
                 if (binding.TextEditable &&
@@ -2517,6 +2548,10 @@ internal static class PptxCodec
     {
         var allowed = original.Clone();
         allowed.Name = requested.Name;
+        if (requested.HasHidden) allowed.Hidden = requested.Hidden;
+        else allowed.ClearHidden();
+        if (requested.HasLocked) allowed.Locked = requested.Locked;
+        else allowed.ClearLocked();
         allowed.Opaque.LeftEmu = requested.Opaque.LeftEmu;
         allowed.Opaque.TopEmu = requested.Opaque.TopEmu;
         allowed.Opaque.WidthEmu = requested.Opaque.WidthEmu;
@@ -3748,6 +3783,7 @@ internal static class PptxCodec
     private static string GroupShellResidualHash(P.GroupShape source)
     {
         var clone = (P.GroupShape)source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(clone);
         foreach (var child in GroupElements(clone)) child.Remove();
         if (clone.NonVisualGroupShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
         {
@@ -4494,6 +4530,7 @@ internal static class PptxCodec
     private static string ShapeResidualHash(P.Shape source, PptxPartContext slideContext)
     {
         var shape = (P.Shape)source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(shape);
         PptxNonVisualAccessibilityCodec.ScrubModeledContent(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual) nonVisual.Name = string.Empty;
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties) drawingProperties.TextBox = null;
@@ -4525,6 +4562,7 @@ internal static class PptxCodec
     private static string ConnectorResidualHash(P.ConnectionShape source)
     {
         var connector = (P.ConnectionShape)source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(connector);
         if (connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
         {
             PptxNonVisualAccessibilityCodec.ScrubModeledContent(nonVisual);
@@ -4539,6 +4577,7 @@ internal static class PptxCodec
     private static string ChartFrameResidualHash(P.GraphicFrame source)
     {
         var chart = (P.GraphicFrame)source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(chart);
         PptxChartCodec.ScrubFrame(chart);
         return HashElement(chart);
     }
@@ -4546,6 +4585,7 @@ internal static class PptxCodec
     private static string PictureResidualHash(P.Picture source)
     {
         var picture = (P.Picture)source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(picture);
         PptxPictureCodec.ScrubModeledContent(picture);
         return HashElement(picture);
     }
@@ -4553,6 +4593,7 @@ internal static class PptxCodec
     private static string TableResidualHash(P.GraphicFrame source)
     {
         var table = (P.GraphicFrame)source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(table);
         PptxTableCodec.ScrubModeledContent(table);
         return HashElement(table);
     }
@@ -4560,6 +4601,7 @@ internal static class PptxCodec
     private static string NativeObjectResidualHash(OpenXmlElement source)
     {
         var clone = source.CloneNode(true);
+        PptxElementStateCodec.ScrubModeledContent(clone);
         if (clone.Descendants<P.NonVisualDrawingProperties>().FirstOrDefault() is { } nonVisual)
             nonVisual.Name = string.Empty;
         if (clone is P.Picture picture && picture.ShapeProperties?.GetFirstChild<A.Transform2D>() is { } pictureTransform)

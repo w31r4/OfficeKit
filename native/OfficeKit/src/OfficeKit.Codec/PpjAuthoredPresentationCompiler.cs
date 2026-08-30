@@ -220,12 +220,13 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationElement BuildElement(PpjElementModel element, JsonElement raw, Catalog catalog)
     {
-        RejectProperties(raw, element.Id, "hidden", "locked");
         var output = new PresentationElement
         {
             Id = element.Id,
             Name = DisplayName(element.Name, element.Role, element.Id),
         };
+        if (element.Hidden is { } hidden) output.Hidden = hidden;
+        if (element.Locked is { } locked) output.Locked = locked;
         switch (element)
         {
             case PpjTextElementModel:
