@@ -11,7 +11,7 @@
 
 ## 3. PPJ projection and Agent surface
 
-- [ ] 3.1 Project recognized state and issue the bounded `setState` capability.
+- [ ] 3.1 Project recognized state and issue bounded `setHidden` / `setLocked` capabilities.
 - [ ] 3.2 Update capability registry, generated `ppj.md`, shapes/layers guidance, and coverage.
 
 ## 4. Lean verification and integration
@@ -19,4 +19,3 @@
 - [ ] 4.1 Extend one existing PPJ contract with authored and source-bound state assertions.
 - [ ] 4.2 Run the focused PPJ contract, proto, Skill-maintainer, and strict OpenSpec checks.
 - [ ] 4.3 Commit the spec, runtime, guidance, and evidence atomically and fast-forward main without force push.
-

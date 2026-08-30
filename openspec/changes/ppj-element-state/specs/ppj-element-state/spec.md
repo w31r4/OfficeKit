@@ -23,25 +23,26 @@ the object type.
   does not receive selection, movement, resizing, aspect, or drill-down locks
 
 ### Requirement: Conservative imported projection
-The PPTX projector SHALL expose imported `hidden` state and SHALL expose
-`locked` plus a `setState` capability only when the exact native lock profile
-is recognized as the canonical locked or unlocked state. Other lock profiles
-SHALL remain source-preserved and uneditable through this boolean.
+The PPTX projector SHALL expose imported `hidden` state with an independent
+`setHidden` capability when its owner is recognized. It SHALL expose `locked`
+plus `setLocked` only when the exact native lock profile is recognized as the
+canonical locked or unlocked state. Other lock profiles SHALL remain
+source-preserved and uneditable through this boolean.
 
 #### Scenario: Imported partial picture lock
 - **WHEN** a third-party picture contains only `noCrop` plus an unknown lock
   extension
-- **THEN** projection does not claim a PPJ locked value or issue `setState`, and
-  an attempted state edit is rejected without changing the source package
+- **THEN** projection does not claim a PPJ locked value or issue `setLocked`,
+  and an attempted lock edit is rejected without changing the source package
 
 ### Requirement: Source-bound local state edit
-The source-bound compiler SHALL require a fresh `setState` capability and the
-PPTX exporter SHALL re-prove the source object and lock profile before changing
-only hidden/lock state.
+The source-bound compiler SHALL require a fresh field-specific capability and
+the PPTX exporter SHALL re-prove the source object and relevant native profile
+before changing only hidden or lock state.
 
 #### Scenario: Lock a recognized imported text box
 - **WHEN** an Agent changes `locked` from false to true on a hash-bound imported
-  text box whose capability includes `setState`
+  text box whose capability includes `setLocked`
 - **THEN** build mutates only the owning SlidePart's canonical lock nodes,
   preserves the text and all non-target parts, and reimport reports the same
   element ID with `locked: true`
@@ -56,4 +57,3 @@ source-bound failure boundary.
   element
 - **THEN** it can choose element `locked`/`hidden`, understand that arrays still
   control z-order, and avoid treating the fields as document security
-

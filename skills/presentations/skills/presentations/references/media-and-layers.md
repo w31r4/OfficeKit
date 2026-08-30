@@ -103,6 +103,19 @@ a color scrim over a background photograph, keep the photograph as the native
 image background and put an ordinary translucent shape first in
 `elements[]`, before foreground text.
 
+### Element visibility and edit locks
+
+All typed elements can use `hidden` and `locked`. Use `hidden: true` to keep a
+stable object in the program while excluding it from the visible slide. Use
+`locked: true` after a background, guide, media poster, or finished composition
+is placed correctly and should resist accidental selection or movement.
+
+These fields do not change layer order: `elements[]` remains the only
+back-to-front stack. They also do not hide the page or protect the file from a
+user with edit access. On an imported deck, change a field only when the
+object's `nativeRef.capabilities` includes the matching `setHidden` or
+`setLocked`; unfamiliar partial lock combinations remain source-owned.
+
 ```json
 {
   "background": {

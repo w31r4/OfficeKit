@@ -48,16 +48,17 @@ flag names.
 
 Import recognizes an unlocked baseline and OfficeKit's complete locked profile.
 Any other standard-flag combination, extension child, or unrecognized native
-state is preserved in the source package but does not issue `setState`.
-Visibility remains independently recognized when `cNvPr` itself has no unknown
-state-bearing structure.
+state is preserved in the source package but does not issue `setLocked`.
+Visibility remains independent and may issue `setHidden` whenever the owning
+`cNvPr` is recognized, even when the sibling lock profile remains opaque.
 
 ### 4. State mutation is a token-bounded local object change
 
-The PPJ source-bound compiler requires `setState`, changes only the optional
-wire fields, and the PPTX exporter re-proves the exact native profile before
-editing the existing non-visual node. Content, relationships, z-order, IDs, and
-unknown descendants remain untouched.
+The PPJ source-bound compiler requires `setHidden` or `setLocked` for the field
+being changed, changes only the corresponding optional wire field, and the
+PPTX exporter re-proves the exact native profile before editing the existing
+non-visual node. Content, relationships, z-order, IDs, and unknown descendants
+remain untouched.
 
 ## Risks / Trade-offs
 
@@ -81,4 +82,3 @@ compiler rejection.
 ## Open Questions
 
 None. A future typed lock profile would require a new PPJ schema version.
-
