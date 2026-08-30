@@ -34,7 +34,9 @@ Use one finite `viewBox` plus ordered `moveTo`, `lineTo`, `quadraticTo`,
 `stroke` control whether the shared shape paint applies to that path. A
 non-zero view-box origin is normalized deterministically during compilation.
 Custom adjustment formulas, guides, handles, connection sites, and text
-rectangles remain outside the authored PPJ subset. Preset geometry is broader:
+rectangles remain outside the authored PPJ subset. Preset geometry is broader
+and covers the complete non-connector DrawingML catalog owned by the pinned
+Office schema:
 use its ordered integer `adjustments` array to control rounded corners, arrow
 proportions, star radii, arc angles, callout tips, and the other parameters in
 the generated [PPJ preset profile table](ppj.md#preset-geometry-adjustments).
@@ -57,10 +59,16 @@ Omit the array to use Office defaults; never invent native guide names.
 }
 ```
 
-The array is complete or absent; do not omit an intermediate value. Imported
+The array is complete or absent; do not omit an intermediate value. Search the
+generated table instead of guessing a preset or adjustment arity. Imported
 literal preset adjustments can be changed only when `nativeRef.capabilities`
 issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
 native guides remain source-owned.
+
+The same preset profile can clip an image. `image.mask.adjustments` uses the
+identical parameter order and defaults; see [Media and layers](media-and-layers.md#image-masks).
+Connector presets are intentionally absent from shape geometry because PPJ has
+a typed connector element with endpoint semantics.
 
 ```json
 {

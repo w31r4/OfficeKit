@@ -285,10 +285,13 @@ metadata travel with the asset or element.
 
 ## Preset geometry adjustments
 
-\`shape.geometry.adjustments\` is one complete ordered integer array. Omit it
-or use \`[]\` for the native preset defaults. Percentage-like values use
-100000 as 100%; angle values use 60000 units per degree. PPJ derives native
-guide names from the preset and never exposes formula strings.
+\`shape.geometry.adjustments\` and preset \`image.mask.adjustments\` use one
+complete ordered integer array. Omit it or use \`[]\` for the native preset
+defaults. Percentage-like values use 100000 as 100%; angle values use 60000
+units per degree. PPJ derives native guide names from the preset and never
+exposes formula strings. The catalog contains ${Object.keys(presetProfiles.profiles).length}
+PPJ names; availability does not make a shape useful, so choose geometry by
+information purpose rather than novelty.
 
 | Preset | Native token | Ordered parameter meaning | Native defaults |
 | --- | --- | --- | --- |
@@ -297,7 +300,9 @@ ${presetGeometryRows}
 Imported shapes receive \`setGeometry\` only when their native adjustment list
 is empty/default or contains the complete canonical guide order with literal
 \`val N\` formulas. Formula-valued, partial, reordered, duplicated, or unknown
-guides remain source-owned and reject geometry edits.
+guides remain source-owned and reject geometry edits. Canonical imported
+picture masks use the same rule and receive \`setImageMask\` only for
+\`image.mask.adjustments\`; preset identity and picture topology remain fixed.
 
 ## Authored compiler availability
 

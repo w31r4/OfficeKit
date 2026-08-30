@@ -60,6 +60,33 @@ Use `cover` for image-led regions, `contain` for diagrams or logos that must not
 crop, and explicit crop values when reproducibility matters. Re-render after
 font, crop, mask, or z-order changes.
 
+## Image masks
+
+A preset image mask is native editable geometry, not a rasterized cutout. It
+uses the same finite profile table as a shape:
+
+```json
+{
+  "type": "image",
+  "id": "portrait",
+  "frame": { "x": 612, "y": 92, "width": 252, "height": 336 },
+  "asset": "portrait-photo",
+  "fit": "cover",
+  "mask": {
+    "kind": "preset",
+    "preset": "round2SameRect",
+    "adjustments": [18000, 6000]
+  }
+}
+```
+
+The adjustment array is complete or omitted for native defaults. Its order and
+defaults come from the [generated PPJ preset table](ppj.md#preset-geometry-adjustments).
+An imported picture can change only these values when `nativeRef.capabilities`
+issues `setImageMask`; the preset identity, crop, asset, frame, and native
+topology remain fixed. Custom-path picture masks remain source-preserved and
+fail closed for authored or source-bound mutation.
+
 ## Protect content
 
 Text contrast must survive the actual image, not an imagined average color.

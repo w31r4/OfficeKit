@@ -11,8 +11,8 @@
 
 ## 3. Agent discoverability
 
-- [ ] 3.1 Generate the complete preset catalog and mask semantics in `ppj.md`
-- [ ] 3.2 Update shapes/media guidance without recommending decorative preset use
+- [x] 3.1 Generate the complete preset catalog and mask semantics in `ppj.md`
+- [x] 3.2 Update shapes/media guidance without recommending decorative preset use
 
 ## 4. Lean verification and delivery
 
