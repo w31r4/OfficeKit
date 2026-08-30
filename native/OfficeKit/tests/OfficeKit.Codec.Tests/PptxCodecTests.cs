@@ -24,6 +24,47 @@ namespace OfficeKit.Codec.Tests;
 public sealed class PptxCodecTests
 {
     [Fact]
+    public void PpjOpaqueConnectorProjectionIssuesNativeLineLeaves()
+    {
+        var element = new PresentationElement
+        {
+            Opaque = new PresentationOpaqueElement
+            {
+                NativeKind = "connector",
+                RawXml = """
+                    <p:cxnSp xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                      <p:spPr>
+                        <a:ln w="12700" cap="rnd">
+                          <a:solidFill><a:srgbClr val="112233"/></a:solidFill>
+                          <a:prstDash val="dash"/>
+                          <a:round/>
+                          <a:headEnd type="triangle" w="med" len="sm"/>
+                          <a:tailEnd type="none"/>
+                        </a:ln>
+                      </p:spPr>
+                    </p:cxnSp>
+                    """,
+            },
+            Source = new PresentationElementSourceBinding { ElementSha256 = "source" },
+        };
+
+        var leaves = PpjNativeLeafProjection.Describe(
+            "source-sha",
+            "page-1",
+            "element-1",
+            element,
+            new uint[] { 0 },
+            _ => { });
+
+        Assert.Equal(
+            new[] { "lineWidthEmu", "lineRgb", "lineStyle", "lineCap", "lineJoin", "lineStartArrow", "lineEndArrow" },
+            leaves.Select(leaf => leaf!["kind"]!.GetValue<string>()).ToArray());
+        Assert.Equal("#112233", leaves[1]!["value"]!.GetValue<string>());
+        Assert.Equal(12_700, leaves[0]!["value"]!.GetValue<long>());
+        Assert.Equal("triangle", leaves[5]!["value"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void UnsupportedGradientPercentageCoordinatesRemainOpaque()
     {
         var rectangle = new A.FillToRectangle();
