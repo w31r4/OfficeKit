@@ -607,6 +607,41 @@ assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].access
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
 assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
 
+// Imported line theme/alpha values are part of the visual contract even when
+// the shape is otherwise left untouched.  Keep the source-bound projection
+// lossless so a later text, image, or geometry edit cannot silently flatten a
+// theme line into a transparent/default stroke.
+const themedLineZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const themedLineSourceXml = await themedLineZip.file("ppt/slides/slide1.xml").async("text");
+const replaceNamedLineFill = (xml, elementTag, name, replacement) => {
+  const nameOffset = xml.indexOf(`name="${name}"`);
+  assert.notEqual(nameOffset, -1, `missing ${name} in themed-line fixture`);
+  const elementStart = xml.lastIndexOf(`<${elementTag}>`, nameOffset);
+  const elementEnd = xml.indexOf(`</${elementTag}>`, nameOffset) + `</${elementTag}>`.length;
+  assert.ok(elementStart >= 0 && elementEnd > elementStart, `missing ${elementTag} boundary for ${name}`);
+  const element = xml.slice(elementStart, elementEnd);
+  const replaced = element.replace(/<a:ln\b[^>]*>[\s\S]*?<\/a:ln>/u, replacement);
+  assert.notEqual(replaced, element, `missing line in ${name} fixture`);
+  return xml.slice(0, elementStart) + replaced + xml.slice(elementEnd);
+};
+const themedShapeLine = '<a:ln w="12700" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:solidFill><a:schemeClr val="dk1"><a:alpha val="42000" /></a:schemeClr></a:solidFill><a:prstDash val="solid" /></a:ln>';
+const themedConnectorLine = '<a:ln w="25400" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:solidFill><a:schemeClr val="dk1"><a:alpha val="42000" /></a:schemeClr></a:solidFill></a:ln>';
+const themedShapeLineXml = replaceNamedLineFill(themedLineSourceXml, "p:sp", "decision-status", themedShapeLine);
+const themedLineXml = replaceNamedLineFill(themedShapeLineXml, "p:cxnSp", "decision-flow", themedConnectorLine);
+const themedLineFile = new FileBlob(
+  await themedLineZip.file("ppt/slides/slide1.xml", themedLineXml).generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const themedLineImported = await PresentationFile.importPptx(themedLineFile);
+const importedThemedLine = itemByName(themedLineImported.slides.getItem(0).shapes.items, "decision-status");
+const importedThemedConnector = itemByName(themedLineImported.slides.getItem(0).connectors.items, "decision-flow");
+assert.equal(importedThemedLine.line.fill, "dk1");
+assert.equal(importedThemedLine.line.opacity, 0.42);
+assert.equal(importedThemedConnector.line.fill, "dk1");
+assert.equal(importedThemedConnector.line.opacity, 0.42);
+const themedLineNoOp = await PresentationFile.exportPptx(themedLineImported);
+assert.deepEqual(themedLineNoOp.bytes, themedLineFile.bytes, "imported theme line and alpha must survive an exact no-op");
+
 // An imported shape can have a safe text graph while its visual fill is a
 // native gradient outside the typed style profile.  A plain text edit must
 // keep that gradient instead of rejecting the whole shape or replacing it
