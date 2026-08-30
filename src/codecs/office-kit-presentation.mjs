@@ -4432,6 +4432,74 @@ function createPresentationNativeLeafCapability(presentation, state) {
       });
     };
     registerImportedShadowOpacityLeaf();
+    const registerImportedShadowColorLeaves = () => {
+      if (wire.content.case !== "shape") return;
+      const shadow = wire.content.value.shadow;
+      if (!shadow || typeof shadow !== "object") return;
+      if (wire.source?.editable !== true && wire.source?.textEditable !== true) return;
+      const shadowColorRgb = String(shadow.colorRgb ?? "");
+      if (/^[0-9A-F]{6}$/u.test(shadowColorRgb)) {
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "shadowColorRgb",
+          expectedValue: shadowColorRgb,
+          value: `#${shadowColorRgb.toLowerCase()}`,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+            if (!match) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowColorRgb native leaf requires a six-digit RGB color.");
+            }
+            const normalized = match[1].toUpperCase();
+            return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+          },
+          isNoop(next) { return next.toUpperCase() === shadowColorRgb.toUpperCase(); },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadow color native leaf no longer resolves to the imported shadow.");
+            }
+            const { colorScheme: _ignoredColorScheme, ...rest } = model.shadow;
+            model.shadow = { ...rest, color: `#${next.toLowerCase()}` };
+          },
+        });
+      }
+      const shadowColorScheme = NATIVE_SCHEME_COLOR_CANONICAL[String(shadow.colorScheme ?? "").toLowerCase()];
+      if (shadowColorScheme) {
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "shadowColorScheme",
+          expectedValue: shadowColorScheme,
+          value: shadowColorScheme,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+            if (!canonical) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowColorScheme native leaf requires a supported theme color token.");
+            }
+            return { raw: canonical, publicValue: canonical };
+          },
+          isNoop(next) { return next === shadowColorScheme; },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadow color native leaf no longer resolves to the imported shadow.");
+            }
+            const { color: _ignoredColor, ...rest } = model.shadow;
+            model.shadow = { ...rest, colorScheme: next };
+          },
+        });
+      }
+    };
+    registerImportedShadowColorLeaves();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
