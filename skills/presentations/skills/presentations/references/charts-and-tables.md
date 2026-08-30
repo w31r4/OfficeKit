@@ -59,11 +59,11 @@ The authored chart compiler owns these native visual controls:
 - chart-area and plot-area none or solid fills, including opacity;
 - direct solid series color plus editable line width, dash, opacity, cap, join,
   and bounded markers;
-- category/value-axis titles, number formats, label interval, tick-label size,
-  value bounds and major unit; bounded combo charts may declare the matching
-  secondary pair;
-- chart-title font size plus canonical line-chart smoothing and direct color
-  variation;
+- category/value-axis titles, number formats, label interval, tick-label
+  typeface, size, bold, italic and direct RGB/alpha, value bounds and major
+  unit; bounded combo charts may declare the matching secondary pair;
+- chart-title Latin/East Asian typeface, size, bold, italic and direct
+  RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage and native
   position;
 - direct marker symbol, size, fill and stroke;
@@ -105,20 +105,36 @@ rebuilding the visual with shapes:
   "chartType": "line",
   "title": "Retention after launch",
   "style": {
-    "titleTextStyle": { "fontSize": 16 },
+    "titleTextStyle": {
+      "fontSize": 16,
+      "fontFamily": "Aptos Display",
+      "fontFamilyEastAsia": "Noto Sans CJK SC",
+      "bold": true,
+      "italic": false,
+      "color": "#16324FCC"
+    },
     "smooth": false,
     "varyColors": true
+  },
+  "xAxis": {
+    "textStyle": {
+      "fontSize": 9,
+      "fontFamily": "Aptos",
+      "fontFamilyEastAsia": "Noto Sans CJK SC",
+      "color": "#475569"
+    }
   }
 }
 ```
 
 `smooth` preserves an explicit true or false native value. `varyColors: true`
 authors one direct native color-variation flag; false is canonical omission.
-Both line-behavior fields are line-chart-only. Font family, weight, color,
-legend typography and data-label typography remain outside the bounded chart
-writer. A projected imported chart may expose these recognized values for
-inspection, but changing them requires a dedicated source capability; ordinary
-`setChartTitle` and `setChartData` do not authorize a style mutation.
+Both line-behavior fields are line-chart-only. Chart-title and axis tick-label
+typography compile through one exact DrawingML profile. A projected imported
+chart may issue `setChartTextStyle`; only that capability authorizes changes to
+these fields. Ordinary `setChartTitle` and `setChartData` do not authorize a
+style mutation. Theme transforms, shadows and other rich-text effects remain
+source-owned, as do legend, data-label and axis-title typography.
 
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
