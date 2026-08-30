@@ -4835,6 +4835,35 @@ function createPresentationNativeLeafCapability(presentation, state) {
         });
       }
     };
+    const registerImportedShapeSchemeLeaf = () => {
+      // A fully modeled source shape takes the scalar path below. Keep the
+      // theme token as a separate native leaf so a scheme edit cannot rebuild
+      // the rest of the shape or discard a neighboring opacity value.
+      if (!isShape || wire.source?.editable !== true) return;
+      const scheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme || "").toLowerCase()];
+      if (!scheme) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "fillScheme",
+        expectedValue: scheme,
+        value: scheme,
+        normalize(next) {
+          const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+          if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+          return { raw: canonical, publicValue: canonical };
+        },
+        isNoop(next) { return next === scheme; },
+        apply(next) {
+          const opacity = typeof model.fill === "object" && model.fill !== null ? model.fill.opacity : undefined;
+          model.fill = opacity == null ? next : { color: next, opacity };
+        },
+      });
+    };
     const registerImportedImageOpacityLeaf = () => {
       if (!isImage || wire.source?.editable !== true) return;
       const raw = String(wire.content.value.opacityThousandthPercent ?? "");
@@ -5856,6 +5885,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
     }
     registerImportedImageOpacityLeaf();
     registerImportedImageMaskLeaf();
+    registerImportedShapeSchemeLeaf();
     if (wire.source.editable !== true) {
       registerImportedShapeColorLeaves();
       return;
