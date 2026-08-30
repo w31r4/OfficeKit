@@ -2297,6 +2297,11 @@ message PresentationShape {
   // mutually exclusive; source-bound edits preserve the token instead of
   // resolving it through the presentation theme.
   string line_scheme = 39;
+  // Compiler provenance for a source-free PPJ named icon. This marker is not
+  // serialized into PPTX and is never inferred from imported custom geometry;
+  // it only lets the source-preserving writer admit the exact bounded native
+  // custom path as an authored overlay without opening arbitrary geometry.
+  string catalog_icon_name = 40;
 }
 
 message PresentationCustomGeometryPath {

@@ -2268,6 +2268,27 @@ internal static class PptxCodec
         if (element.ContentCase != PresentationElement.ContentOneofCase.Shape)
             return "must be a canonical textbox, basic shape, or embedded rectangular image";
         var shape = element.Shape;
+        if (!string.IsNullOrEmpty(shape.CatalogIconName))
+        {
+            if (!PpjIconCatalog.Contains(shape.CatalogIconName))
+                return "uses an icon name outside the pinned compiler catalog";
+            if (shape.Geometry != "custom" || shape.CustomPaths.Count != 1 ||
+                shape.Placeholder is not null || shape.DirectFrame is not null || shape.HasUseBackgroundFill ||
+                shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
+                shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 ||
+                shape.TextRectangle is not null || shape.TextBody is not null || shape.ImageFill is not null ||
+                !string.IsNullOrEmpty(shape.ImageFillAssetId))
+                return "uses state outside the bounded named-icon overlay profile";
+            try
+            {
+                PptxCustomGeometryCodec.Validate(shape, element.Id);
+            }
+            catch (CodecException)
+            {
+                return "contains invalid named-icon custom geometry";
+            }
+            return null;
+        }
         if (shape.Geometry is not ("textbox" or "rect" or "roundRect" or "ellipse") ||
             shape.Placeholder is not null || shape.DirectFrame is not null || shape.HasUseBackgroundFill ||
             shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||

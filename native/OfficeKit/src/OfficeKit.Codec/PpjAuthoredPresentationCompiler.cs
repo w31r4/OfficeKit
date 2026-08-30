@@ -352,6 +352,7 @@ internal static class PpjAuthoredPresentationCompiler
     {
         var definition = PpjIconCatalog.Resolve(element.IconName);
         var shape = ShapeFrame(element.Frame, "custom");
+        shape.CatalogIconName = element.IconName;
         var namedStyle = catalog.ShapeStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         if (FirstProperty(inlineStyle, namedStyle, "fill") is null) shape.FillRgb = "000000";
