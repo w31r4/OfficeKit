@@ -2718,6 +2718,45 @@ const editedConnector = itemByName(connectorEditedRoundTrip.slides.getItem(0).co
 assert.equal(editedConnector.endSiteIndex, 6);
 assert.equal(editedConnector.end.x, 800);
 
+// Imported connectors can legitimately have a zero width or height when both
+// endpoints share an axis.  Force the otherwise valid connector through the
+// native projection with an unrelated extension, then move only its direct
+// frame.  The source-bound extension and connection topology must survive.
+const opaqueConnectorZip = await JSZip.loadAsync(connectorFirstExport.bytes);
+const connectorSourceXml = await opaqueConnectorZip.file("ppt/slides/slide1.xml").async("text");
+const opaqueConnectorXml = connectorSourceXml
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="curved-site-connector")/u,
+    '$1 xmlns:fixture="urn:office-kit:opaque-connector" fixture:opaque="kept"',
+  )
+  .replace(
+    /(<p:cxnSp\b[\s\S]*?\bname="curved-site-connector"[\s\S]*?<p:spPr\b[\s\S]*?)(<\/p:spPr>)/u,
+    '$1<a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{office-kit-opaque-connector}" /></a:extLst>$2',
+  );
+assert.notEqual(opaqueConnectorXml, connectorSourceXml);
+opaqueConnectorZip.file("ppt/slides/slide1.xml", opaqueConnectorXml);
+const opaqueConnectorFile = new FileBlob(
+  await opaqueConnectorZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const opaqueConnectorImported = await PresentationFile.importPptx(opaqueConnectorFile);
+const opaqueConnector = itemByName(opaqueConnectorImported.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+assert.equal(opaqueConnector.nativeKind, "connector");
+assert.equal(opaqueConnector.position.height, 0);
+assert.equal(opaqueConnector.placementCapability.supported, true);
+opaqueConnector.setPosition({ top: opaqueConnector.position.top + 1 });
+const opaqueConnectorOutput = await PresentationFile.exportPptx(opaqueConnectorImported);
+const opaqueConnectorOutputZip = await JSZip.loadAsync(opaqueConnectorOutput.bytes);
+const opaqueConnectorOutputXml = await opaqueConnectorOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(opaqueConnectorOutputXml, /fixture:opaque="kept"/);
+assert.match(opaqueConnectorOutputXml, /<a:extLst[^>]*>\s*<a:ext uri="\{office-kit-opaque-connector\}"\s*\/>\s*<\/a:extLst>/u);
+assert.match(opaqueConnectorOutputXml, /<a:stCxn\b[^>]*idx="3"/u);
+assert.match(opaqueConnectorOutputXml, /<a:endCxn\b[^>]*idx="2"/u);
+const opaqueConnectorRoundTrip = await PresentationFile.importPptx(opaqueConnectorOutput);
+const opaqueConnectorRoundTripObject = itemByName(opaqueConnectorRoundTrip.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+assert.equal(opaqueConnectorRoundTripObject.position.top, opaqueConnector.position.top);
+assert.equal(opaqueConnectorRoundTripObject.position.height, 0);
+
 // Custom shows are a real inline PresentationML graph. Source-free decks own
 // the complete list; canonical imports may edit only names and ordered slide
 // membership while show topology/native identity remain source-bound.

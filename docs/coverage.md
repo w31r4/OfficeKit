@@ -695,6 +695,17 @@ identity. Other image-fill graphs and custom-path mutations remain opaque and
 fail closed; this does not provide source-free image-fill authoring or image
 replacement.
 
+### Imported zero-extent connectors
+
+Source-bound connectors with a legal horizontal or vertical frame (one zero
+extent, the other positive) now expose bounded placement editing even when an
+unmodeled extension keeps the connector itself in the native projection. The
+operation changes only the direct `a:xfrm` frame and preserves endpoint
+bindings, line geometry, extension children, and all other package parts;
+zero-by-zero, negative, missing, or duplicate frames remain read-only. This
+closes a common diagram-editing gap observed in the six-sample corpus without
+promoting arbitrary connector topology to the semantic model.
+
 ## PDF
 
 | Capability | Status | Notes |

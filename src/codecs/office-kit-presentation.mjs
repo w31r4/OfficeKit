@@ -3162,7 +3162,14 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
       const topEmu = presentationNativePlacementEmu(frame.top, "top");
       const widthEmu = presentationNativePlacementEmu(frame.width, "width");
       const heightEmu = presentationNativePlacementEmu(frame.height, "height");
-      if (leftEmu < 0n || topEmu < 0n || widthEmu <= 0n || heightEmu <= 0n) {
+      // A source-bound connector may be a legal horizontal or vertical line
+      // with one zero extent.  Its endpoint geometry and relationship targets
+      // stay opaque; this path only changes the owner frame.  Keep ordinary
+      // native objects strict and reject invisible zero-by-zero connectors.
+      const zeroExtentConnector = object.nativeKind === "connector" &&
+        widthEmu >= 0n && heightEmu >= 0n && (widthEmu > 0n || heightEmu > 0n);
+      if (leftEmu < 0n || topEmu < 0n || widthEmu < 0n || heightEmu < 0n ||
+          (!zeroExtentConnector && (widthEmu === 0n || heightEmu === 0n))) {
         throw new OfficeKitCodecError(`Presentation native element ${object.id} requires a non-negative position and positive size.`, [], { code: "invalid_presentation_frame" });
       }
       const updated = clonePresentationWire(PresentationElementSchema, original);

@@ -35,6 +35,13 @@ relationship, crop, and custom geometry remain source-owned while the shape's
 position or size changes. Image replacement, fill conversion, custom-path
 rewriting, and any other image-fill graph stay opaque and fail closed.
 
+Source-bound connectors may expose the same bounded placement surface when
+their direct frame is a legal horizontal or vertical line with one zero
+extent. Moving the frame leaves endpoint bindings, line geometry, and unknown
+extension children untouched. Zero-by-zero, negative, missing, or ambiguous
+connector frames remain read-only; this is not permission to rewrite connector
+topology.
+
 Stale hash, ambiguous target, unsupported field, unsafe relationship change,
 cross-object mutation, or topology rewrite must fail. Do not patch raw OOXML,
 replace the whole slide with an image, flatten the deck, or rebuild it through

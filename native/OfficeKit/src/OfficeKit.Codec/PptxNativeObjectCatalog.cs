@@ -381,11 +381,21 @@ internal sealed class PptxNativeObjectCatalog
         {
             var transforms = connector.ShapeProperties?.ChildElements.OfType<A.Transform2D>().ToArray() ?? [];
             var transform = transforms.Length == 1 ? transforms[0] : null;
+            // A horizontal or vertical connector is a legal zero-area frame:
+            // its line geometry still carries the visible segment and endpoint
+            // bindings.  Moving that direct frame does not rewrite the
+            // connection topology or any unknown descendants, so it belongs
+            // to the same bounded source-bound placement surface as a normal
+            // connector.  Keep offsets non-negative and reject missing,
+            // duplicate, or negative frames as before.
+            var width = transform?.Extents?.Cx?.Value;
+            var height = transform?.Extents?.Cy?.Value;
             return connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties is not null &&
                    transform?.Offset?.X?.Value is >= 0 &&
                    transform.Offset.Y?.Value is >= 0 &&
-                   transform.Extents?.Cx?.Value is > 0 &&
-                   transform.Extents.Cy?.Value is > 0;
+                   width is >= 0 &&
+                   height is >= 0 &&
+                   (width > 0 || height > 0);
         }
         return false;
     }

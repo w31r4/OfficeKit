@@ -2905,9 +2905,7 @@ internal static class PptxCodec
                     // group.
                     if (!hasSourcePackage || child.Source is null || string.IsNullOrWhiteSpace(child.Source.ElementSha256))
                         throw new CodecException("unsupported_presentation_features", $"Presentation group {element.Id} contains a source-free opaque child.");
-                    if (child.Source.Editable &&
-                        ((!allowNegativeOffset && (child.Opaque.LeftEmu < 0 || child.Opaque.TopEmu < 0)) ||
-                         child.Opaque.WidthEmu <= 0 || child.Opaque.HeightEmu <= 0))
+                    if (child.Source.Editable && !HasValidSourceBoundNativeFrame(child.Opaque, allowNegativeOffset))
                         throw new CodecException("invalid_presentation_frame", $"Presentation native child {child.Id} has an invalid frame.");
                     continue;
                 }
@@ -2918,9 +2916,26 @@ internal static class PptxCodec
             throw new CodecException("missing_presentation_element_content", $"Presentation element {element.Id} has no content.");
         else if (element.Source?.Editable == true)
         {
-            if (element.Opaque.LeftEmu < 0 || element.Opaque.TopEmu < 0 || element.Opaque.WidthEmu <= 0 || element.Opaque.HeightEmu <= 0)
+            if (!HasValidSourceBoundNativeFrame(element.Opaque))
                 throw new CodecException("invalid_presentation_frame", $"Presentation native object {element.Id} has an invalid frame.");
         }
+    }
+
+    private static bool HasValidSourceBoundNativeFrame(PresentationOpaqueElement frame, bool allowNegativeOffset = false)
+    {
+        if ((!allowNegativeOffset && (frame.LeftEmu < 0 || frame.TopEmu < 0)) ||
+            frame.WidthEmu < 0 || frame.HeightEmu < 0)
+            return false;
+
+        // DrawingML connectors may have a zero width or height when the two
+        // endpoints share an axis.  The line geometry and connection targets
+        // remain the source-bound payload; this operation only updates the
+        // direct frame.  Require at least one positive extent so an invisible
+        // zero-by-zero object is not promoted to an editable placement root.
+        if (frame.NativeKind == "connector")
+            return frame.WidthEmu > 0 || frame.HeightEmu > 0;
+
+        return frame.WidthEmu > 0 && frame.HeightEmu > 0;
     }
 
     private static void ValidatePlaceholders(
