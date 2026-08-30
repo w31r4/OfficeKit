@@ -7619,6 +7619,27 @@ const shadowGeometryOutputXml = await (await JSZip.loadAsync(shadowGeometryOutpu
 assert.match(shadowGeometryOutputXml, /<a:outerShdw\b[^>]*blurRad="85725"/u);
 const shadowGeometryRoundTrip = await PresentationFile.importPptx(shadowGeometryOutput);
 assert.equal(itemByName(shadowGeometryRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.blurRadius, 9);
+
+// The bounded outer-shadow graph also exposes its direct RGB color. Keep this
+// as a source-bound token splice so imported effect details remain intact.
+const shadowColorImported = await PresentationFile.importPptx(sourceBound);
+const shadowColorTarget = itemByName(shadowColorImported.slides.getItem(0).shapes.items, "rounded-card");
+const shadowColorRecords = shadowColorImported.inspect({ includeNativeLeaves: true, targetId: shadowColorTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+const shadowColorLeaf = shadowColorRecords.find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowColorRgb");
+assert.ok(shadowColorLeaf, "canonical imported shadows should expose a direct RGB color leaf");
+assert.equal(shadowColorLeaf.value, "#000000");
+shadowColorImported.editNativeLeaf(shadowColorLeaf.targetId, shadowColorLeaf.leafId, {
+  expectedHash: shadowColorLeaf.expectedHash,
+  value: "#112233",
+});
+const shadowColorOutput = await PresentationFile.exportPptx(shadowColorImported);
+assert.equal(shadowColorOutput.metadata.editPlan.operations[0].leafKind, "shadowColorRgb");
+await assertOnlyDeclaredPptxFootprintChanged(sourceBound, shadowColorOutput, shadowColorOutput.metadata.editPlan.operations);
+const shadowColorOutputXml = await (await JSZip.loadAsync(shadowColorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowColorOutputXml, /<a:srgbClr\s+val="112233"><a:alpha\s+val="25000"\s*\/>/u);
+const shadowColorRoundTrip = await PresentationFile.importPptx(shadowColorOutput);
+assert.equal(itemByName(shadowColorRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.color, "#112233");
 assert.deepEqual(importedCore.background, { fill: "#f1f5f9", mode: "solid" });
 assert.equal(itemByName(importedCore.shapes.items, "rounded-card").geometry, "roundRect");
 assert.equal(itemByName(importedCore.shapes.items, "target-textbox").geometry, "textbox");
