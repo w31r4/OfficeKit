@@ -550,6 +550,10 @@ internal static partial class PpjPresentationProjector
         if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
+        if (chart.TitleTextStyle?.HasFontSizePoints == true)
+            style["titleTextStyle"] = new JsonObject { ["fontSize"] = chart.TitleTextStyle.FontSizePoints };
+        if (chart.LineOptions?.HasSmooth == true) style["smooth"] = chart.LineOptions.Smooth;
+        if (chart.LineOptions?.VaryColors == true) style["varyColors"] = true;
         if (chart.DataLabels is not null)
         {
             var labels = new JsonObject
