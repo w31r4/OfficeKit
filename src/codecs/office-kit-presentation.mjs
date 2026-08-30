@@ -29,6 +29,7 @@ import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation
 import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
 import { normalizePresentationImageBorder, normalizePresentationImageMask } from "../presentation/image-effects.mjs";
+import { isPresentationPresetGeometry, normalizePresentationPresetAdjustments } from "../presentation/preset-geometries.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { isPresentationGradientFill, normalizePresentationGradientFill } from "../presentation/gradient-fills.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
@@ -278,6 +279,7 @@ function cloneImportedPresentationShape(container, source, context) {
   const clone = container.shapes.add({
     name: source.name,
     geometry: source.geometry,
+    ...(source.presetAdjustments?.length ? { presetAdjustments: clonedPresentationValue(source.presetAdjustments) } : {}),
     ...(source.customAdjustments?.length ? { customAdjustments: clonedPresentationValue(source.customAdjustments) } : {}),
     ...(source.customGuides?.length ? { customGuides: clonedPresentationValue(source.customGuides) } : {}),
     ...(source.customConnectionSites?.length ? { customConnectionSites: clonedPresentationValue(source.customConnectionSites) } : {}),
@@ -2187,9 +2189,10 @@ function presentationGradientFill(value, name) {
 
 function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const originalShape = original?.content?.case === "shape" ? original.content.value : original;
-  if (!new Set(["rect", "ellipse", "roundRect", "textbox", "line", "custom"]).has(shape.geometry)) {
+  if (!new Set(["textbox", "line", "custom"]).has(shape.geometry) && !isPresentationPresetGeometry(shape.geometry)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} uses unsupported geometry ${shape.geometry}.`, [], { code: "unsupported_presentation_features" });
   }
+  const presetAdjustments = normalizePresentationPresetAdjustments(shape.presetAdjustments, shape.geometry, `Presentation shape ${shape.id} presetAdjustments`);
   const formulaGraph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: shape.customAdjustments, guides: shape.customGuides });
   const position = shape.position || {};
   const normalizedCustomPaths = shape.customPaths?.length ? normalizePresentationCustomPaths(shape.customPaths, {
@@ -2215,6 +2218,9 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   });
   if (shape.geometry !== "custom" && (normalizedCustomPaths.length || customConnectionSites.length || customAdjustmentHandles.length || formulaGraph.adjustments.length || formulaGraph.guides.length || textRectangle)) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} has custom geometry data without custom geometry.`, [], { code: "invalid_presentation_geometry" });
+  }
+  if (shape.geometry === "custom" && presetAdjustments.length) {
+    throw new OfficeKitCodecError(`Presentation shape ${shape.id} has preset geometry adjustments with custom geometry.`, [], { code: "invalid_presentation_geometry" });
   }
   if (originalShape?.geometry === "custom" && (originalShape.customConnectionSites?.length || 0) !== customConnectionSites.length) {
     throw new OfficeKitCodecError(`Source-preserving PPTX export requires custom shape ${shape.id}'s original connection-site list length; each existing index is the native identity.`, [], { code: "unsupported_presentation_edit" });
@@ -2362,6 +2368,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(placeholder || {}),
         ...(placeholder || shape.transform == null ? {} : { transform: wirePresentationTransform(shape.transform, `shape ${shape.id}`) }),
         ...(shadow ? { shadow } : {}),
+        ...(presetAdjustments.length ? { presetAdjustments } : {}),
         ...(formulaGraph.adjustments.length ? { customAdjustments: formulaGraph.adjustments } : {}),
         ...(formulaGraph.guides.length ? { customGuides: formulaGraph.guides } : {}),
         ...(customConnectionSites.length ? { customConnectionSites: customConnectionSites.map(presentationCustomGeometryConnectionSiteToWire) } : {}),
@@ -7051,6 +7058,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       kind: "shape",
       ...common,
       geometry: shape.geometry || "rect",
+      ...(shape.presetAdjustments?.length ? { presetAdjustments: [...shape.presetAdjustments] } : {}),
       ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
       ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
       ...(shape.customConnectionSites?.length ? { customConnectionSites: modelCustomGeometryConnectionSites(shape) } : {}),
@@ -7387,6 +7395,7 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           id: element.id,
           name: element.name || inheritedPlaceholder?.name,
           geometry: shape.geometry || "rect",
+          ...(shape.presetAdjustments?.length ? { presetAdjustments: [...shape.presetAdjustments] } : {}),
           ...(shape.customAdjustments?.length ? { customAdjustments: modelCustomGeometryGuides(shape.customAdjustments) } : {}),
           ...(shape.customGuides?.length ? { customGuides: modelCustomGeometryGuides(shape.customGuides) } : {}),
           ...(shape.customConnectionSites?.length ? { customConnectionSites: modelCustomGeometryConnectionSites(shape) } : {}),
