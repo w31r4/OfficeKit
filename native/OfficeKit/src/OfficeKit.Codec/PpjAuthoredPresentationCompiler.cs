@@ -215,7 +215,7 @@ internal static class PpjAuthoredPresentationCompiler
         var shape = ShapeFrame(element.Frame, geometry);
         var namedStyle = catalog.ShapeStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id);
+        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id, raw.TryGetProperty("text", out _));
         if (raw.TryGetProperty("text", out var text))
         {
             shape.TextBody = BuildTextBody(text, null, Property(raw, "textStyle"), catalog);
@@ -289,6 +289,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
+        RejectUnsupportedFrameTransform(element.Id, element.Frame, "chart");
         if (element.Data.Series.Any(series => series.Values.Any(value => value is null)))
             throw Unsupported(element.Id, "null chart values require a missing-value-aware native chart cache");
         if (element.ChartType is "radar" or "waterfall")
@@ -343,6 +344,8 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static SpreadsheetChartSeriesArtifact BuildSeries(PpjChartSeriesModel source, JsonElement raw, Catalog catalog)
     {
+        if (raw.TryGetProperty("fill", out _) && raw.TryGetProperty("color", out _))
+            throw Unsupported(source.Id, "chart-series color and fill are aliases and cannot both be present");
         var series = new SpreadsheetChartSeriesArtifact { Name = source.Name };
         series.Values.Add(source.Values.Select(value => value!.Value));
         if (raw.TryGetProperty("fill", out var fill))
@@ -362,15 +365,17 @@ internal static class PpjAuthoredPresentationCompiler
         }
         if (raw.TryGetProperty("stroke", out var stroke))
         {
+            var strokeColor = catalog.Color(stroke.GetProperty("color"));
             series.Line = new SpreadsheetChartLineStyleArtifact
             {
-                Color = new SpreadsheetColor { Rgb = catalog.Color(stroke.GetProperty("color")).Rgb },
+                Color = new SpreadsheetColor { Rgb = strokeColor.Rgb },
                 DashStyle = ChartDash(OptionalString(stroke, "dash")),
                 Cap = OptionalString(stroke, "cap") ?? string.Empty,
                 Join = OptionalString(stroke, "join") ?? string.Empty,
             };
             if (stroke.TryGetProperty("width", out var width)) series.Line.WidthPoints = width.GetDouble();
-            if (OptionalDouble(stroke, "opacity") is { } opacity) series.Line.OpacityThousandthPercent = Opacity(opacity);
+            var strokeOpacity = OptionalDouble(stroke, "opacity") ?? strokeColor.Alpha;
+            if (strokeOpacity < 1) series.Line.OpacityThousandthPercent = Opacity(strokeOpacity);
         }
         if (raw.TryGetProperty("marker", out var marker))
             series.Marker = new SpreadsheetChartMarkerArtifact { Symbol = Marker(marker.GetString()!) };
@@ -379,6 +384,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationTable BuildTable(PpjTableElementModel element, JsonElement raw, Catalog catalog)
     {
+        RejectUnsupportedFrameTransform(element.Id, element.Frame, "table");
         var table = new PresentationTable
         {
             LeftEmu = Emu(element.Frame.X),
@@ -506,21 +512,23 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static SpreadsheetChartLineStyleArtifact BuildTableCellBorder(JsonElement stroke, Catalog catalog)
     {
+        var color = catalog.Color(stroke.GetProperty("color"));
         var output = new SpreadsheetChartLineStyleArtifact
         {
-            Color = new SpreadsheetColor { Rgb = catalog.Color(stroke.GetProperty("color")).Rgb },
+            Color = new SpreadsheetColor { Rgb = color.Rgb },
             WidthPoints = stroke.GetProperty("width").GetDouble(),
             DashStyle = ChartDash(OptionalString(stroke, "dash")),
             Cap = OptionalString(stroke, "cap") ?? string.Empty,
             Join = OptionalString(stroke, "join") ?? string.Empty,
         };
-        if (OptionalDouble(stroke, "opacity") is { } opacity)
-            output.OpacityThousandthPercent = Opacity(opacity);
+        var opacity = OptionalDouble(stroke, "opacity") ?? color.Alpha;
+        if (opacity < 1) output.OpacityThousandthPercent = Opacity(opacity);
         return output;
     }
 
     private static PresentationConnector BuildConnector(PpjConnectorElementModel element, JsonElement raw, Catalog catalog)
     {
+        RejectUnsupportedFrameTransform(element.Id, element.Frame, "connector");
         var connector = new PresentationConnector
         {
             ConnectorType = element.ConnectorType,
@@ -538,6 +546,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationGroup BuildGroup(PpjGroupElementModel element, JsonElement raw, Catalog catalog)
     {
+        RejectUnsupportedFrameTransform(element.Id, element.Frame, "group");
         var group = new PresentationGroup
         {
             LeftEmu = Emu(element.Frame.X),
@@ -591,7 +600,8 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement? named,
         JsonElement? inline,
         Catalog catalog,
-        string elementId)
+        string elementId,
+        bool hasText)
     {
         var fill = FirstProperty(inline, named, "fill");
         if (fill is { } fillValue)
@@ -617,13 +627,14 @@ internal static class PpjAuthoredPresentationCompiler
         var shadow = FirstProperty(inline, named, "shadow");
         if (shadow is { } shadowValue)
         {
+            var shadowColor = catalog.Color(shadowValue.GetProperty("color"));
             target.Shadow = new PresentationShadow
             {
-                ColorRgb = catalog.Color(shadowValue.GetProperty("color")).Rgb,
+                ColorRgb = shadowColor.Rgb,
                 BlurRadiusEmu = Emu(shadowValue.GetProperty("blur").GetDouble()),
                 DistanceEmu = Emu(shadowValue.GetProperty("distance").GetDouble()),
                 DirectionAngle60000 = Angle(shadowValue.GetProperty("angle").GetDouble()),
-                OpacityThousandthPercent = Opacity(OptionalDouble(shadowValue, "opacity") ?? 1),
+                OpacityThousandthPercent = Opacity(OptionalDouble(shadowValue, "opacity") ?? shadowColor.Alpha),
             };
         }
         var overallOpacity = FirstProperty(inline, named, "opacity");
@@ -631,7 +642,12 @@ internal static class PpjAuthoredPresentationCompiler
         {
             if (target.FillRgb.Length == 0)
                 throw Unsupported(elementId, "shape opacity without a solid fill cannot be represented losslessly");
-            target.FillOpacityThousandthPercent = Opacity(opacity.GetDouble());
+            if (opacity.GetDouble() < 1 && (stroke is not null || shadow is not null || hasText))
+                throw Unsupported(elementId, "shape opacity with stroke, shadow, or text requires per-branch alpha and is not yet compiler-owned");
+            var fillOpacity = target.HasFillOpacityThousandthPercent
+                ? target.FillOpacityThousandthPercent / 100_000d
+                : 1d;
+            target.FillOpacityThousandthPercent = Opacity(fillOpacity * opacity.GetDouble());
         }
     }
 
@@ -654,24 +670,26 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static void ApplyLine(PresentationShape target, JsonElement stroke, Catalog catalog)
     {
-        target.LineRgb = catalog.Color(stroke.GetProperty("color")).Rgb;
+        var color = catalog.Color(stroke.GetProperty("color"));
+        target.LineRgb = color.Rgb;
         target.LineWidthEmu = Emu(stroke.GetProperty("width").GetDouble());
         target.LineStyle = LineStyle(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
-        if (OptionalDouble(stroke, "opacity") is { } opacity)
-            target.LineOpacityThousandthPercent = Opacity(opacity);
+        var opacity = OptionalDouble(stroke, "opacity") ?? color.Alpha;
+        if (opacity < 1) target.LineOpacityThousandthPercent = Opacity(opacity);
     }
 
     private static void ApplyLine(PresentationConnector target, JsonElement stroke, Catalog catalog)
     {
-        target.LineRgb = catalog.Color(stroke.GetProperty("color")).Rgb;
+        var color = catalog.Color(stroke.GetProperty("color"));
+        target.LineRgb = color.Rgb;
         target.LineWidthEmu = Emu(stroke.GetProperty("width").GetDouble());
         target.LineStyle = LineStyle(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
-        if (OptionalDouble(stroke, "opacity") is { } opacity)
-            target.LineOpacityThousandthPercent = Opacity(opacity);
+        var opacity = OptionalDouble(stroke, "opacity") ?? color.Alpha;
+        if (opacity < 1) target.LineOpacityThousandthPercent = Opacity(opacity);
     }
 
     private static PresentationTextBody BuildTextBody(
@@ -744,7 +762,13 @@ internal static class PpjAuthoredPresentationCompiler
         if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
         if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
         if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
-        if (color is { } colorValue) run.ColorRgb = catalog.Color(colorValue).Rgb;
+        if (color is { } colorValue)
+        {
+            var resolved = catalog.Color(colorValue);
+            if (resolved.Alpha != 1)
+                throw Unsupported("text", "run color alpha is not yet compiler-owned");
+            run.ColorRgb = resolved.Rgb;
+        }
         if (family is { } familyValue) run.FontFamily = familyValue.GetString()!;
         else if (font is { } fontValue) run.FontFamily = catalog.Font(fontValue.GetString()!);
         if (eastAsia is { } eastAsiaValue) run.FontFamilyEastAsia = eastAsiaValue.GetString()!;
@@ -771,7 +795,13 @@ internal static class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
         if (value.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
         if (value.TryGetProperty("size", out var size)) output.FontSizePoints = size.GetDouble();
-        if (value.TryGetProperty("color", out var color)) output.ColorRgb = catalog.Color(color).Rgb;
+        if (value.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            if (resolved.Alpha != 1)
+                throw Unsupported("text", "text-style color alpha is not yet compiler-owned");
+            output.ColorRgb = resolved.Rgb;
+        }
         if (value.TryGetProperty("fontFamily", out var family)) output.FontFamily = family.GetString()!;
         else if (value.TryGetProperty("font", out var font)) output.FontFamily = catalog.Font(font.GetString()!);
         if (value.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = eastAsia.GetString()!;
@@ -865,15 +895,38 @@ internal static class PpjAuthoredPresentationCompiler
         if (frame.FlipV) target.Transform.FlipVertical = true;
     }
 
+    private static void RejectUnsupportedFrameTransform(
+        string elementId,
+        PpjFrameModel frame,
+        string elementKind)
+    {
+        if (frame.Rotation != 0 || frame.FlipH || frame.FlipV)
+            throw Unsupported(elementId, $"{elementKind} frame rotation and flips are not yet compiler-owned");
+    }
+
     private static PresentationBackground BuildBackground(JsonElement fill, Catalog catalog)
     {
         var type = fill.GetProperty("type").GetString();
-        if (type == "solid") return new PresentationBackground { Solid = true, ColorRgb = catalog.Color(fill.GetProperty("color")).Rgb };
+        if (type == "solid")
+        {
+            var color = catalog.Color(fill.GetProperty("color"));
+            var opacity = OptionalDouble(fill, "opacity") ?? color.Alpha;
+            if (opacity != 1)
+                throw Unsupported("background", "translucent solid slide backgrounds are not yet compiler-owned");
+            return new PresentationBackground { Solid = true, ColorRgb = color.Rgb };
+        }
         if (type == "gradient") return new PresentationBackground
         {
             GradientFill = BuildGradientFill(fill, color => catalog.Color(color)),
         };
-        if (type == "image") return new PresentationBackground { ImageAssetId = catalog.NativeAssetId(fill.GetProperty("asset").GetString()!) };
+        if (type == "image")
+        {
+            if (fill.GetProperty("fit").GetString() != "stretch")
+                throw Unsupported("background", "native image backgrounds currently support stretch fit only");
+            if (OptionalDouble(fill, "opacity") is { } opacity && opacity != 1)
+                throw Unsupported("background", "translucent image backgrounds are not yet compiler-owned");
+            return new PresentationBackground { ImageAssetId = catalog.NativeAssetId(fill.GetProperty("asset").GetString()!) };
+        }
         if (type == "none") return new PresentationBackground();
         throw Unsupported("background", $"{type} slide backgrounds are not yet compiler-owned");
     }
@@ -1046,6 +1099,8 @@ internal static class PpjAuthoredPresentationCompiler
         }
         var fit = element.Fit ?? "stretch";
         if (fit is "stretch" or "none") return;
+        if (fit == "tile")
+            throw Unsupported(element.Id, "tiled image fills require a native tile transform compiler");
         var dimensions = catalog.AssetDimensions(element.AssetId);
         if (dimensions is null) throw Unsupported(element.Id, $"{fit} requires declared image dimensions");
         var sourceAspect = dimensions.Value.Width / dimensions.Value.Height;
@@ -1403,7 +1458,10 @@ internal static class PpjAuthoredPresentationCompiler
     {
         if (color.ValueKind != JsonValueKind.String)
             throw Unsupported("text", "theme bullet colors require the theme-aware text compiler");
-        return NormalizeRgb(color.GetString()!);
+        var resolved = ParseHexColor(color.GetString()!);
+        if (resolved.Alpha != 1)
+            throw Unsupported("text", "bullet color alpha is not yet compiler-owned");
+        return resolved.Rgb;
     }
 
     private static string Flatten(PpjTextContentModel text) =>
@@ -1479,7 +1537,7 @@ internal static class PpjAuthoredPresentationCompiler
             _colors = design.GetProperty("theme").GetProperty("colors").EnumerateArray()
                 .ToDictionary(
                     color => color.GetProperty("id").GetString()!,
-                    color => (NormalizeRgb(color.GetProperty("value").GetString()!), 1d),
+                    color => ParseHexColor(color.GetProperty("value").GetString()!),
                     StringComparer.Ordinal);
             _fonts = design.GetProperty("fonts").EnumerateArray()
                 .ToDictionary(
@@ -1517,7 +1575,7 @@ internal static class PpjAuthoredPresentationCompiler
             if (theme.TryGetProperty("name", out var name)) output.Name = name.GetString()!;
             output.AccentRgb.Add(theme.GetProperty("colors").EnumerateArray()
                 .Take(6)
-                .Select(color => NormalizeRgb(color.GetProperty("value").GetString()!)));
+                .Select(color => ParseHexColor(color.GetProperty("value").GetString()!).Rgb));
             var fonts = design.GetProperty("fonts").EnumerateArray().ToArray();
             if (fonts.Length > 0)
             {
@@ -1531,7 +1589,7 @@ internal static class PpjAuthoredPresentationCompiler
 
         internal (string Rgb, double Alpha) Color(JsonElement color)
         {
-            if (color.ValueKind == JsonValueKind.String) return (NormalizeRgb(color.GetString()!), 1);
+            if (color.ValueKind == JsonValueKind.String) return ParseHexColor(color.GetString()!);
             var token = color.GetProperty("token").GetString()!;
             if (!_colors.TryGetValue(token, out var value))
                 throw new CodecException("ppj.color.unknown", $"PPJ color token {token} is not declared.");
@@ -1614,7 +1672,13 @@ internal static class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static string NormalizeRgb(string value) => value.TrimStart('#').ToUpperInvariant();
+    private static (string Rgb, double Alpha) ParseHexColor(string value)
+    {
+        var normalized = value.TrimStart('#').ToUpperInvariant();
+        return normalized.Length == 8
+            ? (normalized[..6], Convert.ToByte(normalized[6..], 16) / 255d)
+            : (normalized, 1d);
+    }
 
     private static string NativeAssetId(string mimeType, string sha256) => mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
         ? $"asset/presentation/picture-bullet/{sha256.ToLowerInvariant()}"

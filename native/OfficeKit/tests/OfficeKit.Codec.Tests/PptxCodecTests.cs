@@ -184,9 +184,8 @@ public sealed class PptxCodecTests
         {
             ["bottom"] = new JsonObject
             {
-                ["color"] = "#0B8F8F",
+                ["color"] = new JsonObject { ["token"] = "signal", ["alpha"] = 0.65 },
                 ["width"] = 1.5,
-                ["opacity"] = 0.65,
                 ["dash"] = "solid",
                 ["cap"] = "round",
                 ["join"] = "round",
@@ -253,6 +252,7 @@ public sealed class PptxCodecTests
             var bottomBorder = firstCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
             Assert.Equal("19050", bottomBorder.GetAttribute("w", string.Empty).Value);
             Assert.Equal("0B8F8F", bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+            Assert.Equal(65_000, bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
         }
 
         var imported = Import(first.File.ToByteArray());
