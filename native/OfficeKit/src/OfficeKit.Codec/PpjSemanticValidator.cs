@@ -728,6 +728,8 @@ internal static class PpjSemanticValidator
                         requiresValue ? $"{valueType} error bars require value." : "standard-error error bars do not accept value.",
                         seriesPath + ".errorBars.value"));
             }
+            if (series.Raw.TryGetProperty("dataLabels", out var dataLabels))
+                ValidateSeriesDataLabels(chart, series, dataLabels, seriesPath, diagnostics);
         }
 
         if (chart.ChartType == "waterfall") ValidateWaterfall(chart, path, diagnostics);
@@ -823,6 +825,63 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidateSeriesDataLabels(
+        PpjChartElementModel chart,
+        PpjChartSeriesModel series,
+        JsonElement labels,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var nativeType = chart.ChartType == "combo" ? series.ChartType : chart.ChartType;
+        if (nativeType is not ("column" or "bar" or "line" or "area" or "pie" or "doughnut" or "scatter" or "bubble" or "radar"))
+        {
+            diagnostics.Add(new(
+                "ppj.chart.seriesDataLabelType",
+                "Series data-label overrides require a native ChartPart series.",
+                path + ".dataLabels"));
+            return;
+        }
+
+        if (labels.TryGetProperty("showPercent", out var seriesPercent) &&
+            seriesPercent.GetBoolean() && nativeType is not ("pie" or "doughnut"))
+            diagnostics.Add(new(
+                "ppj.chart.seriesDataLabelPercent",
+                "Percentage labels require a pie or doughnut series.",
+                path + ".dataLabels.showPercent"));
+
+        if (!labels.TryGetProperty("points", out var points)) return;
+        var previous = -1;
+        var pointIndex = 0;
+        foreach (var point in points.EnumerateArray())
+        {
+            var pointPath = $"{path}.dataLabels.points[{pointIndex}]";
+            var index = point.GetProperty("index").GetInt32();
+            if (index <= previous)
+                diagnostics.Add(new(
+                    "ppj.chart.dataLabelPointOrder",
+                    "Point label indexes must be unique and strictly increasing.",
+                    pointPath + ".index"));
+            if (index >= series.Values.Count)
+                diagnostics.Add(new(
+                    "ppj.chart.dataLabelPointRange",
+                    "Point label index must address an existing series point.",
+                    pointPath + ".index"));
+            else if (series.Values[index] is null)
+                diagnostics.Add(new(
+                    "ppj.chart.dataLabelMissingPoint",
+                    "A missing chart point cannot carry a label override.",
+                    pointPath + ".index"));
+            if (point.TryGetProperty("showPercent", out var pointPercent) &&
+                pointPercent.GetBoolean() && nativeType is not ("pie" or "doughnut"))
+                diagnostics.Add(new(
+                    "ppj.chart.dataLabelPointPercent",
+                    "Percentage labels require a pie or doughnut series.",
+                    pointPath + ".showPercent"));
+            previous = index;
+            pointIndex++;
+        }
     }
 
     private static void ValidateRadarSpokeAxis(

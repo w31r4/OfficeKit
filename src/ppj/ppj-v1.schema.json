@@ -3210,6 +3210,9 @@
         },
         "errorBars": {
           "$ref": "#/$defs/chartErrorBars"
+        },
+        "dataLabels": {
+          "$ref": "#/$defs/chartSeriesDataLabels"
         }
       }
     },
@@ -3911,6 +3914,117 @@
           "maxLength": 255
         }
       }
+    },
+    "chartSeriesDataLabels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "showValue": {
+          "type": "boolean"
+        },
+        "showCategory": {
+          "type": "boolean"
+        },
+        "showSeries": {
+          "type": "boolean"
+        },
+        "showPercent": {
+          "type": "boolean"
+        },
+        "position": {
+          "enum": [
+            "best-fit",
+            "bottom",
+            "center",
+            "inside-base",
+            "inside-end",
+            "left",
+            "outside-end",
+            "right",
+            "top"
+          ]
+        },
+        "textStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "numberFormat": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/chartPointDataLabel"
+          }
+        }
+      },
+      "anyOf": [
+        { "required": ["showValue"] },
+        { "required": ["showCategory"] },
+        { "required": ["showSeries"] },
+        { "required": ["showPercent"] },
+        { "required": ["position"] },
+        { "required": ["textStyle"] },
+        { "required": ["numberFormat"] },
+        { "required": ["points"] }
+      ]
+    },
+    "chartPointDataLabel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9999
+        },
+        "showValue": {
+          "type": "boolean"
+        },
+        "showCategory": {
+          "type": "boolean"
+        },
+        "showSeries": {
+          "type": "boolean"
+        },
+        "showPercent": {
+          "type": "boolean"
+        },
+        "position": {
+          "enum": [
+            "best-fit",
+            "bottom",
+            "center",
+            "inside-base",
+            "inside-end",
+            "left",
+            "outside-end",
+            "right",
+            "top"
+          ]
+        },
+        "textStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "numberFormat": {
+          "type": "string",
+          "maxLength": 255
+        }
+      },
+      "anyOf": [
+        { "required": ["showValue"] },
+        { "required": ["showCategory"] },
+        { "required": ["showSeries"] },
+        { "required": ["showPercent"] },
+        { "required": ["position"] },
+        { "required": ["textStyle"] },
+        { "required": ["numberFormat"] }
+      ]
     },
     "chartTrendline": {
       "type": "object",
