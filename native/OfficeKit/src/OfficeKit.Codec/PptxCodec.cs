@@ -1641,6 +1641,7 @@ internal static class PptxCodec
         }
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
+        PptxPresetGeometryAdjustmentCodec.Read(properties?.GetFirstChild<A.PresetGeometry>(), geometry, result);
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
         result.Accessibility = PptxNonVisualAccessibilityCodec.Read(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         return result;
@@ -1655,7 +1656,8 @@ internal static class PptxCodec
         var geometry = Geometry(shape);
         if (properties is null || properties.Elements<A.Transform2D>().Count() != 1 ||
             !PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")) return false;
-        if (geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "line" or "custom")) return false;
+        if (geometry != "custom" &&
+            !PptxPresetGeometryAdjustmentCodec.TryRead(properties.GetFirstChild<A.PresetGeometry>(), geometry, out _)) return false;
         if (geometry == "custom")
         {
             var frame = ReadFrame(shape);

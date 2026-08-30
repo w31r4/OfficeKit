@@ -5,7 +5,7 @@
 
 ## 2. Native codec and PPJ compiler
 
-- [ ] 2.1 Implement one canonical preset profile registry and literal native reader/writer
+- [x] 2.1 Implement one canonical preset profile registry and literal native reader/writer
 - [ ] 2.2 Compile source-free PPJ adjustments and project canonical imported values
 - [ ] 2.3 Lower capability-issued source adjustment edits while preserving noncanonical graphs
 

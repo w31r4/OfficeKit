@@ -208,8 +208,11 @@ internal static class PptxCustomGeometryCodec
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation shape {shapeId} uses unsupported preset geometry {shape.Geometry}.");
             if (shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 || shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 || shape.TextRectangle is not null)
                 throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has custom geometry data without custom geometry.");
+            PptxPresetGeometryAdjustmentCodec.Validate(shape.Geometry, shape.PresetAdjustments, shapeId);
             return;
         }
+        if (shape.PresetAdjustments.Count > 0)
+            throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has preset adjustments with custom geometry.");
         if (shape.CustomPaths.Count is < 1 or > MaxPaths)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} custom geometry must contain 1 through {MaxPaths} paths.");
         var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);
@@ -267,6 +270,7 @@ internal static class PptxCustomGeometryCodec
             if (!PresetGeometry.TryGetValue(shape.Geometry, out var presetGeometry))
                 throw new CodecException("unsupported_presentation_geometry", $"Presentation shape {shapeId} uses unsupported preset geometry {shape.Geometry}.");
             preset.Preset = presetGeometry;
+            PptxPresetGeometryAdjustmentCodec.Apply(preset, shape.Geometry, shape.PresetAdjustments, shapeId);
             return;
         }
         var transform = properties.GetFirstChild<A.Transform2D>();
