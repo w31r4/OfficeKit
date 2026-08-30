@@ -439,6 +439,14 @@ internal static class PpjSemanticValidator
                 if (shape.GeometryKind == "custom")
                     ValidateCustomGeometry(shape.Raw.GetProperty("geometry"), path + ".geometry", diagnostics);
                 break;
+            case PpjIconElementModel icon:
+                ValidateStyleRef(icon.StyleRef, program.Design.ShapeStyleIds, $"{path}.styleRef", diagnostics);
+                if (!PpjIconCatalog.Contains(icon.IconName))
+                    diagnostics.Add(new(
+                        "ppj.icon.unknown",
+                        $"PPJ iconName {icon.IconName} is not present in the pinned Font Awesome Free catalog.",
+                        $"{path}.iconName"));
+                break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
                 if (image.SvgAssetId is not null)
@@ -2257,7 +2265,7 @@ internal static class PpjSemanticValidator
     private static bool SupportsBinding(PpjElementModel target, string field) => field switch
     {
         "text" => HasText(target),
-        "fill" or "stroke" or "opacity" => target is PpjShapeElementModel or PpjTextElementModel,
+        "fill" or "stroke" or "opacity" => target is PpjShapeElementModel or PpjIconElementModel or PpjTextElementModel,
         "frame.x" or "frame.y" or "frame.width" or "frame.height" => true,
         "image.asset" or "image.crop" => target is PpjImageElementModel,
         "chart.title" or "chart.data" => target is PpjChartElementModel,

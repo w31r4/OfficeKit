@@ -144,6 +144,12 @@ internal sealed class PpjShapeElementModel : PpjElementModel
     internal string? StyleRef { get; init; }
 }
 
+internal sealed class PpjIconElementModel : PpjElementModel
+{
+    internal required string IconName { get; init; }
+    internal string? StyleRef { get; init; }
+}
+
 internal sealed class PpjImageElementModel : PpjElementModel
 {
     internal required string AssetId { get; init; }
@@ -644,6 +650,11 @@ internal static class PpjProgramParser
                 GeometryPreset = OptionalString(element.GetProperty("geometry"), "preset"),
                 GeometryAdjustments = ParsePresetAdjustments(element.GetProperty("geometry")),
                 Text = element.TryGetProperty("text", out var text) ? ParseText(text) : null,
+                StyleRef = OptionalString(element, "styleRef"),
+            },
+            "icon" => new PpjIconElementModel
+            {
+                IconName = element.GetProperty("iconName").GetString()!,
                 StyleRef = OptionalString(element, "styleRef"),
             },
             "image" => new PpjImageElementModel

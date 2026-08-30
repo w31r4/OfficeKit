@@ -2302,6 +2302,37 @@
       ],
       "unevaluatedProperties": false
     },
+    "iconElement": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/elementBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "iconName"
+          ],
+          "properties": {
+            "type": {
+              "const": "icon"
+            },
+            "iconName": {
+              "type": "string",
+              "pattern": "^(fas|far|fab):[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "maxLength": 128,
+              "description": "Canonical name in OfficeKit's pinned offline Font Awesome Free catalog. Build never fetches icons from the network."
+            },
+            "styleRef": {
+              "$ref": "#/$defs/id"
+            },
+            "style": {
+              "$ref": "#/$defs/shapeStyle"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
     "geometry": {
       "oneOf": [
         {
@@ -4395,6 +4426,9 @@
           "$ref": "#/$defs/shapeElement"
         },
         {
+          "$ref": "#/$defs/iconElement"
+        },
+        {
           "$ref": "#/$defs/imageElement"
         },
         {
@@ -4885,6 +4919,7 @@
             "enum": [
               "text",
               "shape",
+              "icon",
               "image",
               "chart",
               "table",

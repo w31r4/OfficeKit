@@ -252,6 +252,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjShapeElementModel shape:
                 output.Shape = BuildShape(shape, raw, catalog);
                 break;
+            case PpjIconElementModel icon:
+                output.Shape = BuildIcon(icon, raw, catalog);
+                break;
             case PpjImageElementModel image:
                 output.Image = BuildImage(image, raw, catalog);
                 break;
@@ -343,6 +346,74 @@ internal static class PpjAuthoredPresentationCompiler
         ApplyTransform(shape, element.Frame);
         ApplyAccessibility(shape, element.Accessibility);
         return shape;
+    }
+
+    private static PresentationShape BuildIcon(PpjIconElementModel element, JsonElement raw, Catalog catalog)
+    {
+        var definition = PpjIconCatalog.Resolve(element.IconName);
+        var shape = ShapeFrame(element.Frame, "custom");
+        var namedStyle = catalog.ShapeStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        if (FirstProperty(inlineStyle, namedStyle, "fill") is null) shape.FillRgb = "000000";
+        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id);
+        if (FirstProperty(inlineStyle, namedStyle, "opacity") is { } opacity)
+            ApplyCompoundShapeOpacity(shape, opacity.GetDouble(), element.Id);
+        ApplyIconGeometry(shape, definition, element.Frame, element.Id);
+        ApplyTransform(shape, element.Frame);
+        ApplyAccessibility(shape, element.Accessibility);
+        return shape;
+    }
+
+    private static void ApplyIconGeometry(
+        PresentationShape target,
+        PpjIconDefinition definition,
+        PpjFrameModel frame,
+        string elementId)
+    {
+        var pathWidth = CustomPathCoordinate(frame.Width);
+        var pathHeight = CustomPathCoordinate(frame.Height);
+        var scale = Math.Min(pathWidth / definition.Width, pathHeight / definition.Height);
+        var offsetX = (pathWidth - definition.Width * scale) / 2d;
+        var offsetY = (pathHeight - definition.Height * scale) / 2d;
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = pathWidth,
+            Height = pathHeight,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+        };
+        foreach (var source in definition.Commands)
+        {
+            PresentationCustomGeometryPoint Point(int offset) => new()
+            {
+                X = IconCoordinate(offsetX + source.Values[offset] * scale, elementId),
+                Y = IconCoordinate(offsetY + source.Values[offset + 1] * scale, elementId),
+            };
+            var command = source.Operation switch
+            {
+                'M' => new PresentationCustomGeometryCommand { MoveTo = Point(0) },
+                'L' => new PresentationCustomGeometryCommand { LineTo = Point(0) },
+                'C' => new PresentationCustomGeometryCommand
+                {
+                    CubicBezierTo = new PresentationCustomGeometryCubicBezier
+                    {
+                        Control1 = Point(0),
+                        Control2 = Point(2),
+                        End = Point(4),
+                    },
+                },
+                'Z' => new PresentationCustomGeometryCommand { Close = true },
+                _ => throw Unsupported(elementId, "icon catalog contains an unsupported path command"),
+            };
+            path.Commands.Add(command);
+        }
+        target.CustomPaths.Add(path);
+    }
+
+    private static long IconCoordinate(double value, string elementId)
+    {
+        if (!double.IsFinite(value) || value < -int.MaxValue || value > int.MaxValue)
+            throw Unsupported(elementId, "icon geometry exceeds the native coordinate range");
+        return checked((long)Math.Round(value, MidpointRounding.AwayFromZero));
     }
 
     private static PresentationImage BuildImage(PpjImageElementModel element, JsonElement raw, Catalog catalog)
