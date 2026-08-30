@@ -11,6 +11,8 @@ The npm package declares or optionally integrates the following public libraries
 | JSZip | OOXML ZIP package reading/writing | MIT option from `(MIT OR GPL-3.0-or-later)` |
 | selfsigned | User-local OfficeKit Excel root and localhost TLS certificate generation | MIT; its PKI dependency notices remain in the installed dependency closure |
 | pako | Pinned, repository-only deterministic PNG IDAT recompression tool | MIT AND Zlib |
+| [Font Awesome Free 7.3.1](https://fontawesome.com/) | Build-time source for the bundled PPJ named-icon geometry catalog (solid, regular, and brands families) | Icons: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); code: MIT; brand marks remain subject to their owners' rights |
+| [svgpath 2.6.0](https://github.com/fontello/svgpath) | Build-only normalization of pinned Font Awesome SVG paths into the finite PPJ icon command subset | MIT |
 | MuPDF.js (`mupdf`) | Required, runtime-lazy arbitrary-PDF parsing, inspection, rendering, and bounded native editing | GNU AGPL-3.0-or-later |
 | PDF.js (`pdfjs-dist`) | Optional arbitrary-PDF parsing | Apache-2.0 |
 | Playwright | Optional deterministic browser rendering | Apache-2.0 |
