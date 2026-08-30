@@ -242,8 +242,14 @@ internal static class PptxTimingCodec
 
     internal static string SemanticHash(IEnumerable<PresentationAnimation> animations, PresentationMorph? morph)
     {
+        // PPJ/runtime IDs and TargetKind are authoring identities used to
+        // resolve a target before writing. PresentationML stores neither one
+        // as playback semantics: canonical read derives a local animation ID
+        // from timing nodes and a target kind from build records. Excluding
+        // them keeps the postwrite oracle strict over the values the package
+        // can actually round-trip.
         var semantic = string.Join("|", animations.Select(animation => string.Join(",",
-            animation.Id, animation.TargetId, animation.TargetKind, animation.Effect, animation.Phase,
+            animation.TargetId, animation.Effect, animation.Phase,
             animation.Start, animation.Direction, animation.DurationMs, animation.DelayMs,
             animation.ChartBuild, animation.TextBuild, animation.StaggerMs,
             animation.HasAnimateChartBackground ? animation.AnimateChartBackground : null)));
