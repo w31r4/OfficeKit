@@ -44,6 +44,10 @@ function normalizePath(pathData, iconName) {
   if (normalized.length === 0 || normalized.length > 128_000) {
     throw new Error(`${iconName}: normalized path length ${normalized.length} is outside bounds`);
   }
+  const commandCount = (normalized.match(/[MLCZ]/g) ?? []).length;
+  if (commandCount === 0 || commandCount > 512) {
+    throw new Error(`${iconName}: normalized command count ${commandCount} is outside bounds`);
+  }
   return normalized;
 }
 
