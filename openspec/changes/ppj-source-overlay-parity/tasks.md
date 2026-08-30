@@ -1,7 +1,7 @@
 ## 1. Language and projection
 
-- [ ] 1.1 Add `appendElement/elements` to the PPJ capability vocabulary.
-- [ ] 1.2 Issue the capability on ordinary source-bound pages.
+- [x] 1.1 Add `appendElement/elements` to the PPJ capability vocabulary.
+- [x] 1.2 Issue the capability on ordinary source-bound pages.
 
 ## 2. Source-bound lowering
 

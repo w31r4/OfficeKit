@@ -35,6 +35,7 @@ internal static class PpjSemanticValidator
             ["setPages"] = Set("pages"),
             ["setHidden"] = Set("hidden"),
             ["setLocked"] = Set("locked"),
+            ["appendElement"] = Set("elements"),
             ["delete"] = Set("element"),
             ["duplicate"] = Set("element", "pageClone"),
             ["reorder"] = Set("zOrder", "pageOrder"),

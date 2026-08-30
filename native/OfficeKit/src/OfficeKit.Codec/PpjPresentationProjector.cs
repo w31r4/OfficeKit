@@ -254,6 +254,8 @@ internal static partial class PpjPresentationProjector
             pageCapabilities.Add(new("reorder", ["pageOrder"]));
         if (slide.Source?.CloneCapability?.Supported == true)
             pageCapabilities.Add(new("duplicate", ["pageClone"]));
+        if (slide.Source is not null)
+            pageCapabilities.Add(new("appendElement", ["elements"]));
 
         var elements = new JsonArray();
         for (var elementIndex = 0; elementIndex < slide.Elements.Count; elementIndex++)

@@ -1164,6 +1164,7 @@
             "setPages",
             "setHidden",
             "setLocked",
+            "appendElement",
             "delete",
             "duplicate",
             "reorder"
@@ -1214,6 +1215,7 @@
               "pages",
               "hidden",
               "locked",
+              "elements",
               "element",
               "zOrder"
             ]
