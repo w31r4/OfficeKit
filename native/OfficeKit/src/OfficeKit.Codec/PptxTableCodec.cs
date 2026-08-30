@@ -121,7 +121,7 @@ internal static class PptxTableCodec
     internal static P.GraphicFrame Build(PresentationElement element, uint nativeId, PptxPartContext slideContext)
     {
         var table = element.Table;
-        Validate(table, element.Id);
+        Validate(table, element.Id, assets: slideContext.Assets);
         var mergePlan = CreateMergePlan(table, element.Id);
         var properties = new A.TableProperties();
         if (table.HasFirstRow) properties.FirstRow = table.FirstRow;
@@ -211,7 +211,11 @@ internal static class PptxTableCodec
         }
     }
 
-    internal static void Validate(PresentationTable? table, string elementId, bool allowScaledFrame = false)
+    internal static void Validate(
+        PresentationTable? table,
+        string elementId,
+        bool allowScaledFrame = false,
+        PptxAssetCatalog? assets = null)
     {
         if (table is null) throw Invalid(elementId, "payload is missing");
         if (table.LeftEmu < 0 || table.TopEmu < 0 || table.WidthEmu <= 0 || table.HeightEmu <= 0)
@@ -238,7 +242,7 @@ internal static class PptxTableCodec
                 var validationShape = new PresentationShape { Text = cell.Text, TextBody = cell.TextBody.Clone() };
                 PptxTextCodec.Validate(validationShape);
             }
-            ValidateCellFill(cell.Fill, elementId);
+            ValidateCellFill(cell.Fill, elementId, assets);
             ValidateCellBorders(cell.Borders, elementId);
         }
         PptxNonVisualAccessibilityCodec.Validate(table.Accessibility, elementId, "table");
@@ -504,7 +508,7 @@ internal static class PptxTableCodec
         if (source.TextBody is not null)
             return new A.TableCell(
                 PptxTextCodec.BuildDrawingTextBody(source.TextBody, slideContext),
-                BuildCellProperties(source, header, table));
+                BuildCellProperties(source, header, table, slideContext));
 
         var style = table.DefaultTextStyle;
         var runProperties = new A.RunProperties
@@ -534,13 +538,14 @@ internal static class PptxTableCodec
         textBody.Append(paragraphs);
         return new A.TableCell(
             textBody,
-            BuildCellProperties(source, header, table));
+            BuildCellProperties(source, header, table, slideContext));
     }
 
     private static A.TableCellProperties BuildCellProperties(
         PresentationTableCell source,
         bool header,
-        PresentationTable table)
+        PresentationTable table,
+        PptxPartContext slideContext)
     {
         var output = new A.TableCellProperties();
         if (source.Borders is { } borders)
@@ -557,6 +562,7 @@ internal static class PptxTableCodec
                 PresentationTableCellFill.KindOneofCase.NoFill => new A.NoFill(),
                 PresentationTableCellFill.KindOneofCase.SolidRgb => SolidFill(fill.SolidRgb, fill.HasOpacityThousandthPercent ? fill.OpacityThousandthPercent : null),
                 PresentationTableCellFill.KindOneofCase.GradientFill => PptxGradientFillCodec.Build(fill.GradientFill, "Presentation table-cell fill"),
+                PresentationTableCellFill.KindOneofCase.ImagePaint => PptxImagePaintCodec.Build(fill.ImagePaint, slideContext, "Presentation table-cell fill"),
                 _ => throw new InvalidOperationException("Validated presentation table-cell fill changed unexpectedly."),
             });
         }
@@ -610,17 +616,22 @@ internal static class PptxTableCodec
         return output;
     }
 
-    private static void ValidateCellFill(PresentationTableCellFill? fill, string elementId)
+    private static void ValidateCellFill(
+        PresentationTableCellFill? fill,
+        string elementId,
+        PptxAssetCatalog? assets)
     {
         if (fill is null) return;
         if (fill.KindCase == PresentationTableCellFill.KindOneofCase.None)
-            throw Invalid(elementId, "cell fill must select none, solid, or gradient");
+            throw Invalid(elementId, "cell fill must select none, solid, gradient, or image");
         if (fill.KindCase == PresentationTableCellFill.KindOneofCase.NoFill && !fill.NoFill)
             throw Invalid(elementId, "cell no_fill must be true when selected");
         if (fill.KindCase == PresentationTableCellFill.KindOneofCase.SolidRgb)
             PptxColor.Normalize(fill.SolidRgb);
         if (fill.KindCase == PresentationTableCellFill.KindOneofCase.GradientFill)
             PptxGradientFillCodec.Validate(fill.GradientFill, $"Presentation table {elementId} cell fill");
+        if (fill.KindCase == PresentationTableCellFill.KindOneofCase.ImagePaint)
+            PptxImagePaintCodec.Validate(fill.ImagePaint, $"Presentation table {elementId} cell fill", assets);
         if (fill.HasOpacityThousandthPercent &&
             (fill.KindCase != PresentationTableCellFill.KindOneofCase.SolidRgb || fill.OpacityThousandthPercent > 100_000))
             throw Invalid(elementId, "cell fill opacity requires a solid RGB fill and must be 0 through 100000");

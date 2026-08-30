@@ -559,7 +559,23 @@ internal static class PpjAuthoredPresentationCompiler
                     catalog);
                 targetCell.Text = PptxTextCodec.Flatten(targetCell.TextBody);
                 if ((Property(rawCell, "fill") ?? defaultCellFill) is { } cellFill)
-                    targetCell.Fill = BuildTableCellFill(cellFill, catalog, element.Id);
+                {
+                    var cellWidthEmu = table.ColumnWidthsEmu
+                        .Skip(cursor)
+                        .Take(cell.ColumnSpan)
+                        .Sum();
+                    var cellHeightEmu = rowHeights
+                        .Skip(rowIndex)
+                        .Take(cell.RowSpan)
+                        .Sum();
+                    targetCell.Fill = BuildTableCellFill(
+                        cellFill,
+                        cellWidthEmu,
+                        cellHeightEmu,
+                        catalog,
+                        element.Id,
+                        $"table {element.Id} row {rowIndex} cell {sourceCellIndex} fill");
+                }
                 if (Property(rawCell, "borders") is { } borders)
                     targetCell.Borders = BuildTableCellBorders(borders, catalog);
                 if (cell.RowSpan > 1 || cell.ColumnSpan > 1)
@@ -612,8 +628,11 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationTableCellFill BuildTableCellFill(
         JsonElement fill,
+        double cellWidth,
+        double cellHeight,
         Catalog catalog,
-        string elementId)
+        string elementId,
+        string path)
     {
         var type = fill.GetProperty("type").GetString();
         if (type == "none") return new PresentationTableCellFill { NoFill = true };
@@ -629,6 +648,17 @@ internal static class PpjAuthoredPresentationCompiler
             return new PresentationTableCellFill
             {
                 GradientFill = BuildGradientFill(fill, color => catalog.Color(color)),
+            };
+        if (type == "image")
+            return new PresentationTableCellFill
+            {
+                ImagePaint = PpjImagePaintLowering.Build(
+                    fill,
+                    cellWidth,
+                    cellHeight,
+                    catalog.NativeAssetId,
+                    catalog.AssetDimensions,
+                    path),
             };
         throw Unsupported(elementId, $"table-cell {type} fills are not compiler-owned");
     }

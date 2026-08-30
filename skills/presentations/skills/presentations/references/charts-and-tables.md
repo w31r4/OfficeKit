@@ -288,11 +288,14 @@ imported edit.
 
 The authored table compiler owns a physical column/row grid, finite rectangular
 merges, one optional header row, row/column banding flags, bounded rich text,
-body and paragraph layout, none/solid/gradient cell fills, and direct left,
-top, right, and bottom borders. Named table styles provide defaults and inline
-style properties override them field by field. More than one header row and
-image-filled cells fail closed. Imported table topology and unmodeled native
-style graphs remain source-owned.
+body and paragraph layout, none/solid/gradient/image cell fills, and direct
+left, top, right, and bottom borders. An image fill uses the same local hashed
+asset, crop, cover/contain/stretch/tile, and opacity contract as other PPJ image
+paint. Use it when the cell itself is an evidence thumbnail, product identity,
+or comparison image; do not turn ordinary data tables into decorative mosaics.
+Named table styles provide defaults and inline style properties override them
+field by field. More than one header row fails closed. Imported table topology
+and unmodeled native style graphs remain source-owned.
 
 Use [the complete PPJ reference](ppj.md) for exact fields, value ranges, and
 compiler boundaries. This page explains visual choice; it is not a shortened

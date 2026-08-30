@@ -2580,6 +2580,9 @@ message PresentationTableCellFill {
     bool no_fill = 1;
     string solid_rgb = 2;
     PresentationGradientFill gradient_fill = 3;
+    // Canonical embedded image paint owned by the table cell's a:tcPr. The
+    // relationship is resolved against the containing slide asset catalog.
+    PresentationImagePaint image_paint = 5;
   }
   // Presence-aware alpha for a direct solid RGB fill, in DrawingML
   // thousandths of one percent. Gradient stops own their alpha individually.

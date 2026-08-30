@@ -41,13 +41,6 @@
   },
   "authoredCompilerBoundaries": [
     {
-      "feature": "image-filled table cells",
-      "ppjPath": "table rows[].cells[].fill where type is image",
-      "behavior": "fail-closed",
-      "sourceBound": "Existing unsupported table-cell image fills remain source-preserved.",
-      "reason": "Authored table cells own none, solid, and bounded direct-RGB gradients. Image-filled table cells remain native-owned. Authored chart areas, plot areas, and series separately own none, solid, and bounded direct-RGB gradients."
-    },
-    {
       "feature": "custom-path image masks",
       "ppjPath": "image.mask where kind is custom",
       "behavior": "fail-closed",
@@ -83,11 +76,11 @@
       "reason": "PPJ models their persistent state, but authored native creation is not yet compiler-owned."
     },
     {
-      "feature": "multi-header and image-filled authored tables",
+      "feature": "multi-header authored tables",
       "ppjPath": "table.style",
       "behavior": "partial",
       "sourceBound": "Imported table topology and unmodeled styling remain source-preserved.",
-      "reason": "Authored tables support bounded rich cell text, body and paragraph layout, none/solid/gradient cell fills, direct borders, banding and one header row. More than one header row and image cell fills fail closed."
+      "reason": "Authored tables support bounded rich cell text, body and paragraph layout, none/solid/gradient/image cell fills, direct borders, banding and one header row. More than one header row fails closed."
     },
     {
       "feature": "native-theme bullet identity and uncommon numbering schemes",

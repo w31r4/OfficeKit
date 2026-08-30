@@ -232,8 +232,22 @@ public sealed class PptxCodecTests
             .Single(element => element["id"]!.GetValue<string>() == "method-table-main");
         authoredTable["frame"]!["rotation"] = -4;
         authoredTable["frame"]!["flipV"] = true;
+        authoredProgram["design"]!["styles"]!["table"]![0]!["style"]!["defaultCellFill"] = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = "evidence-mark",
+            ["fit"] = "cover",
+            ["opacity"] = 0.22,
+        };
         var authoredHeaderCell = authoredTable["rows"]![0]!["cells"]![0]!.AsObject();
         authoredHeaderCell["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA", ["opacity"] = 0.8 };
+        authoredTable["rows"]![0]!["cells"]![1]!["fill"] = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = "evidence-mark",
+            ["fit"] = "tile",
+            ["opacity"] = 0.55,
+        };
         authoredHeaderCell["borders"] = new JsonObject
         {
             ["bottom"] = new JsonObject
@@ -602,6 +616,17 @@ public sealed class PptxCodecTests
             Assert.Equal(80_000, firstCell.TableCellProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
             Assert.Equal(72_000, firstCell.TextBody!.Descendants<A.RunProperties>().Single()
                 .GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var explicitImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(1);
+            var explicitImageFill = explicitImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
+            Assert.NotNull(explicitImageFill.GetFirstChild<A.Tile>());
+            Assert.Equal(55_000, explicitImageFill.GetFirstChild<A.Blip>()!
+                .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+            var inheritedImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(2);
+            var inheritedImageFill = inheritedImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
+            Assert.NotNull(inheritedImageFill.GetFirstChild<A.Stretch>());
+            Assert.NotNull(inheritedImageFill.GetFirstChild<A.SourceRectangle>());
+            Assert.Equal(22_000, inheritedImageFill.GetFirstChild<A.Blip>()!
+                .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
             var bottomBorder = firstCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
             Assert.Equal("19050", bottomBorder.GetAttribute("w", string.Empty).Value);
             Assert.Equal("0B8F8F", bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
