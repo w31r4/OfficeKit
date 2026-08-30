@@ -41,6 +41,7 @@ internal static class OpenXmlChartSpaceCodec
         };
         if (chart.Type == SpreadsheetChartType.Unspecified) return false;
         editable &= PlotProfileEditable(plot, chart.Type);
+        editable &= TryReadPlotOptions(plot, chart);
         var title = nativeChart.Element(ChartNs + "title");
         if (title is not null)
         {
@@ -50,7 +51,13 @@ internal static class OpenXmlChartSpaceCodec
             if (richText.Length == 0) editable = false;
             editable &= XlsxChartTextStyleCodec.TryReadTitle(title, chart);
         }
-        chart.HasLegend = nativeChart.Element(ChartNs + "legend") is not null;
+        var legend = nativeChart.Element(ChartNs + "legend");
+        chart.HasLegend = legend is not null;
+        if (legend is not null)
+        {
+            if (!TryLegendPosition(legend, out var legendPosition)) editable = false;
+            else chart.LegendPosition = legendPosition;
+        }
         var nativeSeries = plot.Elements(ChartNs + "ser").ToArray();
         if (nativeSeries.Length is < 1 or > MaxSeries) return false;
         string[]? commonCategories = null;
@@ -70,6 +77,10 @@ internal static class OpenXmlChartSpaceCodec
         editable &= XlsxChartDataLabelsCodec.TryRead(plot, chart);
         if (!XlsxChartAxisCodec.TryRead(plotArea, plot, chart, out var axesEditable)) editable = false;
         else editable &= axesEditable;
+        if (!XlsxChartSurfaceFillCodec.TryRead(root.Element(ChartNs + "spPr"), out var chartAreaFill)) editable = false;
+        else if (chartAreaFill is not null) chart.ChartAreaFill = chartAreaFill;
+        if (!XlsxChartSurfaceFillCodec.TryRead(plotArea.Element(ChartNs + "spPr"), out var plotAreaFill)) editable = false;
+        else if (plotAreaFill is not null) chart.PlotAreaFill = plotAreaFill;
         return chart.Title.Length <= 32_767 && !HasControls(chart.Title) && chart.Categories.Count <= MaxPoints;
     }
 
@@ -78,9 +89,9 @@ internal static class OpenXmlChartSpaceCodec
         var series = chart.Series.Select((item, index) => SeriesElement(item, chart.Categories, index, chart.Type)).ToArray();
         XElement plot = chart.Type switch
         {
-            SpreadsheetChartType.Bar => new XElement(ChartNs + "barChart", new XElement(ChartNs + "barDir", new XAttribute("val", "col")), new XElement(ChartNs + "grouping", new XAttribute("val", "clustered")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Line => new XElement(ChartNs + "lineChart", XlsxChartLineOptionsCodec.GroupingElement(chart.LineOptions), XlsxChartLineOptionsCodec.VaryColorsElement(chart.LineOptions), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), XlsxChartLineOptionsCodec.SmoothElement(chart.LineOptions), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", "standard")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Bar => new XElement(ChartNs + "barChart", new XElement(ChartNs + "barDir", new XAttribute("val", BarDirectionToken(chart.BarDirection))), new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: true))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasGapWidth ? new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)) : null, new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Line => new XElement(ChartNs + "lineChart", XlsxChartLineOptionsCodec.GroupingElement(LineOptions(chart)), XlsxChartLineOptionsCodec.VaryColorsElement(chart.LineOptions), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), XlsxChartLineOptionsCodec.SmoothElement(chart.LineOptions), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", "0")), new XElement(ChartNs + "holeSize", new XAttribute("val", "50"))),
             SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", "marker")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", "100")), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", "area")), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
@@ -89,19 +100,22 @@ internal static class OpenXmlChartSpaceCodec
         };
         var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), plot);
         XlsxChartAxisCodec.AppendAuthored(plotArea, chart);
+        if (XlsxChartSurfaceFillCodec.Element(chart.PlotAreaFill, "Chart plot area") is { } plotFill) plotArea.Add(plotFill);
         var nativeChart = new XElement(ChartNs + "chart");
         if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
         nativeChart.Add(plotArea);
-        if (chart.HasLegend) nativeChart.Add(LegendElement());
+        if (chart.HasLegend) nativeChart.Add(LegendElement(chart.LegendPosition));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
-        return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), nativeChart));
+        var chartSpace = new XElement(ChartNs + "chartSpace", new XAttribute(XNamespace.Xmlns + "c", ChartNs), new XAttribute(XNamespace.Xmlns + "a", DrawingNs), nativeChart);
+        if (XlsxChartSurfaceFillCodec.Element(chart.ChartAreaFill, "Chart area") is { } chartFill) chartSpace.Add(chartFill);
+        return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
     }
 
     internal static void Patch(XDocument document, SpreadsheetChartArtifact target, string errorCode, string subject)
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
         PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
-        PatchLegend(nativeChart, target.HasLegend);
+        PatchLegend(nativeChart, target.HasLegend, target.LegendPosition);
         var plotArea = nativeChart.Element(ChartNs + "plotArea") ?? throw Topology(errorCode, subject, "is missing c:plotArea");
         var plotName = target.Type switch
         {
@@ -118,9 +132,12 @@ internal static class OpenXmlChartSpaceCodec
         var nativeSeries = plot.Elements(ChartNs + "ser").ToArray();
         if (nativeSeries.Length != target.Series.Count) throw Topology(errorCode, subject, "series topology changed unexpectedly");
         for (var index = 0; index < nativeSeries.Length; index++) PatchSeries(nativeSeries[index], target.Series[index], target.Categories, target.Type, errorCode, subject);
-        if (target.Type == SpreadsheetChartType.Line) XlsxChartLineOptionsCodec.Patch(plot, target.LineOptions);
+        if (target.Type == SpreadsheetChartType.Line) XlsxChartLineOptionsCodec.Patch(plot, LineOptions(target));
+        PatchPlotOptions(plot, target);
         XlsxChartDataLabelsCodec.Patch(plot, target.DataLabels);
         XlsxChartAxisCodec.Patch(plotArea, plot, target);
+        XlsxChartSurfaceFillCodec.Patch(document.Root!, target.ChartAreaFill, $"{subject} chart area");
+        XlsxChartSurfaceFillCodec.Patch(plotArea, target.PlotAreaFill, $"{subject} plot area");
     }
 
     internal static bool TrySeries(XElement source, SpreadsheetChartType chartType, out SpreadsheetChartSeriesArtifact series, out string[] categories, out bool editable)
@@ -209,11 +226,18 @@ internal static class OpenXmlChartSpaceCodec
         XlsxChartTextStyleCodec.PatchTitle(existing, style);
     }
 
-    internal static void PatchLegend(XElement chart, bool hasLegend)
+    internal static void PatchLegend(XElement chart, bool hasLegend, string position = "")
     {
         var legend = chart.Element(ChartNs + "legend");
         if (!hasLegend) { legend?.Remove(); return; }
-        if (legend is null) chart.Element(ChartNs + "plotArea")!.AddAfterSelf(LegendElement());
+        if (legend is null)
+        {
+            chart.Element(ChartNs + "plotArea")!.AddAfterSelf(LegendElement(position));
+            return;
+        }
+        if (!TryLegendPosition(legend, out _))
+            throw Topology("unsupported_chart_edit", "Chart", "has a legend outside the canonical placement profile");
+        legend.Element(ChartNs + "legendPos")!.SetAttributeValue("val", LegendPositionToken(position));
     }
 
     internal static void PatchSeries(XElement native, SpreadsheetChartSeriesArtifact target, IEnumerable<string> categories, SpreadsheetChartType chartType, string errorCode, string subject)
@@ -238,12 +262,193 @@ internal static class OpenXmlChartSpaceCodec
         }
     }
 
-    internal static XElement LegendElement() => new(ChartNs + "legend", new XElement(ChartNs + "legendPos", new XAttribute("val", "r")), new XElement(ChartNs + "layout"));
+    internal static XElement LegendElement(string position = "") => new(
+        ChartNs + "legend",
+        new XElement(ChartNs + "legendPos", new XAttribute("val", LegendPositionToken(position))),
+        new XElement(ChartNs + "layout"));
+
+    private static bool TryLegendPosition(XElement legend, out string position)
+    {
+        position = string.Empty;
+        if (legend.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
+            legend.Elements().Any(element => element.Name != ChartNs + "legendPos" && element.Name != ChartNs + "layout") ||
+            legend.Elements(ChartNs + "legendPos").Take(2).Count() != 1 ||
+            legend.Elements(ChartNs + "layout").Take(2).Count() != 1 ||
+            legend.Element(ChartNs + "layout")!.HasElements || legend.Element(ChartNs + "layout")!.HasAttributes)
+            return false;
+        var nativePosition = legend.Element(ChartNs + "legendPos")!;
+        if (nativePosition.HasElements || nativePosition.Attributes().Count() != 1 || nativePosition.Attribute("val") is null)
+            return false;
+        var native = (string?)nativePosition.Attribute("val");
+        position = native switch
+        {
+            "t" => "top",
+            "b" => "bottom",
+            "l" => "left",
+            "r" => "right",
+            _ => string.Empty,
+        };
+        return position.Length > 0;
+    }
+
+    private static string LegendPositionToken(string position) => position switch
+    {
+        "" or "right" => "r",
+        "top" => "t",
+        "bottom" => "b",
+        "left" => "l",
+        _ => throw new CodecException("invalid_chart_legend", $"Unsupported chart legend position {position}."),
+    };
     internal static bool UsesNumericXAxis(SpreadsheetChartType type) => type is SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble;
+
+    private static bool TryReadPlotOptions(XElement plot, SpreadsheetChartArtifact chart)
+    {
+        if (chart.Type == SpreadsheetChartType.Bar)
+        {
+            if (!TryScalar(plot, "barDir", new[] { "col", "bar" }, required: true, out var direction) ||
+                !TryScalar(plot, "grouping", new[] { "clustered", "stacked", "percentStacked" }, required: true, out var grouping) ||
+                !TryOptionalUInt(plot, "gapWidth", 0, 500, out var hasGapWidth, out var gapWidth))
+                return false;
+            chart.BarDirection = direction == "bar" ? "bar" : "column";
+            chart.Grouping = NativeGrouping(grouping!);
+            if (hasGapWidth) chart.GapWidth = gapWidth;
+            return true;
+        }
+
+        if (chart.Type is SpreadsheetChartType.Line or SpreadsheetChartType.Area)
+        {
+            if (!TryScalar(plot, "grouping", new[] { "standard", "stacked", "percentStacked" }, required: true, out var grouping) ||
+                plot.Element(ChartNs + "gapWidth") is not null || plot.Element(ChartNs + "barDir") is not null)
+                return false;
+            chart.Grouping = NativeGrouping(grouping!);
+            return true;
+        }
+
+        return plot.Element(ChartNs + "grouping") is null &&
+               plot.Element(ChartNs + "gapWidth") is null &&
+               plot.Element(ChartNs + "barDir") is null;
+    }
+
+    private static void PatchPlotOptions(XElement plot, SpreadsheetChartArtifact chart)
+    {
+        if (chart.Type == SpreadsheetChartType.Bar)
+        {
+            SetRequiredScalar(plot, "barDir", BarDirectionToken(chart.BarDirection));
+            SetRequiredScalar(plot, "grouping", GroupingToken(chart.Grouping, clustered: true));
+            PatchOptionalUInt(plot, "gapWidth", chart.HasGapWidth, chart.GapWidth);
+            return;
+        }
+        if (chart.Type == SpreadsheetChartType.Area)
+        {
+            SetRequiredScalar(plot, "grouping", GroupingToken(chart.Grouping, clustered: false));
+            return;
+        }
+        if (chart.Type == SpreadsheetChartType.Line)
+        {
+            SetRequiredScalar(plot, "grouping", GroupingToken(chart.Grouping, clustered: false));
+            return;
+        }
+        if (chart.HasGapWidth || chart.Grouping.Length > 0 || chart.BarDirection.Length > 0)
+            throw new CodecException("invalid_chart_style", "The selected chart type cannot carry grouping, gap width, or bar direction.");
+    }
+
+    private static SpreadsheetChartLineOptionsArtifact? LineOptions(SpreadsheetChartArtifact chart)
+    {
+        if (chart.Grouping.Length == 0) return chart.LineOptions;
+        var output = chart.LineOptions?.Clone() ?? new SpreadsheetChartLineOptionsArtifact();
+        output.Grouping = chart.Grouping switch
+        {
+            "none" => SpreadsheetChartLineGrouping.Standard,
+            "stacked" => SpreadsheetChartLineGrouping.Stacked,
+            "percent-stacked" => SpreadsheetChartLineGrouping.PercentStacked,
+            _ => throw new CodecException("invalid_chart_grouping", $"Unsupported chart grouping {chart.Grouping}."),
+        };
+        return output;
+    }
+
+    private static string NativeGrouping(string value) => value switch
+    {
+        "clustered" or "standard" => "none",
+        "stacked" => "stacked",
+        "percentStacked" => "percent-stacked",
+        _ => throw new InvalidOperationException("Validated native chart grouping changed unexpectedly."),
+    };
+
+    internal static string GroupingToken(string grouping, bool clustered) => grouping switch
+    {
+        "" or "none" => clustered ? "clustered" : "standard",
+        "stacked" => "stacked",
+        "percent-stacked" => "percentStacked",
+        _ => throw new CodecException("invalid_chart_grouping", $"Unsupported chart grouping {grouping}."),
+    };
+
+    internal static string BarDirectionToken(string direction) => direction switch
+    {
+        "" or "column" => "col",
+        "bar" => "bar",
+        _ => throw new CodecException("invalid_chart_direction", $"Unsupported bar direction {direction}."),
+    };
+
+    private static bool TryScalar(XElement owner, string name, IReadOnlyCollection<string> allowed, bool required, out string? value)
+    {
+        value = null;
+        var matches = owner.Elements(ChartNs + name).Take(2).ToArray();
+        if (matches.Length == 0) return !required;
+        if (matches.Length != 1) return false;
+        var element = matches[0];
+        value = (string?)element.Attribute("val");
+        return value is not null && allowed.Contains(value) &&
+               !element.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val") &&
+               !element.Nodes().Any(node => node is XText text ? !string.IsNullOrWhiteSpace(text.Value) : true);
+    }
+
+    private static bool TryOptionalUInt(XElement owner, string name, uint minimum, uint maximum, out bool present, out uint value)
+    {
+        present = false;
+        value = 0;
+        var matches = owner.Elements(ChartNs + name).Take(2).ToArray();
+        if (matches.Length == 0) return true;
+        if (matches.Length != 1) return false;
+        var element = matches[0];
+        var text = (string?)element.Attribute("val");
+        if (text is null ||
+            element.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val") ||
+            element.Nodes().Any(node => node is XText nativeText ? !string.IsNullOrWhiteSpace(nativeText.Value) : true) ||
+            !uint.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value) || value < minimum || value > maximum)
+            return false;
+        present = true;
+        return true;
+    }
+
+    private static void SetRequiredScalar(XElement owner, string name, string value)
+    {
+        var existing = owner.Element(ChartNs + name);
+        var replacement = new XElement(ChartNs + name, new XAttribute("val", value));
+        if (existing is not null) existing.ReplaceWith(replacement);
+        else owner.AddFirst(replacement);
+    }
+
+    private static void PatchOptionalUInt(XElement owner, string name, bool present, uint value)
+    {
+        var existing = owner.Element(ChartNs + name);
+        if (!present)
+        {
+            existing?.Remove();
+            return;
+        }
+        var replacement = new XElement(ChartNs + name, new XAttribute("val", value));
+        if (existing is not null) existing.ReplaceWith(replacement);
+        else
+        {
+            var axis = owner.Elements(ChartNs + "axId").FirstOrDefault();
+            if (axis is null) owner.Add(replacement);
+            else axis.AddBeforeSelf(replacement);
+        }
+    }
 
     private static bool PlotProfileEditable(XElement plot, SpreadsheetChartType type)
     {
-        if (type == SpreadsheetChartType.Area) return ScalarEquals(plot, "grouping", "standard", required: true);
+        if (type == SpreadsheetChartType.Area) return true;
         if (type == SpreadsheetChartType.Doughnut) return ScalarEquals(plot, "firstSliceAng", "0", required: false) && ScalarEquals(plot, "holeSize", "50", required: true);
         if (type == SpreadsheetChartType.Scatter) return ScalarEquals(plot, "scatterStyle", "marker", required: true);
         if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "bubbleScale", "100", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false) && ScalarEquals(plot, "sizeRepresents", "area", required: false);

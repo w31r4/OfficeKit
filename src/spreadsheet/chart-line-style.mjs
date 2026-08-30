@@ -1,6 +1,8 @@
 const MAX_WIDTH_POINTS = 1_584;
 
 const SUPPORTED_LINE_STYLES = new Set(["solid", "dashed", "dotted", "dash-dot", "dash-dot-dot"]);
+const SUPPORTED_LINE_CAPS = new Set(["flat", "round", "square"]);
+const SUPPORTED_LINE_JOINS = new Set(["miter", "round", "bevel"]);
 
 export const SPREADSHEET_CHART_LINE_STYLES = Object.freeze([...SUPPORTED_LINE_STYLES]);
 export const SPREADSHEET_CHART_LINE_MAX_WIDTH_POINTS = MAX_WIDTH_POINTS;
@@ -34,16 +36,34 @@ function normalizedLine(value, name, aliases) {
     if (!Number.isFinite(normalized) || normalized < 0 || normalized > MAX_WIDTH_POINTS) lineError(name, `${aliases.width} must be from 0 through ${MAX_WIDTH_POINTS} points.`);
     output.width = normalized;
   }
+  const opacity = value[aliases.opacity];
+  if (opacity != null) {
+    const normalized = Number(opacity);
+    if (!Number.isFinite(normalized) || normalized < 0 || normalized > 1) lineError(name, `${aliases.opacity} must be from 0 through 1.`);
+    output.opacity = normalized;
+  }
+  const cap = value[aliases.cap];
+  if (cap != null) {
+    const normalized = String(cap).toLowerCase();
+    if (!SUPPORTED_LINE_CAPS.has(normalized)) lineError(name, `${aliases.cap} must be flat, round, or square.`);
+    output.cap = normalized;
+  }
+  const join = value[aliases.join];
+  if (join != null) {
+    const normalized = String(join).toLowerCase();
+    if (!SUPPORTED_LINE_JOINS.has(normalized)) lineError(name, `${aliases.join} must be miter, round, or bevel.`);
+    output.join = normalized;
+  }
   return output;
 }
 
 export function normalizeSpreadsheetChartLineStyle(value, name = "series.line") {
-  return normalizedLine(value, name, { fill: "fill", style: "style", width: "width" });
+  return normalizedLine(value, name, { fill: "fill", style: "style", width: "width", opacity: "opacity", cap: "cap", join: "join" });
 }
 
 export function normalizeSpreadsheetChartSeriesLine(series) {
   const line = normalizeSpreadsheetChartLineStyle(series?.line, "series.line");
-  const stroke = normalizedLine(series?.stroke, "series.stroke", { fill: "color", style: "style", width: "weight" });
+  const stroke = normalizedLine(series?.stroke, "series.stroke", { fill: "color", style: "style", width: "weight", opacity: "opacity", cap: "cap", join: "join" });
   if (line != null && stroke != null && JSON.stringify(line) !== JSON.stringify(stroke)) lineError("series", "line and stroke aliases must describe the same style when both are present.");
   return line ?? stroke;
 }

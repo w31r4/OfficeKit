@@ -102,12 +102,16 @@ internal sealed class XlsxChartCodec
             if (!ids.Add(chart.Id)) throw InvalidChart(worksheetId, chart.Id, "ID must be unique within its worksheet.");
             if (string.IsNullOrWhiteSpace(chart.Name) || chart.Name.Length > 255 || HasControls(chart.Name)) throw InvalidChart(worksheetId, chart.Id, "name must contain 1 through 255 characters without controls.");
             if (chart.Title.Length > 32_767 || HasControls(chart.Title)) throw InvalidChart(worksheetId, chart.Id, "title must contain at most 32767 characters without controls.");
+            if (!chart.HasLegend && chart.LegendPosition.Length > 0 ||
+                chart.HasLegend && chart.LegendPosition is not ("" or "top" or "bottom" or "left" or "right"))
+                throw InvalidChart(worksheetId, chart.Id, "legend position must be top, bottom, left, or right when a legend is enabled.");
             XlsxNonVisualAccessibilityCodec.Validate(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart), worksheetId, chart.Id, "chart");
             if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble)) throw InvalidChart(worksheetId, chart.Id, "type must be bar, line, pie, area, doughnut, scatter, or bubble.");
             XlsxChartAxisCodec.Validate(chart, worksheetId);
             XlsxChartTextStyleCodec.Validate(chart, worksheetId);
             XlsxChartLineOptionsCodec.Validate(chart, worksheetId);
             XlsxChartDataLabelsCodec.Validate(chart, worksheetId);
+            ValidatePlotStyle(chart, worksheetId);
             if ((chart.Anchor is null ? 0 : 1) + (chart.TwoCellAnchor is null ? 0 : 1) + (chart.AbsoluteAnchor is null ? 0 : 1) != 1) throw InvalidChart(worksheetId, chart.Id, "must carry exactly one one-cell, two-cell, or absolute anchor.");
             ValidateAnchor(chart, worksheetId);
             if (chart.Categories.Count > MaxPoints) throw InvalidChart(worksheetId, chart.Id, $"exceeds the {MaxPoints}-category budget.");
@@ -371,7 +375,32 @@ internal sealed class XlsxChartCodec
     }
 
     private static string SemanticHash(SpreadsheetChartArtifact chart) => Hash(string.Join('\0', chart.Name, XlsxNonVisualAccessibilityCodec.Semantics(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart)), ChartSpaceSemanticHash(chart)));
-    private static string ChartSpaceSemanticHash(SpreadsheetChartArtifact chart) => Hash(string.Join('\0', chart.Id, chart.Title, XlsxChartTextStyleCodec.Semantics(chart.TitleTextStyle), XlsxChartLineOptionsCodec.Semantics(chart.LineOptions), XlsxChartDataLabelsCodec.Semantics(chart.DataLabels), ((int)chart.Type).ToString(CultureInfo.InvariantCulture), chart.HasLegend ? "1" : "0", AnchorSemantics(chart), XlsxChartAxisCodec.Semantics(chart), string.Join('\u001e', chart.Categories), string.Join('\u001d', chart.Series.Select(series => string.Join('\u001f', series.Name, series.CategoryFormula, series.XValueFormula, series.ValueFormula, series.BubbleSizeFormula, XlsxChartSeriesStyleCodec.Semantics(series), XlsxChartSeriesLineStyleCodec.Semantics(series.Line), XlsxChartSeriesMarkerCodec.Semantics(series.Marker), OpenXmlChartTrendlineCodec.Semantics(series.Trendlines), OpenXmlChartErrorBarsCodec.Semantics(series.ErrorBars), string.Join(',', series.XValues.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.Values.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.BubbleSizes.Select(value => value.ToString("R", CultureInfo.InvariantCulture))))))));
+    private static string ChartSpaceSemanticHash(SpreadsheetChartArtifact chart) => Hash(string.Join('\0', chart.Id, chart.Title, XlsxChartTextStyleCodec.Semantics(chart.TitleTextStyle), XlsxChartLineOptionsCodec.Semantics(chart.LineOptions), XlsxChartDataLabelsCodec.Semantics(chart.DataLabels), ((int)chart.Type).ToString(CultureInfo.InvariantCulture), chart.HasLegend ? "1" : "0", chart.HasLegend ? (chart.LegendPosition.Length == 0 ? "right" : chart.LegendPosition) : "-", chart.Grouping, chart.HasGapWidth ? chart.GapWidth.ToString(CultureInfo.InvariantCulture) : "absent", chart.BarDirection, XlsxChartSurfaceFillCodec.Semantics(chart.ChartAreaFill), XlsxChartSurfaceFillCodec.Semantics(chart.PlotAreaFill), AnchorSemantics(chart), XlsxChartAxisCodec.Semantics(chart), string.Join('\u001e', chart.Categories), string.Join('\u001d', chart.Series.Select(series => string.Join('\u001f', series.Name, series.CategoryFormula, series.XValueFormula, series.ValueFormula, series.BubbleSizeFormula, XlsxChartSeriesStyleCodec.Semantics(series), XlsxChartSeriesLineStyleCodec.Semantics(series.Line), XlsxChartSeriesMarkerCodec.Semantics(series.Marker), OpenXmlChartTrendlineCodec.Semantics(series.Trendlines), OpenXmlChartErrorBarsCodec.Semantics(series.ErrorBars), string.Join(',', series.XValues.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.Values.Select(value => value.ToString("R", CultureInfo.InvariantCulture))), string.Join(',', series.BubbleSizes.Select(value => value.ToString("R", CultureInfo.InvariantCulture))))))));
+
+    private static void ValidatePlotStyle(SpreadsheetChartArtifact chart, string worksheetId)
+    {
+        if (chart.Grouping is not ("" or "none" or "stacked" or "percent-stacked"))
+            throw InvalidChart(worksheetId, chart.Id, "grouping must be none, stacked, or percent-stacked.");
+        if (chart.Grouping.Length > 0 && chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area))
+            throw InvalidChart(worksheetId, chart.Id, "grouping is supported only on bar, line, and area charts.");
+        if (chart.HasGapWidth && (chart.Type != SpreadsheetChartType.Bar || chart.GapWidth > 500))
+            throw InvalidChart(worksheetId, chart.Id, "gap width is supported only on bar charts and must be 0 through 500.");
+        if (chart.BarDirection is not ("" or "bar" or "column") || chart.BarDirection.Length > 0 && chart.Type != SpreadsheetChartType.Bar)
+            throw InvalidChart(worksheetId, chart.Id, "bar direction must be bar or column and is supported only on bar charts.");
+        if (chart.Type == SpreadsheetChartType.Line && chart.Grouping.Length > 0 && chart.LineOptions?.HasGrouping == true)
+        {
+            var legacy = chart.LineOptions.Grouping switch
+            {
+                SpreadsheetChartLineGrouping.Standard => "none",
+                SpreadsheetChartLineGrouping.Stacked => "stacked",
+                SpreadsheetChartLineGrouping.PercentStacked => "percent-stacked",
+                _ => string.Empty,
+            };
+            if (legacy != chart.Grouping) throw InvalidChart(worksheetId, chart.Id, "grouping conflicts with line_options.grouping.");
+        }
+        XlsxChartSurfaceFillCodec.Validate(chart.ChartAreaFill, $"Worksheet {worksheetId} chart {chart.Id} chart-area fill");
+        XlsxChartSurfaceFillCodec.Validate(chart.PlotAreaFill, $"Worksheet {worksheetId} chart {chart.Id} plot-area fill");
+    }
     private static string? AccessibilityTitle(SpreadsheetChartArtifact chart) => string.IsNullOrEmpty(chart.AccessibilityTitle) ? null : chart.AccessibilityTitle;
     private static string? AccessibilityDescription(SpreadsheetChartArtifact chart) => string.IsNullOrEmpty(chart.AccessibilityDescription) ? null : chart.AccessibilityDescription;
     private static bool? AccessibilityDecorative(SpreadsheetChartArtifact chart) => chart.HasAccessibilityDecorative ? chart.AccessibilityDecorative : null;

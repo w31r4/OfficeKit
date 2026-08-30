@@ -6,7 +6,7 @@ namespace OfficeKit.Codec;
 
 // Owns one bounded direct DrawingML series outline. The projection is presence
 // aware and deliberately excludes theme/transformed colors, compound lines,
-// caps, joins, arrows, custom dash arrays, and other line children. Encountering
+// arrows, custom dash arrays, and other line children. Encountering
 // any of those graphs makes the containing chart read-only and exact-preserved.
 internal static class XlsxChartSeriesLineStyleCodec
 {
@@ -36,6 +36,12 @@ internal static class XlsxChartSeriesLineStyleCodec
             (double.IsNaN(line.WidthPoints) || double.IsInfinity(line.WidthPoints) ||
              line.WidthPoints < 0 || line.WidthPoints > MaxWidthPoints || WidthEmu(line.WidthPoints) > MaxWidthEmu))
             throw Invalid(worksheetId, chartId, seriesName, subject, $"width must be from 0 through {MaxWidthPoints} points");
+        if (line.HasOpacityThousandthPercent && (line.Color is null || line.OpacityThousandthPercent > 100_000))
+            throw Invalid(worksheetId, chartId, seriesName, subject, "opacity requires a direct color and must be 0 through 100000");
+        if (line.Cap is not ("" or "flat" or "round" or "square"))
+            throw Invalid(worksheetId, chartId, seriesName, subject, "cap must be flat, round, or square");
+        if (line.Join is not ("" or "miter" or "round" or "bevel"))
+            throw Invalid(worksheetId, chartId, seriesName, subject, "join must be miter, round, or bevel");
     }
 
     internal static bool TryRead(XElement nativeSeries, SpreadsheetChartSeriesArtifact series, SpreadsheetChartType chartType = SpreadsheetChartType.Unspecified)
@@ -55,11 +61,13 @@ internal static class XlsxChartSeriesLineStyleCodec
         if (lines.Length == 0) return true;
         if (lines.Length != 1) return false;
         var native = lines[0];
-        if (native.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "w")) return false;
+        if (native.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "w" && attribute.Name != "cap")) return false;
         var children = native.Elements().ToArray();
-        if (children.Any(child => child.Name != DrawingNs + "solidFill" && child.Name != DrawingNs + "prstDash") ||
+        if (children.Any(child => child.Name != DrawingNs + "solidFill" && child.Name != DrawingNs + "prstDash" &&
+                                  child.Name != DrawingNs + "round" && child.Name != DrawingNs + "bevel" && child.Name != DrawingNs + "miter") ||
             children.Count(child => child.Name == DrawingNs + "solidFill") > 1 ||
-            children.Count(child => child.Name == DrawingNs + "prstDash") > 1) return false;
+            children.Count(child => child.Name == DrawingNs + "prstDash") > 1 ||
+            children.Count(child => child.Name is var name && (name == DrawingNs + "round" || name == DrawingNs + "bevel" || name == DrawingNs + "miter")) > 1) return false;
 
         var output = new SpreadsheetChartLineStyleArtifact();
         var width = (string?)native.Attribute("w");
@@ -68,6 +76,16 @@ internal static class XlsxChartSeriesLineStyleCodec
             if (!long.TryParse(width, NumberStyles.None, CultureInfo.InvariantCulture, out var emu) || emu < 0 || emu > MaxWidthEmu) return false;
             output.WidthPoints = emu / (double)EmuPerPoint;
         }
+        var cap = (string?)native.Attribute("cap");
+        output.Cap = cap switch
+        {
+            null => string.Empty,
+            "flat" => "flat",
+            "rnd" => "round",
+            "sq" => "square",
+            _ => string.Empty,
+        };
+        if (cap is not null && output.Cap.Length == 0) return false;
         var fill = native.Element(DrawingNs + "solidFill");
         if (fill is not null)
         {
@@ -75,16 +93,31 @@ internal static class XlsxChartSeriesLineStyleCodec
             var colors = fill.Elements().ToArray();
             if (colors.Length != 1 || colors[0].Name != DrawingNs + "srgbClr") return false;
             var color = colors[0];
-            if (color.HasElements || color.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val")) return false;
+            if (color.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val")) return false;
             var value = (string?)color.Attribute("val");
             if (value is null || value.Length != 6 || !value.All(Uri.IsHexDigit)) return false;
             output.Color = new SpreadsheetColor { Rgb = value.ToUpperInvariant() };
+            var alpha = color.Elements(DrawingNs + "alpha").Take(2).ToArray();
+            if (color.Elements().Any(child => child.Name != DrawingNs + "alpha") || alpha.Length > 1) return false;
+            if (alpha.Length == 1)
+            {
+                if (alpha[0].HasElements || alpha[0].Attributes().Count() != 1 ||
+                    !uint.TryParse((string?)alpha[0].Attribute("val"), NumberStyles.None, CultureInfo.InvariantCulture, out var opacity) || opacity > 100_000)
+                    return false;
+                output.OpacityThousandthPercent = opacity;
+            }
         }
         var dash = native.Element(DrawingNs + "prstDash");
         if (dash is not null)
         {
             if (dash.HasElements || dash.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val") || !TryDash((string?)dash.Attribute("val"), out var style)) return false;
             output.DashStyle = style;
+        }
+        var join = children.SingleOrDefault(child => child.Name == DrawingNs + "round" || child.Name == DrawingNs + "bevel" || child.Name == DrawingNs + "miter");
+        if (join is not null)
+        {
+            if (join.HasAttributes || join.HasElements) return false;
+            output.Join = join.Name.LocalName;
         }
         line = output;
         return true;
@@ -100,8 +133,15 @@ internal static class XlsxChartSeriesLineStyleCodec
         if (line is null) return null;
         var output = new XElement(DrawingNs + "ln");
         if (line.HasWidthPoints) output.SetAttributeValue("w", WidthEmu(line.WidthPoints).ToString(CultureInfo.InvariantCulture));
-        if (line.Color is not null) output.Add(new XElement(DrawingNs + "solidFill", new XElement(DrawingNs + "srgbClr", new XAttribute("val", line.Color.Rgb.ToUpperInvariant()))));
+        if (line.Cap.Length > 0) output.SetAttributeValue("cap", line.Cap switch { "round" => "rnd", "square" => "sq", _ => "flat" });
+        if (line.Color is not null)
+        {
+            var color = new XElement(DrawingNs + "srgbClr", new XAttribute("val", line.Color.Rgb.ToUpperInvariant()));
+            if (line.HasOpacityThousandthPercent) color.Add(new XElement(DrawingNs + "alpha", new XAttribute("val", line.OpacityThousandthPercent)));
+            output.Add(new XElement(DrawingNs + "solidFill", color));
+        }
         if (line.DashStyle != SpreadsheetChartLineDashStyle.Unspecified) output.Add(new XElement(DrawingNs + "prstDash", new XAttribute("val", DashValue(line.DashStyle))));
+        if (line.Join.Length > 0) output.Add(new XElement(DrawingNs + line.Join));
         return output;
     }
 
@@ -151,7 +191,7 @@ internal static class XlsxChartSeriesLineStyleCodec
     {
         if (line is null) return "no-line";
         var color = line.Color is null ? "no-color" : string.Join(':', line.Color.SourceCase, line.Color.Rgb.ToUpperInvariant(), line.Color.HasTint ? line.Color.Tint.ToString("R", CultureInfo.InvariantCulture) : "no-tint");
-        return string.Join(':', "line", color, (int)line.DashStyle, line.HasWidthPoints ? line.WidthPoints.ToString("R", CultureInfo.InvariantCulture) : "no-width");
+        return string.Join(':', "line", color, (int)line.DashStyle, line.HasWidthPoints ? line.WidthPoints.ToString("R", CultureInfo.InvariantCulture) : "no-width", line.HasOpacityThousandthPercent ? line.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "opaque", line.Cap, line.Join);
     }
 
     private static long WidthEmu(double points) => checked((long)Math.Round(points * EmuPerPoint, MidpointRounding.AwayFromZero));

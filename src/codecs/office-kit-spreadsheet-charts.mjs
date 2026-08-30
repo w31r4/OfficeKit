@@ -160,6 +160,9 @@ function seriesLineFromWire(value, name, chart) {
     if (width < 0 || width > SPREADSHEET_CHART_LINE_MAX_WIDTH_POINTS) fail(chart, `${name}.width must be from 0 through ${SPREADSHEET_CHART_LINE_MAX_WIDTH_POINTS} points.`);
     output.width = width;
   }
+  if (value.opacityThousandthPercent != null) output.opacity = Number(value.opacityThousandthPercent) / 100_000;
+  if (value.cap) output.cap = String(value.cap);
+  if (value.join) output.join = String(value.join);
   return output;
 }
 
@@ -169,6 +172,9 @@ function seriesLineToWire(line) {
     color: line.fill == null ? undefined : { source: { case: "rgb", value: line.fill.slice(1) } },
     dashStyle: line.style == null ? SpreadsheetChartLineDashStyle.UNSPECIFIED : LINE_STYLES_TO_WIRE.get(line.style),
     widthPoints: line.width == null ? undefined : line.width,
+    opacityThousandthPercent: line.opacity == null ? undefined : Math.round(line.opacity * 100_000),
+    cap: line.cap || "",
+    join: line.join || "",
   };
 }
 
@@ -347,6 +353,8 @@ function axisSnapshot(axis, kind, chartType, chart) {
     minimum: axis.min == null ? null : Number(axis.min),
     maximum: axis.max == null ? null : Number(axis.max),
     majorUnit: aliasMajorUnit == null ? null : Number(aliasMajorUnit),
+    visible: axis.visible == null ? null : Boolean(axis.visible),
+    showMajorGridlines: axis.showGridlines == null ? null : Boolean(axis.showGridlines),
   };
 }
 
@@ -370,6 +378,7 @@ export function spreadsheetChartSnapshot(chart, options = {}) {
     dataLabels: dataLabelsSnapshot(chart?.dataLabels, chart),
     type,
     hasLegend: chart?.hasLegend !== false,
+    legendPosition: chart?.legendPosition == null ? "" : String(chart.legendPosition),
     categories,
     xAxis: axisSnapshot(chart?.xAxis, "x", type, chart),
     yAxis: axisSnapshot(chart?.yAxis, "y", type, chart),
@@ -494,6 +503,8 @@ function wireAxis(axis) {
     minimum: axis.minimum == null ? undefined : axis.minimum,
     maximum: axis.maximum == null ? undefined : axis.maximum,
     majorUnit: axis.majorUnit == null ? undefined : axis.majorUnit,
+    visible: axis.visible == null ? undefined : axis.visible,
+    showMajorGridlines: axis.showMajorGridlines == null ? undefined : axis.showMajorGridlines,
   };
 }
 
@@ -528,6 +539,12 @@ function wireChart(chart, original) {
     },
     type,
     hasLegend: snapshot.hasLegend,
+    legendPosition: snapshot.legendPosition,
+    grouping: chart?._officeKitNativeChartStyle?.grouping ?? original?.grouping ?? "",
+    gapWidth: chart?._officeKitNativeChartStyle?.gapWidth ?? original?.gapWidth,
+    barDirection: chart?._officeKitNativeChartStyle?.barDirection ?? original?.barDirection ?? "",
+    chartAreaFill: chart?._officeKitNativeChartStyle?.chartAreaFill ?? original?.chartAreaFill,
+    plotAreaFill: chart?._officeKitNativeChartStyle?.plotAreaFill ?? original?.plotAreaFill,
     categories: snapshot.categories,
     xAxis: wireAxis(snapshot.xAxis),
     yAxis: wireAxis(snapshot.yAxis),
@@ -660,6 +677,8 @@ function axisFromWire(axis, kind, chartType) {
     ...(axis.minimum == null ? {} : { min: axis.minimum }),
     ...(axis.maximum == null ? {} : { max: axis.maximum }),
     ...(axis.majorUnit == null ? {} : { majorUnit: axis.majorUnit }),
+    ...(axis.visible == null ? {} : { visible: axis.visible }),
+    ...(axis.showMajorGridlines == null ? {} : { showGridlines: axis.showMajorGridlines }),
   };
 }
 
@@ -729,6 +748,7 @@ export function spreadsheetChartFromWire(sheet, source) {
     ...(lineOptions == null ? {} : { lineOptions }),
     ...(dataLabels == null ? {} : { dataLabels }),
     hasLegend: source.hasLegend,
+    legendPosition: source.legendPosition,
     categories: [...(source.categories || [])],
     xAxis: axisFromWire(source.xAxis, "x", type),
     yAxis: axisFromWire(source.yAxis, "y", type),
@@ -759,5 +779,12 @@ export function spreadsheetChartFromWire(sheet, source) {
     ...(importedTrendlines[index].length === 0 ? {} : { trendlines: importedTrendlines[index] }),
     ...(importedErrorBars[index] == null ? {} : { errorBars: importedErrorBars[index] }),
   }));
+  chart._officeKitNativeChartStyle = {
+    grouping: source.grouping || "",
+    gapWidth: source.gapWidth,
+    barDirection: source.barDirection || "",
+    chartAreaFill: source.chartAreaFill,
+    plotAreaFill: source.plotAreaFill,
+  };
   return chart;
 }

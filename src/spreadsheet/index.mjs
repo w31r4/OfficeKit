@@ -722,6 +722,7 @@ class WorksheetChart {
     this.dataLabels = normalizeSpreadsheetChartDataLabels(sourceOrConfig.dataLabels);
     if (this.dataLabels?.showPercent && !["pie", "doughnut"].includes(this.type)) throw new TypeError("Worksheet chart percentage data labels require a pie or doughnut chart.");
     this.hasLegend = sourceOrConfig.hasLegend ?? true;
+    this.legendPosition = sourceOrConfig.legendPosition == null ? "" : String(sourceOrConfig.legendPosition);
     this.categories = sourceOrConfig.categories || [];
     this.position = sourceOrConfig.position || { left: 420, top: 40, width: 360, height: 220 };
     this._xAxis = undefined;
@@ -826,7 +827,7 @@ class WorksheetChart {
 
   toSvg() { return renderWorksheetChartSvg(this); }
 
-  toJSON() { return { id: this.id, type: this.type, name: this.name, title: this.title, titleTextStyle: this.titleTextStyle, lineOptions: normalizeSpreadsheetChartLineOptions(this.lineOptions) || undefined, dataLabels: normalizeSpreadsheetChartDataLabels(this.dataLabels), hasLegend: this.hasLegend, categories: this.categories, position: this.position, series: this.series.toJSON(), xAxis: this.xAxis, yAxis: this.yAxis, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability }; }
+  toJSON() { return { id: this.id, type: this.type, name: this.name, title: this.title, titleTextStyle: this.titleTextStyle, lineOptions: normalizeSpreadsheetChartLineOptions(this.lineOptions) || undefined, dataLabels: normalizeSpreadsheetChartDataLabels(this.dataLabels), hasLegend: this.hasLegend, legendPosition: this.legendPosition || undefined, categories: this.categories, position: this.position, series: this.series.toJSON(), xAxis: this.xAxis, yAxis: this.yAxis, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability }; }
 }
 
 class WorksheetChartCollection {

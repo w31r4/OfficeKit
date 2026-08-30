@@ -11,6 +11,8 @@ const DATA_LABEL_POSITION_ALIASES = new Map([
 ]);
 const AXIS_GROUPS = new Set(["primary", "secondary"]);
 const LINE_DASH_STYLES = new Set(["solid", "dot", "dash", "longDash", "dashDot", "longDashDot", "longDashDotDot", "systemDash", "systemDot", "systemDashDot", "systemDashDotDot"]);
+const LINE_CAPS = new Set(["flat", "round", "square"]);
+const LINE_JOINS = new Set(["miter", "round", "bevel"]);
 
 function boundedInteger(value, { name, min, max, fallback, optional = false }) {
   if (value == null || value === "") return optional ? undefined : fallback;
@@ -51,6 +53,22 @@ function normalizePresentationChartPaint(value) {
   return [value.fill, value.color, value.rgb].find((candidate) => typeof candidate === "string" && candidate) || undefined;
 }
 
+function normalizePresentationChartSurfaceFill(value, name) {
+  if (value == null) return undefined;
+  if (typeof value === "string") return { type: "solid", color: value, opacity: 1 };
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${name} must be a color string or a fill object.`);
+  const type = String(value.type || (value.color || value.fill ? "solid" : "none"));
+  if (type === "none") return { type: "none" };
+  if (type !== "solid") throw new TypeError(`${name} supports only none or solid fills.`);
+  const color = normalizePresentationChartPaint(value.color ?? value.fill);
+  if (!color) throw new TypeError(`${name} solid fill requires a color.`);
+  return {
+    type: "solid",
+    color,
+    opacity: boundedNumber(value.opacity, { name: `${name} opacity`, min: 0, max: 1, fallback: 1 }),
+  };
+}
+
 function normalizePresentationChartLine(line) {
   if (line == null || line === false) return undefined;
   const raw = typeof line === "string" ? { fill: line } : line;
@@ -61,6 +79,9 @@ function normalizePresentationChartLine(line) {
     fill: normalizePresentationChartPaint(raw.fill ?? raw.color),
     width: boundedNumber(raw.width, { name: "chart line width", min: 0.1, max: 100, fallback: 1 }),
     style,
+    ...(raw.opacity == null ? {} : { opacity: boundedNumber(raw.opacity, { name: "chart line opacity", min: 0, max: 1 }) }),
+    ...(raw.cap == null ? {} : { cap: enumValue(raw.cap, LINE_CAPS, "flat", "chart line cap") }),
+    ...(raw.join == null ? {} : { join: enumValue(raw.join, LINE_JOINS, "miter", "chart line join") }),
   };
 }
 
@@ -101,6 +122,8 @@ export function normalizePresentationChartStyle(chartType, config = {}) {
       marker: normalizePresentationChartMarker(rawLine.marker),
       smooth: Boolean(rawLine.smooth),
     },
+    chartAreaFill: normalizePresentationChartSurfaceFill(config.chartAreaFill ?? style.chartAreaFill, "chart area fill"),
+    plotAreaFill: normalizePresentationChartSurfaceFill(config.plotAreaFill ?? style.plotAreaFill, "plot area fill"),
   };
 }
 

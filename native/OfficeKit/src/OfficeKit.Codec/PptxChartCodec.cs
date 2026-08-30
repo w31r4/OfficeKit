@@ -166,6 +166,9 @@ internal static partial class PptxChartCodec
             Title = source.Title,
             Type = source.Type,
             HasLegend = source.HasLegend,
+            LegendPosition = source.LegendPosition,
+            Grouping = source.Grouping,
+            BarDirection = source.BarDirection,
             AbsoluteAnchor = new SpreadsheetAbsoluteAnchorArtifact
             {
                 XEmu = source.LeftEmu,
@@ -178,6 +181,24 @@ internal static partial class PptxChartCodec
         output.Series.Add(source.Series.Select(series => series.Clone()));
         if (source.XAxis is not null) output.XAxis = source.XAxis.Clone();
         if (source.YAxis is not null) output.YAxis = source.YAxis.Clone();
+        if (source.HasShowCategoryAxis)
+        {
+            output.XAxis ??= new SpreadsheetChartAxisArtifact();
+            output.XAxis.Visible = source.ShowCategoryAxis;
+        }
+        if (source.HasShowValueAxis)
+        {
+            output.YAxis ??= new SpreadsheetChartAxisArtifact();
+            output.YAxis.Visible = source.ShowValueAxis;
+        }
+        if (source.HasShowGridlines)
+        {
+            output.YAxis ??= new SpreadsheetChartAxisArtifact();
+            output.YAxis.ShowMajorGridlines = source.ShowGridlines;
+        }
+        if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+        if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
+        if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         return output;
     }
@@ -193,11 +214,20 @@ internal static partial class PptxChartCodec
             Type = source.Type,
             Title = source.Title,
             HasLegend = source.HasLegend,
+            LegendPosition = source.LegendPosition,
+            Grouping = source.Grouping,
+            BarDirection = source.BarDirection,
         };
         output.Categories.Add(source.Categories);
         output.Series.Add(source.Series.Select(series => series.Clone()));
         if (source.XAxis is not null) output.XAxis = source.XAxis.Clone();
         if (source.YAxis is not null) output.YAxis = source.YAxis.Clone();
+        if (source.XAxis?.HasVisible == true) output.ShowCategoryAxis = source.XAxis.Visible;
+        if (source.YAxis?.HasVisible == true) output.ShowValueAxis = source.YAxis.Visible;
+        if (source.YAxis?.HasShowMajorGridlines == true) output.ShowGridlines = source.YAxis.ShowMajorGridlines;
+        if (source.HasGapWidth) output.GapWidth = source.GapWidth;
+        if (source.ChartAreaFill is not null) output.ChartAreaFill = source.ChartAreaFill.Clone();
+        if (source.PlotAreaFill is not null) output.PlotAreaFill = source.PlotAreaFill.Clone();
         if (source.DataLabels is not null) output.DataLabels = source.DataLabels.Clone();
         return output;
     }

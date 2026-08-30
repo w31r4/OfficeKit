@@ -112,6 +112,9 @@ function chartLine(line, chart, field, rgb) {
     ...(line.fill || line.color ? { color: chartColor(line.fill || line.color, chart, `${field}.color`, rgb) } : {}),
     dashStyle,
     widthPoints: width,
+    ...(line.opacity == null ? {} : { opacityThousandthPercent: Math.round(Number(line.opacity) * 100_000) }),
+    ...(line.cap == null ? {} : { cap: String(line.cap) }),
+    ...(line.join == null ? {} : { join: String(line.join) }),
   };
 }
 
@@ -184,13 +187,26 @@ function chartAxis(axis, chart, field, original) {
     ...(axis?.min == null ? {} : { minimum: Number(axis.min) }),
     ...(axis?.max == null ? {} : { maximum: Number(axis.max) }),
     ...(axis?.majorUnit == null ? {} : { majorUnit: Number(axis.majorUnit) }),
+    ...(axis?.visible == null ? {} : { visible: Boolean(axis.visible) }),
+    ...(axis?.showGridlines == null ? {} : { showMajorGridlines: Boolean(axis.showGridlines) }),
   };
-  const hasSemantics = result.title || result.numberFormatCode || result.tickLabelInterval !== undefined || result.minimum !== undefined || result.maximum !== undefined || result.majorUnit !== undefined;
+  const hasSemantics = result.title || result.numberFormatCode || result.tickLabelInterval !== undefined || result.minimum !== undefined || result.maximum !== undefined || result.majorUnit !== undefined || result.visible !== undefined || result.showMajorGridlines !== undefined;
   if (!hasSemantics && !original) return undefined;
   for (const [name, value] of Object.entries(result)) {
     if (typeof value === "number" && !Number.isFinite(value)) throw new OfficeKitCodecError(`Presentation chart ${chart.id} ${field}.${name} must be finite.`, [], { code: "invalid_presentation_chart" });
   }
   return result;
+}
+
+function chartSurfaceFill(fill, chart, field, rgb) {
+  if (fill == null) return undefined;
+  if (fill.type === "none") return { kind: { case: "noFill", value: true } };
+  if (fill.type !== "solid") throw new OfficeKitCodecError(`Presentation chart ${chart.id} ${field} supports only none or solid fills.`, [], { code: "unsupported_presentation_features" });
+  const color = chartColor(fill.color, chart, `${field}.color`, rgb);
+  return {
+    kind: { case: "solidRgb", value: color.source.value },
+    ...(fill.opacity == null || fill.opacity === 1 ? {} : { opacityThousandthPercent: Math.round(fill.opacity * 100_000) }),
+  };
 }
 
 function chartDataLabels(labels, chart, original) {
@@ -319,6 +335,21 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
         type,
         title: String(chart.title || ""),
         hasLegend: Boolean(chart.legend?.visible ?? chart.hasLegend),
+        legendPosition: ({ t: "top", b: "bottom", l: "left", r: "right" })[chart.legend?.position || "r"] || "right",
+        grouping: ["bar", "combo"].includes(chart.chartType)
+          ? ({ clustered: "none", stacked: "stacked", percentStacked: "percent-stacked" })[chart.barOptions?.grouping] || "none"
+          : chart.chartType === "line"
+            ? ({ standard: "none", stacked: "stacked", percentStacked: "percent-stacked" })[chart.lineOptions?.grouping] || "none"
+            : originalChart?.grouping || "",
+        ...(["bar", "combo"].includes(chart.chartType) ? {
+          barDirection: chart.barOptions?.direction || "column",
+          gapWidth: chart.barOptions?.gapWidth,
+        } : {}),
+        ...(!circular && xAxis?.visible !== undefined ? { showCategoryAxis: xAxis.visible } : {}),
+        ...(!circular && yAxis?.visible !== undefined ? { showValueAxis: yAxis.visible } : {}),
+        ...(!circular && yAxis?.showMajorGridlines !== undefined ? { showGridlines: yAxis.showMajorGridlines } : {}),
+        ...(chart.chartAreaFill ? { chartAreaFill: chartSurfaceFill(chart.chartAreaFill, chart, "chartAreaFill", rgb) } : originalChart?.chartAreaFill ? { chartAreaFill: originalChart.chartAreaFill } : {}),
+        ...(chart.plotAreaFill ? { plotAreaFill: chartSurfaceFill(chart.plotAreaFill, chart, "plotAreaFill", rgb) } : originalChart?.plotAreaFill ? { plotAreaFill: originalChart.plotAreaFill } : {}),
         categories: chart.categories.map((value) => String(value ?? "")),
         series: combo ? [] : nativeSeries,
         ...(combo ? { comboSeries: series.map(({ _comboType, _comboAxisGroup, ...item }) => ({ type: _comboType, axisGroup: _comboAxisGroup, series: item })) } : {}),
@@ -347,6 +378,9 @@ function modelChartLine(line) {
     ...(line.color ? { fill: modelChartColor(line.color) } : {}),
     style: presentationStyle,
     ...(line.widthPoints === undefined ? {} : { width: line.widthPoints }),
+    ...(line.opacityThousandthPercent === undefined ? {} : { opacity: Number(line.opacityThousandthPercent) / 100_000 }),
+    ...(line.cap ? { cap: line.cap } : {}),
+    ...(line.join ? { join: line.join } : {}),
   };
 }
 
@@ -415,6 +449,19 @@ function modelChartAxis(axis, category) {
     ...(!category && axis.minimum !== undefined ? { min: axis.minimum } : {}),
     ...(!category && axis.maximum !== undefined ? { max: axis.maximum } : {}),
     ...(!category && axis.majorUnit !== undefined ? { majorUnit: axis.majorUnit } : {}),
+    ...(axis.visible === undefined ? {} : { visible: axis.visible }),
+    ...(axis.showMajorGridlines === undefined ? {} : { showGridlines: axis.showMajorGridlines }),
+  };
+}
+
+function modelChartSurfaceFill(fill) {
+  if (!fill?.kind?.case) return undefined;
+  if (fill.kind.case === "noFill") return { type: "none" };
+  if (fill.kind.case !== "solidRgb") throw new OfficeKitCodecError("Presentation chart contains an unsupported area fill.", [], { code: "invalid_presentation_chart" });
+  return {
+    type: "solid",
+    color: `#${String(fill.kind.value)}`,
+    ...(fill.opacityThousandthPercent === undefined ? {} : { opacity: Number(fill.opacityThousandthPercent) / 100_000 }),
   };
 }
 
@@ -486,6 +533,20 @@ export function modelPresentationChartFromWire(source, emuPerPixel) {
       };
     }),
     hasLegend: source.hasLegend,
+    legend: {
+      visible: source.hasLegend,
+      position: ({ top: "t", bottom: "b", left: "l", right: "r" })[source.legendPosition || "right"] || "r",
+    },
+    ...(["bar", "combo"].includes(chartType) ? { barOptions: {
+      direction: source.barDirection || "column",
+      grouping: ({ none: "clustered", stacked: "stacked", "percent-stacked": "percentStacked" })[source.grouping || "none"] || "clustered",
+      gapWidth: source.gapWidth ?? 150,
+    }} : {}),
+    ...(["line", "combo"].includes(chartType) ? { lineOptions: {
+      grouping: ({ none: "standard", stacked: "stacked", "percent-stacked": "percentStacked" })[source.grouping || "none"] || "standard",
+    }} : {}),
+    ...(modelChartSurfaceFill(source.chartAreaFill) ? { chartAreaFill: modelChartSurfaceFill(source.chartAreaFill) } : {}),
+    ...(modelChartSurfaceFill(source.plotAreaFill) ? { plotAreaFill: modelChartSurfaceFill(source.plotAreaFill) } : {}),
     ...(axes ? { axes } : {}),
     ...(source.dataLabels ? { dataLabels: modelChartDataLabels(source.dataLabels) } : {}),
   };
