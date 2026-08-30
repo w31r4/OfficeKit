@@ -2325,6 +2325,18 @@
             },
             "style": {
               "$ref": "#/$defs/chartStyle"
+            },
+            "xAxis": {
+              "$ref": "#/$defs/chartAxis"
+            },
+            "yAxis": {
+              "$ref": "#/$defs/chartAxis"
+            },
+            "secondaryXAxis": {
+              "$ref": "#/$defs/chartAxis"
+            },
+            "secondaryYAxis": {
+              "$ref": "#/$defs/chartAxis"
             }
           }
         }
@@ -2441,13 +2453,35 @@
           "$ref": "#/$defs/stroke"
         },
         "marker": {
-          "enum": [
-            "none",
-            "circle",
-            "square",
-            "diamond",
-            "triangle"
+          "oneOf": [
+            {
+              "enum": [
+                "none",
+                "dot",
+                "circle",
+                "square",
+                "diamond",
+                "triangle",
+                "x",
+                "star",
+                "plus",
+                "dash"
+              ]
+            },
+            {
+              "$ref": "#/$defs/chartMarker"
+            }
           ]
+        },
+        "trendlines": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/chartTrendline"
+          }
+        },
+        "errorBars": {
+          "$ref": "#/$defs/chartErrorBars"
         }
       }
     },
@@ -2497,11 +2531,222 @@
             "below"
           ]
         },
+        "dataLabels": {
+          "$ref": "#/$defs/chartDataLabels"
+        },
         "chartAreaFill": {
           "$ref": "#/$defs/fill"
         },
         "plotAreaFill": {
           "$ref": "#/$defs/fill"
+        }
+      }
+    },
+    "chartTextStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        }
+      }
+    },
+    "chartAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "visible": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "numberFormat": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "tickLabelInterval": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "majorUnit": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "textStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        }
+      }
+    },
+    "chartMarker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "symbol": {
+          "enum": [
+            "none",
+            "dot",
+            "circle",
+            "square",
+            "diamond",
+            "triangle",
+            "x",
+            "star",
+            "plus",
+            "dash"
+          ]
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 72
+        },
+        "fill": {
+          "$ref": "#/$defs/color"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        }
+      }
+    },
+    "chartDataLabels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "showValue": {
+          "type": "boolean"
+        },
+        "showCategory": {
+          "type": "boolean"
+        },
+        "showSeries": {
+          "type": "boolean"
+        },
+        "showPercent": {
+          "type": "boolean"
+        },
+        "position": {
+          "enum": [
+            "best-fit",
+            "bottom",
+            "center",
+            "inside-base",
+            "inside-end",
+            "left",
+            "outside-end",
+            "right",
+            "top"
+          ]
+        }
+      }
+    },
+    "chartTrendline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "exponential",
+            "linear",
+            "logarithmic",
+            "moving-average",
+            "polynomial",
+            "power"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 255
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6
+        },
+        "period": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 255
+        },
+        "forward": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000,
+          "multipleOf": 0.5
+        },
+        "backward": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000,
+          "multipleOf": 0.5
+        },
+        "intercept": {
+          "type": "number",
+          "minimum": -9007199254740991,
+          "maximum": 9007199254740991
+        },
+        "displayEquation": {
+          "type": "boolean"
+        },
+        "displayRSquared": {
+          "type": "boolean"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        }
+      }
+    },
+    "chartErrorBars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "valueType"
+      ],
+      "properties": {
+        "direction": {
+          "enum": [
+            "x",
+            "y"
+          ]
+        },
+        "type": {
+          "enum": [
+            "both",
+            "minus",
+            "plus"
+          ]
+        },
+        "valueType": {
+          "enum": [
+            "fixed-value",
+            "percentage",
+            "standard-deviation",
+            "standard-error"
+          ]
+        },
+        "value": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "noEndCap": {
+          "type": "boolean"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
         }
       }
     },

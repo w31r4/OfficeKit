@@ -227,7 +227,97 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.chart.comboSeriesType", "Every combo-chart series requires chartType.", $"{seriesPath}.chartType"));
             if (chart.ChartType != "combo" && series.ChartType is not null && !string.Equals(series.ChartType, chart.ChartType, StringComparison.Ordinal))
                 diagnostics.Add(new("ppj.chart.seriesType", "A non-combo chart series cannot override the deck chart type.", $"{seriesPath}.chartType"));
+            if (series.Raw.TryGetProperty("trendlines", out var trendlines))
+            {
+                var trendlineIndex = 0;
+                foreach (var trendline in trendlines.EnumerateArray())
+                {
+                    var trendlinePath = $"{seriesPath}.trendlines[{trendlineIndex}]";
+                    var type = trendline.GetProperty("type").GetString();
+                    if (type == "polynomial" && !trendline.TryGetProperty("order", out _))
+                        diagnostics.Add(new("ppj.chart.trendlineOrder", "Polynomial trendlines require order.", trendlinePath + ".order"));
+                    if (type != "polynomial" && trendline.TryGetProperty("order", out _))
+                        diagnostics.Add(new("ppj.chart.trendlineOrder", "order applies only to polynomial trendlines.", trendlinePath + ".order"));
+                    if (type == "moving-average" && !trendline.TryGetProperty("period", out _))
+                        diagnostics.Add(new("ppj.chart.trendlinePeriod", "Moving-average trendlines require period.", trendlinePath + ".period"));
+                    if (type != "moving-average" && trendline.TryGetProperty("period", out _))
+                        diagnostics.Add(new("ppj.chart.trendlinePeriod", "period applies only to moving-average trendlines.", trendlinePath + ".period"));
+                    trendlineIndex++;
+                }
+            }
+            if (series.Raw.TryGetProperty("errorBars", out var errorBars))
+            {
+                var valueType = errorBars.GetProperty("valueType").GetString();
+                var requiresValue = valueType is "fixed-value" or "percentage" or "standard-deviation";
+                if (requiresValue != errorBars.TryGetProperty("value", out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.errorBarValue",
+                        requiresValue ? $"{valueType} error bars require value." : "standard-error error bars do not accept value.",
+                        seriesPath + ".errorBars.value"));
+            }
         }
+
+        if (chart.Raw.TryGetProperty("style", out var style) &&
+            style.TryGetProperty("dataLabels", out _) &&
+            (style.TryGetProperty("showDataLabels", out _) || style.TryGetProperty("dataLabelPosition", out _)))
+            diagnostics.Add(new(
+                "ppj.chart.dataLabelConflict",
+                "Structured dataLabels cannot be combined with showDataLabels or dataLabelPosition.",
+                path + ".style.dataLabels"));
+        if (chart.ChartType != "combo" &&
+            (chart.Raw.TryGetProperty("secondaryXAxis", out _) || chart.Raw.TryGetProperty("secondaryYAxis", out _)))
+            diagnostics.Add(new(
+                "ppj.chart.secondaryAxis",
+                "Secondary axes are valid only for combo charts.",
+                path));
+        ValidateAxisBounds(chart.Raw, "xAxis", path, diagnostics);
+        ValidateAxisBounds(chart.Raw, "yAxis", path, diagnostics);
+        ValidateAxisBounds(chart.Raw, "secondaryXAxis", path, diagnostics);
+        ValidateAxisBounds(chart.Raw, "secondaryYAxis", path, diagnostics);
+        ValidateAxisKinds(chart.Raw, "xAxis", path, diagnostics);
+        ValidateAxisKinds(chart.Raw, "yAxis", path, diagnostics);
+        ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, diagnostics);
+        ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, diagnostics);
+    }
+
+    private static void ValidateAxisKinds(
+        JsonElement chart,
+        string property,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (!chart.TryGetProperty(property, out var axis)) return;
+        var categoryAxis = property.EndsWith("XAxis", StringComparison.Ordinal) || property == "xAxis";
+        if (categoryAxis)
+        {
+            foreach (var name in new[] { "min", "max", "majorUnit" })
+                if (axis.TryGetProperty(name, out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.axisField",
+                        $"{name} applies only to a value axis.",
+                        $"{path}.{property}.{name}"));
+        }
+        else if (axis.TryGetProperty("tickLabelInterval", out _))
+            diagnostics.Add(new(
+                "ppj.chart.axisField",
+                "tickLabelInterval applies only to a category axis.",
+                $"{path}.{property}.tickLabelInterval"));
+    }
+
+    private static void ValidateAxisBounds(
+        JsonElement chart,
+        string property,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (!chart.TryGetProperty(property, out var axis) ||
+            !axis.TryGetProperty("min", out var minimum) ||
+            !axis.TryGetProperty("max", out var maximum)) return;
+        if (minimum.GetDouble() >= maximum.GetDouble())
+            diagnostics.Add(new(
+                "ppj.chart.axisBounds",
+                "Axis min must be less than max.",
+                $"{path}.{property}"));
     }
 
     private static void ValidateTable(PpjTableElementModel table, string path, List<PpjDiagnostic> diagnostics)
