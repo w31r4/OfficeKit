@@ -934,6 +934,12 @@ internal static class PpjSourceBoundPresentationCompiler
                 changed = ApplySourceSmartArtElement(beforeSmartArt, afterSmartArt, target.Opaque, path);
                 if (changed) mutations.SemanticChanges = true;
                 break;
+            case PpjOleElementModel beforeOle when after is PpjOleElementModel afterOle &&
+                target.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
+                (target.Opaque.OleWorkbook is not null || target.Opaque.OleOfficePackage is not null):
+                changed = ApplySourceOleElement(beforeOle, afterOle, target.Opaque, assets, path);
+                if (changed) mutations.SemanticChanges = true;
+                break;
             case PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque:
                 changed = ApplyOpaqueElement(beforeOpaque, afterOpaque, target, slide, shapeTreePath, mutations, path);
                 break;
@@ -1565,6 +1571,31 @@ internal static class PpjSourceBoundPresentationCompiler
         if (text.Paragraphs.Count != 1 || text.Paragraphs[0].Runs.Count == 0)
             throw Unsupported(path, "source-bound SmartArt paragraph or run topology change");
         return text.Paragraphs[0].Runs.Select(run => run.Text).ToArray();
+    }
+
+    private static bool ApplySourceOleElement(
+        PpjOleElementModel before,
+        PpjOleElementModel after,
+        PresentationOpaqueElement target,
+        IReadOnlyDictionary<string, string> assets,
+        string path)
+    {
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "payloadAsset");
+        if (string.IsNullOrWhiteSpace(before.PayloadAssetId) || string.IsNullOrWhiteSpace(after.PayloadAssetId))
+            throw Unsupported(path + ".payloadAsset", "removing or inventing a source-bound OLE payload binding");
+
+        var changed = ApplyFrame(before, after, target, path);
+        if (before.PayloadAssetId.Equals(after.PayloadAssetId, StringComparison.Ordinal)) return changed;
+
+        RequireCapabilityField(after.NativeRef, "setOlePayload", "ole.payload", path + ".payloadAsset");
+        var replacementAssetId = ResolveAsset(assets, after.PayloadAssetId, path + ".payloadAsset");
+        if (target.OleWorkbook is not null)
+            target.OleWorkbook.ReplacementAssetId = replacementAssetId;
+        else if (target.OleOfficePackage is not null)
+            target.OleOfficePackage.ReplacementAssetId = replacementAssetId;
+        else
+            throw Unsupported(path + ".payloadAsset", "the exact source OLE payload binding no longer exists");
+        return true;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationShape target, string path)
