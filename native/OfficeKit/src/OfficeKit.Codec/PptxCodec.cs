@@ -2772,6 +2772,10 @@ internal static class PptxCodec
     {
         if (element.ContentCase == PresentationElement.ContentOneofCase.Shape)
         {
+            // catalog_icon_name is compiler provenance used only to admit the
+            // bounded authored overlay. It is intentionally absent from PPTX
+            // and therefore cannot participate in native semantic equality.
+            element.Shape.CatalogIconName = string.Empty;
             PptxTextCodec.NormalizeSemantics(element.Shape);
             PptxLineStyleCodec.NormalizeSemantics(element.Shape);
             element.Shape.FillRgb = string.IsNullOrWhiteSpace(element.Shape.FillRgb) ? string.Empty : PptxColor.Normalize(element.Shape.FillRgb);
