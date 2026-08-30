@@ -178,6 +178,20 @@
     "table.merge": "ppj-state",
     "table.setAccessibilityMetadata": "ppj-state"
   },
+  "nativeLeafKinds": {
+    "fontHighlightRgb": {
+      "owner": "presentation.editNativeLeaf",
+      "sourceToken": "a:highlight/a:srgbClr/@val",
+      "ppj": "deferred",
+      "reason": "Presentation facade exposes a revision-bound direct leaf; PPJ nativeCapability remains high-level until leaf parity is implemented."
+    },
+    "fontHighlightScheme": {
+      "owner": "presentation.editNativeLeaf",
+      "sourceToken": "a:highlight/a:schemeClr/@val",
+      "ppj": "deferred",
+      "reason": "Presentation facade exposes a revision-bound direct leaf; PPJ nativeCapability remains high-level until leaf parity is implemented."
+    }
+  },
   "hostOnly": [
     "powerpoint.read_presentation",
     "powerpoint.read_slides",

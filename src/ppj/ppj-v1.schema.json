@@ -961,6 +961,7 @@
       }
     },
     "nativeCapability": {
+      "$comment": "Direct source-bound leaves such as fontHighlightRgb and fontHighlightScheme are currently owned by the Presentation facade. They remain outside PPJ nativeCapability until PPJ capability parity is implemented; imported source graphs stay opaque rather than being approximated.",
       "type": "object",
       "additionalProperties": false,
       "required": [
