@@ -65,6 +65,45 @@ labels. Language and typeface solve different problems, so setting one does not
 authorize guessing the other. Imported direct run language is editable only
 through an issued `fontLanguage` leaf.
 
+## Use native formulas for mathematical evidence
+
+Keep prose in ordinary runs and put only the mathematical expression in a
+formula run. Do not include `\(` or `\)` delimiters:
+
+```json
+{
+  "runs": [
+    { "text": "Expected loss: " },
+    {
+      "id": "loss-equation",
+      "formula": {
+        "syntax": "latex",
+        "source": "\\sum_{i=1}^{n} p_i \\cdot L_i"
+      },
+      "style": { "size": 24, "color": "#172033" }
+    }
+  ]
+}
+```
+
+The supported subset covers literals, groups, subscript and superscript,
+fractions, square roots, common Greek letters and symbols, integral/sum/product,
+roman text, common functions, bounded spacing, and ordinary left/right
+delimiters. It does not execute TeX: macros, environments, packages,
+conditionals, counters, I/O, matrices, alignment, color commands and unknown
+commands fail before output. Limits are 4,096 source characters, 512 tokens, 32
+nesting levels and 2,048 AST nodes.
+
+A formula run may declare only `size` and solid `color`; it cannot carry a
+hyperlink, font override, highlight, gradient, shadow or text decoration.
+OfficeKit writes editable native Office Math (`a14:m` with OMML), not an image,
+formula font or literal backslash fallback.
+
+Exact LaTeX recovery comes from an OfficeKit-authored PPTX's embedded PPJ.
+Third-party OMML stays source-owned and is never reverse-translated into guessed
+LaTeX. Do not mutate an imported formula unless a future explicit source-bound
+capability says that exact operation is safe.
+
 ## Use opacity as hierarchy, not camouflage
 
 PPJ text colors accept eight-digit HEX or a declared color token with `alpha`:

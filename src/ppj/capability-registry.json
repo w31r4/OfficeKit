@@ -109,6 +109,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "native inline formulas",
+      "ppjPath": "pages[].elements[].text.paragraphs[].runs[].formula",
+      "behavior": "partial",
+      "sourceBound": "An authored formula may be added inside ordinary compiler-owned rich text, including one eligible topmost typed text overlay on a source-bound page. Third-party a14:m/OMML is preserved but is never reverse-translated into guessed LaTeX, and existing imported formulas receive no mutation capability.",
+      "reason": "PPJ compiles one bounded, non-executable LaTeX subset to canonical editable Office Math and restores the exact source only from an embedded PPJ snapshot. Arbitrary TeX, raw OMML, environments, macros and unsupported formula styling fail closed."
+    },
+    {
       "feature": "named icon catalog",
       "ppjPath": "pages[].elements[] where type is icon",
       "behavior": "partial",

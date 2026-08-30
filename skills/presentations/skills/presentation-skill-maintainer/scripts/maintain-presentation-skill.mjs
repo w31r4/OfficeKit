@@ -301,6 +301,46 @@ explicit typed color objects. Assets use relative URIs, exact MIME and SHA-256;
 remote URLs and data-fetch instructions are invalid. Accessibility and rights
 metadata travel with the asset or element.
 
+### Native inline formulas
+
+Use a formula run only when mathematical structure is part of the evidence.
+Keep surrounding prose as ordinary text runs and omit \`\\(\` / \`\\)\`
+delimiters:
+
+\`\`\`json
+{
+  "runs": [
+    { "text": "Expected loss: " },
+    {
+      "id": "loss-equation",
+      "formula": {
+        "syntax": "latex",
+        "source": "\\\\sum_{i=1}^{n} p_i \\\\cdot L_i"
+      },
+      "style": { "size": 24, "color": "#172033" }
+    }
+  ]
+}
+\`\`\`
+
+This is a finite formula language, not TeX execution. It supports literals,
+groups, subscript and superscript, \`\\frac\`, square-root \`\\sqrt\`, common
+Greek letters and symbols, \`\\int\` / \`\\sum\` / \`\\prod\`, roman text via
+\`\\mathrm\` / \`\\text\` / \`\\operatorname\`, common functions, bounded
+spacing, and ordinary \`\\left\` / \`\\right\` delimiters. The source budget is
+4,096 characters, 512 tokens, 32 nesting levels and 2,048 AST nodes.
+
+Macros, environments, packages, conditionals, counters, I/O, matrices,
+alignment, color commands and unknown commands fail before PPTX output. A
+formula run may declare only \`size\` and solid \`color\`; it cannot carry a
+hyperlink, font override, highlight, gradient, shadow or text decoration. The
+compiler writes editable native \`a14:m\` / OMML, not SVG, PNG, a formula font
+or literal backslash text.
+
+Exact LaTeX recovery depends on the embedded PPJ snapshot. Importing an
+ordinary third-party formula does not authorize OfficeKit to infer LaTeX from
+OMML; the native graph remains preserved and unsupported edits fail closed.
+
 ### Element visibility and edit locks
 
 Every typed element may declare \`hidden\` and \`locked\`. \`hidden: true\` keeps
