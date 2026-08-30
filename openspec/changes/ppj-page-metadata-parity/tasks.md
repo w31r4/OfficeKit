@@ -14,4 +14,4 @@
       visibility assertions.
 - [x] 3.2 Run the focused PPJ contract, C# build, Skill-maintainer, and strict
       OpenSpec checks.
-- [ ] 3.3 Commit atomically and fast-forward main without force pushing.
+- [x] 3.3 Commit atomically and fast-forward main without force pushing.
