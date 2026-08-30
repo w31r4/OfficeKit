@@ -124,6 +124,18 @@ internal static class PpjNativeLeafProjection
                 if (PpjNativeTextProjection.TryRead(element.Opaque.RawXml, out var leaves))
                     for (var index = 0; index < leaves.Count; index++)
                         Add("nativeText", leaves[index], JsonValue.Create(leaves[index]), textIndex: checked((uint)index));
+                if (element.Opaque.NativeKind.Equals("connector", StringComparison.Ordinal) &&
+                    PpjNativeLineProjection.TryRead(element.Opaque.RawXml, out var lineLeaves))
+                    for (var index = 0; index < lineLeaves.Count; index++)
+                    {
+                        var leaf = lineLeaves[index];
+                        var value = leaf.Kind == "lineRgb"
+                            ? JsonValue.Create($"#{leaf.Value.ToLowerInvariant()}")
+                            : leaf.Kind == "lineWidthEmu"
+                                ? JsonValue.Create(long.Parse(leaf.Value, System.Globalization.CultureInfo.InvariantCulture))
+                                : JsonValue.Create(leaf.Value);
+                        Add(leaf.Kind, leaf.Value, value, nativeIndex: checked((uint)index));
+                    }
                 break;
         }
         return output;
