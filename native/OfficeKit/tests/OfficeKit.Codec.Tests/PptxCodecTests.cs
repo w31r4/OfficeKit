@@ -321,6 +321,28 @@ public sealed class PptxCodecTests
             ["fontFamily"] = "Aptos",
             ["color"] = "#16324F",
         };
+        authoredChartStyle["chartAreaFill"] = new JsonObject { ["type"] = "none" };
+        authoredChartStyle["plotAreaFill"] = new JsonObject
+        {
+            ["type"] = "gradient",
+            ["kind"] = "radial",
+            ["stops"] = new JsonArray
+            {
+                new JsonObject { ["offset"] = 0, ["color"] = "#FFFFFF" },
+                new JsonObject { ["offset"] = 1, ["color"] = "#DCEFEA", ["opacity"] = 0.6 },
+            },
+        };
+        authoredChart["data"]!["series"]![0]!["fill"] = new JsonObject
+        {
+            ["type"] = "gradient",
+            ["kind"] = "linear",
+            ["angle"] = 90,
+            ["stops"] = new JsonArray
+            {
+                new JsonObject { ["offset"] = 0, ["color"] = "#0B8F8F" },
+                new JsonObject { ["offset"] = 1, ["color"] = "#F2C14E", ["opacity"] = 0.7 },
+            },
+        };
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
             ["id"] = "evidence-bubble-main",
@@ -582,6 +604,12 @@ public sealed class PptxCodecTests
         Assert.Equal(10, importedChart.LegendTextStyle.FontSizePoints);
         Assert.Equal("Aptos", importedChart.LegendTextStyle.FontFamily);
         Assert.Equal("none", importedChart.Grouping);
+        Assert.True(importedChart.ChartAreaFill.NoFill);
+        Assert.Equal(PresentationGradientFill.Types.Kind.Radial, importedChart.PlotAreaFill.GradientFill.Kind);
+        Assert.Equal(2, importedChart.PlotAreaFill.GradientFill.Stops.Count);
+        Assert.Equal(PresentationGradientFill.Types.Kind.Linear, importedChart.ComboSeries[0].Series.SeriesFill.GradientFill.Kind);
+        Assert.Equal(90 * 60_000, importedChart.ComboSeries[0].Series.SeriesFill.GradientFill.Angle60000);
+        Assert.Equal(70_000U, importedChart.ComboSeries[0].Series.SeriesFill.GradientFill.Stops[1].OpacityThousandthPercent);
         Assert.Equal(90U, importedChart.GapWidth);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Cap);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Join);
@@ -786,6 +814,9 @@ public sealed class PptxCodecTests
             Assert.Equal(10, projectedChart.GetProperty("style").GetProperty("legendTextStyle").GetProperty("fontSize").GetDouble());
             Assert.Equal(8.5, projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("textStyle").GetProperty("fontSize").GetDouble());
             Assert.Equal(11, projectedChart.GetProperty("xAxis").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal("none", projectedChart.GetProperty("style").GetProperty("chartAreaFill").GetProperty("type").GetString());
+            Assert.Equal("radial", projectedChart.GetProperty("style").GetProperty("plotAreaFill").GetProperty("kind").GetString());
+            Assert.Equal("linear", projectedChart.GetProperty("data").GetProperty("series")[0].GetProperty("fill").GetProperty("kind").GetString());
             var projectedBubble = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "bubble");
@@ -906,6 +937,19 @@ public sealed class PptxCodecTests
             ["fontFamily"] = "Georgia",
             ["color"] = "#16324F",
         };
+        chartHierarchyChart["style"]!["chartAreaFill"] = new JsonObject
+        {
+            ["type"] = "gradient",
+            ["kind"] = "linear",
+            ["angle"] = 30,
+            ["stops"] = new JsonArray
+            {
+                new JsonObject { ["offset"] = 0, ["color"] = "#FFFFFF" },
+                new JsonObject { ["offset"] = 1, ["color"] = "#F2C14E", ["opacity"] = 0.5 },
+            },
+        };
+        chartHierarchyChart["style"]!["plotAreaFill"] = new JsonObject { ["type"] = "none" };
+        chartHierarchyChart["data"]!["series"]![0]!["fill"] = new JsonObject { ["type"] = "none" };
         var chartTextStyleId = chartTextStyleChart["id"]!.GetValue<string>();
         var chartHierarchyId = chartHierarchyChart["id"]!.GetValue<string>();
         var chartTextStyleEdit = Invoke(new CodecRequest
@@ -960,6 +1004,10 @@ public sealed class PptxCodecTests
             Assert.Equal("#C0404080", hierarchy.GetProperty("style").GetProperty("dataLabels").GetProperty("textStyle").GetProperty("color").GetString());
             Assert.Equal(10, hierarchy.GetProperty("xAxis").GetProperty("textStyle").GetProperty("fontSize").GetDouble());
             Assert.Equal(12.5, hierarchy.GetProperty("xAxis").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal("linear", hierarchy.GetProperty("style").GetProperty("chartAreaFill").GetProperty("kind").GetString());
+            Assert.Equal(30, hierarchy.GetProperty("style").GetProperty("chartAreaFill").GetProperty("angle").GetDouble());
+            Assert.Equal("none", hierarchy.GetProperty("style").GetProperty("plotAreaFill").GetProperty("type").GetString());
+            Assert.Equal("none", hierarchy.GetProperty("data").GetProperty("series")[0].GetProperty("fill").GetProperty("type").GetString());
         }
 
         var imagePaintProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
