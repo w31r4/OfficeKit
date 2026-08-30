@@ -2335,10 +2335,19 @@ message PresentationCustomGeometryCubicBezier {
 
 message PresentationShadow {
   string color_rgb = 1;
-  int64 blur_radius_emu = 2;
-  int64 distance_emu = 3;
-  int32 direction_angle_60000 = 4;
-  uint32 opacity_thousandth_percent = 5;
+  // Optional scalar presence mirrors omitted DrawingML attributes. This is
+  // important for source-bound edits: an absent dist/dir/alpha must not be
+  // invented when an unrelated token is changed.
+  optional int64 blur_radius_emu = 2;
+  optional int64 distance_emu = 3;
+  optional int32 direction_angle_60000 = 4;
+  optional uint32 opacity_thousandth_percent = 5;
+  // Mutually exclusive with color_rgb. Scheme colors retain theme semantics
+  // instead of resolving to a presentation-specific RGB value.
+  optional string color_scheme = 6;
+  // DrawingML outer-shadow alignment (tl, t, tr, l, ctr, r, bl, b, br).
+  optional string alignment = 7;
+  optional bool rotate_with_shape = 8;
 }
 
 message PresentationConnector {
