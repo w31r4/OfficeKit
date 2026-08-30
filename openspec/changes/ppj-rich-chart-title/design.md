@@ -75,4 +75,3 @@ explicit authored rejection.
 ## Open Questions
 
 None. Formula-backed titles require a separate source-bound capability.
-

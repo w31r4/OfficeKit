@@ -37,4 +37,3 @@ None. The PPJ schema ID and Office wire protocol version remain unchanged.
   existing PPJ contract are affected.
 - No raw OOXML, chart-layout DSL, arbitrary formula, or host automation surface
   is introduced.
-
