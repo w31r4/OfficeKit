@@ -1211,7 +1211,8 @@ internal static partial class PpjPresentationProjector
                     output.Add(new("setFrame", element.Shape.Placeholder is null ? EditableFrameFields : PositionFrameFields));
                     if (element.Shape.Placeholder is null &&
                         element.Shape.Geometry is not ("textbox" or "none" or "custom") &&
-                        PptxPresetGeometryAdjustmentCodec.HasProfile(element.Shape.Geometry))
+                        PptxPresetGeometryAdjustmentCodec.TryExpectedCount(element.Shape.Geometry, out var adjustmentCount) &&
+                        adjustmentCount > 0)
                         output.Add(new("setGeometry", ["geometry.adjustments"]));
                 }
                 break;

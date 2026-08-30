@@ -4304,7 +4304,12 @@ internal static class PptxCodec
                 PptxShapeTransformCodec.Scrub(transform);
             }
             properties.GetFirstChild<A.CustomGeometry>()?.Remove();
-            if (properties.GetFirstChild<A.PresetGeometry>() is { } geometry) geometry.Preset = A.ShapeTypeValues.Rectangle;
+            if (properties.GetFirstChild<A.PresetGeometry>() is { } geometry)
+            {
+                geometry.Preset = A.ShapeTypeValues.Rectangle;
+                geometry.RemoveAllChildren();
+                geometry.Append(new A.AdjustValueList());
+            }
             else properties.InsertAfter(new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }, properties.GetFirstChild<A.Transform2D>());
             properties.GetFirstChild<A.EffectList>()?.Remove();
             foreach (var fill in properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill).ToArray()) fill.Remove();
