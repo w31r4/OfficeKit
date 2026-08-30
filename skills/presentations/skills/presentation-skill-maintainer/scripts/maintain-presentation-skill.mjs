@@ -403,6 +403,16 @@ invent an ID, kind or hash:
 }
 \`\`\`
 
+For an imported deck, change \`pages[]\` order only when every moved page's
+\`nativeRef\` advertises \`reorder\` with \`pageOrder\`. The projected page ID is
+anchored to its source SlidePart, and unchanged page-local element IDs survive
+the move. This is distinct from element \`reorder/zOrder\`, which changes the
+stack inside one page. Do not combine page deletion and reorder in one build.
+If modeled \`sections[]\` exist, update their \`pages\` arrays in the same program
+so they still form one complete partition in the new presentation order.
+Comments and custom shows keep referring to the same stable page IDs. An
+opaque section graph receives no page-order capability and remains unchanged.
+
 OfficeKit-authored PPTX embeds canonical PPJ and a node map. Import restores
 that PPJ exactly when valid. If native software changed the PPTX but left the
 embedded program, PPJ remains authoritative; a future build writes a new output

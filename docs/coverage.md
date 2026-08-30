@@ -172,6 +172,18 @@ still complete and in slide order; custom shows remain ordered subsets. Item
 count/order, facade and native identity, page topology, source hashes, opaque
 extensions, and hyperlink identity remain source-owned and fail closed.
 
+Source-projected PPJ pages now anchor IDs to their SlidePart instead of their
+current presentation position; page-local element IDs omit the position-derived
+slide owner. A page nativeRef issues `reorder/pageOrder` only when more than one
+source page exists and the section graph is absent or modeled. The
+comprehensive PPJ contract performs a three-page permutation with a matching
+two-section repartition, changes only `ppt/presentation.xml`, then proves on
+second projection that page IDs, every unchanged page-local element ID,
+comment binding and custom-show membership remain stable. The native writer
+updates modeled sections before moving `p:sldId` records so no transient invalid
+partition is mistaken for an opaque graph. Page insertion, clone, combined
+delete-plus-reorder, and opaque section graphs remain outside this slice.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.

@@ -35,5 +35,6 @@ None. The PPJ schema ID and Office wire protocol version remain unchanged.
 ## Impact
 
 PPJ schema vocabulary, projection identity, semantic validation,
-source-bound lowering, generated guidance, coverage, and one existing test are
-affected. No protobuf or OOXML writer change is required.
+source-bound lowering, the native section/reorder transaction order, generated
+guidance, coverage, and one existing test are affected. No protobuf field or
+Office wire version change is required.

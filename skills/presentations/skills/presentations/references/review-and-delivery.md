@@ -50,6 +50,14 @@ or `pages` only when that item's nativeRef advertises `setName` or `setPages`.
 Keep array count, order, item ID, and nativeRef unchanged, then re-import and
 review both the ordinary slide sequence and every alternate show route.
 
+For a capable imported page move, reorder only the existing `pages[]` entries
+whose nativeRefs advertise `reorder/pageOrder`. Keep their IDs and nativeRefs
+unchanged, do not combine deletion with the move, and update modeled section
+membership so it remains a complete partition in the new order. Re-import and
+verify the page IDs, every unchanged page-local element ID, comment page
+binding, section partition, and custom-show membership. Element
+`reorder/zOrder` is a separate in-page operation.
+
 Imported legacy comments are source-bound review evidence. Edit an existing
 `comments[].text` only when that comment's nativeRef advertises `replaceText`;
 keep its ID, page, author, timestamp, position, resolution state, nativeRef, and

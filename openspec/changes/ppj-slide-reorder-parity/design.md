@@ -51,6 +51,11 @@ ordered partition after the page move. An Agent may update the boundary in the
 same PPJ transaction. An opaque section graph prevents reorder capability from
 being issued.
 
+The native writer applies a capable modeled section update against the original
+slide order, verifies it against the requested stable page order, and only then
+moves the exact `p:sldId` records. This avoids a transient invalid partition
+being re-read as opaque between the two changes.
+
 ## Risks / Trade-offs
 
 - [Stable IDs collide] -> Include the stable page ID and retain the complete
