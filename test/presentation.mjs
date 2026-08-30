@@ -7539,6 +7539,27 @@ assert.deepEqual(imported.slides.getItem(1).speakerNotes.capability, {
 imported.slides.getItem(0).addNotes("Lead with evidence.\nClose with the decision.");
 imported.slides.getItem(1).addNotes("Explain the chart assumptions.\nInvite questions on the forecast.");
 const importedCore = imported.slides.getItem(0);
+// Imported canonical outer-shadow geometry is exposed as bounded native leaves.
+// The edit is deliberately a single token splice so the source shadow graph and
+// all other package parts remain untouched.
+const shadowGeometryImported = await PresentationFile.importPptx(sourceBound);
+const shadowGeometryTarget = itemByName(shadowGeometryImported.slides.getItem(0).shapes.items, "rounded-card");
+const shadowGeometryRecords = shadowGeometryImported.inspect({ includeNativeLeaves: true, targetId: shadowGeometryTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+const shadowBlurLeaf = shadowGeometryRecords.find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowBlurRadiusEmu");
+assert.ok(shadowBlurLeaf, "canonical imported shadows should expose blur geometry");
+assert.ok(shadowGeometryRecords.some((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowDistanceEmu"));
+assert.ok(shadowGeometryRecords.some((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowDirectionDegrees"));
+shadowGeometryImported.editNativeLeaf(shadowBlurLeaf.targetId, shadowBlurLeaf.leafId, {
+  expectedHash: shadowBlurLeaf.expectedHash,
+  value: shadowBlurLeaf.value + 9525,
+});
+const shadowGeometryOutput = await PresentationFile.exportPptx(shadowGeometryImported);
+assert.deepEqual(shadowGeometryOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const shadowGeometryOutputXml = await (await JSZip.loadAsync(shadowGeometryOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowGeometryOutputXml, /<a:outerShdw\b[^>]*blurRad="85725"/u);
+const shadowGeometryRoundTrip = await PresentationFile.importPptx(shadowGeometryOutput);
+assert.equal(itemByName(shadowGeometryRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.blurRadius, 9);
 assert.deepEqual(importedCore.background, { fill: "#f1f5f9", mode: "solid" });
 assert.equal(itemByName(importedCore.shapes.items, "rounded-card").geometry, "roundRect");
 assert.equal(itemByName(importedCore.shapes.items, "target-textbox").geometry, "textbox");
