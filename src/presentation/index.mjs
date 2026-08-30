@@ -15,6 +15,7 @@ import { createTextRange, textRangeRecord } from "../shared/text-range.mjs";
 import { materializeComposeNode } from "./compose.mjs";
 import { normalizePresentationThemeConfig } from "./ooxml-theme.mjs";
 import { mergePresentationPlaceholders, normalizePresentationBackground, resolvePresentationBackgroundColor } from "./ooxml-masters.mjs";
+import { isPresentationGradientFill, normalizePresentationGradientFill, presentationGradientFillSvg } from "./gradient-fills.mjs";
 import { createPresentationGroupShapeClass } from "./group-shapes.mjs";
 import { connectedPresentationShapeConfig, presentationConnectionSiteIndex, PresentationConnectorElement as ConnectorElement } from "./connectors.mjs";
 import { createNativePresentationObjectClass } from "./native-objects.mjs";
@@ -534,7 +535,7 @@ class PresentationSlideMaster {
   clearNativeBackgroundImage() { this.configured = true; if (presentationBackgroundHasImage(this.background)) this.clearBackground(); return this; }
   setTheme(theme) { this.configured = true; this.theme = theme ? new PresentationTheme(this.presentation, { ...theme, id: theme.id || `${this.id}/theme` }, this.presentation.theme) : undefined; return this; }
   effectiveTheme() { return this.theme || this.presentation.theme; }
-  effectiveBackground() { return this.background?.fill ? this.background : normalizePresentationBackground(this.effectiveTheme().colors.bg1, "#ffffff"); }
+  effectiveBackground() { return this.background?.fill || this.background?.gradient ? this.background : normalizePresentationBackground(this.effectiveTheme().colors.bg1, "#ffffff"); }
   effectiveBackgroundImage() { return presentationBackgroundHasImage(this.background) ? this.background : undefined; }
   paragraphStylesForPlaceholder(type) { return this.textParagraphStyles[presentationPlaceholderTextStyleKind(type)] || {}; }
   inspectRecord() { const theme = this.effectiveTheme(); return { kind: "slideMaster", id: this.id, name: this.name, background: this.background, nativeBackgroundImage: presentationBackgroundHasImage(this.background) ? { fit: "stretch", editable: true, inherited: false } : undefined, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, placeholderTypes: this.placeholders.map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length, textParagraphStyleLevels: Object.fromEntries(Object.entries(this.textParagraphStyles).map(([kind, styles]) => [kind, Object.keys(styles).length])), hasThemeOverride: Boolean(this.theme), themeId: theme.id, themeName: theme.name }; }
@@ -583,10 +584,10 @@ class SlideLayoutTemplate {
       paragraphStyles: mergePresentationParagraphStyles(master?.paragraphStylesForPlaceholder(placeholder.type), placeholder.paragraphStyles),
     }));
   }
-  effectiveBackground() { return this.background?.fill ? this.background : this.effectiveMaster()?.effectiveBackground() || normalizePresentationBackground(this.presentation.theme.colors.bg1, "#ffffff"); }
+  effectiveBackground() { return this.background?.fill || this.background?.gradient ? this.background : this.effectiveMaster()?.effectiveBackground() || normalizePresentationBackground(this.presentation.theme.colors.bg1, "#ffffff"); }
   effectiveBackgroundImage() {
     if (presentationBackgroundHasImage(this.background)) return this.background;
-    if (this.background?.fill) return undefined;
+    if (this.background?.fill || this.background?.gradient) return undefined;
     return this.effectiveMaster()?.effectiveBackgroundImage();
   }
 
@@ -625,7 +626,7 @@ class SlideLayoutTemplate {
     });
   }
 
-  inspectRecord() { const directImage = presentationBackgroundHasImage(this.background); const inheritedImage = !directImage && !this.background?.fill && presentationBackgroundHasImage(this.effectiveMaster()?.effectiveBackgroundImage()); return { kind: "layoutTemplate", id: this.id, name: this.name, type: this.type, masterId: this.masterId, themeId: this.effectiveTheme().id, background: this.background, nativeBackgroundImage: directImage || inheritedImage ? { fit: "stretch", editable: directImage, inherited: inheritedImage } : undefined, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, effectivePlaceholders: this.effectivePlaceholders().length, placeholderTypes: this.effectivePlaceholders().map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length }; }
+  inspectRecord() { const directImage = presentationBackgroundHasImage(this.background); const inheritedImage = !directImage && !this.background?.fill && !this.background?.gradient && presentationBackgroundHasImage(this.effectiveMaster()?.effectiveBackgroundImage()); return { kind: "layoutTemplate", id: this.id, name: this.name, type: this.type, masterId: this.masterId, themeId: this.effectiveTheme().id, background: this.background, nativeBackgroundImage: directImage || inheritedImage ? { fit: "stretch", editable: directImage, inherited: inheritedImage } : undefined, effectiveBackground: this.effectiveBackground(), placeholders: this.placeholders.length, effectivePlaceholders: this.effectivePlaceholders().length, placeholderTypes: this.effectivePlaceholders().map((placeholder) => placeholder.type), slideGuides: this.slideGuides.length }; }
   toJSON() { return { id: this.id, name: this.name, type: this.type, masterId: this.masterId, background: this.background, placeholders: this.placeholders.map((placeholder) => ({ ...placeholder })), slideGuides: this.slideGuides.map((guide) => ({ ...guide })) }; }
 }
 
@@ -1277,8 +1278,8 @@ function containsFrame(container, child, tolerance = 0.5) {
 function isFilledContainerBackground(element, frame, elements) {
   if (!element || typeof element !== "object" || !frame) return false;
   if (typeof element.text?.value === "string" && element.text.value.trim() !== "") return false;
-  const fill = String(element.fill || "").trim().toLowerCase();
-  if (!fill || fill === "transparent" || fill === "none") return false;
+  const fill = typeof element.fill === "string" ? element.fill.trim().toLowerCase() : element.fill;
+  if ((!fill || fill === "transparent" || fill === "none") && !isPresentationGradientFill(fill)) return false;
   if (!["rect", "roundRect", "ellipse"].includes(element.geometry)) return false;
   const containedChildren = elements.filter((candidate) => {
     if (candidate === element) return false;
@@ -1708,10 +1709,10 @@ export class Slide {
     return layout.apply(this);
   }
   setLayout(layoutOrName) { this.applyLayout(layoutOrName); return this; }
-  effectiveBackground() { const layout = this.presentation.layouts.getItem(this.layoutId); return this.background.fill ? this.background : layout?.effectiveBackground() || this.presentation.master.effectiveBackground(); }
+  effectiveBackground() { const layout = this.presentation.layouts.getItem(this.layoutId); return this.background.fill || this.background.gradient ? this.background : layout?.effectiveBackground() || this.presentation.master.effectiveBackground(); }
   effectiveBackgroundImage() {
     if (presentationBackgroundHasImage(this.background)) return this.background;
-    if (this.background?.fill) return undefined;
+    if (this.background?.fill || this.background?.gradient) return undefined;
     const layout = this.presentation.layouts.getItem(this.layoutId);
     return layout?.effectiveBackgroundImage() || this.presentation.master.effectiveBackgroundImage();
   }
@@ -1720,7 +1721,7 @@ export class Slide {
   inspectRecords(kinds) {
     const records = [];
     if (kinds.has("layout")) { const layout = this.presentation.layouts.getItem(this.layoutId); records.push({ kind: "layout", layoutId: this.layoutId || `${this.id}/layout`, name: layout?.name || "Blank", type: layout?.type || "blank", masterId: layout?.masterId, themeId: this.effectiveTheme().id, placeholders: layout?.placeholders.length || 0 }); }
-    if (kinds.has("slide")) { const directImage = presentationBackgroundHasImage(this.background); const effectiveImage = this.effectiveBackgroundImage(); const layout = this.presentation.layouts.getItem(this.layoutId); const inheritedImage = !directImage && !this.background?.fill && Boolean(effectiveImage); const imageOwner = directImage ? "slide" : layout && presentationBackgroundHasImage(layout.background) ? "layout" : inheritedImage ? "master" : undefined; records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, continuationCapability: this.continuationCapability, background: this.background.fill || this.background.image ? this.background : undefined, nativeBackgroundImage: effectiveImage ? { fit: "stretch", editable: directImage, inherited: !directImage, owner: imageOwner } : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, layerCount: this.elements.count, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability }); }
+    if (kinds.has("slide")) { const directImage = presentationBackgroundHasImage(this.background); const effectiveImage = this.effectiveBackgroundImage(); const layout = this.presentation.layouts.getItem(this.layoutId); const inheritedImage = !directImage && !this.background?.fill && !this.background?.gradient && Boolean(effectiveImage); const imageOwner = directImage ? "slide" : layout && presentationBackgroundHasImage(layout.background) ? "layout" : inheritedImage ? "master" : undefined; records.push({ kind: "slide", id: this.id, slide: this.index + 1, title: this.title(), hidden: this.hidden, visibilityCapability: this.visibilityCapability, deletionCapability: this.deletionCapability, cloneCapability: this.cloneCapability, continuationCapability: this.continuationCapability, background: this.background.fill || this.background.gradient || this.background.image ? this.background : undefined, nativeBackgroundImage: effectiveImage ? { fit: "stretch", editable: directImage, inherited: !directImage, owner: imageOwner } : undefined, effectiveBackground: this.effectiveBackground(), transition: this.transition.toJSON(), transitionCapability: this.transition.capability, textShapes: this.shapes.items.filter((s) => s.text.value).length, tables: this.tables.items.length, charts: this.charts.items.length, images: this.images.items.length, connectors: this.connectors.items.length, groups: this.groups.items.length, nativeObjects: this.nativeObjects.items.length, layerCount: this.elements.count, comments: this.comments.items.length, commentsCapability: this.comments.capability, hasNotes: Boolean(this.speakerNotes.text), notesCapability: this.speakerNotes.capability }); }
     if (kinds.has("layer") || kinds.has("zOrder")) records.push(...this.elements.items.map((element, stackIndex) => ({
       kind: "layer",
       id: element.id,
@@ -1873,11 +1874,19 @@ export class Slide {
     const elements = orderedSlideModelElements(this).map((element) => element.toSvg()).join("");
     const backgroundImage = this.effectiveBackgroundImage();
     const imageSvg = presentationBackgroundImageSvg(backgroundImage);
-    const background = imageSvg || `<rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(this.effectiveBackground(), this.effectiveTheme()))}"/>`;
+    const effectiveBackground = this.effectiveBackground();
+    const backgroundGradient = effectiveBackground?.gradient
+      ? presentationGradientFillSvg(effectiveBackground.gradient, `${this.id}-background`, `Presentation slide ${this.id} background gradient`)
+      : undefined;
+    const background = imageSvg
+      ? imageSvg
+      : backgroundGradient
+        ? `${backgroundGradient.defs}<rect width="100%" height="100%" fill="${xmlEscape(backgroundGradient.paint)}"/>`
+        : `<rect width="100%" height="100%" fill="${xmlEscape(resolvePresentationBackgroundColor(effectiveBackground, this.effectiveTheme()))}"/>`;
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${background}${elements}</svg>`;
   }
 
-  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill || this.background.image ? this.background : undefined, transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
+  toProto() { return { id: this.id, layoutId: this.layoutId, hidden: this.hidden, background: this.background.fill || this.background.gradient || this.background.image ? this.background : undefined, transition: this.transition.toJSON(), animations: this.animations.toJSON(), morph: this.morph.toJSON(), notes: this.speakerNotes.text || undefined, comments: this.comments.items.map((comment) => comment.toJSON()), elements: orderedSlideModelElements(this).filter((element) => !(element instanceof GroupShape)).map((element) => element.layoutJson()), groups: this.groups.items.map((group) => group.toProto()) }; }
 
   compose(composeNode, options = {}) {
     const frame = options.frame || { left: 72, top: 64, width: this.presentation.slideSize.width - 144, height: this.presentation.slideSize.height - 128 };
@@ -1942,6 +1951,7 @@ class TextFrame {
 function normalizePresentationShapeFill(fill, label) {
   if (typeof fill === "string") return fill;
   if (!fill || typeof fill !== "object" || Array.isArray(fill)) throw new TypeError(`${label} must be a color string or fill object.`);
+  if (fill.type === "gradient") return normalizePresentationGradientFill(fill, label);
   const color = fill.color ?? fill.fill;
   if (typeof color !== "string" || color.length === 0) throw new TypeError(`${label}.color must be a non-empty color string.`);
   if (fill.opacity != null) {
@@ -2085,9 +2095,12 @@ export class Shape {
     const custom = this.#normalizedCustomGeometry();
     const textFrame = this.textFrame(p);
     const imageFill = importedShapeImageFill.get(this);
+    const gradient = isPresentationGradientFill(this.fill)
+      ? presentationGradientFillSvg(this.fill, `${this.id}-fill`, `Presentation shape ${this.name || this.id} fill`)
+      : undefined;
     const fill = this.useBackgroundFill === true
       ? resolvePresentationBackgroundColor(this.slide.effectiveBackground(), this.slide.effectiveTheme())
-      : typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent";
+      : gradient?.paint || (typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent");
     const fillOpacity = typeof this.fill === "object" && this.fill.opacity != null ? Number(this.fill.opacity) : 1;
     const fillOpacityAttribute = fillOpacity === 1 ? "" : ` fill-opacity="${fillOpacity}"`;
     const outline = this.geometry === "line"
@@ -2103,13 +2116,13 @@ export class Shape {
       ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="${xmlEscape(fill)}"${fillOpacityAttribute} ${outline}/>`
       : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="${xmlEscape(fill)}"${fillOpacityAttribute} ${outline}/>`;
     const text = this.text.value ? presentationParagraphsSvg(this.text.effectiveParagraphs(), textFrame, this.text.style, { escape: xmlEscape }) : "";
-    if (!this.transform) return visual + text;
+    if (!this.transform) return `${gradient?.defs || ""}${visual}${text}`;
     const cx = p.left + p.width / 2;
     const cy = p.top + p.height / 2;
     const rotation = Number(this.transform.rotationDegrees || 0);
     const flipHorizontal = this.transform.flipHorizontal === true ? -1 : 1;
     const flipVertical = this.transform.flipVertical === true ? -1 : 1;
-    return `<g transform="translate(${cx} ${cy}) rotate(${rotation}) scale(${flipHorizontal} ${flipVertical}) translate(${-cx} ${-cy})">${visual}${text}</g>`;
+    return `${gradient?.defs || ""}<g transform="translate(${cx} ${cy}) rotate(${rotation}) scale(${flipHorizontal} ${flipVertical}) translate(${-cx} ${-cy})">${visual}${text}</g>`;
   }
 
 }
@@ -2328,10 +2341,12 @@ function normalizeChartAxes(config = {}, hasSecondary = false) {
 }
 
 function normalizeChartLegend(config = {}, seriesLength = 0) {
+  const normalizePosition = (value) => ({ t: "top", b: "bottom", l: "left", r: "right" }[String(value || "r")] || String(value || "r"));
   const raw = config.legend;
-  if (raw === false || config.hasLegend === false) return { visible: false, position: "r" };
-  if (typeof raw === "string") return { visible: true, position: raw };
-  return { visible: raw?.visible ?? config.hasLegend ?? seriesLength > 1, position: raw?.position || config.legendPosition || "r" };
+  if (raw === false || config.hasLegend === false) return { visible: false, position: "" };
+  if (typeof raw === "string") return { visible: true, position: normalizePosition(raw) };
+  const visible = raw?.visible ?? config.hasLegend ?? seriesLength > 1;
+  return { visible, position: visible ? normalizePosition(raw?.position || config.legendPosition || "r") : "" };
 }
 
 function normalizeChartDataLabels(config = {}) {

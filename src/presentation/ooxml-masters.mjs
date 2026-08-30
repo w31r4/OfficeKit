@@ -1,4 +1,5 @@
 import { resolveColorToken } from "../shared/colors.mjs";
+import { isPresentationGradientFill, normalizePresentationGradientFill } from "./gradient-fills.mjs";
 
 const SCHEME_COLORS = new Set(["dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"]);
 
@@ -16,6 +17,13 @@ export function normalizePresentationBackground(value, fallback) {
   if (value == null) return fallback == null ? undefined : normalizePresentationBackground(fallback);
   const input = typeof value === "string" ? { fill: value } : value;
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new TypeError("Presentation background must be a color string or object.");
+  const gradient = input.gradient || (isPresentationGradientFill(input.fill) ? input.fill : input.type === "gradient" ? input : undefined);
+  if (gradient != null) {
+    if (input.image != null || input.color != null || input.mode != null || input.index != null || input.idx != null || (input.fill != null && !isPresentationGradientFill(input.fill))) {
+      throw new TypeError("Presentation gradient background cannot be combined with an image or solid/reference fill.");
+    }
+    return { gradient: normalizePresentationGradientFill(gradient, "Presentation background gradient") };
+  }
   if (input.image != null) {
     if (input.fill != null || input.color != null || input.mode != null || input.type != null || input.index != null || input.idx != null) {
       throw new TypeError("Presentation image background cannot be combined with a color or reference mode.");
@@ -112,7 +120,9 @@ export function mergePresentationPlaceholders(masterPlaceholders = [], layoutPla
 }
 
 export function resolvePresentationBackgroundColor(background, theme = {}) {
-  const fill = normalizePresentationBackground(background, theme.colors?.bg1 || "#ffffff").fill;
+  const normalized = normalizePresentationBackground(background, theme.colors?.bg1 || "#ffffff");
+  if (normalized.gradient) return normalized.gradient.stops.at(-1)?.color || theme.colors?.bg1 || "#ffffff";
+  const fill = normalized.fill;
   const mapped = theme.colorMap?.[fill] || fill;
   const aliases = { dk1: "tx1", lt1: "bg1", dk2: "tx2", lt2: "bg2" };
   return theme.colors?.[aliases[mapped] || mapped] || resolveColorToken(fill, fill);

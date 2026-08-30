@@ -5,6 +5,7 @@ import {
   SpreadsheetChartErrorBarType,
   SpreadsheetChartErrorBarValueType,
   SpreadsheetChartLineDashStyle,
+  SpreadsheetChartLineGrouping,
   SpreadsheetChartMarkerSymbol,
   SpreadsheetChartTrendlineType,
   SpreadsheetChartType,
@@ -39,6 +40,12 @@ const PRESENTATION_CHART_LINE_STYLES_TO_WIRE = new Map([
   ["dash-dot-dot", SpreadsheetChartLineDashStyle.DASH_DOT_DOT],
 ]);
 const PRESENTATION_CHART_LINE_STYLES_FROM_WIRE = new Map([...PRESENTATION_CHART_LINE_STYLES_TO_WIRE].map(([name, value]) => [value, name]));
+const PRESENTATION_CHART_LINE_GROUPINGS_TO_WIRE = new Map([
+  ["standard", SpreadsheetChartLineGrouping.STANDARD],
+  ["stacked", SpreadsheetChartLineGrouping.STACKED],
+  ["percentStacked", SpreadsheetChartLineGrouping.PERCENT_STACKED],
+]);
+const PRESENTATION_CHART_LINE_GROUPINGS_FROM_WIRE = new Map([...PRESENTATION_CHART_LINE_GROUPINGS_TO_WIRE].map(([name, value]) => [value, name]));
 const PRESENTATION_CHART_LABEL_POSITIONS_TO_WIRE = new Map([
   ["bestFit", SpreadsheetChartDataLabelPosition.BEST_FIT],
   ["bottom", SpreadsheetChartDataLabelPosition.BOTTOM],
@@ -225,6 +232,25 @@ function chartDataLabels(labels, chart, original) {
   };
 }
 
+function chartLineOptions(chart, originalChart) {
+  if (chart.chartType !== "line") return undefined;
+  const options = chart.lineOptions || {};
+  const grouping = PRESENTATION_CHART_LINE_GROUPINGS_TO_WIRE.get(options.grouping || "standard");
+  if (grouping == null) {
+    throw new OfficeKitCodecError(
+      `Presentation chart ${chart.id} uses unsupported line grouping ${options.grouping}.`,
+      [],
+      { code: "invalid_presentation_chart" },
+    );
+  }
+  const originalOptions = originalChart?.lineOptions;
+  return {
+    grouping,
+    ...(options.smooth === true || originalOptions?.smooth !== undefined ? { smooth: Boolean(options.smooth) } : {}),
+    ...(options.varyColors === true || originalOptions?.varyColors === true ? { varyColors: true } : {}),
+  };
+}
+
 export function presentationChartToWire(chart, original, { emuFromPixels, rgb, sourceBoundFrameEmuFromPixels }) {
   const originalChart = original?.content?.case === "chart" ? original.content.value : undefined;
   const type = PRESENTATION_CHART_TYPES_TO_WIRE.get(String(chart.chartType));
@@ -321,6 +347,8 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
   const secondaryXAxis = hasSecondaryComboLine ? chartAxis(chart.axes?.secondary?.category, chart, "secondaryXAxis", originalChart?.secondaryXAxis) : undefined;
   const secondaryYAxis = hasSecondaryComboLine ? chartAxis(chart.axes?.secondary?.value, chart, "secondaryYAxis", originalChart?.secondaryYAxis) : undefined;
   const dataLabels = chartDataLabels(chart.dataLabels, chart, originalChart?.dataLabels);
+  const hasLegend = Boolean(chart.legend?.visible ?? chart.hasLegend);
+  const lineOptions = chartLineOptions(chart, originalChart);
   return {
     id: original?.id || chart.id,
     name: chart.name || original?.name || chart.id,
@@ -334,8 +362,8 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
         heightEmu: emuFromPixels(position.height, `${chart.id}.position.height`),
         type,
         title: String(chart.title || ""),
-        hasLegend: Boolean(chart.legend?.visible ?? chart.hasLegend),
-        legendPosition: ({ t: "top", b: "bottom", l: "left", r: "right" })[chart.legend?.position || "r"] || "right",
+        hasLegend,
+        legendPosition: hasLegend ? (({ t: "top", b: "bottom", l: "left", r: "right" })[chart.legend?.position || "r"] || "right") : "",
         grouping: ["bar", "combo"].includes(chart.chartType)
           ? ({ clustered: "none", stacked: "stacked", percentStacked: "percent-stacked" })[chart.barOptions?.grouping] || "none"
           : chart.chartType === "line"
@@ -358,6 +386,7 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
         ...(secondaryXAxis ? { secondaryXAxis } : {}),
         ...(secondaryYAxis ? { secondaryYAxis } : {}),
         ...(dataLabels ? { dataLabels } : {}),
+        ...(lineOptions ? { lineOptions } : {}),
       },
     },
   };
@@ -485,6 +514,10 @@ export function modelPresentationChartFromWire(source, emuPerPixel) {
   const numericX = PRESENTATION_NUMERIC_X_CHART_TYPES.has(source.type);
   const circular = PRESENTATION_CIRCULAR_CHART_TYPES.has(source.type);
   const sourceSeries = combo ? source.comboSeries || [] : source.series;
+  const lineOptions = source.lineOptions;
+  const lineGrouping = PRESENTATION_CHART_LINE_GROUPINGS_FROM_WIRE.get(lineOptions?.grouping)
+    || ({ none: "standard", stacked: "stacked", "percent-stacked": "percentStacked" })[source.grouping || "none"]
+    || "standard";
   if (combo && (!sourceSeries.some((item) => item.type === SpreadsheetChartType.BAR) || !sourceSeries.some((item) => item.type === SpreadsheetChartType.LINE))) throw new OfficeKitCodecError("Presentation combo chart must contain at least one bar and one line series.", [], { code: "invalid_presentation_chart" });
   const comboAxisGroup = (entry) => {
     if (entry.axisGroup === PresentationChartAxisGroup.UNSPECIFIED || entry.axisGroup === PresentationChartAxisGroup.PRIMARY) return "primary";
@@ -543,7 +576,9 @@ export function modelPresentationChartFromWire(source, emuPerPixel) {
       gapWidth: source.gapWidth ?? 150,
     }} : {}),
     ...(["line", "combo"].includes(chartType) ? { lineOptions: {
-      grouping: ({ none: "standard", stacked: "stacked", "percent-stacked": "percentStacked" })[source.grouping || "none"] || "standard",
+      grouping: lineGrouping,
+      ...(lineOptions?.smooth === undefined ? {} : { smooth: Boolean(lineOptions.smooth) }),
+      ...(lineOptions?.varyColors === true ? { varyColors: true } : {}),
     }} : {}),
     ...(modelChartSurfaceFill(source.chartAreaFill) ? { chartAreaFill: modelChartSurfaceFill(source.chartAreaFill) } : {}),
     ...(modelChartSurfaceFill(source.plotAreaFill) ? { plotAreaFill: modelChartSurfaceFill(source.plotAreaFill) } : {}),

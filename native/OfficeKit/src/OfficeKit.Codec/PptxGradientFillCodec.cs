@@ -6,8 +6,9 @@ namespace OfficeKit.Codec;
 
 // Owns one literal DrawingML gradient: direct sRGB stops plus either a linear
 // angle or the canonical centered radial profile. Theme colors, transforms,
-// tile rectangles, arbitrary path gradients and effect-bearing color graphs
-// remain source-owned.
+// parameterized tile rectangles, arbitrary path gradients and effect-bearing
+// color graphs remain source-owned. A parameter-free tile rectangle is a
+// harmless decoration emitted by some third-party generators.
 internal static class PptxGradientFillCodec
 {
     private const int FullTurn = 360 * 60_000;
@@ -72,9 +73,18 @@ internal static class PptxGradientFillCodec
     internal static bool TryRead(A.GradientFill? source, out PresentationGradientFill semantic)
     {
         semantic = new PresentationGradientFill();
-        if (source is null || source.GetAttributes().Count != 0 || source.ChildElements.Count != 2 ||
+        if (source is null || source.GetAttributes().Count != 0 || source.ChildElements.Count is < 2 or > 3 ||
             source.ChildElements[0] is not A.GradientStopList stopList ||
             stopList.GetAttributes().Count != 0 || stopList.ChildElements.Count is < 2 or > 16)
+            return false;
+        // PowerPoint and third-party generators sometimes add an empty
+        // a:tileRect to a path gradient. It has no parameters and therefore
+        // does not change the bounded centered-radial semantics. Treat it as
+        // source decoration so an unrelated text/frame edit can retain the
+        // original token instead of downgrading the whole shape to opaque.
+        if (source.ChildElements.Count == 3 &&
+            (source.ChildElements[2] is not A.TileRectangle tileRect ||
+             tileRect.GetAttributes().Count != 0 || tileRect.ChildElements.Count != 0))
             return false;
         uint previous = 0;
         foreach (var nativeStop in stopList.ChildElements)

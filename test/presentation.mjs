@@ -295,6 +295,48 @@ assert.doesNotMatch(normalAutoFitEditedXml, /\blnSpcReduction=/);
 const normalAutoFitReimported = await PresentationFile.importPptx(normalAutoFitEdited);
 assert.deepEqual(normalAutoFitReimported.slides.getItem(0).shapes.getItemAt(0).text.bodyProperties.normalAutoFit, { fontScale: 82.125 });
 
+// A bounded gradient must remain a first-class fill after import, while an
+// unrelated text edit keeps a harmless source decoration in the original XML.
+const gradientDeck = Presentation.create({
+  slideSize: { width: 640, height: 360 },
+  master: {
+    background: {
+      type: "gradient",
+      kind: "linear",
+      angle: 90,
+      stops: [{ offset: 0, color: "#0F172A" }, { offset: 1, color: "#1D4ED8", opacity: 0.84 }],
+    },
+  },
+});
+const gradientShape = gradientDeck.slides.add().shapes.add({
+  name: "gradient-source-decoration",
+  position: { left: 120, top: 80, width: 320, height: 160 },
+  geometry: "ellipse",
+  fill: { type: "gradient", kind: "radial", stops: [{ offset: 0, color: "#F8FAFC" }, { offset: 1, color: "#0F172A" }] },
+  text: "before",
+});
+assert.equal(gradientShape.fill.kind, "radial");
+const gradientAuthored = await PresentationFile.exportPptx(gradientDeck);
+const gradientSourceZip = await JSZip.loadAsync(gradientAuthored.bytes);
+const gradientSourceXml = await gradientSourceZip.file("ppt/slides/slide1.xml").async("text");
+gradientSourceZip.file("ppt/slides/slide1.xml", gradientSourceXml.replace("</a:gradFill>", "<a:tileRect/></a:gradFill>"));
+const gradientSource = new FileBlob(await gradientSourceZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }), { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" });
+const gradientImported = await PresentationFile.importPptx(gradientSource);
+const importedGradientShape = gradientImported.slides.getItem(0).shapes.getItemAt(0);
+assert.deepEqual(importedGradientShape.fill, { type: "gradient", kind: "radial", stops: [{ offset: 0, color: "#f8fafc" }, { offset: 1, color: "#0f172a" }] });
+assert.equal(gradientImported.master.background.gradient.kind, "linear");
+const gradientNoOp = await PresentationFile.exportPptx(gradientImported);
+assert.deepEqual(Buffer.from(gradientNoOp.bytes), Buffer.from(gradientSource.bytes));
+importedGradientShape.text.set("after");
+const gradientEdited = await PresentationFile.exportPptx(gradientImported);
+const gradientEditedZip = await JSZip.loadAsync(gradientEdited.bytes);
+const gradientEditedXml = await gradientEditedZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(gradientEditedXml, /<a:tileRect\/>/);
+assert.match(gradientEditedXml, />after<\/a:t>/);
+const gradientReimported = await PresentationFile.importPptx(gradientEdited);
+assert.equal(gradientReimported.slides.getItem(0).shapes.getItemAt(0).text.value, "after");
+assert.equal(gradientReimported.slides.getItem(0).shapes.getItemAt(0).fill.kind, "radial");
+
 // The JavaScript layer remains the object model, Compose, inspect, resolve,
 // semantic verification, and rendering surface.
 const modelPresentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
