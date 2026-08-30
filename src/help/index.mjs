@@ -312,6 +312,12 @@ export const HELP_CATALOG = [
   { artifactKind: "workbook", kind: "formula", name: "fx.XIRR", category: "financial", summary: "Return a bounded-convergence annualized return rate for date-aligned finite cash flows using a 365-day year.", examples: ["=XIRR(B2:B8,C2:C8)", "=XIRR(B2:B8,C2:C8,0.15)"], notes: ["Values and dates must have the same nonzero count, dates must be valid, and cash flows must contain both signs. The optional finite guess defaults to 0.1; invalid or unconverged cases return #VALUE! or #NUM!."] },
 
   {
+    artifactKind: "presentation", kind: "cli", name: "officekit ppj resume",
+    summary: "Materialize the latest valid immutable PPJ revision and all bound local resources from a durable OfficeKit task into a new editable workspace without restoring a JavaScript heap or modifying the task store.",
+    examples: ["officekit ppj resume t_0123456789ab -o resumed/deck.ppj --json"],
+    schema: { parameters: { task: { type: "string", required: true, description: "Existing OfficeKit task id containing a valid PPJ revision." }, output: { type: "path", required: true, description: "New editable .ppj path outside the immutable task store." }, json: { type: "boolean", description: "Emit the program, source, candidate, and review descriptor." } }, returns: { receipt: { type: "object", description: "Materialized PPJ path, program/source hashes, revision status, copied resources, candidate hash, and review status." } } },
+  },
+  {
     artifactKind: "presentation", kind: "cli", name: "officekit ppj import",
     summary: "Project a PPTX into one strict JSON .ppj program. OfficeKit-authored PPTX files recover their embedded program when its map still matches; third-party files produce typed elements plus source-bound opaque nativeRef records without putting unknown OOXML into the program.",
     examples: ["officekit ppj import input.pptx -o deck.ppj --json"],

@@ -36,7 +36,7 @@ assert.ok(HELP_CATALOG.every((item) => item.schema?.parameters && item.schema?.r
 assert.ok(HELP_CATALOG.some((item) => item.name === "Workbook.create"));
 assert.deepEqual(
   PUBLIC_HELP_CATALOG.filter((item) => item.artifactKind === "presentation").map((item) => item.name),
-  ["officekit ppj import", "officekit ppj inspect", "officekit ppj check", "officekit ppj build", "officekit ppj render", "officekit ppj review"],
+  ["officekit ppj resume", "officekit ppj import", "officekit ppj inspect", "officekit ppj check", "officekit ppj build", "officekit ppj render", "officekit ppj review"],
 );
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeNativeLeaves.*revision-bound.*without exposing part paths/i);
 assert.match(HELP_CATALOG.find((item) => item.name === "presentation.inspect")?.summary || "", /includeComponentCandidates.*repeated visual primitives.*reuse limits/i);
@@ -1112,6 +1112,7 @@ assert.match(apiDocs, /#### `pdf\.addTable`/);
 assert.match(apiDocs, /#### `document\.resolve`/);
 assert.match(apiDocs, /#### `DocumentFile\.importDocx`/);
 assert.match(apiDocs, /#### `officekit ppj import`/);
+assert.match(apiDocs, /#### `officekit ppj resume`/);
 assert.match(apiDocs, /#### `officekit ppj build`/);
 assert.doesNotMatch(apiDocs, /#### `presentation\.slides\.add`/);
 assert.doesNotMatch(apiDocs, /#### `PresentationFile\.importPptx`/);
