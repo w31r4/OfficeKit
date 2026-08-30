@@ -248,6 +248,9 @@ internal static partial class PpjPresentationProjector
             pageCapabilities.Add(new("setBackground", ["background"]));
         if (slide.Source?.TransitionEditable == true || slide.Source?.TransitionAddable == true)
             pageCapabilities.Add(new("setTransition", ["transition"]));
+        if (slide.Morph is null &&
+            (slide.Source?.TimingEditable == true || slide.Source?.TimingAddable == true))
+            pageCapabilities.Add(new("setAnimations", ["animations"]));
         if (slide.SpeakerNotes?.Source?.Editable == true || slide.Source?.SpeakerNotesAddable == true)
             pageCapabilities.Add(new("setNotes", ["notes"]));
         if (slide.Source is not null && presentation.Slides.Count > 1 && !presentation.SectionsOpaque)

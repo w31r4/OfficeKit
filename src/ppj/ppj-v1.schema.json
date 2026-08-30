@@ -1148,6 +1148,7 @@
             "setCanvas",
             "setBackground",
             "setTransition",
+            "setAnimations",
             "setNotes",
             "replaceImage",
             "replaceSvg",
