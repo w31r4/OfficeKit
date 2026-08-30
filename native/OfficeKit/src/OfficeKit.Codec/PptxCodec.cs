@@ -325,6 +325,10 @@ internal static class PptxCodec
                 semanticItems++;
                 if (semanticItems > limits.MaxCells)
                     throw new CodecException("presentation_item_budget_exceeded", $"PPTX presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).", PartPath(slidePart));
+                // Third-party decks commonly place line separators just
+                // outside the canvas (for example x=-591436). ReadElement
+                // applies that exception only to line geometry; ordinary
+                // imported shapes remain subject to the normal frame rule.
                 var importedElement = ReadElement(elements[elementIndex], slideIndex, elementIndex, slideContext, nativeObjects, elementIdsByNativeId);
                 if (importedElement.ContentCase == PresentationElement.ContentOneofCase.Table)
                 {
@@ -1034,7 +1038,7 @@ internal static class PptxCodec
                     }
                     if (sourceElement is P.Shape sourceShape &&
                         requested.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                        IsSimpleShape(sourceShape, slideContext))
+                        IsSimpleShape(sourceShape, slideContext, allowNegativeOffset: Geometry(sourceShape) == "line"))
                     {
                         ApplyShape(sourceShape, requested, slideContext);
                         changed = true;
@@ -1381,7 +1385,12 @@ internal static class PptxCodec
         var modeled = false;
         if (source is P.Shape sourceShape)
         {
-            editable = IsSimpleShape(sourceShape, slideContext, allowNegativeOffset);
+            // A line can intentionally bleed a few points beyond the canvas
+            // (common in imported separator rules). Keep the exception
+            // geometry-specific so an unrelated negative frame never widens
+            // the ordinary shape editing surface.
+            var shapeAllowNegativeOffset = allowNegativeOffset || Geometry(sourceShape) == "line";
+            editable = IsSimpleShape(sourceShape, slideContext, shapeAllowNegativeOffset);
             element.Shape = ReadShape(sourceShape, slideContext);
             modeled = true;
         }
@@ -2466,7 +2475,7 @@ internal static class PptxCodec
         int slideIndex,
         string location)
     {
-        if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape, slideContext))
+        if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape, slideContext, allowNegativeOffset: Geometry(shape) == "line"))
             ApplyShape(shape, requested, slideContext);
         else if (source is P.Picture picture && requested.ContentCase == PresentationElement.ContentOneofCase.Image && PptxPictureCodec.TryRead(picture, slideContext, out _))
             PptxPictureCodec.Apply(picture, requested, slideContext);
@@ -2867,10 +2876,11 @@ internal static class PptxCodec
             var inheritedPlaceholderGeometry = element.Shape.Placeholder?.InheritsGeometry == true &&
                 element.Shape.DirectFrame is null && element.Source?.Editable == false;
             var freeLine = element.Shape.Geometry == "line";
+            var sourceBoundFreeLine = hasSourcePackage && element.Source?.Editable == true && freeLine;
             var invalidExtent = freeLine
                 ? element.Shape.WidthEmu == 0 && element.Shape.HeightEmu == 0
                 : element.Shape.WidthEmu == 0 || element.Shape.HeightEmu == 0;
-            if ((!inheritedPlaceholderGeometry && (!allowNegativeOffset && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0) ||
+            if ((!inheritedPlaceholderGeometry && (!allowNegativeOffset && !sourceBoundFreeLine && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0) ||
                     element.Shape.WidthEmu < 0 || element.Shape.HeightEmu < 0 ||
                     invalidExtent)) ||
                 element.Shape.LineWidthEmu < 0 || element.Shape.LineWidthEmu > int.MaxValue)
