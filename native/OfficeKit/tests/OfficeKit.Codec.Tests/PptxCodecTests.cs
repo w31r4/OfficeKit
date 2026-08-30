@@ -289,6 +289,35 @@ public sealed class PptxCodecTests
                 },
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-line-main",
+            ["type"] = "chart",
+            ["role"] = "bounded line chart behavior",
+            ["frame"] = new JsonObject { ["x"] = 620, ["y"] = 120, ["width"] = 280, ["height"] = 150 },
+            ["chartType"] = "line",
+            ["title"] = "Measured trend",
+            ["style"] = new JsonObject
+            {
+                ["legend"] = "none",
+                ["titleTextStyle"] = new JsonObject { ["fontSize"] = 17 },
+                ["smooth"] = false,
+                ["varyColors"] = true,
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Baseline", "Pilot", "Review"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "measured-trend",
+                        ["name"] = "Index",
+                        ["values"] = new JsonArray(92, 106, 121),
+                    },
+                },
+            },
+        });
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -316,7 +345,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(17U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(18U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -373,11 +402,19 @@ public sealed class PptxCodecTests
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Equal("Rising evidence line", importedImage.AltText);
         var importedBubble = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
+            element.ContentCase == PresentationElement.ContentOneofCase.Chart &&
+            element.Chart.Type == SpreadsheetChartType.Bubble).Chart;
         Assert.Equal(SpreadsheetChartType.Bubble, importedBubble.Type);
         Assert.Equal([10D, 20D, 34D], Assert.Single(importedBubble.Series).XValues);
         Assert.Equal([4D, 9D, 16D], importedBubble.Series[0].BubbleSizes);
         Assert.Equal(40, importedBubble.XAxis.Maximum);
+        var importedLine = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Chart &&
+            element.Chart.Type == SpreadsheetChartType.Line).Chart;
+        Assert.Equal(17, importedLine.TitleTextStyle.FontSizePoints);
+        Assert.True(importedLine.LineOptions.HasSmooth);
+        Assert.False(importedLine.LineOptions.Smooth);
+        Assert.True(importedLine.LineOptions.VaryColors);
         var importedClaim = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
             element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal)).Shape;
@@ -541,9 +578,16 @@ public sealed class PptxCodecTests
             Assert.Equal("standard-error", projectedSeries.GetProperty("errorBars").GetProperty("valueType").GetString());
             Assert.True(projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("showValue").GetBoolean());
             var projectedBubble = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(item => item.GetProperty("type").GetString() == "chart");
+                .Single(item => item.GetProperty("type").GetString() == "chart" &&
+                    item.GetProperty("chartType").GetString() == "bubble");
             Assert.Equal(20, projectedBubble.GetProperty("data").GetProperty("series")[0].GetProperty("xValues")[1].GetDouble());
             Assert.Equal(16, projectedBubble.GetProperty("data").GetProperty("series")[0].GetProperty("bubbleSizes")[2].GetDouble());
+            var projectedLine = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "chart" &&
+                    item.GetProperty("chartType").GetString() == "line");
+            Assert.Equal(17, projectedLine.GetProperty("style").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
+            Assert.False(projectedLine.GetProperty("style").GetProperty("smooth").GetBoolean());
+            Assert.True(projectedLine.GetProperty("style").GetProperty("varyColors").GetBoolean());
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
@@ -599,10 +643,11 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
         var rejectedChartStyleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
-        var rejectedChart = rejectedChartStyleProgram["pages"]![1]!["elements"]!.AsArray()
+        var rejectedChart = rejectedChartStyleProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "chart");
-        rejectedChart["data"]!["series"]![1]!["marker"]!["size"] = 12;
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "line");
+        rejectedChart["style"]!["smooth"] = true;
         var rejectedChartStyleEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -619,7 +664,8 @@ public sealed class PptxCodecTests
         var rejectedBubbleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var rejectedBubble = rejectedBubbleProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "chart");
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "bubble");
         rejectedBubble["data"]!["series"]![0]!["bubbleSizes"]![1] = 12;
         var rejectedBubbleEdit = Invoke(new CodecRequest
         {
