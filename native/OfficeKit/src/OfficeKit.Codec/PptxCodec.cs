@@ -1732,23 +1732,36 @@ internal static class PptxCodec
             // graph before they become editable.
             if (!customGeometrySupported && !imageFillSupported) return false;
         }
-        if (!SimpleFill(properties, slideContext)) return false;
+        // A source-bound custom geometry may carry an explicit empty
+        // alphaModFix on its image fill.  That effect is a no-op, but the
+        // ordinary image-paint projection intentionally remains strict so
+        // authored shapes and regular pictures do not silently widen their
+        // semantic surface.  The shape-level image-fill profile is the
+        // bounded path for this imported custom-geometry case.
+        if (!SimpleFill(properties, slideContext,
+                allowSourceBoundCustomImageFill: geometry == "custom" && imageFillSupported)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
         if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
         if (!string.Equals(geometry, "line", StringComparison.Ordinal) &&
             (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
         if (!PptxShadowCodec.TryRead(properties, out _)) return false;
         if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.GradientFill and not A.BlipFill and not A.Outline and not A.EffectList)) return false;
-        return PptxTextCodec.SupportsEditing(shape.TextBody);
+        return PptxTextCodec.SupportsEditing(shape.TextBody) ||
+            geometry == "custom" && imageFillSupported && shape.TextBody is null;
     }
 
-    private static bool SimpleFill(OpenXmlCompositeElement element, PptxPartContext slideContext)
+    private static bool SimpleFill(
+        OpenXmlCompositeElement element,
+        PptxPartContext slideContext,
+        bool allowSourceBoundCustomImageFill = false)
     {
         var fills = element.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill).ToArray();
         if (fills.Length > 1) return false;
         if (fills.Length == 0 || fills[0] is A.NoFill) return true;
         if (fills[0] is A.GradientFill gradient) return PptxGradientFillCodec.TryRead(gradient, out _);
-        if (fills[0] is A.BlipFill image) return PptxImagePaintCodec.TryRead(image, slideContext, out _);
+        if (fills[0] is A.BlipFill image)
+            return PptxImagePaintCodec.TryRead(image, slideContext, out _) ||
+                allowSourceBoundCustomImageFill && PptxShapeImageFillCodec.TryRead(image, slideContext, out _);
         var solid = (A.SolidFill)fills[0];
         if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color || !HasOnlyAttributes(color, "val")) return false;
         var alphas = color.Elements<A.Alpha>().ToArray();
