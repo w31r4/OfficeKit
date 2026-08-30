@@ -18,6 +18,7 @@ internal static class PpjSemanticValidator
             ["setGeometry"] = Set("geometry.adjustments"),
             ["setBackground"] = Set("background"),
             ["setTransition"] = Set("transition"),
+            ["setNotes"] = Set("notes"),
             ["replaceImage"] = Set("image.asset"),
             ["setImageCrop"] = Set("image.crop"),
             ["setImageFit"] = Set("image.fit"),

@@ -364,7 +364,7 @@ internal static class PpjSourceBoundPresentationCompiler
             var slide = sourcePage.Wire;
             var path = $"$.pages[{index}]";
             RequireNativeRef(before.Raw, after.Raw, path);
-            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "background", "transition", "elements");
+            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "background", "transition", "notes", "elements");
             if (PropertyChanged(before.Raw, after.Raw, "background"))
             {
                 RequireCapability(after.NativeRef, "setBackground", path + ".background");
@@ -389,6 +389,14 @@ internal static class PpjSourceBoundPresentationCompiler
                 slide.Transition = after.Transition is null || after.Transition.Type == "none"
                     ? null
                     : PpjTransitionLowering.BuildBase(after.Transition);
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            if (PropertyChanged(before.Raw, after.Raw, "notes"))
+            {
+                RequireCapability(after.NativeRef, "setNotes", path + ".notes");
+                ApplySpeakerNotes(before, after, slide, path + ".notes");
                 changedNodeIds.Add(after.Id);
                 mutations.SemanticChanges = true;
                 changed = true;
@@ -1300,6 +1308,80 @@ internal static class PpjSourceBoundPresentationCompiler
             }
         }
         return true;
+    }
+
+    private static void ApplySpeakerNotes(
+        PpjPageModel before,
+        PpjPageModel after,
+        PresentationSlide slide,
+        string path)
+    {
+        if (after.Notes is null)
+            throw Unsupported(path, "deleting an imported NotesSlide");
+
+        var source = slide.SpeakerNotes;
+        if (source is null)
+        {
+            if (before.Notes is not null)
+                throw Unsupported(path, "notes state inconsistent with the fresh source projection");
+            if (after.Notes.PlainText is null)
+                throw Unsupported(path, "adding structured notes; the bounded add profile accepts plain text only");
+            slide.SpeakerNotes = new PresentationSpeakerNotes { Text = after.Notes.PlainText };
+            return;
+        }
+
+        var requested = source.Clone();
+        if (before.Notes is null)
+        {
+            if (!string.IsNullOrEmpty(source.Text) || after.Notes.PlainText is null)
+                throw Unsupported(path, "adding structured notes or changing an unprojected notes body");
+            requested.Text = after.Notes.PlainText;
+            requested.TextBody = null;
+            slide.SpeakerNotes = requested;
+            return;
+        }
+
+        var beforeRaw = before.Raw.GetProperty("notes");
+        var afterRaw = after.Raw.GetProperty("notes");
+        if (!JsonEqual(MaskTextValues(beforeRaw), MaskTextValues(afterRaw)))
+            throw Unsupported(path, "rich-text topology or styling change");
+
+        if (before.Notes.PlainText is not null || after.Notes.PlainText is not null)
+        {
+            if (before.Notes.PlainText is null || after.Notes.PlainText is null || source.TextBody is not null)
+                throw Unsupported(path, "plain/rich notes conversion");
+            requested.Text = after.Notes.PlainText;
+            requested.TextBody = null;
+            slide.SpeakerNotes = requested;
+            return;
+        }
+
+        if (source.TextBody is null ||
+            before.Notes.Paragraphs.Count != after.Notes.Paragraphs.Count ||
+            before.Notes.Paragraphs.Count != source.TextBody.Paragraphs.Count)
+            throw Unsupported(path, "paragraph topology change");
+
+        var body = source.TextBody.Clone();
+        for (var paragraphIndex = 0; paragraphIndex < before.Notes.Paragraphs.Count; paragraphIndex++)
+        {
+            var oldParagraph = before.Notes.Paragraphs[paragraphIndex];
+            var newParagraph = after.Notes.Paragraphs[paragraphIndex];
+            var targetParagraph = body.Paragraphs[paragraphIndex];
+            if (oldParagraph.Runs.Count != newParagraph.Runs.Count ||
+                oldParagraph.Runs.Count != targetParagraph.Runs.Count)
+                throw Unsupported(path, "run topology change");
+            for (var runIndex = 0; runIndex < oldParagraph.Runs.Count; runIndex++)
+            {
+                var targetRun = targetParagraph.Runs[runIndex];
+                if (targetRun.ContentCase != PresentationTextRun.ContentOneofCase.Text)
+                    throw Unsupported(path, "non-text imported run mutation");
+                targetRun.Text = newParagraph.Runs[runIndex].Text;
+            }
+        }
+        requested.TextBody = body;
+        requested.Text = string.Join("\n", body.Paragraphs.Select(paragraph =>
+            string.Concat(paragraph.Runs.Select(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Text ? run.Text : string.Empty))));
+        slide.SpeakerNotes = requested;
     }
 
     private static bool ApplyShapeStyle(

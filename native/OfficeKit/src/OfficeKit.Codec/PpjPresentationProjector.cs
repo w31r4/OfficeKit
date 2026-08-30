@@ -232,6 +232,8 @@ internal static partial class PpjPresentationProjector
             pageCapabilities.Add(new("setBackground", ["background"]));
         if (slide.Source?.TransitionEditable == true || slide.Source?.TransitionAddable == true)
             pageCapabilities.Add(new("setTransition", ["transition"]));
+        if (slide.SpeakerNotes?.Source?.Editable == true || slide.Source?.SpeakerNotesAddable == true)
+            pageCapabilities.Add(new("setNotes", ["notes"]));
         // A native slide clone needs fresh page/element identities and a
         // complete source-owned subtree mapping. Do not issue the underlying
         // codec capability until PPJ can represent that bounded clone request.
@@ -259,7 +261,8 @@ internal static partial class PpjPresentationProjector
         if (!string.IsNullOrWhiteSpace(slide.LayoutId) && context.TryLayoutId(slide.LayoutId, out var layoutId))
             page["layout"] = layoutId;
         if (slide.HasHidden) page["hidden"] = slide.Hidden;
-        if (!string.IsNullOrEmpty(slide.SpeakerNotes?.Text)) page["notes"] = slide.SpeakerNotes.Text;
+        if (!string.IsNullOrEmpty(slide.SpeakerNotes?.Text))
+            page["notes"] = TextContent(slide.SpeakerNotes.TextBody, slide.SpeakerNotes.Text);
         if (ProjectBackground(slide.Background, context) is { } background) page["background"] = background;
 
         var animations = ProjectAnimations(slide, context);

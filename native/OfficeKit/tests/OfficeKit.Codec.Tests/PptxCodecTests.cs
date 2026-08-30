@@ -1308,6 +1308,43 @@ public sealed class PptxCodecTests
             ["loop"] = true,
             ["mute"] = true,
         });
+        authoredProgram["pages"]![1]!["notes"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = "evidence-notes-paragraph",
+                    ["runs"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["id"] = "evidence-notes-run-1",
+                            ["text"] = "All data are ",
+                            ["style"] = new JsonObject { ["fontFamily"] = "Aptos", ["size"] = 16 },
+                        },
+                        new JsonObject
+                        {
+                            ["id"] = "evidence-notes-run-2",
+                            ["text"] = "illustrative",
+                            ["style"] = new JsonObject
+                            {
+                                ["fontFamily"] = "Aptos",
+                                ["size"] = 16,
+                                ["bold"] = true,
+                                ["color"] = "#A83232",
+                            },
+                        },
+                        new JsonObject
+                        {
+                            ["id"] = "evidence-notes-run-3",
+                            ["text"] = " fixture values.",
+                            ["style"] = new JsonObject { ["fontFamily"] = "Aptos", ["size"] = 16 },
+                        },
+                    },
+                },
+            },
+        };
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -1935,6 +1972,18 @@ public sealed class PptxCodecTests
             Assert.Equal(1250, projectedTransition.GetProperty("advanceAfterMs").GetInt32());
             Assert.Contains(projectedRoot.GetProperty("pages")[2].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
                 capability.GetProperty("operation").GetString() == "setTransition");
+            var projectedNotes = projectedRoot.GetProperty("pages")[1].GetProperty("notes")
+                .GetProperty("paragraphs")[0].GetProperty("runs");
+            Assert.Equal(3, projectedNotes.GetArrayLength());
+            Assert.Equal("illustrative", projectedNotes[1].GetProperty("text").GetString());
+            Assert.True(projectedNotes[1].GetProperty("style").GetProperty("bold").GetBoolean());
+            Assert.Equal("#A83232", projectedNotes[1].GetProperty("style").GetProperty("color").GetString());
+            Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setNotes" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "notes"));
+            Assert.False(projectedRoot.GetProperty("pages")[2].TryGetProperty("notes", out _));
+            Assert.Contains(projectedRoot.GetProperty("pages")[2].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setNotes");
             Assert.Equal("image", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("type").GetString());
             Assert.Equal("stretch", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("fit").GetString());
             Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
@@ -2224,6 +2273,54 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var notesProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        notesProgram["pages"]![1]!["notes"]!["paragraphs"]![0]!["runs"]![1]!["text"] = "independently verified";
+        notesProgram["pages"]![2]!["notes"] = "Close with the accountable decision owner.";
+        var editedNotesPageId = notesProgram["pages"]![1]!["id"]!.GetValue<string>();
+        var addedNotesPageId = notesProgram["pages"]![2]!["id"]!.GetValue<string>();
+        var notesEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(notesProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(notesEdit.Ok, Diagnostics(notesEdit));
+        Assert.Contains(notesEdit.PresentationProgram.ChangedParts, part =>
+            part.Equals("ppt/notesSlides/notesSlide2.xml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(notesEdit.PresentationProgram.ChangedParts, part =>
+            part.StartsWith("ppt/notesSlides/notesSlide", StringComparison.OrdinalIgnoreCase) &&
+            !part.Equals("ppt/notesSlides/notesSlide2.xml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(editedNotesPageId, notesEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(addedNotesPageId, notesEdit.PresentationProgram.ChangedNodeIds);
+        var notesReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = notesEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/notes-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(notesReprojection.Ok, Diagnostics(notesReprojection));
+        using (var notesJson = JsonDocument.Parse(notesReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var notesPages = notesJson.RootElement.GetProperty("pages");
+            var editedRuns = notesPages[1].GetProperty("notes").GetProperty("paragraphs")[0].GetProperty("runs");
+            Assert.Equal("independently verified", editedRuns[1].GetProperty("text").GetString());
+            Assert.True(editedRuns[1].GetProperty("style").GetProperty("bold").GetBoolean());
+            Assert.Equal("#A83232", editedRuns[1].GetProperty("style").GetProperty("color").GetString());
+            Assert.Equal("Close with the accountable decision owner.", notesPages[2].GetProperty("notes").GetString());
+        }
 
         var transitionProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         transitionProgram["pages"]![2]!["transition"] = new JsonObject
