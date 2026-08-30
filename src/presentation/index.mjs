@@ -31,7 +31,7 @@ import { normalizePresentationTextBodyProperties } from "./text-body-properties.
 import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle, presentationCustomPathsSvg, presentationCustomTextRectangleFrame } from "./custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "./custom-geometry-formulas.mjs";
 import { normalizePresentationImageCrop, normalizePresentationImageFit, presentationImageCropViewport } from "./image-crop.mjs";
-import { normalizePresentationImageBorder, normalizePresentationImageShadow } from "./image-effects.mjs";
+import { normalizePresentationImageBorder, normalizePresentationImageMask, normalizePresentationImageShadow } from "./image-effects.mjs";
 import { planPresentationModernComments } from "./ooxml-modern-comments.mjs";
 import { presentationFreeLineSvg, presentationShapeLineSvgAttributes } from "./line-styles.mjs";
 import { initializePresentationAccessibility, presentationAccessibilityCapability, setPresentationAccessibilityMetadata } from "./accessibility.mjs";
@@ -2808,6 +2808,12 @@ export class ImageElement {
       : normalizePresentationImageShadow(configuredShadow, `Presentation image ${this.id}.shadow`);
     this._officeKitImageShadowModified = Object.hasOwn(config, "shadow");
     this._officeKitImageShadowSnapshot = JSON.stringify(this._officeKitImageShadow);
+    const configuredMask = Object.hasOwn(config, "_officeKitImageMaskPreset") ? config._officeKitImageMaskPreset : config.maskPreset;
+    this._officeKitImageMaskPreset = configuredMask == null
+      ? undefined
+      : normalizePresentationImageMask(configuredMask, `Presentation image ${this.id}.maskPreset`);
+    this._officeKitImageMaskPresetModified = Object.hasOwn(config, "maskPreset");
+    this._officeKitImageMaskPresetSnapshot = JSON.stringify(this._officeKitImageMaskPreset);
     this.geometry = config.geometry || "rect";
     this.borderRadius = config.borderRadius;
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation image ${this.name || this.id} transform`);
@@ -2857,6 +2863,13 @@ export class ImageElement {
       ? undefined
       : normalizePresentationImageShadow(value, `Presentation image ${this.id}.shadow`);
     this._officeKitImageShadowModified = true;
+  }
+  get maskPreset() { return this._officeKitImageMaskPreset; }
+  set maskPreset(value) {
+    this._officeKitImageMaskPreset = value == null
+      ? undefined
+      : normalizePresentationImageMask(value, `Presentation image ${this.id}.maskPreset`);
+    this._officeKitImageMaskPresetModified = true;
   }
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
@@ -2951,10 +2964,10 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, opacity: this.opacity, border: this.border, shadow: this.shadow, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, opacity: this.opacity, border: this.border, shadow: this.shadow, maskPreset: this.maskPreset, transform: this.transform };
   }
 
-  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, opacity: this.opacity, border: this.border, shadow: this.shadow, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
+  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, opacity: this.opacity, border: this.border, shadow: this.shadow, maskPreset: this.maskPreset, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
 
   toSvg() {
     const p = this.position;

@@ -22,6 +22,23 @@ const SHADOW_PRESETS = Object.freeze({
   "shadow-2xl": { color: "#000000", blurRadius: 32, distance: 14, direction: 45, opacity: 0.25 },
 });
 
+// DrawingML uses a finite vocabulary for preset geometry.  Keeping the
+// vocabulary here (rather than accepting arbitrary XML names) lets an
+// imported picture expose a useful mask without turning the public model into
+// a raw geometry escape hatch.  The list mirrors the bounded native picture
+// reader; "rect" is represented by undefined in the JS model because it is
+// the native default.
+const IMAGE_MASK_PRESETS = new Set([
+  "rect", "ellipse", "roundRect", "line", "triangle", "rightTriangle", "diamond",
+  "parallelogram", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon", "chevron",
+  "homePlate", "pie", "arc", "donut", "blockArc", "heart", "lightningBolt", "sun", "moon",
+  "cloud", "star4", "star5", "star6", "star8", "star10", "star12", "leftArrow", "rightArrow",
+  "upArrow", "downArrow", "leftRightArrow", "upDownArrow", "quadArrow", "bentArrow",
+  "uturnArrow", "circularArrow", "wedgeRoundRectCallout", "wedgeEllipseCallout", "bracePair",
+  "bracketPair", "flowChartProcess", "flowChartDecision", "flowChartData", "flowChartTerminator",
+  "flowChartDocument", "flowChartPreparation",
+]);
+
 function assertObject(value, label) {
   if (value == null || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${label} must be an object.`);
   return value;
@@ -97,4 +114,15 @@ export function normalizePresentationImageShadow(value, label = "Presentation im
     direction,
     opacity: boundedNumber(input.opacity ?? 0.2, `${label}.opacity`, { max: 1 }),
   };
+}
+
+export function normalizePresentationImageMask(value, label = "Presentation image mask") {
+  if (value == null || value === false || value === "none" || value === "rect" || value === "rectangle") return undefined;
+  if (typeof value !== "string" || !value.trim()) throw new TypeError(`${label} must be a supported DrawingML preset name.`);
+  const token = value.trim();
+  const canonical = token === "circle" ? "ellipse" : token === "round-rect" || token === "roundRectangle" ? "roundRect" : token;
+  if (!IMAGE_MASK_PRESETS.has(canonical)) {
+    throw new RangeError(`${label} must use a supported DrawingML preset geometry.`);
+  }
+  return canonical === "rect" ? undefined : canonical;
 }

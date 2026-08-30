@@ -27,7 +27,7 @@ import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCust
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
-import { normalizePresentationImageBorder } from "../presentation/image-effects.mjs";
+import { normalizePresentationImageBorder, normalizePresentationImageMask } from "../presentation/image-effects.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
@@ -315,6 +315,7 @@ function cloneImportedPresentationImage(container, source, context) {
     ...(source.opacity === undefined ? {} : { _officeKitImageOpacity: source.opacity }),
     ...(source.border ? { _officeKitImageBorder: clonedPresentationValue(source.border) } : {}),
     ...(source.shadow ? { _officeKitImageShadow: clonedPresentationValue(source.shadow) } : {}),
+    ...(source.maskPreset ? { _officeKitImageMaskPreset: source.maskPreset } : {}),
     geometry: source.geometry,
     ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
   });
@@ -2285,6 +2286,11 @@ function presentationImage(image, original, assetCatalog) {
   const imageShadow = imageShadowModified
     ? (image.shadow === undefined ? undefined : presentationShadow(image.shadow, image.id))
     : sourceImage?.shadow;
+  const imageMaskModified = image._officeKitImageMaskPresetModified === true ||
+    image._officeKitImageMaskPresetSnapshot !== JSON.stringify(image.maskPreset);
+  const imageMaskPreset = imageMaskModified
+    ? (image.maskPreset || "rect")
+    : sourceImage?.maskPreset;
   return {
     id: original?.id || image.id,
     name: image.name || original?.name || "",
@@ -2306,9 +2312,7 @@ function presentationImage(image, original, assetCatalog) {
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
         heightEmu: emuFromPixels(position.height, `${image.id}.position.height`),
         ...(imageOpacity === undefined ? {} : { opacityThousandthPercent: imageOpacity }),
-        ...(original?.content?.case === "image" && original.content.value.maskPreset
-          ? { maskPreset: original.content.value.maskPreset }
-          : {}),
+        ...(imageMaskPreset ? { maskPreset: imageMaskPreset } : {}),
         ...(imageBorder ? { border: imageBorder } : {}),
         ...(imageShadow ? { shadow: imageShadow } : {}),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
@@ -3674,6 +3678,7 @@ function componentImageDescriptor(image) {
     crop: layout.crop,
     geometry: layout.geometry,
     borderRadius: layout.borderRadius,
+    maskPreset: layout.maskPreset,
     transform: layout.transform,
   };
 }
@@ -4655,6 +4660,35 @@ function createPresentationNativeLeafCapability(presentation, state) {
         apply(next) { model.opacity = Number(next) / 100_000; },
       });
     };
+    const registerImportedImageMaskLeaf = () => {
+      if (!isImage || wire.source?.editable !== true) return;
+      const sourceMask = wire.content.value.maskPreset || "rect";
+      let canonicalSourceMask;
+      try { canonicalSourceMask = normalizePresentationImageMask(sourceMask) || "rect"; }
+      catch { return; }
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "imageMaskPreset",
+        expectedValue: canonicalSourceMask,
+        value: canonicalSourceMask,
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          let canonical;
+          try { canonical = normalizePresentationImageMask(next) || "rect"; }
+          catch {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation image mask native leaf requires a supported DrawingML preset geometry.");
+          }
+          return { raw: canonical, publicValue: canonical === "rect" ? undefined : canonical };
+        },
+        isNoop(next) { return next === canonicalSourceMask; },
+        apply(next) { model.maskPreset = next === "rect" ? undefined : next; },
+      });
+    };
     if (isShape) {
       const paragraphAlignmentIndices = new Set();
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
@@ -5614,6 +5648,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
       }
     }
     registerImportedImageOpacityLeaf();
+    registerImportedImageMaskLeaf();
     if (wire.source.editable !== true) {
       registerImportedShapeColorLeaves();
       return;
@@ -5885,7 +5920,13 @@ const PRESENTATION_IMAGE_SCALAR_LEAF_FIELDS = Object.freeze([
   Object.freeze(["widthEmu", "widthEmu"]),
   Object.freeze(["heightEmu", "heightEmu"]),
   Object.freeze(["opacityThousandthPercent", "imageOpacityThousandthPercent"]),
+  Object.freeze(["maskPreset", "imageMaskPreset"]),
 ]);
+
+function canonicalPresentationImageMask(value) {
+  try { return normalizePresentationImageMask(value) || "rect"; }
+  catch { return String(value || ""); }
+}
 
 function restoreEquivalentPresentationScalarLeaves(original, requested) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return requested;
@@ -5910,16 +5951,18 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const scalarFields = contentCase === "image"
       ? PRESENTATION_IMAGE_SCALAR_LEAF_FIELDS
       : PRESENTATION_SCALAR_LEAF_FIELDS;
-  const changed = scalarFields.filter(([field]) => String(beforeElement[field] ?? "") !== String(afterElement[field] ?? ""));
+  const fieldValue = (field, value) => field === "maskPreset" ? canonicalPresentationImageMask(value) : String(value ?? "");
+  const changed = scalarFields.filter(([field]) => fieldValue(field, beforeElement[field]) !== fieldValue(field, afterElement[field]));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;
-  const expectedValue = String(beforeElement[field] ?? "");
-  const value = String(afterElement[field] ?? "");
+  const expectedValue = fieldValue(field, beforeElement[field]);
+  const value = fieldValue(field, afterElement[field]);
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
   if (leafKind === "fillOpacityThousandthPercent" &&
       (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
   if (leafKind === "imageOpacityThousandthPercent" &&
       (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
+  if (leafKind === "imageMaskPreset" && (canonicalPresentationImageMask(expectedValue) !== expectedValue || canonicalPresentationImageMask(value) !== value)) return undefined;
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value[field] = beforeElement[field];
@@ -6849,6 +6892,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
       ...(image.border ? { _officeKitImageBorder: modelPresentationImageBorder(image.border) } : {}),
       ...(image.shadow ? { _officeKitImageShadow: modelPresentationShadow(image.shadow) } : {}),
+      ...(image.maskPreset ? { _officeKitImageMaskPreset: image.maskPreset } : {}),
       geometry: "rect",
       ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
     };
@@ -7180,6 +7224,7 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
           ...(image.border ? { _officeKitImageBorder: modelPresentationImageBorder(image.border) } : {}),
           ...(image.shadow ? { _officeKitImageShadow: modelPresentationShadow(image.shadow) } : {}),
+          ...(image.maskPreset ? { _officeKitImageMaskPreset: image.maskPreset } : {}),
           geometry: "rect",
           ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
         });
