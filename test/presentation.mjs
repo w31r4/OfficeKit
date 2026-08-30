@@ -761,6 +761,30 @@ const blobImageOutput = await PresentationFile.exportPptx(blobImageEdit);
 const blobImageRoundTrip = await PresentationFile.importPptx(blobImageOutput);
 assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT, "imported image replacement must accept a same-format FileBlob");
 
+// Imported picture frames may use a theme color rather than an RGB literal.
+// Replacing the payload must keep that source-owned border while still
+// producing a bounded imageAsset operation.
+const themedImageBorderXml = shapeAccessibilitySourceXml.replace(
+  /(<p:pic>[\s\S]*?<p:cNvPr\b[^>]*\bname="decision-evidence"[^>]*\/>[\s\S]*?<p:spPr>[\s\S]*?<a:prstGeom\b[^>]*>[\s\S]*?<\/a:prstGeom>)(<\/p:spPr>)/u,
+  '$1<a:ln xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:solidFill><a:schemeClr val="dk1"/></a:solidFill></a:ln>$2',
+);
+assert.notEqual(themedImageBorderXml, shapeAccessibilitySourceXml, "theme-colored picture border fixture must target decision-evidence");
+const themedImageBorderZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+themedImageBorderZip.file("ppt/slides/slide1.xml", themedImageBorderXml);
+const themedImageBorderFile = new FileBlob(
+  await themedImageBorderZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const themedImageBorderImported = await PresentationFile.importPptx(themedImageBorderFile);
+const themedImageBorderTarget = itemByName(themedImageBorderImported.slides.getItem(0).images.items, "decision-evidence");
+assert.equal(themedImageBorderTarget.border.colorScheme, "dk1");
+themedImageBorderTarget.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }) });
+const themedImageBorderOutput = await PresentationFile.exportPptx(themedImageBorderImported);
+assert.equal(themedImageBorderOutput.metadata.editPlan.operations[0].leafKind, "imageAsset");
+const themedImageBorderRoundTrip = await PresentationFile.importPptx(themedImageBorderOutput);
+assert.equal(itemByName(themedImageBorderRoundTrip.slides.getItem(0).images.items, "decision-evidence").border.colorScheme, "dk1");
+assert.equal(itemByName(themedImageBorderRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT);
+
 // A direct picture alpha token is a source-bound image leaf: changing only
 // the opacity must splice the existing a:alphaModFix attribute and leave the
 // embedded payload, relationships, and opaque extensions untouched.
