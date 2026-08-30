@@ -1564,8 +1564,7 @@ internal static class PptxCodec
             transform.ChildElements[3] is not A.ChildExtents childExtents ||
             !HasOnlyAttributes(offset, "x", "y") || !HasOnlyAttributes(extents, "cx", "cy") ||
             !HasOnlyAttributes(childOffset, "x", "y") || !HasOnlyAttributes(childExtents, "cx", "cy") ||
-            extents.Cx?.Value <= 0 || extents.Cy?.Value <= 0 || childExtents.Cx?.Value <= 0 || childExtents.Cy?.Value <= 0 ||
-            offset.X?.Value < 0 || offset.Y?.Value < 0)
+            extents.Cx?.Value <= 0 || extents.Cy?.Value <= 0 || childExtents.Cx?.Value <= 0 || childExtents.Cy?.Value <= 0)
             return false;
 
         group.LeftEmu = offset.X?.Value ?? 0;
@@ -2790,7 +2789,14 @@ internal static class PptxCodec
         {
             var group = element.Group;
             PptxNonVisualAccessibilityCodec.Validate(group.Accessibility, element.Id, "group");
-            if (group.LeftEmu < 0 || group.TopEmu < 0 || group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
+            // DrawingML permits a group frame to start just outside the slide
+            // canvas. Imported source-bound groups use that placement for
+            // intentional bleed/trim and must remain editable without
+            // normalizing the source coordinate. Keep source-free authoring
+            // strict so a caller cannot accidentally create an invalid frame.
+            var sourceBoundGroup = hasSourcePackage && element.Source is not null;
+            if ((!sourceBoundGroup && (group.LeftEmu < 0 || group.TopEmu < 0)) ||
+                group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
                 group.ChildWidthEmu <= 0 || group.ChildHeightEmu <= 0 || group.Children.Count == 0)
                 throw new CodecException("invalid_presentation_group", $"Presentation group {element.Id} requires positive outer/child extents and at least one child.");
             var childIds = new HashSet<string>(StringComparer.Ordinal);
