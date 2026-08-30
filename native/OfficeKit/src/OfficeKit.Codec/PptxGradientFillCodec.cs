@@ -152,8 +152,7 @@ internal static class PptxGradientFillCodec
                      path.FillToRectangle is { } rectangle &&
                      rectangle.ChildElements.Count == 0 &&
                      rectangle.GetAttributes().All(attribute => attribute.LocalName is "l" or "t" or "r" or "b") &&
-                     rectangle.Left?.Value == 50_000 && rectangle.Top?.Value == 50_000 &&
-                     rectangle.Right?.Value == 50_000 && rectangle.Bottom?.Value == 50_000:
+                     IsCenteredFillToRectangle(rectangle):
                 semantic.Kind = PresentationGradientFill.Types.Kind.Radial;
                 return true;
             default:
@@ -161,6 +160,25 @@ internal static class PptxGradientFillCodec
                 return false;
         }
     }
+
+    // ST_Percentage is commonly serialized as the human-readable lexical
+    // form "50%". Open XML SDK's generated numeric accessors throw for that
+    // spelling even though it is valid DrawingML; inspect the raw attribute
+    // value instead of rejecting an otherwise canonical centered radial fill.
+    private static bool IsCenteredFillToRectangle(A.FillToRectangle rectangle)
+    {
+        var attributes = rectangle.GetAttributes();
+        if (attributes.Count != 4) return false;
+        foreach (var name in new[] { "l", "t", "r", "b" })
+        {
+            var attribute = attributes.SingleOrDefault(candidate => candidate.LocalName == name);
+            if (attribute.LocalName is null || attribute.Value is null || !IsHalfPercentage(attribute.Value)) return false;
+        }
+        return true;
+    }
+
+    private static bool IsHalfPercentage(string value) =>
+        value.Trim() == "50%" || int.TryParse(value, out var numeric) && numeric == 50_000;
 
     private static CodecException Invalid(string subject, string detail) =>
         new("invalid_presentation_gradient", $"{subject} {detail}");
