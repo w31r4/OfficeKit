@@ -32,6 +32,22 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
+## Keep the talk track in speaker notes
+
+Use `pages[].notes` for the spoken bridge, caveat, source detail, or facilitation
+prompt that a live presenter needs but the audience should not read on the
+canvas. Notes use the same `textContent` contract as visible text: a string for
+simple prose, or paragraphs and runs when emphasis or language boundaries
+matter. Notes supplement the page; they do not excuse an ambiguous visible
+claim or hide evidence required for a reader deck.
+
+Imported notes remain source-bound. When the page `nativeRef` issues
+`setNotes`, an Agent may change plain text or the text inside an existing rich
+run topology. Keep paragraph/run counts, IDs, styles, and representation kind
+unchanged. A notes-absent capable page accepts one plain string. NotesMaster,
+layout, fields, hyperlinks, picture bullets, arbitrary notes shapes, and
+relationship topology remain native-owned and must not be reconstructed.
+
 For mixed-script text, make the language boundary explicit where shaping,
 font fallback, spell checking, or accessibility depends on it:
 

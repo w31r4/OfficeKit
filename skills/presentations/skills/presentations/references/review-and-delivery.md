@@ -30,6 +30,12 @@ at full size: dense evidence, combo charts, tables, CJK text, image crops,
 layered backgrounds, diagrams, and animated targets. Check non-target pages
 after imported edits.
 
+For `live` or `hybrid` delivery, also read the speaker notes in sequence. Verify
+that the talk track agrees with the visible claim, preserves qualifications and
+sources, and does not contain instructions meant for the audience. After a
+source-bound notes edit, re-import and confirm the intended page notes while
+keeping every non-target slide and native notes graph stable.
+
 Compilation proves that the program lowered. Re-import proves that OfficeKit
 can read the result. Structural motion evidence proves canonical timing state.
 None of these proves that a human saw correct rendering or that desktop

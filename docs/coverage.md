@@ -134,6 +134,17 @@ and recovers both media bytes and exact PPJ from the authored PPTX. Arbitrary
 third-party media timing remains opaque-preserved; this is structural package
 evidence, not desktop playback evidence.
 
+PPJ speaker notes now use the same bounded native profile as the Presentation
+codec. A supported third-party NotesSlide projects as plain text or structured
+paragraphs/runs instead of being flattened. The page receives `setNotes` only
+when the existing body is editable or the exact presentation graph can accept
+one canonical plain-text notes leaf. The comprehensive PPJ contract edits one
+formatted run, preserves its style, adds plain notes to a different page,
+changes only notes-related package parts, and recovers both values after a
+second projection. Paragraph/run topology or style changes, representation
+conversion, deletion, NotesMaster/layout editing, fields, hyperlinks, picture
+bullets, and irregular notes relationships remain source-owned and fail closed.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.
