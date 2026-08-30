@@ -1948,6 +1948,14 @@ function normalizePresentationShapeFill(fill, label) {
   return { ...fill, color };
 }
 
+function normalizePresentationImageOpacity(value, label) {
+  const opacity = Number(value);
+  if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
+    throw new RangeError(`${label} must be from 0 through 1.`);
+  }
+  return opacity;
+}
+
 export class Shape {
   constructor(slide, config = {}) {
     this.slide = slide;
@@ -2782,6 +2790,11 @@ export class ImageElement {
     this.contentType = embedded?.contentType ?? config.contentType;
     this.fit = config.fit || "contain";
     this.crop = config.crop;
+    const configuredOpacity = config._officeKitImageOpacity ?? config.opacity;
+    this._officeKitImageOpacity = configuredOpacity == null
+      ? undefined
+      : normalizePresentationImageOpacity(configuredOpacity, `Presentation image ${this.id}.opacity`);
+    this._officeKitImageOpacityModified = Object.hasOwn(config, "opacity");
     this.geometry = config.geometry || "rect";
     this.borderRadius = config.borderRadius;
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation image ${this.name || this.id} transform`);
@@ -2811,6 +2824,13 @@ export class ImageElement {
   set fit(value) { this._fit = normalizePresentationImageFit(value); }
   get crop() { return this._crop; }
   set crop(value) { this._crop = normalizePresentationImageCrop(value); }
+  get opacity() { return this._officeKitImageOpacity; }
+  set opacity(value) {
+    this._officeKitImageOpacity = value == null
+      ? undefined
+      : normalizePresentationImageOpacity(value, `Presentation image ${this.id}`);
+    this._officeKitImageOpacityModified = true;
+  }
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
   }
@@ -2904,10 +2924,10 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, opacity: this.opacity, transform: this.transform };
   }
 
-  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
+  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, opacity: this.opacity, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
 
   toSvg() {
     const p = this.position;

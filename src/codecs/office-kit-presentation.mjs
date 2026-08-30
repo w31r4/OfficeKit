@@ -311,6 +311,7 @@ function cloneImportedPresentationImage(container, source, context) {
     ...(source.svgDataUrl ? { svgDataUrl: source.svgDataUrl } : {}),
     fit: source.fit,
     ...(source.crop ? { crop: clonedPresentationValue(source.crop) } : {}),
+    ...(source.opacity === undefined ? {} : { _officeKitImageOpacity: source.opacity }),
     geometry: source.geometry,
     ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
   });
@@ -2236,6 +2237,11 @@ function presentationImage(image, original, assetCatalog) {
     dataUrl: image.fit === "stretch" ? dataUrl : image.dataUrl,
     frame: position,
   });
+  const imageOpacity = image._officeKitImageOpacityModified === true
+    ? (image.opacity === undefined ? undefined : Math.round(Number(image.opacity) * 100_000))
+    : original?.content?.case === "image"
+      ? original.content.value.opacityThousandthPercent
+      : undefined;
   return {
     id: original?.id || image.id,
     name: image.name || original?.name || "",
@@ -2256,14 +2262,7 @@ function presentationImage(image, original, assetCatalog) {
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
         heightEmu: emuFromPixels(position.height, `${image.id}.position.height`),
-        // Preserve a source picture's explicit DrawingML alpha token even
-        // though ImageElement currently exposes no public opacity setter.
-        // Dropping this presence-only field makes an otherwise untouched
-        // imported package look changed and prevents the source-bound edit
-        // compiler from isolating a later leaf edit.
-        ...(original?.content?.case === "image" && original.content.value.opacityThousandthPercent !== undefined
-          ? { opacityThousandthPercent: original.content.value.opacityThousandthPercent }
-          : {}),
+        ...(imageOpacity === undefined ? {} : { opacityThousandthPercent: imageOpacity }),
         ...(original?.content?.case === "image" && original.content.value.maskPreset
           ? { maskPreset: original.content.value.maskPreset }
           : {}),
@@ -4579,6 +4578,38 @@ function createPresentationNativeLeafCapability(presentation, state) {
         });
       }
     };
+    const registerImportedImageOpacityLeaf = () => {
+      if (!isImage || wire.source?.editable !== true) return;
+      const raw = String(wire.content.value.opacityThousandthPercent ?? "");
+      if (!/^[0-9]+$/u.test(raw)) return;
+      let opacity;
+      try { opacity = BigInt(raw); }
+      catch { return; }
+      if (opacity < 0n || opacity > 100_000n) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "imageOpacityThousandthPercent",
+        expectedValue: raw,
+        value: Number(opacity) / 100_000,
+        unit: "fraction",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation image opacity native leaf requires a finite number from 0 through 1.");
+          }
+          const token = String(Math.round(candidate * 100_000));
+          return { raw: token, publicValue: Number(token) / 100_000 };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) { model.opacity = Number(next) / 100_000; },
+      });
+    };
     if (isShape) {
       const paragraphAlignmentIndices = new Set();
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
@@ -5537,6 +5568,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
         }
       }
     }
+    registerImportedImageOpacityLeaf();
     if (wire.source.editable !== true) {
       registerImportedShapeColorLeaves();
       return;
@@ -5802,6 +5834,14 @@ const PRESENTATION_SCALAR_LEAF_FIELDS = Object.freeze([
   Object.freeze(["heightEmu", "heightEmu"]),
 ]);
 
+const PRESENTATION_IMAGE_SCALAR_LEAF_FIELDS = Object.freeze([
+  Object.freeze(["leftEmu", "leftEmu"]),
+  Object.freeze(["topEmu", "topEmu"]),
+  Object.freeze(["widthEmu", "widthEmu"]),
+  Object.freeze(["heightEmu", "heightEmu"]),
+  Object.freeze(["opacityThousandthPercent", "imageOpacityThousandthPercent"]),
+]);
+
 function restoreEquivalentPresentationScalarLeaves(original, requested) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return requested;
   let restored;
@@ -5823,7 +5863,7 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const beforeElement = original.content.value;
   const afterElement = requested.content.value;
   const scalarFields = contentCase === "image"
-      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
+      ? PRESENTATION_IMAGE_SCALAR_LEAF_FIELDS
       : PRESENTATION_SCALAR_LEAF_FIELDS;
   const changed = scalarFields.filter(([field]) => String(beforeElement[field] ?? "") !== String(afterElement[field] ?? ""));
   if (changed.length !== 1) return undefined;
@@ -5832,6 +5872,8 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const value = String(afterElement[field] ?? "");
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
   if (leafKind === "fillOpacityThousandthPercent" &&
+      (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
+  if (leafKind === "imageOpacityThousandthPercent" &&
       (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
@@ -6759,6 +6801,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
+      ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
       geometry: "rect",
       ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
     };
@@ -7087,6 +7130,7 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
+          ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
           geometry: "rect",
           ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
         });

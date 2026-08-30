@@ -330,16 +330,19 @@ internal sealed class PptxNativeObjectCatalog
                             transform.Offset.Y?.Value is >= 0 &&
                             transform.Extents?.Cx?.Value is > 0 &&
                             transform.Extents.Cy?.Value is > 0;
+            var blipEmbeds = blipAttributes.Where(attribute => (attribute.LocalName is "embed" or "link") && RelationshipNamespaces.Contains(attribute.NamespaceUri)).ToArray();
+            var blipStates = blipAttributes.Where(attribute => attribute.LocalName == "cstate" && attribute.NamespaceUri.Length == 0).ToArray();
+            var blipAttributesSafe = blipEmbeds.Length == 1 && blipStates.Length <= 1 &&
+                                     blipAttributes.Length == blipEmbeds.Length + blipStates.Length &&
+                                     blipStates.All(attribute => attribute.Value is "email" or "screen" or "print" or "hqprint");
             return picture.NonVisualPictureProperties?.NonVisualDrawingProperties is not null &&
                    properties is not null &&
                    properties.ChildElements.OfType<A.Transform2D>().Count() == 1 &&
                    transform?.Offset is not null &&
                    transform.Extents is not null &&
                    frameSafe &&
-                   blipAttributes.Length == 1 &&
-                   RelationshipNamespaces.Contains(blipAttributes[0].NamespaceUri) &&
-                   blipAttributes[0].LocalName is "embed" or "link" &&
-                   !string.IsNullOrWhiteSpace(blipAttributes[0].Value) &&
+                   blipAttributesSafe &&
+                   !string.IsNullOrWhiteSpace(blipEmbeds[0].Value) &&
                    cropSafe;
         }
         if (kind is "oleObject" or "diagram" or "graphicFrame" && source is P.GraphicFrame frame)

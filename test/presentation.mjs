@@ -550,6 +550,42 @@ const blobImageOutput = await PresentationFile.exportPptx(blobImageEdit);
 const blobImageRoundTrip = await PresentationFile.importPptx(blobImageOutput);
 assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT, "imported image replacement must accept a same-format FileBlob");
 
+// A direct picture alpha token is a source-bound image leaf: changing only
+// the opacity must splice the existing a:alphaModFix attribute and leave the
+// embedded payload, relationships, and opaque extensions untouched.
+const imageOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const imageOpacityXml = shapeAccessibilitySourceXml.replace(
+  /<a:blip\b([^>]*)\/>/u,
+  '<a:blip$1><a:alphaModFix amt="72000"/></a:blip>',
+);
+assert.notEqual(imageOpacityXml, shapeAccessibilitySourceXml, "image opacity fixture must contain a picture blip");
+imageOpacityZip.file("ppt/slides/slide1.xml", imageOpacityXml);
+const imageOpacityFile = new FileBlob(
+  await imageOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageOpacityImported = await PresentationFile.importPptx(imageOpacityFile);
+const imageOpacityTarget = itemByName(imageOpacityImported.slides.getItem(0).images.items, "decision-evidence");
+const imageOpacityLeaf = imageOpacityImported.inspect({ includeNativeLeaves: true, target: imageOpacityTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent");
+assert.ok(imageOpacityLeaf, "source-bound images should expose a direct opacity leaf");
+assert.equal(imageOpacityLeaf.value, 0.72);
+imageOpacityImported.editNativeLeaf(imageOpacityLeaf.targetId, imageOpacityLeaf.leafId, {
+  expectedHash: imageOpacityLeaf.expectedHash,
+  value: 0.4,
+});
+const imageOpacityOutput = await PresentationFile.exportPptx(imageOpacityImported);
+assert.equal(imageOpacityOutput.metadata.editPlan.operations[0].leafKind, "imageOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(imageOpacityFile, imageOpacityOutput, imageOpacityOutput.metadata.editPlan.operations);
+const imageOpacityOutputXml = await (await JSZip.loadAsync(imageOpacityOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageOpacityOutputXml, /<a:alphaModFix amt="40000"\s*\/>/u);
+const imageOpacityRoundTrip = await PresentationFile.importPptx(imageOpacityOutput);
+const imageOpacityRoundTripLeaf = imageOpacityRoundTrip.inspect({ includeNativeLeaves: true, target: imageOpacityTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent");
+assert.equal(imageOpacityRoundTripLeaf.value, 0.4);
+
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
 importedAccessibilityConnector.setAccessibilityMetadata({ title: null, description: "Reviewed connector from the rollout decision to context." });
