@@ -319,6 +319,8 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
             PresentationElement.ContentOneofCase.Chart => ProjectChart(element, id, nativeRef),
             PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, slide, pageId, context, shapeTreePath),
+            PresentationElement.ContentOneofCase.Opaque when element.Opaque.DiagramText is not null =>
+                ProjectSourceSmartArt(element, id, nativeRef, pageId, context),
             PresentationElement.ContentOneofCase.Opaque => ProjectOpaque(element, id, nativeRef),
             _ => ProjectOpaque(element, id, nativeRef, "unknown"),
         };
@@ -966,6 +968,56 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
+    private static JsonObject ProjectSourceSmartArt(
+        PresentationElement element,
+        string id,
+        JsonObject nativeRef,
+        string pageId,
+        ProjectionContext context)
+    {
+        var diagram = element.Opaque.DiagramText;
+        var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
+        output["type"] = "smartArt";
+        output["mode"] = "source-bound";
+        var nodes = new JsonArray();
+        for (var index = 0; index < diagram.Nodes.Count; index++)
+        {
+            var source = diagram.Nodes[index];
+            var nodeId = context.UniqueId($"{id}-node-{NormalizeId(source.ModelId, $"node-{index + 1}")}");
+            var values = source.RunTexts.Count > 0 ? source.RunTexts.ToArray() : [source.Text];
+            var hash = Sha256(Encoding.UTF8.GetBytes(source.ModelId + "\0" + string.Join("\0", values)));
+            var capabilities = new[] { new CapabilitySpec("setSmartArtText", ["smartArt.text"]) };
+            var node = new JsonObject
+            {
+                ["id"] = nodeId,
+                ["text"] = SmartArtText(values),
+                ["nativeRef"] = NativeRef(
+                    context,
+                    $"element:{pageId}:{id}:smartArtNode:{index}",
+                    hash,
+                    capabilities),
+            };
+            nodes.Add(node);
+        }
+        output["nodes"] = nodes;
+        return output;
+    }
+
+    private static JsonNode SmartArtText(IReadOnlyList<string> values)
+    {
+        if (values.Count == 1) return StringNode(values[0]);
+        var runs = new JsonArray();
+        for (var index = 0; index < values.Count; index++)
+            runs.Add(new JsonObject { ["id"] = $"run-{index + 1}", ["text"] = values[index] });
+        return new JsonObject
+        {
+            ["paragraphs"] = new JsonArray
+            {
+                new JsonObject { ["id"] = "paragraph-1", ["runs"] = runs },
+            },
+        };
+    }
+
     private static JsonObject ElementBase(
         string id,
         string? name,
@@ -1571,6 +1623,8 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Opaque:
+                if (element.Opaque.DiagramText is not null)
+                    output.Add(new("setSmartArtText", ["smartArt.text"]));
                 if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
         }
@@ -1597,10 +1651,9 @@ internal static partial class PpjPresentationProjector
         if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
         if (source.VisibilityEditable) output.Add(new("setHidden", ["hidden"]));
         if (source.LockingEditable) output.Add(new("setLocked", ["locked"]));
-        // Diagram, OLE, and source-owned chart payloads stay opaque until the
-        // corresponding PPJ typed state is projected. A runtime can edit such
-        // objects only after the public language has somewhere to represent
-        // both the old and requested value.
+        // OLE and source-owned chart payloads stay opaque until the
+        // corresponding PPJ typed state is projected. Proven diagram text is
+        // handled by ProjectSourceSmartArt before this fallback is selected.
         if (source.DeletionCapability?.Supported == true) output.Add(new("delete", ["element"]));
         if (source.ZOrderCapability?.Supported == true) output.Add(new("reorder", ["zOrder"]));
         return output;

@@ -252,7 +252,8 @@ internal sealed record PpjSmartArtNodeModel(
     string? StyleRef,
     string? ShapeStyleRef,
     string? AssetId,
-    PpjNativeRefModel? NativeRef);
+    PpjNativeRefModel? NativeRef,
+    JsonElement Raw);
 
 internal sealed class PpjOleElementModel : PpjElementModel
 {
@@ -810,7 +811,8 @@ internal static class PpjProgramParser
         OptionalString(node, "styleRef"),
         OptionalString(node, "shapeStyleRef"),
         OptionalString(node, "asset"),
-        node.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null);
+        node.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
+        node.Clone());
 
     private static PpjTextContentModel ParseText(JsonElement text)
     {
