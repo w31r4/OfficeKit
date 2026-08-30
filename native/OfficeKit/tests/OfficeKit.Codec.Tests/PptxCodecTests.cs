@@ -940,6 +940,17 @@ public sealed class PptxCodecTests
             ["noEndCap"] = true,
             ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.75 },
         };
+        authoredChartSeries["dataLabels"] = new JsonObject
+        {
+            ["showValue"] = true,
+            ["numberFormat"] = "0.0",
+            ["textStyle"] = new JsonObject { ["fontSize"] = 9, ["color"] = "#16324F" },
+            ["points"] = new JsonArray
+            {
+                new JsonObject { ["index"] = 2, ["showValue"] = false },
+                new JsonObject { ["index"] = 7, ["showValue"] = true, ["position"] = "top", ["numberFormat"] = "0.0x" },
+            },
+        };
         var authoredChartStyle = authoredProgram["design"]!["styles"]!["chart"]!.AsArray()
             .Select(style => style!.AsObject())
             .Single(style => style["id"]!.GetValue<string>() == "evidence-chart")["style"]!.AsObject();
@@ -2404,6 +2415,14 @@ public sealed class PptxCodecTests
                 .Attribute("val")!.Value);
             Assert.Contains(comboChartXml.Descendants(richChartNamespace + "dLbls"), labels =>
                 labels.Element(richChartNamespace + "numFmt")?.Attribute("formatCode")?.Value == "#,##0");
+            var analyticalLabelContainer = comboChartXml.Descendants(richChartNamespace + "ser")
+                .Single(series => series.Element(richChartNamespace + "tx")?.Element(richChartNamespace + "v")?.Value == authoredChartSeries["name"]!.GetValue<string>())
+                .Element(richChartNamespace + "dLbls")!;
+            Assert.Equal("0.0", analyticalLabelContainer.Element(richChartNamespace + "numFmt")!.Attribute("formatCode")!.Value);
+            Assert.Equal(["2", "7"], analyticalLabelContainer.Elements(richChartNamespace + "dLbl")
+                .Select(label => label.Element(richChartNamespace + "idx")!.Attribute("val")!.Value));
+            Assert.Equal("0.0x", analyticalLabelContainer.Elements(richChartNamespace + "dLbl").Last()
+                .Element(richChartNamespace + "numFmt")!.Attribute("formatCode")!.Value);
             var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
                 .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
                 .Uri.OriginalString.TrimStart('/');
@@ -2827,6 +2846,11 @@ public sealed class PptxCodecTests
         Assert.Equal(SpreadsheetChartTrendlineType.Linear, Assert.Single(importedAnalyticalSeries.Trendlines).Type);
         Assert.Equal(SpreadsheetChartErrorBarValueType.StandardError, importedAnalyticalSeries.ErrorBars.ValueType);
         Assert.True(importedAnalyticalSeries.ErrorBars.NoEndCap);
+        Assert.True(importedAnalyticalSeries.DataLabels.Defaults.ShowValue);
+        Assert.Equal("0.0", importedAnalyticalSeries.DataLabels.Defaults.NumberFormatCode);
+        Assert.Equal(2, importedAnalyticalSeries.DataLabels.Points.Count);
+        Assert.Equal(7U, importedAnalyticalSeries.DataLabels.Points[1].Index);
+        Assert.Equal("0.0x", importedAnalyticalSeries.DataLabels.Points[1].Override.NumberFormatCode);
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
         Assert.False(importedChart.DataLabels.ShowSeriesName);
         Assert.Equal(8.5, importedChart.DataLabels.TextStyle.FontSizePoints);
@@ -3078,6 +3102,10 @@ public sealed class PptxCodecTests
             Assert.Equal(128 / 255d, projectedSeries.GetProperty("fill").GetProperty("opacity").GetDouble(), 5);
             Assert.Equal("linear", projectedSeries.GetProperty("trendlines")[0].GetProperty("type").GetString());
             Assert.Equal("standard-error", projectedSeries.GetProperty("errorBars").GetProperty("valueType").GetString());
+            Assert.Equal("0.0", projectedSeries.GetProperty("dataLabels").GetProperty("numberFormat").GetString());
+            Assert.False(projectedSeries.GetProperty("dataLabels").GetProperty("points")[0].GetProperty("showValue").GetBoolean());
+            Assert.Equal(7, projectedSeries.GetProperty("dataLabels").GetProperty("points")[1].GetProperty("index").GetInt32());
+            Assert.Equal("top", projectedSeries.GetProperty("dataLabels").GetProperty("points")[1].GetProperty("position").GetString());
             Assert.True(projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("showValue").GetBoolean());
             Assert.Equal("#,##0", projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("numberFormat").GetString());
             Assert.True(projectedChart.GetProperty("xAxis").GetProperty("reverse").GetBoolean());
@@ -3307,6 +3335,8 @@ public sealed class PptxCodecTests
         formattingChart["xAxis"]!["axisLineArrow"]!["start"] = "none";
         formattingChart["xAxis"]!["axisLineArrow"]!["end"] = "diamond";
         formattingChart["yAxis"]!["gridLine"] = false;
+        formattingChart["data"]!["series"]![1]!["dataLabels"]!["numberFormat"] = "0.00";
+        formattingChart["data"]!["series"]![1]!["dataLabels"]!["points"]![1]!["numberFormat"] = "$0.0";
         var formattingChartId = formattingChart["id"]!.GetValue<string>();
         var formattingBubble = formattingProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -3355,6 +3385,9 @@ public sealed class PptxCodecTests
             Assert.Equal("none", reprojectedFormattingChart.GetProperty("xAxis").GetProperty("axisLineArrow").GetProperty("start").GetString());
             Assert.Equal("diamond", reprojectedFormattingChart.GetProperty("xAxis").GetProperty("axisLineArrow").GetProperty("end").GetString());
             Assert.False(reprojectedFormattingChart.GetProperty("yAxis").GetProperty("gridLine").GetBoolean());
+            var reprojectedLabels = reprojectedFormattingChart.GetProperty("data").GetProperty("series")[1].GetProperty("dataLabels");
+            Assert.Equal("0.00", reprojectedLabels.GetProperty("numberFormat").GetString());
+            Assert.Equal("$0.0", reprojectedLabels.GetProperty("points")[1].GetProperty("numberFormat").GetString());
             var reprojectedFormattingBubble = formattingJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(element => element.GetProperty("id").GetString() == formattingBubbleId);
             Assert.Equal(180, reprojectedFormattingBubble.GetProperty("style").GetProperty("bubbleScale").GetInt32());
