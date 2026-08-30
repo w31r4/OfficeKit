@@ -55,6 +55,34 @@ Imported text opacity may be visible in projected PPJ, but changing source
 formatting still requires an issued capability. A text-replacement capability
 does not authorize a color or opacity edit.
 
+## Highlight only the evidence that needs it
+
+Use `highlight` on a run when the audience must locate a short phrase, changed
+assumption, threshold, or review finding inside otherwise continuous text:
+
+```json
+{
+  "text": {
+    "paragraphs": [{
+      "runs": [
+        { "text": "Decision: " },
+        { "text": "proceed only above 84%", "style": { "highlight": "#FFF2CC" } }
+      ]
+    }]
+  }
+}
+```
+
+Highlight is editable native text state. It is not a pill, badge, card, or a
+substitute for hierarchy. Keep the marked span short and use one highlight
+logic consistently across the deck. Authored highlight must be opaque; choose
+a lighter color instead of asking alpha to repair contrast.
+
+Imported direct RGB highlights project into `run.style.highlight`. Theme-bound
+highlights remain source-owned and are changed only through an issued
+`fontHighlightScheme` leaf so PPJ does not flatten a source theme into guessed
+RGB.
+
 ## Fit without shrinking the argument
 
 Respect the page's content budget. If text does not fit, remove duplication,
