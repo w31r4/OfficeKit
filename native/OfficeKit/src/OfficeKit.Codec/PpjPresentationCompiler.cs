@@ -374,22 +374,38 @@ internal static class PpjSourceBoundPresentationCompiler
         ISet<string> changedNodeIds,
         MutationState mutations)
     {
-        if (baseline.Pages.Count != presentation.Slides.Count || requested.Pages.Count > baseline.Pages.Count)
-            throw Unsupported("$.pages", "source-bound page insertion or inconsistent source topology");
+        if (baseline.Pages.Count != presentation.Slides.Count)
+            throw Unsupported("$.pages", "inconsistent source topology");
         var sourcePages = baseline.Pages.Select((page, index) => new
         {
             Program = page,
             Wire = presentation.Slides[index],
         }).ToDictionary(item => item.Program.Id, StringComparer.Ordinal);
         var requestedPageIds = requested.Pages.Select(page => page.Id).ToArray();
-        if (requestedPageIds.Distinct(StringComparer.Ordinal).Count() != requestedPageIds.Length ||
-            requestedPageIds.Any(id => !sourcePages.ContainsKey(id)))
+        if (requestedPageIds.Distinct(StringComparer.Ordinal).Count() != requestedPageIds.Length)
+            throw Unsupported("$.pages", "duplicate page identity");
+        var pendingClones = requested.Pages.Where(page => page.SourceClone is not null).ToArray();
+        var retainedPages = requested.Pages.Where(page => page.SourceClone is null).ToArray();
+        if (retainedPages.Any(page => !sourcePages.ContainsKey(page.Id)))
             throw Unsupported("$.pages", "source-bound page insertion or identity change");
+        if (pendingClones.Length > 0)
+        {
+            if (!retainedPages.Select(page => page.Id).SequenceEqual(baseline.Pages.Select(page => page.Id), StringComparer.Ordinal))
+                throw Unsupported("$.pages", "combining source slide reuse with page deletion or reorder");
+            if (requested.Pages.Count != baseline.Pages.Count + pendingClones.Length)
+                throw Unsupported("$.pages", "inconsistent source clone topology");
+        }
+        else if (requested.Pages.Count > baseline.Pages.Count)
+        {
+            throw Unsupported("$.pages", "source-bound page insertion without sourceClone");
+        }
         var retainedPageSourceOrder = baseline.Pages
-            .Where(page => requestedPageIds.Contains(page.Id, StringComparer.Ordinal))
+            .Where(page => retainedPages.Any(requestedPage => requestedPage.Id.Equals(page.Id, StringComparison.Ordinal)))
             .Select(page => page.Id)
             .ToArray();
-        var pagesReordered = !retainedPageSourceOrder.SequenceEqual(requestedPageIds, StringComparer.Ordinal);
+        var retainedRequestedIds = retainedPages.Select(page => page.Id).ToArray();
+        var pagesReordered = pendingClones.Length == 0 &&
+            !retainedPageSourceOrder.SequenceEqual(retainedRequestedIds, StringComparer.Ordinal);
         if (pagesReordered)
         {
             if (requested.Pages.Count != baseline.Pages.Count)
@@ -406,13 +422,45 @@ internal static class PpjSourceBoundPresentationCompiler
         var changed = pagesReordered;
         var assetDimensions = AssetDimensions(requested.Root);
         var requestedSlides = new List<PresentationSlide>(requested.Pages.Count);
+        var clonedSourcePageIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < requested.Pages.Count; index++)
         {
             var after = requested.Pages[index];
+            var path = $"$.pages[{index}]";
+            if (after.SourceClone is not null)
+            {
+                var sourceClone = after.SourceClone;
+                if (!sourcePages.TryGetValue(sourceClone.PageId, out var cloneOrigin))
+                    throw Unsupported(path + ".sourceClone.page", $"unknown source page {sourceClone.PageId}");
+                if (index == 0 || !requested.Pages[index - 1].Id.Equals(sourceClone.PageId, StringComparison.Ordinal))
+                    throw Unsupported(path + ".sourceClone.page", "a pending source clone must immediately follow its retained source page");
+                if (!clonedSourcePageIds.Add(sourceClone.PageId))
+                    throw Unsupported(path + ".sourceClone.page", "more than one pending clone for the same source page");
+                RequireSourceClonePage(after, path);
+                RequireCapability(
+                    cloneOrigin.Program.NativeRef,
+                    "duplicate",
+                    sourceClone.CapabilityId,
+                    "pageClone",
+                    path + ".sourceClone.capability");
+                if (cloneOrigin.Wire.Source?.CloneCapability?.Supported != true)
+                    throw Unsupported(path + ".sourceClone", "source slide clone graph is no longer supported");
+
+                var clone = cloneOrigin.Wire.Clone();
+                clone.Id = after.Id;
+                clone.CloneSource = cloneOrigin.Wire.Source.Clone();
+                clone.Source = null;
+                clone.ElementDeletions.Clear();
+                requestedSlides.Add(clone);
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+                continue;
+            }
+
             var sourcePage = sourcePages[after.Id];
             var before = sourcePage.Program;
             var slide = sourcePage.Wire;
-            var path = $"$.pages[{index}]";
             RequireNativeRef(before.Raw, after.Raw, path);
             RequireEqualExcept(before.Raw, after.Raw, path, "name", "role", "claim", "background", "transition", "notes", "elements", "hidden");
             if (PropertyChanged(before.Raw, after.Raw, "name"))
@@ -546,6 +594,18 @@ internal static class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
+    private static void RequireSourceClonePage(PpjPageModel page, string path)
+    {
+        if (page.NativeRef is not null || page.Elements.Count != 0 || page.Name is not null ||
+            page.LayoutId is not null || page.Notes is not null || page.Hidden is not null ||
+            page.Transition is not null || page.Animations.Count != 0 || page.Raw.TryGetProperty("background", out _))
+            throw Unsupported(path, "editing a pending source clone before build and reimport");
+        var allowed = new HashSet<string>(["id", "role", "claim", "elements", "sourceClone"], StringComparer.Ordinal);
+        foreach (var property in page.Raw.EnumerateObject())
+            if (!allowed.Contains(property.Name))
+                throw Unsupported(path + "." + property.Name, "declaring source-owned state on a pending source clone");
+    }
+
     private static bool ApplyComments(
         PpjProgramModel baseline,
         PpjProgramModel requested,
@@ -607,6 +667,8 @@ internal static class PpjSourceBoundPresentationCompiler
             presentation.Sections.Count != baseline.Sections.Count)
             throw Unsupported("$.sections", "adding or removing source-bound sections");
         if (baseline.Sections.Count == 0) return false;
+        if (baseline.Sections.Select(section => section.Raw).Zip(requested.Sections.Select(section => section.Raw)).All(pair => JsonEqual(pair.First, pair.Second)))
+            return false;
         var slideIdByPageId = RouteSlideIds(baseline, requested, presentation, "$.sections");
 
         var changed = false;
@@ -646,6 +708,8 @@ internal static class PpjSourceBoundPresentationCompiler
             presentation.CustomShows.Count != baseline.CustomShows.Count)
             throw Unsupported("$.customShows", "adding or removing source-bound custom shows");
         if (baseline.CustomShows.Count == 0) return false;
+        if (baseline.CustomShows.Select(show => show.Raw).Zip(requested.CustomShows.Select(show => show.Raw)).All(pair => JsonEqual(pair.First, pair.Second)))
+            return false;
         var slideIdByPageId = RouteSlideIds(baseline, requested, presentation, "$.customShows");
 
         var changed = false;
@@ -1942,6 +2006,24 @@ internal static class PpjSourceBoundPresentationCompiler
             throw new CodecException(
                 "ppj.nativeRef.capabilityMissing",
                 $"The exact source object did not issue the {operation} capability required by this edit.",
+                path);
+    }
+
+    private static void RequireCapability(
+        PpjNativeRefModel? nativeRef,
+        string operation,
+        string capabilityId,
+        string field,
+        string path)
+    {
+        var reference = nativeRef ?? throw new CodecException("ppj.nativeRef.missing", "Source-bound edits require a nativeRef.", path);
+        var capability = reference.Capabilities.FirstOrDefault(item => item.Id.Equals(capabilityId, StringComparison.Ordinal));
+        if (capability is null || !capability.Operation.Equals(operation, StringComparison.Ordinal) ||
+            !capability.Fields.Contains(field, StringComparer.Ordinal) ||
+            !capability.ExpectedHash.Equals(reference.ObjectHash, StringComparison.OrdinalIgnoreCase))
+            throw new CodecException(
+                "ppj.nativeRef.capabilityMissing",
+                $"The exact source object did not issue capability {capabilityId} for {operation}/{field}.",
                 path);
     }
 
