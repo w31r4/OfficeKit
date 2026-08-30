@@ -242,6 +242,13 @@ public sealed class PptxCodecTests
                 ["italic"] = false,
                 ["color"] = "#16324FCC",
             },
+            ["titleTextStyle"] = new JsonObject
+            {
+                ["fontSize"] = 11,
+                ["fontFamily"] = "Georgia",
+                ["bold"] = true,
+                ["color"] = "#0B8F8F",
+            },
         };
         authoredChart["yAxis"] = new JsonObject
         {
@@ -301,6 +308,18 @@ public sealed class PptxCodecTests
             ["showValue"] = true,
             ["showSeries"] = false,
             ["position"] = "outside-end",
+            ["textStyle"] = new JsonObject
+            {
+                ["fontSize"] = 8.5,
+                ["bold"] = true,
+                ["color"] = "#16324FCC",
+            },
+        };
+        authoredChartStyle["legendTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = 10,
+            ["fontFamily"] = "Aptos",
+            ["color"] = "#16324F",
         };
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
@@ -560,6 +579,8 @@ public sealed class PptxCodecTests
         Assert.Equal(360_000, importedChart.FrameTransform.RotationAngle60000);
         Assert.True(importedChart.FrameTransform.FlipHorizontal);
         Assert.Equal("bottom", importedChart.LegendPosition);
+        Assert.Equal(10, importedChart.LegendTextStyle.FontSizePoints);
+        Assert.Equal("Aptos", importedChart.LegendTextStyle.FontFamily);
         Assert.Equal("none", importedChart.Grouping);
         Assert.Equal(90U, importedChart.GapWidth);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Cap);
@@ -574,6 +595,9 @@ public sealed class PptxCodecTests
         Assert.False(importedChart.XAxis.TextStyle.Italic);
         Assert.Equal("16324F", importedChart.XAxis.TextStyle.ColorRgb);
         Assert.Equal(80_000U, importedChart.XAxis.TextStyle.OpacityThousandthPercent);
+        Assert.Equal(11, importedChart.XAxis.TitleTextStyle.FontSizePoints);
+        Assert.Equal("Georgia", importedChart.XAxis.TitleTextStyle.FontFamily);
+        Assert.Equal("0B8F8F", importedChart.XAxis.TitleTextStyle.ColorRgb);
         Assert.Equal("Incident hours", importedChart.YAxis.Title);
         Assert.Equal(0, importedChart.YAxis.Minimum);
         Assert.Equal(80, importedChart.YAxis.Maximum);
@@ -588,6 +612,10 @@ public sealed class PptxCodecTests
         Assert.True(importedAnalyticalSeries.ErrorBars.NoEndCap);
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
         Assert.False(importedChart.DataLabels.ShowSeriesName);
+        Assert.Equal(8.5, importedChart.DataLabels.TextStyle.FontSizePoints);
+        Assert.True(importedChart.DataLabels.TextStyle.Bold);
+        Assert.Equal("16324F", importedChart.DataLabels.TextStyle.ColorRgb);
+        Assert.Equal(80_000U, importedChart.DataLabels.TextStyle.OpacityThousandthPercent);
         Assert.Equal("Incident hours decline from 69 to 43 while protected workload index rises from 100 to 127.", importedChart.Accessibility.Description);
         var importedTable = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Table).Table;
@@ -755,6 +783,9 @@ public sealed class PptxCodecTests
             Assert.Equal("linear", projectedSeries.GetProperty("trendlines")[0].GetProperty("type").GetString());
             Assert.Equal("standard-error", projectedSeries.GetProperty("errorBars").GetProperty("valueType").GetString());
             Assert.True(projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("showValue").GetBoolean());
+            Assert.Equal(10, projectedChart.GetProperty("style").GetProperty("legendTextStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal(8.5, projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("textStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal(11, projectedChart.GetProperty("xAxis").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
             var projectedBubble = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "bubble");
@@ -851,7 +882,32 @@ public sealed class PptxCodecTests
             ["italic"] = true,
             ["color"] = "#C0404080",
         };
+        var chartHierarchyChart = chartTextStyleProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart");
+        chartHierarchyChart["style"]!["legendTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = 12,
+            ["fontFamily"] = "Aptos Display",
+            ["bold"] = true,
+            ["color"] = "#0B8F8F",
+        };
+        chartHierarchyChart["style"]!["dataLabels"]!["textStyle"] = new JsonObject
+        {
+            ["fontSize"] = 9.5,
+            ["fontFamily"] = "Aptos",
+            ["italic"] = true,
+            ["color"] = "#C0404080",
+        };
+        chartHierarchyChart["xAxis"]!["textStyle"]!["fontSize"] = 10;
+        chartHierarchyChart["xAxis"]!["titleTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = 12.5,
+            ["fontFamily"] = "Georgia",
+            ["color"] = "#16324F",
+        };
         var chartTextStyleId = chartTextStyleChart["id"]!.GetValue<string>();
+        var chartHierarchyId = chartHierarchyChart["id"]!.GetValue<string>();
         var chartTextStyleEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -866,9 +922,10 @@ public sealed class PptxCodecTests
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
         Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/slide1.xml"],
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart3.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
             chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         var chartTextStyleReprojection = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -894,6 +951,15 @@ public sealed class PptxCodecTests
             Assert.False(reprojectedBold.GetBoolean());
             Assert.True(reprojectedStyle.GetProperty("italic").GetBoolean());
             Assert.Equal("#C0404080", reprojectedStyle.GetProperty("color").GetString());
+
+            var hierarchy = chartTextStyleJson.RootElement.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == chartHierarchyId);
+            Assert.Equal(12, hierarchy.GetProperty("style").GetProperty("legendTextStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal("#0B8F8F", hierarchy.GetProperty("style").GetProperty("legendTextStyle").GetProperty("color").GetString());
+            Assert.Equal(9.5, hierarchy.GetProperty("style").GetProperty("dataLabels").GetProperty("textStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal("#C0404080", hierarchy.GetProperty("style").GetProperty("dataLabels").GetProperty("textStyle").GetProperty("color").GetString());
+            Assert.Equal(10, hierarchy.GetProperty("xAxis").GetProperty("textStyle").GetProperty("fontSize").GetDouble());
+            Assert.Equal(12.5, hierarchy.GetProperty("xAxis").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
         }
 
         var imagePaintProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
