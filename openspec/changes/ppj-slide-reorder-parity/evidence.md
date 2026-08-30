@@ -34,3 +34,8 @@ Change 'ppj-slide-reorder-parity' is valid
 No new test file, fixture, protobuf field, wire version, full suite, package
 gate, or cross-platform matrix was added or run. The one existing comprehensive
 test is already heavy and is not promoted to a new routine gate by this change.
+
+The four implementation/evidence commits were pushed normally and remote
+`main` fast-forwarded to `9cb171fb040047ef853bb7334cd668892d5f8c5f`
+before the final checklist closure. The delegated preset-geometry head
+`92459162a97da8eb9af40e6ce1850411cad9f02e` remains an ancestor.
