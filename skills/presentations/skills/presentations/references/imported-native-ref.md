@@ -35,6 +35,12 @@ relationship, crop, and custom geometry remain source-owned while the shape's
 position or size changes. Image replacement, fill conversion, custom-path
 rewriting, and any other image-fill graph stay opaque and fail closed.
 
+An imported shape may also expose `textEditable` while its fill or effect graph
+is intentionally opaque (for example, a native gradient banner). A plain
+text-only replacement is safe when the original paragraph/run topology is
+kept; the native fill, effects, geometry, and relationships remain byte-owned
+by the source. Style, frame, name, and topology changes still fail closed.
+
 Source-bound connectors may expose the same bounded placement surface when
 their direct frame is a legal horizontal or vertical line with one zero
 extent. Moving the frame leaves endpoint bindings, line geometry, and unknown

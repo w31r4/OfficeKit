@@ -543,6 +543,44 @@ assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].access
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
 assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
 
+// An imported shape can have a safe text graph while its visual fill is a
+// native gradient outside the typed style profile.  A plain text edit must
+// keep that gradient instead of rejecting the whole shape or replacing it
+// with the projected transparent fill.
+const gradientShapeZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const gradientShapeSourceXml = await gradientShapeZip.file("ppt/slides/slide1.xml").async("text");
+const gradientShapeNamePosition = gradientShapeSourceXml.indexOf('name="decision-status"');
+const gradientShapeStart = gradientShapeSourceXml.lastIndexOf("<p:sp>", gradientShapeNamePosition);
+const gradientShapeEnd = gradientShapeSourceXml.indexOf("</p:sp>", gradientShapeNamePosition) + "</p:sp>".length;
+const gradientShapeSource = gradientShapeSourceXml.slice(gradientShapeStart, gradientShapeEnd);
+const gradientShapeXml = gradientShapeSource.replace(
+  /<a:solidFill\b[^>]*>[\s\S]*?<\/a:solidFill>/u,
+  '<a:gradFill xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" rotWithShape="0"><a:gsLst><a:gs pos="0"><a:srgbClr val="DBEAFE"/></a:gs><a:gs pos="100000"><a:srgbClr val="1E3A8A"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill>',
+);
+assert.notEqual(gradientShapeXml, gradientShapeSource);
+gradientShapeZip.file("ppt/slides/slide1.xml", gradientShapeSourceXml.slice(0, gradientShapeStart) + gradientShapeXml + gradientShapeSourceXml.slice(gradientShapeEnd));
+const gradientShapeSourceFile = new FileBlob(
+  await gradientShapeZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const gradientShapeImported = await PresentationFile.importPptx(gradientShapeSourceFile);
+const gradientShape = itemByName(gradientShapeImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(gradientShape.fill, "transparent");
+assert.equal(gradientShape.accessibilityCapability.editable, false);
+gradientShape.text.value = "Decision: staged rollout";
+const gradientShapeOutput = await PresentationFile.exportPptx(gradientShapeImported);
+assert.deepEqual(gradientShapeOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const gradientShapeOutputZip = await JSZip.loadAsync(gradientShapeOutput.bytes);
+const gradientShapeOutputXml = await gradientShapeOutputZip.file("ppt/slides/slide1.xml").async("text");
+const gradientShapeOutputStart = gradientShapeOutputXml.lastIndexOf("<p:sp>", gradientShapeOutputXml.indexOf('name="decision-status"'));
+const gradientShapeOutputEnd = gradientShapeOutputXml.indexOf("</p:sp>", gradientShapeOutputXml.indexOf('name="decision-status"')) + "</p:sp>".length;
+const gradientShapeOutputValue = gradientShapeOutputXml.slice(gradientShapeOutputStart, gradientShapeOutputEnd);
+const gradientShapeProperties = (xml) => xml.slice(xml.indexOf("<p:spPr"), xml.indexOf("</p:spPr>") + "</p:spPr>".length);
+assert.match(gradientShapeOutputValue, /<a:gradFill\b[\s\S]*?<a:lin\b/u);
+assert.equal(gradientShapeProperties(gradientShapeOutputValue), gradientShapeProperties(gradientShapeXml));
+const gradientShapeRoundTrip = await PresentationFile.importPptx(gradientShapeOutput);
+assert.equal(itemByName(gradientShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status").text.value, "Decision: staged rollout");
+
 // A third-party shape may use an image-filled custom path that the semantic
 // geometry reader cannot model. It is still a safe frame-edit boundary when
 // the embedded image fill is strict and source-bound: expose the asset identity

@@ -2202,7 +2202,9 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     : presentationRgb(presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
   const lineStyle = requestedLineRgb ? line.style : "none";
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
-  const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
+  const textBody = original?.source?.editable === false && original?.source?.textEditable === true && isPlainPresentationTextRequest(shape)
+    ? sourceBoundShapeTextBody(shape, originalShape) || presentationTextBody(shape, originalShape, assetCatalog, customShowLinks)
+    : presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
   const sourceImageFillAssetId = String(originalShape?.imageFillAssetId || "");
@@ -6698,6 +6700,46 @@ function slidePlaceholderState(shape) {
 
 function isPlainPresentationTextRequest(shape) {
   return JSON.stringify(shape.text?.paragraphs || []) === JSON.stringify(normalizePresentationParagraphs(shape.text?.value || ""));
+}
+
+function sourceBoundShapeTextBody(shape, originalShape) {
+  if (!originalShape?.textBody) return undefined;
+  if (!isPlainPresentationTextRequest(shape)) {
+    throw new OfficeKitCodecError(
+      `Presentation shape ${shape.id} changed its source-bound paragraph, inline, or formatting topology. Use text.replace(...) for structured text, or text.set(...) with the source line-break topology intact.`,
+      [],
+      { code: "presentation_text_topology_changed" },
+    );
+  }
+  const textBody = clonedPresentationValue(originalShape.textBody);
+  const spans = [[]];
+  for (let paragraphIndex = 0; paragraphIndex < (textBody.paragraphs || []).length; paragraphIndex += 1) {
+    const paragraph = textBody.paragraphs[paragraphIndex];
+    for (const run of paragraph.runs || []) {
+      if (run.content?.case === "text") spans.at(-1).push(run);
+      else if (run.content?.case === "lineBreak") spans.push([]);
+      else {
+        throw new OfficeKitCodecError(
+          `Presentation shape ${shape.id} contains a field or unsupported inline that cannot be replaced through text.set(...).`,
+          [],
+          { code: "presentation_text_topology_changed" },
+        );
+      }
+    }
+    if (paragraphIndex + 1 < textBody.paragraphs.length) spans.push([]);
+  }
+  const segments = shape.text.value.split("\n");
+  if (segments.length !== spans.length || spans.some((runs) => runs.length !== 1)) {
+    throw new OfficeKitCodecError(
+      `Presentation shape ${shape.id} cannot map text.set(...) onto its source-bound line-break and styled-run topology. Preserve the newline count or use text.replace(...).`,
+      [],
+      { code: "presentation_text_topology_changed" },
+    );
+  }
+  for (let index = 0; index < segments.length; index += 1) {
+    spans[index][0].content = { case: "text", value: segments[index] };
+  }
+  return textBody;
 }
 
 function sourceBoundSlidePlaceholderTextBody(shape, originalShape, originalState, assetCatalog, customShowLinks) {

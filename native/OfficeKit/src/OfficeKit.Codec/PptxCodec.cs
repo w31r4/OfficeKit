@@ -45,6 +45,28 @@ internal static class PptxCodec
     internal static bool SupportsBoundTextLeaf(P.Shape shape) =>
         shape.TextBody is not null && PptxTextCodec.SupportsEditing(shape.TextBody);
 
+    // A shape can have a perfectly usable local text graph even when its
+    // visual fill/effect graph is outside the semantic projection (for
+    // example, a gradient-filled banner).  Keep this narrow escape hatch
+    // text-only: the native style, frame, geometry, accessibility and other
+    // fields must remain byte-owned by the source package.
+    private static bool IsBoundTextOnlyShapeEdit(
+        PresentationElement original,
+        PresentationElement requested,
+        P.Shape sourceShape)
+    {
+        if (!string.Equals(original.Name, requested.Name, StringComparison.Ordinal) ||
+            original.ContentCase != PresentationElement.ContentOneofCase.Shape ||
+            requested.ContentCase != PresentationElement.ContentOneofCase.Shape ||
+            original.Shape is null || requested.Shape is null ||
+            !SupportsBoundTextLeaf(sourceShape))
+            return false;
+        var textOnly = original.Shape.Clone();
+        textOnly.Text = requested.Shape.Text;
+        textOnly.TextBody = requested.Shape.TextBody?.Clone();
+        return textOnly.Equals(requested.Shape);
+    }
+
     internal static int ValidateEditPlanOutput(
         byte[] sourceBytes,
         byte[] outputBytes,
@@ -997,6 +1019,14 @@ internal static class PptxCodec
                             PptxPlaceholderCodec.SupportsSlideTextEditing(sourcePlaceholder))
                         {
                             PptxPlaceholderCodec.ApplySlideText(sourcePlaceholder, original, requested, slideContext);
+                            changed = true;
+                            continue;
+                        }
+                        if (elementBinding.TextEditable &&
+                            sourceElement is P.Shape sourceTextShape &&
+                            IsBoundTextOnlyShapeEdit(original, requested, sourceTextShape))
+                        {
+                            PptxTextCodec.Apply(sourceTextShape, requested.Shape, slideContext);
                             changed = true;
                             continue;
                         }
@@ -2380,7 +2410,17 @@ internal static class PptxCodec
                     PartPath(slideContext.Owner));
             if (SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
             if (!binding.Editable)
+            {
+                if (binding.TextEditable &&
+                    sourceChild is P.Shape sourceTextShape &&
+                    IsBoundTextOnlyShapeEdit(originalChild, requestedChild, sourceTextShape))
+                {
+                    PptxTextCodec.Apply(sourceTextShape, requestedChild.Shape, slideContext);
+                    changed = true;
+                    continue;
+                }
                 throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} is read-only.", PartPath(slideContext.Owner));
+            }
             ApplyGroupChild(sourceChild, originalChild, requestedChild, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"{location} child {requestedIndex + 1}");
             changed = true;
         }
