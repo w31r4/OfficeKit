@@ -662,6 +662,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                  ((projectedElement.Source.Editable &&
                    (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "shadowColorRgb" or "shadowColorScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" ||
+                    (LeafKind(operation) is "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow") && HasSafeNativeShapeStyle(shape, LeafKind(operation)) ||
                     (LeafKind(operation) is "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment") && shape.ShapeProperties is not null && HasSafeNativeShadowGeometry(shape.ShapeProperties, LeafKind(operation)))) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "shadowColorRgb" or "shadowColorScheme" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "shadowBlurRadiusEmu" or "shadowDistanceEmu" or "shadowDirectionDegrees" or "shadowAlignment") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
                  (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
@@ -1232,17 +1233,27 @@ internal static partial class PptxEditPlanCodec
         if (outlines.Length != 1) return false;
         if (kind == "lineWidthEmu")
             return outlines[0].Width?.Value is > 0 and <= 20_116_800;
+        var linePaints = outlines[0].ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
+        var hasExplicitPaint = linePaints.Length == 1 && linePaints[0] is A.SolidFill lineSolid &&
+            (HasSafeNativeRgbFill(lineSolid) || HasSafeNativeSchemeFill(lineSolid));
         if (kind == "lineStyle")
         {
             var dashes = outlines[0].Elements<A.PresetDash>().ToArray();
-            if (dashes.Length != 1 || !PptxLineStyleCodec.TryReadPresetDash(dashes[0], out _)) return false;
+            return hasExplicitPaint && dashes.Length == 1 && PptxLineStyleCodec.TryReadPresetDash(dashes[0], out _);
         }
-        if (kind is not ("lineRgb" or "lineScheme" or "lineStyle")) return false;
-        var fillsOnLine = outlines[0].ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
-        return fillsOnLine.Length == 1 && fillsOnLine[0] is A.SolidFill lineSolid &&
-            (kind == "lineRgb" && HasSafeNativeRgbFill(lineSolid) ||
-             kind == "lineScheme" && HasSafeNativeSchemeFill(lineSolid) ||
-             kind == "lineStyle" && (HasSafeNativeRgbFill(lineSolid) || HasSafeNativeSchemeFill(lineSolid)));
+        if (kind == "lineCap") return hasExplicitPaint && PptxLineStyleCodec.TryReadCap(outlines[0], out _);
+        if (kind == "lineJoin") return hasExplicitPaint && PptxLineStyleCodec.TryReadJoinLeaf(outlines[0], out _);
+        if (kind is "lineStartArrow" or "lineEndArrow")
+        {
+            OpenXmlElement? endpoint = kind == "lineStartArrow"
+                ? outlines[0].GetFirstChild<A.HeadEnd>()
+                : outlines[0].GetFirstChild<A.TailEnd>();
+            return hasExplicitPaint && PptxLineStyleCodec.TryReadArrowType(endpoint, out var arrow) && arrow.Length > 0;
+        }
+        if (kind is not ("lineRgb" or "lineScheme")) return false;
+        return linePaints.Length == 1 && linePaints[0] is A.SolidFill directLineSolid &&
+            (kind == "lineRgb" && HasSafeNativeRgbFill(directLineSolid) ||
+             kind == "lineScheme" && HasSafeNativeSchemeFill(directLineSolid));
     }
 
     private static bool HasSafeNativeShadowGeometry(OpenXmlCompositeElement properties, string kind)
@@ -1966,26 +1977,26 @@ internal static partial class PptxEditPlanCodec
                 attribute = "val";
                 break;
             case "lineStyle":
-                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineStyle.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineStyle.", operation.SlidePartPath);
                 var styleOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 leaf = DirectChildRange(xml, styleOutline, "ln", "prstDash", operation);
                 attribute = "val";
                 break;
             case "lineCap":
-                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineCap.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineCap.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 attribute = "cap";
                 break;
             case "lineJoin":
-                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineJoin.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineJoin.", operation.SlidePartPath);
                 var joinOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 return CompileNativeJoinXmlPatch(xml, joinOutline, proof);
             case "lineStartArrow":
-                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineStartArrow.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineStartArrow.", operation.SlidePartPath);
                 var startArrowOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 return CompileNativeArrowXmlPatch(xml, startArrowOutline, proof, "headEnd");
             case "lineEndArrow":
-                if (owner != "cxnSp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineEndArrow.", operation.SlidePartPath);
+                if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineEndArrow.", operation.SlidePartPath);
                 var endArrowOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
                 return CompileNativeArrowXmlPatch(xml, endArrowOutline, proof, "tailEnd");
             case "lineWidthEmu":

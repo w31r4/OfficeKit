@@ -242,6 +242,16 @@ internal static class PpjNativeLeafProjection
             add("lineScheme", shape.LineScheme, JsonValue.Create(shape.LineScheme), 0, 0);
         if (shape.LineWidthEmu > 0)
             AddInteger(add, "lineWidthEmu", shape.LineWidthEmu);
+        if (shape.HasLineStyleExplicit && shape.LineStyleExplicit && !string.IsNullOrEmpty(shape.LineStyle))
+            add("lineStyle", shape.LineStyle, JsonValue.Create(shape.LineStyle), 0, 0);
+        if (!string.IsNullOrEmpty(shape.LineCap))
+            add("lineCap", shape.LineCap, JsonValue.Create(shape.LineCap), 0, 0);
+        if (!string.IsNullOrEmpty(shape.LineJoin))
+            add("lineJoin", shape.LineJoin, JsonValue.Create(shape.LineJoin), 0, 0);
+        if (!string.IsNullOrEmpty(shape.StartArrow))
+            add("lineStartArrow", shape.StartArrow, JsonValue.Create(shape.StartArrow), 0, 0);
+        if (!string.IsNullOrEmpty(shape.EndArrow))
+            add("lineEndArrow", shape.EndArrow, JsonValue.Create(shape.EndArrow), 0, 0);
 
         // The importer only issues TextEditable after checking the bounded
         // source shape profile. The edit-plan codec repeats that proof against

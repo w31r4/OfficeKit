@@ -2371,6 +2371,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(line.opacity === undefined ? {} : { lineOpacityThousandthPercent: Math.round(line.opacity * 100_000) }),
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
         lineStyle,
+        ...(originalShape?.lineStyleExplicit === true ? { lineStyleExplicit: true } : {}),
         startArrow: line.head?.type || "",
         endArrow: line.tail?.type || "",
         startArrowWidth: line.head?.width || "",

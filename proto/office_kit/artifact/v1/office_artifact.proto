@@ -2323,6 +2323,12 @@ message PresentationShape {
   // it only lets the source-preserving writer admit the exact bounded native
   // custom path as an authored overlay without opening arbitrary geometry.
   string catalog_icon_name = 40;
+  // Source-projection presence bit for an explicit direct a:prstDash child.
+  // The semantic line_style value alone cannot distinguish an omitted solid
+  // default from an explicit solid token, so PPJ issues a source-bound
+  // lineStyle leaf only when this bit is present and true. It is not an
+  // authored styling control and is never required for source-free shapes.
+  optional bool line_style_explicit = 41;
 }
 
 message PresentationCustomGeometryPath {

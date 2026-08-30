@@ -1416,7 +1416,7 @@ function validateTaskEditPlan(value, outputSha256) {
   const nativeLeafKinds = new Set([
     "text", "tableCellText", "nativeText", "fillRgb", "fillOpacityThousandthPercent", "fillScheme",
     "shadowBlurRadiusEmu", "shadowDistanceEmu", "shadowDirectionDegrees", "shadowAlignment", "shadowColorRgb", "shadowColorScheme", "shadowOpacityThousandthPercent",
-    "lineRgb", "lineScheme", "lineWidthEmu",
+    "lineRgb", "lineScheme", "lineStyle", "lineCap", "lineJoin", "lineStartArrow", "lineEndArrow", "lineWidthEmu",
     "leftEmu", "topEmu", "widthEmu", "heightEmu", "rotationDegrees", "flipHorizontal", "flipVertical", "imageAsset", "imageSvgAsset", "chartTitleText", "chartDataValue",
     "diagramText", "deleteElement",
   ]);
@@ -1443,7 +1443,7 @@ function validateTaskEditPlan(value, outputSha256) {
     const styleLeaf = new Set([
       "fillRgb", "fillOpacityThousandthPercent", "fillScheme",
       "shadowBlurRadiusEmu", "shadowDistanceEmu", "shadowDirectionDegrees", "shadowAlignment", "shadowColorRgb", "shadowColorScheme", "shadowOpacityThousandthPercent",
-      "lineRgb", "lineScheme", "lineWidthEmu", "rotationDegrees", "flipHorizontal", "flipVertical",
+      "lineRgb", "lineScheme", "lineStyle", "lineCap", "lineJoin", "lineStartArrow", "lineEndArrow", "lineWidthEmu", "rotationDegrees", "flipHorizontal", "flipVertical",
     ]).has(leafKind);
     if (styleLeaf
       ? !Number.isSafeInteger(operation.nativeLeafIndex) || operation.nativeLeafIndex < 0

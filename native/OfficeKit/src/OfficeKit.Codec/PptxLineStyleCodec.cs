@@ -279,6 +279,10 @@ internal static class PptxLineStyleCodec
         if (TryRead(outline, out var profile))
         {
             CopyTo(profile, target);
+            if (outline?.GetFirstChild<A.PresetDash>() is not null)
+                target.LineStyleExplicit = true;
+            else
+                target.ClearLineStyleExplicit();
             return;
         }
 
@@ -289,6 +293,7 @@ internal static class PptxLineStyleCodec
         var width = outline?.Width?.Value ?? 0;
         target.LineWidthEmu = width is >= 0 and <= int.MaxValue ? width : 0;
         target.LineStyle = target.LineRgb.Length > 0 || target.LineScheme.Length > 0 ? "solid" : "none";
+        target.ClearLineStyleExplicit();
         target.StartArrow = target.EndArrow = target.StartArrowWidth = target.StartArrowLength =
             target.EndArrowWidth = target.EndArrowLength = target.LineCap = target.LineJoin = string.Empty;
     }
