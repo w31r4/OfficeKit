@@ -684,7 +684,7 @@ const imageFilledCustomGeometryShape = itemByName(imageFilledCustomGeometryImpor
 assert.match(imageFilledCustomGeometryShape.imageFill?.assetId || "", /^asset\/presentation\/picture(?:-bullet)?\//u);
 assert.equal(imageFilledCustomGeometryShape.imageFill?.contentType, "image/png");
 assert.deepEqual(imageFilledCustomGeometryShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
-assert.equal(imageFilledCustomGeometryShape.customPaths.length, 0, "unsupported source geometry remains opaque inside the image-filled shape");
+assert.equal(imageFilledCustomGeometryShape.customPaths.length, 1, "supported image-filled custom geometry remains modeled");
 const imageFilledCustomGeometryRecord = imageFilledCustomGeometryShape.inspectRecord();
 assert.equal(imageFilledCustomGeometryRecord.imageFill?.contentType, "image/png");
 const imageFilledCustomGeometryOldPosition = { ...imageFilledCustomGeometryShape.position };
@@ -760,6 +760,26 @@ blobImage.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base6
 const blobImageOutput = await PresentationFile.exportPptx(blobImageEdit);
 const blobImageRoundTrip = await PresentationFile.importPptx(blobImageOutput);
 assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT, "imported image replacement must accept a same-format FileBlob");
+
+// Source-bound image-filled custom shapes support the same bounded replacement
+// without rebuilding their native path graph.  The replacement changes only
+// the blip relationship/media part; the custom geometry remains opaque and
+// therefore lossless.
+const imageFillReplacementImported = await PresentationFile.importPptx(imageFilledCustomGeometryFile);
+const imageFillReplacementShape = itemByName(imageFillReplacementImported.slides.getItem(0).shapes.items, "decision-status");
+const imageFillReplacementOldAssetId = imageFillReplacementShape.imageFill?.assetId;
+const imageFillReplacementResult = imageFillReplacementShape.replaceImageFill({
+  blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }),
+});
+assert.equal(imageFillReplacementResult.oldAssetId, imageFillReplacementOldAssetId);
+assert.notEqual(imageFillReplacementResult.assetId, imageFillReplacementOldAssetId);
+const imageFillReplacementOutput = await PresentationFile.exportPptx(imageFillReplacementImported);
+assert.equal(imageFillReplacementOutput.metadata.editPlan.operations[0].leafKind, "imageAsset");
+assert.equal(imageFillReplacementOutput.metadata.editPlan.changedParts.length, 3);
+const imageFillReplacementRoundTrip = await PresentationFile.importPptx(imageFillReplacementOutput);
+const imageFillReplacementRoundTripShape = itemByName(imageFillReplacementRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(imageFillReplacementRoundTripShape.imageFill?.assetId, imageFillReplacementResult.assetId);
+assert.equal(imageFillReplacementRoundTripShape.customPaths.length, 1);
 
 // A direct picture alpha token is a source-bound image leaf: changing only
 // the opacity must splice the existing a:alphaModFix attribute and leave the
