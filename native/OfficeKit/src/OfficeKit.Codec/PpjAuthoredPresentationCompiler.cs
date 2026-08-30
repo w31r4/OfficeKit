@@ -113,7 +113,7 @@ internal static class PpjAuthoredPresentationCompiler
             };
             if (page.Raw.TryGetProperty("hidden", out var hidden)) slide.Hidden = hidden.GetBoolean();
             if (page.Raw.TryGetProperty("background", out var background))
-                slide.Background = BuildBackground(background, catalog);
+                slide.Background = BuildBackground(background, catalog, program.Design.Width, program.Design.Height);
             if (page.Raw.TryGetProperty("notes", out var notes))
                 slide.SpeakerNotes = BuildNotes(notes, catalog);
 
@@ -726,9 +726,20 @@ internal static class PpjAuthoredPresentationCompiler
         var fill = FirstProperty(inline, named, "fill");
         if (fill is { } fillValue)
         {
-            if (fillValue.GetProperty("type").GetString() == "gradient")
+            var fillType = fillValue.GetProperty("type").GetString();
+            if (fillType == "gradient")
             {
                 target.GradientFill = BuildGradientFill(fillValue, color => catalog.Color(color));
+            }
+            else if (fillType == "image")
+            {
+                target.ImageFill = PpjImagePaintLowering.Build(
+                    fillValue,
+                    target.WidthEmu / EmuPerPoint,
+                    target.HeightEmu / EmuPerPoint,
+                    catalog.NativeAssetId,
+                    catalog.AssetDimensions,
+                    $"element {elementId} fill");
             }
             else
             {
@@ -776,9 +787,21 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement fill,
         Catalog catalog)
     {
-        if (fill.GetProperty("type").GetString() == "gradient")
+        var fillType = fill.GetProperty("type").GetString();
+        if (fillType == "gradient")
         {
             target.GradientFill = BuildGradientFill(fill, color => catalog.Color(color));
+            return;
+        }
+        if (fillType == "image")
+        {
+            target.ImageFill = PpjImagePaintLowering.Build(
+                fill,
+                target.WidthEmu / EmuPerPoint,
+                target.HeightEmu / EmuPerPoint,
+                catalog.NativeAssetId,
+                catalog.AssetDimensions,
+                "text fill");
             return;
         }
         var resolved = FillColor(fill, catalog);
@@ -1053,7 +1076,11 @@ internal static class PpjAuthoredPresentationCompiler
             throw Unsupported(elementId, $"{elementKind} frame rotation and flips are not yet compiler-owned");
     }
 
-    private static PresentationBackground BuildBackground(JsonElement fill, Catalog catalog)
+    private static PresentationBackground BuildBackground(
+        JsonElement fill,
+        Catalog catalog,
+        double canvasWidth,
+        double canvasHeight)
     {
         var type = fill.GetProperty("type").GetString();
         if (type == "solid")
@@ -1070,11 +1097,16 @@ internal static class PpjAuthoredPresentationCompiler
         };
         if (type == "image")
         {
-            if (fill.GetProperty("fit").GetString() != "stretch")
-                throw Unsupported("background", "native image backgrounds currently support stretch fit only");
-            if (OptionalDouble(fill, "opacity") is { } opacity && opacity != 1)
-                throw Unsupported("background", "translucent image backgrounds are not yet compiler-owned");
-            return new PresentationBackground { ImageAssetId = catalog.NativeAssetId(fill.GetProperty("asset").GetString()!) };
+            return new PresentationBackground
+            {
+                ImagePaint = PpjImagePaintLowering.Build(
+                    fill,
+                    canvasWidth,
+                    canvasHeight,
+                    catalog.NativeAssetId,
+                    catalog.AssetDimensions,
+                    "background"),
+            };
         }
         if (type == "none") return new PresentationBackground();
         throw Unsupported("background", $"{type} slide backgrounds are not yet compiler-owned");
@@ -1234,50 +1266,15 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static void ApplyImageCrop(PresentationImage target, PpjImageElementModel element, JsonElement raw, Catalog catalog)
     {
-        var crop = Property(raw, "crop");
-        if (crop is { } explicitCrop)
-        {
-            target.Crop = new PresentationImageCrop
-            {
-                LeftThousandthPercent = CropValue(explicitCrop, "left"),
-                TopThousandthPercent = CropValue(explicitCrop, "top"),
-                RightThousandthPercent = CropValue(explicitCrop, "right"),
-                BottomThousandthPercent = CropValue(explicitCrop, "bottom"),
-            };
-            return;
-        }
-        var fit = element.Fit ?? "stretch";
-        if (fit is "stretch" or "none") return;
-        if (fit == "tile")
-            throw Unsupported(element.Id, "tiled image fills require a native tile transform compiler");
-        var dimensions = catalog.AssetDimensions(element.AssetId);
-        if (dimensions is null) throw Unsupported(element.Id, $"{fit} requires declared image dimensions");
-        var sourceAspect = dimensions.Value.Width / dimensions.Value.Height;
-        var frameAspect = element.Frame.Width / element.Frame.Height;
-        if (fit == "cover")
-        {
-            var horizontal = sourceAspect > frameAspect ? (1 - frameAspect / sourceAspect) / 2 : 0;
-            var vertical = sourceAspect < frameAspect ? (1 - sourceAspect / frameAspect) / 2 : 0;
-            target.Crop = new PresentationImageCrop
-            {
-                LeftThousandthPercent = checked((int)Math.Round(horizontal * 100_000)),
-                RightThousandthPercent = checked((int)Math.Round(horizontal * 100_000)),
-                TopThousandthPercent = checked((int)Math.Round(vertical * 100_000)),
-                BottomThousandthPercent = checked((int)Math.Round(vertical * 100_000)),
-            };
-        }
-        else
-        {
-            var horizontal = sourceAspect < frameAspect ? (1 - sourceAspect / frameAspect) / 2 : 0;
-            var vertical = sourceAspect > frameAspect ? (1 - frameAspect / sourceAspect) / 2 : 0;
-            target.Crop = new PresentationImageCrop
-            {
-                LeftThousandthPercent = -checked((int)Math.Round(horizontal * 100_000)),
-                RightThousandthPercent = -checked((int)Math.Round(horizontal * 100_000)),
-                TopThousandthPercent = -checked((int)Math.Round(vertical * 100_000)),
-                BottomThousandthPercent = -checked((int)Math.Round(vertical * 100_000)),
-            };
-        }
+        var paint = PpjImagePaintLowering.Build(
+            raw,
+            element.Frame.Width,
+            element.Frame.Height,
+            catalog.NativeAssetId,
+            catalog.AssetDimensions,
+            $"element {element.Id}");
+        target.Crop = paint.Crop;
+        target.Tiled = paint.Mode == PresentationImagePaint.Types.Mode.Tile;
     }
 
     private static void ApplyChartStyle(

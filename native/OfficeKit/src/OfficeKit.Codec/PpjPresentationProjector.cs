@@ -226,6 +226,8 @@ internal static partial class PpjPresentationProjector
         var pageCapabilities = new List<CapabilitySpec>();
         if (slide.Source?.DeletionCapability?.Supported == true)
             pageCapabilities.Add(new("delete", ["element"]));
+        if (slide.Source?.BackgroundEditable == true)
+            pageCapabilities.Add(new("setBackground", ["background"]));
         // A native slide clone needs fresh page/element identities and a
         // complete source-owned subtree mapping. Do not issue the underlying
         // codec capability until PPJ can represent that bounded clone request.
@@ -280,7 +282,7 @@ internal static partial class PpjPresentationProjector
         var nativeRef = NativeRef(context, $"element:{pageId}:{id}", hash, capabilities, leaves);
         JsonObject projected = element.ContentCase switch
         {
-            PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef),
+            PresentationElement.ContentOneofCase.Shape => ProjectShape(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Image => ProjectImage(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef),
             PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
@@ -301,7 +303,11 @@ internal static partial class PpjPresentationProjector
         return projected;
     }
 
-    private static JsonObject ProjectShape(PresentationElement element, string id, JsonObject nativeRef)
+    private static JsonObject ProjectShape(
+        PresentationElement element,
+        string id,
+        JsonObject nativeRef,
+        ProjectionContext context)
     {
         var shape = element.Shape;
         var frame = ShapeFrame(shape);
@@ -309,6 +315,8 @@ internal static partial class PpjPresentationProjector
         var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
+        if (shape.ImageFill is not null && !context.TryMaterializeAsset(shape.ImageFill.AssetId, out _))
+            return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source shape whose image fill cannot be materialized safely.");
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
             !CanProjectCustomGeometry(shape))
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
@@ -328,7 +336,7 @@ internal static partial class PpjPresentationProjector
             common["type"] = "text";
             common["text"] = text;
             if (TextBoxStyle(shape.TextBody) is { Count: > 0 } textStyle) common["style"] = textStyle;
-            ApplyTextContainerStyle(common, shape);
+            ApplyTextContainerStyle(common, shape, context);
             return common;
         }
         common["type"] = "shape";
@@ -343,7 +351,7 @@ internal static partial class PpjPresentationProjector
         }
         if (hasText) common["text"] = text;
         if (TextBoxStyle(shape.TextBody) is { Count: > 0 } shapeTextStyle) common["textStyle"] = shapeTextStyle;
-        var style = ShapeStyle(shape);
+        var style = ShapeStyle(shape, context);
         if (style.Count > 0) common["style"] = style;
         return common;
     }
@@ -445,7 +453,7 @@ internal static partial class PpjPresentationProjector
         var output = ElementBase(id, element.Name, ImageFrame(image), ImageAccessibility(image), nativeRef);
         output["type"] = "image";
         output["asset"] = assetId;
-        output["fit"] = "stretch";
+        output["fit"] = image.Tiled ? "tile" : "stretch";
         if (image.Crop is not null)
         {
             output["crop"] = new JsonObject
@@ -839,7 +847,7 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonObject ShapeStyle(PresentationShape shape)
+    private static JsonObject ShapeStyle(PresentationShape shape, ProjectionContext context)
     {
         var style = new JsonObject();
         if (!string.IsNullOrEmpty(shape.FillRgb))
@@ -851,6 +859,10 @@ internal static partial class PpjPresentationProjector
         else if (shape.GradientFill is not null)
         {
             style["fill"] = Gradient(shape.GradientFill);
+        }
+        else if (shape.ImageFill is not null && ProjectImagePaint(shape.ImageFill, context) is { } imageFill)
+        {
+            style["fill"] = imageFill;
         }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
             style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
@@ -1009,7 +1021,7 @@ internal static partial class PpjPresentationProjector
         _ => null,
     };
 
-    private static void ApplyTextContainerStyle(JsonObject output, PresentationShape shape)
+    private static void ApplyTextContainerStyle(JsonObject output, PresentationShape shape, ProjectionContext context)
     {
         if (!string.IsNullOrEmpty(shape.FillRgb))
         {
@@ -1021,6 +1033,10 @@ internal static partial class PpjPresentationProjector
         {
             output["fill"] = Gradient(shape.GradientFill);
         }
+        else if (shape.ImageFill is not null && ProjectImagePaint(shape.ImageFill, context) is { } imageFill)
+        {
+            output["fill"] = imageFill;
+        }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
             output["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
                 shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
@@ -1029,6 +1045,8 @@ internal static partial class PpjPresentationProjector
     private static JsonObject? ProjectBackground(PresentationBackground? background, ProjectionContext context)
     {
         if (background is null) return null;
+        if (background.ImagePaint is not null)
+            return ProjectImagePaint(background.ImagePaint, context);
         if (!string.IsNullOrEmpty(background.ImageAssetId) && context.TryMaterializeAsset(background.ImageAssetId, out var assetId))
             return new JsonObject { ["type"] = "image", ["asset"] = assetId, ["fit"] = "stretch" };
         if (background.GradientFill is not null)
@@ -1036,6 +1054,30 @@ internal static partial class PpjPresentationProjector
         if (!string.IsNullOrEmpty(background.ColorRgb))
             return new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
         return null;
+    }
+
+    private static JsonObject? ProjectImagePaint(PresentationImagePaint paint, ProjectionContext context)
+    {
+        if (!context.TryMaterializeAsset(paint.AssetId, out var assetId)) return null;
+        var output = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = assetId,
+            ["fit"] = paint.Mode == PresentationImagePaint.Types.Mode.Tile ? "tile" : "stretch",
+        };
+        if (paint.Crop is not null)
+        {
+            output["crop"] = new JsonObject
+            {
+                ["left"] = Crop(paint.Crop.LeftThousandthPercent),
+                ["top"] = Crop(paint.Crop.TopThousandthPercent),
+                ["right"] = Crop(paint.Crop.RightThousandthPercent),
+                ["bottom"] = Crop(paint.Crop.BottomThousandthPercent),
+            };
+        }
+        if (paint.HasOpacityThousandthPercent)
+            output["opacity"] = Unit(paint.OpacityThousandthPercent);
+        return output;
     }
 
     private static JsonObject Gradient(PresentationGradientFill source)
@@ -1211,6 +1253,7 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Image when source.Editable:
                 output.Add(new("replaceImage", ["image.asset"]));
                 output.Add(new("setImageCrop", ["image.crop"]));
+                output.Add(new("setImageFit", ["image.fit"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 output.Add(new("setOpacity", ["opacity"]));
                 if (!string.IsNullOrEmpty(element.Image.MaskPreset) &&
@@ -1567,7 +1610,7 @@ internal static partial class PpjPresentationProjector
         if (hasOpacity) output["alpha"] = Unit(opacity);
         return output;
     }
-    private static double Crop(int value) => Math.Clamp(value / 100_000d, 0, 1);
+    private static double Crop(int value) => Math.Clamp(value / 100_000d, -1, 1);
     private static double Unit(uint value) => Math.Clamp(value / 100_000d, 0, 1);
     private static double Points(long emu) => Math.Round(emu / EmuPerPoint, 6, MidpointRounding.AwayFromZero);
 

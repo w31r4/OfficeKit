@@ -268,6 +268,61 @@ internal static class PpjSourceBoundPresentationCompiler
         return output;
     }
 
+    private static IReadOnlyDictionary<string, (double Width, double Height)> AssetDimensions(JsonElement root)
+    {
+        var output = new Dictionary<string, (double Width, double Height)>(StringComparer.Ordinal);
+        if (!root.TryGetProperty("assets", out var assets)) return output;
+        foreach (var asset in assets.EnumerateArray())
+        {
+            if (!asset.TryGetProperty("widthPx", out var width) || !asset.TryGetProperty("heightPx", out var height)) continue;
+            output[asset.GetProperty("id").GetString()!] = (width.GetDouble(), height.GetDouble());
+        }
+        return output;
+    }
+
+    private static string ResolveAsset(IReadOnlyDictionary<string, string> assets, string id, string path) =>
+        assets.TryGetValue(id, out var nativeId)
+            ? nativeId
+            : throw new CodecException("ppj.asset.missing", $"PPJ image asset {id} has no validated bytes.", path);
+
+    private static PresentationImagePaint BuildImagePaint(
+        JsonElement fill,
+        double frameWidth,
+        double frameHeight,
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
+        string path) => PpjImagePaintLowering.Build(
+            fill,
+            frameWidth,
+            frameHeight,
+            id => ResolveAsset(assets, id, path + ".asset"),
+            id => assetDimensions.TryGetValue(id, out var dimensions) ? dimensions : null,
+            path);
+
+    private static PresentationBackground? BuildBackground(
+        JsonElement fill,
+        double canvasWidth,
+        double canvasHeight,
+        Func<string, string> resolveAsset,
+        Func<string, (double Width, double Height)?> assetDimensions,
+        string path)
+    {
+        var type = fill.GetProperty("type").GetString();
+        if (type == "none") return null;
+        if (type == "image") return new PresentationBackground
+        {
+            ImagePaint = PpjImagePaintLowering.Build(fill, canvasWidth, canvasHeight, resolveAsset, assetDimensions, path),
+        };
+        if (type == "gradient") return new PresentationBackground { GradientFill = BuildGradientFill(fill, path) };
+        if (type == "solid")
+        {
+            if (fill.TryGetProperty("opacity", out var opacity) && opacity.GetDouble() != 1)
+                throw Unsupported(path, "translucent solid background");
+            return new PresentationBackground { Solid = true, ColorRgb = Rgb(fill.GetProperty("color"), path + ".color") };
+        }
+        throw Unsupported(path, $"background fill {type}");
+    }
+
     private static bool ApplyPages(
         PpjProgramModel baseline,
         PpjProgramModel requested,
@@ -295,6 +350,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported("$.pages", "source-bound page reorder requires a dedicated capability");
 
         var changed = false;
+        var assetDimensions = AssetDimensions(requested.Root);
         var requestedSlides = new List<PresentationSlide>(requested.Pages.Count);
         for (var index = 0; index < requested.Pages.Count; index++)
         {
@@ -304,7 +360,23 @@ internal static class PpjSourceBoundPresentationCompiler
             var slide = sourcePage.Wire;
             var path = $"$.pages[{index}]";
             RequireNativeRef(before.Raw, after.Raw, path);
-            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "elements");
+            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "background", "elements");
+            if (PropertyChanged(before.Raw, after.Raw, "background"))
+            {
+                RequireCapability(after.NativeRef, "setBackground", path + ".background");
+                slide.Background = after.Raw.TryGetProperty("background", out var background)
+                    ? BuildBackground(
+                        background,
+                        requested.Design.Width,
+                        requested.Design.Height,
+                        id => ResolveAsset(assets, id, path + ".background.asset"),
+                        id => assetDimensions.TryGetValue(id, out var dimensions) ? dimensions : null,
+                        path + ".background")
+                    : null;
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
             if (before.Elements.Count != slide.Elements.Count || after.Elements.Count > before.Elements.Count)
                 throw Unsupported(path + ".elements", "source-bound element insertion or inconsistent source topology");
             var sourceElements = before.Elements.Select((element, elementIndex) => new
@@ -324,7 +396,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 var beforeElement = sourceElements[after.Elements[elementIndex].Id];
                 var wireElement = beforeElement.Wire;
                 var shapeTreePath = new[] { wireElement.Source?.ShapeTreeIndex ?? checked((uint)elementIndex) };
-                if (ApplyElement(beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, nativeLeafBindings, changedNodeIds, mutations, elementPath))
+                if (ApplyElement(beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, elementPath))
                 {
                     changed = true;
                     changedNodeIds.Add(after.Id);
@@ -389,6 +461,7 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationSlide slide,
         IReadOnlyList<uint> shapeTreePath,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         IReadOnlyDictionary<string, PpjNativeLeafBinding> nativeLeafBindings,
         ISet<string> changedNodeIds,
         MutationState mutations,
@@ -412,16 +485,16 @@ internal static class PpjSourceBoundPresentationCompiler
         switch (before)
         {
             case PpjTextElementModel beforeText when after is PpjTextElementModel afterText && target.ContentCase == PresentationElement.ContentOneofCase.Shape:
-                changed = ApplyTextElement(beforeText, afterText, target, slide, shapeTreePath, mutations, path);
+                changed = ApplyTextElement(beforeText, afterText, target, slide, shapeTreePath, assets, assetDimensions, mutations, path);
                 break;
             case PpjShapeElementModel beforeShape when after is PpjShapeElementModel afterShape && target.ContentCase == PresentationElement.ContentOneofCase.Shape:
-                changed = ApplyShapeElement(beforeShape, afterShape, target, slide, shapeTreePath, mutations, path);
+                changed = ApplyShapeElement(beforeShape, afterShape, target, slide, shapeTreePath, assets, assetDimensions, mutations, path);
                 break;
             case PpjPlaceholderElementModel beforePlaceholder when after is PpjPlaceholderElementModel afterPlaceholder && target.ContentCase == PresentationElement.ContentOneofCase.Shape:
                 changed = ApplyPlaceholderElement(beforePlaceholder, afterPlaceholder, target, slide, shapeTreePath, mutations, path);
                 break;
             case PpjImageElementModel beforeImage when after is PpjImageElementModel afterImage && target.ContentCase == PresentationElement.ContentOneofCase.Image:
-                changed = ApplyImageElement(beforeImage, afterImage, target.Image, assets, path);
+                changed = ApplyImageElement(beforeImage, afterImage, target.Image, assets, assetDimensions, path);
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjChartElementModel beforeChart when after is PpjChartElementModel afterChart && target.ContentCase == PresentationElement.ContentOneofCase.Chart:
@@ -437,7 +510,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjGroupElementModel beforeGroup when after is PpjGroupElementModel afterGroup && target.ContentCase == PresentationElement.ContentOneofCase.Group:
-                changed = ApplyGroupElement(beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, nativeLeafBindings, changedNodeIds, mutations, path);
+                changed = ApplyGroupElement(beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, path);
                 break;
             case PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque:
                 changed = ApplyOpaqueElement(beforeOpaque, afterOpaque, target, slide, shapeTreePath, mutations, path);
@@ -456,6 +529,8 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationElement element,
         PresentationSlide slide,
         IReadOnlyList<uint> shapeTreePath,
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         MutationState mutations,
         string path)
     {
@@ -469,7 +544,7 @@ internal static class PpjSourceBoundPresentationCompiler
             changed |= CollectTextLeafMutations(before.Text, after.Text, before.Raw.GetProperty("text"), after.Raw.GetProperty("text"),
                 target, after.Id, slide, element, shapeTreePath, mutations, path + ".text");
         }
-        semanticChanged |= ApplyFillProperty(before, after, target, "fill", path);
+        semanticChanged |= ApplyFillProperty(before, after, target, "fill", assets, assetDimensions, path);
         semanticChanged |= ApplyStrokeProperty(before, after, target, "stroke", path);
         mutations.SemanticChanges |= semanticChanged;
         changed |= semanticChanged;
@@ -482,6 +557,8 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationElement element,
         PresentationSlide slide,
         IReadOnlyList<uint> shapeTreePath,
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         MutationState mutations,
         string path)
     {
@@ -507,7 +584,7 @@ internal static class PpjSourceBoundPresentationCompiler
             target.PresetAdjustments.Add(after.GeometryAdjustments);
             semanticChanged = true;
         }
-        semanticChanged |= ApplyShapeStyle(before, after, target, path);
+        semanticChanged |= ApplyShapeStyle(before, after, target, assets, assetDimensions, path);
         mutations.SemanticChanges |= semanticChanged;
         changed |= semanticChanged;
         return changed;
@@ -543,9 +620,10 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjImageElementModel after,
         PresentationImage target,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "asset", "crop", "opacity", "mask");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "asset", "fit", "crop", "opacity", "mask");
         var changed = ApplyFrame(before, after, target, path);
         if (!before.AssetId.Equals(after.AssetId, StringComparison.Ordinal))
         {
@@ -555,18 +633,15 @@ internal static class PpjSourceBoundPresentationCompiler
             target.AssetId = nativeAssetId;
             changed = true;
         }
-        if (PropertyChanged(before.Raw, after.Raw, "crop"))
+        var cropChanged = PropertyChanged(before.Raw, after.Raw, "crop");
+        var fitChanged = PropertyChanged(before.Raw, after.Raw, "fit");
+        if (cropChanged) RequireCapability(after, "setImageCrop", path + ".crop");
+        if (fitChanged) RequireCapability(after, "setImageFit", path + ".fit");
+        if (cropChanged || fitChanged)
         {
-            RequireCapability(after, "setImageCrop", path + ".crop");
-            target.Crop = after.Raw.TryGetProperty("crop", out var crop)
-                ? new PresentationImageCrop
-                {
-                    LeftThousandthPercent = Crop(crop, "left"),
-                    TopThousandthPercent = Crop(crop, "top"),
-                    RightThousandthPercent = Crop(crop, "right"),
-                    BottomThousandthPercent = Crop(crop, "bottom"),
-                }
-                : null;
+            var paint = BuildImagePaint(after.Raw, after.Frame.Width, after.Frame.Height, assets, assetDimensions, path);
+            target.Crop = paint.Crop;
+            target.Tiled = paint.Mode == PresentationImagePaint.Types.Mode.Tile;
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "opacity"))
@@ -667,6 +742,7 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationSlide slide,
         IReadOnlyList<uint> shapeTreePath,
         IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         IReadOnlyDictionary<string, PpjNativeLeafBinding> nativeLeafBindings,
         ISet<string> changedNodeIds,
         MutationState mutations,
@@ -692,7 +768,7 @@ internal static class PpjSourceBoundPresentationCompiler
             var sourceChild = sourceChildren[after.Elements[index].Id];
             var child = sourceChild.Wire;
             var childPath = shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray();
-            changed |= ApplyElement(sourceChild.Program, after.Elements[index], child, slide, childPath, assets, nativeLeafBindings, changedNodeIds, mutations, $"{path}.elements[{index}]");
+            changed |= ApplyElement(sourceChild.Program, after.Elements[index], child, slide, childPath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, $"{path}.elements[{index}]");
             requestedChildren.Add(child);
         }
         var sourceOrder = before.Elements.Select(element => element.Id).ToArray();
@@ -967,7 +1043,13 @@ internal static class PpjSourceBoundPresentationCompiler
         return true;
     }
 
-    private static bool ApplyShapeStyle(PpjElementModel before, PpjElementModel after, PresentationShape target, string path)
+    private static bool ApplyShapeStyle(
+        PpjElementModel before,
+        PpjElementModel after,
+        PresentationShape target,
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
+        string path)
     {
         var oldStyle = OptionalProperty(before.Raw, "style");
         var newStyle = OptionalProperty(after.Raw, "style");
@@ -985,7 +1067,8 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(oldStyle, newStyle, "fill"))
         {
             RequireCapability(after, "setFill", path + ".style.fill");
-            ApplyFill(newStyle is { } style && style.TryGetProperty("fill", out var fill) ? fill : (JsonElement?)null, target, path + ".style.fill");
+            ApplyFill(newStyle is { } style && style.TryGetProperty("fill", out var fill) ? fill : (JsonElement?)null,
+                target, assets, assetDimensions, path + ".style.fill");
             changed = true;
         }
         if (PropertyChanged(oldStyle, newStyle, "stroke"))
@@ -997,11 +1080,19 @@ internal static class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
-    private static bool ApplyFillProperty(PpjElementModel before, PpjElementModel after, PresentationShape target, string name, string path)
+    private static bool ApplyFillProperty(
+        PpjElementModel before,
+        PpjElementModel after,
+        PresentationShape target,
+        string name,
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
+        string path)
     {
         if (!PropertyChanged(before.Raw, after.Raw, name)) return false;
         RequireCapability(after, "setFill", $"{path}.{name}");
-        ApplyFill(after.Raw.TryGetProperty(name, out var fill) ? fill : (JsonElement?)null, target, $"{path}.{name}");
+        ApplyFill(after.Raw.TryGetProperty(name, out var fill) ? fill : (JsonElement?)null,
+            target, assets, assetDimensions, $"{path}.{name}");
         return true;
     }
 
@@ -1013,13 +1104,19 @@ internal static class PpjSourceBoundPresentationCompiler
         return true;
     }
 
-    private static void ApplyFill(JsonElement? fill, PresentationShape target, string path)
+    private static void ApplyFill(
+        JsonElement? fill,
+        PresentationShape target,
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
+        string path)
     {
         if (fill is null || fill.Value.GetProperty("type").GetString() == "none")
         {
             target.FillRgb = string.Empty;
             target.ClearFillOpacityThousandthPercent();
             target.GradientFill = null;
+            target.ImageFill = null;
             return;
         }
         if (fill.Value.GetProperty("type").GetString() == "gradient")
@@ -1027,11 +1124,22 @@ internal static class PpjSourceBoundPresentationCompiler
             target.FillRgb = string.Empty;
             target.ClearFillOpacityThousandthPercent();
             target.GradientFill = BuildGradientFill(fill.Value, path);
+            target.ImageFill = null;
+            return;
+        }
+        if (fill.Value.GetProperty("type").GetString() == "image")
+        {
+            target.FillRgb = string.Empty;
+            target.ClearFillOpacityThousandthPercent();
+            target.GradientFill = null;
+            target.ImageFill = BuildImagePaint(fill.Value, target.WidthEmu / 12_700d, target.HeightEmu / 12_700d,
+                assets, assetDimensions, path);
             return;
         }
         if (fill.Value.GetProperty("type").GetString() != "solid")
-            throw Unsupported(path, "source-bound image or unsupported fill");
+            throw Unsupported(path, "unsupported fill");
         target.GradientFill = null;
+        target.ImageFill = null;
         target.FillRgb = Rgb(fill.Value.GetProperty("color"), path + ".color");
         if (fill.Value.TryGetProperty("opacity", out var opacity)) target.FillOpacityThousandthPercent = Unit(opacity.GetDouble());
         else target.ClearFillOpacityThousandthPercent();
