@@ -642,6 +642,7 @@ internal static class PpjSemanticValidator
 
     private static void ValidateChart(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
     {
+        var numericCombo = IsNumericCombo(chart);
         var seriesIds = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < chart.Data.Series.Count; index++)
         {
@@ -650,14 +651,19 @@ internal static class PpjSemanticValidator
             var seriesType = chart.ChartType == "combo" ? series.ChartType : chart.ChartType;
             if (!seriesIds.Add(series.Id))
                 diagnostics.Add(new("ppj.id.duplicate", $"Chart series ID {series.Id} is duplicated.", $"{seriesPath}.id"));
-            if (seriesType is not ("scatter" or "bubble" or "sankey") && series.Values.Count != chart.Data.Categories.Count)
+            if (!numericCombo && seriesType is not ("scatter" or "bubble" or "sankey") && series.Values.Count != chart.Data.Categories.Count)
                 diagnostics.Add(new("ppj.chart.lengthMismatch", $"Series {series.Id} has {series.Values.Count} values for {chart.Data.Categories.Count} categories.", $"{seriesPath}.values"));
             if (chart.ChartType != "waterfall" && series.PointRoles.Count != 0)
                 diagnostics.Add(new("ppj.chart.pointRoleType", "pointRoles applies only to waterfall charts.", $"{seriesPath}.pointRoles"));
             if (chart.ChartType == "combo" && string.IsNullOrEmpty(series.ChartType))
                 diagnostics.Add(new("ppj.chart.comboSeriesType", "Every combo-chart series requires chartType.", $"{seriesPath}.chartType"));
-            if (chart.ChartType != "combo" && series.ChartType is not null && !string.Equals(series.ChartType, chart.ChartType, StringComparison.Ordinal))
-                diagnostics.Add(new("ppj.chart.seriesType", "A non-combo chart series cannot override the deck chart type.", $"{seriesPath}.chartType"));
+            if (chart.ChartType != "combo" && series.ChartType is not null)
+            {
+                var validCandlestickOverlay = chart.ChartType == "candlestick" && index > 0 &&
+                    series.ChartType is "line" or "area" or "column";
+                if (!validCandlestickOverlay && !string.Equals(series.ChartType, chart.ChartType, StringComparison.Ordinal))
+                    diagnostics.Add(new("ppj.chart.seriesType", "A non-combo chart series cannot override the deck chart type except for bounded candlestick overlays.", $"{seriesPath}.chartType"));
+            }
             if (seriesType is "scatter" or "bubble")
             {
                 if (chart.Data.Categories.Count != 0)
@@ -671,16 +677,16 @@ internal static class PpjSemanticValidator
             }
             else
             {
-                if (series.XValues.Count != 0)
+                if (series.XValues.Count != 0 && !numericCombo)
                     diagnostics.Add(new("ppj.chart.xValueType", "xValues applies only to scatter and bubble charts.", seriesPath + ".xValues"));
                 if (series.BubbleSizes.Count != 0)
                     diagnostics.Add(new("ppj.chart.bubbleSizeType", "bubbleSizes applies only to bubble charts.", seriesPath + ".bubbleSizes"));
             }
-            if (chart.ChartType != "candlestick" &&
+            if ((chart.ChartType != "candlestick" || index > 0) &&
                 (series.OpenValues.Count != 0 || series.HighValues.Count != 0 || series.LowValues.Count != 0))
                 diagnostics.Add(new(
                     "ppj.chart.ohlcType",
-                    "openValues, highValues, and lowValues apply only to candlestick charts.",
+                    "openValues, highValues, and lowValues apply only to the first candlestick body series.",
                     seriesPath));
             if (chart.ChartType is not ("treemap" or "sunburst") && series.Parents.Count != 0)
                 diagnostics.Add(new(
@@ -771,9 +777,11 @@ internal static class PpjSemanticValidator
                 "ppj.chart.holeSizeType",
                 "style.holeSize applies only to doughnut charts.",
                 path + ".style.holeSize"));
+        var hasBubbleSeries = chart.ChartType == "bubble" ||
+            chart.ChartType == "combo" && chart.Data.Series.Any(series => series.ChartType == "bubble");
         if (chart.Raw.TryGetProperty("style", out style) &&
             (style.TryGetProperty("bubbleScale", out _) || style.TryGetProperty("bubbleSizeMode", out _)) &&
-            chart.ChartType != "bubble")
+            !hasBubbleSeries)
             diagnostics.Add(new(
                 "ppj.chart.bubbleStyleType",
                 "style.bubbleScale and style.bubbleSizeMode apply only to bubble charts.",
@@ -799,7 +807,7 @@ internal static class PpjSemanticValidator
         ValidateAxisBounds(chart.Raw, "yAxis", path, diagnostics);
         ValidateAxisBounds(chart.Raw, "secondaryXAxis", path, diagnostics);
         ValidateAxisBounds(chart.Raw, "secondaryYAxis", path, diagnostics);
-        ValidateAxisKinds(chart.Raw, "xAxis", path, chart.ChartType is not ("scatter" or "bubble"), diagnostics);
+        ValidateAxisKinds(chart.Raw, "xAxis", path, chart.ChartType is not ("scatter" or "bubble") && !numericCombo, diagnostics);
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
@@ -980,8 +988,20 @@ internal static class PpjSemanticValidator
                     path + "." + property));
     }
 
+    private static readonly string[] VectorChartNumberFormats = ["0", "0.0", "0.00", "#,##0", "#,##0.0", "#,##0.00"];
+
+    private static bool IsNumericCombo(PpjChartElementModel chart) =>
+        chart.ChartType == "combo" &&
+        chart.Data.Series.Any(series => series.ChartType is "scatter" or "bubble");
+
     private static void ValidateCombo(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
     {
+        if (IsNumericCombo(chart))
+        {
+            ValidateNumericCombo(chart, path, diagnostics);
+            return;
+        }
+
         var typed = chart.Data.Series
             .Where(series => !string.IsNullOrEmpty(series.ChartType))
             .ToArray();
@@ -1028,6 +1048,149 @@ internal static class PpjSemanticValidator
                 "ppj.chart.comboUnusedSecondaryAxis",
                 "Secondary axes require at least one complete secondary plot family.",
                 path));
+    }
+
+    private static void ValidateNumericCombo(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Categories.Count != 0)
+            diagnostics.Add(new(
+                "ppj.chart.numericComboCategories",
+                "Numeric combo charts require an empty shared categories array.",
+                path + ".data.categories"));
+        if (chart.Data.Series.Count is < 2 or > 8)
+            diagnostics.Add(new(
+                "ppj.chart.numericComboSeriesCount",
+                "Numeric combo charts require 2..8 series.",
+                path + ".data.series"));
+
+        var families = chart.Data.Series.Select(series => series.ChartType).Distinct(StringComparer.Ordinal).ToArray();
+        if (!families.Any(family => family is "scatter" or "bubble") || families.Length < 2)
+            diagnostics.Add(new(
+                "ppj.chart.numericComboFamilies",
+                "Numeric combo charts require scatter or bubble evidence and at least one different plot family.",
+                path + ".data.series"));
+
+        for (var index = 0; index < chart.Data.Series.Count; index++)
+        {
+            var series = chart.Data.Series[index];
+            var seriesPath = $"{path}.data.series[{index}]";
+            if (series.ChartType is not ("scatter" or "bubble" or "line" or "area" or "column"))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboType",
+                    "Numeric combo series types are scatter, bubble, line, area and column.",
+                    seriesPath + ".chartType"));
+            if (series.Values.Count is < 2 or > 64 || series.Values.Any(value => value is null || !double.IsFinite(value.Value)))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboValues",
+                    "Every numeric combo series requires 2..64 complete finite values.",
+                    seriesPath + ".values"));
+            if (series.XValues.Count != series.Values.Count || series.XValues.Any(value => !double.IsFinite(value)))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboXValues",
+                    "Every numeric combo series requires one finite xValue per value.",
+                    seriesPath + ".xValues"));
+            else if (series.XValues.Zip(series.XValues.Skip(1)).Any(pair => pair.First >= pair.Second))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboXOrder",
+                    "Numeric combo xValues must be strictly increasing within each series.",
+                    seriesPath + ".xValues"));
+            if (series.ChartType == "bubble")
+            {
+                if (series.BubbleSizes.Count != series.Values.Count || series.BubbleSizes.Any(value => !double.IsFinite(value) || value <= 0))
+                    diagnostics.Add(new(
+                        "ppj.chart.numericComboBubbleSizes",
+                        "Bubble series require one finite positive bubbleSize per value.",
+                        seriesPath + ".bubbleSizes"));
+            }
+            else if (series.BubbleSizes.Count != 0)
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboBubbleType",
+                    "bubbleSizes apply only to a bubble series.",
+                    seriesPath + ".bubbleSizes"));
+            if (series.Raw.TryGetProperty("marker", out var marker))
+            {
+                if (series.ChartType is "area" or "column" or "bubble")
+                    diagnostics.Add(new(
+                        "ppj.chart.numericComboMarkerType",
+                        $"Markers are not rendered for numeric combo {series.ChartType} series.",
+                        seriesPath + ".marker"));
+                else if (series.ChartType == "scatter" &&
+                         (marker.ValueKind == JsonValueKind.String && marker.GetString() == "none" ||
+                          marker.ValueKind == JsonValueKind.Object && marker.TryGetProperty("symbol", out var symbol) && symbol.GetString() == "none"))
+                    diagnostics.Add(new(
+                        "ppj.chart.numericComboScatterMarker",
+                        "Scatter series cannot use marker none because that would make the series invisible.",
+                        seriesPath + ".marker"));
+            }
+            if (series.Axis is not null and not "primary")
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboAxis",
+                    "The bounded numeric combo profile uses one shared primary value/value axis pair.",
+                    seriesPath + ".axis"));
+            foreach (var property in new[] { "pointRoles", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "symbol", "trendlines", "errorBars" })
+                if (series.Raw.TryGetProperty(property, out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.numericComboSeriesField",
+                        $"{property} is not part of the bounded numeric combo profile.",
+                        $"{seriesPath}.{property}"));
+        }
+
+        foreach (var property in new[] { "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboSecondaryAxis",
+                    "Numeric combo charts do not support secondary axes.",
+                    path + "." + property));
+
+        if (chart.Raw.TryGetProperty("style", out var style))
+            foreach (var property in style.EnumerateObject())
+                if (property.Name is not ("legend" or "titleTextStyle" or "legendTextStyle" or "bubbleScale" or "bubbleSizeMode"))
+                    diagnostics.Add(new(
+                        "ppj.chart.numericComboStyleField",
+                        $"{property.Name} is not part of the bounded numeric combo style profile.",
+                        path + ".style." + property.Name));
+        if (style.ValueKind == JsonValueKind.Object && style.TryGetProperty("legend", out var legend) && legend.GetString() is not ("none" or "right"))
+            diagnostics.Add(new(
+                "ppj.chart.numericComboLegend",
+                "Numeric combo legends support only none or right.",
+                path + ".style.legend"));
+        if (style.ValueKind == JsonValueKind.Object && style.TryGetProperty("bubbleScale", out var bubbleScale) && bubbleScale.GetInt32() < 10)
+            diagnostics.Add(new(
+                "ppj.chart.numericComboBubbleScale",
+                "Generated numeric combo bubbles require bubbleScale between 10 and 300.",
+                path + ".style.bubbleScale"));
+
+        ValidateNumericVectorAxis(chart.Raw, "xAxis", path, diagnostics);
+        ValidateNumericVectorAxis(chart.Raw, "yAxis", path, diagnostics);
+        var requiresZero = chart.Data.Series.Any(series => series.ChartType is "area" or "column");
+        if (requiresZero && chart.Raw.TryGetProperty("yAxis", out var yAxis) &&
+            (yAxis.TryGetProperty("min", out var minimum) && minimum.GetDouble() > 0 ||
+             yAxis.TryGetProperty("max", out var maximum) && maximum.GetDouble() < 0))
+            diagnostics.Add(new(
+                "ppj.chart.numericComboBaseline",
+                "Area and column overlays require zero inside the explicit Y domain.",
+                path + ".yAxis"));
+    }
+
+    private static void ValidateNumericVectorAxis(
+        JsonElement chart,
+        string axisName,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (!chart.TryGetProperty(axisName, out var axis)) return;
+        foreach (var property in axis.EnumerateObject())
+            if (property.Name is not ("visible" or "title" or "numberFormat" or "min" or "max" or "majorUnit" or "textStyle" or "titleTextStyle" or "reverse" or "axisLine" or "gridLine"))
+                diagnostics.Add(new(
+                    "ppj.chart.numericComboAxisField",
+                    $"{property.Name} is not supported by a generated numeric axis.",
+                    $"{path}.{axisName}.{property.Name}"));
+        if (axis.TryGetProperty("numberFormat", out var numberFormat) &&
+            !VectorChartNumberFormats.Contains(numberFormat.GetString()!, StringComparer.Ordinal))
+            diagnostics.Add(new(
+                "ppj.chart.numericComboNumberFormat",
+                $"Generated numeric axes support {string.Join(", ", VectorChartNumberFormats)}.",
+                $"{path}.{axisName}.numberFormat"));
     }
 
     private static void ValidateHeatmap(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
@@ -1158,11 +1321,11 @@ internal static class PpjSemanticValidator
                     $"Candlestick category {category.GetString()} is duplicated.",
                     $"{path}.data.categories[{index}]"));
         }
-        if (chart.Data.Series.Count != 1)
+        if (chart.Data.Series.Count is < 1 or > 5)
         {
             diagnostics.Add(new(
                 "ppj.chart.candlestickSeriesCount",
-                "Candlestick charts require exactly one OHLC or HLC series.",
+                "Candlestick charts require one OHLC or HLC body and at most four overlay series.",
                 path + ".data.series"));
             return;
         }
@@ -1208,8 +1371,14 @@ internal static class PpjSemanticValidator
                         $"{seriesPath}.values[{index}]"));
             }
 
-            var lowest = series.LowValues.Min();
-            var highest = series.HighValues.Max();
+            var overlayValues = chart.Data.Series.Skip(1).SelectMany(item => item.Values).Where(value => value is not null).Select(value => value!.Value);
+            var lowest = Math.Min(series.LowValues.Min(), overlayValues.DefaultIfEmpty(double.PositiveInfinity).Min());
+            var highest = Math.Max(series.HighValues.Max(), overlayValues.DefaultIfEmpty(double.NegativeInfinity).Max());
+            if (chart.Data.Series.Skip(1).Any(item => item.ChartType is "area" or "column"))
+            {
+                lowest = Math.Min(lowest, 0);
+                highest = Math.Max(highest, 0);
+            }
             if (chart.Raw.TryGetProperty("yAxis", out var yAxis))
             {
                 if (yAxis.TryGetProperty("min", out var minimum) && minimum.GetDouble() > lowest)
@@ -1231,6 +1400,38 @@ internal static class PpjSemanticValidator
                     "ppj.chart.candlestickSeriesField",
                     $"{property} is not part of the bounded candlestick series profile.",
                     $"{seriesPath}.{property}"));
+
+        for (var index = 1; index < chart.Data.Series.Count; index++)
+        {
+            var overlay = chart.Data.Series[index];
+            var overlayPath = $"{path}.data.series[{index}]";
+            if (overlay.ChartType is not ("line" or "area" or "column"))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickOverlayType",
+                    "Candlestick overlays support line, area and column series.",
+                    overlayPath + ".chartType"));
+            if (overlay.Values.Count != count || overlay.Values.Any(value => value is null || !double.IsFinite(value.Value)))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickOverlayValues",
+                    "Candlestick overlays require one complete finite value per category.",
+                    overlayPath + ".values"));
+            foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "axis", "symbol", "trendlines", "errorBars" })
+                if (overlay.Raw.TryGetProperty(property, out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.candlestickOverlayField",
+                        $"{property} is not part of the bounded candlestick overlay profile.",
+                        $"{overlayPath}.{property}"));
+            if (overlay.Raw.TryGetProperty("fill", out _) && overlay.Raw.TryGetProperty("color", out _))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickOverlayPaint",
+                    "Candlestick overlay color and fill are aliases and cannot both be present.",
+                    overlayPath));
+            if (overlay.ChartType is "area" or "column" && overlay.Raw.TryGetProperty("marker", out _))
+                diagnostics.Add(new(
+                    "ppj.chart.candlestickOverlayMarker",
+                    $"Markers are not rendered for candlestick {overlay.ChartType} overlays.",
+                    overlayPath + ".marker"));
+        }
 
         if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("candlestick", out var candlestick)) return;
         foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "bubbleScale", "bubbleSizeMode", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
@@ -2153,6 +2354,11 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new(
                     "ppj.animation.vectorChartBuild",
                     "Vector-lowered pictographic bars support whole-object animation, not ChartPart build modes.",
+                    $"{path}.chartBuild"));
+            if (animation.ChartBuild is not null && target is PpjChartElementModel numericCombo && IsNumericCombo(numericCombo))
+                diagnostics.Add(new(
+                    "ppj.animation.vectorChartBuild",
+                    "Vector-lowered numeric combo charts support whole-object animation, not ChartPart build modes.",
                     $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));

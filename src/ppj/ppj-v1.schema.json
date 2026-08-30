@@ -3149,7 +3149,9 @@
           "enum": [
             "column",
             "line",
-            "area"
+            "area",
+            "scatter",
+            "bubble"
           ]
         },
         "axis": {
