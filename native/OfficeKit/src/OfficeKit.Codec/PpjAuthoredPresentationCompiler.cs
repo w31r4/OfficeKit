@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 
@@ -2844,6 +2845,13 @@ internal static class PpjAuthoredPresentationCompiler
         var defaultCellFill = FirstProperty(inlineStyle, namedStyle, "defaultCellFill");
         var headerTextStyle = FirstProperty(inlineStyle, namedStyle, "headerTextStyle");
         var headerCellFill = FirstProperty(inlineStyle, namedStyle, "headerCellFill");
+        var cellStyle = FirstProperty(inlineStyle, namedStyle, "cellStyle");
+        var bodyStyles = FirstProperty(inlineStyle, namedStyle, "bodyStyles");
+        var firstRowStyle = FirstProperty(inlineStyle, namedStyle, "firstRowStyle");
+        var lastRowStyle = FirstProperty(inlineStyle, namedStyle, "lastRowStyle");
+        var firstColumnStyle = FirstProperty(inlineStyle, namedStyle, "firstColumnStyle");
+        var lastColumnStyle = FirstProperty(inlineStyle, namedStyle, "lastColumnStyle");
+        var rowOverColumn = FirstProperty(inlineStyle, namedStyle, "rowOverColumn")?.GetBoolean() ?? true;
         var declaredHeaderRows = FirstProperty(inlineStyle, namedStyle, "headerRows");
         var headerRowCount = declaredHeaderRows?.GetInt32() ?? 0;
         if (headerRowCount > element.Rows.Count)
@@ -2874,14 +2882,38 @@ internal static class PpjAuthoredPresentationCompiler
                     throw Unsupported(element.Id, "table span expansion exceeded the declared physical grid");
                 var rawCell = raw.GetProperty("rows")[rowIndex].GetProperty("cells")[sourceCellIndex];
                 var targetCell = row.Cells[cursor];
+                var bodyStyle = rowIndex > 0 && rowIndex < element.Rows.Count - 1 && bodyStyles is { } declaredBodyStyles
+                    ? declaredBodyStyles[checked((rowIndex - 1) % declaredBodyStyles.GetArrayLength())]
+                    : (JsonElement?)null;
+                var rowStyle = MergeJsonObjects(
+                    rowIndex == 0 ? firstRowStyle : null,
+                    rowIndex == element.Rows.Count - 1 ? lastRowStyle : null);
+                var columnStyle = MergeJsonObjects(
+                    cursor == 0 ? firstColumnStyle : null,
+                    cursor + cell.ColumnSpan == element.Columns.Count ? lastColumnStyle : null);
+                var structuralStyle = rowOverColumn
+                    ? MergeJsonObjects(columnStyle, rowStyle)
+                    : MergeJsonObjects(rowStyle, columnStyle);
+                var baseTextStyle = MergeJsonObjects(defaultTextStyle, Property(cellStyle, "textStyle"));
+                var bodyTextStyle = MergeJsonObjects(
+                    Property(bodyStyle, "textStyle"),
+                    headerRow ? headerTextStyle : null);
+                var directTextStyle = MergeJsonObjects(
+                    Property(structuralStyle, "textStyle"),
+                    Property(rawCell, "textStyle"));
                 targetCell.TextBody = BuildTextBody(
                     rawCell.GetProperty("text"),
-                    defaultTextStyle,
-                    headerRow ? headerTextStyle : null,
-                    Property(rawCell, "textStyle"),
+                    baseTextStyle,
+                    bodyTextStyle,
+                    directTextStyle,
                     catalog);
                 targetCell.Text = PptxTextCodec.Flatten(targetCell.TextBody);
-                if ((Property(rawCell, "fill") ?? (headerRow ? headerCellFill : null) ?? defaultCellFill) is { } cellFill)
+                if ((Property(rawCell, "fill") ??
+                     Property(structuralStyle, "fill") ??
+                     (headerRow ? headerCellFill : null) ??
+                     Property(bodyStyle, "fill") ??
+                     Property(cellStyle, "fill") ??
+                     defaultCellFill) is { } cellFill)
                 {
                     var cellWidthEmu = table.ColumnWidthsEmu
                         .Skip(cursor)
@@ -2899,7 +2931,11 @@ internal static class PpjAuthoredPresentationCompiler
                         element.Id,
                         $"table {element.Id} row {rowIndex} cell {sourceCellIndex} fill");
                 }
-                if (Property(rawCell, "borders") is { } borders)
+                if (MergeJsonObjects(
+                        Property(cellStyle, "borders"),
+                        Property(bodyStyle, "borders"),
+                        Property(structuralStyle, "borders"),
+                        Property(rawCell, "borders")) is { } borders)
                     targetCell.Borders = BuildTableCellBorders(borders, catalog);
                 if (cell.RowSpan > 1 || cell.ColumnSpan > 1)
                 {
@@ -4700,6 +4736,19 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static JsonElement? Property(JsonElement? value, string name) =>
         value is { ValueKind: JsonValueKind.Object } element && element.TryGetProperty(name, out var property) ? property : null;
+
+    private static JsonElement? MergeJsonObjects(params JsonElement?[] sources)
+    {
+        JsonObject? merged = null;
+        foreach (var source in sources)
+        {
+            if (source is not { ValueKind: JsonValueKind.Object } value) continue;
+            merged ??= new JsonObject();
+            foreach (var property in value.EnumerateObject())
+                merged[property.Name] = JsonNode.Parse(property.Value.GetRawText());
+        }
+        return merged is null ? null : JsonSerializer.SerializeToElement(merged);
+    }
 
     private static CodecException Unsupported(string owner, string message) =>
         new("unsupported_ppj_compile_feature", $"PPJ {owner}: {message}.");

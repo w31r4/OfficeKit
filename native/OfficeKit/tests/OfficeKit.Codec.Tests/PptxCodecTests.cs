@@ -738,6 +738,45 @@ public sealed class PptxCodecTests
             ["fit"] = "cover",
             ["opacity"] = 0.22,
         };
+        authoredTableStyle["cellStyle"] = new JsonObject
+        {
+            ["borders"] = new JsonObject
+            {
+                ["left"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.5 },
+            },
+        };
+        authoredTableStyle["bodyStyles"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["borders"] = new JsonObject
+                {
+                    ["right"] = new JsonObject { ["color"] = "#C1121F", ["width"] = 0.75 },
+                },
+            },
+        };
+        authoredTableStyle["firstRowStyle"] = new JsonObject
+        {
+            ["borders"] = new JsonObject
+            {
+                ["top"] = new JsonObject { ["color"] = "#F2C14E", ["width"] = 1 },
+            },
+        };
+        authoredTableStyle["lastRowStyle"] = new JsonObject
+        {
+            ["borders"] = new JsonObject
+            {
+                ["bottom"] = new JsonObject { ["color"] = "#16324F", ["width"] = 2 },
+            },
+        };
+        authoredTableStyle["firstColumnStyle"] = new JsonObject
+        {
+            ["textStyle"] = new JsonObject
+            {
+                ["defaultText"] = new JsonObject { ["italic"] = true },
+            },
+        };
+        authoredTableStyle["rowOverColumn"] = true;
         var authoredHeaderCell = authoredTable["rows"]![0]!["cells"]![0]!.AsObject();
         authoredHeaderCell["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA", ["opacity"] = 0.8 };
         authoredHeaderCell["textStyle"] = new JsonObject
@@ -1998,12 +2037,21 @@ public sealed class PptxCodecTests
             Assert.Equal(1_100, secondHeaderRun.FontSize!.Value);
             Assert.Equal("0B8F8F", secondHeaderRun.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
             Assert.Equal(88_000, secondHeaderRun.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.True(secondHeaderRun.Italic!.Value);
+            var inheritedBodyRightBorder = secondHeaderCell.TableCellProperties.GetFirstChild<A.RightBorderLineProperties>()!;
+            Assert.Equal("9525", inheritedBodyRightBorder.GetAttribute("w", string.Empty).Value);
+            Assert.Equal("C1121F", inheritedBodyRightBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
             var inheritedImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(4);
             var inheritedImageFill = inheritedImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
             Assert.NotNull(inheritedImageFill.GetFirstChild<A.Stretch>());
             Assert.NotNull(inheritedImageFill.GetFirstChild<A.SourceRectangle>());
             Assert.Equal(22_000, inheritedImageFill.GetFirstChild<A.Blip>()!
                 .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+            Assert.True(inheritedImageCell.TextBody!.Descendants<A.RunProperties>().Single().Italic!.Value);
+            var inheritedBaseLeftBorder = inheritedImageCell.TableCellProperties.GetFirstChild<A.LeftBorderLineProperties>()!;
+            Assert.Equal("6350", inheritedBaseLeftBorder.GetAttribute("w", string.Empty).Value);
+            var inheritedLastRowBorder = inheritedImageCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
+            Assert.Equal("25400", inheritedLastRowBorder.GetAttribute("w", string.Empty).Value);
             var bottomBorder = firstCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
             Assert.Equal("19050", bottomBorder.GetAttribute("w", string.Empty).Value);
             Assert.Equal("0B8F8F", bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
