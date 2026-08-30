@@ -171,7 +171,7 @@ function hasCanonicalStyleReference(node) {
   const open = /^<[^>]+>/u.exec(xml)?.[0] || "";
   if (!open || /\/\s*>$/u.test(xml) || !hasAllowedNativeNamespaceAttributes(open)) return false;
   const attributes = nativeStyleAttributes(open);
-  if (attributes[0].name.split(":").pop()?.toLowerCase() !== "idx") return false;
+  if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "idx") return false;
   const local = String(node?.localName || "").toLowerCase();
   const index = attributes[0].value;
   if (local === "fontref") {
@@ -196,6 +196,38 @@ function hasCanonicalStyleLineReference(rawXml) {
   if (new Set(references.map((reference) => reference.localName.toLowerCase())).size !== 4 ||
       references.some((reference) => !expected.has(reference.localName.toLowerCase()))) return false;
   return references.every((reference) => hasCanonicalStyleReference(reference));
+}
+
+function nativeStyleLineColor(rawXml) {
+  const source = String(rawXml || "");
+  if (!hasCanonicalStyleLineReference(source)) return undefined;
+  const shapeProperties = directPresentationChildren(source, "cxnSp")
+    .filter((child) => child.localName.toLowerCase() === "sppr");
+  const outlines = shapeProperties.length === 1
+    ? directPresentationChildren(shapeProperties[0].xml, shapeProperties[0].localName)
+      .filter((child) => child.localName.toLowerCase() === "ln")
+    : [];
+  if (outlines.length !== 1 || directPresentationChildren(outlines[0].xml, outlines[0].localName)
+    .some((child) => ["solidfill", "nofill", "gradfill", "pattfill", "blipfill", "grpfill"].includes(child.localName.toLowerCase()))) return undefined;
+  const styles = directPresentationChildren(source, "cxnSp")
+    .filter((child) => child.localName.toLowerCase() === "style");
+  const references = directPresentationChildren(styles[0].xml, styles[0].localName);
+  const lineReferences = references.filter((reference) => reference.localName.toLowerCase() === "lnref");
+  if (lineReferences.length !== 1) return undefined;
+  const colors = directPresentationChildren(lineReferences[0].xml, lineReferences[0].localName);
+  if (colors.length !== 1) return undefined;
+  const open = /^<[^>]+>/u.exec(colors[0].xml)?.[0] || "";
+  const attributes = nativeTagAttributes(open);
+  if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val") return undefined;
+  const localName = colors[0].localName.toLowerCase();
+  if (localName === "schemeclr") {
+    const value = nativeSchemeColorToken(attributes[0].value);
+    return value ? { leafKind: "lineScheme", value } : undefined;
+  }
+  if (localName === "srgbclr" && /^[0-9a-f]{6}$/iu.test(attributes[0].value)) {
+    return { leafKind: "lineRgb", value: attributes[0].value.toUpperCase() };
+  }
+  return undefined;
 }
 
 function nativeLineArrowLeaf(xml, endpointName, leafKind) {
@@ -250,6 +282,9 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
         }
       }
     }
+  } else {
+    const styleColor = nativeStyleLineColor(source);
+    if (styleColor) leaves.push({ lineLeafIndex: leaves.length, ...styleColor, expectedHash: sha256(styleColor.value) });
   }
   const dashMatches = [...(line.groups?.value || "").matchAll(NATIVE_PRESET_DASH_TAG)]
     .filter((match) => (match.groups?.prefix || "") === linePrefix);

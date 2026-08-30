@@ -56,6 +56,7 @@ internal static class PpjNativeLineProjection
         Leaf? colorLeaf = null;
         var hasSimplePaint = solidFills.Length == 1 && TryReadColor(solidFills[0], out colorLeaf);
         if (hasSimplePaint) result.Add(colorLeaf!);
+        else if (TryReadStyleLineColor(root, out var styleColor)) result.Add(styleColor!);
 
         var dashes = line.Elements(A + "prstDash").ToArray();
         if (dashes.Length == 1 && hasSimplePaint &&
@@ -99,6 +100,30 @@ internal static class PpjNativeLineProjection
             return true;
         }
         if (colors[0].Name == A + "schemeClr" && PptxColor.TrySchemeToken(value, out var token))
+        {
+            leaf = new("lineScheme", token);
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryReadStyleLineColor(XElement root, out Leaf? leaf)
+    {
+        leaf = null;
+        if (!HasCanonicalStyleLineReference(root)) return false;
+        var shapeProperties = root.Elements(P + "spPr").SingleOrDefault();
+        var line = shapeProperties?.Elements(A + "ln").SingleOrDefault();
+        if (line is null || line.Elements().Any(child => child.Name.LocalName is "solidFill" or "noFill" or "gradFill" or "pattFill" or "blipFill" or "grpFill")) return false;
+        var style = root.Elements(P + "style").Single();
+        var lineReference = style.Elements(A + "lnRef").Single();
+        var color = lineReference.Elements().Single();
+        if (!TryAttribute(color, "val", out var value)) return false;
+        if (color.Name == A + "srgbClr" && value.Length == 6 && value.All(Uri.IsHexDigit))
+        {
+            leaf = new("lineRgb", value.ToUpperInvariant());
+            return true;
+        }
+        if (color.Name == A + "schemeClr" && PptxColor.TrySchemeToken(value, out var token))
         {
             leaf = new("lineScheme", token);
             return true;
@@ -167,9 +192,12 @@ internal static class PpjNativeLineProjection
 
     private static bool HasCanonicalStyleReference(XElement reference)
     {
-        if (reference.Attributes().Any() || reference.Elements().Count() != 1) return false;
-        var index = reference.Attribute("idx")?.Value;
-        if (index is null) return false;
+        var attributes = reference.Attributes()
+            .Where(attribute => !attribute.IsNamespaceDeclaration)
+            .ToArray();
+        if (attributes.Length != 1 || attributes[0].Name.Namespace != XNamespace.None ||
+            attributes[0].Name.LocalName != "idx" || reference.Elements().Count() != 1) return false;
+        var index = attributes[0].Value;
         if (reference.Name == A + "fontRef")
         {
             if (index is not ("minor" or "major")) return false;
