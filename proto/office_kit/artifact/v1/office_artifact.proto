@@ -2459,8 +2459,9 @@ message PresentationShapeTransform {
 // literal adjustments, direct border, opacity, and outer shadow. The legacy alt_text field is
 // the canonical description field for wire compatibility; accessibility_title
 // appends the independent p:cNvPr title without duplicating description state.
-// External links, transformed blips, custom mask geometry, and effect graphs
-// outside the canonical outer-shadow profile remain source-bound opaque content.
+// External links, transformed blips, formula/handle-bearing custom mask
+// geometry, and effect graphs outside the canonical outer-shadow profile
+// remain source-bound opaque content. Literal custom mask paths use field 18.
 message PresentationImage {
   string asset_id = 1;
   string alt_text = 2;
