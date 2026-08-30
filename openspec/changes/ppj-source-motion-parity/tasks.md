@@ -14,7 +14,7 @@
 - [x] 3.1 Regenerate `ppj.md` and update motion/import guidance and coverage.
 - [x] 3.2 Extend one existing source PPJ round-trip with animation add/reimport.
 - [x] 3.3 Run the focused test, Skill maintainer, and strict OpenSpec check once.
-- [ ] 3.4 Commit atomically and fast-forward main without force pushing.
+- [x] 3.4 Commit atomically and fast-forward main without force pushing.
 
 ## Evidence
 
