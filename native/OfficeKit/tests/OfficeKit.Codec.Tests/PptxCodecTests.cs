@@ -1939,7 +1939,7 @@ public sealed class PptxCodecTests
         Assert.False(corruptFallback.PresentationProgram.RestoredEmbeddedProgram);
         Assert.True(corruptFallback.PresentationProgram.SourceBound);
 
-        var thirdPartySource = AddPairedSvgFallback(RemoveEmbeddedPpj(first.File.ToByteArray()));
+        var thirdPartySource = RemoveEmbeddedPpj(first.File.ToByteArray());
         var thirdPartySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(thirdPartySource)).ToLowerInvariant();
         var projected = Invoke(new CodecRequest
         {
@@ -1959,10 +1959,6 @@ public sealed class PptxCodecTests
         Assert.False(projected.PresentationProgram.RestoredEmbeddedProgram);
         Assert.Equal(thirdPartySha256, projected.PresentationProgram.SourceSha256);
         Assert.NotEmpty(projected.PresentationProgram.Assets);
-        string projectedSvgImageId;
-        string projectedSvgFallbackAssetId;
-        string projectedSvgAssetId;
-        string projectedSvgFallbackSha256;
         using (var projectedJson = JsonDocument.Parse(projected.PresentationProgram.ProgramJson.ToByteArray()))
         {
             var projectedRoot = projectedJson.RootElement;
@@ -2023,20 +2019,6 @@ public sealed class PptxCodecTests
                 item.GetProperty("fit").GetString() == "tile" &&
                 item.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray().Any(capability =>
                     capability.GetProperty("operation").GetString() == "setImageFit"));
-            var projectedSvgImage = projectedRoot.GetProperty("pages").EnumerateArray()
-                .SelectMany(page => page.GetProperty("elements").EnumerateArray())
-                .Single(item => item.GetProperty("type").GetString() == "image" && item.TryGetProperty("svgAsset", out _));
-            projectedSvgImageId = projectedSvgImage.GetProperty("id").GetString()!;
-            projectedSvgFallbackAssetId = projectedSvgImage.GetProperty("asset").GetString()!;
-            projectedSvgAssetId = projectedSvgImage.GetProperty("svgAsset").GetString()!;
-            Assert.Contains(projectedSvgImage.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
-                capability.GetProperty("operation").GetString() == "replaceSvg" &&
-                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "image.svgAsset"));
-            var projectedAssets = projectedRoot.GetProperty("assets").EnumerateArray()
-                .ToDictionary(asset => asset.GetProperty("id").GetString()!, StringComparer.Ordinal);
-            Assert.Equal("image/png", projectedAssets[projectedSvgFallbackAssetId].GetProperty("mimeType").GetString());
-            Assert.Equal("image/svg+xml", projectedAssets[projectedSvgAssetId].GetProperty("mimeType").GetString());
-            projectedSvgFallbackSha256 = projectedAssets[projectedSvgFallbackAssetId].GetProperty("sha256").GetString()!;
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "irregular editorial crop" &&
                 item.GetProperty("mask").GetProperty("kind").GetString() == "custom" &&
@@ -2324,12 +2306,61 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
 
+        var pairedSvgSource = AddPairedSvgFallback(thirdPartySource);
+        var pairedSvgProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(pairedSvgSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/paired-svg-source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(pairedSvgProjection.Ok, Diagnostics(pairedSvgProjection));
+        string projectedSvgImageId;
+        string projectedSvgFallbackAssetId;
+        string projectedSvgAssetId;
+        string projectedSvgFallbackSha256;
+        using (var pairedSvgJson = JsonDocument.Parse(pairedSvgProjection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var pairedSvgImage = pairedSvgJson.RootElement.GetProperty("pages").EnumerateArray()
+                .SelectMany(page => page.GetProperty("elements").EnumerateArray())
+                .Single(item => item.GetProperty("type").GetString() == "image" && item.TryGetProperty("svgAsset", out _));
+            projectedSvgImageId = pairedSvgImage.GetProperty("id").GetString()!;
+            projectedSvgFallbackAssetId = pairedSvgImage.GetProperty("asset").GetString()!;
+            projectedSvgAssetId = pairedSvgImage.GetProperty("svgAsset").GetString()!;
+            Assert.Contains(pairedSvgImage.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "replaceSvg" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "image.svgAsset"));
+            var pairedSvgAssets = pairedSvgJson.RootElement.GetProperty("assets").EnumerateArray()
+                .ToDictionary(asset => asset.GetProperty("id").GetString()!, StringComparer.Ordinal);
+            Assert.Equal("image/png", pairedSvgAssets[projectedSvgFallbackAssetId].GetProperty("mimeType").GetString());
+            Assert.Equal("image/svg+xml", pairedSvgAssets[projectedSvgAssetId].GetProperty("mimeType").GetString());
+            projectedSvgFallbackSha256 = pairedSvgAssets[projectedSvgFallbackAssetId].GetProperty("sha256").GetString()!;
+        }
+        var pairedSvgNoOp = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(pairedSvgSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = pairedSvgProjection.PresentationProgram.ProgramJson,
+            },
+        });
+        Assert.True(pairedSvgNoOp.Ok, Diagnostics(pairedSvgNoOp));
+        Assert.Equal(ByteString.CopyFrom(pairedSvgSource), pairedSvgNoOp.File);
+
         var replacementSvgBytes = Encoding.UTF8.GetBytes(
             "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 32 32\"><rect width=\"32\" height=\"32\" fill=\"#00A6A6\"/><path d=\"M6 16h20\" stroke=\"#FFFFFF\" stroke-width=\"3\"/></svg>");
         var replacementSvgSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacementSvgBytes)).ToLowerInvariant();
         const string replacementSvgAssetId = "replacement-paired-svg";
         const string replacementSvgUri = "deck.assets/media/replacement-paired-svg.svg";
-        var svgProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var svgProgram = JsonNode.Parse(pairedSvgProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var svgImage = svgProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
@@ -2349,7 +2380,7 @@ public sealed class PptxCodecTests
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.CompilePpjToPptx,
             Family = ArtifactFamily.Presentation,
-            File = ByteString.CopyFrom(thirdPartySource),
+            File = ByteString.CopyFrom(pairedSvgSource),
             PresentationProgram = new PresentationProgramRequest
             {
                 ProgramJson = ByteString.CopyFromUtf8(svgProgram.ToJsonString()),
