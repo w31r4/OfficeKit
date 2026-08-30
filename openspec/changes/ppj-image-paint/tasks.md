@@ -24,4 +24,4 @@
 
 - [x] 5.1 Extend one existing integrated PPJ codec test across authored build, reimport, source-bound edit, and second projection.
 - [x] 5.2 Run the narrow codec test, proto check, Skill maintainer check, OpenSpec strict validation, and diff check.
-- [ ] 5.3 Commit by contract/native/compiler/docs/evidence boundaries, push normally, and fast-forward remote main after verifying ancestry.
+- [x] 5.3 Commit by contract/native/compiler/docs/evidence boundaries, push normally, and fast-forward remote main after verifying ancestry.
