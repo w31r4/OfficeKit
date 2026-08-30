@@ -2929,6 +2929,11 @@ message PresentationTextRun {
     string text = 1;
     bool line_break = 9;
     PresentationTextField field = 10;
+    // Authored PPJ may provide bounded LaTeX. The C# compiler expands it to
+    // this finite AST before the PresentationML writer emits native a14:m /
+    // OMML. source_latex is compiler provenance and is not reconstructed by
+    // ordinary third-party PPTX import.
+    PresentationMathFormula formula = 25;
   }
   optional bool bold = 2;
   optional bool italic = 3;
@@ -2983,6 +2988,40 @@ message PresentationTextRun {
   // Canonical direct a:effectLst/a:outerShdw. Broader effect graphs remain
   // source-owned.
   PresentationShadow shadow = 24;
+}
+
+message PresentationMathFormula {
+  string source_latex = 1;
+  PresentationMathSequence expression = 2;
+  string plain_text = 3;
+}
+
+message PresentationMathSequence {
+  repeated PresentationMathNode nodes = 1;
+}
+
+message PresentationMathNode {
+  oneof kind {
+    string text = 1;
+    PresentationMathFraction fraction = 2;
+    PresentationMathRadical radical = 3;
+    PresentationMathScript script = 4;
+  }
+}
+
+message PresentationMathFraction {
+  PresentationMathSequence numerator = 1;
+  PresentationMathSequence denominator = 2;
+}
+
+message PresentationMathRadical {
+  PresentationMathSequence radicand = 1;
+}
+
+message PresentationMathScript {
+  PresentationMathSequence base = 1;
+  PresentationMathSequence subscript = 2;
+  PresentationMathSequence superscript = 3;
 }
 
 message PresentationTextField {

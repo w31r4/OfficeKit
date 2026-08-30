@@ -64,6 +64,7 @@ internal static class PptxTextCodec
             // default en-US value as equivalent to absence so editing an
             // otherwise unlocalized run does not fail post-write semantics.
             if (run.HasLanguage && run.Language.Equals("en-US", StringComparison.OrdinalIgnoreCase)) run.ClearLanguage();
+            if (run.ContentCase == PresentationTextRun.ContentOneofCase.Formula) run.Formula.SourceLatex = string.Empty;
         }
         foreach (var paragraph in shape.TextBody.Paragraphs) NormalizeParagraphEditIntent(paragraph);
         foreach (var style in shape.TextBody.ListStyles) NormalizeParagraphEditIntent(style);
@@ -87,7 +88,7 @@ internal static class PptxTextCodec
         var inlines = 0;
         foreach (var paragraph in paragraphs)
         {
-            if (paragraph.ChildElements.Any(child => child is not A.ParagraphProperties and not A.Run and not A.Break and not A.Field and not A.EndParagraphRunProperties)) return false;
+            if (paragraph.ChildElements.Any(child => child is not A.ParagraphProperties and not A.Run and not A.Break and not A.Field and not A.EndParagraphRunProperties && !PptxMathCodec.IsMathElement(child))) return false;
             if (!PptxParagraphPropertiesCodec.Supports(paragraph.ParagraphProperties)) return false;
             foreach (var inline in ParagraphInlines(paragraph))
             {
@@ -235,6 +236,11 @@ internal static class PptxTextCodec
             }
             foreach (var inline in ParagraphInlines(paragraph))
             {
+                if (PptxMathCodec.IsMathElement(inline))
+                {
+                    PptxMathCodec.Scrub(inline);
+                    continue;
+                }
                 if (inline.GetFirstChild<A.Text>() is { } text) text.Text = string.Empty;
                 if (inline is A.Field field)
                 {
@@ -323,6 +329,7 @@ internal static class PptxTextCodec
                     Text = field.Text?.Text ?? string.Empty,
                 },
             },
+            OpenXmlElement math when PptxMathCodec.TryRead(math, out var formula) => formula,
             _ => throw new CodecException("unsupported_presentation_text", $"Unsupported Presentation inline element {source.LocalName}."),
         };
         var properties = InlineProperties(source);
@@ -388,7 +395,8 @@ internal static class PptxTextCodec
             PresentationTextRun.ContentOneofCase.Text => new A.Run(properties, new A.Text(source.Text)),
             PresentationTextRun.ContentOneofCase.LineBreak => new A.Break(properties),
             PresentationTextRun.ContentOneofCase.Field => new A.Field(properties, new A.Text(source.Field.Text)) { Id = source.Field.Id, Type = source.Field.Type },
-            _ => throw new CodecException("invalid_presentation_text", "Presentation inline must contain text, a line break, or a field."),
+            PresentationTextRun.ContentOneofCase.Formula => PptxMathCodec.Build(source),
+            _ => throw new CodecException("invalid_presentation_text", "Presentation inline must contain text, a line break, a field, or a formula."),
         };
     }
 
@@ -407,7 +415,13 @@ internal static class PptxTextCodec
     private static void ApplyInline(OpenXmlElement source, PresentationTextRun requested, PptxPartContext slideContext)
     {
         if (!InlineKindMatches(source, requested))
-            throw new CodecException("presentation_text_topology_changed", "Source-preserving PPTX export cannot change an inline between text, line-break, and field kinds.");
+            throw new CodecException("presentation_text_topology_changed", "Source-preserving PPTX export cannot change an inline between text, line-break, field, and formula kinds.");
+        if (PptxMathCodec.IsMathElement(source))
+        {
+            if (!PptxMathCodec.SemanticallyEqual(source, requested))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot rewrite an imported formula through the bounded PPJ formula profile.");
+            return;
+        }
         var properties = InlineProperties(source);
         if (properties is null && (HasStyle(requested) || PptxHyperlinkCodec.HasModeledChoice(requested)))
         {
@@ -429,13 +443,14 @@ internal static class PptxTextCodec
     }
 
     private static OpenXmlElement[] ParagraphInlines(A.Paragraph paragraph) =>
-        paragraph.ChildElements.Where(child => child is A.Run or A.Break or A.Field).ToArray();
+        paragraph.ChildElements.Where(child => child is A.Run or A.Break or A.Field || PptxMathCodec.IsMathElement(child)).ToArray();
 
     private static A.RunProperties? InlineProperties(OpenXmlElement source) => source switch
     {
         A.Run run => run.RunProperties,
         A.Break lineBreak => lineBreak.RunProperties,
         A.Field field => field.RunProperties,
+        OpenXmlElement math when PptxMathCodec.IsMathElement(math) => null,
         _ => null,
     };
 
@@ -448,6 +463,7 @@ internal static class PptxTextCodec
         A.Field field => field.ChildElements.All(child => child is A.RunProperties or A.ParagraphProperties or A.Text) &&
                          field.Elements<A.RunProperties>().Count() <= 1 && field.Elements<A.ParagraphProperties>().Count() <= 1 &&
                          field.Elements<A.Text>().Count() == 1 && ValidFieldId(field.Id?.Value) && ValidFieldType(field.Type?.Value),
+        OpenXmlElement math when PptxMathCodec.IsMathElement(math) => PptxMathCodec.TryRead(math, out _),
         _ => false,
     };
 
@@ -457,6 +473,7 @@ internal static class PptxTextCodec
             (A.Run, PresentationTextRun.ContentOneofCase.Text) => true,
             (A.Break, PresentationTextRun.ContentOneofCase.LineBreak) => true,
             (A.Field, PresentationTextRun.ContentOneofCase.Field) => true,
+            (OpenXmlElement math, PresentationTextRun.ContentOneofCase.Formula) when PptxMathCodec.IsMathElement(math) => true,
             _ => false,
         };
 
@@ -465,6 +482,7 @@ internal static class PptxTextCodec
         PresentationTextRun.ContentOneofCase.Text => source.Text,
         PresentationTextRun.ContentOneofCase.LineBreak => "\n",
         PresentationTextRun.ContentOneofCase.Field => source.Field.Text,
+        PresentationTextRun.ContentOneofCase.Formula => source.Formula.PlainText,
         _ => string.Empty,
     };
 
@@ -483,8 +501,11 @@ internal static class PptxTextCodec
                 if (!ValidFieldType(source.Field.Type))
                     throw new CodecException("invalid_presentation_text", "Presentation field type must contain 1 through 255 printable characters.");
                 return;
+            case PresentationTextRun.ContentOneofCase.Formula:
+                PptxMathCodec.Validate(source);
+                return;
             default:
-                throw new CodecException("invalid_presentation_text", "Presentation inline must contain text, a line break, or a field.");
+                throw new CodecException("invalid_presentation_text", "Presentation inline must contain text, a line break, a field, or a formula.");
         }
     }
 

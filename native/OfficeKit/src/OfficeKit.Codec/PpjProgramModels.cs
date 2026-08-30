@@ -299,7 +299,9 @@ internal sealed record PpjParagraphModel(
     string? Id,
     IReadOnlyList<PpjRunModel> Runs);
 
-internal sealed record PpjRunModel(string? Id, string Text);
+internal sealed record PpjFormulaModel(string Syntax, string Source);
+
+internal sealed record PpjRunModel(string? Id, string? Text, PpjFormulaModel? Formula);
 
 internal sealed record PpjPageModel(
     string Id,
@@ -835,7 +837,10 @@ internal static class PpjProgramParser
                 OptionalString(paragraph, "id"),
                 paragraph.GetProperty("runs").EnumerateArray().Select(run => new PpjRunModel(
                     OptionalString(run, "id"),
-                    run.GetProperty("text").GetString()!)).ToArray())).ToArray());
+                    OptionalString(run, "text"),
+                    run.TryGetProperty("formula", out var formula)
+                        ? new PpjFormulaModel(formula.GetProperty("syntax").GetString()!, formula.GetProperty("source").GetString()!)
+                        : null)).ToArray())).ToArray());
     }
 
     private static PpjFrameModel ParseFrame(JsonElement frame) => new(

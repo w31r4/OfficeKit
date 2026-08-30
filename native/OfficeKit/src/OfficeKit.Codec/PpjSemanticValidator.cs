@@ -61,6 +61,7 @@ internal static class PpjSemanticValidator
         var pageIds = pages.Keys.ToHashSet(StringComparer.Ordinal);
         ValidateResourceReferences(program.Root, "$", assetIds, program.Design.ColorIds, program.Design.FontIds, diagnostics);
         ValidateTextEffects(program.Root, "$", diagnostics);
+        ValidateFormulaRuns(program.Root, "$", diagnostics);
         ValidateMasterLayoutState(program, masters, layouts, diagnostics);
         ValidateComponentDefinitions(program, components, assetIds, diagnostics);
         ValidateNativeRef(program.Design.CanvasNativeRef, program.Source, "$.design.canvas.nativeRef", diagnostics);
@@ -337,6 +338,48 @@ internal static class PpjSemanticValidator
 
         foreach (var property in value.EnumerateObject())
             ValidateTextEffects(property.Value, PpjJsonPath.Property(path, property.Name), diagnostics);
+    }
+
+    private static void ValidateFormulaRuns(JsonElement value, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (value.ValueKind == JsonValueKind.Array)
+        {
+            var index = 0;
+            foreach (var item in value.EnumerateArray())
+                ValidateFormulaRuns(item, $"{path}[{index++}]", diagnostics);
+            return;
+        }
+        if (value.ValueKind != JsonValueKind.Object) return;
+
+        if (value.TryGetProperty("formula", out var formula))
+        {
+            var sourcePath = PpjJsonPath.Property(PpjJsonPath.Property(path, "formula"), "source");
+            try
+            {
+                _ = PpjLatexCompiler.Compile(formula.GetProperty("source").GetString()!, sourcePath);
+            }
+            catch (CodecException error)
+            {
+                diagnostics.Add(new(error.Code, error.Message, error.SourcePath ?? sourcePath));
+            }
+
+            if (value.TryGetProperty("hyperlink", out _))
+                diagnostics.Add(new("ppj.formula.hyperlink", "Formula runs cannot carry hyperlinks.", PpjJsonPath.Property(path, "hyperlink")));
+            if (value.TryGetProperty("style", out var style))
+            {
+                foreach (var property in style.EnumerateObject())
+                {
+                    if (property.Name is "size" or "color") continue;
+                    diagnostics.Add(new(
+                        "ppj.formula.style",
+                        $"Formula runs support only direct size and color; {property.Name} is not supported.",
+                        PpjJsonPath.Property(PpjJsonPath.Property(path, "style"), property.Name)));
+                }
+            }
+        }
+
+        foreach (var property in value.EnumerateObject())
+            ValidateFormulaRuns(property.Value, PpjJsonPath.Property(path, property.Name), diagnostics);
     }
 
     private static void ValidateComponentDefinitions(
@@ -1691,6 +1734,8 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.smartArt.pictureAsset", "Every authored picture-diagram node requires an image asset.", $"{nodePath}.asset"));
             if (smartArt.Mode == "authored" && smartArt.Layout != "picture" && node.AssetId is not null)
                 diagnostics.Add(new("ppj.smartArt.pictureAsset", "Diagram node assets are only valid for the picture layout.", $"{nodePath}.asset"));
+            if (node.Text.Paragraphs.SelectMany(paragraph => paragraph.Runs).Any(run => run.Formula is not null))
+                diagnostics.Add(new("ppj.smartArt.formula", "Authored SmartArt node text does not support formula runs.", $"{nodePath}.text"));
             ValidateNativeRef(node.NativeRef, source, $"{nodePath}.nativeRef", diagnostics);
         }
 

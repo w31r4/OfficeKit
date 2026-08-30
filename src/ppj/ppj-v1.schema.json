@@ -2065,8 +2065,17 @@
     "run": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "text"
+      "oneOf": [
+        {
+          "required": [
+            "text"
+          ]
+        },
+        {
+          "required": [
+            "formula"
+          ]
+        }
       ],
       "properties": {
         "id": {
@@ -2075,6 +2084,9 @@
         "text": {
           "type": "string",
           "maxLength": 1000000
+        },
+        "formula": {
+          "$ref": "#/$defs/formula"
         },
         "style": {
           "$ref": "#/$defs/textStyle"
@@ -2096,6 +2108,25 @@
               "maxLength": 512
             }
           }
+        }
+      }
+    },
+    "formula": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "syntax",
+        "source"
+      ],
+      "properties": {
+        "syntax": {
+          "const": "latex"
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "description": "Bounded LaTeX source without \\( and \\) delimiters. Unsupported commands fail closed; OfficeKit never renders the backslashes as literal fallback text."
         }
       }
     },

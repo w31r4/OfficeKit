@@ -1570,7 +1570,9 @@ internal static class PpjSourceBoundPresentationCompiler
         if (text.PlainText is not null) return [text.PlainText];
         if (text.Paragraphs.Count != 1 || text.Paragraphs[0].Runs.Count == 0)
             throw Unsupported(path, "source-bound SmartArt paragraph or run topology change");
-        return text.Paragraphs[0].Runs.Select(run => run.Text).ToArray();
+        if (text.Paragraphs[0].Runs.Any(run => run.Text is null))
+            throw Unsupported(path, "source-bound SmartArt formula mutation");
+        return text.Paragraphs[0].Runs.Select(run => run.Text!).ToArray();
     }
 
     private static bool ApplySourceOleElement(
@@ -1782,6 +1784,8 @@ internal static class PpjSourceBoundPresentationCompiler
                         throw Unsupported(path, "non-text imported run mutation");
                     var oldText = before.Paragraphs[paragraph].Runs[run].Text;
                     var newText = after.Paragraphs[paragraph].Runs[run].Text;
+                    if (oldText is null || newText is null)
+                        throw Unsupported(path, "source-bound formula mutation");
                     if (oldText != newText)
                         mutations.NativeLeaves.Add(new NativeLeafMutation(
                             programElementId,
@@ -1865,7 +1869,8 @@ internal static class PpjSourceBoundPresentationCompiler
                 var targetRun = targetParagraph.Runs[runIndex];
                 if (targetRun.ContentCase != PresentationTextRun.ContentOneofCase.Text)
                     throw Unsupported(path, "non-text imported run mutation");
-                targetRun.Text = newParagraph.Runs[runIndex].Text;
+                targetRun.Text = newParagraph.Runs[runIndex].Text ??
+                    throw Unsupported(path, "source-bound formula mutation");
             }
         }
         requested.TextBody = body;
@@ -2360,7 +2365,12 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             if (left.Paragraphs[paragraph].Runs.Count != right.Paragraphs[paragraph].Runs.Count) return false;
             for (var run = 0; run < left.Paragraphs[paragraph].Runs.Count; run++)
-                if (left.Paragraphs[paragraph].Runs[run].Text != right.Paragraphs[paragraph].Runs[run].Text) return false;
+            {
+                var leftRun = left.Paragraphs[paragraph].Runs[run];
+                var rightRun = right.Paragraphs[paragraph].Runs[run];
+                if (leftRun.Text != rightRun.Text || leftRun.Formula?.Syntax != rightRun.Formula?.Syntax ||
+                    leftRun.Formula?.Source != rightRun.Formula?.Source) return false;
+            }
         }
         return true;
     }

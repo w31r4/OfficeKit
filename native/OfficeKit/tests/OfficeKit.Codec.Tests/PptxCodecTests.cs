@@ -1771,6 +1771,43 @@ public sealed class PptxCodecTests
                 ["description"] = "A lightbulb marks the central experimental insight.",
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "formula-main",
+            ["type"] = "text",
+            ["name"] = "native formula proof",
+            ["role"] = "editable quantitative model",
+            ["frame"] = new JsonObject { ["x"] = 48, ["y"] = 445, ["width"] = 520, ["height"] = 52 },
+            ["text"] = new JsonObject
+            {
+                ["paragraphs"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "formula-paragraph",
+                        ["runs"] = new JsonArray
+                        {
+                            new JsonObject { ["id"] = "formula-label", ["text"] = "Model: " },
+                            new JsonObject
+                            {
+                                ["id"] = "formula-expression",
+                                ["formula"] = new JsonObject
+                                {
+                                    ["syntax"] = "latex",
+                                    ["source"] = "\\int_0^1 x^2 \\,\\mathrm{d}x = \\frac{1}{3} + \\sqrt{\\alpha+\\beta}",
+                                },
+                                ["style"] = new JsonObject { ["size"] = 22, ["color"] = "#14324A" },
+                            },
+                        },
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "A native editable integral, fraction, radical, and scripted expression.",
+            },
+        });
         var invalidIconProgram = authoredProgram.DeepClone().AsObject();
         invalidIconProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -1778,6 +1815,14 @@ public sealed class PptxCodecTests
         var invalidIcon = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidIconProgram.ToJsonString()));
         Assert.False(invalidIcon.IsValid);
         Assert.Contains(invalidIcon.Diagnostics, diagnostic => diagnostic.Code == "ppj.icon.unknown");
+        var invalidFormulaProgram = authoredProgram.DeepClone().AsObject();
+        invalidFormulaProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "formula-main")
+            ["text"]!["paragraphs"]![0]!["runs"]![1]!["formula"]!["source"] = "\\begin{matrix}1\\end{matrix}";
+        var invalidFormula = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidFormulaProgram.ToJsonString()));
+        Assert.False(invalidFormula.IsValid);
+        Assert.Contains(invalidFormula.Diagnostics, diagnostic => diagnostic.Code == "ppj.formula.unsupportedCommand");
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -1842,7 +1887,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(38U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(39U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -1869,7 +1914,10 @@ public sealed class PptxCodecTests
         using (var stream = new MemoryStream(first.File.ToByteArray(), writable: false))
         using (var package = PresentationDocument.Open(stream, false))
         {
-            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var sdkValidationErrors = new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package).ToArray();
+            var sdkMathFalsePositive = Assert.Single(sdkValidationErrors);
+            Assert.Contains("/a14:m[", sdkMathFalsePositive.Path!.XPath, StringComparison.Ordinal);
+            Assert.Contains("leaf element and cannot contain children", sdkMathFalsePositive.Description!, StringComparison.Ordinal);
             var nativeMaster = Assert.Single(package.PresentationPart!.SlideMasterParts);
             var nativeLayout = Assert.Single(nativeMaster.SlideLayoutParts);
             Assert.Equal("titleOnly", nativeLayout.SlideLayout!.GetAttribute("type", string.Empty).Value);
@@ -1924,7 +1972,18 @@ public sealed class PptxCodecTests
             Assert.NotEmpty(nativeIconGeometry.Descendants<A.CubicBezierCurveTo>());
             Assert.Equal("F2C14E", nativeCatalogIcon.ShapeProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
             Assert.Equal("A lightbulb marks the central experimental insight.",
-                nativeCatalogIcon.NonVisualShapeProperties.NonVisualDrawingProperties.Description!.Value);
+                nativeCatalogIcon.NonVisualShapeProperties.NonVisualDrawingProperties!.Description!.Value);
+            var nativeFormula = mediaSlide.Slide.CommonSlideData.ShapeTree.Elements<P.Shape>()
+                .Single(shape => shape.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "native formula proof");
+            var nativeMath = Assert.Single(nativeFormula.TextBody!.Descendants(), PptxMathCodec.IsMathElement);
+            XNamespace mathNamespace = "http://schemas.openxmlformats.org/officeDocument/2006/math";
+            var nativeMathXml = XElement.Parse(nativeMath.OuterXml);
+            Assert.True(nativeMathXml.HasElements, nativeMath.OuterXml);
+            Assert.True(PptxMathCodec.IsCanonical(nativeMathXml), nativeMath.OuterXml);
+            Assert.Contains(nativeMathXml.Descendants(), element => element.Name == mathNamespace + "f");
+            Assert.Contains(nativeMathXml.Descendants(), element => element.Name == mathNamespace + "rad");
+            Assert.Contains(nativeMathXml.Descendants(), element => element.Name == mathNamespace + "sSubSup");
+            Assert.Contains(nativeFormula.TextBody.Descendants<A.Text>(), text => text.Text == "Model: ");
             var nativeImageBackground = package.PresentationPart!.SlideParts.ElementAt(1).Slide!
                 .CommonSlideData!.Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>();
             Assert.NotNull(nativeImageBackground);
@@ -2216,6 +2275,13 @@ public sealed class PptxCodecTests
         Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
         Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
         Assert.Equal("Main decision claim", importedClaim.Accessibility.Description);
+        var importedFormula = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Name == "native formula proof").Shape;
+        var importedFormulaRuns = Assert.Single(importedFormula.TextBody.Paragraphs).Runs;
+        Assert.Equal(PresentationTextRun.ContentOneofCase.Text, importedFormulaRuns[0].ContentCase);
+        Assert.Equal(PresentationTextRun.ContentOneofCase.Formula, importedFormulaRuns[1].ContentCase);
+        Assert.Empty(importedFormulaRuns[1].Formula.SourceLatex);
+        Assert.Contains("(1)/(3)", importedFormulaRuns[1].Formula.PlainText, StringComparison.Ordinal);
         Assert.Equal("•", importedClaim.TextBody.Paragraphs[0].BulletCharacter);
         Assert.Equal("0B8F8F", importedClaim.TextBody.Paragraphs[0].BulletColorRgb);
         Assert.Equal(50_000U, importedClaim.TextBody.Paragraphs[0].BulletColorOpacityThousandthPercent);
@@ -2508,6 +2574,7 @@ public sealed class PptxCodecTests
                         leaf.GetProperty("kind").GetString() == "tableCellText"));
             var projectedClaim = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "text" &&
+                    item.GetProperty("text").ValueKind == JsonValueKind.Object &&
                     item.GetProperty("text").GetProperty("paragraphs")[0].GetProperty("runs")[0]
                         .GetProperty("text").GetString() == "Reduce incident hours ");
             Assert.True(projectedClaim.GetProperty("hidden").GetBoolean());
@@ -2655,7 +2722,8 @@ public sealed class PptxCodecTests
         var stateClaim = stateProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["type"]!.GetValue<string>() == "text" &&
-                element["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
+                element["text"] is JsonObject text &&
+                text["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
         stateClaim["hidden"] = false;
         stateClaim["locked"] = false;
         var stateClaimId = stateClaim["id"]!.GetValue<string>();
@@ -3414,7 +3482,8 @@ public sealed class PptxCodecTests
         var rejectedTextOpacity = rejectedTextOpacityProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["type"]!.GetValue<string>() == "text" &&
-                element["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
+                element["text"] is JsonObject text &&
+                text["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
         rejectedTextOpacity["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["gradient"]!["stops"]![0]!["opacity"] = 0.6;
         var rejectedTextOpacityEdit = Invoke(new CodecRequest
         {

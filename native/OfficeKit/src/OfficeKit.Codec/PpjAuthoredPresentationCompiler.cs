@@ -3562,7 +3562,7 @@ internal static class PpjAuthoredPresentationCompiler
     }
 
     private static string FlattenText(PpjTextContentModel text) => text.PlainText ??
-        string.Join("\n", text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(run => run.Text))));
+        string.Join("\n", text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(PpjRunText))));
 
     private sealed record DiagramLayoutNode(PpjSmartArtNodeModel Node, PpjFrameModel Frame);
     private readonly record struct DiagramEdge(int FromIndex, int ToIndex);
@@ -3710,7 +3710,7 @@ internal static class PpjAuthoredPresentationCompiler
     {
         if (run.HighlightCase != PresentationTextRun.HighlightOneofCase.None)
             throw Unsupported(elementId, "shape opacity cannot preserve text highlight because the bounded highlight profile has no alpha");
-        if (run.Text.Length > 0 && !run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null)
+        if (PresentationRunText(run).Length > 0 && !run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null)
             throw Unsupported(elementId, "shape opacity requires explicit text color or gradient paint");
         if (run.HasColorRgb || run.HasColorScheme)
             run.ColorOpacityThousandthPercent = MultiplyOpacity(
@@ -3849,17 +3849,50 @@ internal static class PpjAuthoredPresentationCompiler
                 Property(paragraphJson, "style"),
                 catalog);
             foreach (var run in paragraphJson.GetProperty("runs").EnumerateArray())
-                paragraph.Runs.Add(BuildRun(
-                    run.GetProperty("text").GetString()!,
-                    namedStyle,
-                    middleStyle,
-                    inlineStyle,
-                    Property(run, "style"),
-                    Property(run, "hyperlink"),
-                    catalog));
+            {
+                paragraph.Runs.Add(run.TryGetProperty("formula", out var formula)
+                    ? BuildFormulaRun(
+                        formula.GetProperty("source").GetString()!,
+                        namedStyle,
+                        middleStyle,
+                        inlineStyle,
+                        Property(run, "style"),
+                        catalog)
+                    : BuildRun(
+                        run.GetProperty("text").GetString()!,
+                        namedStyle,
+                        middleStyle,
+                        inlineStyle,
+                        Property(run, "style"),
+                        Property(run, "hyperlink"),
+                        catalog));
+            }
             body.Paragraphs.Add(paragraph);
         }
         return body;
+    }
+
+    private static PresentationTextRun BuildFormulaRun(
+        string source,
+        JsonElement? namedBox,
+        JsonElement? middleBox,
+        JsonElement? inlineBox,
+        JsonElement? inlineRun,
+        Catalog catalog)
+    {
+        var run = new PresentationTextRun { Formula = PpjLatexCompiler.Compile(source) };
+        var inlineDefault = FirstProperty(inlineBox, null, "defaultText");
+        var middleDefault = FirstProperty(middleBox, null, "defaultText");
+        var namedDefault = FirstProperty(namedBox, null, "defaultText");
+        if (FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "size") is { } size)
+            run.FontSizePoints = size.GetDouble();
+        if (FirstTextPaint(inlineRun, inlineDefault, middleDefault, namedDefault) is { Kind: "color" } paint)
+        {
+            var resolved = catalog.Color(paint.Value);
+            run.ColorRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) run.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        return run;
     }
 
     private static PresentationTextBody EmptyTextBody(JsonElement? namedStyle, JsonElement? inlineStyle)
@@ -4773,10 +4806,22 @@ internal static class PpjAuthoredPresentationCompiler
     };
 
     private static string Flatten(PpjTextContentModel text) =>
-        text.PlainText ?? string.Join('\n', text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(run => run.Text))));
+        text.PlainText ?? string.Join('\n', text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(PpjRunText))));
 
     private static string Flatten(PresentationTextBody body) =>
-        string.Join('\n', body.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(run => run.Text))));
+        string.Join('\n', body.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(PresentationRunText))));
+
+    private static string PpjRunText(PpjRunModel run) => run.Text ??
+        (run.Formula is null ? string.Empty : PpjLatexCompiler.Compile(run.Formula.Source).PlainText);
+
+    private static string PresentationRunText(PresentationTextRun run) => run.ContentCase switch
+    {
+        PresentationTextRun.ContentOneofCase.Text => run.Text,
+        PresentationTextRun.ContentOneofCase.Formula => run.Formula.PlainText,
+        PresentationTextRun.ContentOneofCase.LineBreak => "\n",
+        PresentationTextRun.ContentOneofCase.Field => run.Field.Text,
+        _ => string.Empty,
+    };
 
     private static long Emu(double points) => checked((long)Math.Round(points * EmuPerPoint));
 

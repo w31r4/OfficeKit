@@ -4812,6 +4812,7 @@ internal static class PptxCodec
         using var package = PresentationDocument.Open(stream, isEditable: false);
         var errors = new OpenXmlValidator(FileFormatVersions.Office2021)
             .Validate(package)
+            .Where(error => !IsCanonicalMathValidatorFalsePositive(error))
             .Take(MaxOffice2021ValidationErrors + 1)
             .Select(error =>
             {
@@ -4824,6 +4825,26 @@ internal static class PptxCodec
         throw new CodecException(
             "openxml_validation_budget_exceeded",
             $"PPTX validation produced more than {MaxOffice2021ValidationErrors} errors; refusing an unbounded validation result.");
+    }
+
+    private static bool IsCanonicalMathValidatorFalsePositive(ValidationErrorInfo error)
+    {
+        if (error.Part is not SlidePart ||
+            error.Path?.XPath?.Contains("/a14:m[", StringComparison.Ordinal) != true ||
+            error.Description?.Contains("leaf element and cannot contain children", StringComparison.Ordinal) != true)
+            return false;
+        try
+        {
+            using var partStream = error.Part.GetStream(FileMode.Open, FileAccess.Read);
+            var document = XDocument.Load(partStream, LoadOptions.PreserveWhitespace);
+            XNamespace a14 = "http://schemas.microsoft.com/office/drawing/2010/main";
+            var formulas = document.Descendants(a14 + "m").ToArray();
+            return formulas.Length > 0 && formulas.All(PptxMathCodec.IsCanonical);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or System.Xml.XmlException)
+        {
+            return false;
+        }
     }
 
     private static IReadOnlyDictionary<string, string> ExactCopiedPartSources(
