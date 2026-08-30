@@ -5747,6 +5747,28 @@ public sealed class PptxCodecTests
         Assert.Equal("round", importedConnector.LineCap);
         Assert.Equal("bevel", importedConnector.LineJoin);
 
+        var themedRequest = request.Clone();
+        var themedConnector = themedRequest.Artifact.Presentation.Slides[0].Elements
+            .Single(element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
+        themedConnector.LineRgb = string.Empty;
+        themedConnector.LineScheme = "accent1";
+        var themed = Invoke(themedRequest);
+        Assert.True(themed.Ok, Diagnostics(themed));
+        using (var stream = new MemoryStream(themed.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var themedNativeConnector = package.PresentationPart!.SlideParts.Single().Slide!.Descendants<P.ConnectionShape>().Single();
+            var themedSolid = themedNativeConnector.ShapeProperties!.GetFirstChild<A.Outline>()!.GetFirstChild<A.SolidFill>()!;
+            Assert.Equal(A.SchemeColorValues.Accent1, themedSolid.GetFirstChild<A.SchemeColor>()!.Val!.Value);
+        }
+        var themedImported = Import(themed.File.ToByteArray());
+        Assert.True(themedImported.Ok, Diagnostics(themedImported));
+        var themedRoundTripConnector = Assert.Single(
+            Assert.Single(themedImported.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
+        Assert.Equal("accent1", themedRoundTripConnector.LineScheme);
+        Assert.Empty(themedRoundTripConnector.LineRgb);
+
         importedConnector.LineStyle = "none";
         importedConnector.LineRgb = string.Empty;
         var edited = Export(imported.Artifact);
