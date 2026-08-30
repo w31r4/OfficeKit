@@ -91,7 +91,8 @@ The authored chart compiler owns these native visual controls:
 - chart-title Latin/East Asian typeface, size, bold, italic and direct
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage, native
-  position, and one chart-level native number format;
+  position, direct number format and bounded typography at plot, series and
+  sparse point scope;
 - direct marker symbol, size, RGB/alpha fill and bounded stroke;
 - exponential, linear, logarithmic, moving-average, polynomial and power
   trendlines on bar, column and line series;
@@ -137,6 +138,37 @@ shapes:
   }
 }
 ```
+
+Use series defaults when one series needs a different label policy, and use
+sparse point overrides only for evidence that needs an exception. Point
+indices are zero-based, strictly increasing and must address an existing
+non-missing point:
+
+```json
+{
+  "data": {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [{
+      "id": "conversion",
+      "name": "Conversion",
+      "values": [0.18, 0.22, 0.27, 0.31],
+      "dataLabels": {
+        "showValue": true,
+        "numberFormat": "0.0%",
+        "textStyle": { "fontSize": 8, "color": "#334155" },
+        "points": [
+          { "index": 0, "showValue": false },
+          { "index": 3, "position": "above", "textStyle": { "bold": true, "color": "#D9A21B" } }
+        ]
+      }
+    }]
+  }
+}
+```
+
+Do not use point labels as a substitute for a readable scale. Custom label
+text, manual label layout, label shapes/effects, leader-line graphs and
+source-linked number formats remain source-owned and fail closed.
 
 Use title typography and line behavior as explicit chart state rather than
 rebuilding the visual with shapes:
@@ -529,8 +561,9 @@ DrawingML path per series plus ordinary title, category, and legend text.
 The embedded PPJ restores the exact semantic chart. If that program is removed,
 PPTX import returns the truthful editable group instead of guessing a
 streamgraph from arbitrary paths. Whole-object animation is valid; native
-`chartBuild`, secondary axes, markers, trendlines, error bars, missing/negative
-values, and per-point labels are not.
+`chartBuild`, secondary axes, markers, trendlines, error bars,
+missing/negative values, and native point-label overrides are not. The latter
+belong to real native ChartParts, not to this generated streamgraph group.
 
 Use a pictographic bar only when a small whole count becomes easier to grasp by
 repeating one meaningful symbol. State the conversion explicitly. Do not use

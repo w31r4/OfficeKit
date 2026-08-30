@@ -145,10 +145,10 @@
     },
     {
       "feature": "native chart labels, bubble scale and axis lines",
-      "ppjPath": "pages[].elements[].style.dataLabels.numberFormat, pages[].elements[].style.bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis reverse/axisLine/gridLine",
+      "ppjPath": "pages[].elements[].style.dataLabels, pages[].elements[].data.series[].dataLabels, pages[].elements[].style.bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis reverse/axisLine/gridLine",
       "behavior": "partial",
-      "sourceBound": "Recognized imported ChartParts issue setChartLabels for canonical chart-level data-label format, setChartPlot for native bubble scale and size semantics, and setChartAxis for bounded axis direction plus direct axis/grid line styling. Each capability owns only its declared field group and patches the existing ChartPart.",
-      "reason": "PPJ owns one chart-level native number format, bubble scale from 0 through 300, native area/width size semantics, presence-aware axis reversal, and direct RGB/no-fill axis and major-grid lines. Per-point labels, pixel-radius ranges, logarithmic transforms, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
+      "sourceBound": "Recognized imported ChartParts issue setChartLabels for plot defaults plus bounded series defaults and sparse zero-based point overrides, setChartPlot for native bubble scale and size semantics, and setChartAxis for bounded axis direction plus direct axis/grid line styling. Each capability owns only its declared field group and patches the existing ChartPart.",
+      "reason": "PPJ owns plot-, series- and sparse point-level label visibility, native position, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis reversal; and direct RGB/no-fill axis and major-grid lines. Custom label text/layout/shape/effect/leader-line graphs, source-linked formats, pixel-radius ranges, logarithmic transforms, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
     },
     {
       "feature": "native chart axis arrowheads",

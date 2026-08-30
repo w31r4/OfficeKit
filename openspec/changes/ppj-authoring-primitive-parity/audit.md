@@ -31,7 +31,7 @@
 | arbitrary pie angle/hole | implemented, bounded | native legal angle and hole-size ranges |
 | axis reverse/arrows/line/grid styling | implemented, bounded | native direction, direct line/grid style and finite axis endpoints |
 | radar spoke styling | implemented, bounded | semantic native spoke/ring coordinate system |
-| label number formats and point overrides | partial | chart-level format implemented; per-series/per-point overrides remain unsupported |
+| label number formats and point overrides | implemented, bounded | plot defaults plus native series defaults and sparse zero-based point overrides; custom label text/layout/effects and source-linked formats remain source-owned |
 | treemap/sunburst display depth | implemented, bounded | finite visible-level controls retain full hierarchy |
 
 This audit compares observable language contracts. It does not copy a third
