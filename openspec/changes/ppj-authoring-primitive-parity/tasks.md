@@ -15,4 +15,4 @@
 - [x] 3.1 Regenerate `ppj.md` and update focused authoring guidance and coverage.
 - [x] 3.2 Extend one existing authored PPJ contract across the new finite state.
 - [x] 3.3 Run only the focused contract, maintainer and strict OpenSpec validation.
-- [ ] 3.4 Commit atomically and fast-forward main without force pushing.
+- [x] 3.4 Commit atomically and fast-forward main without force pushing.
