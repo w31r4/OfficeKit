@@ -33,9 +33,34 @@ Use one finite `viewBox` plus ordered `moveTo`, `lineTo`, `quadraticTo`,
 `cubicTo`, and `close` commands. Path order is drawing order; `fill` and
 `stroke` control whether the shared shape paint applies to that path. A
 non-zero view-box origin is normalized deterministically during compilation.
-Preset adjustment formulas, arcs, guides, handles, connection sites, and text
-rectangles remain outside the authored PPJ subset; use a supported preset or
-an explicit literal path instead.
+Custom adjustment formulas, guides, handles, connection sites, and text
+rectangles remain outside the authored PPJ subset. Preset geometry is broader:
+use its ordered integer `adjustments` array to control rounded corners, arrow
+proportions, star radii, arc angles, callout tips, and the other parameters in
+the generated [PPJ preset profile table](ppj.md#preset-geometry-adjustments).
+Omit the array to use Office defaults; never invent native guide names.
+
+```json
+{
+  "type": "shape",
+  "id": "decision-arrow",
+  "frame": { "x": 84, "y": 210, "width": 180, "height": 64 },
+  "geometry": {
+    "kind": "preset",
+    "preset": "rightArrow",
+    "adjustments": [42000, 36000]
+  },
+  "style": {
+    "fill": { "kind": "solid", "color": "#0B8F8F" },
+    "stroke": { "kind": "none" }
+  }
+}
+```
+
+The array is complete or absent; do not omit an intermediate value. Imported
+literal preset adjustments can be changed only when `nativeRef.capabilities`
+issues `setGeometry` for `geometry.adjustments`. Formula-valued or irregular
+native guides remain source-owned.
 
 ```json
 {
