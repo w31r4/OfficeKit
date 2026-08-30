@@ -2818,6 +2818,9 @@ message PresentationTextParagraph {
     PresentationTextStyle default_run_properties = 31;
     bool no_default_run_properties = 32;
   }
+  // Present only with an explicit RGB or theme bullet color. Values use
+  // 0..100000 and lower to one direct DrawingML a:alpha transform.
+  optional uint32 bullet_color_opacity_thousandth_percent = 33;
 }
 
 message PresentationPictureBullet {
