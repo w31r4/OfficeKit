@@ -47,6 +47,8 @@ import { classifyImportedPresentationObjects } from "./import-object-classificat
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const EMU_PER_PIXEL = 9_525;
 const importedShapeBackgroundFill = new WeakMap();
+const importedShapeImageFill = new WeakMap();
+const PRESENTATION_SHAPE_IMAGE_FILL = Symbol.for("office-kit.presentation-shape-image-fill");
 const PRESENTATION_SLIDE_DUPLICATOR = Symbol.for("office-kit.presentation-duplicate");
 const PRESENTATION_SPEAKER_NOTES_CAPABILITY = Symbol.for("office-kit.speaker-notes-capability");
 const PRESENTATION_LEGACY_COMMENTS_CAPABILITY = Symbol.for("office-kit.legacy-comments-capability");
@@ -1991,6 +1993,20 @@ export class Shape {
     this.placeholder = config.placeholder;
     this.accessibility = initializePresentationAccessibility(this, config, `Presentation shape ${this.id}`);
     if (config._officeKitUseBackgroundFill !== undefined) importedShapeBackgroundFill.set(this, Boolean(config._officeKitUseBackgroundFill));
+    if (config._officeKitImageFillAssetId !== undefined) {
+      const assetId = String(config._officeKitImageFillAssetId || "");
+      const dataUrlSource = config._officeKitImageFillDataUrlSource;
+      if (!assetId || !dataUrlSource || typeof dataUrlSource.resolve !== "function") {
+        throw new TypeError("Imported presentation image fill requires a content-addressed asset source.");
+      }
+      const descriptor = Object.freeze({
+        assetId,
+        contentType: String(config._officeKitImageFillContentType || ""),
+        dataUrlSource,
+      });
+      importedShapeImageFill.set(this, descriptor);
+      Object.defineProperty(this, PRESENTATION_SHAPE_IMAGE_FILL, { value: descriptor });
+    }
     this._text = new TextFrame(config.text ?? "", config.textBodyProperties, { defaultBodyProperties: config.textBodyProperties === undefined });
     this._text.style = { ...(config.textStyle || config.style?.text || {}) };
   }
@@ -1998,6 +2014,10 @@ export class Shape {
   get text() { return this._text; }
   set text(value) { this._text.set(value); }
   get useBackgroundFill() { return importedShapeBackgroundFill.get(this); }
+  get imageFill() {
+    const descriptor = importedShapeImageFill.get(this);
+    return descriptor ? { assetId: descriptor.assetId, contentType: descriptor.contentType || undefined } : undefined;
+  }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
   get deletionCapability() { return presentationElementDeletionCapability(this, "shape"); }
 
@@ -2050,10 +2070,10 @@ export class Shape {
     const p = this.position;
     const paragraphs = this.text.effectiveParagraphs();
     const custom = this.#normalizedCustomGeometry();
-    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, useBackgroundFill: this.useBackgroundFill };
+    return { kind, id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, text: this.text.value || undefined, textPreview: this.text.value || undefined, textChars: this.text.value.length || undefined, textLines: this.text.value ? this.text.value.split("\n").length : undefined, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, customPathCount: custom.paths.length || undefined, customAdjustmentCount: custom.adjustments.length || undefined, customGuideCount: custom.guides.length || undefined, customConnectionSiteCount: custom.connectionSites.length || undefined, customAdjustmentHandleCount: custom.adjustmentHandles.length || undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, textRectangle: custom.textRectangle, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", transform: this.transform, shadow: this.shadow, placeholder: this.placeholder || undefined, imageFill: this.imageFill, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, useBackgroundFill: this.useBackgroundFill };
   }
 
-  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, accessibility: this.accessibility ? { ...this.accessibility } : undefined, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill } }; }
+  layoutJson() { const paragraphs = this.text.effectiveParagraphs(); const custom = this.#normalizedCustomGeometry(); return { kind: this.text.value ? "textbox" : "shape", id: this.id, name: this.name, geometry: this.geometry, customAdjustments: custom.adjustments.length ? custom.adjustments : undefined, customGuides: custom.guides.length ? custom.guides : undefined, customConnectionSites: custom.connectionSites.length ? custom.connectionSites : undefined, customAdjustmentHandles: custom.adjustmentHandles.length ? custom.adjustmentHandles : undefined, customPaths: custom.paths.length ? custom.paths : undefined, textRectangle: custom.textRectangle, frame: this.position, transform: this.transform, text: this.text.value, paragraphs: presentationParagraphsNeedSerialization(paragraphs) ? paragraphs : undefined, bodyProperties: this.text.bodyProperties, placeholder: this.placeholder, imageFill: this.imageFill, accessibility: this.accessibility ? { ...this.accessibility } : undefined, style: { fill: this.fill, line: this.line, borderRadius: this.borderRadius, shadow: this.shadow, text: this.text.style, useBackgroundFill: this.useBackgroundFill, imageFill: this.imageFill } }; }
 
   textFrame(frame = this.position) {
     const graph = normalizePresentationCustomGeometryFormulaGraph({ adjustments: this.customAdjustments, guides: this.customGuides });
@@ -2064,6 +2084,7 @@ export class Shape {
     const p = this.position;
     const custom = this.#normalizedCustomGeometry();
     const textFrame = this.textFrame(p);
+    const imageFill = importedShapeImageFill.get(this);
     const fill = this.useBackgroundFill === true
       ? resolvePresentationBackgroundColor(this.slide.effectiveBackground(), this.slide.effectiveTheme())
       : typeof this.fill === "string" ? resolveColorToken(this.fill, this.fill) : this.fill?.color || "transparent";
@@ -2072,7 +2093,9 @@ export class Shape {
     const outline = this.geometry === "line"
       ? ""
       : presentationShapeLineSvgAttributes(this.line, `Presentation shape ${this.name || this.id} line`);
-    const visual = this.geometry === "custom"
+    const visual = imageFill
+      ? presentationShapeImageFillSvg(imageFill, this, p, custom)
+      : this.geometry === "custom"
       ? `<g fill="${xmlEscape(fill)}"${fillOpacityAttribute} ${outline}>${presentationCustomPathsSvg(custom.paths, p, { escape: xmlEscape, adjustments: custom.adjustments, guides: custom.guides, sourceFrame: this.position })}</g>`
       : this.geometry === "line"
       ? presentationFreeLineSvg(this.line, p, `Presentation shape ${this.name || this.id}`, this.id)
@@ -2089,6 +2112,20 @@ export class Shape {
     return `<g transform="translate(${cx} ${cy}) rotate(${rotation}) scale(${flipHorizontal} ${flipVertical}) translate(${-cx} ${-cy})">${visual}${text}</g>`;
   }
 
+}
+
+function presentationShapeImageFillSvg(imageFill, shape, frame, custom) {
+  const dataUrl = imageFill.dataUrlSource.resolve();
+  const clipId = `officekit-image-fill-${String(shape.id).replace(/[^A-Za-z0-9_.-]+/g, "_")}`;
+  const pathMarkup = shape.geometry === "custom" && custom.paths.length
+    ? presentationCustomPathsSvg(custom.paths, frame, {
+      escape: xmlEscape,
+      adjustments: custom.adjustments,
+      guides: custom.guides,
+      sourceFrame: shape.position,
+    }).replace(/\s(?:fill|stroke)="(?:none|[^"]*)"/g, "")
+    : `<rect x="${frame.left}" y="${frame.top}" width="${frame.width}" height="${frame.height}"/>`;
+  return `<defs><clipPath id="${clipId}">${pathMarkup}</clipPath></defs><image x="${frame.left}" y="${frame.top}" width="${frame.width}" height="${frame.height}" href="${xmlEscape(dataUrl)}" preserveAspectRatio="none" clip-path="url(#${clipId})"/>`;
 }
 
 function presentationTableCellKey(row, column) { return `${row}:${column}`; }

@@ -2175,6 +2175,12 @@ message PresentationShape {
   // only when the native a:solidFill contains exactly one bare a:schemeClr;
   // effects, transforms, and inherited/style fills remain source-bound.
   string fill_scheme = 33;
+  // Source-bound embedded image fill on an ordinary shape. The asset identity
+  // is content-addressed and read-only; the native a:blipFill relationship,
+  // crop and custom geometry remain owned by the source package. This field
+  // permits bounded placement edits without reconstructing or replacing the
+  // image fill. Source-free authoring and image replacement remain unsupported.
+  string image_fill_asset_id = 34;
 }
 
 message PresentationCustomGeometryPath {

@@ -1004,7 +1004,7 @@ internal static class PptxCodec
                     }
                     if (sourceElement is P.Shape sourceShape &&
                         requested.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                        IsSimpleShape(sourceShape))
+                        IsSimpleShape(sourceShape, slideContext))
                     {
                         ApplyShape(sourceShape, requested, slideContext);
                         changed = true;
@@ -1351,7 +1351,7 @@ internal static class PptxCodec
         var modeled = false;
         if (source is P.Shape sourceShape)
         {
-            editable = IsSimpleShape(sourceShape, allowNegativeOffset);
+            editable = IsSimpleShape(sourceShape, slideContext, allowNegativeOffset);
             element.Shape = ReadShape(sourceShape, slideContext);
             modeled = true;
         }
@@ -1658,12 +1658,14 @@ internal static class PptxCodec
         }
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
+        if (PptxShapeImageFillCodec.TryRead(properties?.GetFirstChild<A.BlipFill>(), slideContext, out var imageFill))
+            result.ImageFillAssetId = imageFill.Id;
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
         result.Accessibility = PptxNonVisualAccessibilityCodec.Read(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         return result;
     }
 
-    private static bool IsSimpleShape(P.Shape shape, bool allowNegativeOffset = false)
+    private static bool IsSimpleShape(P.Shape shape, PptxPartContext? context = null, bool allowNegativeOffset = false)
     {
         if (shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null) return false;
         if (shape.ShapeStyle is not null) return false;
@@ -1676,18 +1678,34 @@ internal static class PptxCodec
                 allowSingleZeroExtent: geometry == "line",
                 allowNegativeOffset: allowNegativeOffset)) return false;
         if (geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "line" or "custom")) return false;
+        var imageFill = properties.GetFirstChild<A.BlipFill>();
+        var imageFillSupported = imageFill is not null && PptxShapeImageFillCodec.TryRead(imageFill, context, out _);
         if (geometry == "custom")
         {
             var frame = ReadFrame(shape);
-            if (!PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height)) return false;
+            var customGeometrySupported = PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height);
+            // Some third-party decks use a legal custom path profile that the
+            // semantic geometry reader does not model (for example, a
+            // rectangle-only path list without an adjustment list). When
+            // that shape is source-bound to a strict image fill, its native
+            // geometry can be preserved verbatim while the owning frame is
+            // edited. Do not widen this exception to solid-filled or
+            // source-free shapes: those still need a fully modeled path
+            // graph before they become editable.
+            if (!customGeometrySupported && !imageFillSupported) return false;
         }
-        if (!SimpleFill(properties)) return false;
+        if (imageFill is not null)
+        {
+            if (!imageFillSupported) return false;
+            if (properties.ChildElements.Any(child => child is A.NoFill or A.SolidFill)) return false;
+        }
+        else if (!SimpleFill(properties)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
         if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
         if (!string.Equals(geometry, "line", StringComparison.Ordinal) &&
             (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
         if (!PptxShadowCodec.TryRead(properties, out _)) return false;
-        if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.Outline and not A.EffectList)) return false;
+        if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.BlipFill and not A.Outline and not A.EffectList)) return false;
         return PptxTextCodec.SupportsEditing(shape.TextBody);
     }
 
@@ -1719,6 +1737,24 @@ internal static class PptxCodec
                 "unsupported_presentation_edit",
                 $"Presentation shape {source.Id} cannot change its source-bound useBgFill attribute.");
         var properties = shape.ShapeProperties ??= new P.ShapeProperties();
+        var sourceHasImageFill = PptxShapeImageFillCodec.TryRead(properties.GetFirstChild<A.BlipFill>(), slideContext, out var sourceImageFill);
+        if (sourceHasImageFill)
+        {
+            if (string.IsNullOrWhiteSpace(semantic.ImageFillAssetId) || !semantic.ImageFillAssetId.Equals(sourceImageFill.Id, StringComparison.Ordinal))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation shape {source.Id} cannot change its source-bound image fill asset.");
+            if (!string.IsNullOrWhiteSpace(semantic.FillRgb) || semantic.HasFillOpacityThousandthPercent || !string.IsNullOrWhiteSpace(semantic.FillScheme))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation shape {source.Id} cannot replace a source-bound image fill with a solid or theme fill.");
+        }
+        else if (!string.IsNullOrWhiteSpace(semantic.ImageFillAssetId))
+        {
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                $"Presentation shape {source.Id} has an image-fill identity that no longer matches its source.");
+        }
         var transform = properties.Transform2D ??= new A.Transform2D();
         var offset = transform.Offset ??= new A.Offset();
         offset.X = semantic.LeftEmu;
@@ -1727,12 +1763,20 @@ internal static class PptxCodec
         extents.Cx = semantic.WidthEmu;
         extents.Cy = semantic.HeightEmu;
         PptxShapeTransformCodec.Apply(transform, semantic.Transform);
-        PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
+        // Imported image-filled custom geometries are intentionally source-owned
+        // when their path graph is outside the semantic projection. Preserve
+        // that native geometry while allowing the owning frame to move. A
+        // populated custom path list remains the normal editable geometry path.
+        if (!sourceHasImageFill || semantic.CustomPaths.Count > 0)
+            PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
         PptxNonVisualAccessibilityCodec.ApplyBound(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, semantic.Accessibility);
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
-        var fillOpacity = semantic.HasFillOpacityThousandthPercent ? semantic.FillOpacityThousandthPercent : (uint?)null;
-        if (!FillMatches(properties, semantic.FillRgb, fillOpacity)) ReplaceFill(properties, semantic.FillRgb, fillOpacity);
+        if (!sourceHasImageFill)
+        {
+            var fillOpacity = semantic.HasFillOpacityThousandthPercent ? semantic.FillOpacityThousandthPercent : (uint?)null;
+            if (!FillMatches(properties, semantic.FillRgb, fillOpacity)) ReplaceFill(properties, semantic.FillRgb, fillOpacity);
+        }
         PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
@@ -2195,6 +2239,10 @@ internal static class PptxCodec
     private static P.Shape BuildShape(PresentationElement source, uint nativeId, PptxPartContext slideContext)
     {
         var semantic = source.Shape;
+        if (!string.IsNullOrWhiteSpace(semantic.ImageFillAssetId))
+            throw new CodecException(
+                "unsupported_presentation_features",
+                $"Presentation shape {source.Id} cannot author a source-bound image fill outside an imported source package.");
         var directFrame = semantic.DirectFrame;
         var transform = new A.Transform2D(
             new A.Offset { X = directFrame?.LeftEmu ?? semantic.LeftEmu, Y = directFrame?.TopEmu ?? semantic.TopEmu },
@@ -2356,7 +2404,7 @@ internal static class PptxCodec
         int slideIndex,
         string location)
     {
-        if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape))
+        if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape, slideContext))
             ApplyShape(shape, requested, slideContext);
         else if (source is P.Picture picture && requested.ContentCase == PresentationElement.ContentOneofCase.Image && PptxPictureCodec.TryRead(picture, slideContext, out _))
             PptxPictureCodec.Apply(picture, requested, slideContext);
@@ -2780,6 +2828,12 @@ internal static class PptxCodec
             if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb)) PptxColor.Normalize(element.Shape.FillRgb);
             if (!string.IsNullOrWhiteSpace(element.Shape.FillScheme) && !hasSourcePackage)
                 throw new CodecException("unsupported_presentation_features", $"Source-free presentation shape {element.Id} cannot author a theme fill directly.");
+            if (!string.IsNullOrWhiteSpace(element.Shape.ImageFillAssetId))
+            {
+                if (!hasSourcePackage)
+                    throw new CodecException("unsupported_presentation_features", $"Source-free presentation shape {element.Id} cannot author an image fill.");
+                _ = assetCatalog.Get(element.Shape.ImageFillAssetId);
+            }
             if (element.Shape.HasFillOpacityThousandthPercent &&
                 (string.IsNullOrWhiteSpace(element.Shape.FillRgb) || element.Shape.FillOpacityThousandthPercent > 100_000))
                 throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} has invalid solid-fill opacity.");

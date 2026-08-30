@@ -58,6 +58,7 @@ const PRESENTATION_ELEMENT_ORDER_CAPABILITY = Symbol.for("office-kit.presentatio
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_IMPORTED_GROUP_CHILD = Symbol.for("office-kit.presentation-imported-group-child");
+const PRESENTATION_SHAPE_IMAGE_FILL = Symbol.for("office-kit.presentation-shape-image-fill");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
 const PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-svg-data-url-source");
 const PRESENTATION_SCHEME_COLORS = new Set([
@@ -270,6 +271,7 @@ function registerPresentationCloneElement(context, source, clone) {
 }
 
 function cloneImportedPresentationShape(container, source, context) {
+  const imageFill = source[PRESENTATION_SHAPE_IMAGE_FILL];
   const clone = container.shapes.add({
     name: source.name,
     geometry: source.geometry,
@@ -289,6 +291,11 @@ function cloneImportedPresentationShape(container, source, context) {
     ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
     _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     ...(source.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: source.useBackgroundFill }),
+    ...(imageFill ? {
+      _officeKitImageFillAssetId: imageFill.assetId,
+      _officeKitImageFillContentType: imageFill.contentType,
+      _officeKitImageFillDataUrlSource: imageFill.dataUrlSource,
+    } : {}),
     text: clonedPresentationValue(source.text.paragraphs),
     textBodyProperties: clonedPresentationValue(source.text.bodyProperties),
     textStyle: clonedPresentationValue(source.text.style),
@@ -2163,12 +2170,18 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
       return { command: { case: "close", value: true } };
     }),
   }));
+  const imageFill = shape[PRESENTATION_SHAPE_IMAGE_FILL];
   // The model deliberately withholds an unrecognized custom-path grammar.
   // An unchanged source-bound, non-editable shape can still be carried by the
   // C# codec, which rechecks its source binding and rejects every mutation.
-  // Source-free or editable shapes must continue to provide the full grammar.
+  // A source-bound image-filled shape is also allowed to retain an opaque
+  // custom path profile: its bounded operation is frame placement only, and
+  // the native path is never reconstructed by this serializer.
+  // Source-free shapes still must provide the full grammar.
   const opaqueSourceBoundCustomGeometry = original?.source?.editable === false;
-  if (shape.geometry === "custom" && customPaths.length === 0 && !opaqueSourceBoundCustomGeometry) {
+  const sourceBoundImageFilledCustomGeometry = imageFill && original?.source?.editable === true;
+  if (shape.geometry === "custom" && customPaths.length === 0 &&
+      !opaqueSourceBoundCustomGeometry && !sourceBoundImageFilledCustomGeometry) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} requires custom paths.`, [], { code: "invalid_presentation_geometry" });
   }
   const line = normalizePresentationLineStyle(shape.line, { name: `Presentation shape ${shape.id} line` });
@@ -2192,6 +2205,14 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
+  const sourceImageFillAssetId = String(originalShape?.imageFillAssetId || "");
+  if (sourceImageFillAssetId && (!imageFill || imageFill.assetId !== sourceImageFillAssetId)) {
+    throw new OfficeKitCodecError(
+      `Presentation shape ${shape.id} changed its source-bound image fill identity.`,
+      [],
+      { code: "unsupported_presentation_edit" },
+    );
+  }
   const sourceFillScheme = String(originalShape?.fillScheme || "");
   const preserveSourceFillScheme = sourceFillScheme && typeof shape.fill === "string" &&
     shape.fill.toLowerCase() === sourceFillScheme.toLowerCase();
@@ -2218,6 +2239,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         textBody,
         fillRgb,
         ...(preserveSourceFillScheme ? { fillScheme: sourceFillScheme } : {}),
+        ...(imageFill ? { imageFillAssetId: imageFill.assetId } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
@@ -3112,6 +3134,8 @@ function registerPresentationCloneAssets(element, assetCatalog) {
   if (element instanceof ImageElement && element.dataUrl) assetCatalog.addDataUrl(element.dataUrl);
   if (element instanceof ImageElement && element.svgDataUrl) assetCatalog.addDataUrl(element.svgDataUrl);
   if (element instanceof Shape) {
+    const imageFill = element[PRESENTATION_SHAPE_IMAGE_FILL];
+    if (imageFill?.dataUrlSource?.resolve) assetCatalog.addDataUrl(imageFill.dataUrlSource.resolve());
     for (const paragraph of element.text?.paragraphs || []) {
       if (paragraph.bulletImage?.dataUrl) assetCatalog.addDataUrl(paragraph.bulletImage.dataUrl);
     }
@@ -6867,6 +6891,11 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       line: modelPresentationShapeLine(shape),
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+      ...(shape.imageFillAssetId ? {
+        _officeKitImageFillAssetId: shape.imageFillAssetId,
+        _officeKitImageFillContentType: assetCatalog.contentType(shape.imageFillAssetId),
+        _officeKitImageFillDataUrlSource: assetCatalog.dataUrlSource(shape.imageFillAssetId),
+      } : {}),
       ...modelPresentationAccessibility(shape.accessibility),
       _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
       text: modelText(shape, assetCatalog, customShowLinks),
@@ -7200,6 +7229,11 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           line: modelPresentationShapeLine(shape),
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+          ...(shape.imageFillAssetId ? {
+            _officeKitImageFillAssetId: shape.imageFillAssetId,
+            _officeKitImageFillContentType: assetCatalog.contentType(shape.imageFillAssetId),
+            _officeKitImageFillDataUrlSource: assetCatalog.dataUrlSource(shape.imageFillAssetId),
+          } : {}),
           ...modelPresentationAccessibility(shape.accessibility),
           _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           text: modelText(shape, assetCatalog, customShowLinks),
