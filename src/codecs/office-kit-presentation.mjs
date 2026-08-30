@@ -2242,6 +2242,14 @@ function presentationImage(image, original, assetCatalog) {
     : original?.content?.case === "image"
       ? original.content.value.opacityThousandthPercent
       : undefined;
+  // ImageElement intentionally exposes only the safe frame/asset surface.
+  // Keep the source-owned canonical border and shadow on any reserialized
+  // imported image (position, crop, replacement, or opacity edit).  Without
+  // this carry-through, a normal image edit would turn a successfully parsed
+  // source effect into a null protobuf field and PptxPictureCodec.Apply would
+  // remove the effect from the package.  These fields are not user-editable
+  // here; preserving them is the source-bound contract.
+  const sourceImage = original?.content?.case === "image" ? original.content.value : undefined;
   return {
     id: original?.id || image.id,
     name: image.name || original?.name || "",
@@ -2266,6 +2274,8 @@ function presentationImage(image, original, assetCatalog) {
         ...(original?.content?.case === "image" && original.content.value.maskPreset
           ? { maskPreset: original.content.value.maskPreset }
           : {}),
+        ...(sourceImage?.border ? { border: sourceImage.border } : {}),
+        ...(sourceImage?.shadow ? { shadow: sourceImage.shadow } : {}),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
         ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),
