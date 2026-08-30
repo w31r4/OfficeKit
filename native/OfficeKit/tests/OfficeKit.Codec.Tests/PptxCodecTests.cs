@@ -198,6 +198,80 @@ public sealed class PptxCodecTests
             Assert.Equal(sourceSlide.Slide!.OuterXml, outputSlides[1].Slide!.OuterXml);
         }
 
+        var componentState = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var componentOrigin = componentState["pages"]![0]!.AsObject();
+        var componentDuplicate = componentOrigin["nativeRef"]!["capabilities"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(capability => capability["operation"]!.GetValue<string>() == "duplicate");
+        var retainedElement = componentOrigin["elements"]![1]!.AsObject();
+        var removedSibling = componentOrigin["elements"]![0]!.AsObject();
+        Assert.Contains(removedSibling["nativeRef"]!["capabilities"]!.AsArray(), item =>
+            item!["operation"]!.GetValue<string>() == "delete" &&
+            item["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "element"));
+        var componentCloneId = "page-source-component";
+        componentState["pages"]!.AsArray().Insert(1, new JsonObject
+        {
+            ["id"] = componentCloneId,
+            ["role"] = "source component continuation",
+            ["elements"] = new JsonArray(),
+            ["sourceClone"] = new JsonObject
+            {
+                ["page"] = componentOrigin["id"]!.GetValue<string>(),
+                ["capability"] = componentDuplicate["id"]!.GetValue<string>(),
+                ["retainElement"] = retainedElement["id"]!.GetValue<string>(),
+            },
+        });
+
+        var componentClone = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(componentState.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(componentClone.Ok, Diagnostics(componentClone));
+        Assert.Contains(componentCloneId, componentClone.PresentationProgram.ChangedNodeIds);
+        using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var componentStream = new MemoryStream(componentClone.File.ToByteArray(), writable: false))
+        using (var componentPackage = PresentationDocument.Open(componentStream, false))
+        {
+            var sourceSlide = Assert.Single(OrderedSlides(sourcePackage));
+            var componentSlides = OrderedSlides(componentPackage).ToArray();
+            Assert.Equal(2, componentSlides.Length);
+            Assert.Equal(sourceSlide.Slide!.OuterXml, componentSlides[0].Slide!.OuterXml);
+            Assert.Equal(2, componentSlides[0].Slide!.CommonSlideData!.ShapeTree!.Elements<P.Shape>().Count());
+            Assert.Single(componentSlides[1].Slide!.CommonSlideData!.ShapeTree!.Elements<P.Shape>());
+            Assert.Contains("Reduce incident hours", componentSlides[1].Slide!.InnerText, StringComparison.Ordinal);
+        }
+
+        var componentProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = componentClone.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/component.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(componentProjection.Ok, Diagnostics(componentProjection));
+        using (var componentJson = JsonDocument.Parse(componentProjection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var projectedComponentPage = componentJson.RootElement.GetProperty("pages")[1];
+            Assert.False(projectedComponentPage.TryGetProperty("sourceClone", out _));
+            var projectedComponent = Assert.Single(projectedComponentPage.GetProperty("elements").EnumerateArray());
+            Assert.Equal("text", projectedComponent.GetProperty("type").GetString());
+            Assert.True(projectedComponent.TryGetProperty("nativeRef", out _));
+        }
+
         var reopened = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
