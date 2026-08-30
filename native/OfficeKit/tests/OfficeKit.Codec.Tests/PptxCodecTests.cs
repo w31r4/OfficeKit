@@ -218,6 +218,69 @@ public sealed class PptxCodecTests
             Assert.False(page.TryGetProperty("sourceClone", out _));
             Assert.NotEmpty(page.GetProperty("elements").EnumerateArray());
         });
+
+        var continuedState = JsonNode.Parse(reopened.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var continuedPage = continuedState["pages"]![1]!.AsObject();
+        var appendCapability = continuedPage["nativeRef"]!["capabilities"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(capability => capability["operation"]!.GetValue<string>() == "appendElement");
+        Assert.Contains(appendCapability["fields"]!.AsArray(), field => field!.GetValue<string>() == "elements");
+        var overlayId = "reviewed-source-overlay";
+        continuedPage["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = overlayId,
+            ["type"] = "text",
+            ["role"] = "source continuation label",
+            ["frame"] = new JsonObject { ["x"] = 560, ["y"] = 440, ["width"] = 300, ["height"] = 48 },
+            ["text"] = "Continued through PPJ",
+        });
+        var continued = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = cloned.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(continuedState.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(continued.Ok, Diagnostics(continued));
+        Assert.Contains(overlayId, continued.PresentationProgram.ChangedNodeIds);
+        var changedOverlayPart = Assert.Single(continued.PresentationProgram.ChangedParts);
+        using (var cloneStream = new MemoryStream(cloned.File.ToByteArray(), writable: false))
+        using (var clonePackage = PresentationDocument.Open(cloneStream, false))
+        using (var continuedStream = new MemoryStream(continued.File.ToByteArray(), writable: false))
+        using (var continuedPackage = PresentationDocument.Open(continuedStream, false))
+        {
+            var cloneSlides = OrderedSlides(clonePackage).ToArray();
+            var continuedSlides = OrderedSlides(continuedPackage).ToArray();
+            Assert.Equal(continuedSlides[1].Uri.OriginalString.TrimStart('/'), changedOverlayPart);
+            Assert.Equal(cloneSlides[0].Slide!.OuterXml, continuedSlides[0].Slide!.OuterXml);
+            Assert.DoesNotContain("Continued through PPJ", cloneSlides[1].Slide!.InnerText);
+            Assert.Contains("Continued through PPJ", continuedSlides[1].Slide!.InnerText);
+        }
+
+        var continuedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = continued.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/continued.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(continuedProjection.Ok, Diagnostics(continuedProjection));
+        using var continuedJson = JsonDocument.Parse(continuedProjection.PresentationProgram.ProgramJson.ToByteArray());
+        var projectedOverlay = continuedJson.RootElement.GetProperty("pages")[1].GetProperty("elements")
+            .EnumerateArray()
+            .Single(element => element.GetProperty("type").GetString() == "text" &&
+                element.GetProperty("text").GetRawText().Contains("Continued through PPJ", StringComparison.Ordinal));
+        Assert.True(projectedOverlay.TryGetProperty("nativeRef", out _));
     }
 
     [Fact]
