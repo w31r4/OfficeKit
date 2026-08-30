@@ -15,6 +15,7 @@ internal static class PpjSemanticValidator
             ["setGeometry"] = Set("geometry.adjustments"),
             ["replaceImage"] = Set("image.asset"),
             ["setImageCrop"] = Set("image.crop"),
+            ["setImageMask"] = Set("image.mask.adjustments"),
             ["setChartTitle"] = Set("chart.title"),
             ["setChartData"] = Set("chart.data"),
             ["setSmartArtText"] = Set("smartArt.text"),
@@ -168,10 +169,12 @@ internal static class PpjSemanticValidator
                 break;
             case PpjShapeElementModel shape:
                 ValidateStyleRef(shape.StyleRef, program.Design.ShapeStyleIds, $"{path}.styleRef", diagnostics);
-                ValidatePresetAdjustments(shape, path, diagnostics);
+                ValidatePresetAdjustments(shape.GeometryKind, shape.GeometryPreset, shape.GeometryAdjustments, path + ".geometry", diagnostics);
                 break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
+                if (image.MaskKind is not null)
+                    ValidatePresetAdjustments(image.MaskKind, image.MaskPreset, image.MaskAdjustments, path + ".mask", diagnostics);
                 break;
             case PpjChartElementModel chart:
                 ValidateStyleRef(chart.StyleRef, program.Design.ChartStyleIds, $"{path}.styleRef", diagnostics);
@@ -215,25 +218,27 @@ internal static class PpjSemanticValidator
     }
 
     private static void ValidatePresetAdjustments(
-        PpjShapeElementModel shape,
+        string geometryKind,
+        string? geometryPreset,
+        IReadOnlyList<int> adjustments,
         string path,
         List<PpjDiagnostic> diagnostics)
     {
-        if (shape.GeometryKind != "preset" || shape.GeometryAdjustments.Count == 0) return;
-        if (shape.GeometryPreset is null ||
-            !PptxPresetGeometryAdjustmentCodec.TryExpectedCount(shape.GeometryPreset, out var expectedCount))
+        if (geometryKind != "preset" || adjustments.Count == 0) return;
+        if (geometryPreset is null ||
+            !PptxPresetGeometryAdjustmentCodec.TryExpectedCount(geometryPreset, out var expectedCount))
         {
             diagnostics.Add(new(
                 "ppj.geometry.adjustmentProfile",
-                $"Preset geometry {shape.GeometryPreset ?? "(missing)"} has no canonical adjustment profile.",
-                path + ".geometry.adjustments"));
+                $"Preset geometry {geometryPreset ?? "(missing)"} has no canonical adjustment profile.",
+                path + ".adjustments"));
             return;
         }
-        if (shape.GeometryAdjustments.Count != expectedCount)
+        if (adjustments.Count != expectedCount)
             diagnostics.Add(new(
                 "ppj.geometry.adjustmentCount",
-                $"Preset geometry {shape.GeometryPreset} requires either no explicit adjustments or exactly {expectedCount} ordered values.",
-                path + ".geometry.adjustments"));
+                $"Preset geometry {geometryPreset} requires either no explicit adjustments or exactly {expectedCount} ordered values.",
+                path + ".adjustments"));
     }
 
     private static void ValidateChart(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)

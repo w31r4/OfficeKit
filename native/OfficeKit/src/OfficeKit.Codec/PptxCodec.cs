@@ -2515,12 +2515,12 @@ internal static class PptxCodec
     {
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties?.TextBox?.Value == true) return "textbox";
         if (shape.ShapeProperties?.GetFirstChild<A.CustomGeometry>() is not null) return "custom";
-        var value = shape.ShapeProperties?.GetFirstChild<A.PresetGeometry>()?.Preset?.Value;
+        var native = shape.ShapeProperties?.GetFirstChild<A.PresetGeometry>();
+        var value = native?.Preset?.Value;
         if (value is null) return "rect";
-        return value.Equals(A.ShapeTypeValues.Ellipse) ? "ellipse" :
-            value.Equals(A.ShapeTypeValues.RoundRectangle) ? "roundRect" :
-            value.Equals(A.ShapeTypeValues.Line) ? "line" :
-            value.Equals(A.ShapeTypeValues.Rectangle) ? "rect" : value.ToString() ?? "rect";
+        if (PptxCustomGeometryCodec.TryPresetName(value.Value, out var name)) return name;
+        var raw = native!.GetAttribute("prst", string.Empty).Value;
+        return string.IsNullOrEmpty(raw) ? "rect" : raw;
     }
 
     private static string ElementName(OpenXmlElement element, int index) =>

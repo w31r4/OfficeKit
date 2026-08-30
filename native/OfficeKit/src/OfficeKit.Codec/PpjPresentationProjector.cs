@@ -26,19 +26,6 @@ internal static partial class PpjPresentationProjector
 {
     private const double EmuPerPoint = 12_700d;
 
-    private static readonly HashSet<string> PresetGeometries = new(StringComparer.Ordinal)
-    {
-        "rect", "roundRect", "ellipse", "triangle", "rightTriangle", "diamond",
-        "parallelogram", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon",
-        "chevron", "homePlate", "pie", "arc", "donut", "blockArc", "heart",
-        "lightningBolt", "sun", "moon", "cloud", "star4", "star5", "star6",
-        "star8", "star10", "star12", "leftArrow", "rightArrow", "upArrow",
-        "downArrow", "leftRightArrow", "upDownArrow", "quadArrow", "bentArrow",
-        "uturnArrow", "circularArrow", "wedgeRoundRectCallout", "wedgeEllipseCallout",
-        "bracePair", "bracketPair", "flowChartProcess", "flowChartDecision",
-        "flowChartData", "flowChartTerminator", "flowChartDocument", "flowChartPreparation",
-    };
-
     internal static PpjProjectionResult Project(
         byte[] sourceBytes,
         PresentationProgramRequest request,
@@ -322,7 +309,7 @@ internal static partial class PpjPresentationProjector
         var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
-        if (!isPlaceholder && !isTextBox && !PresetGeometries.Contains(shape.Geometry) &&
+        if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
             !CanProjectCustomGeometry(shape))
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
 
@@ -471,8 +458,13 @@ internal static partial class PpjPresentationProjector
         }
         if (image.HasOpacityThousandthPercent)
             output["opacity"] = Unit(image.OpacityThousandthPercent);
-        if (!string.IsNullOrEmpty(image.MaskPreset) && PresetGeometries.Contains(image.MaskPreset))
-            output["mask"] = new JsonObject { ["kind"] = "preset", ["preset"] = image.MaskPreset };
+        if (!string.IsNullOrEmpty(image.MaskPreset) && PptxPresetGeometryAdjustmentCodec.HasProfile(image.MaskPreset))
+        {
+            var mask = new JsonObject { ["kind"] = "preset", ["preset"] = image.MaskPreset };
+            if (image.MaskPresetAdjustments.Count > 0)
+                mask["adjustments"] = new JsonArray(image.MaskPresetAdjustments.Select(value => JsonValue.Create(value)).ToArray());
+            output["mask"] = mask;
+        }
         if (image.Border is not null && !string.IsNullOrEmpty(image.Border.ColorRgb))
             output["border"] = Stroke(image.Border.ColorRgb, image.Border.WidthEmu, image.Border.Style, image.Border.Cap, image.Border.Join,
                 image.Border.HasOpacityThousandthPercent ? Unit(image.Border.OpacityThousandthPercent) : null);
@@ -1221,6 +1213,10 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setImageCrop", ["image.crop"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 output.Add(new("setOpacity", ["opacity"]));
+                if (!string.IsNullOrEmpty(element.Image.MaskPreset) &&
+                    PptxPresetGeometryAdjustmentCodec.TryExpectedCount(element.Image.MaskPreset, out var maskAdjustmentCount) &&
+                    maskAdjustmentCount > 0)
+                    output.Add(new("setImageMask", ["image.mask.adjustments"]));
                 break;
             case PresentationElement.ContentOneofCase.Chart when source.Editable:
                 output.Add(new("setChartTitle", ["chart.title"]));

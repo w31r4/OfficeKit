@@ -62,11 +62,11 @@
       "reason": "Shape, slide-background, and table-cell gradients are compiler-owned. Chart-series paint currently owns direct opaque RGB only; chart and plot areas own none or solid RGB with opacity."
     },
     {
-      "feature": "custom or adjusted image masks",
-      "ppjPath": "image.mask",
+      "feature": "custom-path image masks",
+      "ppjPath": "image.mask where kind is custom",
       "behavior": "fail-closed",
-      "sourceBound": "Existing crop and mask topology remains source-preserved.",
-      "reason": "Authored images currently accept unadjusted preset masks."
+      "sourceBound": "Existing custom mask topology remains source-preserved.",
+      "reason": "Authored and canonical imported preset masks own the complete ordered adjustment array; arbitrary custom mask paths remain native-owned."
     },
     {
       "feature": "tiled image elements and independently rotated connector frames",

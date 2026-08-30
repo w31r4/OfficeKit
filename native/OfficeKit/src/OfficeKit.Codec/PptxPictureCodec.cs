@@ -31,7 +31,8 @@ internal static class PptxPictureCodec
         if (!TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out var crop) ||
             !TryReadBorder(properties.GetFirstChild<A.Outline>(), out var border) ||
             !PptxShadowCodec.TryRead(properties, out var shadow) ||
-            geometry.Preset?.Value is not { } preset || !PptxCustomGeometryCodec.TryPresetName(preset, out var maskPreset)) return false;
+            geometry.Preset?.Value is not { } preset || !PptxCustomGeometryCodec.TryPresetName(preset, out var maskPreset) ||
+            !PptxPresetGeometryAdjustmentCodec.TryRead(geometry, maskPreset, out var maskAdjustments)) return false;
         // Accessibility is a leaf capability, not ownership of the whole
         // picture. An ambiguous known extension hides the modeled metadata and
         // disables only that setter; unrelated picture edits remain residual-
@@ -64,6 +65,7 @@ internal static class PptxPictureCodec
             if (blip.GetFirstChild<A.AlphaModulationFixed>() is { } alpha)
                 image.OpacityThousandthPercent = checked((uint)(alpha.Amount?.Value ?? 100_000));
             if (!maskPreset.Equals("rect", StringComparison.Ordinal)) image.MaskPreset = maskPreset;
+            image.MaskPresetAdjustments.Add(maskAdjustments);
             image.Border = border;
             image.Shadow = shadow;
             var visual = ReadTransform(transform);
@@ -102,8 +104,8 @@ internal static class PptxPictureCodec
             throw Invalid(elementId, "crop edges must be between -100% and 100% and opposing sums must remain below 100%");
         if (image.HasOpacityThousandthPercent && image.OpacityThousandthPercent > 100_000)
             throw Invalid(elementId, "opacity must be between 0% and 100%");
-        if (image.MaskPreset.Length > 0 && !PptxCustomGeometryCodec.TryPreset(image.MaskPreset, out _))
-            throw Invalid(elementId, $"mask preset {image.MaskPreset} is unsupported");
+        var maskPreset = image.MaskPreset.Length == 0 ? "rect" : image.MaskPreset;
+        PptxPresetGeometryAdjustmentCodec.Validate(maskPreset, image.MaskPresetAdjustments, elementId + " image mask");
         ValidateBorder(image.Border, elementId);
         PptxShadowCodec.Validate(image.Shadow, elementId, "image");
         ValidateTransform(image.Transform, elementId);
@@ -132,7 +134,7 @@ internal static class PptxPictureCodec
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, Accessibility(image));
         var properties = new P.ShapeProperties(
             transform,
-            BuildMask(image.MaskPreset));
+            BuildMask(image.MaskPreset, image.MaskPresetAdjustments, source.Id));
         if (image.Border is not null) properties.Append(BuildBorder(image.Border));
         PptxShadowCodec.Apply(properties, image.Shadow);
         return new P.Picture(
@@ -196,8 +198,13 @@ internal static class PptxPictureCodec
         if (currentImage.HasOpacityThousandthPercent != requested.Image.HasOpacityThousandthPercent ||
             currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
             ApplyOpacity(blip, requested.Image.HasOpacityThousandthPercent ? requested.Image.OpacityThousandthPercent : null);
-        if (!currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal))
+        if (!currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal) ||
+            !currentImage.MaskPresetAdjustments.SequenceEqual(requested.Image.MaskPresetAdjustments))
+        {
+            var maskPreset = requested.Image.MaskPreset.Length == 0 ? "rect" : requested.Image.MaskPreset;
             geometry.Preset = MaskPreset(requested.Image.MaskPreset);
+            PptxPresetGeometryAdjustmentCodec.Apply(geometry, maskPreset, requested.Image.MaskPresetAdjustments, requested.Id + " image mask");
+        }
         if (!Equals(currentImage.Border, requested.Image.Border)) ApplyBorder(properties, requested.Image.Border);
         if (!Equals(currentImage.Shadow, requested.Image.Shadow)) PptxShadowCodec.Apply(properties, requested.Image.Shadow);
     }
@@ -227,7 +234,11 @@ internal static class PptxPictureCodec
         if (source.ShapeProperties is { } properties)
         {
             if (properties.GetFirstChild<A.PresetGeometry>() is { } geometry)
+            {
                 geometry.Preset = A.ShapeTypeValues.Rectangle;
+                geometry.RemoveAllChildren();
+                geometry.Append(new A.AdjustValueList());
+            }
             properties.GetFirstChild<A.Outline>()?.Remove();
             properties.GetFirstChild<A.EffectList>()?.Remove();
         }
@@ -269,7 +280,7 @@ internal static class PptxPictureCodec
             presetGeometry.Preset is null || presetGeometry.GetAttributes().Count != 1 ||
             presetGeometry.GetAttributes()[0].LocalName != "prst" || presetGeometry.GetAttributes()[0].NamespaceUri.Length != 0 ||
             presetGeometry.ChildElements.Count != 1 || presetGeometry.GetFirstChild<A.AdjustValueList>() is not { } adjustments ||
-            adjustments.HasAttributes || adjustments.HasChildren ||
+            adjustments.HasAttributes ||
             !TransformSupported(xfrm)) return false;
         crop = fillChildren.Length == 3 ? (A.SourceRectangle)fillChildren[1] : null;
         if (crop is not null && !CropSupported(crop)) return false;
@@ -548,8 +559,13 @@ internal static class PptxPictureCodec
         else properties.InsertAfter(outline, anchor);
     }
 
-    private static A.PresetGeometry BuildMask(string value) =>
-        new(new A.AdjustValueList()) { Preset = MaskPreset(value) };
+    private static A.PresetGeometry BuildMask(string value, IEnumerable<int> adjustments, string elementId)
+    {
+        var name = value.Length == 0 ? "rect" : value;
+        var output = new A.PresetGeometry { Preset = MaskPreset(value) };
+        PptxPresetGeometryAdjustmentCodec.Apply(output, name, adjustments, elementId + " image mask");
+        return output;
+    }
 
     private static A.ShapeTypeValues MaskPreset(string value)
     {

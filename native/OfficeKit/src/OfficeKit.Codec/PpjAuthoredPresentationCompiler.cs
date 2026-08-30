@@ -245,9 +245,8 @@ internal static class PpjAuthoredPresentationCompiler
         {
             if (mask.GetProperty("kind").GetString() != "preset")
                 throw Unsupported(element.Id, "custom image masks require the native custom-geometry picture compiler");
-            if (mask.TryGetProperty("adjustments", out var adjustments) && adjustments.GetArrayLength() > 0)
-                throw Unsupported(element.Id, "adjusted image-mask geometry is not yet compiler-owned");
             image.MaskPreset = mask.GetProperty("preset").GetString()!;
+            image.MaskPresetAdjustments.Add(element.MaskAdjustments);
         }
         if (raw.TryGetProperty("border", out var border))
         {

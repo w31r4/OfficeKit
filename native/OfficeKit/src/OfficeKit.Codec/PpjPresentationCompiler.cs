@@ -545,7 +545,7 @@ internal static class PpjSourceBoundPresentationCompiler
         IReadOnlyDictionary<string, string> assets,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "asset", "crop", "opacity");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "asset", "crop", "opacity", "mask");
         var changed = ApplyFrame(before, after, target, path);
         if (!before.AssetId.Equals(after.AssetId, StringComparison.Ordinal))
         {
@@ -574,6 +574,20 @@ internal static class PpjSourceBoundPresentationCompiler
             RequireCapability(after, "setOpacity", path + ".opacity");
             if (after.Raw.TryGetProperty("opacity", out var opacity)) target.OpacityThousandthPercent = Unit(opacity.GetDouble());
             else target.ClearOpacityThousandthPercent();
+            changed = true;
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "mask"))
+        {
+            RequireCapability(after, "setImageMask", path + ".mask.adjustments");
+            if (before.MaskKind != "preset" || after.MaskKind != "preset" ||
+                before.MaskPreset is null || after.MaskPreset is null ||
+                !before.MaskPreset.Equals(after.MaskPreset, StringComparison.Ordinal))
+                throw Unsupported(path + ".mask", "source-bound picture mask topology or preset identity change");
+            var beforeMask = before.Raw.GetProperty("mask");
+            var afterMask = after.Raw.GetProperty("mask");
+            RequireEqualExcept(beforeMask, afterMask, path + ".mask", "adjustments");
+            target.MaskPresetAdjustments.Clear();
+            target.MaskPresetAdjustments.Add(after.MaskAdjustments);
             changed = true;
         }
         return changed;

@@ -17,7 +17,7 @@ internal static class PptxPresetGeometryAdjustmentCodec
     internal static readonly int MinimumValue;
     internal static readonly int MaximumValue;
     private static readonly IReadOnlyDictionary<string, Profile> Profiles;
-    private static readonly IReadOnlyDictionary<string, string> PreferredNames;
+    private static readonly IReadOnlyDictionary<A.ShapeTypeValues, string> PreferredNames;
 
     static PptxPresetGeometryAdjustmentCodec()
     {
@@ -38,7 +38,7 @@ internal static class PptxPresetGeometryAdjustmentCodec
             StringComparer.Ordinal);
         PreferredNames = Profiles
             .Where(entry => !entry.Value.Alias)
-            .ToDictionary(entry => entry.Value.NativeToken, entry => entry.Key, StringComparer.Ordinal);
+            .ToDictionary(entry => new A.ShapeTypeValues(entry.Value.NativeToken), entry => entry.Key);
     }
 
     private static bool TryProfile(string geometry, out Profile profile)
@@ -65,7 +65,7 @@ internal static class PptxPresetGeometryAdjustmentCodec
     }
 
     internal static bool TryPresetName(A.ShapeTypeValues preset, out string name) =>
-        PreferredNames.TryGetValue(preset.ToString(), out name!);
+        PreferredNames.TryGetValue(preset, out name!);
 
     internal static bool TryExpectedCount(string geometry, out int count)
     {

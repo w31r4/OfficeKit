@@ -114,6 +114,9 @@ internal sealed class PpjImageElementModel : PpjElementModel
 {
     internal required string AssetId { get; init; }
     internal string? Fit { get; init; }
+    internal string? MaskKind { get; init; }
+    internal string? MaskPreset { get; init; }
+    internal IReadOnlyList<int> MaskAdjustments { get; init; } = [];
 }
 
 internal sealed class PpjChartElementModel : PpjElementModel
@@ -512,6 +515,9 @@ internal static class PpjProgramParser
             {
                 AssetId = element.GetProperty("asset").GetString()!,
                 Fit = OptionalString(element, "fit"),
+                MaskKind = element.TryGetProperty("mask", out var mask) ? OptionalString(mask, "kind") : null,
+                MaskPreset = element.TryGetProperty("mask", out mask) ? OptionalString(mask, "preset") : null,
+                MaskAdjustments = element.TryGetProperty("mask", out mask) ? ParsePresetAdjustments(mask) : [],
             },
             "chart" => new PpjChartElementModel
             {
