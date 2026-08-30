@@ -154,6 +154,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       text,
       nativeText,
       imageReplacement,
+      nativeBackgroundImage: await verifyNativeBackgroundImageEdit(bytes),
       imageCrop,
       nativeFill,
       nativeLine,
@@ -216,6 +217,7 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       textEdits: results.filter((result) => result.text.status === "passed").length,
       nativeTextEdits: results.filter((result) => result.nativeText.status === "passed").length,
       imageReplacements: results.filter((result) => result.imageReplacement.status === "passed").length,
+      nativeBackgroundImageEdits: results.filter((result) => result.nativeBackgroundImage.status === "passed").length,
       imageCropEdits: results.filter((result) => result.imageCrop.status === "passed").length,
       nativeFillEdits: results.filter((result) => result.nativeFill.status === "passed").length,
       nativeLineEdits: results.filter((result) => result.nativeLine.status === "passed").length,
@@ -338,6 +340,51 @@ async function verifyImageReplacement(bytes) {
     throw new Error(`Image replacement changed unexpected parts for ${target.id}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.id, replacementId: replacement.id, contentType, reusedExistingMedia, changedParts };
+}
+
+export async function verifyNativeBackgroundImageEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const target = presentation.slides.items.find((slide) => slide.background?.image?.dataUrl);
+  if (!target) return { status: "blocked", reason: "no direct embedded slide background image was discovered" };
+  const sourceDataUrl = target.background.image.dataUrl;
+  const sourceBytes = dataUrlBytes(sourceDataUrl);
+  const sourceType = sourceDataUrl.match(/^data:([^;]+);base64,/u)?.[1]?.toLowerCase();
+  let replacement;
+  for (const slide of presentation.slides.items) {
+    for (const image of slide.images.items) {
+      const contentType = image.dataUrl?.match(/^data:([^;]+);base64,/u)?.[1]?.toLowerCase();
+      if (!contentType || contentType !== sourceType) continue;
+      const candidateBytes = dataUrlBytes(image.dataUrl);
+      if (!Buffer.from(candidateBytes).equals(Buffer.from(sourceBytes))) {
+        replacement = { dataUrl: image.dataUrl, bytes: candidateBytes, contentType };
+        break;
+      }
+    }
+    if (replacement) break;
+  }
+  if (!replacement) return { status: "blocked", reason: "no distinct same-format image was available for a background replacement" };
+  const sourcePackage = await JSZip.loadAsync(bytes, { checkCRC32: true });
+  const existingMediaHashes = new Set();
+  for (const name of Object.keys(sourcePackage.files).filter((entry) => /^ppt\/media\//u.test(entry) && !sourcePackage.files[entry].dir)) {
+    existingMediaHashes.add(createHash("sha256").update(await sourcePackage.files[name].async("nodebuffer")).digest("hex"));
+  }
+  const reusedExistingMedia = existingMediaHashes.has(createHash("sha256").update(replacement.bytes).digest("hex"));
+  target.setNativeBackgroundImage({ dataUrl: replacement.dataUrl });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = reopened.slides.getItem(target.index);
+  if (rebound.background?.image?.dataUrl !== replacement.dataUrl) {
+    throw new Error(`Native background image replacement did not survive re-import for slide ${target.index + 1}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedSlide = `ppt/slides/slide${target.index + 1}.xml`;
+  const expectedRels = `ppt/slides/_rels/slide${target.index + 1}.xml.rels`;
+  const changedMedia = changedParts.filter((part) => /^ppt\/media\//u.test(part));
+  if (changedParts.length !== 2 + changedMedia.length || changedMedia.length > 1 ||
+      !changedParts.includes(expectedSlide) || !changedParts.includes(expectedRels)) {
+    throw new Error(`Native background image replacement changed unexpected parts for slide ${target.index + 1}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", slide: target.index + 1, contentType: replacement.contentType, reusedExistingMedia, changedParts };
 }
 
 async function verifyImageCropEdit(bytes) {
