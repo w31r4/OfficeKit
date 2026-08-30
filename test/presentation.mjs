@@ -602,6 +602,28 @@ const imageOpacityRoundTripLeaf = imageOpacityRoundTrip.inspect({ includeNativeL
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent");
 assert.equal(imageOpacityRoundTripLeaf.value, 0.4);
 
+// A normal source-bound image frame edit must not erase canonical picture
+// effects that ImageElement deliberately does not expose as mutable fields.
+// This is the regression guard for the original image-border/shadow loss.
+const imageEffectsZip = await JSZip.loadAsync(imageOpacityFile.bytes);
+const imageEffectsXml = (await imageEffectsZip.file("ppt/slides/slide1.xml").async("text")).replace(
+  "</a:prstGeom></p:spPr>",
+  "</a:prstGeom><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln><a:effectLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:outerShdw blurRad=\"12700\" dist=\"19050\" dir=\"2700000\"><a:srgbClr val=\"000000\"><a:alpha val=\"25000\"/></a:srgbClr></a:outerShdw></a:effectLst></p:spPr>",
+);
+imageEffectsZip.file("ppt/slides/slide1.xml", imageEffectsXml);
+const imageEffectsFile = new FileBlob(
+  await imageEffectsZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageEffectsImported = await PresentationFile.importPptx(imageEffectsFile);
+const imageEffectsTarget = imageEffectsImported.slides.getItem(0).images.items[0];
+imageEffectsTarget.position = { ...imageEffectsTarget.position, left: imageEffectsTarget.position.left + 5 };
+const imageEffectsOutput = await PresentationFile.exportPptx(imageEffectsImported);
+const imageEffectsOutputXml = await (await JSZip.loadAsync(imageEffectsOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageEffectsOutputXml, /<a:ln\b/u, "image frame edits must preserve the source border");
+assert.match(imageEffectsOutputXml, /<a:effectLst\b/u, "image frame edits must preserve the source shadow");
+assert.match(imageEffectsOutputXml, /<a:alphaModFix\b[^>]*amt="72000"/u, "image frame edits must preserve source opacity");
+
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
 importedAccessibilityConnector.setAccessibilityMetadata({ title: null, description: "Reviewed connector from the rollout decision to context." });
