@@ -27,6 +27,7 @@ import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCust
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
+import { normalizePresentationImageBorder } from "../presentation/image-effects.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
@@ -312,6 +313,8 @@ function cloneImportedPresentationImage(container, source, context) {
     fit: source.fit,
     ...(source.crop ? { crop: clonedPresentationValue(source.crop) } : {}),
     ...(source.opacity === undefined ? {} : { _officeKitImageOpacity: source.opacity }),
+    ...(source.border ? { _officeKitImageBorder: clonedPresentationValue(source.border) } : {}),
+    ...(source.shadow ? { _officeKitImageShadow: clonedPresentationValue(source.shadow) } : {}),
     geometry: source.geometry,
     ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
   });
@@ -1847,6 +1850,23 @@ function presentationShadow(shadow, shapeId) {
   };
 }
 
+function presentationImageBorder(border, imageId) {
+  const normalized = normalizePresentationImageBorder(border, `Presentation image ${imageId} border`);
+  if (!normalized) return undefined;
+  const colorRgb = presentationRgb(normalized.color, `${imageId}.border.color`);
+  if (!colorRgb) {
+    throw new OfficeKitCodecError(`Presentation image ${imageId} border must use an RGB color.`, [], { code: "unsupported_presentation_features" });
+  }
+  return {
+    colorRgb,
+    widthEmu: BigInt(Math.round(normalized.width * EMU_PER_POINT)),
+    style: normalized.style,
+    ...(normalized.cap ? { cap: normalized.cap } : {}),
+    ...(normalized.join ? { join: normalized.join } : {}),
+    ...(normalized.opacity === undefined ? {} : { opacityThousandthPercent: Math.round(normalized.opacity * 100_000) }),
+  };
+}
+
 function modelPresentationShadow(shadow) {
   if (!shadow) return undefined;
   return {
@@ -1855,6 +1875,18 @@ function modelPresentationShadow(shadow) {
     distance: Number(shadow.distanceEmu) / EMU_PER_PIXEL,
     direction: Number(shadow.directionAngle60000) / ROTATION_UNITS_PER_DEGREE,
     opacity: Number(shadow.opacityThousandthPercent) / 100_000,
+  };
+}
+
+function modelPresentationImageBorder(border) {
+  if (!border) return undefined;
+  return {
+    color: border.colorRgb ? `#${border.colorRgb}` : "#000000",
+    width: Number(border.widthEmu) / EMU_PER_POINT,
+    style: border.style || "solid",
+    ...(border.cap ? { cap: border.cap } : {}),
+    ...(border.join ? { join: border.join } : {}),
+    ...(border.opacityThousandthPercent === undefined ? {} : { opacity: Number(border.opacityThousandthPercent) / 100_000 }),
   };
 }
 
@@ -2242,14 +2274,17 @@ function presentationImage(image, original, assetCatalog) {
     : original?.content?.case === "image"
       ? original.content.value.opacityThousandthPercent
       : undefined;
-  // ImageElement intentionally exposes only the safe frame/asset surface.
-  // Keep the source-owned canonical border and shadow on any reserialized
-  // imported image (position, crop, replacement, or opacity edit).  Without
-  // this carry-through, a normal image edit would turn a successfully parsed
-  // source effect into a null protobuf field and PptxPictureCodec.Apply would
-  // remove the effect from the package.  These fields are not user-editable
-  // here; preserving them is the source-bound contract.
   const sourceImage = original?.content?.case === "image" ? original.content.value : undefined;
+  const imageBorderModified = image._officeKitImageBorderModified === true ||
+    image._officeKitImageBorderSnapshot !== JSON.stringify(image.border);
+  const imageShadowModified = image._officeKitImageShadowModified === true ||
+    image._officeKitImageShadowSnapshot !== JSON.stringify(image.shadow);
+  const imageBorder = imageBorderModified
+    ? (image.border === undefined ? undefined : presentationImageBorder(image.border, image.id))
+    : sourceImage?.border;
+  const imageShadow = imageShadowModified
+    ? (image.shadow === undefined ? undefined : presentationShadow(image.shadow, image.id))
+    : sourceImage?.shadow;
   return {
     id: original?.id || image.id,
     name: image.name || original?.name || "",
@@ -2274,8 +2309,8 @@ function presentationImage(image, original, assetCatalog) {
         ...(original?.content?.case === "image" && original.content.value.maskPreset
           ? { maskPreset: original.content.value.maskPreset }
           : {}),
-        ...(sourceImage?.border ? { border: sourceImage.border } : {}),
-        ...(sourceImage?.shadow ? { shadow: sourceImage.shadow } : {}),
+        ...(imageBorder ? { border: imageBorder } : {}),
+        ...(imageShadow ? { shadow: imageShadow } : {}),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
         ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),
@@ -6812,6 +6847,8 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
       ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
+      ...(image.border ? { _officeKitImageBorder: modelPresentationImageBorder(image.border) } : {}),
+      ...(image.shadow ? { _officeKitImageShadow: modelPresentationShadow(image.shadow) } : {}),
       geometry: "rect",
       ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
     };
@@ -7141,6 +7178,8 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
           ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
+          ...(image.border ? { _officeKitImageBorder: modelPresentationImageBorder(image.border) } : {}),
+          ...(image.shadow ? { _officeKitImageShadow: modelPresentationShadow(image.shadow) } : {}),
           geometry: "rect",
           ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
         });
