@@ -237,6 +237,10 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationElement BuildElement(PpjElementModel element, JsonElement raw, Catalog catalog)
     {
+        if (element is PpjChartElementModel chartWithLevels &&
+            chartWithLevels.Data.Series.Any(series => series.Levels is not null) &&
+            chartWithLevels.ChartType is not ("treemap" or "sunburst"))
+            throw Unsupported(element.Id, "levels applies only to treemap and sunburst charts");
         var output = new PresentationElement
         {
             Id = element.Id,
@@ -2986,6 +2990,7 @@ internal static class PpjAuthoredPresentationCompiler
         foreach (var node in nodes)
             if (node.ParentIndex is { } parentIndex) nodes[parentIndex].Children.Add(node.Index);
         var roots = nodes.Where(node => node.ParentIndex is null).Select(node => node.Index).ToArray();
+        var visibleLevels = series.Levels ?? 8;
 
         var rootColors = treemap.GetProperty("rootColors").EnumerateArray()
             .Select(catalog.Color)
@@ -3047,6 +3052,7 @@ internal static class PpjAuthoredPresentationCompiler
                 placement.Rectangle,
                 rootColors[rootOrder % rootColors.Length],
                 depth: 0,
+                visibleLevels,
                 gap,
                 headerHeight,
                 depthLighten,
@@ -3075,6 +3081,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (element.Data.Series.Count != 1)
             throw Unsupported(element.Id, "treemap charts require exactly one hierarchy series");
         var series = element.Data.Series[0];
+        if (series.Levels is < 1 or > 8)
+            throw Unsupported(element.Id, "treemap display levels must be between one and eight");
         if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
             throw Unsupported(element.Id, "treemap values and parents must be complete, aligned, and strictly positive");
         foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
@@ -3149,6 +3157,7 @@ internal static class PpjAuthoredPresentationCompiler
         TreemapRectangle allocated,
         (string Rgb, double Alpha) rootColor,
         int depth,
+        int visibleLevels,
         double gap,
         double headerHeight,
         double depthLighten,
@@ -3180,7 +3189,7 @@ internal static class PpjAuthoredPresentationCompiler
         });
 
         var contrast = TreemapLuminance(color.Rgb) > 0.5 ? "111827" : "FFFFFF";
-        if (node.Children.Count != 0)
+        if (node.Children.Count != 0 && depth + 1 < visibleLevels)
         {
             var effectiveHeader = Math.Min(headerHeight, Math.Max(0, rectangle.Height * 0.28));
             if (effectiveHeader >= 9 && rectangle.Width >= 28)
@@ -3213,6 +3222,7 @@ internal static class PpjAuthoredPresentationCompiler
                     placement.Rectangle,
                     rootColor,
                     depth + 1,
+                    visibleLevels,
                     gap,
                     headerHeight,
                     depthLighten,
@@ -3396,6 +3406,7 @@ internal static class PpjAuthoredPresentationCompiler
         var roots = nodes.Where(node => node.ParentIndex is null).Select(node => node.Index).ToArray();
         foreach (var root in roots) AssignSunburstDepth(nodes, root, 0);
         var levelCount = nodes.Max(node => node.Depth) + 1;
+        var visibleLevels = Math.Min(series.Levels ?? levelCount, levelCount);
 
         var rootColors = sunburst.GetProperty("rootColors").EnumerateArray().Select(catalog.Color).ToArray();
         var border = Property(sunburst, "border");
@@ -3425,7 +3436,7 @@ internal static class PpjAuthoredPresentationCompiler
         var plotY = y + titleHeight + 4 + (availableHeight - diameter) / 2;
         var outerRadius = diameter / 2;
         var innerRadius = outerRadius * innerRadiusRatio;
-        var ringWidth = (outerRadius - innerRadius) / levelCount;
+        var ringWidth = (outerRadius - innerRadius) / visibleLevels;
         if (ringWidth - ringGap < 8)
             throw Unsupported(element.Id, "sunburst rings are too narrow after applying the configured gap");
 
@@ -3477,6 +3488,7 @@ internal static class PpjAuthoredPresentationCompiler
                 ringGap,
                 segmentGapRadians,
                 depthLighten,
+                visibleLevels,
                 showValues,
                 border,
                 labelStyle,
@@ -3503,6 +3515,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (element.Data.Series.Count != 1)
             throw Unsupported(element.Id, "sunburst charts require exactly one hierarchy series");
         var series = element.Data.Series[0];
+        if (series.Levels is < 1 or > 6)
+            throw Unsupported(element.Id, "sunburst display levels must be between one and six");
         if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
             throw Unsupported(element.Id, "sunburst values and parents must be complete, aligned, and strictly positive");
         foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
@@ -3591,6 +3605,7 @@ internal static class PpjAuthoredPresentationCompiler
         double ringGap,
         double segmentGapRadians,
         double depthLighten,
+        int visibleLevels,
         bool showValues,
         JsonElement? border,
         JsonElement? labelStyle,
@@ -3671,7 +3686,7 @@ internal static class PpjAuthoredPresentationCompiler
                     contrast));
         }
 
-        if (node.Children.Count == 0) return;
+        if (node.Children.Count == 0 || node.Depth + 1 >= visibleLevels) return;
         var cursor = startAngle;
         var parentSpan = endAngle - startAngle;
         foreach (var childIndex in node.Children)
@@ -3693,6 +3708,7 @@ internal static class PpjAuthoredPresentationCompiler
                 ringGap,
                 segmentGapRadians,
                 depthLighten,
+                visibleLevels,
                 showValues,
                 border,
                 labelStyle,

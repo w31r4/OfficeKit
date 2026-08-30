@@ -185,6 +185,7 @@ internal sealed record PpjChartSeriesModel(
     IReadOnlyList<string?> Parents,
     IReadOnlyList<string> Sources,
     IReadOnlyList<string> Targets,
+    int? Levels,
     string? ChartType,
     string? Axis,
     JsonElement Raw);
@@ -798,6 +799,7 @@ internal static class PpjProgramParser
             series.TryGetProperty("targets", out var targets)
                 ? targets.EnumerateArray().Select(value => value.GetString()!).ToArray()
                 : [],
+            series.TryGetProperty("levels", out var levels) ? levels.GetInt32() : null,
             OptionalString(series, "chartType"),
             OptionalString(series, "axis"),
             series.Clone())).ToArray());

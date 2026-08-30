@@ -1506,6 +1506,7 @@ public sealed class PptxCodecTests
                     {
                         ["id"] = "budget-hierarchy",
                         ["name"] = "Budget",
+                        ["levels"] = 1,
                         ["values"] = new JsonArray(1000, 400, 600, 800, 500, 300, 400, 150, 250),
                         ["parents"] = new JsonArray(
                             null, "Engineering", "Engineering",
@@ -1571,6 +1572,7 @@ public sealed class PptxCodecTests
                     {
                         ["id"] = "portfolio-hierarchy",
                         ["name"] = "Contribution",
+                        ["levels"] = 2,
                         ["values"] = new JsonArray(100, 55, 45, 30, 25, 20, 25),
                         ["parents"] = new JsonArray(
                             null, "Company", "Company",
@@ -1592,6 +1594,14 @@ public sealed class PptxCodecTests
         var invalidSunburst = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSunburstProgram.ToJsonString()));
         Assert.False(invalidSunburst.IsValid);
         Assert.Contains(invalidSunburst.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sunburstTotal");
+        var invalidSunburstLevelsProgram = authoredProgram.DeepClone().AsObject();
+        invalidSunburstLevelsProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-sunburst-main")
+            ["data"]!["series"]![0]!["levels"] = 7;
+        var invalidSunburstLevels = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSunburstLevelsProgram.ToJsonString()));
+        Assert.False(invalidSunburstLevels.IsValid);
+        Assert.Contains(invalidSunburstLevels.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sunburstLevels");
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
             ["id"] = "evidence-sankey-main",
@@ -2450,22 +2460,22 @@ public sealed class PptxCodecTests
             var nativeTreemap = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
                 .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "hierarchical budget allocation");
-            Assert.Equal(9, nativeTreemap.Elements<P.Shape>().Count(shape =>
+            Assert.Equal(3, nativeTreemap.Elements<P.Shape>().Count(shape =>
                 shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("treemap node ", StringComparison.Ordinal) == true));
             Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Engineering");
-            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Frontend");
-            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "400");
+            Assert.DoesNotContain(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Frontend");
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "1000");
             var nativeSunburst = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
                 .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "portfolio contribution hierarchy");
-            Assert.Equal(7, nativeSunburst.Elements<P.Shape>().Count(shape =>
+            Assert.Equal(3, nativeSunburst.Elements<P.Shape>().Count(shape =>
                 shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sunburst sector ", StringComparison.Ordinal) == true));
             Assert.All(nativeSunburst.Elements<P.Shape>().Where(shape =>
                     shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sunburst sector ", StringComparison.Ordinal) == true),
                 shape => Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()));
             Assert.NotEmpty(nativeSunburst.Descendants<A.CubicBezierCurveTo>());
             Assert.Contains(nativeSunburst.Descendants<A.Text>(), text => text.Text == "Product");
-            Assert.Contains(nativeSunburst.Descendants<A.Text>(), text => text.Text == "25");
+            Assert.DoesNotContain(nativeSunburst.Descendants<A.Text>(), text => text.Text == "Platform");
             var nativeSankey = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
                 .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "customer conversion flow");
@@ -3107,7 +3117,7 @@ public sealed class PptxCodecTests
             var projectedTreemap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&
                     item.GetProperty("name").GetString() == "hierarchical budget allocation");
-            Assert.Contains(projectedTreemap.GetProperty("elements").EnumerateArray(), item =>
+            Assert.DoesNotContain(projectedTreemap.GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "treemap node Frontend");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "hierarchical budget allocation" &&
@@ -3115,9 +3125,8 @@ public sealed class PptxCodecTests
             var projectedSunburst = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&
                     item.GetProperty("name").GetString() == "portfolio contribution hierarchy");
-            Assert.Contains(projectedSunburst.GetProperty("elements").EnumerateArray(), item =>
-                item.GetProperty("name").GetString() == "sunburst sector Platform" &&
-                    item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
+            Assert.DoesNotContain(projectedSunburst.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "sunburst sector Platform");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "portfolio contribution hierarchy" &&
                     item.GetProperty("type").GetString() is "chart" or "image");

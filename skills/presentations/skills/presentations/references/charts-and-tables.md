@@ -777,6 +777,7 @@ root:
     "series": [{
       "id": "budget",
       "name": "Budget",
+      "levels": 2,
       "values": [1000, 400, 600, 800, 500, 300],
       "parents": [null, "Engineering", "Engineering", null, "Sales", "Sales"]
     }]
@@ -789,6 +790,11 @@ at most eight hierarchy levels. Every named parent must exist, parent chains
 must be acyclic, and each non-leaf value must equal the sum of its direct
 children. Those checks prevent a visually plausible rectangle mosaic from
 silently contradicting its evidence.
+
+Set the series `levels` to show only the first 1–8 levels without deleting
+deeper nodes from PPJ. A node at the last visible level receives its branch's
+full rectangle and becomes the visible summary leaf. Omit `levels` to show the
+complete available hierarchy.
 
 NativeAOT uses a deterministic squarified layout and emits one editable
 DrawingML group of rectangles and text. Root colors cycle in root order;
@@ -833,6 +839,7 @@ treemap:
     "series": [{
       "id": "portfolio",
       "name": "Contribution",
+      "levels": 2,
       "values": [100, 55, 45, 30, 25, 20, 25],
       "parents": [null, "Company", "Company", "Product", "Product", "Operations", "Operations"]
     }]
@@ -845,6 +852,10 @@ levels. Every parent must exist, the forest must be acyclic, and each non-leaf
 value must equal its direct-child sum. Root values allocate root angles in
 declared order; children partition their parent angle, and depth selects the
 ring. Segment and ring gaps are visual state, never hidden data changes.
+Set series `levels` to 1–6 when the audience should see only the leading
+hierarchy. The compiler divides the available radius among visible levels, so
+the remaining rings become wider rather than leaving blank space. The full
+forest and its totals remain in PPJ; omit the field to show every level.
 
 NativeAOT emits one editable DrawingML group. Every annular sector is a named
 custom-geometry shape whose circular edges use bounded cubic paths; labels are
