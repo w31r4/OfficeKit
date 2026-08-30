@@ -1110,6 +1110,47 @@ const fontCapsRoundTripLeaf = fontCapsRoundTrip.inspect({ includeNativeLeaves: t
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontCaps" && record.value === "all");
 assert.equal(fontCapsRoundTripLeaf.value, "all");
 
+// Direct DrawingML text highlighting is a source-bound color leaf. Keep the
+// vendor extension beside the run while changing only a:highlight, then prove
+// the public RGB value survives a second import.
+const fontHighlightAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontHighlightAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)\s*(?=<a:t>Decision)/u,
+  '$1><a:highlight><a:srgbClr val="FFFF00"/></a:highlight></a:rPr>',
+);
+assert.match(fontHighlightAccessibilityXml, /<a:highlight><a:srgbClr val="FFFF00"\s*\/\><\/a:highlight>/);
+fontHighlightAccessibilityZip.file("ppt/slides/slide1.xml", fontHighlightAccessibilityXml);
+const fontHighlightAccessibilityFile = new FileBlob(
+  await fontHighlightAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontHighlightImported = await PresentationFile.importPptx(fontHighlightAccessibilityFile);
+const fontHighlightShape = itemByName(fontHighlightImported.slides.getItem(0).shapes.items, "decision-status");
+const fontHighlightLeaf = fontHighlightImported.inspect({ includeNativeLeaves: true, target: fontHighlightShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontHighlightRgb");
+assert.ok(fontHighlightLeaf, "source-bound shapes should expose a direct run highlight leaf");
+assert.equal(fontHighlightLeaf.value, "#ffff00");
+fontHighlightImported.editNativeLeaf(fontHighlightLeaf.targetId, fontHighlightLeaf.leafId, {
+  expectedHash: fontHighlightLeaf.expectedHash,
+  value: "#00ff00",
+});
+const fontHighlightOutput = await PresentationFile.exportPptx(fontHighlightImported);
+assert.equal(fontHighlightOutput.metadata.editPlan.operations[0].leafKind, "fontHighlightRgb");
+await assertOnlyDeclaredPptxFootprintChanged(fontHighlightAccessibilityFile, fontHighlightOutput, fontHighlightOutput.metadata.editPlan.operations);
+const fontHighlightXml = await (await JSZip.loadAsync(fontHighlightOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontHighlightXml, /<a:highlight><a:srgbClr val="00FF00"\s*\/\><\/a:highlight>/);
+assert.match(fontHighlightXml, /fixture:opaque="kept"/);
+const fontHighlightRoundTrip = await PresentationFile.importPptx(fontHighlightOutput);
+const fontHighlightRoundTripLeaf = fontHighlightRoundTrip.inspect({ includeNativeLeaves: true, target: fontHighlightShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontHighlightRgb" && record.value === "#00ff00");
+assert.equal(fontHighlightRoundTripLeaf.value, "#00ff00");
+
 // Direct paragraph alignment is a source-bound token leaf.  The fixture adds
 // one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
 // it must splice only that attribute and retain the vendor cNvPr extension.

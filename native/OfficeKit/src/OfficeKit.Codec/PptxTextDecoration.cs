@@ -94,6 +94,45 @@ internal static class PptxTextDecoration
 
     internal static bool IsCapsToken(string value) => CapsValues.Contains(value);
 
+    internal static bool TryHighlight(A.TextCharacterPropertiesType? source, out string kind, out string value)
+    {
+        var highlights = source?.Elements<A.Highlight>().ToArray() ?? Array.Empty<A.Highlight>();
+        if (highlights.Length != 1 || highlights[0].GetAttributes().Count != 0 || highlights[0].ChildElements.Count != 1)
+        {
+            kind = string.Empty;
+            value = string.Empty;
+            return false;
+        }
+        var color = highlights[0].ChildElements[0];
+        if (color.ChildElements.Count != 0 || color.GetAttributes().Count != 1)
+        {
+            kind = string.Empty;
+            value = string.Empty;
+            return false;
+        }
+        if (color is A.RgbColorModelHex rgb && rgb.Val?.Value is { } rgbValue &&
+            System.Text.RegularExpressions.Regex.IsMatch(rgbValue, "^[0-9A-Fa-f]{6}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant))
+        {
+            kind = "rgb";
+            value = rgbValue.ToUpperInvariant();
+            return true;
+        }
+        if (color is A.SchemeColor scheme && scheme.Val?.Value is { } schemeValue && PptxColor.TrySchemeToken(schemeValue, out var schemeToken))
+        {
+            kind = "scheme";
+            value = schemeToken;
+            return true;
+        }
+        kind = string.Empty;
+        value = string.Empty;
+        return false;
+    }
+
+    internal static bool IsHighlightRgbToken(string value) =>
+        System.Text.RegularExpressions.Regex.IsMatch(value ?? string.Empty, "^[0-9A-Fa-f]{6}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    internal static bool IsHighlightSchemeToken(string value) => PptxColor.TrySchemeToken(value ?? string.Empty, out _);
+
     internal static bool TryKerning(A.TextCharacterPropertiesType? source, out string value)
     {
         if (source?.Kerning?.Value is { } raw && raw >= 0 && raw <= MaxKerningHundredthsPoints)

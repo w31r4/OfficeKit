@@ -210,6 +210,7 @@ message PresentationEditOperation {
   // fontSizePoints, fontFamily,
   // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
   // fontKerningPoints, fontBaselinePercent, fontSpacingPoints, fontCaps,
+  // fontHighlightRgb, fontHighlightScheme,
   // fontColorRgb, fontColorScheme, fillRgb, fillScheme,
   // lineRgb, lineScheme, lineStyle, lineCap, lineJoin, lineStartArrow,
   // lineEndArrow, lineWidthEmu,
@@ -2563,6 +2564,12 @@ message PresentationTextStyle {
   optional double font_spacing_points = 12;
   // Direct DrawingML a:defRPr/@cap token: none, small, or all.
   optional string font_caps = 13;
+  // Direct DrawingML a:defRPr/a:highlight color. Highlight transforms and
+  // non-solid color graphs remain source-bound.
+  oneof highlight {
+    string highlight_rgb = 14;
+    string highlight_scheme = 15;
+  }
 }
 
 message PresentationTextParagraph {
@@ -2702,6 +2709,12 @@ message PresentationTextRun {
   optional double font_spacing_points = 17;
   // Direct DrawingML a:rPr/@cap token: none, small, or all.
   optional string font_caps = 18;
+  // Direct DrawingML a:rPr/a:highlight color. Highlight transforms and
+  // non-solid color graphs remain source-bound.
+  oneof highlight {
+    string highlight_rgb = 19;
+    string highlight_scheme = 20;
+  }
 }
 
 message PresentationTextField {

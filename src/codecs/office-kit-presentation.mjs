@@ -117,7 +117,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color", "highlight"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -909,6 +909,14 @@ function presentationFontFamily(value, label) {
   return family;
 }
 
+function wireTextHighlight(value, label) {
+  const token = String(value ?? "").trim();
+  if (PRESENTATION_SCHEME_COLORS.has(token)) return { case: "highlightScheme", value: token };
+  const rgb = presentationRgb(value, label);
+  if (!rgb) throw new OfficeKitCodecError(`${label} must be a six-digit RGB color or a supported theme token.`, [], { code: "unsupported_presentation_features" });
+  return { case: "highlightRgb", value: rgb };
+}
+
 function containsEastAsianText(value) {
   return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}]/u.test(String(value ?? ""));
 }
@@ -935,6 +943,7 @@ function wireTextStyle(style = {}, shapeId) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.paragraphStyle.fontCaps`);
+  const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.paragraphStyle.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
@@ -955,6 +964,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(highlight === undefined ? {} : { highlight }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
@@ -1030,6 +1040,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.fontCaps`);
+  const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
   const colorToken = style.color == null ? undefined : String(style.color).trim();
@@ -1054,6 +1065,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(highlight === undefined ? {} : { highlight }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
@@ -3517,6 +3529,14 @@ function normalizeNativeLeafCapsValue(value) {
   return { raw: token, publicValue: token };
 }
 
+function normalizeNativeLeafHighlightSchemeValue(value) {
+  const normalized = NATIVE_SCHEME_COLOR_CANONICAL[String(value ?? "").trim().toLowerCase()];
+  if (!normalized) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontHighlightScheme leaf requires a supported theme color token.");
+  }
+  return { raw: normalized, publicValue: normalized };
+}
+
 function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
   if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
@@ -4712,6 +4732,54 @@ function createPresentationNativeLeafCapability(presentation, state) {
               run.style = { ...(run.style || {}), fontCaps: next };
             },
           });
+        }
+        const highlightRgb = leaf.run.highlight?.case === "highlightRgb" ? leaf.run.highlight.value : undefined;
+        if (!model.placeholder && typeof highlightRgb === "string" && /^[0-9A-F]{6}$/iu.test(highlightRgb)) {
+          const expectedValue = highlightRgb.toUpperCase();
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontHighlightRgb",
+            expectedValue,
+            value: `#${expectedValue.toLowerCase()}`,
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              assertNativeLeafRgbValue(next, "fontHighlightRgb");
+              const normalized = String(next).trim().replace(/^#/u, "").toUpperCase();
+              return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+            },
+            isNoop(next) { return next.toUpperCase() === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-highlight native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), highlight: `#${next.toLowerCase()}` };
+            },
+          });
+        }
+        const highlightScheme = leaf.run.highlight?.case === "highlightScheme" ? leaf.run.highlight.value : undefined;
+        if (!model.placeholder && typeof highlightScheme === "string") {
+          const expectedValue = NATIVE_SCHEME_COLOR_CANONICAL[highlightScheme.toLowerCase()];
+          if (expectedValue) {
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontHighlightScheme",
+              expectedValue,
+              value: expectedValue,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                return normalizeNativeLeafHighlightSchemeValue(next);
+              },
+              isNoop(next) { return next === expectedValue; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-highlight native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), highlight: next };
+              },
+            });
+          }
         }
         // A run family is issued only when the imported wire contains an
         // explicit, literal typeface. Theme tokens (for example +mn-lt) and
@@ -6096,6 +6164,8 @@ function modelRun(run, customShowLinks) {
       ...(run.fontKerningPoints === undefined ? {} : { fontKerning: run.fontKerningPoints }),
       ...(run.fontBaselinePercent === undefined ? {} : { fontBaseline: run.fontBaselinePercent }),
       ...(run.fontSpacingPoints === undefined ? {} : { fontSpacing: run.fontSpacingPoints }),
+      ...(run.highlight?.case === "highlightRgb" ? { highlight: `#${run.highlight.value}` } : {}),
+      ...(run.highlight?.case === "highlightScheme" ? { highlight: run.highlight.value } : {}),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
       ...(run.underline === undefined ? {} : { underline: run.underline }),
@@ -6184,6 +6254,8 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.fontKerningPoints === undefined ? {} : { fontKerning: style.fontKerningPoints }),
     ...(style.fontBaselinePercent === undefined ? {} : { fontBaseline: style.fontBaselinePercent }),
     ...(style.fontSpacingPoints === undefined ? {} : { fontSpacing: style.fontSpacingPoints }),
+    ...(style.highlight?.case === "highlightRgb" ? { highlight: `#${style.highlight.value}` } : {}),
+    ...(style.highlight?.case === "highlightScheme" ? { highlight: style.highlight.value } : {}),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
     ...(style.underline === undefined ? {} : { underline: style.underline }),
