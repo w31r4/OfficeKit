@@ -70,6 +70,8 @@ The authored chart compiler owns these native visual controls:
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
+- pie/doughnut first-slice orientation from 0 through 360 degrees and
+  doughnut center-hole size from 10 through 90 percent;
 - bar direction, gap width, category/value-axis visibility, major gridlines,
   data-label visibility and bounded label position;
 - chart-area, plot-area, and series none, solid, or bounded direct-RGB gradient
@@ -164,6 +166,28 @@ rebuilding the visual with shapes:
   }
 }
 ```
+
+For a circular chart, rotate the first slice only when it improves the reading
+path or aligns a declared slice with a label or adjacent explanation. Size a
+doughnut hole to reserve a meaningful center annotation; do not rotate slices
+or enlarge the hole merely to make the chart look different:
+
+```json
+{
+  "chartType": "doughnut",
+  "style": {
+    "legend": "right",
+    "startAngle": 135,
+    "holeSize": 68,
+    "dataLabels": { "showPercent": true, "position": "center" }
+  }
+}
+```
+
+`startAngle` applies only to `pie` and `doughnut`; `holeSize` applies only to
+`doughnut`. Imported editable circular charts expose `setChartPlot`. If that
+capability is absent, retain the native plot instead of replacing it with
+shapes or an image.
 
 When the title needs an emphasized result, keep the title native and use the
 same bounded paragraph/run vocabulary as ordinary text:

@@ -109,6 +109,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "circular chart geometry",
+      "ppjPath": "pages[].elements[].style.startAngle and pages[].elements[].style.holeSize",
+      "behavior": "partial",
+      "sourceBound": "Recognized imported pie and doughnut ChartParts issue setChartPlot for the bounded chart.plot field. PPJ may change first-slice angle and, for doughnuts, center-hole size without changing series topology or rebuilding the chart.",
+      "reason": "The compiler owns native c:firstSliceAng from 0 through 360 and c:holeSize from 10 through 90. Other plot options and incompatible chart families fail closed."
+    },
+    {
       "feature": "native inline formulas",
       "ppjPath": "pages[].elements[].text.paragraphs[].runs[].formula",
       "behavior": "partial",
