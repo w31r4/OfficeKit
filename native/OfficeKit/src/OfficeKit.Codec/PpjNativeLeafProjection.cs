@@ -32,13 +32,13 @@ internal static class PpjNativeLeafProjection
         "paragraphBulletFontFamily", "paragraphBulletColorScheme", "verticalAnchor",
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
         "fontFamilyEastAsia", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme",
-        "fontCaps", "fontHighlightScheme", "fillScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
+        "fontCaps", "fontHighlightScheme", "fillScheme", "shadowAlignment", "shadowColorScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "imageMaskPreset",
     };
 
     private static readonly HashSet<string> RgbKinds = new(StringComparer.Ordinal)
     {
-        "paragraphBulletColorRgb", "fontColorRgb", "fontHighlightRgb", "fillRgb", "lineRgb",
+        "paragraphBulletColorRgb", "fontColorRgb", "fontHighlightRgb", "fillRgb", "shadowColorRgb", "lineRgb",
     };
 
     private static readonly HashSet<string> BooleanKinds = new(StringComparer.Ordinal)
@@ -51,7 +51,8 @@ internal static class PpjNativeLeafProjection
         "paragraphMarginLeftEmu", "paragraphIndentEmu", "paragraphBulletAutoNumberStartAt",
         "paragraphLevel", "textBodyInsetLeftEmu", "textBodyInsetTopEmu",
         "textBodyInsetRightEmu", "textBodyInsetBottomEmu", "textBodyColumnCount",
-        "fillOpacityThousandthPercent", "imageOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
+        "fillOpacityThousandthPercent", "shadowOpacityThousandthPercent", "shadowBlurRadiusEmu", "shadowDistanceEmu",
+        "imageOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
         "widthEmu", "heightEmu",
     };
 
@@ -71,6 +72,7 @@ internal static class PpjNativeLeafProjection
             ["fontBaselinePercent"] = 1_000,
             ["fontSpacingPoints"] = 100,
             ["rotationDegrees"] = 60_000,
+            ["shadowDirectionDegrees"] = 60_000,
         };
 
     internal static JsonArray Describe(
@@ -215,6 +217,25 @@ internal static class PpjNativeLeafProjection
             add("fillOpacityThousandthPercent", shape.FillOpacityThousandthPercent.ToStringInvariant(), JsonValue.Create(shape.FillOpacityThousandthPercent), 0, 0);
         if (!string.IsNullOrEmpty(shape.FillScheme))
             add("fillScheme", shape.FillScheme, JsonValue.Create(shape.FillScheme), 0, 0);
+        if (shape.Shadow is { } shadow)
+        {
+            if (shadow.HasBlurRadiusEmu)
+                AddInteger(add, "shadowBlurRadiusEmu", shadow.BlurRadiusEmu);
+            if (shadow.HasDistanceEmu)
+                AddInteger(add, "shadowDistanceEmu", shadow.DistanceEmu);
+            if (shadow.HasDirectionAngle60000)
+                add("shadowDirectionDegrees", shadow.DirectionAngle60000.ToStringInvariant(),
+                    JsonValue.Create(shadow.DirectionAngle60000 / 60_000d), 0, 0);
+            if (shadow.HasAlignment)
+                add("shadowAlignment", shadow.Alignment, JsonValue.Create(shadow.Alignment), 0, 0);
+            if (!string.IsNullOrEmpty(shadow.ColorRgb))
+                add("shadowColorRgb", shadow.ColorRgb.ToUpperInvariant(),
+                    JsonValue.Create($"#{shadow.ColorRgb.ToLowerInvariant()}"), 0, 0);
+            else if (shadow.HasColorScheme && !string.IsNullOrEmpty(shadow.ColorScheme))
+                add("shadowColorScheme", shadow.ColorScheme, JsonValue.Create(shadow.ColorScheme), 0, 0);
+            if (shadow.HasOpacityThousandthPercent)
+                AddInteger(add, "shadowOpacityThousandthPercent", shadow.OpacityThousandthPercent);
+        }
         if (!string.IsNullOrEmpty(shape.LineRgb))
             add("lineRgb", shape.LineRgb.ToUpperInvariant(), JsonValue.Create($"#{shape.LineRgb.ToLowerInvariant()}"), 0, 0);
         if (!string.IsNullOrEmpty(shape.LineScheme))
