@@ -13,5 +13,5 @@
 
 - [x] 3.1 Regenerate `ppj.md` and update review guidance and coverage.
 - [x] 3.2 Extend the existing comprehensive PPJ contract with reorder/reimport ID proof.
-- [ ] 3.3 Run focused C# build/test, Skill-maintainer, and strict OpenSpec checks.
+- [x] 3.3 Run focused C# build/test, Skill-maintainer, and strict OpenSpec checks.
 - [ ] 3.4 Commit atomically and fast-forward main without force pushing.
