@@ -1,4 +1,5 @@
 import {
+  PresentationGradientFill_Kind,
   PresentationChartAxisGroup,
   SpreadsheetChartDataLabelPosition,
   SpreadsheetChartErrorBarDirection,
@@ -12,6 +13,7 @@ import {
 } from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import { normalizePresentationChartErrorBars, normalizePresentationChartTrendlines } from "../presentation/ooxml-charts.mjs";
+import { normalizePresentationGradientFill } from "../presentation/gradient-fills.mjs";
 
 const MAX_PRESENTATION_CHART_POINTS = 1_048_576;
 const PRESENTATION_CHART_TYPES_TO_WIRE = new Map([
@@ -208,12 +210,35 @@ function chartAxis(axis, chart, field, original) {
 function chartSurfaceFill(fill, chart, field, rgb) {
   if (fill == null) return undefined;
   if (fill.type === "none") return { kind: { case: "noFill", value: true } };
-  if (fill.type !== "solid") throw new OfficeKitCodecError(`Presentation chart ${chart.id} ${field} supports only none or solid fills.`, [], { code: "unsupported_presentation_features" });
+  if (fill.type === "gradient") {
+    const gradient = normalizePresentationGradientFill(fill, `Presentation chart ${chart.id} ${field}`);
+    return {
+      kind: {
+        case: "gradientFill",
+        value: {
+          kind: gradient.kind === "radial" ? PresentationGradientFill_Kind.RADIAL : PresentationGradientFill_Kind.LINEAR,
+          stops: gradient.stops.map((stop) => ({
+            positionThousandthPercent: Math.round(stop.offset * 100_000),
+            colorRgb: stop.color.slice(1).toUpperCase(),
+            ...(stop.opacity == null ? {} : { opacityThousandthPercent: Math.round(stop.opacity * 100_000) }),
+          })),
+          ...(gradient.kind === "linear" ? { angle60000: Math.round((gradient.angle || 0) * 60_000) } : {}),
+        },
+      },
+    };
+  }
+  if (fill.type !== "solid") throw new OfficeKitCodecError(`Presentation chart ${chart.id} ${field} supports only none, solid, or bounded gradient fills.`, [], { code: "unsupported_presentation_features" });
   const color = chartColor(fill.color, chart, `${field}.color`, rgb);
   return {
     kind: { case: "solidRgb", value: color.source.value },
     ...(fill.opacity == null || fill.opacity === 1 ? {} : { opacityThousandthPercent: Math.round(fill.opacity * 100_000) }),
   };
+}
+
+function chartSeriesFill(fill, chart, field, rgb) {
+  if (fill && typeof fill === "object" && !Array.isArray(fill) && fill.type)
+    return { seriesFill: chartSurfaceFill(fill, chart, field, rgb) };
+  return { fill: chartColor(fill, chart, field, rgb) };
 }
 
 function chartDataLabels(labels, chart, original) {
@@ -308,7 +333,7 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
       values,
       ...(numericX ? { xValues } : {}),
       ...(type === SpreadsheetChartType.BUBBLE ? { bubbleSizes } : {}),
-      ...(item.fill || item.color ? { fill: chartColor(item.fill || item.color, chart, `series[${index}].fill`, rgb) } : {}),
+      ...(item.fill || item.color ? chartSeriesFill(item.fill || item.color, chart, `series[${index}].fill`, rgb) : {}),
       ...(item.line || item.stroke ? { line: chartLine(item.line || item.stroke, chart, `series[${index}].line`, rgb) } : {}),
       ...(item.marker ? { marker: chartMarker(item.marker, chart, `series[${index}].marker`, rgb) } : {}),
       ...(trendlines.length ? { trendlines } : {}),
@@ -486,6 +511,19 @@ function modelChartAxis(axis, category) {
 function modelChartSurfaceFill(fill) {
   if (!fill?.kind?.case) return undefined;
   if (fill.kind.case === "noFill") return { type: "none" };
+  if (fill.kind.case === "gradientFill") {
+    const gradient = fill.kind.value;
+    return normalizePresentationGradientFill({
+      type: "gradient",
+      kind: gradient.kind === PresentationGradientFill_Kind.RADIAL ? "radial" : "linear",
+      ...(gradient.kind === PresentationGradientFill_Kind.LINEAR ? { angle: Number(gradient.angle60000 || 0) / 60_000 } : {}),
+      stops: (gradient.stops || []).map((stop) => ({
+        offset: Number(stop.positionThousandthPercent) / 100_000,
+        color: `#${stop.colorRgb}`,
+        ...(stop.opacityThousandthPercent === undefined ? {} : { opacity: Number(stop.opacityThousandthPercent) / 100_000 }),
+      })),
+    });
+  }
   if (fill.kind.case !== "solidRgb") throw new OfficeKitCodecError("Presentation chart contains an unsupported area fill.", [], { code: "invalid_presentation_chart" });
   return {
     type: "solid",
@@ -556,7 +594,7 @@ export function modelPresentationChartFromWire(source, emuPerPixel) {
         values: [...series.values],
         ...(numericX ? { xValues: [...series.xValues] } : {}),
         ...(source.type === SpreadsheetChartType.BUBBLE ? { bubbleSizes: [...series.bubbleSizes] } : {}),
-        ...(series.fill ? { fill: modelChartColor(series.fill) } : {}),
+        ...(series.seriesFill ? { fill: modelChartSurfaceFill(series.seriesFill) } : series.fill ? { fill: modelChartColor(series.fill) } : {}),
         ...(series.line ? { line: modelChartLine(series.line) } : {}),
         ...(series.marker ? { marker: modelChartMarker(series.marker) } : {}),
         ...((series.trendlines || []).length ? { trendlines: series.trendlines.map(modelChartTrendline) } : {}),

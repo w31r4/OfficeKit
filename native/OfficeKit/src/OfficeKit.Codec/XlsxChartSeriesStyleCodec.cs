@@ -5,9 +5,9 @@ using OfficeKit.Artifact.Wire.V1;
 namespace OfficeKit.Codec;
 
 // Owns the bounded series-level DrawingML style projection. The public model
-// currently exposes only an explicit six-digit RGB solid fill. All other
-// series shape properties remain source-owned residual XML; unrecognized fill
-// kinds make the containing chart read-only instead of being flattened.
+// retains the legacy six-digit RGB scalar and adds the shared no/solid/gradient
+// paint profile for PPJ. Other series shape properties remain source-owned;
+// unrecognized fill kinds make the containing chart read-only.
 internal static class XlsxChartSeriesStyleCodec
 {
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
@@ -25,6 +25,9 @@ internal static class XlsxChartSeriesStyleCodec
     internal static void Validate(SpreadsheetChartSeriesArtifact series, string worksheetId, string chartId)
     {
         ValidateFill(series.Fill, worksheetId, chartId, series.Name, "fill");
+        if (series.Fill is not null && series.SeriesFill is not null)
+            throw new CodecException("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chartId} series {series.Name} cannot combine fill and series_fill.");
+        XlsxChartSurfaceFillCodec.Validate(series.SeriesFill, $"Worksheet {worksheetId} chart {chartId} series {series.Name} fill");
     }
 
     internal static void ValidateFill(SpreadsheetColor? fill, string worksheetId, string chartId, string seriesName, string subject)
@@ -44,8 +47,14 @@ internal static class XlsxChartSeriesStyleCodec
     internal static bool TryRead(XElement nativeSeries, SpreadsheetChartSeriesArtifact series)
     {
         var shapeProperties = nativeSeries.Element(ChartNs + "spPr");
-        if (!TryReadSolidFill(shapeProperties, out var fill)) return false;
-        if (fill is not null) series.Fill = fill;
+        if (shapeProperties is null) return true;
+        var paints = shapeProperties.Elements().Where(item => FillNames.Contains(item.Name)).ToArray();
+        if (paints.Length == 0) return true;
+        if (paints.Length != 1 || !XlsxChartSurfaceFillCodec.TryReadPaint(paints[0], out var fill) || fill is null) return false;
+        if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.SolidRgb && !fill.HasOpacityThousandthPercent)
+            series.Fill = new SpreadsheetColor { Rgb = fill.SolidRgb };
+        else
+            series.SeriesFill = fill;
         return true;
     }
 
@@ -71,7 +80,8 @@ internal static class XlsxChartSeriesStyleCodec
 
     internal static XElement? PropertiesElement(SpreadsheetChartSeriesArtifact series, bool markerOnly = false)
     {
-        var fill = series.Fill is null ? null : SolidFillElement(series.Fill.Rgb);
+        var semanticFill = EffectiveFill(series);
+        var fill = semanticFill is null ? null : XlsxChartSurfaceFillCodec.PaintElement(semanticFill, $"Series {series.Name} fill");
         var line = XlsxChartSeriesLineStyleCodec.Element(series.Line, markerOnly);
         return fill is null && line is null ? null : new XElement(ChartNs + "spPr", fill, line);
     }
@@ -79,36 +89,54 @@ internal static class XlsxChartSeriesStyleCodec
     internal static void Patch(XElement nativeSeries, SpreadsheetChartSeriesArtifact target)
     {
         var shapeProperties = nativeSeries.Element(ChartNs + "spPr");
-        var solidFill = shapeProperties?.Element(DrawingNs + "solidFill");
-        if (target.Fill is null)
+        var existingPaints = shapeProperties?.Elements().Where(item => FillNames.Contains(item.Name)).ToArray() ?? [];
+        if (existingPaints.Length > 1 || existingPaints.Length == 1 &&
+            !XlsxChartSurfaceFillCodec.TryReadPaint(existingPaints[0], out _))
+            throw new CodecException("unsupported_chart_edit", $"Series {target.Name} uses an unmodeled fill graph.");
+        var existingPaint = existingPaints.SingleOrDefault();
+        var targetFill = EffectiveFill(target);
+        var semanticallyEqual = existingPaint is null
+            ? targetFill is null
+            : XlsxChartSurfaceFillCodec.TryReadPaint(existingPaint, out var existingFill) &&
+              XlsxChartSurfaceFillCodec.Semantics(existingFill) == XlsxChartSurfaceFillCodec.Semantics(targetFill);
+        if (!semanticallyEqual && targetFill is null)
         {
-            solidFill?.Remove();
+            existingPaint?.Remove();
             if (shapeProperties is not null && !shapeProperties.Elements().Any() && !shapeProperties.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration)) shapeProperties.Remove();
             return;
         }
 
-        if (shapeProperties is null)
+        if (!semanticallyEqual && shapeProperties is null)
         {
             shapeProperties = new XElement(ChartNs + "spPr");
             var before = nativeSeries.Elements().FirstOrDefault(item => item.Name != ChartNs + "idx" && item.Name != ChartNs + "order" && item.Name != ChartNs + "tx");
             if (before is null) nativeSeries.Add(shapeProperties);
             else before.AddBeforeSelf(shapeProperties);
         }
-        var replacement = SolidFillElement(target.Fill.Rgb);
-        if (solidFill is not null) solidFill.ReplaceWith(replacement);
-        else
+        if (!semanticallyEqual)
         {
-            var before = shapeProperties.Elements().FirstOrDefault(item => IsShapePropertyTail(item.Name));
-            if (before is null) shapeProperties.Add(replacement);
-            else before.AddBeforeSelf(replacement);
+            var replacement = XlsxChartSurfaceFillCodec.PaintElement(targetFill!, $"Series {target.Name} fill");
+            if (existingPaint is not null) existingPaint.ReplaceWith(replacement);
+            else
+            {
+                var before = shapeProperties!.Elements().FirstOrDefault(item => IsShapePropertyTail(item.Name));
+                if (before is null) shapeProperties.Add(replacement);
+                else before.AddBeforeSelf(replacement);
+            }
         }
     }
 
     internal static string Semantics(SpreadsheetChartSeriesArtifact series) =>
-        series.Fill is null ? "no-fill" : string.Join(':', "rgb", series.Fill.Rgb.ToUpperInvariant(), series.Fill.HasTint ? series.Fill.Tint.ToString("R", CultureInfo.InvariantCulture) : "no-tint");
+        XlsxChartSurfaceFillCodec.Semantics(EffectiveFill(series));
 
     internal static XElement SolidFillElement(string rgb) =>
         new(DrawingNs + "solidFill", new XElement(DrawingNs + "srgbClr", new XAttribute("val", rgb.ToUpperInvariant())));
+
+    private static SpreadsheetChartSurfaceFill? EffectiveFill(SpreadsheetChartSeriesArtifact series)
+    {
+        if (series.SeriesFill is not null) return series.SeriesFill;
+        return series.Fill is null ? null : new SpreadsheetChartSurfaceFill { SolidRgb = series.Fill.Rgb };
+    }
 
     private static bool IsShapePropertyTail(XName name) =>
         name == DrawingNs + "ln" || name == DrawingNs + "effectLst" || name == DrawingNs + "effectDag" ||

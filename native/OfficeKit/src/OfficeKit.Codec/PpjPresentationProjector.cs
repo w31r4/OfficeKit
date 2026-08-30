@@ -583,7 +583,9 @@ internal static partial class PpjPresentationProjector
 
     private static void ProjectChartSeriesStyle(JsonObject output, SpreadsheetChartSeriesArtifact series)
     {
-        if (series.Fill is not null && !string.IsNullOrEmpty(series.Fill.Rgb))
+        if (series.SeriesFill is not null)
+            output["fill"] = ProjectChartSurfaceFill(series.SeriesFill);
+        else if (series.Fill is not null && !string.IsNullOrEmpty(series.Fill.Rgb))
             output["fill"] = new JsonObject { ["type"] = "solid", ["color"] = Color(series.Fill.Rgb) };
         if (series.Line is not null && !string.IsNullOrEmpty(series.Line.Color?.Rgb))
             output["stroke"] = ProjectChartLine(series.Line);
@@ -695,6 +697,8 @@ internal static partial class PpjPresentationProjector
     {
         if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.NoFill)
             return new JsonObject { ["type"] = "none" };
+        if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.GradientFill)
+            return Gradient(fill.GradientFill);
         var output = new JsonObject
         {
             ["type"] = "solid",

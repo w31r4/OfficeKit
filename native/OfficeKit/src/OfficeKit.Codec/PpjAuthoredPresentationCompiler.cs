@@ -381,11 +381,11 @@ internal static class PpjAuthoredPresentationCompiler
         series.BubbleSizes.Add(source.BubbleSizes);
         if (raw.TryGetProperty("fill", out var fill))
         {
-            var fillColor = FillColor(fill, catalog) ??
-                throw Unsupported(source.Id, "explicit no-fill chart series are not yet compiler-owned");
-            if (fillColor.Opacity != 1)
-                throw Unsupported(source.Id, "chart-series fill opacity is not yet compiler-owned");
-            series.Fill = new SpreadsheetColor { Rgb = fillColor.Rgb };
+            var chartFill = BuildChartFill(fill, catalog, $"{source.Id} series fill");
+            if (chartFill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.SolidRgb && !chartFill.HasOpacityThousandthPercent)
+                series.Fill = new SpreadsheetColor { Rgb = chartFill.SolidRgb };
+            else
+                series.SeriesFill = chartFill;
         }
         else if (raw.TryGetProperty("color", out var color))
         {
@@ -1381,10 +1381,17 @@ internal static class PpjAuthoredPresentationCompiler
     }
 
     private static SpreadsheetChartSurfaceFill BuildChartSurfaceFill(JsonElement fill, Catalog catalog, string subject)
+        => BuildChartFill(fill, catalog, subject);
+
+    private static SpreadsheetChartSurfaceFill BuildChartFill(JsonElement fill, Catalog catalog, string subject)
     {
         var type = fill.GetProperty("type").GetString();
         if (type == "none") return new SpreadsheetChartSurfaceFill { NoFill = true };
-        if (type != "solid") throw Unsupported(subject, "chart and plot areas currently support only none or solid fills");
+        if (type == "gradient") return new SpreadsheetChartSurfaceFill
+        {
+            GradientFill = BuildGradientFill(fill, color => catalog.Color(color)),
+        };
+        if (type != "solid") throw Unsupported(subject, "chart paint supports only none, solid or bounded gradient fills");
         var resolved = FillColor(fill, catalog) ?? throw new InvalidOperationException("Solid PPJ fill unexpectedly resolved to none.");
         var output = new SpreadsheetChartSurfaceFill { SolidRgb = resolved.Rgb };
         if (resolved.Opacity < 1) output.OpacityThousandthPercent = Opacity(resolved.Opacity);

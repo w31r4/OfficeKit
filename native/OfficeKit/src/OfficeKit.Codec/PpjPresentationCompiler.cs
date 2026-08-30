@@ -684,15 +684,14 @@ internal static class PpjSourceBoundPresentationCompiler
         }
         if (PropertyChanged(before.Raw, after.Raw, "data"))
         {
-            RequireCapability(after, "setChartData", path + ".data");
             ApplyChartData(before, after, target, path + ".data");
             changed = true;
         }
-        changed |= ApplyChartTextStyles(before, after, target, path);
+        changed |= ApplyChartStyles(before, after, target, path);
         return changed;
     }
 
-    private static bool ApplyChartTextStyles(
+    private static bool ApplyChartStyles(
         PpjChartElementModel before,
         PpjChartElementModel after,
         PresentationChart target,
@@ -721,7 +720,9 @@ internal static class PpjSourceBoundPresentationCompiler
             path + ".style",
             "titleTextStyle",
             "legendTextStyle",
-            "dataLabels");
+            "dataLabels",
+            "chartAreaFill",
+            "plotAreaFill");
 
         var changed = false;
         if (PropertyChanged(oldStyle, newStyle, "titleTextStyle"))
@@ -759,6 +760,18 @@ internal static class PpjSourceBoundPresentationCompiler
                     path + ".style.dataLabels.textStyle");
                 changed = true;
             }
+        }
+        if (PropertyChanged(oldStyle, newStyle, "chartAreaFill"))
+        {
+            RequireCapability(after, "setChartFill", path + ".style.chartAreaFill");
+            target.ChartAreaFill = SourceBoundChartFill(newStyle, "chartAreaFill", path + ".style.chartAreaFill");
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "plotAreaFill"))
+        {
+            RequireCapability(after, "setChartFill", path + ".style.plotAreaFill");
+            target.PlotAreaFill = SourceBoundChartFill(newStyle, "plotAreaFill", path + ".style.plotAreaFill");
+            changed = true;
         }
         return changed;
     }
@@ -838,6 +851,29 @@ internal static class PpjSourceBoundPresentationCompiler
             if (value.Length == 8)
                 output.OpacityThousandthPercent = Unit(Convert.ToByte(value[6..], 16) / 255d);
         }
+        return output;
+    }
+
+    private static SpreadsheetChartSurfaceFill? SourceBoundChartFill(
+        JsonElement? owner,
+        string property,
+        string path)
+    {
+        if (owner is null || !owner.Value.TryGetProperty(property, out var fill)) return null;
+        return SourceBoundChartFill(fill, path);
+    }
+
+    private static SpreadsheetChartSurfaceFill SourceBoundChartFill(JsonElement fill, string path)
+    {
+        var type = fill.GetProperty("type").GetString();
+        if (type == "none") return new SpreadsheetChartSurfaceFill { NoFill = true };
+        if (type == "gradient") return new SpreadsheetChartSurfaceFill { GradientFill = BuildGradientFill(fill, path) };
+        if (type != "solid") throw Unsupported(path, "source-bound chart paint outside none, solid, or bounded gradient fill");
+        var output = new SpreadsheetChartSurfaceFill
+        {
+            SolidRgb = Rgb(fill.GetProperty("color"), path + ".color"),
+        };
+        if (fill.TryGetProperty("opacity", out var opacity)) output.OpacityThousandthPercent = Unit(opacity.GetDouble());
         return output;
     }
 
@@ -1370,6 +1406,14 @@ internal static class PpjSourceBoundPresentationCompiler
         if (before.Data.Categories.Count != after.Data.Categories.Count ||
             before.Data.Series.Count != after.Data.Series.Count)
             throw Unsupported(path, "chart series or category topology change");
+        var valueChanged = !before.Data.Categories.Zip(after.Data.Categories).All(pair => JsonEqual(pair.First, pair.Second)) ||
+            before.Data.Series.Zip(after.Data.Series).Any(pair =>
+                !pair.First.Name.Equals(pair.Second.Name, StringComparison.Ordinal) ||
+                !pair.First.Values.SequenceEqual(pair.Second.Values));
+        var fillChanged = before.Data.Series.Zip(after.Data.Series)
+            .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "fill"));
+        if (valueChanged) RequireCapability(after, "setChartData", path);
+        if (fillChanged) RequireCapability(after, "setChartFill", path + ".series[].fill");
         var categories = after.Data.Categories.Select((item, index) => item.ValueKind == JsonValueKind.String
             ? item.GetString()!
             : throw Unsupported($"{path}.categories[{index}]", "non-string imported category")).ToArray();
@@ -1394,7 +1438,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void ApplyChartSeries(PpjChartSeriesModel before, PpjChartSeriesModel after, SpreadsheetChartSeriesArtifact target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values");
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "fill");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         target.Name = after.Name;
@@ -1403,6 +1447,13 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             if (value is null) throw Unsupported(path, "null source-bound chart point");
             target.Values.Add(value.Value);
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "fill"))
+        {
+            target.Fill = null;
+            target.SeriesFill = after.Raw.TryGetProperty("fill", out var fill)
+                ? SourceBoundChartFill(fill, path + ".fill")
+                : null;
         }
     }
 
