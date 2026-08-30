@@ -899,6 +899,7 @@ internal static class PpjAuthoredPresentationCompiler
         var italic = FirstProperty(inlineRun, inlineDefault, namedDefault, "italic");
         var size = FirstProperty(inlineRun, inlineDefault, namedDefault, "size");
         var color = FirstProperty(inlineRun, inlineDefault, namedDefault, "color");
+        var highlight = FirstProperty(inlineRun, inlineDefault, namedDefault, "highlight");
         var font = FirstProperty(inlineRun, inlineDefault, namedDefault, "font");
         var family = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamily");
         var eastAsia = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamilyEastAsia");
@@ -919,6 +920,13 @@ internal static class PpjAuthoredPresentationCompiler
             var resolved = catalog.Color(colorValue);
             run.ColorRgb = resolved.Rgb;
             if (resolved.Alpha < 1) run.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        if (highlight is { } highlightValue)
+        {
+            var resolved = catalog.Color(highlightValue);
+            if (resolved.Alpha < 1)
+                throw Unsupported("text", "highlight alpha is not part of the bounded DrawingML highlight profile");
+            run.HighlightRgb = resolved.Rgb;
         }
         if (family is { } familyValue) run.FontFamily = familyValue.GetString()!;
         else if (font is { } fontValue) run.FontFamily = catalog.Font(fontValue.GetString()!);
@@ -951,6 +959,13 @@ internal static class PpjAuthoredPresentationCompiler
             var resolved = catalog.Color(color);
             output.ColorRgb = resolved.Rgb;
             if (resolved.Alpha < 1) output.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        if (value.TryGetProperty("highlight", out var highlight))
+        {
+            var resolved = catalog.Color(highlight);
+            if (resolved.Alpha < 1)
+                throw Unsupported("text", "highlight alpha is not part of the bounded DrawingML highlight profile");
+            output.HighlightRgb = resolved.Rgb;
         }
         if (value.TryGetProperty("fontFamily", out var family)) output.FontFamily = family.GetString()!;
         else if (value.TryGetProperty("font", out var font)) output.FontFamily = catalog.Font(font.GetString()!);

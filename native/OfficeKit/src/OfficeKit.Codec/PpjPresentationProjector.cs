@@ -965,6 +965,8 @@ internal static partial class PpjPresentationProjector
             style["color"] = TextColor(run.ColorRgb, null, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
         else if (run.HasColorScheme && !string.IsNullOrEmpty(run.ColorScheme))
             style["color"] = TextColor(null, run.ColorScheme, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
+        if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(run.HighlightRgb))
+            style["highlight"] = Color(run.HighlightRgb);
         if (run.HasUnderline) style["underline"] = run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline };
         if (run.HasStrike) style["strike"] = run.Strike;
         if (run.HasFontKerningPoints) style["kerning"] = run.FontKerningPoints;

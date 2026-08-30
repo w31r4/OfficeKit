@@ -164,6 +164,7 @@ public sealed class PptxCodecTests
         var authoredRunStyle = authoredParagraph["runs"]![0]!["style"]!.AsObject();
         authoredRunStyle["fontFamilyEastAsia"] = "Arial";
         authoredRunStyle["color"] = "#16324FCC";
+        authoredRunStyle["highlight"] = "#FFF2CC";
         authoredRunStyle["underline"] = "single";
         authoredRunStyle["strike"] = false;
         authoredRunStyle["kerning"] = 12;
@@ -737,20 +738,6 @@ public sealed class PptxCodecTests
         Assert.True(corruptFallback.PresentationProgram.SourceBound);
 
         var thirdPartySource = RemoveEmbeddedPpj(first.File.ToByteArray());
-        thirdPartySource = ReplaceZipText(thirdPartySource, "ppt/slides/slide1.xml", xml =>
-        {
-            var document = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
-            XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
-            var runProperties = document.Descendants(drawing + "rPr")
-                .First(properties => properties.Element(drawing + "highlight") is null);
-            var highlight = new XElement(
-                drawing + "highlight",
-                new XElement(drawing + "srgbClr", new XAttribute("val", "FFF2CC")));
-            var typeface = runProperties.Elements().FirstOrDefault(child => child.Name.LocalName is "latin" or "ea" or "cs");
-            if (typeface is null) runProperties.Add(highlight);
-            else typeface.AddBeforeSelf(highlight);
-            return document.ToString(SaveOptions.DisableFormatting);
-        });
         var thirdPartySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(thirdPartySource)).ToLowerInvariant();
         var projected = Invoke(new CodecRequest
         {
@@ -813,6 +800,8 @@ public sealed class PptxCodecTests
                         .GetProperty("text").GetString() == "Reduce incident hours ");
             Assert.Equal("#16324FCC", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("color").GetString());
+            Assert.Equal("#FFF2CC", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("runs")[0].GetProperty("style").GetProperty("highlight").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
             Assert.Equal(6, projectedChart.GetProperty("frame").GetProperty("rotation").GetDouble());

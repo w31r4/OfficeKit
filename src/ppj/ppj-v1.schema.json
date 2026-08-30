@@ -1508,6 +1508,9 @@
         "color": {
           "$ref": "#/$defs/color"
         },
+        "highlight": {
+          "$ref": "#/$defs/color"
+        },
         "language": {
           "$ref": "#/$defs/languageTag"
         },
