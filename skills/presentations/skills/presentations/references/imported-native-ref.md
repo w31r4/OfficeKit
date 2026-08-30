@@ -110,6 +110,26 @@ source-owned. If the graph is not fully proven, it stays opaque and no
 SmartArt text capability exists. Build to a new PPTX, then re-import before a
 second edit because node IDs and capabilities are revision-bound.
 
+## Replace a proven embedded Office payload
+
+An eligible imported OLE frame appears as `type: "ole"` with a local,
+content-addressed `payloadAsset` when the source package proves exactly one
+uniquely owned internal XLSX workbook or bounded DOCX package. To replace its
+payload:
+
+1. add the complete replacement `.xlsx` or `.docx` as a new PPJ asset with its
+   exact MIME type and SHA-256;
+2. confirm the element nativeRef advertises `setOlePayload` for `ole.payload`;
+3. change only `payloadAsset` to the new asset ID; and
+4. build to a new PPTX, then re-import and inspect the new payload asset hash.
+
+Do not change `programId`, preview, display mode, object shell, relationship,
+package type, or nativeRef. OfficeKit validates the replacement as an actual
+Open XML package and keeps the source preview image unchanged; review must not
+claim that the preview reflects the new workbook or document contents. Shared,
+external, legacy-binary, ambiguous, oversized, or otherwise unproven OLE
+objects remain opaque and have no payload capability.
+
 ## Source continuation
 
 A complete source page may be reused only when its `nativeRef` issues
