@@ -6072,6 +6072,53 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ImportedCustomGeometryWithoutAdjustmentListRemainsEditable()
+    {
+        var request = ExportRequest();
+        var authoredShape = request.Artifact.Presentation.Slides[0].Elements[0].Shape;
+        authoredShape.Geometry = "custom";
+        var authoredPath = new PresentationCustomGeometryPath { Width = 1_000, Height = 1_000 };
+        authoredPath.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            MoveTo = new PresentationCustomGeometryPoint { X = 0, Y = 0 },
+        });
+        authoredPath.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            LineTo = new PresentationCustomGeometryPoint { X = 1_000, Y = 1_000 },
+        });
+        authoredPath.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        authoredShape.CustomPaths.Add(authoredPath);
+        var authored = Invoke(request);
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = ReplaceZipText(authored.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
+            new Regex("(?<prefix><a:custGeom\\b[^>]*>[\\s\\S]*?)<a:avLst\\b[^>]*/>(?<suffix>[\\s\\S]*?</a:custGeom>)")
+                .Replace(xml, "${prefix}${suffix}", 1));
+        using (var sourceStream = new MemoryStream(sourceBytes))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+            Assert.IsType<A.PathList>(sourcePackage.PresentationPart!.SlideParts.Single().Slide!
+                .Descendants<A.CustomGeometry>().Single().FirstChild);
+
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var element = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements);
+        Assert.True(element.Source.Editable);
+        Assert.Equal("custom", element.Shape.Geometry);
+        Assert.NotEmpty(element.Shape.CustomPaths);
+        var noOp = Export(imported.Artifact);
+        Assert.True(noOp.Ok, Diagnostics(noOp));
+        Assert.Equal(sourceBytes, noOp.File.ToByteArray());
+
+        element.Shape.LeftEmu += 100;
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        using var stream = new MemoryStream(edited.File.ToByteArray());
+        using var package = PresentationDocument.Open(stream, false);
+        var geometry = package.PresentationPart!.SlideParts.Single().Slide!
+            .Descendants<A.CustomGeometry>().Single();
+        Assert.IsType<A.PathList>(geometry.FirstChild);
+    }
+
+    [Fact]
     public void FormulaCustomGeometryAuthorsImportsEditsAndRejectsInvalidGraphs()
     {
         var request = ExportRequest();
