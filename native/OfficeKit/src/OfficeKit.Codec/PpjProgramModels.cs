@@ -320,7 +320,14 @@ internal sealed record PpjAnimationModel(
 
 internal sealed record PpjTransitionModel(
     string Type,
-    int DurationMs,
+    int? DurationMs,
+    string? Direction,
+    string? Orientation,
+    string? Speed,
+    bool? ThroughBlack,
+    int? Spokes,
+    bool? AdvanceOnClick,
+    int? AdvanceAfterMs,
     string? FromPageId,
     IReadOnlyList<PpjMorphPairModel> MorphPairs);
 
@@ -523,7 +530,14 @@ internal static class PpjProgramParser
 
     private static PpjTransitionModel ParseTransition(JsonElement transition) => new(
         transition.GetProperty("type").GetString()!,
-        OptionalInt(transition, "durationMs"),
+        transition.TryGetProperty("durationMs", out var durationMs) ? durationMs.GetInt32() : null,
+        OptionalString(transition, "direction"),
+        OptionalString(transition, "orientation"),
+        OptionalString(transition, "speed"),
+        transition.TryGetProperty("throughBlack", out var throughBlack) ? throughBlack.GetBoolean() : null,
+        transition.TryGetProperty("spokes", out var spokes) ? spokes.GetInt32() : null,
+        transition.TryGetProperty("advanceOnClick", out var advanceOnClick) ? advanceOnClick.GetBoolean() : null,
+        transition.TryGetProperty("advanceAfterMs", out var advanceAfterMs) ? advanceAfterMs.GetInt32() : null,
         OptionalString(transition, "fromPage"),
         OptionalArray(transition, "morphPairs").Select(pair => new PpjMorphPairModel(
             pair.GetProperty("key").GetString()!,

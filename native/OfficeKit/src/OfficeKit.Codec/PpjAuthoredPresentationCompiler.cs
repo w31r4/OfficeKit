@@ -4057,7 +4057,7 @@ internal static class PpjAuthoredPresentationCompiler
             var morph = new PresentationMorph
             {
                 FromSlideId = page.Transition.FromPageId!,
-                DurationMs = checked((uint)page.Transition.DurationMs),
+                DurationMs = checked((uint)(page.Transition.DurationMs ?? 800)),
             };
             morph.Pairs.Add(page.Transition.MorphPairs.Select(pair => new PresentationMorphPair
             {
@@ -4068,15 +4068,7 @@ internal static class PpjAuthoredPresentationCompiler
             slide.Morph = morph;
             return;
         }
-        slide.Transition = new PresentationTransition
-        {
-            Effect = page.Transition.Type,
-            Speed = "medium",
-            AdvanceOnClick = true,
-        };
-        if (page.Transition.DurationMs > 0) slide.Transition.DurationMs = checked((uint)page.Transition.DurationMs);
-        if (page.Raw.GetProperty("transition").TryGetProperty("direction", out var direction))
-            slide.Transition.Direction = direction.GetString()!;
+        slide.Transition = PpjTransitionLowering.BuildBase(page.Transition);
     }
 
     private static void AddSections(PresentationArtifact target, PpjProgramModel program)

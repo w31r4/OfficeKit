@@ -364,7 +364,7 @@ internal static class PpjSourceBoundPresentationCompiler
             var slide = sourcePage.Wire;
             var path = $"$.pages[{index}]";
             RequireNativeRef(before.Raw, after.Raw, path);
-            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "background", "elements");
+            RequireEqualExcept(before.Raw, after.Raw, path, "role", "claim", "background", "transition", "elements");
             if (PropertyChanged(before.Raw, after.Raw, "background"))
             {
                 RequireCapability(after.NativeRef, "setBackground", path + ".background");
@@ -377,6 +377,18 @@ internal static class PpjSourceBoundPresentationCompiler
                         id => assetDimensions.TryGetValue(id, out var dimensions) ? dimensions : null,
                         path + ".background")
                     : null;
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            if (PropertyChanged(before.Raw, after.Raw, "transition"))
+            {
+                RequireCapability(after.NativeRef, "setTransition", path + ".transition");
+                if (before.Transition?.Type == "morph" || after.Transition?.Type == "morph")
+                    throw Unsupported(path + ".transition", "source-bound Morph mutation requires a dedicated paired-object capability");
+                slide.Transition = after.Transition is null || after.Transition.Type == "none"
+                    ? null
+                    : PpjTransitionLowering.BuildBase(after.Transition);
                 changedNodeIds.Add(after.Id);
                 mutations.SemanticChanges = true;
                 changed = true;

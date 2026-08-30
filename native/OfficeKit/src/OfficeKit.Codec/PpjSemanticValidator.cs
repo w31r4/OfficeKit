@@ -17,6 +17,7 @@ internal static class PpjSemanticValidator
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
             ["setGeometry"] = Set("geometry.adjustments"),
             ["setBackground"] = Set("background"),
+            ["setTransition"] = Set("transition"),
             ["replaceImage"] = Set("image.asset"),
             ["setImageCrop"] = Set("image.crop"),
             ["setImageFit"] = Set("image.fit"),
@@ -1819,12 +1820,27 @@ internal static class PpjSemanticValidator
             var transition = page.Transition;
             if (transition is null) continue;
             var path = $"$.pages[{index}].transition";
-            if (transition.Type != "morph")
+            if (transition.Type == "none")
+            {
+                if (HasConfiguredTransitionFields(transition))
+                    diagnostics.Add(new("ppj.transition.noneFields", "A none transition must not carry effect, timing, advance, or Morph fields.", path));
+                continue;
+            }
+
+            if (PpjTransitionLowering.IsBaseEffect(transition.Type))
             {
                 if (transition.FromPageId is not null || transition.MorphPairs.Count > 0)
                     diagnostics.Add(new("ppj.transition.morphFields", "fromPage and morphPairs are only valid for morph transitions.", path));
+                if (!PpjTransitionLowering.TryBuildBase(transition, out _, out var error))
+                    diagnostics.Add(new("ppj.transition.profile", error ?? $"Transition {transition.Type} is invalid.", path));
                 continue;
             }
+
+            if (transition.Type != "morph") continue;
+            if (HasBaseOnlyTransitionFields(transition))
+                diagnostics.Add(new("ppj.transition.baseFields", "direction, orientation, speed, throughBlack, spokes, and advance fields are not valid for Morph.", path));
+            if (transition.MorphPairs.Count == 0)
+                diagnostics.Add(new("ppj.transition.morphPairs", "Morph requires at least one object pair.", path + ".morphPairs"));
 
             if (index == 0 || transition.FromPageId is null || transition.FromPageId != pages[index - 1].Id)
             {
@@ -1853,6 +1869,21 @@ internal static class PpjSemanticValidator
             }
         }
     }
+
+    private static bool HasConfiguredTransitionFields(PpjTransitionModel transition) =>
+        transition.DurationMs is not null ||
+        HasBaseOnlyTransitionFields(transition) ||
+        transition.FromPageId is not null ||
+        transition.MorphPairs.Count > 0;
+
+    private static bool HasBaseOnlyTransitionFields(PpjTransitionModel transition) =>
+        transition.Direction is not null ||
+        transition.Orientation is not null ||
+        transition.Speed is not null ||
+        transition.ThroughBlack is not null ||
+        transition.Spokes is not null ||
+        transition.AdvanceOnClick is not null ||
+        transition.AdvanceAfterMs is not null;
 
     private static void ValidatePresentationReferences(
         PpjProgramModel program,

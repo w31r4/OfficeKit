@@ -1256,6 +1256,16 @@ public sealed class PptxCodecTests
                     DiagramNode("picture-c", "Review", picture: true), DiagramNode("picture-d", "Scale", picture: true)), geometry: "rect"),
             },
         });
+        authoredProgram["pages"]![2]!["transition"] = new JsonObject
+        {
+            ["type"] = "split",
+            ["orientation"] = "horizontal",
+            ["direction"] = "in",
+            ["speed"] = "fast",
+            ["durationMs"] = 750,
+            ["advanceOnClick"] = false,
+            ["advanceAfterMs"] = 1250,
+        };
         authoredProgram["sections"]![0]!["pages"]!.AsArray().Add("page-authored-diagrams");
         var mediaBytes = Convert.FromHexString("000000186674797069736F6D0000020069736F6D6D703431");
         var mediaSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(mediaBytes)).ToLowerInvariant();
@@ -1347,6 +1357,19 @@ public sealed class PptxCodecTests
             Assert.Equal(50_196, OrderedSlides(package)[0].Slide!.CommonSlideData!.Background!
                 .Descendants<A.Alpha>().Single().Val!.Value);
 
+        var invalidTransitionProgram = authoredProgram.DeepClone().AsObject();
+        invalidTransitionProgram["pages"]![2]!["transition"] = new JsonObject
+        {
+            ["type"] = "circle",
+            ["direction"] = "left",
+        };
+        var invalidTransitionRequest = request.Clone();
+        invalidTransitionRequest.PresentationProgram.ProgramJson =
+            ByteString.CopyFromUtf8(invalidTransitionProgram.ToJsonString());
+        var invalidTransition = Invoke(invalidTransitionRequest);
+        Assert.False(invalidTransition.Ok);
+        Assert.Contains(invalidTransition.Diagnostics, diagnostic => diagnostic.Code == "ppj.transition.profile");
+
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
         Assert.Equal(37U, first.PresentationProgram.ExpandedElementCount);
@@ -1384,6 +1407,14 @@ public sealed class PptxCodecTests
             Assert.Single(nativeMaster.SlideMaster.CommonSlideData.ShapeTree!.Elements<P.Shape>());
             Assert.Single(nativeLayout.SlideLayout.CommonSlideData!.ShapeTree!.Elements<P.Shape>());
             Assert.All(package.PresentationPart.SlideParts, slide => Assert.Equal(nativeLayout.Uri, slide.SlideLayoutPart!.Uri));
+            var nativeTransition = package.PresentationPart.SlideParts.ElementAt(2).Slide!.GetFirstChild<P.Transition>()!;
+            Assert.Equal(P.TransitionSpeedValues.Fast, nativeTransition.Speed!.Value);
+            Assert.False(nativeTransition.AdvanceOnClick!.Value);
+            Assert.Equal("1250", nativeTransition.AdvanceAfterTime!.Value);
+            Assert.Equal("750", nativeTransition.Duration!.Value);
+            var nativeSplit = nativeTransition.GetFirstChild<P.SplitTransition>()!;
+            Assert.Equal("horz", nativeSplit.GetAttribute("orient", string.Empty).Value);
+            Assert.Equal("in", nativeSplit.GetAttribute("dir", string.Empty).Value);
             Assert.NotNull(nativeMaster.SlideMaster.TextStyles!.TitleStyle!
                 .GetFirstChild<A.Level1ParagraphProperties>()!
                 .GetFirstChild<A.DefaultRunProperties>());
@@ -1610,6 +1641,16 @@ public sealed class PptxCodecTests
         var imported = Import(first.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
         Assert.Equal(3, imported.Artifact.Presentation.Slides.Count);
+        var importedTransition = imported.Artifact.Presentation.Slides[2].Transition;
+        Assert.Equal("split", importedTransition.Effect);
+        Assert.Equal("horizontal", importedTransition.Orientation);
+        Assert.Equal("in", importedTransition.Direction);
+        Assert.Equal("fast", importedTransition.Speed);
+        Assert.True(importedTransition.HasDurationMs);
+        Assert.Equal(750U, importedTransition.DurationMs);
+        Assert.False(importedTransition.AdvanceOnClick);
+        Assert.True(importedTransition.HasAdvanceAfterMs);
+        Assert.Equal(1250U, importedTransition.AdvanceAfterMs);
         var importedDiagrams = imported.Artifact.Presentation.Slides[2].Elements
             .Where(element => element.ContentCase == PresentationElement.ContentOneofCase.Group)
             .ToArray();
@@ -1884,6 +1925,16 @@ public sealed class PptxCodecTests
             Assert.All(projectedRoot.GetProperty("pages").EnumerateArray(), page =>
                 Assert.StartsWith("layout-", page.GetProperty("layout").GetString(), StringComparison.Ordinal));
             Assert.Equal("linear", projectedRoot.GetProperty("pages")[0].GetProperty("background").GetProperty("kind").GetString());
+            var projectedTransition = projectedRoot.GetProperty("pages")[2].GetProperty("transition");
+            Assert.Equal("split", projectedTransition.GetProperty("type").GetString());
+            Assert.Equal("horizontal", projectedTransition.GetProperty("orientation").GetString());
+            Assert.Equal("in", projectedTransition.GetProperty("direction").GetString());
+            Assert.Equal("fast", projectedTransition.GetProperty("speed").GetString());
+            Assert.Equal(750, projectedTransition.GetProperty("durationMs").GetInt32());
+            Assert.False(projectedTransition.GetProperty("advanceOnClick").GetBoolean());
+            Assert.Equal(1250, projectedTransition.GetProperty("advanceAfterMs").GetInt32());
+            Assert.Contains(projectedRoot.GetProperty("pages")[2].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setTransition");
             Assert.Equal("image", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("type").GetString());
             Assert.Equal("stretch", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("fit").GetString());
             Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
@@ -2173,6 +2224,52 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var transitionProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        transitionProgram["pages"]![2]!["transition"] = new JsonObject
+        {
+            ["type"] = "wheel",
+            ["spokes"] = 6,
+            ["speed"] = "medium",
+            ["advanceOnClick"] = true,
+        };
+        var transitionPageId = transitionProgram["pages"]![2]!["id"]!.GetValue<string>();
+        var transitionEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(transitionProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(transitionEdit.Ok, Diagnostics(transitionEdit));
+        Assert.Equal(["ppt/slides/slide3.xml"], transitionEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(transitionPageId, transitionEdit.PresentationProgram.ChangedNodeIds);
+        var transitionReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = transitionEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/transition-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(transitionReprojection.Ok, Diagnostics(transitionReprojection));
+        using (var transitionJson = JsonDocument.Parse(transitionReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedTransition = transitionJson.RootElement.GetProperty("pages")[2].GetProperty("transition");
+            Assert.Equal("wheel", reprojectedTransition.GetProperty("type").GetString());
+            Assert.Equal(6, reprojectedTransition.GetProperty("spokes").GetInt32());
+            Assert.Equal("medium", reprojectedTransition.GetProperty("speed").GetString());
+            Assert.True(reprojectedTransition.GetProperty("advanceOnClick").GetBoolean());
+        }
 
         var richTitleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var richTitleChart = richTitleProgram["pages"]![1]!["elements"]!.AsArray()

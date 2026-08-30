@@ -230,6 +230,8 @@ internal static partial class PpjPresentationProjector
             pageCapabilities.Add(new("delete", ["element"]));
         if (slide.Source?.BackgroundEditable == true)
             pageCapabilities.Add(new("setBackground", ["background"]));
+        if (slide.Source?.TransitionEditable == true || slide.Source?.TransitionAddable == true)
+            pageCapabilities.Add(new("setTransition", ["transition"]));
         // A native slide clone needs fresh page/element identities and a
         // complete source-owned subtree mapping. Do not issue the underlying
         // codec capability until PPJ can represent that bounded clone request.
@@ -1369,11 +1371,19 @@ internal static partial class PpjPresentationProjector
             };
         }
         var transition = slide.Transition;
-        if (transition is null || transition.Effect is not ("fade" or "push" or "wipe")) return null;
-        var output = new JsonObject { ["type"] = transition.Effect };
+        if (transition is null || !PpjTransitionLowering.IsBaseEffect(transition.Effect)) return null;
+        var output = new JsonObject
+        {
+            ["type"] = transition.Effect,
+            ["speed"] = transition.Speed,
+            ["advanceOnClick"] = transition.AdvanceOnClick,
+        };
         if (transition.HasDurationMs) output["durationMs"] = checked((int)transition.DurationMs);
-        if (transition.Effect is "push" or "wipe" && transition.Direction is "left" or "right" or "up" or "down")
-            output["direction"] = transition.Direction;
+        if (!string.IsNullOrEmpty(transition.Direction)) output["direction"] = transition.Direction;
+        if (!string.IsNullOrEmpty(transition.Orientation)) output["orientation"] = transition.Orientation;
+        if (transition.HasThroughBlack) output["throughBlack"] = transition.ThroughBlack;
+        if (transition.HasSpokes) output["spokes"] = checked((int)transition.Spokes);
+        if (transition.HasAdvanceAfterMs) output["advanceAfterMs"] = checked((int)transition.AdvanceAfterMs);
         return output;
     }
 

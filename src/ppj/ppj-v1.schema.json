@@ -1143,6 +1143,7 @@
             "setFrame",
             "setGeometry",
             "setBackground",
+            "setTransition",
             "replaceImage",
             "setImageCrop",
             "setImageFit",
@@ -1184,6 +1185,7 @@
               "frame.flipV",
               "geometry.adjustments",
               "background",
+              "transition",
               "image.asset",
               "image.crop",
               "image.fit",
@@ -4356,24 +4358,77 @@
         "type": {
           "enum": [
             "none",
+            "blinds",
+            "checker",
+            "circle",
+            "comb",
+            "cover",
+            "cut",
+            "diamond",
+            "dissolve",
             "fade",
+            "newsflash",
+            "plus",
+            "pull",
             "push",
+            "random",
+            "randomBar",
+            "split",
+            "strips",
+            "wedge",
+            "wheel",
             "wipe",
+            "zoom",
             "morph"
           ]
         },
         "durationMs": {
           "type": "integer",
           "minimum": 0,
-          "maximum": 60000
+          "maximum": 86400000
         },
         "direction": {
           "enum": [
             "left",
             "right",
             "up",
-            "down"
+            "down",
+            "leftUp",
+            "rightUp",
+            "leftDown",
+            "rightDown",
+            "in",
+            "out"
           ]
+        },
+        "orientation": {
+          "enum": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "speed": {
+          "enum": [
+            "slow",
+            "medium",
+            "fast"
+          ]
+        },
+        "throughBlack": {
+          "type": "boolean"
+        },
+        "spokes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "advanceOnClick": {
+          "type": "boolean"
+        },
+        "advanceAfterMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 86400000
         },
         "fromPage": {
           "$ref": "#/$defs/id"
