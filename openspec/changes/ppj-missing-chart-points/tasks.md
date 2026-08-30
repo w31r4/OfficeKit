@@ -12,4 +12,4 @@
 - [x] 2.1 Extend one existing PPJ round-trip contract.
 - [x] 2.2 Update capability metadata, PPJ guidance and coverage.
 - [x] 2.3 Run the narrow PPJ, proto, maintainer and strict OpenSpec checks.
-- [ ] 2.4 Commit atomically and fast-forward remote main.
+- [x] 2.4 Commit atomically and fast-forward remote main.
