@@ -315,12 +315,17 @@ internal static partial class PpjPresentationProjector
         var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
+        // The importer deliberately leaves unsupported custom path graphs
+        // empty.  The source-bound projection can still expose the owning
+        // shape (frame, native leaves, and safe paint fields) without
+        // pretending that its path topology is editable.
+        var sourceCustomGeometry = shape.Geometry == "custom";
         var sourceImageFill = !string.IsNullOrWhiteSpace(shape.ImageFillAssetId) &&
             context.TryMaterializeAsset(shape.ImageFillAssetId, out var sourceImageAssetId);
         if (shape.ImageFill is not null && !context.TryMaterializeAsset(shape.ImageFill.AssetId, out _))
             return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source shape whose image fill cannot be materialized safely.");
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
-            !CanProjectCustomGeometry(shape) && !sourceImageFill)
+            !CanProjectCustomGeometry(shape) && !sourceImageFill && !sourceCustomGeometry)
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
         // A legacy line stored as p:sp has no connector endpoints in the
         // public PPJ model. Keep it source-owned (with the generic bounded
@@ -349,7 +354,7 @@ internal static partial class PpjPresentationProjector
         }
         common["type"] = "shape";
         if (shape.Geometry == "custom")
-            common["geometry"] = shape.CustomPaths.Count > 0
+            common["geometry"] = CanProjectCustomGeometry(shape)
                 ? ProjectCustomGeometry(shape)
                 : new JsonObject
                 {
