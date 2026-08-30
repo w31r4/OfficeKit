@@ -312,12 +312,39 @@ internal static class PpjAuthoredPresentationCompiler
         var inlineStyle = Property(raw, "style");
         ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id);
 
+        var rawXAxis = Property(raw, "xAxis");
+        var rawYAxis = Property(raw, "yAxis");
+        if (rawXAxis is not null || rawYAxis is not null)
+        {
+            if (chart.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut)
+                throw Unsupported(element.Id, "pie and doughnut charts cannot define axes");
+            if (FirstProperty(inlineStyle, namedStyle, "showCategoryAxis") is not null ||
+                FirstProperty(inlineStyle, namedStyle, "showValueAxis") is not null)
+                throw Unsupported(element.Id, "structured axes cannot be combined with legacy axis visibility fields");
+            chart.XAxis = rawXAxis is { } xAxis ? BuildChartAxis(xAxis) : new SpreadsheetChartAxisArtifact();
+            chart.YAxis = rawYAxis is { } yAxis ? BuildChartAxis(yAxis) : new SpreadsheetChartAxisArtifact();
+        }
+        var rawSecondaryXAxis = Property(raw, "secondaryXAxis");
+        var rawSecondaryYAxis = Property(raw, "secondaryYAxis");
+        if (rawSecondaryXAxis is not null || rawSecondaryYAxis is not null)
+        {
+            if (chart.Type != SpreadsheetChartType.Combo)
+                throw Unsupported(element.Id, "secondary axes require a combo chart");
+            chart.SecondaryXAxis = rawSecondaryXAxis is { } xAxis
+                ? BuildChartAxis(xAxis)
+                : new SpreadsheetChartAxisArtifact();
+            chart.SecondaryYAxis = rawSecondaryYAxis is { } yAxis
+                ? BuildChartAxis(yAxis)
+                : new SpreadsheetChartAxisArtifact();
+        }
+
         var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
         for (var index = 0; index < element.Data.Series.Count; index++)
         {
             var source = element.Data.Series[index];
             if (element.ChartType != "combo") RejectProperties(seriesJson[index], element.Id, "chartType", "axis");
-            var series = BuildSeries(source, seriesJson[index], catalog);
+            var effectiveType = ChartType(source.ChartType ?? element.ChartType);
+            var series = BuildSeries(source, seriesJson[index], catalog, effectiveType);
             if (chart.Type == SpreadsheetChartType.Combo)
             {
                 if (source.ChartType is "bar" or "column")
@@ -342,7 +369,11 @@ internal static class PpjAuthoredPresentationCompiler
         return chart;
     }
 
-    private static SpreadsheetChartSeriesArtifact BuildSeries(PpjChartSeriesModel source, JsonElement raw, Catalog catalog)
+    private static SpreadsheetChartSeriesArtifact BuildSeries(
+        PpjChartSeriesModel source,
+        JsonElement raw,
+        Catalog catalog,
+        SpreadsheetChartType chartType)
     {
         if (raw.TryGetProperty("fill", out _) && raw.TryGetProperty("color", out _))
             throw Unsupported(source.Id, "chart-series color and fill are aliases and cannot both be present");
@@ -364,22 +395,111 @@ internal static class PpjAuthoredPresentationCompiler
             series.Fill = new SpreadsheetColor { Rgb = resolved.Rgb };
         }
         if (raw.TryGetProperty("stroke", out var stroke))
-        {
-            var strokeColor = catalog.Color(stroke.GetProperty("color"));
-            series.Line = new SpreadsheetChartLineStyleArtifact
-            {
-                Color = new SpreadsheetColor { Rgb = strokeColor.Rgb },
-                DashStyle = ChartDash(OptionalString(stroke, "dash")),
-                Cap = OptionalString(stroke, "cap") ?? string.Empty,
-                Join = OptionalString(stroke, "join") ?? string.Empty,
-            };
-            if (stroke.TryGetProperty("width", out var width)) series.Line.WidthPoints = width.GetDouble();
-            var strokeOpacity = OptionalDouble(stroke, "opacity") ?? strokeColor.Alpha;
-            if (strokeOpacity < 1) series.Line.OpacityThousandthPercent = Opacity(strokeOpacity);
-        }
+            series.Line = BuildChartLine(stroke, catalog);
         if (raw.TryGetProperty("marker", out var marker))
-            series.Marker = new SpreadsheetChartMarkerArtifact { Symbol = Marker(marker.GetString()!) };
+            series.Marker = BuildChartMarker(marker, catalog);
+        if (raw.TryGetProperty("trendlines", out var trendlines))
+        {
+            if (chartType is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line))
+                throw Unsupported(source.Id, "trendlines require a bar, column, or line series");
+            series.Trendlines.Add(trendlines.EnumerateArray().Select(item => BuildChartTrendline(item, catalog)));
+        }
+        if (raw.TryGetProperty("errorBars", out var errorBars))
+        {
+            if (chartType is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line))
+                throw Unsupported(source.Id, "error bars require a bar, column, or line series");
+            series.ErrorBars = BuildChartErrorBars(errorBars, catalog);
+        }
         return series;
+    }
+
+    private static SpreadsheetChartAxisArtifact BuildChartAxis(JsonElement source)
+    {
+        var axis = new SpreadsheetChartAxisArtifact
+        {
+            Title = OptionalString(source, "title") ?? string.Empty,
+            NumberFormatCode = OptionalString(source, "numberFormat") ?? string.Empty,
+        };
+        if (source.TryGetProperty("tickLabelInterval", out var tickLabelInterval))
+            axis.TickLabelInterval = checked((uint)tickLabelInterval.GetInt32());
+        if (source.TryGetProperty("min", out var minimum)) axis.Minimum = minimum.GetDouble();
+        if (source.TryGetProperty("max", out var maximum)) axis.Maximum = maximum.GetDouble();
+        if (source.TryGetProperty("majorUnit", out var majorUnit)) axis.MajorUnit = majorUnit.GetDouble();
+        if (source.TryGetProperty("visible", out var visible)) axis.Visible = visible.GetBoolean();
+        if (source.TryGetProperty("textStyle", out var textStyle))
+        {
+            axis.TextStyle = new SpreadsheetChartTextStyleArtifact();
+            if (textStyle.TryGetProperty("fontSize", out var fontSize))
+                axis.TextStyle.FontSizePoints = fontSize.GetDouble();
+        }
+        return axis;
+    }
+
+    private static SpreadsheetChartMarkerArtifact BuildChartMarker(JsonElement source, Catalog catalog)
+    {
+        if (source.ValueKind == JsonValueKind.String)
+            return new SpreadsheetChartMarkerArtifact { Symbol = Marker(source.GetString()!) };
+        var marker = new SpreadsheetChartMarkerArtifact
+        {
+            Symbol = Marker(OptionalString(source, "symbol") ?? "circle"),
+        };
+        if (source.TryGetProperty("size", out var size)) marker.Size = checked((uint)size.GetInt32());
+        if (source.TryGetProperty("fill", out var fill))
+        {
+            var color = catalog.Color(fill);
+            if (color.Alpha != 1) throw Unsupported("chart marker", "fill opacity is not compiler-owned");
+            marker.Fill = new SpreadsheetColor { Rgb = color.Rgb };
+        }
+        if (source.TryGetProperty("stroke", out var stroke)) marker.Line = BuildChartLine(stroke, catalog);
+        return marker;
+    }
+
+    private static SpreadsheetChartTrendlineArtifact BuildChartTrendline(JsonElement source, Catalog catalog)
+    {
+        var trendline = new SpreadsheetChartTrendlineArtifact
+        {
+            Type = TrendlineType(source.GetProperty("type").GetString()!),
+            Name = OptionalString(source, "name") ?? string.Empty,
+            DisplayEquation = source.TryGetProperty("displayEquation", out var equation) && equation.GetBoolean(),
+            DisplayRSquared = source.TryGetProperty("displayRSquared", out var rSquared) && rSquared.GetBoolean(),
+        };
+        if (source.TryGetProperty("order", out var order)) trendline.PolynomialOrder = checked((uint)order.GetInt32());
+        if (source.TryGetProperty("period", out var period)) trendline.Period = checked((uint)period.GetInt32());
+        if (source.TryGetProperty("forward", out var forward)) trendline.Forward = forward.GetDouble();
+        if (source.TryGetProperty("backward", out var backward)) trendline.Backward = backward.GetDouble();
+        if (source.TryGetProperty("intercept", out var intercept)) trendline.Intercept = intercept.GetDouble();
+        if (source.TryGetProperty("stroke", out var stroke)) trendline.Line = BuildChartLine(stroke, catalog);
+        return trendline;
+    }
+
+    private static SpreadsheetChartErrorBarsArtifact BuildChartErrorBars(JsonElement source, Catalog catalog)
+    {
+        var errorBars = new SpreadsheetChartErrorBarsArtifact
+        {
+            Direction = ErrorBarDirection(OptionalString(source, "direction") ?? "y"),
+            Type = ErrorBarType(OptionalString(source, "type") ?? "both"),
+            ValueType = ErrorBarValueType(source.GetProperty("valueType").GetString()!),
+            NoEndCap = source.TryGetProperty("noEndCap", out var noEndCap) && noEndCap.GetBoolean(),
+        };
+        if (source.TryGetProperty("value", out var value)) errorBars.Value = value.GetDouble();
+        if (source.TryGetProperty("stroke", out var stroke)) errorBars.Line = BuildChartLine(stroke, catalog);
+        return errorBars;
+    }
+
+    private static SpreadsheetChartLineStyleArtifact BuildChartLine(JsonElement source, Catalog catalog)
+    {
+        var color = catalog.Color(source.GetProperty("color"));
+        var line = new SpreadsheetChartLineStyleArtifact
+        {
+            Color = new SpreadsheetColor { Rgb = color.Rgb },
+            DashStyle = ChartDash(OptionalString(source, "dash")),
+            Cap = OptionalString(source, "cap") ?? string.Empty,
+            Join = OptionalString(source, "join") ?? string.Empty,
+        };
+        if (source.TryGetProperty("width", out var width)) line.WidthPoints = width.GetDouble();
+        var opacity = OptionalDouble(source, "opacity") ?? color.Alpha;
+        if (opacity < 1) line.OpacityThousandthPercent = Opacity(opacity);
+        return line;
     }
 
     private static PresentationTable BuildTable(PpjTableElementModel element, JsonElement raw, Catalog catalog)
@@ -1197,18 +1317,33 @@ internal static class PpjAuthoredPresentationCompiler
             chart.ChartAreaFill = BuildChartSurfaceFill(chartAreaFill, catalog, $"{elementId} chart area");
         if (FirstProperty(inline, named, "plotAreaFill") is { } plotAreaFill)
             chart.PlotAreaFill = BuildChartSurfaceFill(plotAreaFill, catalog, $"{elementId} plot area");
+        var structuredLabels = FirstProperty(inline, named, "dataLabels");
         var labels = FirstProperty(inline, named, "showDataLabels");
-        if (labels is { } showLabels && showLabels.GetBoolean())
+        var legacyPosition = FirstProperty(inline, named, "dataLabelPosition");
+        if (structuredLabels is not null && (labels is not null || legacyPosition is not null))
+            throw Unsupported(elementId, "structured dataLabels cannot be combined with legacy data-label fields");
+        if (structuredLabels is { } dataLabels)
+        {
+            chart.DataLabels = new SpreadsheetChartDataLabelsArtifact
+            {
+                ShowValue = dataLabels.TryGetProperty("showValue", out var showValue) && showValue.GetBoolean(),
+                ShowCategoryName = dataLabels.TryGetProperty("showCategory", out var showCategory) && showCategory.GetBoolean(),
+            };
+            if (dataLabels.TryGetProperty("showSeries", out var showSeries)) chart.DataLabels.ShowSeriesName = showSeries.GetBoolean();
+            if (dataLabels.TryGetProperty("showPercent", out var showPercent)) chart.DataLabels.ShowPercent = showPercent.GetBoolean();
+            if (dataLabels.TryGetProperty("position", out var position)) chart.DataLabels.Position = LabelPosition(position.GetString()!);
+        }
+        else if (labels is { } showLabels && showLabels.GetBoolean())
         {
             chart.DataLabels = new SpreadsheetChartDataLabelsArtifact
             {
                 ShowValue = true,
                 ShowSeriesName = false,
             };
-            var position = FirstProperty(inline, named, "dataLabelPosition")?.GetString();
+            var position = legacyPosition?.GetString();
             if (position is not null) chart.DataLabels.Position = LabelPosition(position);
         }
-        else if (FirstProperty(inline, named, "dataLabelPosition") is not null)
+        else if (legacyPosition is not null)
             throw Unsupported("chart", "dataLabelPosition requires showDataLabels: true");
     }
 
@@ -1413,18 +1548,64 @@ internal static class PpjAuthoredPresentationCompiler
     private static SpreadsheetChartMarkerSymbol Marker(string value) => value switch
     {
         "none" => SpreadsheetChartMarkerSymbol.None,
+        "dot" => SpreadsheetChartMarkerSymbol.Dot,
         "circle" => SpreadsheetChartMarkerSymbol.Circle,
         "square" => SpreadsheetChartMarkerSymbol.Square,
         "diamond" => SpreadsheetChartMarkerSymbol.Diamond,
         "triangle" => SpreadsheetChartMarkerSymbol.Triangle,
+        "x" => SpreadsheetChartMarkerSymbol.X,
+        "star" => SpreadsheetChartMarkerSymbol.Star,
+        "plus" => SpreadsheetChartMarkerSymbol.Plus,
+        "dash" => SpreadsheetChartMarkerSymbol.Dash,
         _ => SpreadsheetChartMarkerSymbol.Unspecified,
+    };
+
+    private static SpreadsheetChartTrendlineType TrendlineType(string value) => value switch
+    {
+        "exponential" => SpreadsheetChartTrendlineType.Exponential,
+        "linear" => SpreadsheetChartTrendlineType.Linear,
+        "logarithmic" => SpreadsheetChartTrendlineType.Logarithmic,
+        "moving-average" => SpreadsheetChartTrendlineType.MovingAverage,
+        "polynomial" => SpreadsheetChartTrendlineType.Polynomial,
+        "power" => SpreadsheetChartTrendlineType.Power,
+        _ => SpreadsheetChartTrendlineType.Unspecified,
+    };
+
+    private static SpreadsheetChartErrorBarDirection ErrorBarDirection(string value) => value switch
+    {
+        "x" => SpreadsheetChartErrorBarDirection.X,
+        "y" => SpreadsheetChartErrorBarDirection.Y,
+        _ => SpreadsheetChartErrorBarDirection.Unspecified,
+    };
+
+    private static SpreadsheetChartErrorBarType ErrorBarType(string value) => value switch
+    {
+        "both" => SpreadsheetChartErrorBarType.Both,
+        "minus" => SpreadsheetChartErrorBarType.Minus,
+        "plus" => SpreadsheetChartErrorBarType.Plus,
+        _ => SpreadsheetChartErrorBarType.Unspecified,
+    };
+
+    private static SpreadsheetChartErrorBarValueType ErrorBarValueType(string value) => value switch
+    {
+        "fixed-value" => SpreadsheetChartErrorBarValueType.FixedValue,
+        "percentage" => SpreadsheetChartErrorBarValueType.Percentage,
+        "standard-deviation" => SpreadsheetChartErrorBarValueType.StandardDeviation,
+        "standard-error" => SpreadsheetChartErrorBarValueType.StandardError,
+        _ => SpreadsheetChartErrorBarValueType.Unspecified,
     };
 
     private static SpreadsheetChartDataLabelPosition LabelPosition(string value) => value switch
     {
+        "best-fit" => SpreadsheetChartDataLabelPosition.BestFit,
+        "bottom" => SpreadsheetChartDataLabelPosition.Bottom,
         "center" => SpreadsheetChartDataLabelPosition.Center,
+        "inside-base" => SpreadsheetChartDataLabelPosition.InsideBase,
         "inside-end" => SpreadsheetChartDataLabelPosition.InsideEnd,
+        "left" => SpreadsheetChartDataLabelPosition.Left,
         "outside-end" => SpreadsheetChartDataLabelPosition.OutsideEnd,
+        "right" => SpreadsheetChartDataLabelPosition.Right,
+        "top" => SpreadsheetChartDataLabelPosition.Top,
         "above" => SpreadsheetChartDataLabelPosition.Top,
         "below" => SpreadsheetChartDataLabelPosition.Bottom,
         _ => SpreadsheetChartDataLabelPosition.Unspecified,

@@ -5,9 +5,9 @@
 
 ## 2. Compiler and projection
 
-- [ ] 2.1 Lower authored analytical chart state into existing native owners
+- [x] 2.1 Lower authored analytical chart state into existing native owners
 - [ ] 2.2 Project recognized native state back into PPJ
-- [ ] 2.3 Keep unsupported chart families and irregular graphs fail-closed
+- [x] 2.3 Keep unsupported chart families and irregular graphs fail-closed
 
 ## 3. Source-bound safety
 
