@@ -4293,6 +4293,26 @@ assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="Agent evidence group")(
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-connector")(?=[^>]*\btitle="Before-to-target direction")(?=[^>]*\bdescr="Arrow connecting the before state to the target state\.")/);
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="nested-group")(?=[^>]*\bdescr="Nested custom-shape evidence\.")/);
 
+// A source deck may intentionally place a group just outside the slide
+// canvas (for bleed, trim, or a cropped visual).  Keep that valid source
+// placement editable instead of flattening the whole group to opaque XML.
+const negativeGroupZip = await JSZip.loadAsync(groupedFirstExport.bytes);
+const negativeGroupXml = groupedFirstXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="Agent evidence group"[^>]*\/>[\s\S]*?<a:off\s+x=")(-?\d+)("\s+y=)/u,
+  "$1-9525$3",
+);
+assert.notEqual(negativeGroupXml, groupedFirstXml);
+negativeGroupZip.file("ppt/slides/slide1.xml", negativeGroupXml);
+const negativeGroupBytes = await negativeGroupZip.generateAsync({ type: "uint8array" });
+const negativeGroupImported = await PresentationFile.importPptx(new FileBlob(negativeGroupBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+const negativeGroup = itemByName(negativeGroupImported.slides.getItem(0).groups.items, "Agent evidence group");
+assert.equal(negativeGroup.position.left, -1);
+const negativeGroupChild = itemByName(negativeGroup.shapes.items, "grouped-before");
+negativeGroupChild.fill = "#123456";
+const negativeGroupOutput = await PresentationFile.exportPptx(negativeGroupImported);
+const negativeGroupRoundTrip = await PresentationFile.importPptx(negativeGroupOutput);
+assert.equal(itemByName(itemByName(negativeGroupRoundTrip.slides.getItem(0).groups.items, "Agent evidence group").shapes.items, "grouped-before").fill, "#123456");
+
 let groupedImported = await PresentationFile.importPptx(groupedFirstExport);
 let importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");
 assert.deepEqual(importedGroup.children.map((child) => child.layoutJson().kind), ["textbox", "textbox", "connector", "image", "table", "chart", "groupShape"]);
