@@ -3903,6 +3903,8 @@ message SpreadsheetChartMarkerArtifact {
   SpreadsheetColor fill = 3;
   // Optional bounded direct marker outline; reuses the series-line profile.
   SpreadsheetChartLineStyleArtifact line = 4;
+  // Present only with fill; 0..100000 lowers to one direct DrawingML a:alpha.
+  optional uint32 fill_opacity_thousandth_percent = 5;
 }
 
 enum SpreadsheetChartLineGrouping {
