@@ -14,4 +14,4 @@
 - [x] 3.1 Regenerate the PPJ manual and focused chart guidance
 - [x] 3.2 Extend the existing integrated PPJ test
 - [x] 3.3 Run narrow native, Skill, and OpenSpec checks
-- [ ] 3.4 Commit atomically and fast-forward main
+- [x] 3.4 Commit atomically and fast-forward main
