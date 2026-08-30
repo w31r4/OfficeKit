@@ -113,10 +113,32 @@ rebuilding the visual with shapes:
       "italic": false,
       "color": "#16324FCC"
     },
+    "legend": "bottom",
+    "legendTextStyle": {
+      "fontSize": 9,
+      "fontFamily": "Aptos",
+      "color": "#475569"
+    },
+    "dataLabels": {
+      "showValue": true,
+      "position": "above",
+      "textStyle": {
+        "fontSize": 8,
+        "bold": true,
+        "color": "#16324F"
+      }
+    },
     "smooth": false,
     "varyColors": true
   },
   "xAxis": {
+    "title": "Quarter",
+    "titleTextStyle": {
+      "fontSize": 10,
+      "fontFamily": "Aptos Display",
+      "bold": true,
+      "color": "#16324F"
+    },
     "textStyle": {
       "fontSize": 9,
       "fontFamily": "Aptos",
@@ -129,12 +151,13 @@ rebuilding the visual with shapes:
 
 `smooth` preserves an explicit true or false native value. `varyColors: true`
 authors one direct native color-variation flag; false is canonical omission.
-Both line-behavior fields are line-chart-only. Chart-title and axis tick-label
-typography compile through one exact DrawingML profile. A projected imported
-chart may issue `setChartTextStyle`; only that capability authorizes changes to
-these fields. Ordinary `setChartTitle` and `setChartData` do not authorize a
-style mutation. Theme transforms, shadows and other rich-text effects remain
-source-owned, as do legend, data-label and axis-title typography.
+Both line-behavior fields are line-chart-only. Chart-title, legend, data-label,
+axis-title and axis tick-label typography compile through one exact DrawingML
+profile on ordinary and combo charts. A projected imported chart may issue
+`setChartTextStyle`; only that capability authorizes changes to these fields.
+Ordinary `setChartTitle` and `setChartData` do not authorize a style mutation.
+Theme transforms, shadows, effects and irregular rich-text topology remain
+source-owned and fail closed instead of being flattened.
 
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
