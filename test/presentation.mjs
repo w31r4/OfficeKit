@@ -641,6 +641,41 @@ const imageEffectsEditedTarget = imageEffectsEditedRoundTrip.slides.getItem(0).i
 assert.deepEqual(imageEffectsEditedTarget.border, { color: "#00FF00", width: 3, style: "dashed", cap: "round", join: "bevel", opacity: 0.6 });
 assert.deepEqual(imageEffectsEditedTarget.shadow, { color: "#111111", blurRadius: 5, distance: 3, direction: 120, opacity: 0.4 });
 
+// Preset picture masks are source-bound leaves rather than a geometry escape
+// hatch.  The imported ellipse must be discoverable, editable to another
+// bounded preset, and spliced without changing the embedded image or other
+// package parts.
+const imageMaskZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const imageMaskXml = shapeAccessibilitySourceXml.replace(
+  /(<p:pic>[\s\S]*?<a:prstGeom\b[^>]*\bprst=")rect(")/u,
+  "$1ellipse$2",
+);
+assert.notEqual(imageMaskXml, shapeAccessibilitySourceXml, "image mask fixture must contain a picture preset geometry");
+imageMaskZip.file("ppt/slides/slide1.xml", imageMaskXml);
+const imageMaskFile = new FileBlob(
+  await imageMaskZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageMaskImported = await PresentationFile.importPptx(imageMaskFile);
+const imageMaskTarget = itemByName(imageMaskImported.slides.getItem(0).images.items, "decision-evidence");
+assert.equal(imageMaskTarget.maskPreset, "ellipse");
+const imageMaskLeaf = imageMaskImported.inspect({ includeNativeLeaves: true, target: imageMaskTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageMaskPreset");
+assert.ok(imageMaskLeaf, "source-bound images should expose a direct mask preset leaf");
+assert.equal(imageMaskLeaf.value, "ellipse");
+imageMaskImported.editNativeLeaf(imageMaskLeaf.targetId, imageMaskLeaf.leafId, {
+  expectedHash: imageMaskLeaf.expectedHash,
+  value: "roundRect",
+});
+const imageMaskOutput = await PresentationFile.exportPptx(imageMaskImported);
+assert.equal(imageMaskOutput.metadata.editPlan.operations[0].leafKind, "imageMaskPreset");
+await assertOnlyDeclaredPptxFootprintChanged(imageMaskFile, imageMaskOutput, imageMaskOutput.metadata.editPlan.operations);
+const imageMaskOutputXml = await (await JSZip.loadAsync(imageMaskOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageMaskOutputXml, /<a:prstGeom\b[^>]*\bprst="roundRect"/u);
+const imageMaskRoundTrip = await PresentationFile.importPptx(imageMaskOutput);
+assert.equal(itemByName(imageMaskRoundTrip.slides.getItem(0).images.items, "decision-evidence").maskPreset, "roundRect");
+
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
 importedAccessibilityConnector.setAccessibilityMetadata({ title: null, description: "Reviewed connector from the rollout decision to context." });
@@ -1759,7 +1794,10 @@ const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeN
   .filter(Boolean)
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
-assert.deepEqual(new Set(nativeImageGeometryLeaves.map((record) => record.leafKind)), new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu"]));
+assert.deepEqual(
+  new Set(nativeImageGeometryLeaves.map((record) => record.leafKind)),
+  new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu", "imageMaskPreset"]),
+);
 const nativeImageLeftLeaf = nativeImageGeometryLeaves.find((record) => record.leafKind === "leftEmu");
 assert.ok(nativeImageLeftLeaf);
 const nativeImageNextLeft = nativeImageLeftLeaf.value + 9_525;
