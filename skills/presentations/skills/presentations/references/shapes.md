@@ -30,9 +30,15 @@ carrier.
 
 PPJ compiles literal custom paths directly into editable DrawingML geometry.
 Use one finite `viewBox` plus ordered `moveTo`, `lineTo`, `quadraticTo`,
-`cubicTo`, and `close` commands. Path order is drawing order; `fill` and
-`stroke` control whether the shared shape paint applies to that path. A
+`cubicTo`, `arcTo`, and `close` commands. Path order is drawing order; `fill`
+and `stroke` control whether the shared shape paint applies to that path. A
 non-zero view-box origin is normalized deterministically during compilation.
+`arcTo` uses positive `radiusX`/`radiusY` values in view-box units plus
+`startAngle` and signed `sweepAngle` in degrees. It requires a current point;
+start a contour with `moveTo`. Positive sweep follows the clockwise page
+coordinate convention. Use opposite sweeps for the outer and inner contours of
+a native hollow ring. The same command vocabulary applies to custom image
+masks.
 Custom adjustment formulas, guides, handles, connection sites, and text
 rectangles remain outside the authored PPJ subset. Preset geometry is broader
 and covers the complete non-connector DrawingML catalog owned by the pinned
@@ -95,6 +101,27 @@ a typed connector element with endpoint semantics.
       "cap": "round",
       "join": "round"
     }
+  }
+}
+```
+
+This native half-ellipse starts at the current point; OfficeKit writes an
+editable DrawingML arc rather than approximating it with a bitmap or requiring
+the Agent to calculate Bézier control points:
+
+```json
+{
+  "geometry": {
+    "kind": "custom",
+    "viewBox": { "x": 0, "y": 0, "width": 100, "height": 100 },
+    "paths": [{
+      "fill": false,
+      "stroke": true,
+      "commands": [
+        { "op": "moveTo", "x": 0, "y": 50 },
+        { "op": "arcTo", "radiusX": 50, "radiusY": 50, "startAngle": 180, "sweepAngle": 180 }
+      ]
+    }]
   }
 }
 ```

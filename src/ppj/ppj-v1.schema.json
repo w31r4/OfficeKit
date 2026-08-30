@@ -435,7 +435,168 @@
             "none",
             "explicit"
           ]
+        },
+        "masters": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/masterDefinition"
+          }
+        },
+        "layouts": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/layoutDefinition"
+          }
         }
+      }
+    },
+    "masterDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "background": {
+          "$ref": "#/$defs/fill"
+        },
+        "textStyles": {
+          "$ref": "#/$defs/masterTextStyles"
+        },
+        "placeholders": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/layoutPlaceholder"
+          }
+        }
+      }
+    },
+    "layoutDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "master",
+        "layoutType"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "master": {
+          "$ref": "#/$defs/id"
+        },
+        "layoutType": {
+          "enum": [
+            "blank",
+            "title",
+            "titleOnly",
+            "obj"
+          ]
+        },
+        "background": {
+          "$ref": "#/$defs/fill"
+        },
+        "placeholders": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/layoutPlaceholder"
+          }
+        }
+      }
+    },
+    "layoutPlaceholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "placeholderType",
+        "index",
+        "frame"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "placeholderType": {
+          "enum": [
+            "title",
+            "body",
+            "centered-title",
+            "subtitle"
+          ]
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "frame": {
+          "$ref": "#/$defs/frame"
+        },
+        "text": {
+          "$ref": "#/$defs/textContent"
+        },
+        "style": {
+          "$ref": "#/$defs/textBoxStyle"
+        }
+      }
+    },
+    "masterTextStyles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/masterTextLevels"
+        },
+        "body": {
+          "$ref": "#/$defs/masterTextLevels"
+        },
+        "other": {
+          "$ref": "#/$defs/masterTextLevels"
+        }
+      }
+    },
+    "masterTextLevels": {
+      "type": "array",
+      "maxItems": 9,
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/paragraphStyle"
+          },
+          {
+            "type": "object",
+            "required": [
+              "level"
+            ]
+          }
+        ]
       }
     },
     "canvas": {
@@ -2477,6 +2638,49 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "op",
+            "radiusX",
+            "radiusY",
+            "startAngle",
+            "sweepAngle"
+          ],
+          "properties": {
+            "op": {
+              "const": "arcTo"
+            },
+            "radiusX": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "radiusY": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "startAngle": {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 360
+            },
+            "sweepAngle": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": -360,
+                  "exclusiveMaximum": 0
+                },
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 360
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
             "op"
           ],
           "properties": {
@@ -2565,6 +2769,8 @@
                 "heatmap",
                 "candlestick",
                 "treemap",
+                "sunburst",
+                "sankey",
                 "combo"
               ]
             },
@@ -2744,13 +2950,29 @@
             ]
           }
         },
+        "sources": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "targets": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
         "chartType": {
           "enum": [
-            "bar",
             "column",
             "line",
-            "area",
-            "scatter"
+            "area"
           ]
         },
         "axis": {
@@ -2879,6 +3101,12 @@
         },
         "treemap": {
           "$ref": "#/$defs/treemapStyle"
+        },
+        "sunburst": {
+          "$ref": "#/$defs/sunburstStyle"
+        },
+        "sankey": {
+          "$ref": "#/$defs/sankeyStyle"
         }
       }
     },
@@ -3064,6 +3292,124 @@
           "type": "number",
           "minimum": 0,
           "maximum": 0.25
+        },
+        "showValues": {
+          "type": "boolean"
+        },
+        "labelTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        }
+      }
+    },
+    "sunburstStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootColors"
+      ],
+      "properties": {
+        "rootColors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "border": {
+          "$ref": "#/$defs/stroke"
+        },
+        "innerRadiusRatio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.75
+        },
+        "ringGap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "segmentGapDegrees": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 8
+        },
+        "startAngle": {
+          "type": "number",
+          "minimum": -3600,
+          "maximum": 3600
+        },
+        "clockwise": {
+          "type": "boolean"
+        },
+        "depthLighten": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.25
+        },
+        "showValues": {
+          "type": "boolean"
+        },
+        "labelTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "valueTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        }
+      }
+    },
+    "sankeyStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodeColors"
+      ],
+      "properties": {
+        "nodeColors": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/color"
+          }
+        },
+        "nodeStroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "nodeWidth": {
+          "type": "number",
+          "minimum": 4,
+          "maximum": 32
+        },
+        "nodeGap": {
+          "type": "number",
+          "minimum": 2,
+          "maximum": 24
+        },
+        "nodeAlign": {
+          "enum": [
+            "left",
+            "justify"
+          ]
+        },
+        "flowOpacity": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 1
+        },
+        "flowCurvature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flowColorMode": {
+          "enum": [
+            "source",
+            "target"
+          ]
         },
         "showValues": {
           "type": "boolean"
@@ -4113,6 +4459,9 @@
         "claim": {
           "type": "string",
           "maxLength": 4096
+        },
+        "layout": {
+          "$ref": "#/$defs/id"
         },
         "background": {
           "$ref": "#/$defs/fill"

@@ -101,6 +101,8 @@ internal static class PpjAuthoredPresentationCompiler
             AuthoredTheme = catalog.Theme,
         };
 
+        AddMasterLayoutState(presentation, program, catalog);
+
         var expandedByPage = expansion.Pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
         for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
         {
@@ -110,6 +112,7 @@ internal static class PpjAuthoredPresentationCompiler
             {
                 Id = page.Id,
                 Name = DisplayName(page.Name, page.Role, page.Id),
+                LayoutId = page.LayoutId ?? string.Empty,
             };
             if (page.Raw.TryGetProperty("hidden", out var hidden)) slide.Hidden = hidden.GetBoolean();
             if (page.Raw.TryGetProperty("background", out var background))
@@ -140,6 +143,81 @@ internal static class PpjAuthoredPresentationCompiler
         return envelope;
     }
 
+    private static void AddMasterLayoutState(
+        PresentationArtifact presentation,
+        PpjProgramModel program,
+        Catalog catalog)
+    {
+        foreach (var source in program.Design.Masters)
+        {
+            var master = new PresentationMaster
+            {
+                Id = source.Id,
+                Name = source.Name,
+                TextStyles = new PresentationMasterTextStyles(),
+            };
+            if (source.Background is { } background)
+                master.Background = BuildBackground(background, catalog, program.Design.Width, program.Design.Height);
+            master.TextStyles.TitleLevels.Add(source.TitleTextLevels.Select(level => BuildMasterTextLevel(level, catalog)));
+            master.TextStyles.BodyLevels.Add(source.BodyTextLevels.Select(level => BuildMasterTextLevel(level, catalog)));
+            master.TextStyles.OtherLevels.Add(source.OtherTextLevels.Select(level => BuildMasterTextLevel(level, catalog)));
+            master.Placeholders.Add(source.Placeholders.Select(placeholder =>
+                BuildLayoutPlaceholder(placeholder, catalog)));
+            presentation.Masters.Add(master);
+        }
+
+        foreach (var source in program.Design.Layouts)
+        {
+            var layout = new PresentationLayout
+            {
+                Id = source.Id,
+                Name = source.Name,
+                MasterId = source.MasterId,
+                Type = source.LayoutType,
+            };
+            if (source.Background is { } background)
+                layout.Background = BuildBackground(background, catalog, program.Design.Width, program.Design.Height);
+            layout.Placeholders.Add(source.Placeholders.Select(placeholder =>
+                BuildLayoutPlaceholder(placeholder, catalog)));
+            presentation.Layouts.Add(layout);
+        }
+    }
+
+    private static PresentationTextParagraph BuildMasterTextLevel(JsonElement source, Catalog catalog)
+    {
+        var level = new PresentationTextParagraph();
+        ApplyParagraphStyle(level, null, null, source, catalog);
+        return level;
+    }
+
+    private static PresentationPlaceholder BuildLayoutPlaceholder(
+        PpjLayoutPlaceholderModel source,
+        Catalog catalog)
+    {
+        var placeholder = new PresentationPlaceholder
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Type = PlaceholderType(source.PlaceholderType),
+            Index = source.Index,
+            DirectFrame = new PresentationPlaceholderFrame
+            {
+                LeftEmu = Emu(source.Frame.X),
+                TopEmu = Emu(source.Frame.Y),
+                WidthEmu = Emu(source.Frame.Width),
+                HeightEmu = Emu(source.Frame.Height),
+            },
+        };
+        if (source.Frame.Rotation != 0)
+            placeholder.DirectFrame.RotationAngle60000 = Angle(source.Frame.Rotation);
+        if (source.Frame.FlipH) placeholder.DirectFrame.FlipHorizontal = true;
+        if (source.Frame.FlipV) placeholder.DirectFrame.FlipVertical = true;
+        placeholder.TextBody = source.Text is null
+            ? EmptyTextBody(null, source.Style)
+            : BuildTextBody(source.Raw.GetProperty("text"), null, source.Style, catalog);
+        return placeholder;
+    }
+
     private static PresentationElement BuildElement(PpjElementModel element, JsonElement raw, Catalog catalog)
     {
         RejectProperties(raw, element.Id, "hidden", "locked");
@@ -167,6 +245,12 @@ internal static class PpjAuthoredPresentationCompiler
                 break;
             case PpjChartElementModel { ChartType: "treemap" } treemap:
                 output.Group = BuildTreemap(treemap, raw, catalog);
+                break;
+            case PpjChartElementModel { ChartType: "sunburst" } sunburst:
+                output.Group = BuildSunburst(sunburst, raw, catalog);
+                break;
+            case PpjChartElementModel { ChartType: "sankey" } sankey:
+                output.Group = BuildSankey(sankey, raw, catalog);
                 break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
@@ -1559,6 +1643,789 @@ internal static class PpjAuthoredPresentationCompiler
     private readonly record struct TreemapPlacement(int NodeIndex, TreemapRectangle Rectangle);
     private readonly record struct TreemapArea(int NodeIndex, double Area, int Order);
 
+    private static PresentationGroup BuildSunburst(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector sunburst titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateSunburstCompileProfile(element, raw, namedStyle, inlineStyle);
+        var sunburst = FirstProperty(inlineStyle, namedStyle, "sunburst")!.Value;
+        var series = element.Data.Series[0];
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var values = series.Values.Select(value => value!.Value).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var nodes = names.Select((name, index) => new SunburstNode(
+            index,
+            name,
+            values[index],
+            series.Parents[index] is { } parent ? indexes[parent] : null)).ToArray();
+        foreach (var node in nodes)
+            if (node.ParentIndex is { } parentIndex) nodes[parentIndex].Children.Add(node.Index);
+        var roots = nodes.Where(node => node.ParentIndex is null).Select(node => node.Index).ToArray();
+        foreach (var root in roots) AssignSunburstDepth(nodes, root, 0);
+        var levelCount = nodes.Max(node => node.Depth) + 1;
+
+        var rootColors = sunburst.GetProperty("rootColors").EnumerateArray().Select(catalog.Color).ToArray();
+        var border = Property(sunburst, "border");
+        var innerRadiusRatio = OptionalDouble(sunburst, "innerRadiusRatio") ?? 0;
+        var ringGap = OptionalDouble(sunburst, "ringGap") ?? 1.5;
+        var segmentGapRadians = (OptionalDouble(sunburst, "segmentGapDegrees") ?? 0.8) * Math.PI / 180;
+        var startAngle = (OptionalDouble(sunburst, "startAngle") ?? -90) * Math.PI / 180;
+        var clockwise = OptionalBoolean(sunburst, "clockwise") ?? true;
+        var direction = clockwise ? 1d : -1d;
+        var depthLighten = OptionalDouble(sunburst, "depthLighten") ?? 0.08;
+        var showValues = OptionalBoolean(sunburst, "showValues") ?? false;
+        var labelStyle = Property(sunburst, "labelTextStyle");
+        var valueStyle = Property(sunburst, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var availableHeight = height - titleHeight - 4;
+        var diameter = Math.Min(width, availableHeight);
+        if (diameter < 160)
+            throw Unsupported(element.Id, "sunburst frame is too small for a readable native hierarchy");
+        var plotX = x + (width - diameter) / 2;
+        var plotY = y + titleHeight + 4 + (availableHeight - diameter) / 2;
+        var outerRadius = diameter / 2;
+        var innerRadius = outerRadius * innerRadiusRatio;
+        var ringWidth = (outerRadius - innerRadius) / levelCount;
+        if (ringWidth - ringGap < 8)
+            throw Unsupported(element.Id, "sunburst rings are too narrow after applying the configured gap");
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                SunburstNativeId(element.Id, "title"),
+                "sunburst title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var total = roots.Sum(root => nodes[root].Value);
+        var cursor = startAngle;
+        for (var rootOrder = 0; rootOrder < roots.Length; rootOrder++)
+        {
+            var root = roots[rootOrder];
+            var span = Math.PI * 2 * nodes[root].Value / total * direction;
+            RenderSunburstNode(
+                group,
+                element.Id,
+                nodes,
+                root,
+                cursor,
+                cursor + span,
+                rootColors[rootOrder % rootColors.Length],
+                plotX,
+                plotY,
+                diameter,
+                innerRadius,
+                ringWidth,
+                ringGap,
+                segmentGapRadians,
+                depthLighten,
+                showValues,
+                border,
+                labelStyle,
+                valueStyle,
+                catalog);
+            cursor += span;
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateSunburstCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var count = element.Data.Categories.Count;
+        if (count is < 1 or > 96 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != count)
+            throw Unsupported(element.Id, "sunburst categories must be 1..96 unique non-empty strings");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "sunburst charts require exactly one hierarchy series");
+        var series = element.Data.Series[0];
+        if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
+            throw Unsupported(element.Id, "sunburst values and parents must be complete, aligned, and strictly positive");
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"sunburst series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "sunburst charts do not use Cartesian axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"sunburst charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "sunburst") is null)
+            throw Unsupported(element.Id, "sunburst charts require style.sunburst");
+
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var rootCount = 0;
+        for (var index = 0; index < count; index++)
+        {
+            var parent = series.Parents[index];
+            if (parent is null)
+            {
+                rootCount++;
+                continue;
+            }
+            if (!indexes.ContainsKey(parent))
+                throw Unsupported(element.Id, $"sunburst parent {parent} does not name a declared category");
+            if (string.Equals(parent, names[index], StringComparison.Ordinal))
+                throw Unsupported(element.Id, "a sunburst node cannot parent itself");
+        }
+        if (rootCount is < 1 or > 16)
+            throw Unsupported(element.Id, "sunburst charts require between 1 and 16 roots");
+
+        for (var index = 0; index < count; index++)
+        {
+            var seen = new HashSet<int>();
+            var current = index;
+            var depth = 0;
+            while (true)
+            {
+                if (!seen.Add(current)) throw Unsupported(element.Id, $"sunburst parent chain for {names[index]} contains a cycle");
+                var parent = series.Parents[current];
+                if (parent is null) break;
+                current = indexes[parent];
+                depth++;
+                if (depth > 6) throw Unsupported(element.Id, $"sunburst node {names[index]} exceeds the maximum depth of six");
+            }
+        }
+
+        var childSums = new Dictionary<int, double>();
+        for (var index = 0; index < count; index++)
+            if (series.Parents[index] is { } parent)
+            {
+                var parentIndex = indexes[parent];
+                childSums[parentIndex] = childSums.GetValueOrDefault(parentIndex) + series.Values[index]!.Value;
+            }
+        foreach (var pair in childSums)
+        {
+            var declared = series.Values[pair.Key]!.Value;
+            var tolerance = Math.Max(1e-9, Math.Abs(declared) * 1e-9);
+            if (Math.Abs(declared - pair.Value) > tolerance)
+                throw Unsupported(element.Id, $"sunburst parent {names[pair.Key]} must equal its direct-child sum");
+        }
+    }
+
+    private static void AssignSunburstDepth(IReadOnlyList<SunburstNode> nodes, int nodeIndex, int depth)
+    {
+        nodes[nodeIndex].Depth = depth;
+        foreach (var child in nodes[nodeIndex].Children) AssignSunburstDepth(nodes, child, depth + 1);
+    }
+
+    private static void RenderSunburstNode(
+        PresentationGroup group,
+        string elementId,
+        IReadOnlyList<SunburstNode> nodes,
+        int nodeIndex,
+        double startAngle,
+        double endAngle,
+        (string Rgb, double Alpha) rootColor,
+        double plotX,
+        double plotY,
+        double diameter,
+        double baseInnerRadius,
+        double ringWidth,
+        double ringGap,
+        double segmentGapRadians,
+        double depthLighten,
+        bool showValues,
+        JsonElement? border,
+        JsonElement? labelStyle,
+        JsonElement? valueStyle,
+        Catalog catalog)
+    {
+        var node = nodes[nodeIndex];
+        var sign = Math.Sign(endAngle - startAngle);
+        var span = Math.Abs(endAngle - startAngle);
+        var effectiveSpan = span - segmentGapRadians;
+        if (effectiveSpan <= Math.PI / 720)
+            throw Unsupported(elementId, $"sunburst node {node.Name} is too narrow after applying the configured segment gap");
+        var visibleStart = startAngle + sign * segmentGapRadians / 2;
+        var visibleEnd = endAngle - sign * segmentGapRadians / 2;
+        var innerRadius = baseInnerRadius + node.Depth * ringWidth + ringGap / 2;
+        var outerRadius = baseInnerRadius + (node.Depth + 1) * ringWidth - ringGap / 2;
+        if (outerRadius <= innerRadius)
+            throw Unsupported(elementId, $"sunburst node {node.Name} has no visible ring thickness");
+
+        var color = LightenTreemapColor(rootColor, Math.Min(0.72, node.Depth * depthLighten));
+        var shape = ShapeFrame(new PpjFrameModel(plotX, plotY, diameter, diameter, 0, false, false), "custom");
+        shape.FillRgb = color.Rgb;
+        if (color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(color.Alpha);
+        if (border is { } stroke) ApplyLine(shape, stroke, catalog);
+        else shape.LineStyle = "none";
+        shape.CustomPaths.Add(BuildSunburstSectorPath(
+            diameter,
+            innerRadius,
+            outerRadius,
+            visibleStart,
+            visibleEnd,
+            border is not null));
+        group.Children.Add(new PresentationElement
+        {
+            Id = SunburstNativeId(elementId, $"sector/{node.Index}"),
+            Name = $"sunburst sector {node.Name}",
+            Shape = shape,
+        });
+
+        var midRadius = (innerRadius + outerRadius) / 2;
+        var midAngle = (visibleStart + visibleEnd) / 2;
+        var arcLength = midRadius * effectiveSpan;
+        var thickness = outerRadius - innerRadius;
+        var estimatedLabelWidth = Math.Max(28, node.Name.Length * 5.5);
+        if (thickness >= (showValues ? 25 : 16) && arcLength >= estimatedLabelWidth * 1.35 && effectiveSpan >= Math.PI / 12)
+        {
+            var centerX = plotX + diameter / 2 + Math.Cos(midAngle) * midRadius;
+            var centerY = plotY + diameter / 2 + Math.Sin(midAngle) * midRadius;
+            var textWidth = Math.Min(Math.Max(estimatedLabelWidth, 36), Math.Min(110, arcLength * 0.72));
+            var labelHeight = showValues ? Math.Min(14, thickness * 0.42) : Math.Min(16, thickness * 0.64);
+            var contrast = TreemapLuminance(color.Rgb) > 0.5 ? "111827" : "FFFFFF";
+            group.Children.Add(VectorChartTextElement(
+                SunburstNativeId(elementId, $"label/{node.Index}"),
+                $"sunburst label {node.Name}",
+                centerX - textWidth / 2,
+                centerY - (showValues ? labelHeight : labelHeight / 2),
+                textWidth,
+                labelHeight,
+                node.Name,
+                labelStyle,
+                catalog,
+                Math.Clamp(Math.Min(labelHeight * 0.62, textWidth / Math.Max(4, node.Name.Length) * 1.5), 6, 11),
+                "center",
+                contrast));
+            if (showValues)
+                group.Children.Add(VectorChartTextElement(
+                    SunburstNativeId(elementId, $"value/{node.Index}"),
+                    $"sunburst value {node.Name}",
+                    centerX - textWidth / 2,
+                    centerY,
+                    textWidth,
+                    Math.Min(12, thickness * 0.34),
+                    node.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                    valueStyle,
+                    catalog,
+                    Math.Clamp(thickness * 0.18, 6, 9),
+                    "center",
+                    contrast));
+        }
+
+        if (node.Children.Count == 0) return;
+        var cursor = startAngle;
+        var parentSpan = endAngle - startAngle;
+        foreach (var childIndex in node.Children)
+        {
+            var childSpan = parentSpan * nodes[childIndex].Value / node.Value;
+            RenderSunburstNode(
+                group,
+                elementId,
+                nodes,
+                childIndex,
+                cursor,
+                cursor + childSpan,
+                rootColor,
+                plotX,
+                plotY,
+                diameter,
+                baseInnerRadius,
+                ringWidth,
+                ringGap,
+                segmentGapRadians,
+                depthLighten,
+                showValues,
+                border,
+                labelStyle,
+                valueStyle,
+                catalog);
+            cursor += childSpan;
+        }
+    }
+
+    private static PresentationCustomGeometryPath BuildSunburstSectorPath(
+        double diameter,
+        double innerRadius,
+        double outerRadius,
+        double startAngle,
+        double endAngle,
+        bool stroke)
+    {
+        const long viewport = 100_000;
+        const double center = viewport / 2d;
+        var scale = viewport / diameter;
+        var inner = innerRadius * scale;
+        var outer = outerRadius * scale;
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = viewport,
+            Height = viewport,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = stroke,
+        };
+        path.Commands.Add(MoveTo(SunburstPoint(center, outer, startAngle)));
+        AddSunburstArc(path, center, outer, startAngle, endAngle);
+        if (inner <= 0.5)
+        {
+            path.Commands.Add(LineTo(new PresentationCustomGeometryPoint { X = viewport / 2, Y = viewport / 2 }));
+        }
+        else
+        {
+            path.Commands.Add(LineTo(SunburstPoint(center, inner, endAngle)));
+            AddSunburstArc(path, center, inner, endAngle, startAngle);
+        }
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        return path;
+    }
+
+    private static void AddSunburstArc(
+        PresentationCustomGeometryPath path,
+        double center,
+        double radius,
+        double startAngle,
+        double endAngle)
+    {
+        var span = endAngle - startAngle;
+        var segments = Math.Max(1, (int)Math.Ceiling(Math.Abs(span) / (Math.PI / 2)));
+        var step = span / segments;
+        for (var segment = 0; segment < segments; segment++)
+        {
+            var start = startAngle + step * segment;
+            var end = start + step;
+            var kappa = 4d / 3d * Math.Tan(step / 4d);
+            var startPoint = SunburstPoint(center, radius, start);
+            var endPoint = SunburstPoint(center, radius, end);
+            var control1 = new PresentationCustomGeometryPoint
+            {
+                X = checked((long)Math.Round(startPoint.X - kappa * radius * Math.Sin(start), MidpointRounding.AwayFromZero)),
+                Y = checked((long)Math.Round(startPoint.Y + kappa * radius * Math.Cos(start), MidpointRounding.AwayFromZero)),
+            };
+            var control2 = new PresentationCustomGeometryPoint
+            {
+                X = checked((long)Math.Round(endPoint.X + kappa * radius * Math.Sin(end), MidpointRounding.AwayFromZero)),
+                Y = checked((long)Math.Round(endPoint.Y - kappa * radius * Math.Cos(end), MidpointRounding.AwayFromZero)),
+            };
+            path.Commands.Add(new PresentationCustomGeometryCommand
+            {
+                CubicBezierTo = new PresentationCustomGeometryCubicBezier
+                {
+                    Control1 = control1,
+                    Control2 = control2,
+                    End = endPoint,
+                },
+            });
+        }
+    }
+
+    private static PresentationCustomGeometryPoint SunburstPoint(double center, double radius, double angle) => new()
+    {
+        X = checked((long)Math.Round(center + radius * Math.Cos(angle), MidpointRounding.AwayFromZero)),
+        Y = checked((long)Math.Round(center + radius * Math.Sin(angle), MidpointRounding.AwayFromZero)),
+    };
+
+    private static PresentationCustomGeometryCommand MoveTo(PresentationCustomGeometryPoint point) => new() { MoveTo = point };
+    private static PresentationCustomGeometryCommand LineTo(PresentationCustomGeometryPoint point) => new() { LineTo = point };
+
+    private static string SunburstNativeId(string elementId, string suffix) =>
+        $"{elementId}/sunburst/{suffix}";
+
+    private sealed class SunburstNode(int index, string name, double value, int? parentIndex)
+    {
+        internal int Index { get; } = index;
+        internal string Name { get; } = name;
+        internal double Value { get; } = value;
+        internal int? ParentIndex { get; } = parentIndex;
+        internal int Depth { get; set; }
+        internal List<int> Children { get; } = [];
+    }
+
+    private static PresentationGroup BuildSankey(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector sankey titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateSankeyCompileProfile(element, raw, namedStyle, inlineStyle);
+        var sankey = FirstProperty(inlineStyle, namedStyle, "sankey")!.Value;
+        var series = element.Data.Series[0];
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var nodes = names.Select((name, index) => new SankeyNode(index, name)).ToArray();
+        var edges = Enumerable.Range(0, series.Values.Count).Select(index => new SankeyEdge(
+            index,
+            indexes[series.Sources[index]],
+            indexes[series.Targets[index]],
+            series.Values[index]!.Value)).ToArray();
+        foreach (var edge in edges)
+        {
+            nodes[edge.SourceIndex].Outgoing.Add(edge.Index);
+            nodes[edge.TargetIndex].Incoming.Add(edge.Index);
+            nodes[edge.SourceIndex].OutgoingValue += edge.Value;
+            nodes[edge.TargetIndex].IncomingValue += edge.Value;
+        }
+
+        var indegree = nodes.Select(node => node.Incoming.Count).ToArray();
+        var queue = new Queue<int>(nodes.Where(node => indegree[node.Index] == 0).Select(node => node.Index));
+        while (queue.Count != 0)
+        {
+            var nodeIndex = queue.Dequeue();
+            foreach (var edgeIndex in nodes[nodeIndex].Outgoing)
+            {
+                var edge = edges[edgeIndex];
+                nodes[edge.TargetIndex].Column = Math.Max(nodes[edge.TargetIndex].Column, nodes[nodeIndex].Column + 1);
+                if (--indegree[edge.TargetIndex] == 0) queue.Enqueue(edge.TargetIndex);
+            }
+        }
+        var maximumColumn = nodes.Max(node => node.Column);
+
+        var nodeColors = sankey.GetProperty("nodeColors").EnumerateArray().Select(catalog.Color).ToArray();
+        var nodeStroke = Property(sankey, "nodeStroke");
+        var nodeWidth = OptionalDouble(sankey, "nodeWidth") ?? 12;
+        var nodeGap = OptionalDouble(sankey, "nodeGap") ?? 9;
+        var justify = (OptionalString(sankey, "nodeAlign") ?? "justify") == "justify";
+        if (justify)
+            foreach (var node in nodes.Where(node => node.Outgoing.Count == 0)) node.Column = maximumColumn;
+        var flowOpacity = OptionalDouble(sankey, "flowOpacity") ?? 0.45;
+        var flowCurvature = OptionalDouble(sankey, "flowCurvature") ?? 0.7;
+        var flowColorMode = OptionalString(sankey, "flowColorMode") ?? "source";
+        var showValues = OptionalBoolean(sankey, "showValues") ?? false;
+        var labelStyle = Property(sankey, "labelTextStyle");
+        var valueStyle = Property(sankey, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+        foreach (var node in nodes) node.Color = nodeColors[node.Index % nodeColors.Length];
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var plotX = x;
+        var plotY = y + titleHeight + 4;
+        var plotWidth = width;
+        var plotHeight = height - titleHeight - 4;
+        if (plotWidth < 260 || plotHeight < 130 || maximumColumn < 1)
+            throw Unsupported(element.Id, "sankey frame or graph depth is too small for a readable native flow layout");
+
+        var columns = nodes.GroupBy(node => node.Column).OrderBy(group => group.Key).ToArray();
+        var scale = columns.Min(column =>
+        {
+            var available = plotHeight - nodeGap * (column.Count() - 1);
+            var magnitude = column.Sum(node => node.Value);
+            return available / magnitude;
+        });
+        if (!double.IsFinite(scale) || scale <= 0)
+            throw Unsupported(element.Id, "sankey node gaps leave no room for positive flow thickness");
+        var columnStep = (plotWidth - nodeWidth) / maximumColumn;
+        if (columnStep - nodeWidth < 48)
+            throw Unsupported(element.Id, "sankey columns leave insufficient horizontal room for native ribbons and labels");
+        foreach (var column in columns)
+        {
+            var ordered = column.OrderBy(node => node.Index).ToArray();
+            var occupied = ordered.Sum(node => node.Value * scale) + nodeGap * (ordered.Length - 1);
+            var cursorY = plotY + (plotHeight - occupied) / 2;
+            foreach (var node in ordered)
+            {
+                node.X = plotX + node.Column * columnStep;
+                node.Y = cursorY;
+                node.Height = node.Value * scale;
+                cursorY += node.Height + nodeGap;
+            }
+        }
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                SankeyNativeId(element.Id, "title"),
+                "sankey title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var outgoingOffsets = new double[nodes.Length];
+        var incomingOffsets = new double[nodes.Length];
+        foreach (var edge in edges)
+        {
+            var source = nodes[edge.SourceIndex];
+            var target = nodes[edge.TargetIndex];
+            var thickness = edge.Value * scale;
+            var sourceTop = source.Y + outgoingOffsets[source.Index];
+            var targetTop = target.Y + incomingOffsets[target.Index];
+            var color = flowColorMode == "target" ? target.Color : source.Color;
+            var ribbon = ShapeFrame(new PpjFrameModel(plotX, plotY, plotWidth, plotHeight, 0, false, false), "custom");
+            ribbon.FillRgb = color.Rgb;
+            ribbon.FillOpacityThousandthPercent = Opacity(flowOpacity * color.Alpha);
+            ribbon.LineStyle = "none";
+            ribbon.CustomPaths.Add(BuildSankeyRibbonPath(
+                plotX,
+                plotY,
+                plotWidth,
+                plotHeight,
+                source.X + nodeWidth,
+                sourceTop,
+                sourceTop + thickness,
+                target.X,
+                targetTop,
+                targetTop + thickness,
+                flowCurvature));
+            group.Children.Add(new PresentationElement
+            {
+                Id = SankeyNativeId(element.Id, $"flow/{edge.Index}"),
+                Name = $"sankey flow {source.Name} to {target.Name}",
+                Shape = ribbon,
+            });
+            outgoingOffsets[source.Index] += thickness;
+            incomingOffsets[target.Index] += thickness;
+        }
+
+        var labelWidth = Math.Clamp(columnStep - nodeWidth - 8, 42, 120);
+        foreach (var node in nodes)
+        {
+            var shape = ShapeFrame(new PpjFrameModel(node.X, node.Y, nodeWidth, node.Height, 0, false, false), "rect");
+            shape.FillRgb = node.Color.Rgb;
+            if (node.Color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(node.Color.Alpha);
+            if (nodeStroke is { } stroke) ApplyLine(shape, stroke, catalog);
+            else shape.LineStyle = "none";
+            group.Children.Add(new PresentationElement
+            {
+                Id = SankeyNativeId(element.Id, $"node/{node.Index}"),
+                Name = $"sankey node {node.Name}",
+                Shape = shape,
+            });
+
+            if (node.Height < 10) continue;
+            var placeLeft = node.Column == maximumColumn;
+            var textX = placeLeft ? node.X - labelWidth - 4 : node.X + nodeWidth + 4;
+            var labelHeight = showValues && node.Height >= 24 ? Math.Min(14, node.Height * 0.48) : Math.Min(16, node.Height);
+            group.Children.Add(VectorChartTextElement(
+                SankeyNativeId(element.Id, $"label/{node.Index}"),
+                $"sankey label {node.Name}",
+                textX,
+                node.Y,
+                labelWidth,
+                labelHeight,
+                node.Name,
+                labelStyle,
+                catalog,
+                Math.Clamp(Math.Min(labelHeight * 0.62, labelWidth / Math.Max(4, node.Name.Length) * 1.5), 6, 10),
+                placeLeft ? "right" : "left",
+                "16324F"));
+            if (showValues && node.Height >= 24)
+                group.Children.Add(VectorChartTextElement(
+                    SankeyNativeId(element.Id, $"value/{node.Index}"),
+                    $"sankey value {node.Name}",
+                    textX,
+                    node.Y + labelHeight,
+                    labelWidth,
+                    Math.Min(12, node.Height - labelHeight),
+                    node.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                    valueStyle,
+                    catalog,
+                    Math.Clamp(node.Height * 0.18, 6, 9),
+                    placeLeft ? "right" : "left",
+                    "52606D"));
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateSankeyCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var nodeCount = element.Data.Categories.Count;
+        if (nodeCount is < 2 or > 64 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != nodeCount)
+            throw Unsupported(element.Id, "sankey categories must be 2..64 unique non-empty node names");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "sankey charts require exactly one directed-flow series");
+        var series = element.Data.Series[0];
+        var edgeCount = series.Values.Count;
+        if (edgeCount is < 1 or > 256 || series.Values.Any(value => value is null || value <= 0) ||
+            series.Sources.Count != edgeCount || series.Targets.Count != edgeCount)
+            throw Unsupported(element.Id, "sankey sources, targets, and positive flow values must align across 1..256 edges");
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"sankey series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "sankey charts do not use Cartesian axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"sankey charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "sankey") is null)
+            throw Unsupported(element.Id, "sankey charts require style.sankey");
+
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var indegree = new int[nodeCount];
+        var outgoing = Enumerable.Range(0, nodeCount).Select(_ => new List<int>()).ToArray();
+        var incomingFlow = new double[nodeCount];
+        var outgoingFlow = new double[nodeCount];
+        var used = new bool[nodeCount];
+        var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < edgeCount; index++)
+        {
+            if (!indexes.TryGetValue(series.Sources[index], out var source) || !indexes.TryGetValue(series.Targets[index], out var target))
+                throw Unsupported(element.Id, "every sankey source and target must name a declared category");
+            if (source == target) throw Unsupported(element.Id, "a sankey edge cannot target its source node");
+            if (!edgeKeys.Add(series.Sources[index] + "\u0000" + series.Targets[index]))
+                throw Unsupported(element.Id, "duplicate sankey endpoints must be combined into one explicit flow value");
+            outgoing[source].Add(target);
+            indegree[target]++;
+            used[source] = true;
+            used[target] = true;
+            outgoingFlow[source] += series.Values[index]!.Value;
+            incomingFlow[target] += series.Values[index]!.Value;
+        }
+        if (used.Any(value => !value)) throw Unsupported(element.Id, "every declared sankey node must be incident to an edge");
+
+        var queue = new Queue<int>(Enumerable.Range(0, nodeCount).Where(index => indegree[index] == 0));
+        var visited = 0;
+        while (queue.Count != 0)
+        {
+            var source = queue.Dequeue();
+            visited++;
+            foreach (var target in outgoing[source]) if (--indegree[target] == 0) queue.Enqueue(target);
+        }
+        if (visited != nodeCount) throw Unsupported(element.Id, "sankey edges must form a directed acyclic graph");
+        for (var index = 0; index < nodeCount; index++)
+            if (incomingFlow[index] > 0 && outgoingFlow[index] > 0)
+            {
+                var tolerance = Math.Max(1e-9, Math.Max(incomingFlow[index], outgoingFlow[index]) * 1e-9);
+                if (Math.Abs(incomingFlow[index] - outgoingFlow[index]) > tolerance)
+                    throw Unsupported(element.Id, $"sankey internal node {names[index]} must conserve flow");
+            }
+    }
+
+    private static PresentationCustomGeometryPath BuildSankeyRibbonPath(
+        double plotX,
+        double plotY,
+        double plotWidth,
+        double plotHeight,
+        double sourceX,
+        double sourceTop,
+        double sourceBottom,
+        double targetX,
+        double targetTop,
+        double targetBottom,
+        double curvature)
+    {
+        const long viewport = 100_000;
+        PresentationCustomGeometryPoint Point(double x, double y) => new()
+        {
+            X = checked((long)Math.Round((x - plotX) / plotWidth * viewport, MidpointRounding.AwayFromZero)),
+            Y = checked((long)Math.Round((y - plotY) / plotHeight * viewport, MidpointRounding.AwayFromZero)),
+        };
+        var controlFraction = curvature * 0.5;
+        var control1X = sourceX + (targetX - sourceX) * controlFraction;
+        var control2X = targetX - (targetX - sourceX) * controlFraction;
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = viewport,
+            Height = viewport,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = false,
+        };
+        path.Commands.Add(MoveTo(Point(sourceX, sourceTop)));
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            CubicBezierTo = new PresentationCustomGeometryCubicBezier
+            {
+                Control1 = Point(control1X, sourceTop),
+                Control2 = Point(control2X, targetTop),
+                End = Point(targetX, targetTop),
+            },
+        });
+        path.Commands.Add(LineTo(Point(targetX, targetBottom)));
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            CubicBezierTo = new PresentationCustomGeometryCubicBezier
+            {
+                Control1 = Point(control2X, targetBottom),
+                Control2 = Point(control1X, sourceBottom),
+                End = Point(sourceX, sourceBottom),
+            },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        return path;
+    }
+
+    private static string SankeyNativeId(string elementId, string suffix) =>
+        $"{elementId}/sankey/{suffix}";
+
+    private sealed class SankeyNode(int index, string name)
+    {
+        internal int Index { get; } = index;
+        internal string Name { get; } = name;
+        internal List<int> Incoming { get; } = [];
+        internal List<int> Outgoing { get; } = [];
+        internal double IncomingValue { get; set; }
+        internal double OutgoingValue { get; set; }
+        internal double Value => Math.Max(IncomingValue, OutgoingValue);
+        internal int Column { get; set; }
+        internal double X { get; set; }
+        internal double Y { get; set; }
+        internal double Height { get; set; }
+        internal (string Rgb, double Alpha) Color { get; set; }
+    }
+
+    private sealed record SankeyEdge(int Index, int SourceIndex, int TargetIndex, double Value);
+
     private static void ValidateWaterfallCompileProfile(
         PpjChartElementModel element,
         JsonElement raw,
@@ -2830,6 +3697,8 @@ internal static class PpjAuthoredPresentationCompiler
                     ? PresentationCustomGeometryPath.Types.FillMode.Normal
                     : PresentationCustomGeometryPath.Types.FillMode.None;
             if (sourcePath.TryGetProperty("stroke", out var stroke)) path.Stroke = stroke.GetBoolean();
+            var hasCurrentPoint = false;
+            var hasSubpathStart = false;
             foreach (var sourceCommand in sourcePath.GetProperty("commands").EnumerateArray())
             {
                 var command = new PresentationCustomGeometryCommand();
@@ -2837,9 +3706,12 @@ internal static class PpjAuthoredPresentationCompiler
                 {
                     case "moveTo":
                         command.MoveTo = CustomPoint(sourceCommand, originX, originY, "x", "y");
+                        hasCurrentPoint = true;
+                        hasSubpathStart = true;
                         break;
                     case "lineTo":
                         command.LineTo = CustomPoint(sourceCommand, originX, originY, "x", "y");
+                        hasCurrentPoint = true;
                         break;
                     case "quadraticTo":
                         command.QuadraticBezierTo = new PresentationCustomGeometryQuadraticBezier
@@ -2847,6 +3719,7 @@ internal static class PpjAuthoredPresentationCompiler
                             Control = CustomPoint(sourceCommand, originX, originY, "x1", "y1"),
                             End = CustomPoint(sourceCommand, originX, originY, "x", "y"),
                         };
+                        hasCurrentPoint = true;
                         break;
                     case "cubicTo":
                         command.CubicBezierTo = new PresentationCustomGeometryCubicBezier
@@ -2855,9 +3728,25 @@ internal static class PpjAuthoredPresentationCompiler
                             Control2 = CustomPoint(sourceCommand, originX, originY, "x2", "y2"),
                             End = CustomPoint(sourceCommand, originX, originY, "x", "y"),
                         };
+                        hasCurrentPoint = true;
+                        break;
+                    case "arcTo":
+                        if (!hasCurrentPoint)
+                            throw new CodecException(
+                                "ppj.geometry.arcCurrentPoint",
+                                $"PPJ custom geometry {elementId} has an arc without an established current point.");
+                        command.ArcTo = new PresentationCustomGeometryArc
+                        {
+                            WidthRadius = CustomPathCoordinate(sourceCommand.GetProperty("radiusX").GetDouble()),
+                            HeightRadius = CustomPathCoordinate(sourceCommand.GetProperty("radiusY").GetDouble()),
+                            StartAngle = Angle(sourceCommand.GetProperty("startAngle").GetDouble()),
+                            SweepAngle = Angle(sourceCommand.GetProperty("sweepAngle").GetDouble()),
+                        };
+                        hasCurrentPoint = true;
                         break;
                     case "close":
                         command.Close = true;
+                        hasCurrentPoint = hasSubpathStart;
                         break;
                     default:
                         throw Unsupported(elementId, "custom geometry contains a path operation outside the PPJ vocabulary");
@@ -2949,7 +3838,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static string PlaceholderType(string value) => value switch
     {
-        "centerTitle" => "ctrTitle",
+        "centerTitle" or "centered-title" => "ctrTitle",
         "subtitle" => "subTitle",
         "content" => "body",
         _ => value,

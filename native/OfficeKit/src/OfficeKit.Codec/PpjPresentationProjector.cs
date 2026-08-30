@@ -199,6 +199,8 @@ internal static partial class PpjPresentationProjector
 
     private static void RegisterIds(PresentationArtifact presentation, ProjectionContext context)
     {
+        foreach (var master in presentation.Masters) context.RegisterMaster(master.Id);
+        foreach (var layout in presentation.Layouts) context.RegisterLayout(layout.Id);
         foreach (var slide in presentation.Slides)
         {
             var pageId = context.RegisterPage(slide.Id);
@@ -252,6 +254,8 @@ internal static partial class PpjPresentationProjector
             ["nativeRef"] = NativeRef(context, $"page:{pageId}", pageHash, pageCapabilities),
         };
         if (!string.IsNullOrWhiteSpace(slide.Name)) page["name"] = slide.Name;
+        if (!string.IsNullOrWhiteSpace(slide.LayoutId) && context.TryLayoutId(slide.LayoutId, out var layoutId))
+            page["layout"] = layoutId;
         if (slide.HasHidden) page["hidden"] = slide.Hidden;
         if (!string.IsNullOrEmpty(slide.SpeakerNotes?.Text)) page["notes"] = slide.SpeakerNotes.Text;
         if (ProjectBackground(slide.Background, context) is { } background) page["background"] = background;
@@ -399,6 +403,7 @@ internal static partial class PpjPresentationProjector
                 Literal(command.QuadraticBezierTo.Control) && Literal(command.QuadraticBezierTo.End),
             PresentationCustomGeometryCommand.CommandOneofCase.CubicBezierTo =>
                 Literal(command.CubicBezierTo.Control1) && Literal(command.CubicBezierTo.Control2) && Literal(command.CubicBezierTo.End),
+            PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => Literal(command.ArcTo),
             PresentationCustomGeometryCommand.CommandOneofCase.Close => true,
             _ => false,
         });
@@ -406,6 +411,10 @@ internal static partial class PpjPresentationProjector
 
     private static bool Literal(PresentationCustomGeometryPoint point) =>
         !point.HasXReference && !point.HasYReference;
+
+    private static bool Literal(PresentationCustomGeometryArc arc) =>
+        !arc.HasWidthRadiusReference && !arc.HasHeightRadiusReference &&
+        !arc.HasStartAngleReference && !arc.HasSweepAngleReference;
 
     private static JsonObject ProjectCustomGeometry(PresentationShape shape)
     {
@@ -452,6 +461,14 @@ internal static partial class PpjPresentationProjector
             ["x"] = CustomPathPoint(command.CubicBezierTo.End.X),
             ["y"] = CustomPathPoint(command.CubicBezierTo.End.Y),
         },
+        PresentationCustomGeometryCommand.CommandOneofCase.ArcTo => new JsonObject
+        {
+            ["op"] = "arcTo",
+            ["radiusX"] = CustomPathPoint(command.ArcTo.WidthRadius),
+            ["radiusY"] = CustomPathPoint(command.ArcTo.HeightRadius),
+            ["startAngle"] = NormalizeCustomPathStartAngle(command.ArcTo.StartAngle),
+            ["sweepAngle"] = CustomPathAngle(command.ArcTo.SweepAngle),
+        },
         PresentationCustomGeometryCommand.CommandOneofCase.Close => new JsonObject { ["op"] = "close" },
         _ => throw new InvalidOperationException("Unsupported PPJ custom path command passed the projection gate."),
     };
@@ -464,6 +481,14 @@ internal static partial class PpjPresentationProjector
     };
 
     private static double CustomPathPoint(long value) => value / 1_000d;
+
+    private static double CustomPathAngle(int value) => value / 60_000d;
+
+    private static double NormalizeCustomPathStartAngle(int value)
+    {
+        var degrees = CustomPathAngle(value);
+        return ((degrees % 360) + 360) % 360;
+    }
 
     private static JsonObject ProjectImage(
         PresentationElement element,
@@ -1869,6 +1894,8 @@ internal static partial class PpjPresentationProjector
     {
         private readonly IReadOnlyDictionary<string, Asset> sourceAssets;
         private readonly Dictionary<string, string> pageIds = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> masterIds = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> layoutIds = new(StringComparer.Ordinal);
         private readonly Dictionary<(string Page, string Element), string> elementIds = new();
         private readonly HashSet<string> usedIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> assetIdBySourceId = new(StringComparer.Ordinal);
@@ -1911,6 +1938,20 @@ internal static partial class PpjPresentationProjector
             return id;
         }
 
+        internal string RegisterMaster(string sourceId)
+        {
+            var id = UniqueId($"master-{NormalizeId(sourceId, "master")}");
+            masterIds[sourceId] = id;
+            return id;
+        }
+
+        internal string RegisterLayout(string sourceId)
+        {
+            var id = UniqueId($"layout-{NormalizeId(sourceId, "layout")}");
+            layoutIds[sourceId] = id;
+            return id;
+        }
+
         internal string RegisterElement(string pageId, string sourceId)
         {
             var id = UniqueId($"{pageId}-{NormalizeId(sourceId, "element")}");
@@ -1920,6 +1961,7 @@ internal static partial class PpjPresentationProjector
 
         internal string PageId(string sourceId) => pageIds[sourceId];
         internal bool TryPageId(string sourceId, out string id) => pageIds.TryGetValue(sourceId, out id!);
+        internal bool TryLayoutId(string sourceId, out string id) => layoutIds.TryGetValue(sourceId, out id!);
         internal string ElementId(string pageId, string sourceId) => elementIds[(pageId, sourceId)];
         internal bool TryElementId(string pageId, string sourceId, out string id) => elementIds.TryGetValue((pageId, sourceId), out id!);
 

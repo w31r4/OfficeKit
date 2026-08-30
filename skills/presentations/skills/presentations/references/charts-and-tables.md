@@ -10,6 +10,8 @@ Choose the visual from the relationship the audience must understand.
 | intensity across two categorical dimensions | heatmap |
 | open/high/low/close movement over ordered periods | candlestick |
 | hierarchical part-to-whole allocation | treemap |
+| hierarchical part-to-whole path across concentric levels | sunburst |
+| conserved magnitude moving through a directed process | sankey |
 | multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
@@ -63,7 +65,8 @@ The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
-  candlestick, bounded vector treemap, and bounded bar-line combo plots;
+  candlestick, bounded vector treemap, bounded vector sunburst, bounded vector
+  sankey, and bounded column-line-area category combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -252,6 +255,66 @@ Y `values` may contain `null`. Do not encode numeric X values as strings merely
 to reuse a category chart. On imported charts, the current `setChartData`
 capability does not authorize changing X values, bubble sizes, or the positions
 of missing Y observations.
+
+Use `combo` only when two or three different plot families share one real
+ordered category domain. Each series declares `chartType: "column" | "line" | "area"`
+and `axis: "primary" | "secondary"`. At least two distinct plot families are
+required, one family must remain primary, and all series of the same family use
+the same axis pair:
+
+```json
+{
+  "type": "chart",
+  "id": "volume-margin-band",
+  "chartType": "combo",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Volume grew while margin stayed inside plan",
+  "xAxis": { "title": "Quarter" },
+  "yAxis": { "title": "Units", "min": 0 },
+  "secondaryXAxis": { "visible": false },
+  "secondaryYAxis": { "title": "Margin (%)", "min": 0, "max": 40 },
+  "style": { "legend": "bottom", "gapWidth": 80 },
+  "data": {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [
+      {
+        "id": "volume",
+        "name": "Volume",
+        "values": [120, 138, 151, 172],
+        "chartType": "column",
+        "axis": "primary",
+        "fill": { "type": "solid", "color": "#CBD5E1" }
+      },
+      {
+        "id": "plan-band",
+        "name": "Plan band",
+        "values": [24, 26, 29, 31],
+        "chartType": "area",
+        "axis": "secondary",
+        "fill": { "type": "solid", "color": "#0B8F8F", "opacity": 0.18 }
+      },
+      {
+        "id": "margin",
+        "name": "Margin",
+        "values": [22, 27, 28, 33],
+        "chartType": "line",
+        "axis": "secondary",
+        "stroke": { "color": "#0B8F8F", "width": 2.5 },
+        "marker": "circle"
+      }
+    ]
+  }
+}
+```
+
+OfficeKit emits separate native `c:areaChart`, `c:barChart` and `c:lineChart`
+plots in one editable ChartPart. Area is written behind columns and the line is
+written last so its evidence stroke remains visible. A secondary pair is
+optional, but must be complete and must serve at least one whole plot family.
+Horizontal bars, scatter/bubble overlays, splitting one family across both
+axis pairs and a one-family pseudo-combo are rejected. Use an ordinary scatter
+or bubble chart for numeric X values; PPJ does not disguise a numeric-axis mix
+as a categorical combo.
 
 Use `waterfall` for a cumulative bridge whose opening/closing totals and signed
 changes must remain explicit. Author one semantic series rather than exposing
@@ -461,6 +524,117 @@ evidence. Embedded PPJ restores the exact forest; without it, import truthfully
 returns the ordinary group. Whole-object animation is supported, but
 `chartBuild`, axes, legends, trendlines, error bars, and arbitrary per-node
 expression-driven paint are not.
+
+Use `sunburst` when the audience must follow a hierarchy from a root through
+concentric levels while retaining part-to-whole area. Prefer `treemap` for
+denser label comparison and bars for precise rank. Sunburst uses the same
+aligned `categories`, positive `values`, and nullable `parents` channel as
+treemap:
+
+```json
+{
+  "type": "chart",
+  "id": "portfolio-contribution",
+  "chartType": "sunburst",
+  "frame": { "x": 72, "y": 96, "width": 640, "height": 340 },
+  "title": "Contribution by portfolio",
+  "style": {
+    "sunburst": {
+      "rootColors": ["#0B8F8F", "#C8644A"],
+      "border": { "color": "#FFFFFF", "width": 0.6 },
+      "innerRadiusRatio": 0.18,
+      "ringGap": 1.5,
+      "segmentGapDegrees": 1,
+      "startAngle": -90,
+      "clockwise": true,
+      "depthLighten": 0.1,
+      "showValues": true,
+      "labelTextStyle": { "fontSize": 8, "bold": true },
+      "valueTextStyle": { "fontSize": 7 }
+    }
+  },
+  "data": {
+    "categories": ["Company", "Product", "Operations", "Platform", "Apps", "Delivery", "Support"],
+    "series": [{
+      "id": "portfolio",
+      "name": "Contribution",
+      "values": [100, 55, 45, 30, 25, 20, 25],
+      "parents": [null, "Company", "Company", "Product", "Product", "Operations", "Operations"]
+    }]
+  }
+}
+```
+
+The bounded profile accepts one series, 1–96 nodes, 1–16 roots, and at most six
+levels. Every parent must exist, the forest must be acyclic, and each non-leaf
+value must equal its direct-child sum. Root values allocate root angles in
+declared order; children partition their parent angle, and depth selects the
+ring. Segment and ring gaps are visual state, never hidden data changes.
+
+NativeAOT emits one editable DrawingML group. Every annular sector is a named
+custom-geometry shape whose circular edges use bounded cubic paths; labels are
+ordinary text boxes and are omitted when the measured sector cannot hold them.
+No PNG or ChartPart is introduced. Embedded PPJ restores the exact hierarchy;
+without it, import exposes the ordinary custom-shape group and does not infer
+sunburst semantics from arbitrary arcs. Whole-object animation is supported;
+`chartBuild`, axes, legends, trendlines, error bars, and expression-driven
+per-node paint fail closed.
+
+Use `sankey` when ribbon thickness must communicate conserved magnitude moving
+through a directed process. Use an ordinary process diagram when sequence or
+responsibility matters but edge width has no quantitative meaning. Declare a
+stable node catalog in `categories`; the one series carries aligned positive
+`values`, `sources`, and `targets`:
+
+```json
+{
+  "type": "chart",
+  "id": "conversion-flow",
+  "chartType": "sankey",
+  "frame": { "x": 50, "y": 96, "width": 860, "height": 330 },
+  "title": "Lead conversion flow",
+  "style": {
+    "sankey": {
+      "nodeColors": ["#16324F", "#0B8F8F", "#F2C14E", "#C8644A"],
+      "nodeStroke": { "color": "#FFFFFF", "width": 0.5 },
+      "nodeWidth": 14,
+      "nodeGap": 10,
+      "nodeAlign": "justify",
+      "flowOpacity": 0.42,
+      "flowCurvature": 0.72,
+      "flowColorMode": "source",
+      "showValues": true,
+      "labelTextStyle": { "fontSize": 8, "bold": true },
+      "valueTextStyle": { "fontSize": 7, "color": "#52606D" }
+    }
+  },
+  "data": {
+    "categories": ["Leads", "Qualified", "Trial", "Nurture", "Paid", "Churn"],
+    "series": [{
+      "id": "accounts",
+      "name": "Accounts",
+      "values": [100, 60, 40, 45, 15, 25, 15],
+      "sources": ["Leads", "Qualified", "Qualified", "Trial", "Trial", "Nurture", "Nurture"],
+      "targets": ["Qualified", "Trial", "Nurture", "Paid", "Churn", "Paid", "Churn"]
+    }]
+  }
+}
+```
+
+The bounded profile accepts 2–64 unique nodes and 1–256 unique directed edges.
+Every endpoint must be declared, every node must participate, flows must be
+positive, and the graph must be acyclic. Any node with both incoming and
+outgoing edges must conserve flow. Combine repeated endpoint pairs explicitly;
+do not rely on a renderer to merge them silently.
+
+NativeAOT assigns stable topological columns, scales node/ribbon thickness from
+the same values, and stacks each ribbon consistently at both endpoints. Flows
+are closed cubic custom shapes behind native node rectangles and ordinary text.
+No PNG or ChartPart is introduced. Embedded PPJ restores exact graph semantics;
+without it, import returns the ordinary editable group and does not infer a
+Sankey from arbitrary ribbons. Whole-object animation is supported;
+`chartBuild`, cycles, negative flows, non-conserving internal nodes, arbitrary
+graph constraints, and expression-driven paint fail closed.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
