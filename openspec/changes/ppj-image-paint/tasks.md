@@ -1,7 +1,7 @@
 ## 1. Contract
 
-- [ ] 1.1 Add the shared additive wire-v2 image-paint message and owner fields for shape, background, and picture tile mode.
-- [ ] 1.2 Add `setBackground` and `setImageFit` PPJ capability vocabulary and keep schema, semantic validation, and generated bindings synchronized.
+- [x] 1.1 Add the shared additive wire-v2 image-paint message and owner fields for shape, background, and picture tile mode.
+- [x] 1.2 Add `setBackground` and `setImageFit` PPJ capability vocabulary and keep schema, semantic validation, and generated bindings synchronized.
 
 ## 2. Native DrawingML
 

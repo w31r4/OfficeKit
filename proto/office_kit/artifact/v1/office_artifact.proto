@@ -1992,6 +1992,26 @@ message PresentationBackground {
   // Bounded direct DrawingML linear or centered radial gradient. It is
   // mutually exclusive with color, solid/style-reference and image state.
   PresentationGradientFill gradient_fill = 7;
+  // Canonical embedded DrawingML image paint. New writers use this shared
+  // profile; legacy image_asset_id/image_alpha_modulation_fixed remain readable
+  // for wire-v2 compatibility and must not be combined with image_paint.
+  PresentationImagePaint image_paint = 8;
+}
+
+// Bounded embedded DrawingML image paint shared by shape fills and native
+// slide backgrounds. A missing crop owns no a:srcRect. UNSPECIFIED/STRETCH
+// emits a:stretch/a:fillRect; TILE emits one parameter-free a:tile. Opacity is
+// the sole direct a:alphaModFix amount allowed on the embedded blip.
+message PresentationImagePaint {
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    MODE_STRETCH = 1;
+    MODE_TILE = 2;
+  }
+  string asset_id = 1;
+  PresentationImageCrop crop = 2;
+  optional uint32 opacity_thousandth_percent = 3;
+  Mode mode = 4;
 }
 
 // Bounded owner-local placeholder semantics. Type/index/name are identity and
@@ -2227,6 +2247,9 @@ message PresentationShape {
   // Empty uses the native preset defaults. Guide names are derived from the
   // geometry profile and never cross the public wire or PPJ language boundary.
   repeated sint32 preset_adjustments = 36;
+  // Bounded direct a:blipFill. Mutually exclusive with solid, theme,
+  // gradient, and use-background fill state.
+  PresentationImagePaint image_fill = 37;
 }
 
 message PresentationCustomGeometryPath {
@@ -2433,6 +2456,9 @@ message PresentationImage {
   // Ordered canonical a:avLst literal values for mask_preset. Empty means the
   // native preset defaults. Guide names and formulas remain codec-owned.
   repeated sint32 mask_preset_adjustments = 16;
+  // False emits the canonical stretch/fillRect owner. True emits one
+  // parameter-free a:tile. Crop and direct opacity remain in fields 8 and 12.
+  bool tiled = 17;
 }
 
 message PresentationImageBorder {
