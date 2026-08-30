@@ -2902,6 +2902,66 @@ const opaqueConnector = itemByName(opaqueConnectorImported.slides.getItem(0).nat
 assert.equal(opaqueConnector.nativeKind, "connector");
 assert.equal(opaqueConnector.position.height, 0);
 assert.equal(opaqueConnector.placementCapability.supported, true);
+
+// Some imported connectors inherit their paint from p:style/a:lnRef rather
+// than carrying a direct a:solidFill.  Keep that style reference source-bound
+// and edit only its theme token; the connector remains opaque and its arrow
+// geometry/topology must survive the round-trip.
+const styleReferenceConnectorZip = await JSZip.loadAsync(connectorFirstExport.bytes);
+const styleReferenceConnectorSourceXml = await styleReferenceConnectorZip.file("ppt/slides/slide1.xml").async("text");
+const styleReferenceConnectorXml = styleReferenceConnectorSourceXml
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="curved-site-connector")/u,
+    '$1 xmlns:fixture="urn:office-kit:style-reference-connector" fixture:opaque="kept"',
+  )
+  .replace(
+    /(<p:cxnSp>[\s\S]*?\bname="curved-site-connector"[\s\S]*?<a:ln\b[^>]*>)[\s\S]*?(<\/a:ln>)/u,
+    '$1<a:tailEnd type="diamond" w="sm" len="lg"/>$2',
+  )
+  .replace(
+    /(<p:cxnSp>[\s\S]*?\bname="curved-site-connector"[\s\S]*?<\/p:spPr>)/u,
+    '$1<p:style><a:lnRef idx="3"><a:schemeClr val="accent5"/></a:lnRef><a:fillRef idx="0"><a:schemeClr val="accent5"/></a:fillRef><a:effectRef idx="2"><a:schemeClr val="accent5"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></p:style>',
+  );
+assert.match(styleReferenceConnectorXml, /<a:lnRef\b[^>]*idx="3"[^>]*>\s*<a:schemeClr\b[^>]*val="accent5"/u);
+styleReferenceConnectorZip.file("ppt/slides/slide1.xml", styleReferenceConnectorXml);
+const styleReferenceConnectorFile = new FileBlob(
+  await styleReferenceConnectorZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const styleReferenceConnectorImported = await PresentationFile.importPptx(styleReferenceConnectorFile);
+const styleReferenceConnector = itemByName(styleReferenceConnectorImported.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+const styleReferenceConnectorLeaves = styleReferenceConnectorImported.inspect({ includeNativeLeaves: true, target: styleReferenceConnector.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.deepEqual(
+  styleReferenceConnectorLeaves.filter((record) => record.leafKind === "lineScheme" || record.leafKind === "lineEndArrow").map((record) => [record.leafKind, record.value]),
+  [["lineScheme", "accent5"], ["lineEndArrow", "diamond"]],
+  "style-reference connector paint must be issued as bounded native leaves",
+);
+const styleReferenceConnectorColor = styleReferenceConnectorLeaves.find((record) => record.leafKind === "lineScheme");
+assert.ok(styleReferenceConnectorColor);
+styleReferenceConnectorImported.editNativeLeaf(styleReferenceConnectorColor.targetId, styleReferenceConnectorColor.leafId, {
+  expectedHash: styleReferenceConnectorColor.expectedHash,
+  value: "accent1",
+});
+const styleReferenceConnectorOutput = await PresentationFile.exportPptx(styleReferenceConnectorImported);
+const styleReferenceConnectorOperation = styleReferenceConnectorOutput.metadata.editPlan.operations[0];
+assert.equal(styleReferenceConnectorOperation.leafKind, "lineScheme");
+await assertOnlyDeclaredPptxFootprintChanged(styleReferenceConnectorFile, styleReferenceConnectorOutput, styleReferenceConnectorOperation);
+const styleReferenceConnectorOutputXml = await (await JSZip.loadAsync(styleReferenceConnectorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(styleReferenceConnectorOutputXml, /<a:lnRef\b[^>]*idx="3"[^>]*>\s*<a:schemeClr\b[^>]*val="accent1"/u);
+assert.match(styleReferenceConnectorOutputXml, /<a:tailEnd\b[^>]*type="diamond"[^>]*w="sm"[^>]*len="lg"/u);
+assert.match(styleReferenceConnectorOutputXml, /fixture:opaque="kept"/u);
+const styleReferenceConnectorRoundTrip = await PresentationFile.importPptx(styleReferenceConnectorOutput);
+const styleReferenceConnectorRoundTripObject = itemByName(styleReferenceConnectorRoundTrip.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+const styleReferenceConnectorRoundTripLeaf = styleReferenceConnectorRoundTrip.inspect({ includeNativeLeaves: true, target: styleReferenceConnectorRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "lineScheme");
+assert.equal(styleReferenceConnectorRoundTripLeaf.value, "accent1");
 const opaqueConnectorArrowEdit = await PresentationFile.importPptx(opaqueConnectorFile);
 const opaqueConnectorArrowTarget = itemByName(opaqueConnectorArrowEdit.slides.getItem(0).nativeObjects.items, "curved-site-connector");
 const opaqueConnectorArrowLeaves = opaqueConnectorArrowEdit.inspect({ includeNativeLeaves: true, target: opaqueConnectorArrowTarget.id }).ndjson
