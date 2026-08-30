@@ -462,6 +462,31 @@ public sealed class PptxCodecTests
                 },
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "risk-radar-main",
+            ["type"] = "chart",
+            ["role"] = "bounded native radar chart",
+            ["frame"] = new JsonObject { ["x"] = 610, ["y"] = 300, ["width"] = 300, ["height"] = 180 },
+            ["chartType"] = "radar",
+            ["title"] = "Risk profile",
+            ["style"] = new JsonObject { ["legend"] = "right" },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Liquidity", "Growth", "Margin", "Resilience"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "risk-current",
+                        ["name"] = "Current",
+                        ["values"] = new JsonArray(72, 81, 64, 77),
+                        ["stroke"] = new JsonObject { ["color"] = "#0A84FF", ["width"] = 2 },
+                        ["marker"] = new JsonObject { ["symbol"] = "circle", ["size"] = 5 },
+                    },
+                },
+            },
+        });
         var invalidAdjustmentProgram = authoredProgram.DeepClone().AsObject();
         invalidAdjustmentProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -497,7 +522,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(20U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(21U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -844,6 +869,14 @@ public sealed class PptxCodecTests
                 capability.GetProperty("operation").GetString() == "setChartTextStyle");
             Assert.False(projectedLine.GetProperty("style").GetProperty("smooth").GetBoolean());
             Assert.True(projectedLine.GetProperty("style").GetProperty("varyColors").GetBoolean());
+            var projectedRadar = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "chart" &&
+                    item.GetProperty("chartType").GetString() == "radar");
+            Assert.Equal("Risk profile", projectedRadar.GetProperty("title").GetString());
+            Assert.Equal(77, projectedRadar.GetProperty("data").GetProperty("series")[0]
+                .GetProperty("values")[3].GetDouble());
+            Assert.Equal("circle", projectedRadar.GetProperty("data").GetProperty("series")[0]
+                .GetProperty("marker").GetProperty("symbol").GetString());
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group")
                 .GetProperty("elements")[0];
@@ -974,7 +1007,7 @@ public sealed class PptxCodecTests
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
         Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart3.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart4.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
             chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
@@ -5719,7 +5752,7 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
-    public void LiteralAreaDoughnutScatterAndBubbleChartsAuthorImportAndEdit()
+    public void LiteralAreaDoughnutScatterBubbleAndRadarChartsAuthorImportAndEdit()
     {
         var request = ExportRequest();
         request.Artifact.Presentation.Slides[0].Elements.Clear();
@@ -5787,6 +5820,7 @@ public sealed class PptxCodecTests
             CategoryChart(SpreadsheetChartType.Doughnut, "Regional mix", 4_100_000),
             NumericChart(SpreadsheetChartType.Scatter, "Reach relationship", 500_000),
             NumericChart(SpreadsheetChartType.Bubble, "Opportunity map", 4_100_000),
+            CategoryChart(SpreadsheetChartType.Radar, "Risk profile", 7_700_000),
         };
         for (var index = 0; index < charts.Length; index++)
         {
@@ -5818,12 +5852,16 @@ public sealed class PptxCodecTests
             var bubble = Assert.Single(documents, document => document.Descendants(c + "bubbleChart").Any());
             Assert.Single(bubble.Descendants(c + "bubbleSize"));
             Assert.Equal("area", bubble.Descendants(c + "sizeRepresents").Single().Attribute("val")!.Value);
+            var radar = Assert.Single(documents, document => document.Descendants(c + "radarChart").Any());
+            Assert.Equal("standard", radar.Descendants(c + "radarStyle").Single().Attribute("val")!.Value);
+            Assert.Equal("0", radar.Descendants(c + "varyColors").Single().Attribute("val")!.Value);
+            Assert.Equal(2, radar.Descendants(c + "radarChart").Single().Elements(c + "axId").Count());
         }
 
         var imported = Import(authored.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
         var importedElements = Assert.Single(imported.Artifact.Presentation.Slides).Elements;
-        Assert.Equal([SpreadsheetChartType.Area, SpreadsheetChartType.Doughnut, SpreadsheetChartType.Scatter, SpreadsheetChartType.Bubble], importedElements.Select(item => item.Chart.Type));
+        Assert.Equal([SpreadsheetChartType.Area, SpreadsheetChartType.Doughnut, SpreadsheetChartType.Scatter, SpreadsheetChartType.Bubble, SpreadsheetChartType.Radar], importedElements.Select(item => item.Chart.Type));
         Assert.All(importedElements, element => Assert.True(element.Source.Editable));
         Assert.True(importedElements[1].Chart.DataLabels.ShowPercent);
         Assert.Equal([10D, 20D, 34D], importedElements[2].Chart.Series[0].XValues);
@@ -5833,6 +5871,7 @@ public sealed class PptxCodecTests
         importedElements[1].Chart.DataLabels.ShowPercent = false;
         importedElements[2].Chart.Series[0].XValues[1] = 22;
         importedElements[3].Chart.Series[0].BubbleSizes[1] = 12;
+        importedElements[4].Chart.Series[0].Values[1] = 36;
         var edited = Export(imported.Artifact);
         Assert.True(edited.Ok, Diagnostics(edited));
         var roundTrip = Import(edited.File.ToByteArray());
@@ -5842,6 +5881,7 @@ public sealed class PptxCodecTests
         Assert.False(roundTripElements[1].Chart.DataLabels.ShowPercent);
         Assert.Equal(22, roundTripElements[2].Chart.Series[0].XValues[1]);
         Assert.Equal(12, roundTripElements[3].Chart.Series[0].BubbleSizes[1]);
+        Assert.Equal(36, roundTripElements[4].Chart.Series[0].Values[1]);
 
         var invalid = ExportRequest();
         var invalidBubble = NumericChart(SpreadsheetChartType.Bubble, "Invalid bubble", 500_000);

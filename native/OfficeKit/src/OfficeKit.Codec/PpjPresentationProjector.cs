@@ -1531,6 +1531,7 @@ internal static partial class PpjPresentationProjector
         SpreadsheetChartType.Doughnut => "doughnut",
         SpreadsheetChartType.Scatter => "scatter",
         SpreadsheetChartType.Bubble => "bubble",
+        SpreadsheetChartType.Radar => "radar",
         SpreadsheetChartType.Combo => "combo",
         _ => null,
     };

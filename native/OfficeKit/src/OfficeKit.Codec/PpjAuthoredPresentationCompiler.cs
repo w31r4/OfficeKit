@@ -289,7 +289,7 @@ internal static class PpjAuthoredPresentationCompiler
     {
         if (element.Data.Series.Any(series => series.Values.Any(value => value is null)))
             throw Unsupported(element.Id, "null chart values require a missing-value-aware native chart cache");
-        if (element.ChartType is "radar" or "waterfall")
+        if (element.ChartType == "waterfall")
             throw Unsupported(element.Id, $"{element.ChartType} chart authoring is not yet compiler-owned");
         if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
             throw Unsupported(element.Id, "rich chart-title formatting is not yet compiler-owned");
@@ -1603,6 +1603,7 @@ internal static class PpjAuthoredPresentationCompiler
         "doughnut" => SpreadsheetChartType.Doughnut,
         "scatter" => SpreadsheetChartType.Scatter,
         "bubble" => SpreadsheetChartType.Bubble,
+        "radar" => SpreadsheetChartType.Radar,
         "combo" => SpreadsheetChartType.Combo,
         _ => throw Unsupported("chart", $"chart type {value} is not compiler-owned"),
     };

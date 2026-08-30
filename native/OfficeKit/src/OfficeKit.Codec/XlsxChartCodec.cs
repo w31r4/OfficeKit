@@ -106,7 +106,7 @@ internal sealed class XlsxChartCodec
                 chart.HasLegend && chart.LegendPosition is not ("" or "top" or "bottom" or "left" or "right"))
                 throw InvalidChart(worksheetId, chart.Id, "legend position must be top, bottom, left, or right when a legend is enabled.");
             XlsxNonVisualAccessibilityCodec.Validate(AccessibilityTitle(chart), AccessibilityDescription(chart), AccessibilityDecorative(chart), worksheetId, chart.Id, "chart");
-            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble)) throw InvalidChart(worksheetId, chart.Id, "type must be bar, line, pie, area, doughnut, scatter, or bubble.");
+            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Pie or SpreadsheetChartType.Area or SpreadsheetChartType.Doughnut or SpreadsheetChartType.Scatter or SpreadsheetChartType.Bubble or SpreadsheetChartType.Radar)) throw InvalidChart(worksheetId, chart.Id, "type must be bar, line, pie, area, doughnut, scatter, bubble, or radar.");
             XlsxChartAxisCodec.Validate(chart, worksheetId);
             XlsxChartTextStyleCodec.Validate(chart, worksheetId);
             XlsxChartLineOptionsCodec.Validate(chart, worksheetId);
