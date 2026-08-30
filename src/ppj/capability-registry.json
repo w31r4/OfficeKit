@@ -119,11 +119,18 @@
       "reason": "Authored ordinary and combo charts own Latin/East Asian typefaces, size, bold, italic and direct RGB/alpha at all five chart text locations. The bounded profile intentionally excludes theme transforms, shadows, effects and irregular rich-text topology."
     },
     {
-      "feature": "source-free media, SmartArt and OLE",
-      "ppjPath": "pages[].elements[] where type is media, smartArt or ole",
+      "feature": "source-free media and OLE",
+      "ppjPath": "pages[].elements[] where type is media or ole",
       "behavior": "source-bound-only",
       "sourceBound": "Imported objects are classified and preserved; only issued nativeRef or typed capabilities may change them.",
       "reason": "PPJ models their persistent state, but authored native creation is not yet compiler-owned."
+    },
+    {
+      "feature": "native Office SmartArt parts",
+      "ppjPath": "pages[].elements[] where type is smartArt and mode is source-bound",
+      "behavior": "source-bound-only",
+      "sourceBound": "Imported SmartArt remains attached to its proven DiagramDataPart graph and accepts only issued node-text capabilities.",
+      "reason": "Authored PPJ diagrams lower to editable groups of ordinary shapes, connectors, text and images; OfficeKit does not rebuild or fabricate a native SmartArt part graph."
     },
     {
       "feature": "multi-header authored tables",

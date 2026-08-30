@@ -153,6 +153,49 @@ image window or material surface, not to texture every box. See
 [Media and layers](media-and-layers.md#layer-stack) for the full contract and
 source-bound `setFill` rule.
 
+## Authored semantic diagrams
+
+Use `type: "smartArt"` with `mode: "authored"` when the content is genuinely a
+finite list, process, cycle, hierarchy, relationship, matrix, pyramid, or
+picture sequence. Despite the compatibility name, OfficeKit compiles this form
+to one editable native group of ordinary shapes, connectors, text, and images;
+it does not fabricate a native Office SmartArt part. Imported native SmartArt
+continues to use `mode: "source-bound"` and its issued `nativeRef` capabilities.
+
+The program must supply named shape and text styles. Connected layouts also
+supply connector paint. This keeps the compiler deterministic without letting
+it invent a palette, typography system, or decorative geometry:
+
+```json
+{
+  "id": "evidence-chain",
+  "type": "smartArt",
+  "frame": { "x": 72, "y": 160, "width": 816, "height": 150 },
+  "mode": "authored",
+  "layout": "process",
+  "shapeStyleRef": "evidence-stage",
+  "textStyleRef": "stage-label",
+  "nodeGeometry": { "kind": "preset", "preset": "roundRect" },
+  "connector": {
+    "stroke": { "color": { "token": "signal" }, "width": 1.5 },
+    "endArrow": "triangle"
+  },
+  "nodes": [
+    { "id": "observe", "text": "Observe" },
+    { "id": "measure", "text": "Measure" },
+    { "id": "decide", "text": "Decide" }
+  ]
+}
+```
+
+Use ordered nodes for list, process, cycle, matrix, pyramid, and picture.
+Hierarchy nodes declare `parent`; relationship uses the first node as the
+center unless explicit parent edges are present. Picture nodes each declare an
+image `asset`. A node may override `shapeStyleRef`, `styleRef`, or `geometry`.
+The authored budget is 1–64 nodes. For a composition whose layout itself is the
+message, use an explicit `group` and frames instead of forcing it into one of
+these eight bounded layouts.
+
 ## Protect reading and evidence
 
 Order `pages[].elements[]` from back to front. Keep evidence-bearing lines,
