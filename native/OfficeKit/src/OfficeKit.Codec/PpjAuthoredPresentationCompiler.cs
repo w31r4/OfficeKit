@@ -541,8 +541,8 @@ internal static class PpjAuthoredPresentationCompiler
         target.LineStyle = LineStyle(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
-        if (OptionalDouble(stroke, "opacity") is not null)
-            throw Unsupported("stroke", "stroke opacity is not yet compiler-owned");
+        if (OptionalDouble(stroke, "opacity") is { } opacity)
+            target.LineOpacityThousandthPercent = Opacity(opacity);
     }
 
     private static void ApplyLine(PresentationConnector target, JsonElement stroke, Catalog catalog)
@@ -552,8 +552,8 @@ internal static class PpjAuthoredPresentationCompiler
         target.LineStyle = LineStyle(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
-        if (OptionalDouble(stroke, "opacity") is not null)
-            throw Unsupported("connector", "connector stroke opacity is not yet compiler-owned");
+        if (OptionalDouble(stroke, "opacity") is { } opacity)
+            target.LineOpacityThousandthPercent = Opacity(opacity);
     }
 
     private static PresentationTextBody BuildTextBody(

@@ -126,7 +126,7 @@ public sealed class PptxCodecTests
                 new JsonObject
                 {
                     ["fill"] = true,
-                    ["stroke"] = false,
+                    ["stroke"] = true,
                     ["commands"] = new JsonArray
                     {
                         new JsonObject { ["op"] = "moveTo", ["x"] = 10, ["y"] = 20 },
@@ -138,6 +138,21 @@ public sealed class PptxCodecTests
                 },
             },
         };
+        authoredCustomShape["style"]!["stroke"] = new JsonObject
+        {
+            ["color"] = "#0B8F8F",
+            ["width"] = 2,
+            ["opacity"] = 0.42,
+            ["dash"] = "dash",
+            ["cap"] = "round",
+            ["join"] = "round",
+        };
+        var authoredConnector = authoredProgram["pages"]!
+            .AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "decision-flow-link");
+        authoredConnector["stroke"]!["opacity"] = 0.58;
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -216,6 +231,8 @@ public sealed class PptxCodecTests
             element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
         Assert.Equal("custom", importedCustomShape.Geometry);
         Assert.Equal(5, Assert.Single(importedCustomShape.CustomPaths).Commands.Count);
+        Assert.True(importedCustomShape.HasLineOpacityThousandthPercent);
+        Assert.Equal(42_000U, importedCustomShape.LineOpacityThousandthPercent);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
@@ -225,8 +242,10 @@ public sealed class PptxCodecTests
             element.ContentCase == PresentationElement.ContentOneofCase.Table).Table;
         Assert.Equal("Pilot method table", importedTable.Accessibility.Description);
         Assert.Equal(3, importedTable.Rows.Count);
-        Assert.Contains(imported.Artifact.Presentation.Slides[1].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Connector);
+        var importedConnector = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
+        Assert.True(importedConnector.HasLineOpacityThousandthPercent);
+        Assert.Equal(58_000U, importedConnector.LineOpacityThousandthPercent);
 
         var recovered = Invoke(new CodecRequest
         {
@@ -316,7 +335,13 @@ public sealed class PptxCodecTests
                 item.GetProperty("type").GetString() == "image");
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "claim-rule" &&
-                item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
+                item.GetProperty("geometry").GetProperty("kind").GetString() == "custom" &&
+                item.GetProperty("style").GetProperty("stroke").GetProperty("opacity").GetDouble() == 0.42);
+            Assert.Contains(
+                projectedRoot.GetProperty("pages").EnumerateArray()
+                    .SelectMany(page => page.GetProperty("elements").EnumerateArray()),
+                item => item.GetProperty("name").GetString() == "decision-flow-link" &&
+                    item.GetProperty("stroke").GetProperty("opacity").GetDouble() == 0.58);
             Assert.Contains(
                 projectedRoot.GetProperty("pages").EnumerateArray()
                     .SelectMany(page => page.GetProperty("elements").EnumerateArray()),

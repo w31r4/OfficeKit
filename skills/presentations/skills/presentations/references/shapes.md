@@ -49,9 +49,24 @@ an explicit literal path instead.
       ]
     }]
   },
-  "style": { "stroke": { "color": "#0B8F8F", "width": 2 } }
+  "style": {
+    "stroke": {
+      "color": "#0B8F8F",
+      "width": 2,
+      "opacity": 0.72,
+      "dash": "solid",
+      "cap": "round",
+      "join": "round"
+    }
+  }
 }
 ```
+
+Stroke opacity is native DrawingML alpha, not a flattened visual effect. It is
+available on authored shapes and connectors and survives import, PPJ projection,
+source-bound edits, and rebuild. Use it to keep a secondary relationship
+present without competing with the evidence carrier; do not make required axes
+or data lines faint.
 
 ## Protect reading and evidence
 

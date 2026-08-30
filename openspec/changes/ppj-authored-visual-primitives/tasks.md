@@ -13,8 +13,8 @@
 ## 3. Paint and layers
 
 - [ ] 3.1 Add bounded linear/radial gradient state and native shape/background writers
-- [ ] 3.2 Add bounded shape/connector line opacity
-- [ ] 3.3 Keep imported unknown paint graphs source-preserved
+- [x] 3.2 Add bounded shape/connector line opacity
+- [x] 3.3 Keep imported unknown paint graphs source-preserved
 
 ## 4. Data visuals
 

@@ -2170,6 +2170,9 @@ message PresentationShape {
   // only when the native a:solidFill contains exactly one bare a:schemeClr;
   // effects, transforms, and inherited/style fills remain source-bound.
   string fill_scheme = 33;
+  // Presence-aware alpha for the direct solid RGB a:ln fill. The value uses
+  // DrawingML thousandths of one percent and is valid only for a visible line.
+  optional uint32 line_opacity_thousandth_percent = 34;
 }
 
 message PresentationCustomGeometryPath {
@@ -2253,6 +2256,8 @@ message PresentationConnector {
   // Non-visible alternative text stored on p:nvCxnSpPr/p:cNvPr. This is
   // independent of the connector name, endpoints, and visible line styling.
   PresentationNonVisualAccessibility accessibility = 21;
+  // Presence-aware alpha for the direct solid RGB a:ln fill.
+  optional uint32 line_opacity_thousandth_percent = 22;
 }
 
 message PresentationChart {

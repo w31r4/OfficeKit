@@ -595,7 +595,7 @@ internal static partial class PpjPresentationProjector
             connector.LineStyle,
             connector.LineCap,
             connector.LineJoin,
-            null);
+            connector.HasLineOpacityThousandthPercent ? Unit(connector.LineOpacityThousandthPercent) : null);
         if (Arrow(connector.StartArrow) is { } startArrow) output["startArrow"] = startArrow;
         if (Arrow(connector.EndArrow) is { } endArrow) output["endArrow"] = endArrow;
         return output;
@@ -687,7 +687,8 @@ internal static partial class PpjPresentationProjector
             style["fill"] = fill;
         }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
-            style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin, null);
+            style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
+                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
         if (shape.Shadow is not null && !string.IsNullOrEmpty(shape.Shadow.ColorRgb))
             style["shadow"] = Shadow(shape.Shadow);
         return style;
@@ -849,7 +850,8 @@ internal static partial class PpjPresentationProjector
             output["fill"] = fill;
         }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
-            output["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin, null);
+            output["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
+                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
     }
 
     private static JsonObject? ProjectBackground(PresentationBackground? background, ProjectionContext context)

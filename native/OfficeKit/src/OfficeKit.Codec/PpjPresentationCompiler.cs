@@ -975,6 +975,8 @@ internal static class PpjSourceBoundPresentationCompiler
         target.LineStyle = NativeDash(OptionalString(stroke.Value, "dash"));
         target.LineCap = OptionalString(stroke.Value, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke.Value, "join") ?? string.Empty;
+        if (stroke.Value.TryGetProperty("opacity", out var opacity)) target.LineOpacityThousandthPercent = Unit(opacity.GetDouble());
+        else target.ClearLineOpacityThousandthPercent();
     }
 
     private static void ApplyConnectorStroke(JsonElement stroke, PresentationConnector target, string path)
@@ -984,6 +986,8 @@ internal static class PpjSourceBoundPresentationCompiler
         target.LineStyle = NativeDash(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
+        if (stroke.TryGetProperty("opacity", out var opacity)) target.LineOpacityThousandthPercent = Unit(opacity.GetDouble());
+        else target.ClearLineOpacityThousandthPercent();
     }
 
     private static void ApplyChartData(PpjChartElementModel before, PpjChartElementModel after, PresentationChart target, string path)
