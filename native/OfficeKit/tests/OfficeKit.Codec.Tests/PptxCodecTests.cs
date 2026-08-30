@@ -10405,6 +10405,72 @@ public sealed class PptxCodecTests
         Assert.Equal([("{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", " Revised node "), ("1", "Second node")], rebound.Nodes.Select(node => (node.ModelId, node.Text)));
         Assert.NotEqual(binding.SourceSha256, rebound.SourceSha256);
 
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var smartArt = state["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "smartArt");
+        Assert.Equal("source-bound", smartArt["mode"]!.GetValue<string>());
+        Assert.Equal(["Original node", "Second node"], smartArt["nodes"]!.AsArray().Select(node => node!["text"]!.GetValue<string>()));
+        Assert.Contains(smartArt["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setSmartArtText" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "smartArt.text"));
+        smartArt["nodes"]![0]!["text"] = "PPJ revised node";
+
+        var ppjEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(ppjEdited.Ok, Diagnostics(ppjEdited));
+        Assert.Equal([dataPath], ppjEdited.PresentationProgram.ChangedParts);
+        var ppjOutput = ppjEdited.File.ToByteArray();
+        Assert.Equal(ZipBytes(source, "ppt/slides/slide1.xml"), ZipBytes(ppjOutput, "ppt/slides/slide1.xml"));
+        Assert.Equal(ZipBytes(source, "ppt/slides/_rels/slide1.xml.rels"), ZipBytes(ppjOutput, "ppt/slides/_rels/slide1.xml.rels"));
+        Assert.Equal(ZipBytes(source, "ppt/diagrams/clone-layout.xml"), ZipBytes(ppjOutput, "ppt/diagrams/clone-layout.xml"));
+        Assert.Equal(ZipBytes(source, "ppt/diagrams/clone-style.xml"), ZipBytes(ppjOutput, "ppt/diagrams/clone-style.xml"));
+        Assert.Equal(ZipBytes(source, "ppt/diagrams/clone-colors.xml"), ZipBytes(ppjOutput, "ppt/diagrams/clone-colors.xml"));
+        Assert.Contains("PPJ revised node", Encoding.UTF8.GetString(ZipBytes(ppjOutput, dataPath)));
+
+        var ppjReprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ppjEdited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/smartart-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(ppjReprojected.Ok, Diagnostics(ppjReprojected));
+        using (var ppjJson = JsonDocument.Parse(ppjReprojected.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var ppjSmartArt = ppjJson.RootElement.GetProperty("pages")[0].GetProperty("elements")
+                .EnumerateArray().Single(item => item.GetProperty("type").GetString() == "smartArt");
+            Assert.Equal("PPJ revised node", ppjSmartArt.GetProperty("nodes")[0].GetProperty("text").GetString());
+        }
+
         imported = Import(source);
         var changedIdentifier = Assert.IsType<PresentationDiagramText>(Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
         changedIdentifier.Nodes[0].ModelId = "other-node";
