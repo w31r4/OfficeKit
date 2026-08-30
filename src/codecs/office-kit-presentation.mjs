@@ -2488,19 +2488,43 @@ function presentationImageReadOnlySnapshot(image) {
 function presentationImportedImageAssetsUnchanged(image) {
   const dataUrlSource = image?.[PRESENTATION_IMAGE_DATA_URL_SOURCE];
   const dataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "dataUrl");
-  const primaryUnchanged = !dataUrlSource || (
-    dataUrlSource.modified !== true &&
-    dataUrlDescriptor?.get === dataUrlSource.get &&
-    dataUrlDescriptor?.set === dataUrlSource.set
-  );
+  const primaryUnchanged = dataUrlSource
+    ? dataUrlSource.modified !== true &&
+      dataUrlDescriptor?.get === dataUrlSource.get &&
+      dataUrlDescriptor?.set === dataUrlSource.set
+    : image?.dataUrl == null;
   const svgDataUrlSource = image?.[PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE];
   const svgDataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "svgDataUrl");
-  const fallbackUnchanged = !svgDataUrlSource || (
-    svgDataUrlSource.modified !== true &&
-    svgDataUrlDescriptor?.get === svgDataUrlSource.get &&
-    svgDataUrlDescriptor?.set === svgDataUrlSource.set
-  );
+  const fallbackUnchanged = svgDataUrlSource
+    ? svgDataUrlSource.modified !== true &&
+      svgDataUrlDescriptor?.get === svgDataUrlSource.get &&
+      svgDataUrlDescriptor?.set === svgDataUrlSource.set
+    : image?.svgDataUrl == null;
   return primaryUnchanged && fallbackUnchanged;
+}
+
+function presentationImportedImageSnapshot(image) {
+  return JSON.stringify({
+    id: image.id,
+    nativeId: image.nativeId,
+    creationId: image.creationId,
+    name: image.name,
+    position: image.position,
+    accessibility: image.accessibility,
+    prompt: image.prompt,
+    uri: image.uri,
+    contentType: image.contentType,
+    fit: image.fit,
+    crop: image.crop,
+    opacity: image.opacity,
+    border: image.border,
+    shadow: image.shadow,
+    maskPreset: image.maskPreset,
+    geometry: image.geometry,
+    borderRadius: image.borderRadius,
+    transform: image.transform,
+    assetsUnchanged: presentationImportedImageAssetsUnchanged(image),
+  });
 }
 
 function distributePresentationTableSize(total, count, ownerLabel) {
@@ -2604,6 +2628,14 @@ function presentationTableReadOnlySnapshot(table) {
     styleOptions: table.styleOptions,
     border: table.border,
     mergeRanges: table.mergeRanges,
+  });
+}
+
+function presentationImportedTableSnapshot(table) {
+  return JSON.stringify({
+    nativeId: table.nativeId,
+    creationId: table.creationId,
+    layout: table.layoutJson(),
   });
 }
 
@@ -6324,11 +6356,11 @@ function presentationImportedEntryIsUnchanged(entry) {
       return entry.modelSnapshot !== undefined &&
         presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot;
     case "image":
-      return entry.snapshot !== undefined &&
-        presentationImageReadOnlySnapshot(entry.model) === entry.snapshot;
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedImageSnapshot(entry.model) === entry.modelSnapshot;
     case "table":
-      return entry.snapshot !== undefined &&
-        presentationTableReadOnlySnapshot(entry.model) === entry.snapshot;
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedTableSnapshot(entry.model) === entry.modelSnapshot;
     case "connector":
       return entry.snapshot !== undefined &&
         presentationImportedConnectorSnapshot(entry.model) === entry.snapshot;
@@ -7986,6 +8018,10 @@ export async function presentationFromEnvelope(envelope, options = {}) {
         ? presentationImportedShapeSnapshot(entry.model)
         : entry.wire.content.case === "group"
           ? presentationImportedGroupSnapshot(entry.model)
+          : entry.wire.content.case === "image"
+            ? presentationImportedImageSnapshot(entry.model)
+            : entry.wire.content.case === "table"
+              ? presentationImportedTableSnapshot(entry.model)
           : undefined;
     }
     for (const sourceThread of sourceSlide.modernComments || []) {
