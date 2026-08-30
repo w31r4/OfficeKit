@@ -308,6 +308,13 @@ async function verifyImageReplacement(bytes) {
   }
   const replacementBytes = dataUrlBytes(replacement.dataUrl);
   const previousCrop = target.crop ? { ...target.crop } : undefined;
+  const replacementHash = createHash("sha256").update(replacementBytes).digest("hex");
+  const sourcePackage = await JSZip.loadAsync(bytes, { checkCRC32: true });
+  const existingMediaHashes = new Set();
+  for (const name of Object.keys(sourcePackage.files).filter((entry) => /^ppt\/media\//u.test(entry) && !sourcePackage.files[entry].dir)) {
+    existingMediaHashes.add(createHash("sha256").update(await sourcePackage.files[name].async("nodebuffer")).digest("hex"));
+  }
+  const reusedExistingMedia = existingMediaHashes.has(replacementHash);
   target.replace({ blob: new FileBlob(replacementBytes, { type: contentType }) });
   const output = await PresentationFile.exportPptx(presentation);
   const reopened = await importPresentation(output.bytes);
@@ -322,10 +329,15 @@ async function verifyImageReplacement(bytes) {
   const expectedSlide = `ppt/slides/slide${target.slide.index + 1}.xml`;
   const expectedRels = `ppt/slides/_rels/slide${target.slide.index + 1}.xml.rels`;
   const addedMedia = changedParts.filter((part) => /^ppt\/media\/office-kit-[0-9a-f]+\.(?:png|jpe?g|gif|svg)$/u.test(part));
-  if (changedParts.length !== 3 || !changedParts.includes(expectedSlide) || !changedParts.includes(expectedRels) || addedMedia.length !== 1) {
+  // A source package may already contain the replacement bytes under a
+  // vendor-specific media path.  The source-bound exporter can then either
+  // reuse that path or materialize its content-addressed OfficeKit path; both
+  // are valid, but only the target slide, its rels, and at most one media part
+  // may move.
+  if (changedParts.length !== 2 + addedMedia.length || addedMedia.length > 1 || !changedParts.includes(expectedSlide) || !changedParts.includes(expectedRels)) {
     throw new Error(`Image replacement changed unexpected parts for ${target.id}: ${changedParts.join(", ")}`);
   }
-  return { status: "passed", targetId: target.id, replacementId: replacement.id, contentType, changedParts };
+  return { status: "passed", targetId: target.id, replacementId: replacement.id, contentType, reusedExistingMedia, changedParts };
 }
 
 async function verifyImageCropEdit(bytes) {
@@ -1308,8 +1320,14 @@ function firstReplaceableImagePair(presentation) {
       const dataUrl = image.dataUrl;
       const contentType = dataUrl?.match(/^data:([^;]+);base64,/u)?.[1]?.toLowerCase();
       if (!contentType) continue;
+      const bytes = dataUrlBytes(dataUrl);
+      const contentHash = createHash("sha256").update(bytes).digest("hex");
       const candidates = byType.get(contentType) || [];
-      if (!candidates.some((candidate) => candidate.image.dataUrl === dataUrl)) candidates.push({ slide, image });
+      // Different data URLs can represent the same bytes (for example, an
+      // imported relationship may carry a distinct encoding or source hint).
+      // Replacement must exercise a genuinely new media payload, so compare
+      // content hashes rather than URL spelling.
+      if (!candidates.some((candidate) => candidate.contentHash === contentHash)) candidates.push({ slide, image, contentHash });
       byType.set(contentType, candidates);
     }
   }
