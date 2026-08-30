@@ -46,6 +46,7 @@ internal static class PpjSemanticValidator
         var assetIds = assets.Keys.ToHashSet(StringComparer.Ordinal);
         var pageIds = pages.Keys.ToHashSet(StringComparer.Ordinal);
         ValidateResourceReferences(program.Root, "$", assetIds, program.Design.ColorIds, program.Design.FontIds, diagnostics);
+        ValidateTextEffects(program.Root, "$", diagnostics);
         ValidateComponentDefinitions(program, components, assetIds, diagnostics);
 
         var globalElementIds = new HashSet<string>(StringComparer.Ordinal);
@@ -75,6 +76,43 @@ internal static class PpjSemanticValidator
         ValidatePresentationReferences(program, pageIds, pageElements, diagnostics);
         ValidateComponentGraph(program.Components, diagnostics);
         ValidateExpansionBudget(program, components, diagnostics);
+    }
+
+    private static void ValidateTextEffects(JsonElement value, string path, List<PpjDiagnostic> diagnostics)
+    {
+        if (value.ValueKind == JsonValueKind.Array)
+        {
+            var index = 0;
+            foreach (var item in value.EnumerateArray())
+                ValidateTextEffects(item, $"{path}[{index++}]", diagnostics);
+            return;
+        }
+        if (value.ValueKind != JsonValueKind.Object) return;
+
+        var hasColor = value.TryGetProperty("color", out _);
+        if (value.TryGetProperty("gradient", out var gradient))
+        {
+            if (hasColor)
+                diagnostics.Add(new("ppj.text.paintConflict", "Text style cannot declare both color and gradient.", path));
+            if (gradient.TryGetProperty("kind", out var kind) && kind.GetString() == "radial" && gradient.TryGetProperty("angle", out _))
+                diagnostics.Add(new("ppj.text.radialAngle", "Radial text gradients cannot declare a linear angle.", path + ".gradient.angle"));
+            if (gradient.TryGetProperty("stops", out var stops))
+            {
+                var previous = double.NegativeInfinity;
+                var stopIndex = 0;
+                foreach (var stop in stops.EnumerateArray())
+                {
+                    var offset = stop.GetProperty("offset").GetDouble();
+                    if (offset < previous)
+                        diagnostics.Add(new("ppj.text.gradientOrder", "Text gradient stop offsets must be ordered.", $"{path}.gradient.stops[{stopIndex}].offset"));
+                    previous = offset;
+                    stopIndex++;
+                }
+            }
+        }
+
+        foreach (var property in value.EnumerateObject())
+            ValidateTextEffects(property.Value, PpjJsonPath.Property(path, property.Name), diagnostics);
     }
 
     private static void ValidateComponentDefinitions(

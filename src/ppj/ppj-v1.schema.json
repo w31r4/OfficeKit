@@ -1313,6 +1313,54 @@
         }
       ]
     },
+    "gradient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stops"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "linear",
+            "radial"
+          ]
+        },
+        "angle": {
+          "type": "number",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "stops": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "offset",
+              "color"
+            ],
+            "properties": {
+              "offset": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "color": {
+                "$ref": "#/$defs/color"
+              },
+              "opacity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        }
+      }
+    },
     "crop": {
       "type": "object",
       "additionalProperties": false,
@@ -1443,6 +1491,16 @@
     "textStyle": {
       "type": "object",
       "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "required": [
+              "color",
+              "gradient"
+            ]
+          }
+        }
+      ],
       "properties": {
         "font": {
           "$ref": "#/$defs/id"
@@ -1509,6 +1567,12 @@
         "color": {
           "$ref": "#/$defs/color"
         },
+        "gradient": {
+          "$ref": "#/$defs/gradient"
+        },
+        "shadow": {
+          "$ref": "#/$defs/shadow"
+        },
         "highlight": {
           "$ref": "#/$defs/color"
         },
@@ -1543,6 +1607,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "defaultText": {
+          "$ref": "#/$defs/textStyle"
+        },
         "alignment": {
           "enum": [
             "left",

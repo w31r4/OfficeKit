@@ -35,20 +35,24 @@ internal static class PptxDefaultRunStyleCodec
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().Take(2).ToArray();
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) style.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
         var colors = ColorChoices(properties).ToArray();
-        if (colors.Length == 1 && ModeledColor(colors[0]))
+        if (colors.Length == 1 && ModeledFill(colors[0]))
         {
-            var fill = (A.SolidFill)colors[0];
-            if (PptxColor.TryDirectSolidRgbWithOpacity(fill, out var rgb, out var rgbOpacity))
+            if (colors[0] is A.SolidFill fill && PptxColor.TryDirectSolidRgbWithOpacity(fill, out var rgb, out var rgbOpacity))
             {
                 style.ColorRgb = rgb;
                 if (rgbOpacity is { } opacity) style.ColorOpacityThousandthPercent = opacity;
             }
-            else if (PptxColor.TryDirectSolidSchemeWithOpacity(fill, out var scheme, out var schemeOpacity))
+            else if (colors[0] is A.SolidFill schemeFill && PptxColor.TryDirectSolidSchemeWithOpacity(schemeFill, out var scheme, out var schemeOpacity))
             {
                 style.ColorScheme = scheme;
                 if (schemeOpacity is { } opacity) style.ColorOpacityThousandthPercent = opacity;
             }
+            else if (colors[0] is A.GradientFill gradientFill && PptxGradientFillCodec.TryRead(gradientFill, out var gradient))
+            {
+                style.GradientFill = gradient;
+            }
         }
+        if (PptxShadowCodec.TryRead(properties, out var shadow) && shadow is not null) style.Shadow = shadow;
         if (HasFields(style)) target.DefaultRunProperties = style;
     }
 
@@ -154,6 +158,10 @@ internal static class PptxDefaultRunStyleCodec
             default:
                 throw Invalid("Presentation default run properties contain an unknown color case.");
         }
+        if (style.GradientFill is not null && style.ColorCase != PresentationTextStyle.ColorOneofCase.None)
+            throw Invalid("Presentation default run properties cannot specify both a solid color and a gradient.");
+        PptxGradientFillCodec.Validate(style.GradientFill, "Presentation default-run gradient");
+        PptxShadowCodec.Validate(style.Shadow, "default-run", "default text run");
         if (style.HasColorOpacityThousandthPercent && style.ColorCase == PresentationTextStyle.ColorOneofCase.None)
             throw Invalid("Presentation default-run color opacity requires a modeled text color.");
         if (style.HasColorOpacityThousandthPercent && style.ColorOpacityThousandthPercent > 100_000)
@@ -162,7 +170,7 @@ internal static class PptxDefaultRunStyleCodec
 
     private static bool HasFields(PresentationTextStyle style) =>
         style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
-        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HasLanguage || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
+        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HasLanguage || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.GradientFill is not null || style.Shadow is not null || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
     {
@@ -200,7 +208,8 @@ internal static class PptxDefaultRunStyleCodec
         }
         ApplyLatinFont(target, source);
         ApplyEastAsianFont(target, source);
-        ApplyColor(target, source);
+        ApplyFill(target, source);
+        ApplyShadow(target, source);
     }
 
     private static void ApplyEastAsianFont(A.DefaultRunProperties target, PresentationTextStyle source)
@@ -235,24 +244,43 @@ internal static class PptxDefaultRunStyleCodec
         }
     }
 
-    private static void ApplyColor(A.DefaultRunProperties target, PresentationTextStyle source)
+    private static void ApplyFill(A.DefaultRunProperties target, PresentationTextStyle source)
     {
         var colors = ColorChoices(target).ToArray();
-        if (source.ColorCase != PresentationTextStyle.ColorOneofCase.None)
+        if (source.GradientFill is not null && source.ColorCase != PresentationTextStyle.ColorOneofCase.None)
+            throw Invalid("Presentation default run properties cannot specify both a solid color and a gradient.");
+        if (source.ColorCase != PresentationTextStyle.ColorOneofCase.None || source.GradientFill is not null)
         {
-            if (colors.Length > 1 || colors.Any(color => !ModeledColor(color)))
+            if (colors.Length > 1 || colors.Any(color => !ModeledFill(color)))
                 throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run color properties.");
             foreach (var color in colors) color.Remove();
             var opacity = source.HasColorOpacityThousandthPercent
                 ? source.ColorOpacityThousandthPercent
                 : (uint?)null;
-            target.AddChild(source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorRgb
-                ? PptxColor.BuildSolidRgb(source.ColorRgb, opacity)
-                : PptxColor.BuildSolidScheme(source.ColorScheme, opacity), true);
+            OpenXmlElement fill = source.GradientFill is not null
+                ? PptxGradientFillCodec.Build(source.GradientFill, "Presentation default-run gradient")
+                : source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorRgb
+                    ? PptxColor.BuildSolidRgb(source.ColorRgb, opacity)
+                    : PptxColor.BuildSolidScheme(source.ColorScheme, opacity);
+            target.AddChild(fill, true);
         }
-        else if (colors.Length == 1 && ModeledColor(colors[0]))
+        else if (colors.Length == 1 && ModeledFill(colors[0]))
         {
             colors[0].Remove();
+        }
+    }
+
+    private static void ApplyShadow(A.DefaultRunProperties target, PresentationTextStyle source)
+    {
+        if (source.Shadow is not null)
+        {
+            if (!PptxShadowCodec.TryRead(target, out _))
+                throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run effect properties.");
+            PptxShadowCodec.Apply(target, source.Shadow);
+        }
+        else if (PptxShadowCodec.TryRead(target, out var existing) && existing is not null)
+        {
+            PptxShadowCodec.Apply(target, null);
         }
     }
 
@@ -274,15 +302,20 @@ internal static class PptxDefaultRunStyleCodec
         var eastAsianFonts = target.Elements<A.EastAsianFont>().ToArray();
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
         var colors = ColorChoices(target).ToArray();
-        if (colors.Length == 1 && ModeledColor(colors[0])) colors[0].Remove();
+        if (colors.Length == 1 && ModeledFill(colors[0])) colors[0].Remove();
+        if (PptxShadowCodec.TryRead(target, out var shadow) && shadow is not null) PptxShadowCodec.Apply(target, null);
     }
 
     private static IEnumerable<OpenXmlElement> ColorChoices(A.DefaultRunProperties source) =>
         source.ChildElements.Where(child => child.LocalName is "noFill" or "solidFill" or "gradFill" or "blipFill" or "pattFill" or "grpFill");
 
-    private static bool ModeledColor(OpenXmlElement source) => source is A.SolidFill fill &&
-        (PptxColor.TryDirectSolidRgbWithOpacity(fill, out _, out _) ||
-         PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out _));
+    private static bool ModeledFill(OpenXmlElement source) => source switch
+    {
+        A.SolidFill fill => PptxColor.TryDirectSolidRgbWithOpacity(fill, out _, out _) ||
+                            PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out _),
+        A.GradientFill fill => PptxGradientFillCodec.TryRead(fill, out _),
+        _ => false,
+    };
 
     private static bool ModeledLatinFont(A.LatinFont source) =>
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
