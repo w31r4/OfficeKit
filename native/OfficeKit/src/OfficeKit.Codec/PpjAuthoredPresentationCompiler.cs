@@ -95,6 +95,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (element is PpjImageElementModel { SvgAssetId: not null })
             throw Unsupported(element.Id, "paired SVG fallback images are outside the bounded source overlay relationship profile");
         var output = BuildElement(element, element.Raw, new Catalog(program.Root));
+        if (!output.HasHidden) output.Hidden = false;
+        if (!output.HasLocked) output.Locked = false;
         if (PptxCodec.BoundedAuthoredOverlayViolation(output) is { } violation)
             throw Unsupported(element.Id, violation);
         return output;
