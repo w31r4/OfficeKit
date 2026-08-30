@@ -2266,9 +2266,9 @@ message PresentationShape {
   // independent of visible text, geometry, object name, and drawing order.
   // Imported values are editable only for the bounded cNvPr profile.
   PresentationNonVisualAccessibility accessibility = 31;
-  // Presence-aware alpha for a direct solid RGB fill, expressed in DrawingML
-  // thousandths of one percent. Absence means the native a:alpha child is
-  // omitted; the value is valid only when fill_rgb is present.
+  // Presence-aware alpha for a direct solid RGB or theme fill, expressed in
+  // DrawingML thousandths of one percent. Absence means the native a:alpha
+  // child is omitted; the value is valid when fill_rgb or fill_scheme is set.
   optional uint32 fill_opacity_thousandth_percent = 32;
   // Bounded direct theme color for a source-bound solid fill. This is exposed
   // only when the native a:solidFill contains exactly one bare a:schemeClr;

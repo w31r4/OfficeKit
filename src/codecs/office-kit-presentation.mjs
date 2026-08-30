@@ -882,14 +882,20 @@ function presentationScheme(value, name) {
   return token;
 }
 
-function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
+function presentationFillOpacityThousandthPercent(value, name, fillColor) {
   if (typeof value === "string" || value?.opacity == null) return undefined;
   const opacity = Number(value.opacity);
   if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
     throw new OfficeKitCodecError(`${name}.opacity must be a finite number from 0 through 1.`, [], { code: "invalid_presentation_fill" });
   }
-  if (!fillRgb) {
-    throw new OfficeKitCodecError(`${name}.opacity requires a solid RGB fill.`, [], { code: "invalid_presentation_fill" });
+  const color = typeof fillColor === "object" && fillColor !== null
+    ? fillColor.color ?? fillColor.fill
+    : fillColor;
+  const resolved = resolveColorToken(color, color);
+  const hasRgb = /^#[0-9a-f]{6}$/iu.test(String(resolved ?? ""));
+  const hasScheme = Boolean(NATIVE_SCHEME_COLOR_CANONICAL[String(color ?? "").trim().toLowerCase()]);
+  if (!hasRgb && !hasScheme) {
+    throw new OfficeKitCodecError(`${name}.opacity requires a solid RGB or theme fill.`, [], { code: "invalid_presentation_fill" });
   }
   return Math.round(opacity * 100_000);
 }
@@ -2321,8 +2327,11 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     );
   }
   const sourceFillScheme = String(originalShape?.fillScheme || "");
-  const preserveSourceFillScheme = sourceFillScheme && typeof shape.fill === "string" &&
-    shape.fill.toLowerCase() === sourceFillScheme.toLowerCase();
+  const requestedFillColor = typeof shape.fill === "object" && shape.fill !== null
+    ? shape.fill.color ?? shape.fill.fill
+    : shape.fill;
+  const preserveSourceFillScheme = sourceFillScheme && typeof requestedFillColor === "string" &&
+    requestedFillColor.toLowerCase() === sourceFillScheme.toLowerCase();
   // Imported theme fills such as dk1/dk2 are valid DrawingML but are not
   // authoring color tokens. Keep an unchanged source-bound scheme token in the
   // wire instead of forcing presentationRgb() to interpret it as RGB. This is
@@ -2334,7 +2343,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const fillRgb = gradientFill || preserveSourceFillScheme ? "" : presentationRgb(shape.fill, `${shape.id}.fill`);
   const fillOpacityThousandthPercent = gradientFill
     ? undefined
-    : presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
+    : presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, shape.fill);
   return {
     id: original?.id || shape.id,
     name: shape.name || original?.name || "",
@@ -3512,13 +3521,21 @@ export function presentationEnvelope(presentation, protocolVersion) {
             if (presentationImageReadOnlySnapshot(entry.model) !== entry.snapshot) {
               throw new OfficeKitCodecError(`Presentation image ${entry.model.id} changed outside its embedded rectangular image boundary.`, [], { code: "unsupported_presentation_edit" });
             }
-            return presentationImage(entry.model, entry.wire, assetCatalog);
+            const projectedImage = presentationImage(entry.model, entry.wire, assetCatalog);
+            // The imported wire may carry explicit protobuf defaults (for
+            // example tiled=false or an empty accessibility title) that the
+            // semantic serializer intentionally omits. Treat those as an
+            // unchanged image and retain the exact source wire; otherwise an
+            // unrelated source-bound edit would reserialize every picture
+            // and make the bounded Edit Plan appear to touch it.
+            return samePresentationWireIgnoringDefaults(projectedImage, entry.wire) ? entry.wire : projectedImage;
           }
           if (entry.wire.content.case === "table") {
             if (presentationTableReadOnlySnapshot(entry.model) !== entry.snapshot) {
               throw new OfficeKitCodecError(`Presentation table ${entry.model.id} changed outside its name/frame/plain-text boundary.`, [], { code: "unsupported_presentation_edit" });
             }
-            return presentationTable(entry.model, entry.wire);
+            const projectedTable = presentationTable(entry.model, entry.wire);
+            return samePresentationWireIgnoringDefaults(projectedTable, entry.wire) ? entry.wire : projectedTable;
           }
           if (entry.wire.content.case === "connector") {
             if (presentationImportedConnectorSnapshot(entry.model) === entry.snapshot) return entry.wire;
@@ -3621,6 +3638,30 @@ function samePresentationWire(schema, left, right) {
   const leftBytes = presentationWireBytes(schema, left);
   const rightBytes = presentationWireBytes(schema, right);
   return leftBytes.length === rightBytes.length && leftBytes.every((value, index) => value === rightBytes[index]);
+}
+
+function canonicalPresentationWireDefaults(value) {
+  if (Array.isArray(value)) {
+    const items = value.map(canonicalPresentationWireDefaults).filter((item) => item !== undefined);
+    return items.length ? items : undefined;
+  }
+  if (!value || typeof value !== "object") {
+    if (value === "" || value === false || value === 0 || value === 0n || value === undefined || value === null) return undefined;
+    if (typeof value === "bigint") return `bigint:${value}`;
+    return value;
+  }
+  const normalized = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "$typeName") continue;
+    const canonical = canonicalPresentationWireDefaults(child);
+    if (canonical !== undefined) normalized[key] = canonical;
+  }
+  if (!Object.keys(normalized).length) return undefined;
+  return Object.fromEntries(Object.keys(normalized).sort().map((key) => [key, normalized[key]]));
+}
+
+function samePresentationWireIgnoringDefaults(left, right) {
+  return JSON.stringify(canonicalPresentationWireDefaults(left)) === JSON.stringify(canonicalPresentationWireDefaults(right));
 }
 
 function clonePresentationWire(schema, value) {
@@ -4313,8 +4354,9 @@ function createPresentationNativeLeafCapability(presentation, state) {
     const registerImportedFillOpacityLeaf = () => {
       if (wire.content.case !== "shape") return;
       const fillRgb = String(wire.content.value.fillRgb ?? "");
+      const fillScheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme ?? "").trim().toLowerCase()];
       const raw = String(wire.content.value.fillOpacityThousandthPercent ?? "");
-      if (!/^[0-9A-F]{6}$/u.test(fillRgb) || !/^[0-9]+$/u.test(raw)) return;
+      if ((!/^[0-9A-F]{6}$/u.test(fillRgb) && !fillScheme) || !/^[0-9]+$/u.test(raw)) return;
       let opacity;
       try { opacity = BigInt(raw); }
       catch { return; }
@@ -4344,7 +4386,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
         apply(next) {
           const color = typeof model.fill === "object" && model.fill !== null
             ? model.fill.color
-            : (model.fill || `#${fillRgb.toLowerCase()}`);
+            : (model.fill || fillScheme || `#${fillRgb.toLowerCase()}`);
           model.fill = { color, opacity: Number(next) / 100_000 };
         },
       });
@@ -4734,7 +4776,10 @@ function createPresentationNativeLeafCapability(presentation, state) {
             return { raw: canonical, publicValue: canonical };
           },
           isNoop(next) { return next === scheme; },
-          apply(next) { model.fill = next; },
+          apply(next) {
+            const opacity = typeof model.fill === "object" && model.fill !== null ? model.fill.opacity : undefined;
+            model.fill = opacity == null ? next : { color: next, opacity };
+          },
         });
       }
       const lineWidth = String(wire.content.value.lineWidthEmu ?? "");
@@ -6044,7 +6089,7 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value.text = original.content.value.text;
   restored.content.value.textBody.paragraphs[before.paragraphIndex].runs[before.runIndex] = before.run;
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6109,7 +6154,7 @@ function restoreEquivalentPresentationScalarLeaves(original, requested) {
 
 function compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   const contentCase = original.content.case;
-  if (requested.content.case !== contentCase || !new Set(["shape", "image"]).has(contentCase) || original.source?.editable !== true) return undefined;
+  if (requested.content.case !== contentCase || !new Set(["shape", "image"]).has(contentCase)) return undefined;
   const beforeElement = original.content.value;
   const afterElement = requested.content.value;
   const scalarFields = contentCase === "image"
@@ -6119,6 +6164,12 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const changed = scalarFields.filter(([field]) => fieldValue(field, beforeElement[field]) !== fieldValue(field, afterElement[field]));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;
+  // A source-bound imported shape may expose a safe fill-opacity leaf even
+  // when its broader geometry is not typed-editable. Keep that native style
+  // capability narrow; all other scalar edits still require the full element
+  // edit capability below.
+  if (original.source?.editable !== true &&
+      (leafKind !== "fillOpacityThousandthPercent" || original.source?.textEditable !== true)) return undefined;
   const expectedValue = fieldValue(field, beforeElement[field]);
   const value = fieldValue(field, afterElement[field]);
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
@@ -6130,7 +6181,7 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value[field] = beforeElement[field];
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6196,7 +6247,7 @@ function compilePresentationImageSvgAssetOperation(original, requested, sourceSl
   if (!beforeImage.svgAssetId || !afterImage.svgAssetId || beforeImage.svgAssetId === afterImage.svgAssetId) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value.svgAssetId = beforeImage.svgAssetId;
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6270,7 +6321,7 @@ function compilePresentationTableCellOperation(original, requested, sourceSlide,
   const [cell] = changed;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value.rows[cell.rowIndex].cells[cell.columnIndex].text = cell.before;
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6335,7 +6386,7 @@ function compilePresentationElementEditOperations(original, requested, sourceSli
     operations.push(...childOperations);
     restored.content.value.children[index] = originalChild;
   }
-  if (!operations.length || !samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!operations.length || !samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   return operations;
 }
 
@@ -6393,7 +6444,9 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
         restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
         continue;
       }
-      if (samePresentationWire(PresentationElementSchema, entry.wire, requested)) continue;
+      if (samePresentationWire(PresentationElementSchema, entry.wire, requested) ||
+          ((entry.wire.content.case === "image" || entry.wire.content.case === "table") &&
+            samePresentationWireIgnoringDefaults(entry.wire, requested))) continue;
       const entryOperations = compilePresentationElementEditOperations(
         entry.wire,
         requested,
@@ -6421,7 +6474,7 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0) ||
     (left.nativeLeafIndex ?? 0) - (right.nativeLeafIndex ?? 0));
   const sourceArtifact = state.sourceArtifact;
-  if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
+  if (!sourceArtifact || !samePresentationWireIgnoringDefaults(restoredArtifact, sourceArtifact)) return undefined;
   const requestedAssetIds = new Set(operations
     .filter((operation) => operation.leafKind === "imageAsset" || operation.leafKind === "imageSvgAsset")
     .map((operation) => operation.leafKind === "imageSvgAsset"
