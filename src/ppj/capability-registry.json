@@ -112,11 +112,11 @@
       "reason": "Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived."
     },
     {
-      "feature": "effect-bearing and irregular chart typography",
-      "ppjPath": "chart.style.titleTextStyle, chart.style.legendTextStyle, chart.style.dataLabels.textStyle and chart axes textStyle/titleTextStyle",
+      "feature": "structured chart titles and other chart typography",
+      "ppjPath": "chart.title, chart.style.titleTextStyle, chart.style.legendTextStyle, chart.style.dataLabels.textStyle and chart axes textStyle/titleTextStyle",
       "behavior": "partial",
-      "sourceBound": "Canonical chart-title, legend, data-label, axis-title and axis tick-label typography is projected and editable through the issued setChartTextStyle capability; richer or effect-bearing text graphs remain source-preserved.",
-      "reason": "Authored ordinary and combo charts own Latin/East Asian typefaces, size, bold, italic and direct RGB/alpha at all five chart text locations. The bounded profile intentionally excludes theme transforms, shadows, effects and irregular rich-text topology."
+      "sourceBound": "Bounded multi-paragraph/run chart titles are projected and editable through setChartTitle; canonical legend, data-label, axis-title and axis tick-label typography remains editable through setChartTextStyle. Unsupported title containers remain source-preserved.",
+      "reason": "Authored ordinary and combo charts own structured title runs plus Latin/East Asian typefaces, size, bold, italic and direct RGB/alpha. Formula-backed titles, hyperlinks, theme transforms, WordArt, shadows, effects and unknown title topology remain outside the bounded profile."
     },
     {
       "feature": "third-party media playback graphs",

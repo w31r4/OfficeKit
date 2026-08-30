@@ -165,15 +165,50 @@ rebuilding the visual with shapes:
 }
 ```
 
+When the title needs an emphasized result, keep the title native and use the
+same bounded paragraph/run vocabulary as ordinary text:
+
+```json
+{
+  "title": {
+    "paragraphs": [{
+      "runs": [
+        { "text": "Measured profile: " },
+        {
+          "text": "−42% incidents",
+          "style": {
+            "bold": true,
+            "color": "#A83232",
+            "fontFamilyEastAsia": "Noto Serif CJK SC"
+          }
+        }
+      ]
+    }]
+  },
+  "style": {
+    "titleTextStyle": {
+      "fontSize": 14,
+      "fontFamily": "Aptos",
+      "fontFamilyEastAsia": "Noto Sans CJK SC",
+      "color": "#16324F"
+    }
+  }
+}
+```
+
+`titleTextStyle` is a default for properties omitted by a structured run;
+explicit run typography wins. Formula-backed titles, title hyperlinks,
+WordArt, effects, and unknown title containers remain source-owned.
+
 `smooth` preserves an explicit true or false native value. `varyColors: true`
 authors one direct native color-variation flag; false is canonical omission.
-Both line-behavior fields are line-chart-only. Chart-title, legend, data-label,
-axis-title and axis tick-label typography compile through one exact DrawingML
-profile on ordinary and combo charts. A projected imported chart may issue
-`setChartTextStyle`; only that capability authorizes changes to these fields.
-Ordinary `setChartTitle` and `setChartData` do not authorize a style mutation.
-Theme transforms, shadows, effects and irregular rich-text topology remain
-source-owned and fail closed instead of being flattened.
+Both line-behavior fields are line-chart-only. Structured chart titles compile
+to bounded native DrawingML paragraphs and runs on ordinary and combo charts.
+A projected imported chart may issue `setChartTitle` for that title content and
+`setChartTextStyle` for uniform title defaults, legend, data labels, axis titles
+and tick labels. Each capability authorizes only its declared field. Theme
+transforms and other effect-bearing chart text remain source-owned and fail
+closed instead of being flattened.
 
 Chart paint uses the same typed fill union as shapes and table cells. This
 keeps a gradient semantic rather than rebuilding it from overlaid rectangles:

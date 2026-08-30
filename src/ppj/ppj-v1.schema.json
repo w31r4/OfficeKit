@@ -2778,7 +2778,8 @@
               "$ref": "#/$defs/id"
             },
             "title": {
-              "$ref": "#/$defs/textContent"
+              "$ref": "#/$defs/textContent",
+              "description": "Use a string for one uniform title or paragraphs/runs for bounded mixed typography. Chart-title hyperlinks, formula references, WordArt, effects, and unknown native title topology remain unsupported or source-owned. titleTextStyle supplies defaults only where a structured run omits the corresponding property."
             },
             "data": {
               "$ref": "#/$defs/chartData"
