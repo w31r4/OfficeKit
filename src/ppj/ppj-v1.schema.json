@@ -1195,6 +1195,7 @@
               "canvas.width",
               "canvas.height",
               "pageOrder",
+              "pageClone",
               "background",
               "transition",
               "notes",
