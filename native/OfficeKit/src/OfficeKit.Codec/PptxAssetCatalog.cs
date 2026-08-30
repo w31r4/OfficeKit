@@ -27,6 +27,7 @@ internal sealed class PptxAssetCatalog
     private readonly Dictionary<string, Asset> _imported = new(StringComparer.Ordinal);
     private readonly Func<ImagePart, string?>? _validatedPartSha256;
     private readonly ulong _maxTotalBytes;
+    private readonly ulong _maxMediaAssetBytes;
     private ulong _totalBytes;
 
     internal PptxAssetCatalog(
@@ -36,6 +37,7 @@ internal sealed class PptxAssetCatalog
     {
         _validatedPartSha256 = validatedPartSha256;
         _maxTotalBytes = Math.Min(limits.MaxUncompressedBytes, (ulong)MaxAssets * MaxAssetBytes);
+        _maxMediaAssetBytes = Math.Min(limits.MaxInputBytes, (ulong)MaxMediaAssetBytes);
         foreach (var asset in assets ?? []) AddRequested(asset);
     }
 
@@ -187,14 +189,14 @@ internal sealed class PptxAssetCatalog
             throw new CodecException("invalid_presentation_asset", $"Presentation asset {source.Id} is not content-addressed by its bytes.");
         if (!_assets.TryAdd(source.Id, source.Clone()))
             throw new CodecException("invalid_presentation_asset", $"Presentation contains duplicate asset ID {source.Id}.");
-        EnsureBudget(data.LongLength, isMedia ? MaxMediaAssetBytes : MaxAssetBytes, isMedia ? "media" : "image/OLE");
+        EnsureBudget(data.LongLength, isMedia ? _maxMediaAssetBytes : MaxAssetBytes, isMedia ? "media" : "image/OLE");
     }
 
     private void EnsureBudget(long length) => EnsureBudget(length, MaxAssetBytes, "picture-bullet");
 
-    private void EnsureBudget(long length, int maximum, string purpose)
+    private void EnsureBudget(long length, ulong maximum, string purpose)
     {
-        if (length <= 0 || length > maximum)
+        if (length <= 0 || (ulong)length > maximum)
             throw new CodecException("presentation_asset_budget_exceeded", $"Presentation {purpose} assets must contain 1 through {maximum} bytes.");
         _totalBytes = checked(_totalBytes + (ulong)length);
         if (_totalBytes > _maxTotalBytes)

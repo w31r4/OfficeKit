@@ -310,7 +310,8 @@ internal static class PptxTimingCodec
 
     internal static void Validate(PresentationSlide source, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
     {
-        if (source.Animations.Count > MaxSemanticAnimations || source.Animations.Count * 2 > MaxExpandedTimingNodes)
+        var mediaElements = MediaElements(source.Elements).ToArray();
+        if (source.Animations.Count > MaxSemanticAnimations || source.Animations.Count * 2 + mediaElements.Length > MaxExpandedTimingNodes)
             throw new CodecException("presentation_animation_limit_exceeded", $"Presentation slides support at most {MaxSemanticAnimations} semantic animations and {MaxExpandedTimingNodes} expanded timing nodes.");
         foreach (var animation in source.Animations)
         {
@@ -337,7 +338,7 @@ internal static class PptxTimingCodec
             if (animation.HasAnimateChartBackground && string.IsNullOrEmpty(animation.ChartBuild))
                 throw new CodecException("invalid_presentation_animation", "Presentation chart-background animation requires a chart build.");
         }
-        foreach (var element in MediaElements(source.Elements))
+        foreach (var element in mediaElements)
             if (!nativeIdsByElementId.ContainsKey(element.Id))
                 throw new CodecException("invalid_presentation_media", $"Presentation media target {element.Id} is not present on the slide.");
         if (source.Morph is not null)
@@ -415,7 +416,9 @@ internal static class PptxTimingCodec
         // cTn@id. PowerPoint and the Open XML validator both accept the
         // canonical group zero used by authored chart/text build lists.
         sb.Append($"<p:timing xmlns:p=\"{PNamespace}\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:officekit=\"{OfficeKitNamespace}\"><p:tnLst><p:par><p:cTn id=\"1\" grpId=\"0\" dur=\"indefinite\" nodeType=\"tmRoot\"><p:childTnLst>");
-        var mediaNodeId = 100U;
+        // Keep media IDs in a disjoint deterministic range. The authored
+        // animation profile may consume more than 100 IDs at its upper bound.
+        var mediaNodeId = 1_000U;
         foreach (var element in MediaElements(source.Elements))
         {
             var media = element.Media;
