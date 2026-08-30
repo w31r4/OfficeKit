@@ -99,6 +99,8 @@ const NATIVE_LINE_ARROW_CANONICAL = Object.freeze({
 });
 const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
+const PRESENTATION_SHADOW_ALIGNMENTS = new Set(["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"]);
+const MAX_NATIVE_SHADOW_COORDINATE_EMU = 2_147_483_647;
 const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
   Object.freeze(["left", "textBodyInsetLeftEmu", "leftInset"]),
   Object.freeze(["top", "textBodyInsetTopEmu", "topInset"]),
@@ -4350,6 +4352,116 @@ function createPresentationNativeLeafCapability(presentation, state) {
       });
     };
     registerImportedFillOpacityLeaf();
+    const registerImportedShadowGeometryLeaves = () => {
+      if (wire.content.case !== "shape") return;
+      const shadow = wire.content.value.shadow;
+      if (!shadow || (wire.source?.editable !== true && wire.source?.textEditable !== true)) return;
+      const registerIntegerLeaf = (field, leafKind, unit, applyValue) => {
+        const raw = String(shadow[field] ?? "");
+        if (!/^[0-9]+$/u.test(raw)) return;
+        const value = Number(raw);
+        if (!Number.isSafeInteger(value) || value < 0 || value > MAX_NATIVE_SHADOW_COORDINATE_EMU) return;
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind,
+          expectedValue: raw,
+          value,
+          unit,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const candidate = typeof next === "bigint" ? Number(next) : Number(String(next ?? "").trim());
+            if (!Number.isSafeInteger(candidate) || candidate < 0 || candidate > MAX_NATIVE_SHADOW_COORDINATE_EMU) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a non-negative integer from 0 through ${MAX_NATIVE_SHADOW_COORDINATE_EMU}.`);
+            }
+            const token = String(candidate);
+            return { raw: token, publicValue: candidate };
+          },
+          isNoop(next) { return next === raw; },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", `Presentation ${leafKind} native leaf no longer resolves to the imported shadow.`);
+            }
+            model.shadow = { ...model.shadow, [applyValue]: Number(next) / EMU_PER_PIXEL };
+          },
+        });
+      };
+      registerIntegerLeaf("blurRadiusEmu", "shadowBlurRadiusEmu", "emu", "blurRadius");
+      registerIntegerLeaf("distanceEmu", "shadowDistanceEmu", "emu", "distance");
+
+      const rawDirection = String(shadow.directionAngle60000 ?? "");
+      if (/^[0-9]+$/u.test(rawDirection)) {
+        const direction = Number(rawDirection);
+        if (Number.isSafeInteger(direction) && direction >= 0 && direction < 21_600_000) {
+          registerLeaf({
+            wire,
+            model,
+            slideState,
+            shapeTreePath,
+            parentGroupId,
+            rootEntry,
+            leafKind: "shadowDirectionDegrees",
+            expectedValue: rawDirection,
+            value: direction / ROTATION_UNITS_PER_DEGREE,
+            unit: "degrees",
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+              if (!Number.isFinite(candidate) || candidate < 0 || candidate >= 360) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowDirectionDegrees native leaf requires a finite number from 0 through 360 degrees (360 excluded).");
+              }
+              const tokenValue = Math.round(candidate * ROTATION_UNITS_PER_DEGREE);
+              if (tokenValue < 0 || tokenValue >= 21_600_000) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowDirectionDegrees native leaf rounds to an out-of-range angle.");
+              }
+              return { raw: String(tokenValue), publicValue: tokenValue / ROTATION_UNITS_PER_DEGREE };
+            },
+            isNoop(next) { return next === rawDirection; },
+            apply(next) {
+              if (!model.shadow || typeof model.shadow !== "object") {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadowDirectionDegrees native leaf no longer resolves to the imported shadow.");
+              }
+              model.shadow = { ...model.shadow, direction: Number(next) / ROTATION_UNITS_PER_DEGREE };
+            },
+          });
+        }
+      }
+
+      const rawAlignment = String(shadow.alignment ?? "");
+      if (PRESENTATION_SHADOW_ALIGNMENTS.has(rawAlignment)) {
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "shadowAlignment",
+          expectedValue: rawAlignment,
+          value: rawAlignment,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const candidate = String(next ?? "").trim();
+            if (!PRESENTATION_SHADOW_ALIGNMENTS.has(candidate)) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowAlignment native leaf requires one of tl, t, tr, l, ctr, r, bl, b, or br.");
+            }
+            return { raw: candidate, publicValue: candidate };
+          },
+          isNoop(next) { return next === rawAlignment; },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadowAlignment native leaf no longer resolves to the imported shadow.");
+            }
+            model.shadow = { ...model.shadow, alignment: next };
+          },
+        });
+      }
+    };
+    registerImportedShadowGeometryLeaves();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
@@ -6021,6 +6133,31 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
   };
 }
 
+function presentationImportedEntryIsUnchanged(entry) {
+  if (!entry?.model || !entry?.wire) return false;
+  switch (entry.wire.content?.case) {
+    case "shape":
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot;
+    case "group":
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot;
+    case "image":
+      return entry.snapshot !== undefined &&
+        presentationImageReadOnlySnapshot(entry.model) === entry.snapshot;
+    case "table":
+      return entry.snapshot !== undefined &&
+        presentationTableReadOnlySnapshot(entry.model) === entry.snapshot;
+    case "connector":
+      return entry.snapshot !== undefined &&
+        presentationImportedConnectorSnapshot(entry.model) === entry.snapshot;
+    case "opaque":
+      return entry.snapshot !== undefined && opaquePresentationSnapshot(entry.model) === entry.snapshot;
+    default:
+      return false;
+  }
+}
+
 function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return undefined;
   const originalLeaves = presentationTextLeafRuns(original.content.value);
@@ -6390,6 +6527,14 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
         const issuedOperations = issuedEdits.map((pending) => compileIssuedPresentationNativeLeafOperation(pending, sourceSha256));
         if (issuedOperations.some((operation) => !operation)) return undefined;
         operations.push(...issuedOperations);
+        restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
+        continue;
+      }
+      // Imported projections can omit explicit protobuf defaults (for example
+      // a source image's explicit `hidden=false`) without any user mutation.
+      // Restore the source wire for such untouched entries instead of trying
+      // to compile a phantom edit and blocking an otherwise bounded leaf edit.
+      if (presentationImportedEntryIsUnchanged(entry)) {
         restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
         continue;
       }
