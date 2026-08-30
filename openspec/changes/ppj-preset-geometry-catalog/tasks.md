@@ -5,7 +5,7 @@
 
 ## 2. Native and PPJ compilation
 
-- [ ] 2.1 Replace the duplicate C# preset map with validated registry tokens
+- [x] 2.1 Replace the duplicate C# preset map with validated registry tokens
 - [ ] 2.2 Compile and project authored adjusted picture masks
 - [ ] 2.3 Issue and lower a narrow source-bound `setImageMask` capability
 
