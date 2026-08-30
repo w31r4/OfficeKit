@@ -168,6 +168,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel { ChartType: "treemap" } treemap:
                 output.Group = BuildTreemap(treemap, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "sunburst" } sunburst:
+                output.Group = BuildSunburst(sunburst, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -1558,6 +1561,432 @@ internal static class PpjAuthoredPresentationCompiler
 
     private readonly record struct TreemapPlacement(int NodeIndex, TreemapRectangle Rectangle);
     private readonly record struct TreemapArea(int NodeIndex, double Area, int Order);
+
+    private static PresentationGroup BuildSunburst(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector sunburst titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateSunburstCompileProfile(element, raw, namedStyle, inlineStyle);
+        var sunburst = FirstProperty(inlineStyle, namedStyle, "sunburst")!.Value;
+        var series = element.Data.Series[0];
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var values = series.Values.Select(value => value!.Value).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var nodes = names.Select((name, index) => new SunburstNode(
+            index,
+            name,
+            values[index],
+            series.Parents[index] is { } parent ? indexes[parent] : null)).ToArray();
+        foreach (var node in nodes)
+            if (node.ParentIndex is { } parentIndex) nodes[parentIndex].Children.Add(node.Index);
+        var roots = nodes.Where(node => node.ParentIndex is null).Select(node => node.Index).ToArray();
+        foreach (var root in roots) AssignSunburstDepth(nodes, root, 0);
+        var levelCount = nodes.Max(node => node.Depth) + 1;
+
+        var rootColors = sunburst.GetProperty("rootColors").EnumerateArray().Select(catalog.Color).ToArray();
+        var border = Property(sunburst, "border");
+        var innerRadiusRatio = OptionalDouble(sunburst, "innerRadiusRatio") ?? 0;
+        var ringGap = OptionalDouble(sunburst, "ringGap") ?? 1.5;
+        var segmentGapRadians = (OptionalDouble(sunburst, "segmentGapDegrees") ?? 0.8) * Math.PI / 180;
+        var startAngle = (OptionalDouble(sunburst, "startAngle") ?? -90) * Math.PI / 180;
+        var clockwise = OptionalBoolean(sunburst, "clockwise") ?? true;
+        var direction = clockwise ? 1d : -1d;
+        var depthLighten = OptionalDouble(sunburst, "depthLighten") ?? 0.08;
+        var showValues = OptionalBoolean(sunburst, "showValues") ?? false;
+        var labelStyle = Property(sunburst, "labelTextStyle");
+        var valueStyle = Property(sunburst, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var availableHeight = height - titleHeight - 4;
+        var diameter = Math.Min(width, availableHeight);
+        if (diameter < 160)
+            throw Unsupported(element.Id, "sunburst frame is too small for a readable native hierarchy");
+        var plotX = x + (width - diameter) / 2;
+        var plotY = y + titleHeight + 4 + (availableHeight - diameter) / 2;
+        var outerRadius = diameter / 2;
+        var innerRadius = outerRadius * innerRadiusRatio;
+        var ringWidth = (outerRadius - innerRadius) / levelCount;
+        if (ringWidth - ringGap < 8)
+            throw Unsupported(element.Id, "sunburst rings are too narrow after applying the configured gap");
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                SunburstNativeId(element.Id, "title"),
+                "sunburst title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var total = roots.Sum(root => nodes[root].Value);
+        var cursor = startAngle;
+        for (var rootOrder = 0; rootOrder < roots.Length; rootOrder++)
+        {
+            var root = roots[rootOrder];
+            var span = Math.PI * 2 * nodes[root].Value / total * direction;
+            RenderSunburstNode(
+                group,
+                element.Id,
+                nodes,
+                root,
+                cursor,
+                cursor + span,
+                rootColors[rootOrder % rootColors.Length],
+                plotX,
+                plotY,
+                diameter,
+                innerRadius,
+                ringWidth,
+                ringGap,
+                segmentGapRadians,
+                depthLighten,
+                showValues,
+                border,
+                labelStyle,
+                valueStyle,
+                catalog);
+            cursor += span;
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateSunburstCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var count = element.Data.Categories.Count;
+        if (count is < 1 or > 96 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != count)
+            throw Unsupported(element.Id, "sunburst categories must be 1..96 unique non-empty strings");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "sunburst charts require exactly one hierarchy series");
+        var series = element.Data.Series[0];
+        if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
+            throw Unsupported(element.Id, "sunburst values and parents must be complete, aligned, and strictly positive");
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"sunburst series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "sunburst charts do not use Cartesian axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"sunburst charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "sunburst") is null)
+            throw Unsupported(element.Id, "sunburst charts require style.sunburst");
+
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var rootCount = 0;
+        for (var index = 0; index < count; index++)
+        {
+            var parent = series.Parents[index];
+            if (parent is null)
+            {
+                rootCount++;
+                continue;
+            }
+            if (!indexes.ContainsKey(parent))
+                throw Unsupported(element.Id, $"sunburst parent {parent} does not name a declared category");
+            if (string.Equals(parent, names[index], StringComparison.Ordinal))
+                throw Unsupported(element.Id, "a sunburst node cannot parent itself");
+        }
+        if (rootCount is < 1 or > 16)
+            throw Unsupported(element.Id, "sunburst charts require between 1 and 16 roots");
+
+        for (var index = 0; index < count; index++)
+        {
+            var seen = new HashSet<int>();
+            var current = index;
+            var depth = 0;
+            while (true)
+            {
+                if (!seen.Add(current)) throw Unsupported(element.Id, $"sunburst parent chain for {names[index]} contains a cycle");
+                var parent = series.Parents[current];
+                if (parent is null) break;
+                current = indexes[parent];
+                depth++;
+                if (depth > 6) throw Unsupported(element.Id, $"sunburst node {names[index]} exceeds the maximum depth of six");
+            }
+        }
+
+        var childSums = new Dictionary<int, double>();
+        for (var index = 0; index < count; index++)
+            if (series.Parents[index] is { } parent)
+            {
+                var parentIndex = indexes[parent];
+                childSums[parentIndex] = childSums.GetValueOrDefault(parentIndex) + series.Values[index]!.Value;
+            }
+        foreach (var pair in childSums)
+        {
+            var declared = series.Values[pair.Key]!.Value;
+            var tolerance = Math.Max(1e-9, Math.Abs(declared) * 1e-9);
+            if (Math.Abs(declared - pair.Value) > tolerance)
+                throw Unsupported(element.Id, $"sunburst parent {names[pair.Key]} must equal its direct-child sum");
+        }
+    }
+
+    private static void AssignSunburstDepth(IReadOnlyList<SunburstNode> nodes, int nodeIndex, int depth)
+    {
+        nodes[nodeIndex].Depth = depth;
+        foreach (var child in nodes[nodeIndex].Children) AssignSunburstDepth(nodes, child, depth + 1);
+    }
+
+    private static void RenderSunburstNode(
+        PresentationGroup group,
+        string elementId,
+        IReadOnlyList<SunburstNode> nodes,
+        int nodeIndex,
+        double startAngle,
+        double endAngle,
+        (string Rgb, double Alpha) rootColor,
+        double plotX,
+        double plotY,
+        double diameter,
+        double baseInnerRadius,
+        double ringWidth,
+        double ringGap,
+        double segmentGapRadians,
+        double depthLighten,
+        bool showValues,
+        JsonElement? border,
+        JsonElement? labelStyle,
+        JsonElement? valueStyle,
+        Catalog catalog)
+    {
+        var node = nodes[nodeIndex];
+        var sign = Math.Sign(endAngle - startAngle);
+        var span = Math.Abs(endAngle - startAngle);
+        var effectiveSpan = span - segmentGapRadians;
+        if (effectiveSpan <= Math.PI / 720)
+            throw Unsupported(elementId, $"sunburst node {node.Name} is too narrow after applying the configured segment gap");
+        var visibleStart = startAngle + sign * segmentGapRadians / 2;
+        var visibleEnd = endAngle - sign * segmentGapRadians / 2;
+        var innerRadius = baseInnerRadius + node.Depth * ringWidth + ringGap / 2;
+        var outerRadius = baseInnerRadius + (node.Depth + 1) * ringWidth - ringGap / 2;
+        if (outerRadius <= innerRadius)
+            throw Unsupported(elementId, $"sunburst node {node.Name} has no visible ring thickness");
+
+        var color = LightenTreemapColor(rootColor, Math.Min(0.72, node.Depth * depthLighten));
+        var shape = ShapeFrame(new PpjFrameModel(plotX, plotY, diameter, diameter, 0, false, false), "custom");
+        shape.FillRgb = color.Rgb;
+        if (color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(color.Alpha);
+        if (border is { } stroke) ApplyLine(shape, stroke, catalog);
+        else shape.LineStyle = "none";
+        shape.CustomPaths.Add(BuildSunburstSectorPath(
+            diameter,
+            innerRadius,
+            outerRadius,
+            visibleStart,
+            visibleEnd,
+            border is not null));
+        group.Children.Add(new PresentationElement
+        {
+            Id = SunburstNativeId(elementId, $"sector/{node.Index}"),
+            Name = $"sunburst sector {node.Name}",
+            Shape = shape,
+        });
+
+        var midRadius = (innerRadius + outerRadius) / 2;
+        var midAngle = (visibleStart + visibleEnd) / 2;
+        var arcLength = midRadius * effectiveSpan;
+        var thickness = outerRadius - innerRadius;
+        var estimatedLabelWidth = Math.Max(28, node.Name.Length * 5.5);
+        if (thickness >= (showValues ? 25 : 16) && arcLength >= estimatedLabelWidth * 1.35 && effectiveSpan >= Math.PI / 12)
+        {
+            var centerX = plotX + diameter / 2 + Math.Cos(midAngle) * midRadius;
+            var centerY = plotY + diameter / 2 + Math.Sin(midAngle) * midRadius;
+            var textWidth = Math.Min(Math.Max(estimatedLabelWidth, 36), Math.Min(110, arcLength * 0.72));
+            var labelHeight = showValues ? Math.Min(14, thickness * 0.42) : Math.Min(16, thickness * 0.64);
+            var contrast = TreemapLuminance(color.Rgb) > 0.5 ? "111827" : "FFFFFF";
+            group.Children.Add(VectorChartTextElement(
+                SunburstNativeId(elementId, $"label/{node.Index}"),
+                $"sunburst label {node.Name}",
+                centerX - textWidth / 2,
+                centerY - (showValues ? labelHeight : labelHeight / 2),
+                textWidth,
+                labelHeight,
+                node.Name,
+                labelStyle,
+                catalog,
+                Math.Clamp(Math.Min(labelHeight * 0.62, textWidth / Math.Max(4, node.Name.Length) * 1.5), 6, 11),
+                "center",
+                contrast));
+            if (showValues)
+                group.Children.Add(VectorChartTextElement(
+                    SunburstNativeId(elementId, $"value/{node.Index}"),
+                    $"sunburst value {node.Name}",
+                    centerX - textWidth / 2,
+                    centerY,
+                    textWidth,
+                    Math.Min(12, thickness * 0.34),
+                    node.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                    valueStyle,
+                    catalog,
+                    Math.Clamp(thickness * 0.18, 6, 9),
+                    "center",
+                    contrast));
+        }
+
+        if (node.Children.Count == 0) return;
+        var cursor = startAngle;
+        var parentSpan = endAngle - startAngle;
+        foreach (var childIndex in node.Children)
+        {
+            var childSpan = parentSpan * nodes[childIndex].Value / node.Value;
+            RenderSunburstNode(
+                group,
+                elementId,
+                nodes,
+                childIndex,
+                cursor,
+                cursor + childSpan,
+                rootColor,
+                plotX,
+                plotY,
+                diameter,
+                baseInnerRadius,
+                ringWidth,
+                ringGap,
+                segmentGapRadians,
+                depthLighten,
+                showValues,
+                border,
+                labelStyle,
+                valueStyle,
+                catalog);
+            cursor += childSpan;
+        }
+    }
+
+    private static PresentationCustomGeometryPath BuildSunburstSectorPath(
+        double diameter,
+        double innerRadius,
+        double outerRadius,
+        double startAngle,
+        double endAngle,
+        bool stroke)
+    {
+        const long viewport = 100_000;
+        const double center = viewport / 2d;
+        var scale = viewport / diameter;
+        var inner = innerRadius * scale;
+        var outer = outerRadius * scale;
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = viewport,
+            Height = viewport,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = stroke,
+        };
+        path.Commands.Add(MoveTo(SunburstPoint(center, outer, startAngle)));
+        AddSunburstArc(path, center, outer, startAngle, endAngle);
+        if (inner <= 0.5)
+        {
+            path.Commands.Add(LineTo(new PresentationCustomGeometryPoint { X = viewport / 2, Y = viewport / 2 }));
+        }
+        else
+        {
+            path.Commands.Add(LineTo(SunburstPoint(center, inner, endAngle)));
+            AddSunburstArc(path, center, inner, endAngle, startAngle);
+        }
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        return path;
+    }
+
+    private static void AddSunburstArc(
+        PresentationCustomGeometryPath path,
+        double center,
+        double radius,
+        double startAngle,
+        double endAngle)
+    {
+        var span = endAngle - startAngle;
+        var segments = Math.Max(1, (int)Math.Ceiling(Math.Abs(span) / (Math.PI / 2)));
+        var step = span / segments;
+        for (var segment = 0; segment < segments; segment++)
+        {
+            var start = startAngle + step * segment;
+            var end = start + step;
+            var kappa = 4d / 3d * Math.Tan(step / 4d);
+            var startPoint = SunburstPoint(center, radius, start);
+            var endPoint = SunburstPoint(center, radius, end);
+            var control1 = new PresentationCustomGeometryPoint
+            {
+                X = checked((long)Math.Round(startPoint.X - kappa * radius * Math.Sin(start), MidpointRounding.AwayFromZero)),
+                Y = checked((long)Math.Round(startPoint.Y + kappa * radius * Math.Cos(start), MidpointRounding.AwayFromZero)),
+            };
+            var control2 = new PresentationCustomGeometryPoint
+            {
+                X = checked((long)Math.Round(endPoint.X + kappa * radius * Math.Sin(end), MidpointRounding.AwayFromZero)),
+                Y = checked((long)Math.Round(endPoint.Y - kappa * radius * Math.Cos(end), MidpointRounding.AwayFromZero)),
+            };
+            path.Commands.Add(new PresentationCustomGeometryCommand
+            {
+                CubicBezierTo = new PresentationCustomGeometryCubicBezier
+                {
+                    Control1 = control1,
+                    Control2 = control2,
+                    End = endPoint,
+                },
+            });
+        }
+    }
+
+    private static PresentationCustomGeometryPoint SunburstPoint(double center, double radius, double angle) => new()
+    {
+        X = checked((long)Math.Round(center + radius * Math.Cos(angle), MidpointRounding.AwayFromZero)),
+        Y = checked((long)Math.Round(center + radius * Math.Sin(angle), MidpointRounding.AwayFromZero)),
+    };
+
+    private static PresentationCustomGeometryCommand MoveTo(PresentationCustomGeometryPoint point) => new() { MoveTo = point };
+    private static PresentationCustomGeometryCommand LineTo(PresentationCustomGeometryPoint point) => new() { LineTo = point };
+
+    private static string SunburstNativeId(string elementId, string suffix) =>
+        $"{elementId}/sunburst/{suffix}";
+
+    private sealed class SunburstNode(int index, string name, double value, int? parentIndex)
+    {
+        internal int Index { get; } = index;
+        internal string Name { get; } = name;
+        internal double Value { get; } = value;
+        internal int? ParentIndex { get; } = parentIndex;
+        internal int Depth { get; set; }
+        internal List<int> Children { get; } = [];
+    }
 
     private static void ValidateWaterfallCompileProfile(
         PpjChartElementModel element,

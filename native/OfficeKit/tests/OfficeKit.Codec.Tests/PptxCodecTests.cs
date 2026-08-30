@@ -856,6 +856,70 @@ public sealed class PptxCodecTests
         var invalidTreemap = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidTreemapProgram.ToJsonString()));
         Assert.False(invalidTreemap.IsValid);
         Assert.Contains(invalidTreemap.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.treemapCycle");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-sunburst-main",
+            ["type"] = "chart",
+            ["role"] = "portfolio contribution hierarchy",
+            ["frame"] = new JsonObject { ["x"] = 520, ["y"] = 240, ["width"] = 390, ["height"] = 270 },
+            ["chartType"] = "sunburst",
+            ["title"] = "Contribution by portfolio",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["sunburst"] = new JsonObject
+                {
+                    ["rootColors"] = new JsonArray("#0B8F8F", "#C8644A"),
+                    ["border"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.6, ["opacity"] = 0.9 },
+                    ["innerRadiusRatio"] = 0.18,
+                    ["ringGap"] = 1.5,
+                    ["segmentGapDegrees"] = 1,
+                    ["startAngle"] = -90,
+                    ["clockwise"] = true,
+                    ["depthLighten"] = 0.1,
+                    ["showValues"] = true,
+                    ["labelTextStyle"] = new JsonObject { ["fontSize"] = 8, ["bold"] = true },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 7 },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray(
+                    "Company", "Product", "Operations",
+                    "Platform", "Applications", "Delivery", "Support"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "portfolio-hierarchy",
+                        ["name"] = "Contribution",
+                        ["values"] = new JsonArray(100, 55, 45, 30, 25, 20, 25),
+                        ["parents"] = new JsonArray(
+                            null, "Company", "Company",
+                            "Product", "Product", "Operations", "Operations"),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Company contribution partitioned into product and operations, each with two child portfolios.",
+            },
+        });
+        var invalidSunburstProgram = authoredProgram.DeepClone().AsObject();
+        invalidSunburstProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-sunburst-main")
+            ["data"]!["series"]![0]!["values"]![0] = 99;
+        var invalidSunburst = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSunburstProgram.ToJsonString()));
+        Assert.False(invalidSunburst.IsValid);
+        Assert.Contains(invalidSunburst.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sunburstTotal");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -932,7 +996,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(26U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(27U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -1049,6 +1113,17 @@ public sealed class PptxCodecTests
             Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Engineering");
             Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Frontend");
             Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "400");
+            var nativeSunburst = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "portfolio contribution hierarchy");
+            Assert.Equal(7, nativeSunburst.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sunburst sector ", StringComparison.Ordinal) == true));
+            Assert.All(nativeSunburst.Elements<P.Shape>().Where(shape =>
+                    shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sunburst sector ", StringComparison.Ordinal) == true),
+                shape => Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()));
+            Assert.NotEmpty(nativeSunburst.Descendants<A.CubicBezierCurveTo>());
+            Assert.Contains(nativeSunburst.Descendants<A.Text>(), text => text.Text == "Product");
+            Assert.Contains(nativeSunburst.Descendants<A.Text>(), text => text.Text == "25");
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -1432,6 +1507,15 @@ public sealed class PptxCodecTests
                 item.GetProperty("name").GetString() == "treemap node Frontend");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "hierarchical budget allocation" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedSunburst = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "portfolio contribution hierarchy");
+            Assert.Contains(projectedSunburst.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "sunburst sector Platform" &&
+                    item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "portfolio contribution hierarchy" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&

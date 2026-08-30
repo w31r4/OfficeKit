@@ -10,6 +10,7 @@ Choose the visual from the relationship the audience must understand.
 | intensity across two categorical dimensions | heatmap |
 | open/high/low/close movement over ordered periods | candlestick |
 | hierarchical part-to-whole allocation | treemap |
+| hierarchical part-to-whole path across concentric levels | sunburst |
 | multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
@@ -63,7 +64,8 @@ The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
-  candlestick, bounded vector treemap, and bounded bar-line combo plots;
+  candlestick, bounded vector treemap, bounded vector sunburst, and bounded
+  bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -461,6 +463,61 @@ evidence. Embedded PPJ restores the exact forest; without it, import truthfully
 returns the ordinary group. Whole-object animation is supported, but
 `chartBuild`, axes, legends, trendlines, error bars, and arbitrary per-node
 expression-driven paint are not.
+
+Use `sunburst` when the audience must follow a hierarchy from a root through
+concentric levels while retaining part-to-whole area. Prefer `treemap` for
+denser label comparison and bars for precise rank. Sunburst uses the same
+aligned `categories`, positive `values`, and nullable `parents` channel as
+treemap:
+
+```json
+{
+  "type": "chart",
+  "id": "portfolio-contribution",
+  "chartType": "sunburst",
+  "frame": { "x": 72, "y": 96, "width": 640, "height": 340 },
+  "title": "Contribution by portfolio",
+  "style": {
+    "sunburst": {
+      "rootColors": ["#0B8F8F", "#C8644A"],
+      "border": { "color": "#FFFFFF", "width": 0.6 },
+      "innerRadiusRatio": 0.18,
+      "ringGap": 1.5,
+      "segmentGapDegrees": 1,
+      "startAngle": -90,
+      "clockwise": true,
+      "depthLighten": 0.1,
+      "showValues": true,
+      "labelTextStyle": { "fontSize": 8, "bold": true },
+      "valueTextStyle": { "fontSize": 7 }
+    }
+  },
+  "data": {
+    "categories": ["Company", "Product", "Operations", "Platform", "Apps", "Delivery", "Support"],
+    "series": [{
+      "id": "portfolio",
+      "name": "Contribution",
+      "values": [100, 55, 45, 30, 25, 20, 25],
+      "parents": [null, "Company", "Company", "Product", "Product", "Operations", "Operations"]
+    }]
+  }
+}
+```
+
+The bounded profile accepts one series, 1–96 nodes, 1–16 roots, and at most six
+levels. Every parent must exist, the forest must be acyclic, and each non-leaf
+value must equal its direct-child sum. Root values allocate root angles in
+declared order; children partition their parent angle, and depth selects the
+ring. Segment and ring gaps are visual state, never hidden data changes.
+
+NativeAOT emits one editable DrawingML group. Every annular sector is a named
+custom-geometry shape whose circular edges use bounded cubic paths; labels are
+ordinary text boxes and are omitted when the measured sector cannot hold them.
+No PNG or ChartPart is introduced. Embedded PPJ restores the exact hierarchy;
+without it, import exposes the ordinary custom-shape group and does not infer
+sunburst semantics from arbitrary arcs. Whole-object animation is supported;
+`chartBuild`, axes, legends, trendlines, error bars, and expression-driven
+per-node paint fail closed.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
