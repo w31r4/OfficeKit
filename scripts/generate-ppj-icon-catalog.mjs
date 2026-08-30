@@ -26,7 +26,16 @@ async function packageMetadata(packageName) {
 
 function normalizePath(pathData, iconName) {
   const source = Array.isArray(pathData) ? pathData.join(" ") : pathData;
-  const normalized = svgpath(source).abs().unshort().unarc().round(4).toString();
+  const segments = [];
+  svgpath(source)
+    .abs()
+    .unshort()
+    .unarc()
+    .round(4)
+    .iterate((segment) => segments.push([...segment]));
+  const normalized = segments
+    .map((segment) => `${segment[0]}${segment.slice(1).join(" ")}`)
+    .join("");
   const commands = new Set([...normalized.matchAll(/[A-Za-z]/g)].map((match) => match[0]));
   const unsupported = [...commands].filter((command) => !["M", "L", "C", "Z"].includes(command));
   if (unsupported.length > 0) {
