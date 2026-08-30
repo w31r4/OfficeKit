@@ -4427,6 +4427,14 @@ internal static class PpjAuthoredPresentationCompiler
                 axis.AxisLine = BuildChartLine(axisLine, catalog);
             }
         }
+        if (source.TryGetProperty("axisLineArrow", out var axisLineArrow))
+        {
+            if (source.TryGetProperty("axisLine", out axisLine) && axisLine.ValueKind == JsonValueKind.False)
+                throw Unsupported("chart axis", "axisLineArrow requires a visible axis line");
+            axis.AxisLineVisible = true;
+            axis.AxisLine ??= new SpreadsheetChartLineStyleArtifact();
+            ApplyChartAxisArrows(axis.AxisLine, axisLineArrow);
+        }
         if (source.TryGetProperty("gridLine", out var gridLine))
         {
             if (gridLine.ValueKind is JsonValueKind.True or JsonValueKind.False)
@@ -4449,6 +4457,12 @@ internal static class PpjAuthoredPresentationCompiler
             axis.TitleTextStyle = BuildChartTextStyle(titleTextStyle, catalog);
         }
         return axis;
+    }
+
+    private static void ApplyChartAxisArrows(SpreadsheetChartLineStyleArtifact line, JsonElement source)
+    {
+        line.StartArrow = OptionalString(source, "start") ?? string.Empty;
+        line.EndArrow = OptionalString(source, "end") ?? string.Empty;
     }
 
     private static (SpreadsheetChartAxisArtifact XAxis, SpreadsheetChartAxisArtifact YAxis) BuildRadarSpokeAxes(

@@ -4033,6 +4033,10 @@ message SpreadsheetChartLineStyleArtifact {
   optional uint32 opacity_thousandth_percent = 4;
   string cap = 5;
   string join = 6;
+  // Canonical chart-axis endpoints only. Series, marker, trend, error-bar and
+  // grid lines reject these values during validation.
+  string start_arrow = 7;
+  string end_arrow = 8;
 }
 
 enum SpreadsheetChartMarkerSymbol {

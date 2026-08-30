@@ -1335,7 +1335,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
         RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName,
             "textStyle", "titleTextStyle", "visible", "numberFormat", "tickLabelInterval",
-            "min", "max", "majorUnit", "tickLabelsVisible", "reverse", "axisLine", "gridLine");
+            "min", "max", "majorUnit", "tickLabelsVisible", "reverse", "axisLine", "axisLineArrow", "gridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "textStyle"))
         {
@@ -1427,6 +1427,16 @@ internal static class PpjSourceBoundPresentationCompiler
                 target.AxisLineVisible = true;
                 target.AxisLine = SourceBoundChartLine(axisLine, path + "." + axisName + ".axisLine");
             }
+            if (newAxis.Value.TryGetProperty("axisLineArrow", out _))
+                ApplySourceBoundChartAxisArrows(target, newAxis.Value);
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "axisLineArrow"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".axisLineArrow");
+            if (newAxis.Value.TryGetProperty("axisLine", out var axisLine) && axisLine.ValueKind == JsonValueKind.False)
+                throw Unsupported(path + "." + axisName + ".axisLineArrow", "arrowheads on a hidden axis line");
+            ApplySourceBoundChartAxisArrows(target, newAxis.Value);
             changed = true;
         }
         if (PropertyChanged(oldAxis, newAxis, "gridLine"))
@@ -1453,6 +1463,29 @@ internal static class PpjSourceBoundPresentationCompiler
         }
         return changed;
     }
+
+    private static void ApplySourceBoundChartAxisArrows(
+        SpreadsheetChartAxisArtifact target,
+        JsonElement source)
+    {
+        if (!source.TryGetProperty("axisLineArrow", out var arrows))
+        {
+            if (target.AxisLine is null) return;
+            target.AxisLine.StartArrow = string.Empty;
+            target.AxisLine.EndArrow = string.Empty;
+            if (!HasDirectChartLineStyle(target.AxisLine)) target.AxisLine = null;
+            return;
+        }
+
+        target.AxisLineVisible = true;
+        target.AxisLine ??= new SpreadsheetChartLineStyleArtifact();
+        target.AxisLine.StartArrow = arrows.TryGetProperty("start", out var start) ? start.GetString()! : string.Empty;
+        target.AxisLine.EndArrow = arrows.TryGetProperty("end", out var end) ? end.GetString()! : string.Empty;
+    }
+
+    private static bool HasDirectChartLineStyle(SpreadsheetChartLineStyleArtifact line) =>
+        line.Color is not null || line.DashStyle != SpreadsheetChartLineDashStyle.Unspecified ||
+        line.HasWidthPoints || line.HasOpacityThousandthPercent || line.Cap.Length > 0 || line.Join.Length > 0;
 
     private static bool ApplyRadarSpokeAxis(
         PpjChartElementModel before,

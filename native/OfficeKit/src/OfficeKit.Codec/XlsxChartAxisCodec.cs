@@ -110,7 +110,7 @@ internal static class XlsxChartAxisCodec
             throw Invalid(worksheetId, chartId, $"{axisName}-axis grid-line style requires visible major gridlines.");
         if (axis.MajorGridlineStyle is not null && axis.HasMajorGridlineVisible && !axis.MajorGridlineVisible)
             throw Invalid(worksheetId, chartId, $"{axisName}-axis cannot combine a hidden major gridline with a line style.");
-        XlsxChartSeriesLineStyleCodec.ValidateLine(axis.AxisLine, worksheetId, chartId, axisName, "axis line");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(axis.AxisLine, worksheetId, chartId, axisName, "axis line", allowArrowheads: true);
         XlsxChartSeriesLineStyleCodec.ValidateLine(axis.MajorGridlineStyle, worksheetId, chartId, axisName, "major gridline");
         if (category)
         {
@@ -187,7 +187,7 @@ internal static class XlsxChartAxisCodec
         if (!TryReadTickLabelVisibility(source, out var tickLabelsVisible, out var tickLabelsEditable)) return false;
         if (tickLabelsVisible is { } labelsVisible) axis.TickLabelsVisible = labelsVisible;
         editable &= tickLabelsEditable;
-        if (!TryReadLineContainer(source.Element(ChartNs + "spPr"), out var axisLineVisible, out var axisLine, out var axisLineEditable)) return false;
+        if (!TryReadLineContainer(source.Element(ChartNs + "spPr"), out var axisLineVisible, out var axisLine, out var axisLineEditable, allowArrowheads: true)) return false;
         if (axisLineVisible is { } visible) axis.AxisLineVisible = visible;
         if (axisLine is not null) axis.AxisLine = axisLine;
         editable &= axisLineEditable;
@@ -196,7 +196,7 @@ internal static class XlsxChartAxisCodec
         {
             axis.ShowMajorGridlines = true;
             if (majorGridlines.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration)) editable = false;
-            if (!TryReadLineContainer(majorGridlines.Element(ChartNs + "spPr"), out var gridVisible, out var gridLine, out var gridEditable)) return false;
+            if (!TryReadLineContainer(majorGridlines.Element(ChartNs + "spPr"), out var gridVisible, out var gridLine, out var gridEditable, allowArrowheads: false)) return false;
             if (majorGridlines.Elements().Any(element => element.Name != ChartNs + "spPr")) editable = false;
             if (gridVisible is { } gridLineVisible) axis.MajorGridlineVisible = gridLineVisible;
             if (gridLine is not null) axis.MajorGridlineStyle = gridLine;
@@ -330,7 +330,8 @@ internal static class XlsxChartAxisCodec
                 existing.Elements().Any(element => element.Name != ChartNs + "spPr"))
                 throw new CodecException("unsupported_spreadsheet_chart_edit", "Chart major gridlines use an unmodeled style graph.");
             PatchLineContainer(existing, target.MajorGridlineStyle,
-                !target.HasMajorGridlineVisible || target.MajorGridlineVisible);
+                !target.HasMajorGridlineVisible || target.MajorGridlineVisible,
+                allowArrowheads: false);
             return;
         }
         InsertBefore(axis, new XElement(ChartNs + "majorGridlines",
@@ -380,7 +381,8 @@ internal static class XlsxChartAxisCodec
         XElement? shapeProperties,
         out bool? visible,
         out SpreadsheetChartLineStyleArtifact? line,
-        out bool editable)
+        out bool editable,
+        bool allowArrowheads)
     {
         visible = null;
         line = null;
@@ -406,8 +408,9 @@ internal static class XlsxChartAxisCodec
             visible = false;
             return true;
         }
-        if (!XlsxChartSeriesLineStyleCodec.TryReadLine(shapeProperties, out var parsed) ||
-            parsed?.Color is null || !parsed.HasWidthPoints)
+        if (!XlsxChartSeriesLineStyleCodec.TryReadLine(shapeProperties, out var parsed, allowArrowheads) || parsed is null ||
+            (parsed.Color is null) != !parsed.HasWidthPoints ||
+            parsed.Color is null && parsed.StartArrow.Length == 0 && parsed.EndArrow.Length == 0)
         {
             editable = false;
             return true;
@@ -440,22 +443,30 @@ internal static class XlsxChartAxisCodec
     private static void PatchAxisLine(XElement axis, SpreadsheetChartAxisArtifact target)
     {
         var visible = target.AxisLine is not null || !target.HasAxisLineVisible || target.AxisLineVisible;
-        PatchLineContainer(axis, target.AxisLine, visible);
+        PatchLineContainer(axis, target.AxisLine, visible, allowArrowheads: true);
     }
 
-    private static void PatchLineContainer(XElement owner, SpreadsheetChartLineStyleArtifact? line, bool visible)
+    private static void PatchLineContainer(
+        XElement owner,
+        SpreadsheetChartLineStyleArtifact? line,
+        bool visible,
+        bool allowArrowheads)
     {
         var existing = owner.Element(ChartNs + "spPr");
-        if (LineContainerMatches(existing, line, visible)) return;
+        if (LineContainerMatches(existing, line, visible, allowArrowheads)) return;
         XElement? replacement = line is not null ? LineProperties(line) : visible ? null : HiddenLineProperties();
         if (replacement is null) { existing?.Remove(); return; }
         if (existing is not null) { existing.ReplaceWith(replacement); return; }
         InsertBefore(owner, replacement, ["txPr", "crossAx", "crosses", "crossesAt", "extLst"]);
     }
 
-    private static bool LineContainerMatches(XElement? existing, SpreadsheetChartLineStyleArtifact? line, bool visible)
+    private static bool LineContainerMatches(
+        XElement? existing,
+        SpreadsheetChartLineStyleArtifact? line,
+        bool visible,
+        bool allowArrowheads)
     {
-        if (!TryReadLineContainer(existing, out var existingVisible, out var existingLine, out var editable) || !editable)
+        if (!TryReadLineContainer(existing, out var existingVisible, out var existingLine, out var editable, allowArrowheads) || !editable)
             return false;
         if (line is not null)
             return existingVisible == true &&

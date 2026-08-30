@@ -796,6 +796,14 @@ internal static partial class PpjPresentationProjector
             output["axisLine"] = ProjectChartLine(axis.AxisLine);
         else if (axis.HasAxisLineVisible)
             output["axisLine"] = axis.AxisLineVisible;
+        if (axis.AxisLine is { } axisLine &&
+            (axisLine.StartArrow.Length > 0 || axisLine.EndArrow.Length > 0))
+        {
+            var arrows = new JsonObject();
+            if (axisLine.StartArrow.Length > 0) arrows["start"] = axisLine.StartArrow;
+            if (axisLine.EndArrow.Length > 0) arrows["end"] = axisLine.EndArrow;
+            output["axisLineArrow"] = arrows;
+        }
         if (axis.MajorGridlineStyle is not null && !string.IsNullOrEmpty(axis.MajorGridlineStyle.Color?.Rgb))
             output["gridLine"] = ProjectChartLine(axis.MajorGridlineStyle);
         else if (axis.HasMajorGridlineVisible)

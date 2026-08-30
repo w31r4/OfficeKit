@@ -15,13 +15,23 @@ internal static class XlsxChartSeriesLineStyleCodec
     private const long MaxWidthEmu = 20_116_800;
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
+    private static readonly IReadOnlySet<string> ArrowTypes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "", "none", "triangle", "stealth", "diamond", "oval", "open",
+    };
 
     internal static void Validate(SpreadsheetChartSeriesArtifact series, string worksheetId, string chartId)
     {
         ValidateLine(series.Line, worksheetId, chartId, series.Name, "line");
     }
 
-    internal static void ValidateLine(SpreadsheetChartLineStyleArtifact? line, string worksheetId, string chartId, string seriesName, string subject)
+    internal static void ValidateLine(
+        SpreadsheetChartLineStyleArtifact? line,
+        string worksheetId,
+        string chartId,
+        string seriesName,
+        string subject,
+        bool allowArrowheads = false)
     {
         if (line is null) return;
         if (line.Color is not null &&
@@ -42,6 +52,10 @@ internal static class XlsxChartSeriesLineStyleCodec
             throw Invalid(worksheetId, chartId, seriesName, subject, "cap must be flat, round, or square");
         if (line.Join is not ("" or "miter" or "round" or "bevel"))
             throw Invalid(worksheetId, chartId, seriesName, subject, "join must be miter, round, or bevel");
+        if (!ArrowTypes.Contains(line.StartArrow) || !ArrowTypes.Contains(line.EndArrow))
+            throw Invalid(worksheetId, chartId, seriesName, subject, "arrowhead is outside the bounded catalog");
+        if (!allowArrowheads && (line.StartArrow.Length > 0 || line.EndArrow.Length > 0))
+            throw Invalid(worksheetId, chartId, seriesName, subject, "arrowheads are valid only on chart axis lines");
     }
 
     internal static bool TryRead(XElement nativeSeries, SpreadsheetChartSeriesArtifact series, SpreadsheetChartType chartType = SpreadsheetChartType.Unspecified)
@@ -53,7 +67,10 @@ internal static class XlsxChartSeriesLineStyleCodec
         return true;
     }
 
-    internal static bool TryReadLine(XElement? shapeProperties, out SpreadsheetChartLineStyleArtifact? line)
+    internal static bool TryReadLine(
+        XElement? shapeProperties,
+        out SpreadsheetChartLineStyleArtifact? line,
+        bool allowArrowheads = false)
     {
         line = null;
         if (shapeProperties is null) return true;
@@ -64,10 +81,14 @@ internal static class XlsxChartSeriesLineStyleCodec
         if (native.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "w" && attribute.Name != "cap")) return false;
         var children = native.Elements().ToArray();
         if (children.Any(child => child.Name != DrawingNs + "solidFill" && child.Name != DrawingNs + "prstDash" &&
-                                  child.Name != DrawingNs + "round" && child.Name != DrawingNs + "bevel" && child.Name != DrawingNs + "miter") ||
+                                  child.Name != DrawingNs + "round" && child.Name != DrawingNs + "bevel" && child.Name != DrawingNs + "miter" &&
+                                  (!allowArrowheads || child.Name != DrawingNs + "headEnd") &&
+                                  (!allowArrowheads || child.Name != DrawingNs + "tailEnd")) ||
             children.Count(child => child.Name == DrawingNs + "solidFill") > 1 ||
             children.Count(child => child.Name == DrawingNs + "prstDash") > 1 ||
-            children.Count(child => child.Name is var name && (name == DrawingNs + "round" || name == DrawingNs + "bevel" || name == DrawingNs + "miter")) > 1) return false;
+            children.Count(child => child.Name is var name && (name == DrawingNs + "round" || name == DrawingNs + "bevel" || name == DrawingNs + "miter")) > 1 ||
+            children.Count(child => child.Name == DrawingNs + "headEnd") > 1 ||
+            children.Count(child => child.Name == DrawingNs + "tailEnd") > 1) return false;
 
         var output = new SpreadsheetChartLineStyleArtifact();
         var width = (string?)native.Attribute("w");
@@ -119,6 +140,11 @@ internal static class XlsxChartSeriesLineStyleCodec
             if (join.HasAttributes || join.HasElements) return false;
             output.Join = join.Name.LocalName;
         }
+        if (!TryReadArrow(children.SingleOrDefault(child => child.Name == DrawingNs + "headEnd"), out var startArrow) ||
+            !TryReadArrow(children.SingleOrDefault(child => child.Name == DrawingNs + "tailEnd"), out var endArrow))
+            return false;
+        output.StartArrow = startArrow;
+        output.EndArrow = endArrow;
         line = output;
         return true;
     }
@@ -142,6 +168,8 @@ internal static class XlsxChartSeriesLineStyleCodec
         }
         if (line.DashStyle != SpreadsheetChartLineDashStyle.Unspecified) output.Add(new XElement(DrawingNs + "prstDash", new XAttribute("val", DashValue(line.DashStyle))));
         if (line.Join.Length > 0) output.Add(new XElement(DrawingNs + line.Join));
+        if (line.StartArrow.Length > 0) output.Add(Arrow("headEnd", line.StartArrow));
+        if (line.EndArrow.Length > 0) output.Add(Arrow("tailEnd", line.EndArrow));
         return output;
     }
 
@@ -191,8 +219,30 @@ internal static class XlsxChartSeriesLineStyleCodec
     {
         if (line is null) return "no-line";
         var color = line.Color is null ? "no-color" : string.Join(':', line.Color.SourceCase, line.Color.Rgb.ToUpperInvariant(), line.Color.HasTint ? line.Color.Tint.ToString("R", CultureInfo.InvariantCulture) : "no-tint");
-        return string.Join(':', "line", color, (int)line.DashStyle, line.HasWidthPoints ? line.WidthPoints.ToString("R", CultureInfo.InvariantCulture) : "no-width", line.HasOpacityThousandthPercent ? line.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "opaque", line.Cap, line.Join);
+        return string.Join(':', "line", color, (int)line.DashStyle, line.HasWidthPoints ? line.WidthPoints.ToString("R", CultureInfo.InvariantCulture) : "no-width", line.HasOpacityThousandthPercent ? line.OpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "opaque", line.Cap, line.Join, line.StartArrow, line.EndArrow);
     }
+
+    private static bool TryReadArrow(XElement? source, out string arrow)
+    {
+        arrow = string.Empty;
+        if (source is null) return true;
+        if (source.HasElements || source.Attributes().Any(attribute =>
+                !attribute.IsNamespaceDeclaration && attribute.Name != "type")) return false;
+        arrow = (string?)source.Attribute("type") switch
+        {
+            "none" => "none",
+            "triangle" => "triangle",
+            "stealth" => "stealth",
+            "diamond" => "diamond",
+            "oval" => "oval",
+            "arrow" => "open",
+            _ => string.Empty,
+        };
+        return arrow.Length > 0;
+    }
+
+    private static XElement Arrow(string endpoint, string arrow) =>
+        new(DrawingNs + endpoint, new XAttribute("type", arrow == "open" ? "arrow" : arrow));
 
     private static long WidthEmu(double points) => checked((long)Math.Round(points * EmuPerPoint, MidpointRounding.AwayFromZero));
 
