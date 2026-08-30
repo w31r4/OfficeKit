@@ -4253,6 +4253,14 @@ public sealed class PptxCodecTests
                 .OfType<XElement>()
                 .First(properties => properties.Element(drawing + "solidFill")?.Element(drawing + "srgbClr") is not null &&
                     properties.Element(drawing + "effectLst") is null);
+            shadowShapeProperties.Elements(drawing + "ln").Remove();
+            shadowShapeProperties.Add(new XElement(drawing + "ln",
+                new XAttribute("w", "9525"),
+                new XAttribute("cap", "flat"),
+                new XElement(drawing + "solidFill",
+                    new XElement(drawing + "srgbClr", new XAttribute("val", "202020"))),
+                new XElement(drawing + "prstDash", new XAttribute("val", "solid")),
+                new XElement(drawing + "round")));
             shadowShapeProperties.Add(new XElement(drawing + "effectLst",
                 new XElement(drawing + "outerShdw",
                     new XAttribute("blurRad", "142875"),
@@ -4298,6 +4306,9 @@ public sealed class PptxCodecTests
         var shadowAlignmentLeaf = ShadowLeaf("shadowAlignment");
         var shadowColorLeaf = ShadowLeaf("shadowColorScheme");
         var shadowOpacityLeaf = ShadowLeaf("shadowOpacityThousandthPercent");
+        var lineStyleLeaf = ShadowLeaf("lineStyle");
+        var lineCapLeaf = ShadowLeaf("lineCap");
+        var lineJoinLeaf = ShadowLeaf("lineJoin");
         var highlightOwner = nativeLeafProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
@@ -4330,6 +4341,9 @@ public sealed class PptxCodecTests
         const string replacementShadowAlignment = "tr";
         const string replacementShadowColor = "accent1";
         const long replacementShadowOpacity = 33_000;
+        const string replacementLineStyle = "dashed";
+        const string replacementLineCap = "square";
+        const string replacementLineJoin = "bevel";
         nativeLeaf["value"] = replacementFill;
         nativeWidthLeaf["value"] = replacementWidth;
         shadowBlurLeaf["value"] = replacementShadowBlur;
@@ -4338,6 +4352,9 @@ public sealed class PptxCodecTests
         shadowAlignmentLeaf["value"] = replacementShadowAlignment;
         shadowColorLeaf["value"] = replacementShadowColor;
         shadowOpacityLeaf["value"] = replacementShadowOpacity;
+        lineStyleLeaf["value"] = replacementLineStyle;
+        lineCapLeaf["value"] = replacementLineCap;
+        lineJoinLeaf["value"] = replacementLineJoin;
         highlightLeaf["value"] = replacementHighlight;
         languageLeaf["value"] = replacementLanguage;
         imageOpacityLeaf["value"] = replacementImageOpacity;
@@ -4393,6 +4410,12 @@ public sealed class PptxCodecTests
             leaf!["kind"]!.GetValue<string>() == "shadowColorScheme" && leaf["value"]!.GetValue<string>() == replacementShadowColor);
         Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
             leaf!["kind"]!.GetValue<string>() == "shadowOpacityThousandthPercent" && leaf["value"]!.GetValue<long>() == replacementShadowOpacity);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "lineStyle" && leaf["value"]!.GetValue<string>() == replacementLineStyle);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "lineCap" && leaf["value"]!.GetValue<string>() == replacementLineCap);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "lineJoin" && leaf["value"]!.GetValue<string>() == replacementLineJoin);
         var reprojectedHighlightOwner = nativeLeafReprojectedProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
