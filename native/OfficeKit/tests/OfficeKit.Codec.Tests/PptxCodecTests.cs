@@ -272,6 +272,77 @@ public sealed class PptxCodecTests
             Assert.True(projectedComponent.TryGetProperty("nativeRef", out _));
         }
 
+        var motionState = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var motionPage = motionState["pages"]![0]!.AsObject();
+        var motionCapability = motionPage["nativeRef"]!["capabilities"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(capability => capability["operation"]!.GetValue<string>() == "setAnimations");
+        Assert.Contains(motionCapability["fields"]!.AsArray(), field => field!.GetValue<string>() == "animations");
+        var motionTargetId = motionPage["elements"]![1]!["id"]!.GetValue<string>();
+        motionPage["animations"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "source-title-reveal",
+                ["target"] = motionTargetId,
+                ["phase"] = "entrance",
+                ["effect"] = "wipe",
+                ["direction"] = "up",
+                ["start"] = "afterPrevious",
+                ["durationMs"] = 650,
+                ["textBuild"] = "paragraph",
+            },
+        };
+        var motion = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(motionState.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(motion.Ok, Diagnostics(motion));
+        Assert.Contains("source-title-reveal", motion.PresentationProgram.ChangedNodeIds);
+        var changedMotionPart = Assert.Single(motion.PresentationProgram.ChangedParts);
+        using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var motionStream = new MemoryStream(motion.File.ToByteArray(), writable: false))
+        using (var motionPackage = PresentationDocument.Open(motionStream, false))
+        {
+            var sourceSlide = Assert.Single(OrderedSlides(sourcePackage));
+            var motionSlide = Assert.Single(OrderedSlides(motionPackage));
+            Assert.Equal(motionSlide.Uri.OriginalString.TrimStart('/'), changedMotionPart);
+            Assert.Null(sourceSlide.Slide!.Timing);
+            Assert.NotNull(motionSlide.Slide!.Timing);
+        }
+        var motionProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = motion.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/motion.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(motionProjection.Ok, Diagnostics(motionProjection));
+        using (var motionJson = JsonDocument.Parse(motionProjection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var projectedMotionPage = motionJson.RootElement.GetProperty("pages")[0];
+            var projectedAnimation = Assert.Single(projectedMotionPage.GetProperty("animations").EnumerateArray());
+            Assert.Equal(motionTargetId, projectedAnimation.GetProperty("target").GetString());
+            Assert.Equal("wipe", projectedAnimation.GetProperty("effect").GetString());
+            Assert.Equal("paragraph", projectedAnimation.GetProperty("textBuild").GetString());
+            Assert.Contains(projectedMotionPage.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setAnimations");
+        }
+
         var reopened = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
