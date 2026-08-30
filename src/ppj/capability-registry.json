@@ -41,11 +41,11 @@
   },
   "authoredCompilerBoundaries": [
     {
-      "feature": "gradient or no-fill chart series and image table-cell fills",
-      "ppjPath": "chart data.series[].fill or table rows[].cells[].fill",
+      "feature": "image-filled table cells",
+      "ppjPath": "table rows[].cells[].fill where type is image",
       "behavior": "fail-closed",
-      "sourceBound": "Existing chart paint graphs and unsupported table-cell image fills remain source-preserved.",
-      "reason": "Shape, slide-background, and table-cell gradients are compiler-owned. Chart-series paint currently owns direct opaque RGB only; chart and plot areas own none or solid RGB with opacity."
+      "sourceBound": "Existing unsupported table-cell image fills remain source-preserved.",
+      "reason": "Authored table cells own none, solid, and bounded direct-RGB gradients. Image-filled table cells remain native-owned. Authored chart areas, plot areas, and series separately own none, solid, and bounded direct-RGB gradients."
     },
     {
       "feature": "custom-path image masks",

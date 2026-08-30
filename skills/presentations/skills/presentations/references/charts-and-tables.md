@@ -56,9 +56,9 @@ The authored chart compiler owns these native visual controls:
   supports it;
 - bar direction, gap width, category/value-axis visibility, major gridlines,
   data-label visibility and bounded label position;
-- chart-area and plot-area none or solid fills, including opacity;
-- direct solid series color plus editable line width, dash, opacity, cap, join,
-  and bounded markers;
+- chart-area, plot-area, and series none, solid, or bounded direct-RGB gradient
+  fills, including solid and per-stop opacity;
+- editable series line width, dash, opacity, cap, join, and bounded markers;
 - category/value-axis titles, number formats, label interval, tick-label
   typeface, size, bold, italic and direct RGB/alpha, value bounds and major
   unit; bounded combo charts may declare the matching secondary pair;
@@ -159,6 +159,48 @@ Ordinary `setChartTitle` and `setChartData` do not authorize a style mutation.
 Theme transforms, shadows, effects and irregular rich-text topology remain
 source-owned and fail closed instead of being flattened.
 
+Chart paint uses the same typed fill union as shapes and table cells. This
+keeps a gradient semantic rather than rebuilding it from overlaid rectangles:
+
+```json
+{
+  "style": {
+    "chartAreaFill": { "type": "none" },
+    "plotAreaFill": {
+      "type": "gradient",
+      "kind": "radial",
+      "stops": [
+        { "offset": 0, "color": "#F8FAFC", "opacity": 0.96 },
+        { "offset": 1, "color": "#DCE7F2", "opacity": 0.72 }
+      ]
+    }
+  },
+  "data": {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [{
+      "id": "revenue",
+      "name": "Revenue",
+      "values": [18, 24, 31, 39],
+      "fill": {
+        "type": "gradient",
+        "kind": "linear",
+        "angle": 90,
+        "stops": [
+          { "offset": 0, "color": "#0EA5A8" },
+          { "offset": 1, "color": "#0B3A5B", "opacity": 0.82 }
+        ]
+      }
+    }]
+  }
+}
+```
+
+The bounded profile accepts two through sixteen ordered direct-RGB stops,
+linear angles, and centered radial gradients. Theme transforms, pattern/image
+paint, path variants, and irregular native gradient graphs remain
+source-preserved. An imported chart must issue `setChartFill`; neither
+`setChartData` nor `setChartTextStyle` authorizes paint changes.
+
 The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
 valid for older PPJ. Do not combine either legacy spelling with its structured
 form. On an imported source-bound chart, a `setChartData` capability owns only
@@ -190,10 +232,10 @@ are positive, and `categories` is empty. Do not encode numeric X values as
 strings merely to reuse a category chart. On imported charts, the current
 `setChartData` capability does not authorize changing X values or bubble sizes.
 
-Chart-series gradients, image paint, explicit no-fill series, missing-value
-caches, radar, and waterfall still fail closed. Existing unsupported native
-chart graphs remain source-preserved; they are not simplified during an
-unrelated imported edit.
+Chart image/pattern paint, theme-transformed gradients, missing-value caches,
+radar, and waterfall still fail closed. Existing unsupported native chart
+graphs remain source-preserved; they are not simplified during an unrelated
+imported edit.
 
 The authored table compiler owns a physical column/row grid, finite rectangular
 merges, one optional header row, row/column banding flags, bounded rich text,
