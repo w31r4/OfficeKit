@@ -109,6 +109,13 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "named icon catalog",
+      "ppjPath": "pages[].elements[] where type is icon",
+      "behavior": "partial",
+      "sourceBound": "An authored icon may be added as a topmost typed overlay on an eligible source-bound page. Ordinary third-party custom geometry projects truthfully as shape or opaque content and is never inferred back into an icon name.",
+      "reason": "PPJ resolves an exact bundled Font Awesome Free name to one finite editable DrawingML custom path. Unknown names, arbitrary SVG paths, external icon providers and semantic inference from native geometry fail closed."
+    },
+    {
       "feature": "independently rotated connector frames",
       "ppjPath": "connector.frame",
       "behavior": "fail-closed",

@@ -75,6 +75,44 @@ identical parameter order and defaults; see [Media and layers](media-and-layers.
 Connector presets are intentionally absent from shape geometry because PPJ has
 a typed connector element with endpoint semantics.
 
+## Named icons are native vectors
+
+Use `type: "icon"` for a small, familiar symbol whose meaning is clearer than
+a label or decorative shape. `iconName` selects one exact bundled Font Awesome
+Free 7.3.1 name using `fas:`, `far:`, or `fab:`. The compiler fits its original
+aspect ratio inside the declared frame and writes one editable DrawingML custom
+shape. It does not introduce an image asset, relationship, remote request, font
+dependency, or SVG runtime.
+
+```json
+{
+  "type": "icon",
+  "id": "insight-symbol",
+  "iconName": "fas:lightbulb",
+  "frame": { "x": 824, "y": 48, "width": 40, "height": 40 },
+  "style": {
+    "fill": { "type": "solid", "color": { "token": "signal" } }
+  },
+  "accessibility": {
+    "description": "A lightbulb marks the central experimental insight."
+  }
+}
+```
+
+Choose an icon only when its conventional meaning is unambiguous to the
+audience. Prefer text for uncommon concepts, data graphics for evidence, and
+an image for identity or atmosphere. Do not repeat icons as page filler or use
+them as bullet decoration. Brand icons identify their owner, product, or
+service only; they do not imply endorsement. Mark a purely redundant icon as
+decorative, otherwise provide a short accessible description.
+
+The catalog contains 2,163 pinned names. Search the bundled
+`src/ppj/font-awesome-free-icons.json` when the exact spelling is uncertain;
+`ppj check` rejects an unknown name rather than substituting another symbol.
+An ordinary imported custom shape remains a shape or opaque native object: the
+projector never guesses an `iconName` from geometry. Exact embedded PPJ recovery
+does retain the original semantic icon element.
+
 ## Lines are connectors
 
 Use `connector` as PPJ's ordinary line primitive. A connector may join two
