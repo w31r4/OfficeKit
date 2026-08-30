@@ -126,6 +126,13 @@
       "reason": "Source-free PPJ owns a bounded canonical audio/video profile with an explicit poster, trim, loop and mute. It does not claim arbitrary third-party triggers, bookmarks, media effects or timing topology."
     },
     {
+      "feature": "third-party partial element lock profiles",
+      "ppjPath": "pages[].elements[].locked",
+      "behavior": "partial",
+      "sourceBound": "A recognized unlocked baseline or complete OfficeKit lock profile issues setLocked. Partial flags, extension-bearing locks and unknown combinations remain source-owned. Element visibility is proven separately and may still issue setHidden.",
+      "reason": "One PPJ boolean cannot preserve the intent of every type-specific DrawingML lock combination without erasing native information."
+    },
+    {
       "feature": "source-free OLE",
       "ppjPath": "pages[].elements[] where type is ole",
       "behavior": "source-bound-only",

@@ -183,6 +183,8 @@ public sealed class PptxCodecTests
         var authoredTitle = authoredProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "claim-title");
+        authoredTitle["hidden"] = true;
+        authoredTitle["locked"] = true;
         var authoredImage = authoredProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "claim-mark");
@@ -1406,6 +1408,15 @@ public sealed class PptxCodecTests
             Assert.Contains("mute=\"1\"", mediaTiming, StringComparison.Ordinal);
             Assert.Contains("repeatCount=\"indefinite\"", mediaTiming, StringComparison.Ordinal);
             Assert.Contains("<p:animEffect", mediaTiming, StringComparison.Ordinal);
+            var nativeLockedClaim = mediaSlide.Slide.CommonSlideData.ShapeTree.Elements<P.Shape>()
+                .Single(shape => shape.Descendants<A.Text>().Any(text => text.Text == "Reduce incident hours "));
+            Assert.True(nativeLockedClaim.NonVisualShapeProperties!.NonVisualDrawingProperties!.Hidden!.Value);
+            var nativeClaimLocks = nativeLockedClaim.NonVisualShapeProperties.NonVisualShapeDrawingProperties!
+                .GetFirstChild<A.ShapeLocks>()!;
+            Assert.True(nativeClaimLocks.NoSelection!.Value);
+            Assert.True(nativeClaimLocks.NoMove!.Value);
+            Assert.True(nativeClaimLocks.NoResize!.Value);
+            Assert.True(nativeClaimLocks.NoTextEdit!.Value);
             var nativeImageBackground = package.PresentationPart!.SlideParts.ElementAt(1).Slide!
                 .CommonSlideData!.Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>();
             Assert.NotNull(nativeImageBackground);
@@ -1658,9 +1669,12 @@ public sealed class PptxCodecTests
         Assert.True(importedLine.LineOptions.VaryColors);
         Assert.Equal([92D, 0D, 121D], Assert.Single(importedLine.Series).Values);
         Assert.Equal([1U], importedLine.Series[0].MissingValueIndexes);
-        var importedClaim = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+        var importedClaimElement = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-            element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal)).Shape;
+            element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal));
+        Assert.True(importedClaimElement.HasHidden && importedClaimElement.Hidden);
+        Assert.True(importedClaimElement.HasLocked && importedClaimElement.Locked);
+        var importedClaim = importedClaimElement.Shape;
         Assert.Equal(2, Assert.Single(importedClaim.TextBody.Paragraphs).Runs.Count);
         Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
         Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
@@ -1917,6 +1931,12 @@ public sealed class PptxCodecTests
                 .Single(item => item.GetProperty("type").GetString() == "text" &&
                     item.GetProperty("text").GetProperty("paragraphs")[0].GetProperty("runs")[0]
                         .GetProperty("text").GetString() == "Reduce incident hours ");
+            Assert.True(projectedClaim.GetProperty("hidden").GetBoolean());
+            Assert.True(projectedClaim.GetProperty("locked").GetBoolean());
+            Assert.Contains(projectedClaim.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setHidden");
+            Assert.Contains(projectedClaim.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setLocked");
             Assert.Equal("linear", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("gradient").GetProperty("kind").GetString());
             Assert.Equal(0.8, projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
@@ -2051,6 +2071,57 @@ public sealed class PptxCodecTests
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
+        }
+        var stateProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var stateClaim = stateProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "text" &&
+                element["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
+        stateClaim["hidden"] = false;
+        stateClaim["locked"] = false;
+        var stateClaimId = stateClaim["id"]!.GetValue<string>();
+        var stateEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(stateProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(stateEdit.Ok, Diagnostics(stateEdit));
+        Assert.Equal(["ppt/slides/slide1.xml"], stateEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(stateClaimId, stateEdit.PresentationProgram.ChangedNodeIds);
+        using (var stateStream = new MemoryStream(stateEdit.File.ToByteArray(), writable: false))
+        using (var statePackage = PresentationDocument.Open(stateStream, false))
+        {
+            var unlockedClaim = statePackage.PresentationPart!.SlideParts.First().Slide!.CommonSlideData!.ShapeTree!
+                .Elements<P.Shape>().Single(shape => shape.Descendants<A.Text>().Any(text => text.Text == "Reduce incident hours "));
+            Assert.Null(unlockedClaim.NonVisualShapeProperties!.NonVisualDrawingProperties!.Hidden);
+            Assert.Null(unlockedClaim.NonVisualShapeProperties.NonVisualShapeDrawingProperties!.GetFirstChild<A.ShapeLocks>());
+        }
+        var stateReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = stateEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/state-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(stateReprojection.Ok, Diagnostics(stateReprojection));
+        using (var stateJson = JsonDocument.Parse(stateReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var unlockedClaim = stateJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == stateClaimId);
+            Assert.False(unlockedClaim.TryGetProperty("hidden", out _));
+            Assert.False(unlockedClaim.TryGetProperty("locked", out _));
         }
         var unnamedThirdPartySource = ReplaceZipText(thirdPartySource, "ppt/slides/slide1.xml", xml =>
         {

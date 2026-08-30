@@ -122,6 +122,8 @@ internal abstract class PpjElementModel
     internal string? Name { get; set; }
     internal string? Role { get; set; }
     internal PpjAccessibilityModel? Accessibility { get; set; }
+    internal bool? Hidden { get; set; }
+    internal bool? Locked { get; set; }
     internal PpjNativeRefModel? NativeRef { get; set; }
     internal JsonElement Raw { get; set; }
 }
@@ -576,6 +578,8 @@ internal static class PpjProgramParser
             OptionalString(element, "name"),
             OptionalString(element, "role"),
             element.TryGetProperty("accessibility", out var accessibility) ? ParseAccessibility(accessibility) : null,
+            element.TryGetProperty("hidden", out var hidden) ? hidden.GetBoolean() : null,
+            element.TryGetProperty("locked", out var locked) ? locked.GetBoolean() : null,
             element.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
             element.Clone());
 
@@ -686,6 +690,8 @@ internal static class PpjProgramParser
         result.Name = common.Name;
         result.Role = common.Role;
         result.Accessibility = common.Accessibility;
+        result.Hidden = common.Hidden;
+        result.Locked = common.Locked;
         result.NativeRef = common.NativeRef;
         result.Raw = common.Raw;
         return result;
@@ -870,6 +876,8 @@ internal static class PpjProgramParser
         string? Name,
         string? Role,
         PpjAccessibilityModel? Accessibility,
+        bool? Hidden,
+        bool? Locked,
         PpjNativeRefModel? NativeRef,
         JsonElement Raw);
 }

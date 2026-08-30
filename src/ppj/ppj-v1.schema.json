@@ -1153,6 +1153,8 @@
             "setChartFill",
             "setSmartArtText",
             "setOlePayload",
+            "setHidden",
+            "setLocked",
             "delete",
             "duplicate",
             "reorder"
@@ -1192,6 +1194,8 @@
               "chart.fill",
               "smartArt.text",
               "ole.payload",
+              "hidden",
+              "locked",
               "element",
               "zOrder"
             ]
@@ -2186,10 +2190,12 @@
           "$ref": "#/$defs/accessibility"
         },
         "hidden": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Hide this element while retaining it in the page program. This is independent of page visibility and z-order."
         },
         "locked": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Apply OfficeKit's canonical type-specific edit lock. This is an authoring aid, not document protection or access control."
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef"

@@ -2086,6 +2086,11 @@ message PresentationElement {
   string id = 1;
   string name = 2;
   PresentationElementSourceBinding source = 3;
+  // Agent-facing element state. Presence distinguishes an explicit PPJ value
+  // from an undeclared state. `locked` is lowered to OfficeKit's canonical
+  // type-specific edit-lock profile; it is not document protection.
+  optional bool hidden = 4;
+  optional bool locked = 5;
 
   oneof content {
     PresentationShape shape = 10;
@@ -2140,6 +2145,11 @@ message PresentationElementSourceBinding {
   // node, then moves the existing native nodes without rebuilding their
   // relationships, identities, descendants, or opaque payloads.
   PresentationElementZOrderCapability z_order_capability = 9;
+  // Source evidence only. Visibility and locking are independent because an
+  // ordinary cNvPr/@hidden may remain safely editable even when the sibling
+  // DrawingML lock profile is partial or contains an unknown extension.
+  bool visibility_editable = 10;
+  bool locking_editable = 11;
 }
 
 message PresentationElementDeletionCapability {

@@ -301,6 +301,21 @@ explicit typed color objects. Assets use relative URIs, exact MIME and SHA-256;
 remote URLs and data-fetch instructions are invalid. Accessibility and rights
 metadata travel with the asset or element.
 
+### Element visibility and edit locks
+
+Every typed element may declare \`hidden\` and \`locked\`. \`hidden: true\` keeps
+the element and stable ID in PPJ but hides that object in the slide; it does not
+hide the page or move the object in z-order. \`locked: true\` applies OfficeKit's
+canonical edit lock for that object kind. It helps protect a finished visual
+layer from accidental selection or movement, but it is not document security,
+encryption, or an access-control boundary. Element array order remains the only
+z-order.
+
+Imported objects may change these fields only when their \`nativeRef\` issues
+\`setHidden\` or \`setLocked\` for the current source revision. A partial or
+extension-bearing native lock profile remains source-owned and does not become
+an editable boolean.
+
 ## Preset geometry adjustments
 
 \`shape.geometry.adjustments\` and preset \`image.mask.adjustments\` use one

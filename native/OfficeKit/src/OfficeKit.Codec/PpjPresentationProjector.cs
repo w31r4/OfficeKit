@@ -295,6 +295,8 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Opaque => ProjectOpaque(element, id, nativeRef),
             _ => ProjectOpaque(element, id, nativeRef, "unknown"),
         };
+        if (element.HasHidden && element.Hidden) projected["hidden"] = true;
+        if (element.HasLocked && element.Locked) projected["locked"] = true;
         if (projected["type"]!.GetValue<string>() == "opaque")
         {
             // ProjectShape/ProjectImage may conservatively fall back to opaque
@@ -1499,6 +1501,8 @@ internal static partial class PpjPresentationProjector
                 if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
         }
+        if (source.VisibilityEditable) output.Add(new("setHidden", ["hidden"]));
+        if (source.LockingEditable) output.Add(new("setLocked", ["locked"]));
         if (source.DeletionCapability?.Supported == true) output.Add(new("delete", ["element"]));
         if (source.ZOrderCapability?.Supported == true) output.Add(new("reorder", ["zOrder"]));
         return output;
@@ -1518,6 +1522,8 @@ internal static partial class PpjPresentationProjector
             PpjNativeTextProjection.TryRead(element.Opaque.RawXml, out _))
             output.Add(new("replaceText", ["visibleText"]));
         if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+        if (source.VisibilityEditable) output.Add(new("setHidden", ["hidden"]));
+        if (source.LockingEditable) output.Add(new("setLocked", ["locked"]));
         // Diagram, OLE, and source-owned chart payloads stay opaque until the
         // corresponding PPJ typed state is projected. A runtime can edit such
         // objects only after the public language has somewhere to represent
