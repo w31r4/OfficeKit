@@ -2397,8 +2397,8 @@ message PresentationShapeTransform {
 // envelope; relationship IDs and OPC part names remain package-local. This
 // slice owns only an embedded PNG/JPEG/GIF/safe-SVG source, non-visible
 // title/description/decorative metadata, a bounded stretch frame and source
-// rectangle, direct rotation/flips, one canonical preset mask, direct border,
-// opacity, and outer shadow. The legacy alt_text field is
+// rectangle, direct rotation/flips, one canonical preset mask with ordered
+// literal adjustments, direct border, opacity, and outer shadow. The legacy alt_text field is
 // the canonical description field for wire compatibility; accessibility_title
 // appends the independent p:cNvPr title without duplicating description state.
 // External links, transformed blips, custom mask geometry, and effect graphs
@@ -2430,6 +2430,9 @@ message PresentationImage {
   string mask_preset = 13;
   PresentationImageBorder border = 14;
   PresentationShadow shadow = 15;
+  // Ordered canonical a:avLst literal values for mask_preset. Empty means the
+  // native preset defaults. Guide names and formulas remain codec-owned.
+  repeated sint32 mask_preset_adjustments = 16;
 }
 
 message PresentationImageBorder {
