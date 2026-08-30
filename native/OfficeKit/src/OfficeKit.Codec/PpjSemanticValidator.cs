@@ -35,7 +35,7 @@ internal static class PpjSemanticValidator
             ["setLocked"] = Set("locked"),
             ["delete"] = Set("element"),
             ["duplicate"] = Set("element"),
-            ["reorder"] = Set("zOrder"),
+            ["reorder"] = Set("zOrder", "pageOrder"),
         };
 
     internal static void Validate(PpjProgramModel program, List<PpjDiagnostic> diagnostics)

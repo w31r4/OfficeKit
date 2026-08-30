@@ -361,11 +361,23 @@ internal static class PpjSourceBoundPresentationCompiler
             throw Unsupported("$.pages", "source-bound page insertion or identity change");
         var retainedPageSourceOrder = baseline.Pages
             .Where(page => requestedPageIds.Contains(page.Id, StringComparer.Ordinal))
-            .Select(page => page.Id);
-        if (!retainedPageSourceOrder.SequenceEqual(requestedPageIds, StringComparer.Ordinal))
-            throw Unsupported("$.pages", "source-bound page reorder requires a dedicated capability");
+            .Select(page => page.Id)
+            .ToArray();
+        var pagesReordered = !retainedPageSourceOrder.SequenceEqual(requestedPageIds, StringComparer.Ordinal);
+        if (pagesReordered)
+        {
+            if (requested.Pages.Count != baseline.Pages.Count)
+                throw Unsupported("$.pages", "combining source-bound page deletion with page reorder");
+            for (var index = 0; index < requested.Pages.Count; index++)
+            {
+                if (retainedPageSourceOrder[index].Equals(requestedPageIds[index], StringComparison.Ordinal)) continue;
+                RequireCapability(requested.Pages[index].NativeRef, "reorder", $"$.pages[{index}]");
+                changedNodeIds.Add(requested.Pages[index].Id);
+            }
+            mutations.SemanticChanges = true;
+        }
 
-        var changed = false;
+        var changed = pagesReordered;
         var assetDimensions = AssetDimensions(requested.Root);
         var requestedSlides = new List<PresentationSlide>(requested.Pages.Count);
         for (var index = 0; index < requested.Pages.Count; index++)
@@ -645,7 +657,8 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         if (baseline.Pages.Count != requested.Pages.Count ||
             presentation.Slides.Count != requested.Pages.Count ||
-            !baseline.Pages.Select(page => page.Id).SequenceEqual(requested.Pages.Select(page => page.Id), StringComparer.Ordinal))
+            !baseline.Pages.Select(page => page.Id).ToHashSet(StringComparer.Ordinal)
+                .SetEquals(requested.Pages.Select(page => page.Id)))
             throw Unsupported(path, "route editing with changed page topology");
         return requested.Pages.Select((page, index) => (PageId: page.Id, SlideId: presentation.Slides[index].Id))
             .ToDictionary(item => item.PageId, item => item.SlideId, StringComparer.Ordinal);

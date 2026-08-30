@@ -2302,6 +2302,70 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
 
+        var reorderProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var sourcePageNodes = reorderProgram["pages"]!.AsArray()
+            .Select(page => page!.DeepClone()).ToArray();
+        var sourcePageIds = sourcePageNodes.Select(page => page!["id"]!.GetValue<string>()).ToArray();
+        var sourceElementIds = sourcePageNodes.ToDictionary(
+            page => page!["id"]!.GetValue<string>(),
+            page => page!["elements"]!.AsArray().Select(element => element!["id"]!.GetValue<string>()).ToArray(),
+            StringComparer.Ordinal);
+        var sourceCommentPageId = reorderProgram["comments"]![0]!["page"]!.GetValue<string>();
+        var sourceShowPages = reorderProgram["customShows"]![0]!["pages"]!.AsArray()
+            .Select(page => page!.GetValue<string>()).ToArray();
+        reorderProgram["pages"] = new JsonArray(sourcePageNodes[2], sourcePageNodes[0], sourcePageNodes[1]);
+        reorderProgram["sections"]![0]!["pages"] = new JsonArray(sourcePageIds[2], sourcePageIds[0]);
+        reorderProgram["sections"]![1]!["pages"] = new JsonArray(sourcePageIds[1]);
+        var reorderedPageIds = new[] { sourcePageIds[2], sourcePageIds[0], sourcePageIds[1] };
+        var reorderEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(reorderProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(reorderEdit.Ok, Diagnostics(reorderEdit));
+        Assert.Equal(["ppt/presentation.xml"], reorderEdit.PresentationProgram.ChangedParts);
+        Assert.All(reorderedPageIds, id => Assert.Contains(id, reorderEdit.PresentationProgram.ChangedNodeIds));
+        var reorderReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = reorderEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/reordered-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reorderReprojection.Ok, Diagnostics(reorderReprojection));
+        using (var reorderJson = JsonDocument.Parse(reorderReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reorderedPages = reorderJson.RootElement.GetProperty("pages");
+            Assert.Equal(reorderedPageIds, reorderedPages.EnumerateArray().Select(page => page.GetProperty("id").GetString()));
+            foreach (var page in reorderedPages.EnumerateArray())
+            {
+                var pageId = page.GetProperty("id").GetString()!;
+                Assert.Equal(sourceElementIds[pageId], page.GetProperty("elements").EnumerateArray().Select(element => element.GetProperty("id").GetString()));
+            }
+            Assert.Equal(
+                new[] { sourcePageIds[2], sourcePageIds[0] },
+                reorderJson.RootElement.GetProperty("sections")[0].GetProperty("pages").EnumerateArray().Select(page => page.GetString()));
+            Assert.Equal(
+                new[] { sourcePageIds[1] },
+                reorderJson.RootElement.GetProperty("sections")[1].GetProperty("pages").EnumerateArray().Select(page => page.GetString()));
+            Assert.Equal(sourceCommentPageId, reorderJson.RootElement.GetProperty("comments")[0].GetProperty("page").GetString());
+            Assert.Equal(
+                sourceShowPages,
+                reorderJson.RootElement.GetProperty("customShows")[0].GetProperty("pages").EnumerateArray().Select(page => page.GetString()));
+        }
+
         var routeProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var routePageIds = routeProgram["pages"]!.AsArray()
             .Select(page => page!["id"]!.GetValue<string>()).ToArray();

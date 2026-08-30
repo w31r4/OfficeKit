@@ -235,10 +235,11 @@ internal static class PptxSectionCodec
         PresentationPart owner,
         PresentationArtifact requested,
         IReadOnlyDictionary<uint, string> publicSlideIdByNativeId,
-        IReadOnlyList<string> expectedSlideIds,
+        IReadOnlyList<string> sourceExpectedSlideIds,
+        IReadOnlyList<string> targetExpectedSlideIds,
         EffectiveCodecLimits limits)
     {
-        var actual = Read(owner, publicSlideIdByNativeId, expectedSlideIds, limits);
+        var actual = Read(owner, publicSlideIdByNativeId, sourceExpectedSlideIds, limits);
         if (actual.Opaque)
         {
             if (!requested.SectionsOpaque || requested.Sections.Count != 0)
@@ -305,7 +306,7 @@ internal static class PptxSectionCodec
         if (!changed) return false;
 
         root.Save();
-        var roundTrip = Read(owner, publicSlideIdByNativeId, expectedSlideIds, limits);
+        var roundTrip = Read(owner, publicSlideIdByNativeId, targetExpectedSlideIds, limits);
         if (roundTrip.Opaque || roundTrip.Sections.Count != requested.Sections.Count)
             throw new CodecException(
                 "presentation_section_export_mismatch",

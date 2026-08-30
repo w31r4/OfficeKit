@@ -203,7 +203,7 @@ internal static partial class PpjPresentationProjector
         foreach (var layout in presentation.Layouts) context.RegisterLayout(layout.Id);
         foreach (var slide in presentation.Slides)
         {
-            var pageId = context.RegisterPage(slide.Id);
+            var pageId = context.RegisterPage(slide.Id, slide.Source?.PartPath);
             RegisterElementIds(slide.Elements, pageId, context);
         }
     }
@@ -238,6 +238,8 @@ internal static partial class PpjPresentationProjector
             pageCapabilities.Add(new("setTransition", ["transition"]));
         if (slide.SpeakerNotes?.Source?.Editable == true || slide.Source?.SpeakerNotesAddable == true)
             pageCapabilities.Add(new("setNotes", ["notes"]));
+        if (slide.Source is not null && presentation.Slides.Count > 1 && !presentation.SectionsOpaque)
+            pageCapabilities.Add(new("reorder", ["pageOrder"]));
         // A native slide clone needs fresh page/element identities and a
         // complete source-owned subtree mapping. Do not issue the underlying
         // codec capability until PPJ can represent that bounded clone request.
@@ -1989,9 +1991,9 @@ internal static partial class PpjPresentationProjector
         internal JsonArray ProgramAssets => programAssets;
         internal IReadOnlyList<Asset> ResultAssets => resultAssets;
 
-        internal string RegisterPage(string sourceId)
+        internal string RegisterPage(string sourceId, string? stableSourceId)
         {
-            var id = UniqueId($"page-{NormalizeId(sourceId, "slide")}");
+            var id = UniqueId($"page-{NormalizeId(stableSourceId, NormalizeId(sourceId, "slide"))}");
             pageIds[sourceId] = id;
             return id;
         }
@@ -2012,9 +2014,16 @@ internal static partial class PpjPresentationProjector
 
         internal string RegisterElement(string pageId, string sourceId)
         {
-            var id = UniqueId($"{pageId}-{NormalizeId(sourceId, "element")}");
+            var id = UniqueId($"{pageId}-{NormalizeId(PageLocalElementPath(sourceId), "element")}");
             elementIds[(pageId, sourceId)] = id;
             return id;
+        }
+
+        private static string PageLocalElementPath(string sourceId)
+        {
+            const string marker = "/element/";
+            var index = sourceId.IndexOf(marker, StringComparison.Ordinal);
+            return index < 0 ? sourceId : sourceId[(index + 1)..];
         }
 
         internal string PageId(string sourceId) => pageIds[sourceId];

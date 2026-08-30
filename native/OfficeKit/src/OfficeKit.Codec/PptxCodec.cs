@@ -583,6 +583,25 @@ internal static class PptxCodec
                 envelope.OpaqueOpc,
                 changedParts,
                 removedSourcePartPaths);
+            var sourceRelationshipIds = slideIds.Select(slideId => slideId.RelationshipId?.Value ?? string.Empty).ToArray();
+            var targetRelationshipIds = targetSlides.Select(target => target.OutputSlideId.RelationshipId?.Value ?? string.Empty).ToArray();
+            var pureSourceReorder = targetSlides.Length == slideIds.Length &&
+                                    targetSlides.All(target => !target.IsClone) &&
+                                    sourceRelationshipIds.ToHashSet(StringComparer.Ordinal).SetEquals(targetRelationshipIds) &&
+                                    !sourceRelationshipIds.SequenceEqual(targetRelationshipIds, StringComparer.Ordinal);
+            var sectionsAppliedBeforeReorder = false;
+            if (pureSourceReorder)
+            {
+                if (PptxSectionCodec.ApplySourceBound(
+                        presentationPart,
+                        envelope.Presentation,
+                        sourcePublicSlideIdByNativeId,
+                        sourcePublicSlideIds,
+                        envelope.Presentation.Slides.Select(slide => slide.Id).ToArray(),
+                        limits))
+                    changedParts.Add(PartPath(presentationPart));
+                sectionsAppliedBeforeReorder = true;
+            }
             if (ReorderSourceSlideIdList(presentationPart, targetSlides))
                 changedParts.Add(PartPath(presentationPart));
             if (ApplySourceBoundSlideSize(presentationPart, envelope.Presentation))
@@ -604,23 +623,28 @@ internal static class PptxCodec
                 if (PptxCustomShowCodec.ApplySourceBound(presentationPart, envelope.Presentation, publicSlideIdByRelationshipId, limits))
                     changedParts.Add(PartPath(presentationPart));
             }
-            var outputSectionSlideIds = presentationPart.Presentation?.SlideIdList?.Elements<P.SlideId>().ToArray() ?? [];
-            if (outputSectionSlideIds.Length != envelope.Presentation.Slides.Count)
-                throw new CodecException(
-                    "presentation_slide_topology_changed",
-                    "Source-preserving PPTX export could not bind PowerPoint sections to the requested slide topology.",
-                    "ppt/presentation.xml");
-            var outputPublicSlideIdByNativeId = BuildSectionSlideIdMap(outputSectionSlideIds
-                .Select((slideId, index) => (
-                    NativeId: slideId.Id?.Value,
-                    PublicId: envelope.Presentation.Slides[index].Id)));
-            if (PptxSectionCodec.ApplySourceBound(
-                    presentationPart,
-                    envelope.Presentation,
-                    outputPublicSlideIdByNativeId,
-                    envelope.Presentation.Slides.Select(slide => slide.Id).ToArray(),
-                    limits))
-                changedParts.Add(PartPath(presentationPart));
+            if (!sectionsAppliedBeforeReorder)
+            {
+                var outputSectionSlideIds = presentationPart.Presentation?.SlideIdList?.Elements<P.SlideId>().ToArray() ?? [];
+                if (outputSectionSlideIds.Length != envelope.Presentation.Slides.Count)
+                    throw new CodecException(
+                        "presentation_slide_topology_changed",
+                        "Source-preserving PPTX export could not bind PowerPoint sections to the requested slide topology.",
+                        "ppt/presentation.xml");
+                var outputPublicSlideIdByNativeId = BuildSectionSlideIdMap(outputSectionSlideIds
+                    .Select((slideId, index) => (
+                        NativeId: slideId.Id?.Value,
+                        PublicId: envelope.Presentation.Slides[index].Id)));
+                var outputSlideIds = envelope.Presentation.Slides.Select(slide => slide.Id).ToArray();
+                if (PptxSectionCodec.ApplySourceBound(
+                        presentationPart,
+                        envelope.Presentation,
+                        outputPublicSlideIdByNativeId,
+                        outputSlideIds,
+                        outputSlideIds,
+                        limits))
+                    changedParts.Add(PartPath(presentationPart));
+            }
             assetCatalog.IndexExistingParts(slideParts.SelectMany(part => part.ImageParts)
                 .Concat(masterGraph.SelectMany(master => master.Part.Parts.Select(pair => pair.OpenXmlPart).OfType<ImagePart>())));
 
