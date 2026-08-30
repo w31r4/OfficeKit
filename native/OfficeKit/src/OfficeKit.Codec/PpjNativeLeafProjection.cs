@@ -32,13 +32,13 @@ internal static class PpjNativeLeafProjection
         "paragraphBulletFontFamily", "paragraphBulletColorScheme", "verticalAnchor",
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
         "fontFamilyEastAsia", "fontUnderline", "fontStrike", "fontColorScheme",
-        "fontCaps", "fillScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
-        "lineStartArrow", "lineEndArrow",
+        "fontCaps", "fontHighlightScheme", "fillScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
+        "lineStartArrow", "lineEndArrow", "imageMaskPreset",
     };
 
     private static readonly HashSet<string> RgbKinds = new(StringComparer.Ordinal)
     {
-        "paragraphBulletColorRgb", "fontColorRgb", "fillRgb", "lineRgb",
+        "paragraphBulletColorRgb", "fontColorRgb", "fontHighlightRgb", "fillRgb", "lineRgb",
     };
 
     private static readonly HashSet<string> BooleanKinds = new(StringComparer.Ordinal)
@@ -51,7 +51,7 @@ internal static class PpjNativeLeafProjection
         "paragraphMarginLeftEmu", "paragraphIndentEmu", "paragraphBulletAutoNumberStartAt",
         "paragraphLevel", "textBodyInsetLeftEmu", "textBodyInsetTopEmu",
         "textBodyInsetRightEmu", "textBodyInsetBottomEmu", "textBodyColumnCount",
-        "fillOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
+        "fillOpacityThousandthPercent", "imageOpacityThousandthPercent", "lineWidthEmu", "leftEmu", "topEmu",
         "widthEmu", "heightEmu",
     };
 
@@ -243,6 +243,10 @@ internal static class PpjNativeLeafProjection
             AddBoolean(add, "flipHorizontal", image.Transform.FlipHorizontal);
         if (image.Transform?.HasFlipVertical == true)
             AddBoolean(add, "flipVertical", image.Transform.FlipVertical);
+        if (image.HasOpacityThousandthPercent)
+            AddInteger(add, "imageOpacityThousandthPercent", image.OpacityThousandthPercent);
+        if (!string.IsNullOrEmpty(image.MaskPreset) && image.MaskPresetAdjustments.Count == 0)
+            add("imageMaskPreset", image.MaskPreset, JsonValue.Create(image.MaskPreset), 0, 0);
     }
 
     private static void DescribeConnector(
@@ -375,6 +379,10 @@ internal static class PpjNativeLeafProjection
         if (run.HasFontBaselinePercent) AddScaled(add, "fontBaselinePercent", run.FontBaselinePercent, 1000, index);
         if (run.HasFontSpacingPoints) AddScaled(add, "fontSpacingPoints", run.FontSpacingPoints, 100, index);
         if (run.HasFontCaps) add("fontCaps", run.FontCaps, JsonValue.Create(run.FontCaps), index, 0);
+        if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb)
+            add("fontHighlightRgb", run.HighlightRgb.ToUpperInvariant(), JsonValue.Create($"#{run.HighlightRgb.ToLowerInvariant()}"), index, 0);
+        else if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightScheme)
+            add("fontHighlightScheme", run.HighlightScheme, JsonValue.Create(run.HighlightScheme), index, 0);
     }
 
     private static void AddBodyInset(bool present, string kind, long value, Action<string, string, JsonNode?, uint, uint> add)

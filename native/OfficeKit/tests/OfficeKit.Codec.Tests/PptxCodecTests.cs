@@ -665,6 +665,20 @@ public sealed class PptxCodecTests
         Assert.True(corruptFallback.PresentationProgram.SourceBound);
 
         var thirdPartySource = RemoveEmbeddedPpj(first.File.ToByteArray());
+        thirdPartySource = ReplaceZipText(thirdPartySource, "ppt/slides/slide1.xml", xml =>
+        {
+            var document = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+            XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            var runProperties = document.Descendants(drawing + "rPr")
+                .First(properties => properties.Element(drawing + "highlight") is null);
+            var highlight = new XElement(
+                drawing + "highlight",
+                new XElement(drawing + "srgbClr", new XAttribute("val", "FFF2CC")));
+            var typeface = runProperties.Elements().FirstOrDefault(child => child.Name.LocalName is "latin" or "ea" or "cs");
+            if (typeface is null) runProperties.Add(highlight);
+            else typeface.AddBeforeSelf(highlight);
+            return document.ToString(SaveOptions.DisableFormatting);
+        });
         var thirdPartySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(thirdPartySource)).ToLowerInvariant();
         var projected = Invoke(new CodecRequest
         {
@@ -1235,7 +1249,30 @@ public sealed class PptxCodecTests
         // issues the scalar, PPJ changes only value, the source-bound compiler
         // lowers it through the mature Edit Plan, and a fresh projection sees
         // the new value without exposing package paths or raw XML.
-        var nativeLeafProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var nativeLeafSource = ReplaceZipText(thirdPartySource, "ppt/slides/slide1.xml", xml =>
+        {
+            var document = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+            XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            XNamespace presentation = "http://schemas.openxmlformats.org/presentationml/2006/main";
+            var pictureGeometry = document.Descendants(presentation + "pic").First()
+                .Descendants(drawing + "prstGeom").Single();
+            pictureGeometry.Element(drawing + "avLst")?.RemoveNodes();
+            return document.ToString(SaveOptions.DisableFormatting);
+        });
+        var nativeLeafProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeLeafSource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-leaf-source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(nativeLeafProjection.Ok, Diagnostics(nativeLeafProjection));
+        var nativeLeafProgram = JsonNode.Parse(nativeLeafProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var nativeLeafOwner = nativeLeafProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
@@ -1246,16 +1283,39 @@ public sealed class PptxCodecTests
             .First(leaf => leaf!["kind"]!.GetValue<string>() == "fillRgb")!.AsObject();
         var nativeWidthLeaf = nativeLeafOwner["nativeRef"]!["leaves"]!.AsArray()
             .First(leaf => leaf!["kind"]!.GetValue<string>() == "widthEmu")!.AsObject();
+        var highlightOwner = nativeLeafProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["nativeRef"]?["leaves"]?.AsArray().Any(leaf =>
+                leaf!["kind"]!.GetValue<string>() == "fontHighlightRgb") == true);
+        var highlightLeaf = highlightOwner["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "fontHighlightRgb")!.AsObject();
+        var imageLeafOwner = nativeLeafProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["nativeRef"]?["leaves"]?.AsArray() is { } leaves &&
+                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "imageOpacityThousandthPercent") &&
+                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "imageMaskPreset"));
+        var imageOpacityLeaf = imageLeafOwner["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "imageOpacityThousandthPercent")!.AsObject();
+        var imageMaskLeaf = imageLeafOwner["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == "imageMaskPreset")!.AsObject();
         const string replacementFill = "#123456";
+        const string replacementHighlight = "#F2C14E";
         var replacementWidth = nativeWidthLeaf["value"]!.GetValue<long>() + 12_700;
+        const int replacementImageOpacity = 61_000;
+        const string replacementImageMask = "ellipse";
         nativeLeaf["value"] = replacementFill;
         nativeWidthLeaf["value"] = replacementWidth;
+        highlightLeaf["value"] = replacementHighlight;
+        imageOpacityLeaf["value"] = replacementImageOpacity;
+        imageMaskLeaf["value"] = replacementImageMask;
         var nativeLeafEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
             Operation = CodecOperation.CompilePpjToPptx,
             Family = ArtifactFamily.Presentation,
-            File = ByteString.CopyFrom(thirdPartySource),
+            File = ByteString.CopyFrom(nativeLeafSource),
             PresentationProgram = new PresentationProgramRequest
             {
                 ProgramJson = ByteString.CopyFromUtf8(nativeLeafProgram.ToJsonString()),
@@ -1265,6 +1325,8 @@ public sealed class PptxCodecTests
         Assert.True(nativeLeafEdit.Ok, Diagnostics(nativeLeafEdit));
         Assert.Single(nativeLeafEdit.PresentationProgram.ChangedParts);
         Assert.Contains(nativeLeafOwner["id"]!.GetValue<string>(), nativeLeafEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(highlightOwner["id"]!.GetValue<string>(), nativeLeafEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(imageLeafOwner["id"]!.GetValue<string>(), nativeLeafEdit.PresentationProgram.ChangedNodeIds);
         var nativeLeafReprojection = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -1287,6 +1349,23 @@ public sealed class PptxCodecTests
             leaf!["kind"]!.GetValue<string>() == "fillRgb" && leaf["value"]!.GetValue<string>() == replacementFill);
         Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
             leaf!["kind"]!.GetValue<string>() == "widthEmu" && leaf["value"]!.GetValue<long>() == replacementWidth);
+        var reprojectedHighlightOwner = nativeLeafReprojectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == highlightOwner["id"]!.GetValue<string>());
+        Assert.Contains(reprojectedHighlightOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "fontHighlightRgb" &&
+            leaf["value"]!.GetValue<string>() == replacementHighlight.ToLowerInvariant());
+        var reprojectedImageOwner = nativeLeafReprojectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == imageLeafOwner["id"]!.GetValue<string>());
+        Assert.Contains(reprojectedImageOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "imageOpacityThousandthPercent" &&
+            leaf["value"]!.GetValue<long>() == replacementImageOpacity);
+        Assert.Contains(reprojectedImageOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "imageMaskPreset" &&
+            leaf["value"]!.GetValue<string>() == replacementImageMask);
 
         var tableSlidePath = ZipPartPaths(thirdPartySource).Single(path =>
             Regex.IsMatch(path, "^ppt/slides/slide[0-9]+\\.xml$", RegexOptions.CultureInvariant) &&
@@ -2267,7 +2346,7 @@ public sealed class PptxCodecTests
         table.Rows.Add(new PresentationTableRow
         {
             HeightEmu = 1_000_000,
-            Cells = { new PresentationTableCell { Text = "Revenue" }, new PresentationTableCell { Text = "$42M" } },
+            Cells = { new PresentationTableCell { Text = "Revenue" }, new PresentationTableCell { Text = "$42M\nPrevious" } },
         });
         request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
         {
@@ -2282,8 +2361,8 @@ public sealed class PptxCodecTests
         Assert.True(imported.Ok, Diagnostics(imported));
         var slide = Assert.Single(imported.Artifact.Presentation.Slides);
         var element = Assert.Single(slide.Elements, candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
-        const string expected = "$42M";
-        const string value = "$47M";
+        const string expected = "$42M\nPrevious";
+        const string value = "$47M\nCurrent";
         var operation = new PresentationEditOperation
         {
             OperationId = "op-table-cell",
@@ -2320,7 +2399,7 @@ public sealed class PptxCodecTests
         Assert.Equal("tableCellText", Assert.Single(edited.PresentationEditPlan.Operations).LeafKind);
         var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
         var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
-        Assert.Equal(sourceXml, outputXml.Replace(value, expected, StringComparison.Ordinal));
+        Assert.Equal(sourceXml.Replace("$42M", "$47M", StringComparison.Ordinal).Replace("Previous", "Current", StringComparison.Ordinal), outputXml);
         var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements,
             candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
         Assert.Equal(value, reopened.Table.Rows[1].Cells[1].Text);

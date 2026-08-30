@@ -210,6 +210,7 @@ message PresentationEditOperation {
   // fontSizePoints, fontFamily,
   // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
   // fontKerningPoints, fontBaselinePercent, fontSpacingPoints, fontCaps,
+  // fontHighlightRgb, fontHighlightScheme,
   // fontColorRgb, fontColorScheme, fillRgb, fillScheme,
   // lineRgb, lineScheme, lineStyle, lineCap, lineJoin, lineStartArrow,
   // lineEndArrow, lineWidthEmu,
@@ -2134,9 +2135,10 @@ message PresentationElementZOrderCapability {
 
 // Bounded recursive p:grpSp projection. The outer frame maps the local child
 // coordinate rectangle through a:xfrm off/ext/chOff/chExt. Children retain
-// their ordinary element semantics and relationship-backed assets. Rotation,
-// flips, group-level effects, locks, extension records, unsupported children,
-// and topology changes remain source-bound opaque content.
+// their ordinary element semantics and relationship-backed assets. A direct
+// group rotation/flip is projected separately from the frame; group-level
+// effects, locks, extension records, unsupported children, and topology
+// changes remain source-bound opaque content.
 message PresentationGroup {
   int64 left_emu = 1;
   int64 top_emu = 2;
@@ -2251,6 +2253,12 @@ message PresentationShape {
   // Bounded direct a:blipFill. Mutually exclusive with solid, theme,
   // gradient, and use-background fill state.
   PresentationImagePaint image_fill = 37;
+  // Source-bound embedded image fill on an ordinary shape. The asset identity
+  // is content-addressed and read-only; the native a:blipFill relationship,
+  // crop and custom geometry remain owned by the source package. This field
+  // permits bounded placement edits without reconstructing or replacing the
+  // image fill. Source-free authoring and image replacement remain unsupported.
+  string image_fill_asset_id = 38;
 }
 
 message PresentationCustomGeometryPath {
@@ -2711,6 +2719,12 @@ message PresentationTextStyle {
   // Presence-aware direct a:alpha under the modeled solid text color.
   // 100000 is fully opaque; omission means no native alpha child.
   optional uint32 color_opacity_thousandth_percent = 14;
+  // Direct DrawingML a:defRPr/a:highlight color. Highlight transforms and
+  // non-solid color graphs remain source-bound.
+  oneof highlight {
+    string highlight_rgb = 15;
+    string highlight_scheme = 16;
+  }
 }
 
 message PresentationTextParagraph {
@@ -2853,6 +2867,12 @@ message PresentationTextRun {
   // Presence-aware direct a:alpha under the modeled solid text color.
   // 100000 is fully opaque; omission means no native alpha child.
   optional uint32 color_opacity_thousandth_percent = 19;
+  // Direct DrawingML a:rPr/a:highlight color. Highlight transforms and
+  // non-solid color graphs remain source-bound.
+  oneof highlight {
+    string highlight_rgb = 20;
+    string highlight_scheme = 21;
+  }
 }
 
 message PresentationTextField {

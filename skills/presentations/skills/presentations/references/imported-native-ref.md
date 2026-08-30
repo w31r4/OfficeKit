@@ -49,6 +49,31 @@ only the target part and necessary dependencies. Unrelated parts,
 relationships, master/layout/theme state, unknown timing, OLE, SmartArt, and
 other opaque topology must remain stable.
 
+Some imported shapes with a strict direct embedded `a:blipFill` and a custom
+geometry that is not yet semantically decoded may expose a source-bound
+`imageFill` capability. This is a bounded frame-edit path: the existing image
+relationship, crop, and custom geometry remain source-owned while the shape's
+position or size changes. Image replacement, fill conversion, custom-path
+rewriting, and any other image-fill graph stay opaque and fail closed.
+
+An imported shape may also expose `textEditable` while its fill or effect graph
+is intentionally opaque (for example, a native gradient banner). A plain
+text-only replacement is safe when the original paragraph/run topology is
+kept; the native fill, effects, geometry, and relationships remain byte-owned
+by the source. Style, frame, name, and topology changes still fail closed.
+
+Source-bound connectors may expose the same bounded placement surface when
+their direct frame is a legal horizontal or vertical line with one zero
+extent. Moving the frame leaves endpoint bindings, line geometry, and unknown
+extension children untouched. Zero-by-zero, negative, missing, or ambiguous
+connector frames remain read-only; this is not permission to rewrite connector
+topology.
+
+Source-bound opaque pictures may likewise retain a bounded negative left/top
+offset when the picture frame and unique image relationship are proven safe.
+This supports intentional edge bleed and crop layouts; the image payload,
+effects, crop, and relationship remain source-owned.
+
 Stale hash, ambiguous target, unsupported field, unsafe relationship change,
 cross-object mutation, or topology rewrite must fail. Do not patch raw OOXML,
 replace the whole slide with an image, flatten the deck, or rebuild it through

@@ -12,14 +12,18 @@ internal static class PptxShapeTransformCodec
 {
     private const int MaxRotationAngle60000 = 360 * 60_000;
 
-    internal static bool Supports(A.Transform2D? transform, bool allowSingleZeroExtent = false)
+    internal static bool Supports(
+        A.Transform2D? transform,
+        bool allowSingleZeroExtent = false,
+        bool allowNegativeOffset = false)
     {
         if (transform is null || transform.ChildElements.Count != 2 ||
             transform.ChildElements[0] is not A.Offset offset ||
             transform.ChildElements[1] is not A.Extents extents ||
             offset.X is null || offset.Y is null || extents.Cx is null || extents.Cy is null)
             return false;
-        if (offset.X.Value < 0 || offset.Y.Value < 0 || extents.Cx.Value < 0 || extents.Cy.Value < 0 ||
+        if ((!allowNegativeOffset && (offset.X.Value < 0 || offset.Y.Value < 0)) ||
+            extents.Cx.Value < 0 || extents.Cy.Value < 0 ||
             (allowSingleZeroExtent
                 ? extents.Cx.Value == 0 && extents.Cy.Value == 0
                 : extents.Cx.Value == 0 || extents.Cy.Value == 0))
@@ -32,7 +36,26 @@ internal static class PptxShapeTransformCodec
             Math.Abs((long)rotation) <= MaxRotationAngle60000;
     }
 
+    // Group transforms use the same direct rot/flip attribute vocabulary as
+    // ordinary shape transforms, but their off/ext/chOff/chExt children are
+    // owned by PptxCodec's group-frame validator.
+    internal static bool Supports(A.TransformGroup? transform)
+    {
+        if (transform is null || !HasOnlyAttributes(transform, "rot", "flipH", "flipV")) return false;
+        return transform.Rotation?.Value is not { } rotation ||
+            Math.Abs((long)rotation) <= MaxRotationAngle60000;
+    }
+
     internal static PresentationShapeTransform? Read(A.Transform2D transform)
+    {
+        var semantic = new PresentationShapeTransform();
+        if (transform.Rotation?.Value is { } rotation) semantic.RotationAngle60000 = rotation;
+        if (transform.HorizontalFlip?.Value is { } flipHorizontal) semantic.FlipHorizontal = flipHorizontal;
+        if (transform.VerticalFlip?.Value is { } flipVertical) semantic.FlipVertical = flipVertical;
+        return HasAnyField(semantic) ? semantic : null;
+    }
+
+    internal static PresentationShapeTransform? Read(A.TransformGroup transform)
     {
         var semantic = new PresentationShapeTransform();
         if (transform.Rotation?.Value is { } rotation) semantic.RotationAngle60000 = rotation;
@@ -51,6 +74,13 @@ internal static class PptxShapeTransformCodec
     }
 
     internal static void Apply(A.Transform2D target, PresentationShapeTransform? requested)
+    {
+        target.Rotation = requested?.HasRotationAngle60000 == true ? requested.RotationAngle60000 : null;
+        target.HorizontalFlip = requested?.HasFlipHorizontal == true ? requested.FlipHorizontal : null;
+        target.VerticalFlip = requested?.HasFlipVertical == true ? requested.FlipVertical : null;
+    }
+
+    internal static void Apply(A.TransformGroup target, PresentationShapeTransform? requested)
     {
         target.Rotation = requested?.HasRotationAngle60000 == true ? requested.RotationAngle60000 : null;
         target.HorizontalFlip = requested?.HasFlipHorizontal == true ? requested.FlipHorizontal : null;

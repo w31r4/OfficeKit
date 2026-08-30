@@ -45,6 +45,28 @@ internal static class PptxCodec
     internal static bool SupportsBoundTextLeaf(P.Shape shape) =>
         shape.TextBody is not null && PptxTextCodec.SupportsEditing(shape.TextBody);
 
+    // A shape can have a perfectly usable local text graph even when its
+    // visual fill/effect graph is outside the semantic projection (for
+    // example, a gradient-filled banner).  Keep this narrow escape hatch
+    // text-only: the native style, frame, geometry, accessibility and other
+    // fields must remain byte-owned by the source package.
+    private static bool IsBoundTextOnlyShapeEdit(
+        PresentationElement original,
+        PresentationElement requested,
+        P.Shape sourceShape)
+    {
+        if (!string.Equals(original.Name, requested.Name, StringComparison.Ordinal) ||
+            original.ContentCase != PresentationElement.ContentOneofCase.Shape ||
+            requested.ContentCase != PresentationElement.ContentOneofCase.Shape ||
+            original.Shape is null || requested.Shape is null ||
+            !SupportsBoundTextLeaf(sourceShape))
+            return false;
+        var textOnly = original.Shape.Clone();
+        textOnly.Text = requested.Shape.Text;
+        textOnly.TextBody = requested.Shape.TextBody?.Clone();
+        return textOnly.Equals(requested.Shape);
+    }
+
     internal static int ValidateEditPlanOutput(
         byte[] sourceBytes,
         byte[] outputBytes,
@@ -1000,6 +1022,14 @@ internal static class PptxCodec
                             changed = true;
                             continue;
                         }
+                        if (elementBinding.TextEditable &&
+                            sourceElement is P.Shape sourceTextShape &&
+                            IsBoundTextOnlyShapeEdit(original, requested, sourceTextShape))
+                        {
+                            PptxTextCodec.Apply(sourceTextShape, requested.Shape, slideContext);
+                            changed = true;
+                            continue;
+                        }
                         throw UnsupportedPresentationEdit(slideIndex, elementIndex, slidePart);
                     }
                     if (sourceElement is P.Shape sourceShape &&
@@ -1328,8 +1358,9 @@ internal static class PptxCodec
         int elementIndex,
         PptxPartContext slideContext,
         PptxNativeObjectCatalog? nativeObjects = null,
-        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null)
-        => ReadElement(source, $"presentation/slide/{slideIndex + 1}", elementIndex, slideContext, nativeObjects, elementIdsByNativeId);
+        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null,
+        bool allowNegativeOffset = false)
+        => ReadElement(source, $"presentation/slide/{slideIndex + 1}", elementIndex, slideContext, nativeObjects, elementIdsByNativeId, allowNegativeOffset);
 
     private static PresentationElement ReadElement(
         OpenXmlElement source,
@@ -1337,7 +1368,8 @@ internal static class PptxCodec
         int elementIndex,
         PptxPartContext slideContext,
         PptxNativeObjectCatalog? nativeObjects = null,
-        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null)
+        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null,
+        bool allowNegativeOffset = false)
     {
         var element = new PresentationElement
         {
@@ -1349,7 +1381,7 @@ internal static class PptxCodec
         var modeled = false;
         if (source is P.Shape sourceShape)
         {
-            editable = IsSimpleShape(sourceShape, slideContext);
+            editable = IsSimpleShape(sourceShape, slideContext, allowNegativeOffset);
             element.Shape = ReadShape(sourceShape, slideContext);
             modeled = true;
         }
@@ -1553,9 +1585,9 @@ internal static class PptxCodec
             nonVisual.ChildElements[0] is not P.NonVisualDrawingProperties drawing ||
             nonVisual.ChildElements[1] is not P.NonVisualGroupShapeDrawingProperties groupDrawing ||
             nonVisual.ChildElements[2] is not P.ApplicationNonVisualDrawingProperties application ||
-            groupDrawing.ChildElements.Count != 0 || application.ChildElements.Count != 0 ||
+            !SupportsGroupDrawingProperties(groupDrawing) || application.ChildElements.Count != 0 ||
             drawing.Id?.Value is null or 0 || drawing.Name?.Value is not { Length: <= 1_024 } ||
-            !HasOnlyAttributes(groupDrawing) || !HasOnlyAttributes(application) ||
+            !HasOnlyAttributes(application) ||
             properties.ChildElements.Count != 1 || properties.FirstChild != transform || !HasOnlyAttributes(properties) ||
             !PptxFrameTransformCodec.TryRead(transform, out var frameTransform) || transform.ChildElements.Count != 4 ||
             transform.ChildElements[0] is not A.Offset offset ||
@@ -1564,8 +1596,7 @@ internal static class PptxCodec
             transform.ChildElements[3] is not A.ChildExtents childExtents ||
             !HasOnlyAttributes(offset, "x", "y") || !HasOnlyAttributes(extents, "cx", "cy") ||
             !HasOnlyAttributes(childOffset, "x", "y") || !HasOnlyAttributes(childExtents, "cx", "cy") ||
-            extents.Cx?.Value <= 0 || extents.Cy?.Value <= 0 || childExtents.Cx?.Value <= 0 || childExtents.Cy?.Value <= 0 ||
-            offset.X?.Value < 0 || offset.Y?.Value < 0)
+            extents.Cx?.Value <= 0 || extents.Cy?.Value <= 0 || childExtents.Cx?.Value <= 0 || childExtents.Cy?.Value <= 0)
             return false;
 
         group.LeftEmu = offset.X?.Value ?? 0;
@@ -1583,7 +1614,13 @@ internal static class PptxCodec
         var zOrderPlan = AnalyzeElementZOrder(children);
         for (var index = 0; index < children.Length; index++)
         {
-            var child = ReadElement(children[index], groupId, index, slideContext, elementIdsByNativeId: elementIdsByNativeId);
+            var child = ReadElement(
+                children[index],
+                groupId,
+                index,
+                slideContext,
+                elementIdsByNativeId: elementIdsByNativeId,
+                allowNegativeOffset: true);
             // Keep a valid group projected when a child is only partially
             // modeled.  The child remains source-bound and read-only unless a
             // separate capability proves a narrower edit; rejecting the whole
@@ -1596,6 +1633,19 @@ internal static class PptxCodec
             group.Children.Add(child);
         }
         return true;
+    }
+
+    private static bool SupportsGroupDrawingProperties(P.NonVisualGroupShapeDrawingProperties groupDrawing)
+    {
+        if (!HasOnlyAttributes(groupDrawing) || groupDrawing.ChildElements.Count == 0) return groupDrawing.ChildElements.Count == 0;
+        if (groupDrawing.ChildElements.Count != 1 || groupDrawing.FirstChild is not A.GroupShapeLocks locks ||
+            locks.ChildElements.Count != 0)
+            return false;
+        // Group locks are UI hints and do not alter the DrawingML render tree.
+        // Keep the observed standard noChangeAspect form source-bound while
+        // allowing the group's semantic children to remain discoverable.
+        return HasOnlyAttributes(locks, "noChangeAspect") &&
+            locks.NoChangeAspect?.Value is true;
     }
 
     private static PresentationShape ReadShape(P.Shape shape, PptxPartContext slideContext)
@@ -1645,12 +1695,14 @@ internal static class PptxCodec
         if (shape.UseBackgroundFill?.HasValue == true)
             result.UseBackgroundFill = shape.UseBackgroundFill.Value;
         PptxPresetGeometryAdjustmentCodec.Read(properties?.GetFirstChild<A.PresetGeometry>(), geometry, result);
+        if (PptxShapeImageFillCodec.TryRead(properties?.GetFirstChild<A.BlipFill>(), slideContext, out var sourceImageFill))
+            result.ImageFillAssetId = sourceImageFill.Id;
         PptxCustomGeometryCodec.Read(properties?.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height, result);
         result.Accessibility = PptxNonVisualAccessibilityCodec.Read(shape.NonVisualShapeProperties?.NonVisualDrawingProperties);
         return result;
     }
 
-    private static bool IsSimpleShape(P.Shape shape, PptxPartContext slideContext)
+    private static bool IsSimpleShape(P.Shape shape, PptxPartContext slideContext, bool allowNegativeOffset = false)
     {
         if (shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null) return false;
         if (shape.ShapeStyle is not null) return false;
@@ -1658,13 +1710,27 @@ internal static class PptxCodec
         var transform = properties?.Transform2D;
         var geometry = Geometry(shape);
         if (properties is null || properties.Elements<A.Transform2D>().Count() != 1 ||
-            !PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")) return false;
+            !PptxShapeTransformCodec.Supports(
+                transform,
+                allowSingleZeroExtent: geometry == "line",
+                allowNegativeOffset: allowNegativeOffset)) return false;
         if (geometry != "custom" &&
             !PptxPresetGeometryAdjustmentCodec.TryRead(properties.GetFirstChild<A.PresetGeometry>(), geometry, out _)) return false;
+        var imageFill = properties.GetFirstChild<A.BlipFill>();
+        var imageFillSupported = imageFill is not null && PptxShapeImageFillCodec.TryRead(imageFill, slideContext, out _);
         if (geometry == "custom")
         {
             var frame = ReadFrame(shape);
-            if (!PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height)) return false;
+            var customGeometrySupported = PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height);
+            // Some third-party decks use a legal custom path profile that the
+            // semantic geometry reader does not model (for example, a
+            // rectangle-only path list without an adjustment list). When
+            // that shape is source-bound to a strict image fill, its native
+            // geometry can be preserved verbatim while the owning frame is
+            // edited. Do not widen this exception to solid-filled or
+            // source-free shapes: those still need a fully modeled path
+            // graph before they become editable.
+            if (!customGeometrySupported && !imageFillSupported) return false;
         }
         if (!SimpleFill(properties, slideContext)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
@@ -1706,6 +1772,24 @@ internal static class PptxCodec
                 "unsupported_presentation_edit",
                 $"Presentation shape {source.Id} cannot change its source-bound useBgFill attribute.");
         var properties = shape.ShapeProperties ??= new P.ShapeProperties();
+        var sourceHasImageFill = PptxShapeImageFillCodec.TryRead(properties.GetFirstChild<A.BlipFill>(), slideContext, out var sourceImageFill);
+        if (sourceHasImageFill)
+        {
+            if (string.IsNullOrWhiteSpace(semantic.ImageFillAssetId) || !semantic.ImageFillAssetId.Equals(sourceImageFill.Id, StringComparison.Ordinal))
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation shape {source.Id} cannot change its source-bound image fill asset.");
+            if (!string.IsNullOrWhiteSpace(semantic.FillRgb) || semantic.HasFillOpacityThousandthPercent || !string.IsNullOrWhiteSpace(semantic.FillScheme) || semantic.GradientFill is not null)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation shape {source.Id} cannot replace a source-bound image fill with a solid or theme fill.");
+        }
+        else if (!string.IsNullOrWhiteSpace(semantic.ImageFillAssetId))
+        {
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                $"Presentation shape {source.Id} has an image-fill identity that no longer matches its source.");
+        }
         var transform = properties.Transform2D ??= new A.Transform2D();
         var offset = transform.Offset ??= new A.Offset();
         offset.X = semantic.LeftEmu;
@@ -1714,11 +1798,17 @@ internal static class PptxCodec
         extents.Cx = semantic.WidthEmu;
         extents.Cy = semantic.HeightEmu;
         PptxShapeTransformCodec.Apply(transform, semantic.Transform);
-        PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
+        // Imported image-filled custom geometries are intentionally source-owned
+        // when their path graph is outside the semantic projection. Preserve
+        // that native geometry while allowing the owning frame to move. A
+        // populated custom path list remains the normal editable geometry path.
+        if (!sourceHasImageFill || semantic.CustomPaths.Count > 0)
+            PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
         PptxNonVisualAccessibilityCodec.ApplyBound(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, semantic.Accessibility);
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
-        if (!FillMatches(properties, semantic, slideContext)) ReplaceFill(properties, semantic, slideContext);
+        if ((!sourceHasImageFill || semantic.ImageFill is not null) && !FillMatches(properties, semantic, slideContext))
+            ReplaceFill(properties, semantic, slideContext);
         PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
@@ -2196,6 +2286,10 @@ internal static class PptxCodec
     private static P.Shape BuildShape(PresentationElement source, uint nativeId, PptxPartContext slideContext)
     {
         var semantic = source.Shape;
+        if (!string.IsNullOrWhiteSpace(semantic.ImageFillAssetId))
+            throw new CodecException(
+                "unsupported_presentation_features",
+                $"Presentation shape {source.Id} cannot author a source-bound image fill outside an imported source package.");
         var directFrame = semantic.DirectFrame;
         var transform = new A.Transform2D(
             new A.Offset { X = directFrame?.LeftEmu ?? semantic.LeftEmu, Y = directFrame?.TopEmu ?? semantic.TopEmu },
@@ -2299,7 +2393,6 @@ internal static class PptxCodec
             PptxFrameTransformCodec.Apply(transform, requested.Group.FrameTransform);
             changed = true;
         }
-
         for (var requestedIndex = 0; requestedIndex < sourceChildren.Length; requestedIndex++)
         {
             var sourceIndex = requestedSourceOrder[requestedIndex];
@@ -2326,7 +2419,17 @@ internal static class PptxCodec
                     PartPath(slideContext.Owner));
             if (SemanticHash(requestedChild).Equals(binding.SemanticSha256, StringComparison.OrdinalIgnoreCase)) continue;
             if (!binding.Editable)
+            {
+                if (binding.TextEditable &&
+                    sourceChild is P.Shape sourceTextShape &&
+                    IsBoundTextOnlyShapeEdit(originalChild, requestedChild, sourceTextShape))
+                {
+                    PptxTextCodec.Apply(sourceTextShape, requestedChild.Shape, slideContext);
+                    changed = true;
+                    continue;
+                }
                 throw new CodecException("unsupported_presentation_edit", $"Presentation slide {slideIndex + 1} {location} child {requestedIndex + 1} is read-only.", PartPath(slideContext.Owner));
+            }
             ApplyGroupChild(sourceChild, originalChild, requestedChild, slideContext, elementIdsByNativeId, nativeIdsByElementId, changedParts, replacedOpaquePartHashes, slideIndex, $"{location} child {requestedIndex + 1}");
             changed = true;
         }
@@ -2720,7 +2823,8 @@ internal static class PptxCodec
         PptxAssetCatalog assetCatalog,
         EffectiveCodecLimits limits,
         ref ulong items,
-        int depth)
+        int depth,
+        bool allowNegativeOffset = false)
     {
         items++;
         if (items > limits.MaxCells)
@@ -2753,7 +2857,7 @@ internal static class PptxCodec
             var invalidExtent = freeLine
                 ? element.Shape.WidthEmu == 0 && element.Shape.HeightEmu == 0
                 : element.Shape.WidthEmu == 0 || element.Shape.HeightEmu == 0;
-            if ((!inheritedPlaceholderGeometry && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0 ||
+            if ((!inheritedPlaceholderGeometry && (!allowNegativeOffset && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0) ||
                     element.Shape.WidthEmu < 0 || element.Shape.HeightEmu < 0 ||
                     invalidExtent)) ||
                 element.Shape.LineWidthEmu < 0 || element.Shape.LineWidthEmu > int.MaxValue)
@@ -2773,6 +2877,12 @@ internal static class PptxCodec
             if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb)) PptxColor.Normalize(element.Shape.FillRgb);
             if (!string.IsNullOrWhiteSpace(element.Shape.FillScheme) && !hasSourcePackage)
                 throw new CodecException("unsupported_presentation_features", $"Source-free presentation shape {element.Id} cannot author a theme fill directly.");
+            if (!string.IsNullOrWhiteSpace(element.Shape.ImageFillAssetId))
+            {
+                if (!hasSourcePackage)
+                    throw new CodecException("unsupported_presentation_features", $"Source-free presentation shape {element.Id} cannot author an image fill.");
+                _ = assetCatalog.Get(element.Shape.ImageFillAssetId);
+            }
             if (element.Shape.HasFillOpacityThousandthPercent &&
                 (string.IsNullOrWhiteSpace(element.Shape.FillRgb) || element.Shape.GradientFill is not null ||
                  element.Shape.ImageFill is not null ||
@@ -2832,7 +2942,14 @@ internal static class PptxCodec
             var group = element.Group;
             PptxNonVisualAccessibilityCodec.Validate(group.Accessibility, element.Id, "group");
             PptxFrameTransformCodec.Validate(group.FrameTransform, element.Id, "group");
-            if (group.LeftEmu < 0 || group.TopEmu < 0 || group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
+            // DrawingML permits a group frame to start just outside the slide
+            // canvas. Imported source-bound groups use that placement for
+            // intentional bleed/trim and must remain editable without
+            // normalizing the source coordinate. Keep source-free authoring
+            // strict so a caller cannot accidentally create an invalid frame.
+            var sourceBoundGroup = hasSourcePackage && element.Source is not null;
+            if ((!sourceBoundGroup && (group.LeftEmu < 0 || group.TopEmu < 0)) ||
+                group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
                 group.ChildWidthEmu <= 0 || group.ChildHeightEmu <= 0 || group.Children.Count == 0)
                 throw new CodecException("invalid_presentation_group", $"Presentation group {element.Id} requires positive outer/child extents and at least one child.");
             var childIds = new HashSet<string>(StringComparer.Ordinal);
@@ -2851,21 +2968,42 @@ internal static class PptxCodec
                     // group.
                     if (!hasSourcePackage || child.Source is null || string.IsNullOrWhiteSpace(child.Source.ElementSha256))
                         throw new CodecException("unsupported_presentation_features", $"Presentation group {element.Id} contains a source-free opaque child.");
-                    if (child.Source.Editable &&
-                        (child.Opaque.LeftEmu < 0 || child.Opaque.TopEmu < 0 || child.Opaque.WidthEmu <= 0 || child.Opaque.HeightEmu <= 0))
+                    if (child.Source.Editable && !HasValidSourceBoundNativeFrame(child.Opaque, allowNegativeOffset))
                         throw new CodecException("invalid_presentation_frame", $"Presentation native child {child.Id} has an invalid frame.");
                     continue;
                 }
-                ValidatePresentationElement(child, hasSourcePackage, assetCatalog, limits, ref items, depth + 1);
+                ValidatePresentationElement(child, hasSourcePackage, assetCatalog, limits, ref items, depth + 1, allowNegativeOffset: true);
             }
         }
         else if (element.ContentCase != PresentationElement.ContentOneofCase.Opaque)
             throw new CodecException("missing_presentation_element_content", $"Presentation element {element.Id} has no content.");
         else if (element.Source?.Editable == true)
         {
-            if (element.Opaque.LeftEmu < 0 || element.Opaque.TopEmu < 0 || element.Opaque.WidthEmu <= 0 || element.Opaque.HeightEmu <= 0)
+            if (!HasValidSourceBoundNativeFrame(element.Opaque))
                 throw new CodecException("invalid_presentation_frame", $"Presentation native object {element.Id} has an invalid frame.");
         }
+    }
+
+    private static bool HasValidSourceBoundNativeFrame(PresentationOpaqueElement frame, bool allowNegativeOffset = false)
+    {
+        var negativeOffsetAllowed = allowNegativeOffset || frame.NativeKind == "picture";
+        if ((!negativeOffsetAllowed && (frame.LeftEmu < 0 || frame.TopEmu < 0)) ||
+            frame.WidthEmu < 0 || frame.HeightEmu < 0)
+            return false;
+
+        // DrawingML connectors may have a zero width or height when the two
+        // endpoints share an axis.  The line geometry and connection targets
+        // remain the source-bound payload; this operation only updates the
+        // direct frame.  Require at least one positive extent so an invisible
+        // zero-by-zero object is not promoted to an editable placement root.
+        // Older imported envelopes may omit NativeKind on a nested opaque
+        // connector; its source-bound capability has already been proven by
+        // the native catalog before this validation runs.  Treat the empty
+        // and native element-name forms as the same connector profile.
+        if (frame.NativeKind is "connector" or "cxnSp" or "")
+            return frame.WidthEmu > 0 || frame.HeightEmu > 0;
+
+        return frame.WidthEmu > 0 && frame.HeightEmu > 0;
     }
 
     private static void ValidatePlaceholders(

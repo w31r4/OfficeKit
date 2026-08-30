@@ -27,6 +27,7 @@ import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCust
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
 import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
+import { normalizePresentationImageBorder, normalizePresentationImageMask } from "../presentation/image-effects.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { createPresentationAssetCatalog, validatePictureBulletUri } from "./office-kit-assets.mjs";
@@ -57,6 +58,7 @@ const PRESENTATION_ELEMENT_ORDER_CAPABILITY = Symbol.for("office-kit.presentatio
 const PRESENTATION_NATIVE_LEAF_CAPABILITY = Symbol.for("office-kit.presentation-native-leaf-capability");
 const PRESENTATION_COMPONENT_CAPABILITY = Symbol.for("office-kit.presentation-component-capability");
 const PRESENTATION_IMPORTED_GROUP_CHILD = Symbol.for("office-kit.presentation-imported-group-child");
+const PRESENTATION_SHAPE_IMAGE_FILL = Symbol.for("office-kit.presentation-shape-image-fill");
 const PRESENTATION_IMAGE_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-data-url-source");
 const PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE = Symbol.for("office-kit.presentation-image-svg-data-url-source");
 const PRESENTATION_SCHEME_COLORS = new Set([
@@ -117,7 +119,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color", "highlight"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -269,6 +271,7 @@ function registerPresentationCloneElement(context, source, clone) {
 }
 
 function cloneImportedPresentationShape(container, source, context) {
+  const imageFill = source[PRESENTATION_SHAPE_IMAGE_FILL];
   const clone = container.shapes.add({
     name: source.name,
     geometry: source.geometry,
@@ -288,6 +291,11 @@ function cloneImportedPresentationShape(container, source, context) {
     ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
     _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
     ...(source.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: source.useBackgroundFill }),
+    ...(imageFill ? {
+      _officeKitImageFillAssetId: imageFill.assetId,
+      _officeKitImageFillContentType: imageFill.contentType,
+      _officeKitImageFillDataUrlSource: imageFill.dataUrlSource,
+    } : {}),
     text: clonedPresentationValue(source.text.paragraphs),
     textBodyProperties: clonedPresentationValue(source.text.bodyProperties),
     textStyle: clonedPresentationValue(source.text.style),
@@ -311,6 +319,10 @@ function cloneImportedPresentationImage(container, source, context) {
     ...(source.svgDataUrl ? { svgDataUrl: source.svgDataUrl } : {}),
     fit: source.fit,
     ...(source.crop ? { crop: clonedPresentationValue(source.crop) } : {}),
+    ...(source.opacity === undefined ? {} : { _officeKitImageOpacity: source.opacity }),
+    ...(source.border ? { _officeKitImageBorder: clonedPresentationValue(source.border) } : {}),
+    ...(source.shadow ? { _officeKitImageShadow: clonedPresentationValue(source.shadow) } : {}),
+    ...(source.maskPreset ? { _officeKitImageMaskPreset: source.maskPreset } : {}),
     geometry: source.geometry,
     ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
   });
@@ -627,6 +639,7 @@ function cloneImportedPresentationGroup(container, source, context) {
     name: source.name,
     position: clonedPresentationValue(source.position),
     childFrame: clonedPresentationValue(source.childFrame),
+    ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
     ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
     _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
   });
@@ -909,6 +922,14 @@ function presentationFontFamily(value, label) {
   return family;
 }
 
+function wireTextHighlight(value, label) {
+  const token = String(value ?? "").trim();
+  if (PRESENTATION_SCHEME_COLORS.has(token)) return { case: "highlightScheme", value: token };
+  const rgb = presentationRgb(value, label);
+  if (!rgb) throw new OfficeKitCodecError(`${label} must be a six-digit RGB color or a supported theme token.`, [], { code: "unsupported_presentation_features" });
+  return { case: "highlightRgb", value: rgb };
+}
+
 function containsEastAsianText(value) {
   return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}]/u.test(String(value ?? ""));
 }
@@ -935,6 +956,7 @@ function wireTextStyle(style = {}, shapeId) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.paragraphStyle.fontCaps`);
+  const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.paragraphStyle.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
@@ -955,6 +977,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(highlight === undefined ? {} : { highlight }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
@@ -1030,6 +1053,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.fontCaps`);
+  const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
   const colorToken = style.color == null ? undefined : String(style.color).trim();
@@ -1054,6 +1078,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(highlight === undefined ? {} : { highlight }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
@@ -1834,6 +1859,23 @@ function presentationShadow(shadow, shapeId) {
   };
 }
 
+function presentationImageBorder(border, imageId) {
+  const normalized = normalizePresentationImageBorder(border, `Presentation image ${imageId} border`);
+  if (!normalized) return undefined;
+  const colorRgb = presentationRgb(normalized.color, `${imageId}.border.color`);
+  if (!colorRgb) {
+    throw new OfficeKitCodecError(`Presentation image ${imageId} border must use an RGB color.`, [], { code: "unsupported_presentation_features" });
+  }
+  return {
+    colorRgb,
+    widthEmu: BigInt(Math.round(normalized.width * EMU_PER_POINT)),
+    style: normalized.style,
+    ...(normalized.cap ? { cap: normalized.cap } : {}),
+    ...(normalized.join ? { join: normalized.join } : {}),
+    ...(normalized.opacity === undefined ? {} : { opacityThousandthPercent: Math.round(normalized.opacity * 100_000) }),
+  };
+}
+
 function modelPresentationShadow(shadow) {
   if (!shadow) return undefined;
   return {
@@ -1842,6 +1884,18 @@ function modelPresentationShadow(shadow) {
     distance: Number(shadow.distanceEmu) / EMU_PER_PIXEL,
     direction: Number(shadow.directionAngle60000) / ROTATION_UNITS_PER_DEGREE,
     opacity: Number(shadow.opacityThousandthPercent) / 100_000,
+  };
+}
+
+function modelPresentationImageBorder(border) {
+  if (!border) return undefined;
+  return {
+    color: border.colorRgb ? `#${border.colorRgb}` : "#000000",
+    width: Number(border.widthEmu) / EMU_PER_POINT,
+    style: border.style || "solid",
+    ...(border.cap ? { cap: border.cap } : {}),
+    ...(border.join ? { join: border.join } : {}),
+    ...(border.opacityThousandthPercent === undefined ? {} : { opacity: Number(border.opacityThousandthPercent) / 100_000 }),
   };
 }
 
@@ -2116,12 +2170,18 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
       return { command: { case: "close", value: true } };
     }),
   }));
+  const imageFill = shape[PRESENTATION_SHAPE_IMAGE_FILL];
   // The model deliberately withholds an unrecognized custom-path grammar.
   // An unchanged source-bound, non-editable shape can still be carried by the
   // C# codec, which rechecks its source binding and rejects every mutation.
-  // Source-free or editable shapes must continue to provide the full grammar.
+  // A source-bound image-filled shape is also allowed to retain an opaque
+  // custom path profile: its bounded operation is frame placement only, and
+  // the native path is never reconstructed by this serializer.
+  // Source-free shapes still must provide the full grammar.
   const opaqueSourceBoundCustomGeometry = original?.source?.editable === false;
-  if (shape.geometry === "custom" && customPaths.length === 0 && !opaqueSourceBoundCustomGeometry) {
+  const sourceBoundImageFilledCustomGeometry = imageFill && original?.source?.editable === true;
+  if (shape.geometry === "custom" && customPaths.length === 0 &&
+      !opaqueSourceBoundCustomGeometry && !sourceBoundImageFilledCustomGeometry) {
     throw new OfficeKitCodecError(`Presentation shape ${shape.id} requires custom paths.`, [], { code: "invalid_presentation_geometry" });
   }
   const line = normalizePresentationLineStyle(shape.line, { name: `Presentation shape ${shape.id} line` });
@@ -2142,9 +2202,19 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     : presentationRgb(presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
   const lineStyle = requestedLineRgb ? line.style : "none";
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
-  const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
+  const textBody = original?.source?.editable === false && original?.source?.textEditable === true && isPlainPresentationTextRequest(shape)
+    ? sourceBoundShapeTextBody(shape, originalShape) || presentationTextBody(shape, originalShape, assetCatalog, customShowLinks)
+    : presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
+  const sourceImageFillAssetId = String(originalShape?.imageFillAssetId || "");
+  if (sourceImageFillAssetId && (!imageFill || imageFill.assetId !== sourceImageFillAssetId)) {
+    throw new OfficeKitCodecError(
+      `Presentation shape ${shape.id} changed its source-bound image fill identity.`,
+      [],
+      { code: "unsupported_presentation_edit" },
+    );
+  }
   const sourceFillScheme = String(originalShape?.fillScheme || "");
   const preserveSourceFillScheme = sourceFillScheme && typeof shape.fill === "string" &&
     shape.fill.toLowerCase() === sourceFillScheme.toLowerCase();
@@ -2171,6 +2241,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         textBody,
         fillRgb,
         ...(preserveSourceFillScheme ? { fillScheme: sourceFillScheme } : {}),
+        ...(imageFill ? { imageFillAssetId: imageFill.assetId } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
@@ -2224,6 +2295,27 @@ function presentationImage(image, original, assetCatalog) {
     dataUrl: image.fit === "stretch" ? dataUrl : image.dataUrl,
     frame: position,
   });
+  const imageOpacity = image._officeKitImageOpacityModified === true
+    ? (image.opacity === undefined ? undefined : Math.round(Number(image.opacity) * 100_000))
+    : original?.content?.case === "image"
+      ? original.content.value.opacityThousandthPercent
+      : undefined;
+  const sourceImage = original?.content?.case === "image" ? original.content.value : undefined;
+  const imageBorderModified = image._officeKitImageBorderModified === true ||
+    image._officeKitImageBorderSnapshot !== JSON.stringify(image.border);
+  const imageShadowModified = image._officeKitImageShadowModified === true ||
+    image._officeKitImageShadowSnapshot !== JSON.stringify(image.shadow);
+  const imageBorder = imageBorderModified
+    ? (image.border === undefined ? undefined : presentationImageBorder(image.border, image.id))
+    : sourceImage?.border;
+  const imageShadow = imageShadowModified
+    ? (image.shadow === undefined ? undefined : presentationShadow(image.shadow, image.id))
+    : sourceImage?.shadow;
+  const imageMaskModified = image._officeKitImageMaskPresetModified === true ||
+    image._officeKitImageMaskPresetSnapshot !== JSON.stringify(image.maskPreset);
+  const imageMaskPreset = imageMaskModified
+    ? (image.maskPreset || "rect")
+    : sourceImage?.maskPreset;
   return {
     id: original?.id || image.id,
     name: image.name || original?.name || "",
@@ -2244,6 +2336,10 @@ function presentationImage(image, original, assetCatalog) {
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
         heightEmu: emuFromPixels(position.height, `${image.id}.position.height`),
+        ...(imageOpacity === undefined ? {} : { opacityThousandthPercent: imageOpacity }),
+        ...(imageMaskPreset ? { maskPreset: imageMaskPreset } : {}),
+        ...(imageBorder ? { border: imageBorder } : {}),
+        ...(imageShadow ? { shadow: imageShadow } : {}),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
         ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),
@@ -2532,6 +2628,7 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
         childTopEmu: signedEmuFromPixels(childFrame.top, `${group.id}.childFrame.top`),
         childWidthEmu,
         childHeightEmu,
+        ...(group.transform ? { frameTransform: wirePresentationTransform(group.transform, `group ${group.id}`) } : {}),
         children: group.children.map((child, index) => {
           const imported = child[PRESENTATION_IMPORTED_GROUP_CHILD];
           if (imported && presentationCloneElementSnapshot(child) === imported.snapshot) return imported.wire;
@@ -3039,6 +3136,8 @@ function registerPresentationCloneAssets(element, assetCatalog) {
   if (element instanceof ImageElement && element.dataUrl) assetCatalog.addDataUrl(element.dataUrl);
   if (element instanceof ImageElement && element.svgDataUrl) assetCatalog.addDataUrl(element.svgDataUrl);
   if (element instanceof Shape) {
+    const imageFill = element[PRESENTATION_SHAPE_IMAGE_FILL];
+    if (imageFill?.dataUrlSource?.resolve) assetCatalog.addDataUrl(imageFill.dataUrlSource.resolve());
     for (const paragraph of element.text?.paragraphs || []) {
       if (paragraph.bulletImage?.dataUrl) assetCatalog.addDataUrl(paragraph.bulletImage.dataUrl);
     }
@@ -3065,7 +3164,19 @@ function presentationOpaque(object, original, snapshot, assetCatalog) {
       const topEmu = presentationNativePlacementEmu(frame.top, "top");
       const widthEmu = presentationNativePlacementEmu(frame.width, "width");
       const heightEmu = presentationNativePlacementEmu(frame.height, "height");
-      if (leftEmu < 0n || topEmu < 0n || widthEmu <= 0n || heightEmu <= 0n) {
+      // A source-bound connector may be a legal horizontal or vertical line
+      // with one zero extent.  Its endpoint geometry and relationship targets
+      // stay opaque; this path only changes the owner frame.  Keep ordinary
+      // native objects strict and reject invisible zero-by-zero connectors.
+      const zeroExtentConnector = object.nativeKind === "connector" &&
+        widthEmu >= 0n && heightEmu >= 0n && (widthEmu > 0n || heightEmu > 0n);
+      // Pictures are also allowed to bleed past a slide edge in DrawingML;
+      // the native catalog proves their bounded direct frame separately from
+      // the opaque payload.  Other native roots retain non-negative offsets.
+      const negativeOffsetPicture = object.nativeKind === "picture";
+      if ((!negativeOffsetPicture && (leftEmu < 0n || topEmu < 0n)) ||
+          widthEmu < 0n || heightEmu < 0n ||
+          (!zeroExtentConnector && (widthEmu === 0n || heightEmu === 0n))) {
         throw new OfficeKitCodecError(`Presentation native element ${object.id} requires a non-negative position and positive size.`, [], { code: "invalid_presentation_frame" });
       }
       const updated = clonePresentationWire(PresentationElementSchema, original);
@@ -3517,6 +3628,14 @@ function normalizeNativeLeafCapsValue(value) {
   return { raw: token, publicValue: token };
 }
 
+function normalizeNativeLeafHighlightSchemeValue(value) {
+  const normalized = NATIVE_SCHEME_COLOR_CANONICAL[String(value ?? "").trim().toLowerCase()];
+  if (!normalized) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontHighlightScheme leaf requires a supported theme color token.");
+  }
+  return { raw: normalized, publicValue: normalized };
+}
+
 function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
   if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
@@ -3599,6 +3718,7 @@ function componentImageDescriptor(image) {
     crop: layout.crop,
     geometry: layout.geometry,
     borderRadius: layout.borderRadius,
+    maskPreset: layout.maskPreset,
     transform: layout.transform,
   };
 }
@@ -4548,6 +4668,67 @@ function createPresentationNativeLeafCapability(presentation, state) {
         });
       }
     };
+    const registerImportedImageOpacityLeaf = () => {
+      if (!isImage || wire.source?.editable !== true) return;
+      const raw = String(wire.content.value.opacityThousandthPercent ?? "");
+      if (!/^[0-9]+$/u.test(raw)) return;
+      let opacity;
+      try { opacity = BigInt(raw); }
+      catch { return; }
+      if (opacity < 0n || opacity > 100_000n) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "imageOpacityThousandthPercent",
+        expectedValue: raw,
+        value: Number(opacity) / 100_000,
+        unit: "fraction",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation image opacity native leaf requires a finite number from 0 through 1.");
+          }
+          const token = String(Math.round(candidate * 100_000));
+          return { raw: token, publicValue: Number(token) / 100_000 };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) { model.opacity = Number(next) / 100_000; },
+      });
+    };
+    const registerImportedImageMaskLeaf = () => {
+      if (!isImage || wire.source?.editable !== true) return;
+      const sourceMask = wire.content.value.maskPreset || "rect";
+      let canonicalSourceMask;
+      try { canonicalSourceMask = normalizePresentationImageMask(sourceMask) || "rect"; }
+      catch { return; }
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "imageMaskPreset",
+        expectedValue: canonicalSourceMask,
+        value: canonicalSourceMask,
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          let canonical;
+          try { canonical = normalizePresentationImageMask(next) || "rect"; }
+          catch {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation image mask native leaf requires a supported DrawingML preset geometry.");
+          }
+          return { raw: canonical, publicValue: canonical === "rect" ? undefined : canonical };
+        },
+        isNoop(next) { return next === canonicalSourceMask; },
+        apply(next) { model.maskPreset = next === "rect" ? undefined : next; },
+      });
+    };
     if (isShape) {
       const paragraphAlignmentIndices = new Set();
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
@@ -4712,6 +4893,54 @@ function createPresentationNativeLeafCapability(presentation, state) {
               run.style = { ...(run.style || {}), fontCaps: next };
             },
           });
+        }
+        const highlightRgb = leaf.run.highlight?.case === "highlightRgb" ? leaf.run.highlight.value : undefined;
+        if (!model.placeholder && typeof highlightRgb === "string" && /^[0-9A-F]{6}$/iu.test(highlightRgb)) {
+          const expectedValue = highlightRgb.toUpperCase();
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontHighlightRgb",
+            expectedValue,
+            value: `#${expectedValue.toLowerCase()}`,
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              assertNativeLeafRgbValue(next, "fontHighlightRgb");
+              const normalized = String(next).trim().replace(/^#/u, "").toUpperCase();
+              return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+            },
+            isNoop(next) { return next.toUpperCase() === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-highlight native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), highlight: `#${next.toLowerCase()}` };
+            },
+          });
+        }
+        const highlightScheme = leaf.run.highlight?.case === "highlightScheme" ? leaf.run.highlight.value : undefined;
+        if (!model.placeholder && typeof highlightScheme === "string") {
+          const expectedValue = NATIVE_SCHEME_COLOR_CANONICAL[highlightScheme.toLowerCase()];
+          if (expectedValue) {
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontHighlightScheme",
+              expectedValue,
+              value: expectedValue,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                return normalizeNativeLeafHighlightSchemeValue(next);
+              },
+              isNoop(next) { return next === expectedValue; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-highlight native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), highlight: next };
+              },
+            });
+          }
         }
         // A run family is issued only when the imported wire contains an
         // explicit, literal typeface. Theme tokens (for example +mn-lt) and
@@ -5458,6 +5687,8 @@ function createPresentationNativeLeafCapability(presentation, state) {
         }
       }
     }
+    registerImportedImageOpacityLeaf();
+    registerImportedImageMaskLeaf();
     if (wire.source.editable !== true) {
       registerImportedShapeColorLeaves();
       return;
@@ -5723,6 +5954,20 @@ const PRESENTATION_SCALAR_LEAF_FIELDS = Object.freeze([
   Object.freeze(["heightEmu", "heightEmu"]),
 ]);
 
+const PRESENTATION_IMAGE_SCALAR_LEAF_FIELDS = Object.freeze([
+  Object.freeze(["leftEmu", "leftEmu"]),
+  Object.freeze(["topEmu", "topEmu"]),
+  Object.freeze(["widthEmu", "widthEmu"]),
+  Object.freeze(["heightEmu", "heightEmu"]),
+  Object.freeze(["opacityThousandthPercent", "imageOpacityThousandthPercent"]),
+  Object.freeze(["maskPreset", "imageMaskPreset"]),
+]);
+
+function canonicalPresentationImageMask(value) {
+  try { return normalizePresentationImageMask(value) || "rect"; }
+  catch { return String(value || ""); }
+}
+
 function restoreEquivalentPresentationScalarLeaves(original, requested) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return requested;
   let restored;
@@ -5744,16 +5989,20 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const beforeElement = original.content.value;
   const afterElement = requested.content.value;
   const scalarFields = contentCase === "image"
-      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
+      ? PRESENTATION_IMAGE_SCALAR_LEAF_FIELDS
       : PRESENTATION_SCALAR_LEAF_FIELDS;
-  const changed = scalarFields.filter(([field]) => String(beforeElement[field] ?? "") !== String(afterElement[field] ?? ""));
+  const fieldValue = (field, value) => field === "maskPreset" ? canonicalPresentationImageMask(value) : String(value ?? "");
+  const changed = scalarFields.filter(([field]) => fieldValue(field, beforeElement[field]) !== fieldValue(field, afterElement[field]));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;
-  const expectedValue = String(beforeElement[field] ?? "");
-  const value = String(afterElement[field] ?? "");
+  const expectedValue = fieldValue(field, beforeElement[field]);
+  const value = fieldValue(field, afterElement[field]);
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
   if (leafKind === "fillOpacityThousandthPercent" &&
       (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
+  if (leafKind === "imageOpacityThousandthPercent" &&
+      (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
+  if (leafKind === "imageMaskPreset" && (canonicalPresentationImageMask(expectedValue) !== expectedValue || canonicalPresentationImageMask(value) !== value)) return undefined;
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value[field] = beforeElement[field];
@@ -6096,6 +6345,8 @@ function modelRun(run, customShowLinks) {
       ...(run.fontKerningPoints === undefined ? {} : { fontKerning: run.fontKerningPoints }),
       ...(run.fontBaselinePercent === undefined ? {} : { fontBaseline: run.fontBaselinePercent }),
       ...(run.fontSpacingPoints === undefined ? {} : { fontSpacing: run.fontSpacingPoints }),
+      ...(run.highlight?.case === "highlightRgb" ? { highlight: `#${run.highlight.value}` } : {}),
+      ...(run.highlight?.case === "highlightScheme" ? { highlight: run.highlight.value } : {}),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
       ...(run.underline === undefined ? {} : { underline: run.underline }),
@@ -6184,6 +6435,8 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.fontKerningPoints === undefined ? {} : { fontKerning: style.fontKerningPoints }),
     ...(style.fontBaselinePercent === undefined ? {} : { fontBaseline: style.fontBaselinePercent }),
     ...(style.fontSpacingPoints === undefined ? {} : { fontSpacing: style.fontSpacingPoints }),
+    ...(style.highlight?.case === "highlightRgb" ? { highlight: `#${style.highlight.value}` } : {}),
+    ...(style.highlight?.case === "highlightScheme" ? { highlight: style.highlight.value } : {}),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
     ...(style.underline === undefined ? {} : { underline: style.underline }),
@@ -6449,6 +6702,46 @@ function isPlainPresentationTextRequest(shape) {
   return JSON.stringify(shape.text?.paragraphs || []) === JSON.stringify(normalizePresentationParagraphs(shape.text?.value || ""));
 }
 
+function sourceBoundShapeTextBody(shape, originalShape) {
+  if (!originalShape?.textBody) return undefined;
+  if (!isPlainPresentationTextRequest(shape)) {
+    throw new OfficeKitCodecError(
+      `Presentation shape ${shape.id} changed its source-bound paragraph, inline, or formatting topology. Use text.replace(...) for structured text, or text.set(...) with the source line-break topology intact.`,
+      [],
+      { code: "presentation_text_topology_changed" },
+    );
+  }
+  const textBody = clonedPresentationValue(originalShape.textBody);
+  const spans = [[]];
+  for (let paragraphIndex = 0; paragraphIndex < (textBody.paragraphs || []).length; paragraphIndex += 1) {
+    const paragraph = textBody.paragraphs[paragraphIndex];
+    for (const run of paragraph.runs || []) {
+      if (run.content?.case === "text") spans.at(-1).push(run);
+      else if (run.content?.case === "lineBreak") spans.push([]);
+      else {
+        throw new OfficeKitCodecError(
+          `Presentation shape ${shape.id} contains a field or unsupported inline that cannot be replaced through text.set(...).`,
+          [],
+          { code: "presentation_text_topology_changed" },
+        );
+      }
+    }
+    if (paragraphIndex + 1 < textBody.paragraphs.length) spans.push([]);
+  }
+  const segments = shape.text.value.split("\n");
+  if (segments.length !== spans.length || spans.some((runs) => runs.length !== 1)) {
+    throw new OfficeKitCodecError(
+      `Presentation shape ${shape.id} cannot map text.set(...) onto its source-bound line-break and styled-run topology. Preserve the newline count or use text.replace(...).`,
+      [],
+      { code: "presentation_text_topology_changed" },
+    );
+  }
+  for (let index = 0; index < segments.length; index += 1) {
+    spans[index][0].content = { case: "text", value: segments[index] };
+  }
+  return textBody;
+}
+
 function sourceBoundSlidePlaceholderTextBody(shape, originalShape, originalState, assetCatalog, customShowLinks) {
   if (slidePlaceholderTextStructureSnapshot(shape) === originalState.textStructure) {
     return presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
@@ -6652,6 +6945,11 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       line: modelPresentationShapeLine(shape),
       ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
       ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+      ...(shape.imageFillAssetId ? {
+        _officeKitImageFillAssetId: shape.imageFillAssetId,
+        _officeKitImageFillContentType: assetCatalog.contentType(shape.imageFillAssetId),
+        _officeKitImageFillDataUrlSource: assetCatalog.dataUrlSource(shape.imageFillAssetId),
+      } : {}),
       ...modelPresentationAccessibility(shape.accessibility),
       _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
       text: modelText(shape, assetCatalog, customShowLinks),
@@ -6676,6 +6974,10 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
+      ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
+      ...(image.border ? { _officeKitImageBorder: modelPresentationImageBorder(image.border) } : {}),
+      ...(image.shadow ? { _officeKitImageShadow: modelPresentationShadow(image.shadow) } : {}),
+      ...(image.maskPreset ? { _officeKitImageMaskPreset: image.maskPreset } : {}),
       geometry: "rect",
       ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
     };
@@ -6750,6 +7052,7 @@ function modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGr
       width: Number(group.childWidthEmu) / EMU_PER_PIXEL,
       height: Number(group.childHeightEmu) / EMU_PER_PIXEL,
     },
+    ...(group.frameTransform ? { transform: modelPresentationTransform(group.frameTransform) } : {}),
     ...modelPresentationAccessibility(group.accessibility, "Imported Presentation group"),
     _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
     children: group.children.map((child) => modelPresentationGroupChild(child, assetCatalog, customShowLinks, nativeGraph, sourcePart)),
@@ -6980,6 +7283,11 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           line: modelPresentationShapeLine(shape),
           ...(shape.shadow ? { shadow: modelPresentationShadow(shape.shadow) } : {}),
           ...(shape.useBackgroundFill === undefined ? {} : { _officeKitUseBackgroundFill: shape.useBackgroundFill }),
+          ...(shape.imageFillAssetId ? {
+            _officeKitImageFillAssetId: shape.imageFillAssetId,
+            _officeKitImageFillContentType: assetCatalog.contentType(shape.imageFillAssetId),
+            _officeKitImageFillDataUrlSource: assetCatalog.dataUrlSource(shape.imageFillAssetId),
+          } : {}),
           ...modelPresentationAccessibility(shape.accessibility),
           _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
           text: modelText(shape, assetCatalog, customShowLinks),
@@ -7004,6 +7312,10 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
+          ...(image.opacityThousandthPercent === undefined ? {} : { _officeKitImageOpacity: Number(image.opacityThousandthPercent) / 100_000 }),
+          ...(image.border ? { _officeKitImageBorder: modelPresentationImageBorder(image.border) } : {}),
+          ...(image.shadow ? { _officeKitImageShadow: modelPresentationShadow(image.shadow) } : {}),
+          ...(image.maskPreset ? { _officeKitImageMaskPreset: image.maskPreset } : {}),
           geometry: "rect",
           ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
         });

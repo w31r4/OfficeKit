@@ -149,6 +149,20 @@ internal static class PptxCustomGeometryCodec
         }
         if (shape.PresetAdjustments.Count > 0)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} has preset adjustments with custom geometry.");
+        // A source-bound image-filled shape may intentionally carry a custom
+        // path graph outside this codec's semantic profile.  Its image fill
+        // and native path tokens remain source-owned; the bounded frame can
+        // still be edited without pretending that an empty projection is an
+        // authorable custom geometry.  Source-free image fills are rejected
+        // by ValidatePresentationElement before reaching this branch.
+        if (shape.CustomPaths.Count == 0 &&
+            !string.IsNullOrWhiteSpace(shape.ImageFillAssetId) &&
+            shape.CustomAdjustments.Count == 0 &&
+            shape.CustomGuides.Count == 0 &&
+            shape.CustomConnectionSites.Count == 0 &&
+            shape.CustomAdjustmentHandles.Count == 0 &&
+             shape.TextRectangle is null)
+             return;
         if (shape.CustomPaths.Count is < 1 or > MaxPaths)
             throw new CodecException("invalid_presentation_geometry", $"Presentation shape {shapeId} custom geometry must contain 1 through {MaxPaths} paths.");
         var formulas = PptxCustomGeometryFormulaCodec.Validate(shape, shapeId);

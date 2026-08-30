@@ -67,6 +67,14 @@ imagery. Keep the stop count small, maintain text contrast across the entire
 field, and use a foreground image element when a photographic subject must be
 cropped or animated independently.
 
+Use an image element when it must remain independently selectable, cropped,
+animated, or reordered. Preset masks, direct opacity, bounded RGB borders, and
+one bounded outer shadow belong to that image element; overlays are ordinary
+shapes placed after the image and before text. On imported files, change only
+the effect values and mask adjustments returned by inspection. Unfamiliar
+effect graphs and custom mask topology stay source-bound instead of being
+flattened.
+
 Keep the subject, intended focal point, and important edges inside the crop.
 Use `cover` for image-led regions, `contain` for diagrams or logos that must not
 crop, `tile` only for a genuinely repeatable texture, and explicit crop values

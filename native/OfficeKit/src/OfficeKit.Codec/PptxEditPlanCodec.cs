@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -301,6 +301,13 @@ internal static partial class PptxEditPlanCodec
                 if (expected == requested)
                     throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its capitalization.");
             }
+            if (leafKind is "fontHighlightRgb" or "fontHighlightScheme")
+            {
+                var expected = leafKind == "fontHighlightRgb" ? PptxColor.Normalize(operation.ExpectedValue) : PptxColor.NormalizeScheme(operation.ExpectedValue);
+                var requested = leafKind == "fontHighlightRgb" ? PptxColor.Normalize(operation.Value) : PptxColor.NormalizeScheme(operation.Value);
+                if (expected == requested)
+                    throw new CodecException("presentation_edit_plan_noop", $"PPTX edit operation {operation.OperationId} must change its font highlight.");
+            }
             if (leafKind == "textBodyColumnCount")
             {
                 var expected = ParseTextBodyColumnCountToken(operation.ExpectedValue, operation);
@@ -407,6 +414,19 @@ internal static partial class PptxEditPlanCodec
                 if (!ValidOpacityToken(operation.ExpectedValue) || !ValidOpacityToken(operation.Value) ||
                     operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} fillOpacityThousandthPercent must use a changed canonical value from 0 through 100000.");
+            }
+            if (leafKind == "imageOpacityThousandthPercent")
+            {
+                if (!ValidOpacityToken(operation.ExpectedValue) || !ValidOpacityToken(operation.Value) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} imageOpacityThousandthPercent must use a changed canonical value from 0 through 100000.");
+            }
+            if (leafKind == "imageMaskPreset")
+            {
+                if (!PptxCustomGeometryCodec.TryPreset(operation.ExpectedValue, out _) ||
+                    !PptxCustomGeometryCodec.TryPreset(operation.Value, out _) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} imageMaskPreset must use a changed supported DrawingML preset geometry.");
             }
             if (leafKind == "lineStyle")
             {
@@ -605,7 +625,7 @@ internal static partial class PptxEditPlanCodec
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
                  ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
                  (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
-                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
+                 (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
             }
@@ -644,7 +664,9 @@ internal static partial class PptxEditPlanCodec
                      (projectedElement.ContentCase is PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Opaque) &&
                      projectedElement.Source.Editable &&
                      PptxNativeObjectCatalog.SupportsPlacementEditing(picture) &&
-                     IsGeometryLeaf(LeafKind(operation)))
+                     (IsGeometryLeaf(LeafKind(operation)) ||
+                      LeafKind(operation) == "imageOpacityThousandthPercent" && HasSafeNativePictureOpacity(picture) ||
+                      LeafKind(operation) == "imageMaskPreset" && HasSafeNativePictureMask(picture)))
             {
                 ProveLeafValue(picture, operation);
             }
@@ -811,7 +833,7 @@ internal static partial class PptxEditPlanCodec
             }
             if ((leafKind is "rotationDegrees" or "flipHorizontal" or "flipVertical") && range.LocalName is not ("sp" or "pic"))
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
-            if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps")
+            if (leafKind is "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme")
             {
                 if (range.LocalName != "sp")
                     throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {leafKind} target has the wrong native element type.", operation.SlidePartPath);
@@ -893,24 +915,40 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} raw table-cell index is out of range.", operation.SlidePartPath);
         var cell = cells[operation.TextLeafIndex];
         var leaves = TextLeafPattern().Matches(cell.Value)
-            .Where(IsNonSelfClosingTextLeaf)
             .Where(match => drawingPrefixes.Contains(match.Groups["prefix"].Value))
             .ToArray();
-        if (leaves.Length != 1)
-            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} table cell does not contain exactly one non-empty text leaf.", operation.SlidePartPath);
-        var leaf = leaves[0];
-        var prefix = leaf.Groups["prefix"].Value;
-        if (DecodeTextLeaf(leaf.Value, prefix) != operation.ExpectedValue)
-            throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw table-cell leaf does not match the expected text.", operation.SlidePartPath);
-        var open = leaf.Groups["open"].Value;
-        if (NeedsPreserve(operation.Value) && !PreserveSpacePattern().IsMatch(open))
-            open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
-        var start = elementRange.Start + cell.Index + leaf.Index;
+        if (leaves.Length == 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} table cell has no bounded text leaves.", operation.SlidePartPath);
+        var sourceLines = leaves.Select(leaf => DecodeTextLeaf(leaf.Value, leaf.Groups["prefix"].Value)).ToArray();
+        if (string.Join("\n", sourceLines) != operation.ExpectedValue)
+            throw new CodecException("presentation_text_precondition_failed", $"PPTX edit operation {operation.OperationId} raw table-cell leaves do not match the expected text.", operation.SlidePartPath);
+        var requestedLines = operation.Value.Split('\n');
+        if (requestedLines.Length != leaves.Length)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} must preserve the source paragraph count when editing a multi-paragraph table cell.", operation.SlidePartPath);
+
+        // Replace all paragraph leaves inside one source span so the wire
+        // result remains one logical operation/result while preserving every
+        // paragraph, run property and interstitial XML token byte-for-byte.
+        var firstStart = leaves[0].Index;
+        var lastEnd = leaves[^1].Index + leaves[^1].Length;
+        var replacement = cell.Value[firstStart..lastEnd];
+        for (var index = leaves.Length - 1; index >= 0; index--)
+        {
+            var leaf = leaves[index];
+            var open = leaf.Groups["open"].Value;
+            if (NeedsPreserve(requestedLines[index]) && !PreserveSpacePattern().IsMatch(open))
+                open = open.Insert(open.Length - 1, " xml:space=\"preserve\"");
+            var replacementLeaf = ReplaceTextLeaf(leaf, leaf.Groups["prefix"].Value, requestedLines[index], open);
+            var start = leaf.Index - firstStart;
+            var end = start + leaf.Length;
+            replacement = replacement[..start] + replacementLeaf + replacement[end..];
+        }
+        var absoluteStart = elementRange.Start + cell.Index + firstStart;
         return new PptxXmlPatch(
             operation,
-            start,
-            start + leaf.Length,
-            open + EscapeText(operation.Value) + leaf.Groups["close"].Value,
+            absoluteStart,
+            absoluteStart + (lastEnd - firstStart),
+            replacement,
             proof.SourceElementSha256,
             proof.MutationPartPath);
     }
@@ -1112,6 +1150,26 @@ internal static partial class PptxEditPlanCodec
         var fillsOnLine = outlines[0].ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
         return fillsOnLine.Length == 1 && fillsOnLine[0] is A.SolidFill lineSolid &&
             (HasSafeNativeRgbFill(lineSolid) || kind == "lineStyle" && HasSafeNativeSchemeFill(lineSolid));
+    }
+
+    private static bool HasSafeNativePictureOpacity(P.Picture picture)
+    {
+        var blip = picture.BlipFill?.GetFirstChild<A.Blip>();
+        var alpha = blip?.GetFirstChild<A.AlphaModulationFixed>();
+        if (alpha is null || alpha.HasChildren || alpha.GetAttributes().Count != 1 ||
+            alpha.GetAttributes()[0].LocalName != "amt" || alpha.GetAttributes()[0].NamespaceUri.Length != 0)
+            return false;
+        return alpha.Amount?.Value is >= 0 and <= 100_000;
+    }
+
+    private static bool HasSafeNativePictureMask(P.Picture picture)
+    {
+        var geometry = picture.ShapeProperties?.GetFirstChild<A.PresetGeometry>();
+        if (geometry is null || geometry.GetAttributes().Any(attribute => attribute.LocalName != "prst") ||
+            geometry.ChildElements.Count != 1 || geometry.FirstChild is not A.AdjustValueList || geometry.FirstChild.ChildElements.Count != 0 ||
+            geometry.Preset?.Value is not { } preset)
+            return false;
+        return PptxCustomGeometryCodec.TryPresetName(preset, out _);
     }
 
     private static bool HasSafeNativeRgbFill(A.SolidFill fill)
@@ -1439,21 +1497,47 @@ internal static partial class PptxEditPlanCodec
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run kerning.", operation.SlidePartPath);
             return kerning;
         }
-        if (kind is "fontColorRgb" or "fontColorScheme")
+        if (kind is "fontColorRgb" or "fontColorScheme" or "fontHighlightRgb" or "fontHighlightScheme")
         {
             if (element is not P.Shape shape)
                 throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {kind} target is not a shape.", operation.SlidePartPath);
             var leaves = shape.Descendants<A.Text>().ToArray();
             if (operation.TextLeafIndex >= (uint)leaves.Length || leaves[operation.TextLeafIndex].Parent is not A.Run run)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font color.", operation.SlidePartPath);
+            var isHighlight = kind is "fontHighlightRgb" or "fontHighlightScheme";
             var fill = run.RunProperties?.GetFirstChild<A.SolidFill>();
             string color;
-            var hasColor = kind == "fontColorRgb"
-                ? PptxColor.TryDirectSolidRgb(fill, out color)
-                : PptxColor.TryDirectSolidScheme(fill, out color);
+            bool hasColor;
+            if (isHighlight)
+            {
+                var highlightKind = PptxTextDecoration.TryHighlight(run.RunProperties, out var parsedKind, out var parsedValue) ? parsedKind : string.Empty;
+                color = parsedValue;
+                hasColor = (kind == "fontHighlightRgb" && highlightKind == "rgb") || (kind == "fontHighlightScheme" && highlightKind == "scheme");
+            }
+            else
+            {
+                hasColor = kind == "fontColorRgb"
+                    ? PptxColor.TryDirectSolidRgb(fill, out color)
+                    : PptxColor.TryDirectSolidScheme(fill, out color);
+            }
             if (!hasColor)
                 throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit run font color.", operation.SlidePartPath);
             return color;
+        }
+        if (kind == "imageOpacityThousandthPercent")
+        {
+            if (element is not P.Picture picture || !HasSafeNativePictureOpacity(picture))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit image opacity.", operation.SlidePartPath);
+            return picture.BlipFill!.GetFirstChild<A.Blip>()!.GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value
+                .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+        if (kind == "imageMaskPreset")
+        {
+            if (element is not P.Picture picture || !HasSafeNativePictureMask(picture) ||
+                picture.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!.Preset?.Value is not { } preset ||
+                !PptxCustomGeometryCodec.TryPresetName(preset, out var mask))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit image mask preset.", operation.SlidePartPath);
+            return mask;
         }
         if ((kind is "fillRgb" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu") && element is P.GroupShape group)
         {
@@ -1615,6 +1699,18 @@ internal static partial class PptxEditPlanCodec
                 leaf = DirectChildRange(xml, solidFill, "srgbClr", "alpha", operation);
                 attribute = "val";
                 break;
+            case "imageOpacityThousandthPercent":
+                if (owner != "pic") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose image opacity.", operation.SlidePartPath);
+                var blipFill = DirectChildRange(xml, elementRange, owner, "blipFill", operation);
+                var blip = DirectChildRange(xml, blipFill, "blipFill", "blip", operation);
+                leaf = DirectChildRange(xml, blip, "blip", "alphaModFix", operation);
+                attribute = "amt";
+                break;
+            case "imageMaskPreset":
+                if (owner != "pic") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose an image mask preset.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, properties, "spPr", "prstGeom", operation);
+                attribute = "prst";
+                break;
             case "fillScheme":
                 if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose fillScheme.", operation.SlidePartPath);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "schemeClr", operation);
@@ -1698,12 +1794,14 @@ internal static partial class PptxEditPlanCodec
         {
             "lineStyle" => PptxLineStyleCodec.TryPresetDashToken(operation.ExpectedValue, out var expectedStyleToken) ? expectedStyleToken : string.Empty,
             "lineCap" => PptxLineStyleCodec.TryCapToken(operation.ExpectedValue, out var expectedCapToken) ? expectedCapToken : string.Empty,
+            "imageMaskPreset" => PptxCustomGeometryCodec.TryPreset(operation.ExpectedValue, out _) ? operation.ExpectedValue : string.Empty,
             _ => operation.ExpectedValue,
         };
         var replacement = LeafKind(operation) switch
         {
             "lineStyle" => PptxLineStyleCodec.TryPresetDashToken(operation.Value, out var requestedStyleToken) ? requestedStyleToken : string.Empty,
             "lineCap" => PptxLineStyleCodec.TryCapToken(operation.Value, out var requestedCapToken) ? requestedCapToken : string.Empty,
+            "imageMaskPreset" => PptxCustomGeometryCodec.TryPreset(operation.Value, out _) ? operation.Value : string.Empty,
             _ => operation.Value,
         };
         var matches = LeafKind(operation) is "flipHorizontal" or "flipVertical"
@@ -2685,32 +2783,33 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} {LeafKind(operation)} leaf is not owned by an editable text run.", operation.SlidePartPath);
         var runRange = new XmlRange(run.Index, run.Index + run.Length, "r");
         var properties = DirectChildRange(elementXml, runRange, "r", "rPr", operation);
-        var fill = DirectChildRange(elementXml, properties, "rPr", "solidFill", operation);
         var leafKind = LeafKind(operation);
-        var colorName = leafKind == "fontColorRgb" ? "srgbClr" : "schemeClr";
+        var isHighlight = leafKind is "fontHighlightRgb" or "fontHighlightScheme";
+        var fill = DirectChildRange(elementXml, properties, "rPr", isHighlight ? "highlight" : "solidFill", operation);
+        var colorName = leafKind is "fontColorRgb" or "fontHighlightRgb" ? "srgbClr" : "schemeClr";
         var fillChildren = DirectChildRanges(elementXml, fill);
         if (fillChildren.Count != 1 || fillChildren[0].LocalName != colorName)
-            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run font color requires one direct {colorName} child.", operation.SlidePartPath);
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run {(isHighlight ? "font highlight" : "font color")} requires one direct {colorName} child.", operation.SlidePartPath);
         var color = fillChildren[0];
         if (DirectChildRanges(elementXml, color).Count != 0)
-            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run font color has unsupported color effects.", operation.SlidePartPath);
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run {(isHighlight ? "font highlight" : "font color")} has unsupported color effects.", operation.SlidePartPath);
         var fragment = elementXml[color.Start..color.End];
         var startTag = XmlTokenPattern().Matches(fragment).Cast<Match>()
             .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == colorName) ??
-            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} run font color tag was not found.", operation.SlidePartPath);
+            throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} run {(isHighlight ? "font highlight" : "font color")} tag was not found.", operation.SlidePartPath);
         var attributes = XmlAttributePattern().Matches(startTag.Value).Cast<Match>()
             .Where(match => LocalAttributeName(match.Groups["name"].Value) == "val")
             .ToArray();
         if (attributes.Length != 1 || XmlAttributePattern().Matches(startTag.Value).Cast<Match>().Any(match => LocalAttributeName(match.Groups["name"].Value) != "val"))
-            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run font color value is missing or ambiguous.", operation.SlidePartPath);
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} run {(isHighlight ? "font highlight" : "font color")} value is missing or ambiguous.", operation.SlidePartPath);
         var valueGroup = attributes[0].Groups["value"];
         var actual = System.Net.WebUtility.HtmlDecode(valueGroup.Value);
-        var matches = leafKind == "fontColorRgb"
+        var matches = leafKind is "fontColorRgb" or "fontHighlightRgb"
             ? actual.Equals(operation.ExpectedValue, StringComparison.OrdinalIgnoreCase) && IsRgbToken(actual)
             : PptxColor.TrySchemeToken(actual, out var actualScheme) && actualScheme == PptxColor.NormalizeScheme(operation.ExpectedValue);
         if (!matches)
-            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw run font color does not match the expected value.", operation.SlidePartPath);
-        var replacement = leafKind == "fontColorRgb" ? PptxColor.Normalize(operation.Value) : PptxColor.NormalizeScheme(operation.Value);
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} raw run {(isHighlight ? "font highlight" : "font color")} does not match the expected value.", operation.SlidePartPath);
+        var replacement = leafKind is "fontColorRgb" or "fontHighlightRgb" ? PptxColor.Normalize(operation.Value) : PptxColor.NormalizeScheme(operation.Value);
         var start = elementRange.Start + color.Start + startTag.Index + valueGroup.Index;
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }

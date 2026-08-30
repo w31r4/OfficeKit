@@ -543,12 +543,285 @@ assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].access
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
 assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
 
+// An imported shape can have a safe text graph while its visual fill is a
+// native gradient outside the typed style profile.  A plain text edit must
+// keep that gradient instead of rejecting the whole shape or replacing it
+// with the projected transparent fill.
+const gradientShapeZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const gradientShapeSourceXml = await gradientShapeZip.file("ppt/slides/slide1.xml").async("text");
+const gradientShapeNamePosition = gradientShapeSourceXml.indexOf('name="decision-status"');
+const gradientShapeStart = gradientShapeSourceXml.lastIndexOf("<p:sp>", gradientShapeNamePosition);
+const gradientShapeEnd = gradientShapeSourceXml.indexOf("</p:sp>", gradientShapeNamePosition) + "</p:sp>".length;
+const gradientShapeSource = gradientShapeSourceXml.slice(gradientShapeStart, gradientShapeEnd);
+const gradientShapeXml = gradientShapeSource.replace(
+  /<a:solidFill\b[^>]*>[\s\S]*?<\/a:solidFill>/u,
+  '<a:gradFill xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" rotWithShape="0"><a:gsLst><a:gs pos="0"><a:srgbClr val="DBEAFE"/></a:gs><a:gs pos="100000"><a:srgbClr val="1E3A8A"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill>',
+);
+assert.notEqual(gradientShapeXml, gradientShapeSource);
+gradientShapeZip.file("ppt/slides/slide1.xml", gradientShapeSourceXml.slice(0, gradientShapeStart) + gradientShapeXml + gradientShapeSourceXml.slice(gradientShapeEnd));
+const gradientShapeSourceFile = new FileBlob(
+  await gradientShapeZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const gradientShapeImported = await PresentationFile.importPptx(gradientShapeSourceFile);
+const gradientShape = itemByName(gradientShapeImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(gradientShape.fill, "transparent");
+assert.equal(gradientShape.accessibilityCapability.editable, false);
+gradientShape.text.value = "Decision: staged rollout";
+const gradientShapeOutput = await PresentationFile.exportPptx(gradientShapeImported);
+assert.deepEqual(gradientShapeOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const gradientShapeOutputZip = await JSZip.loadAsync(gradientShapeOutput.bytes);
+const gradientShapeOutputXml = await gradientShapeOutputZip.file("ppt/slides/slide1.xml").async("text");
+const gradientShapeOutputStart = gradientShapeOutputXml.lastIndexOf("<p:sp>", gradientShapeOutputXml.indexOf('name="decision-status"'));
+const gradientShapeOutputEnd = gradientShapeOutputXml.indexOf("</p:sp>", gradientShapeOutputXml.indexOf('name="decision-status"')) + "</p:sp>".length;
+const gradientShapeOutputValue = gradientShapeOutputXml.slice(gradientShapeOutputStart, gradientShapeOutputEnd);
+const gradientShapeProperties = (xml) => xml.slice(xml.indexOf("<p:spPr"), xml.indexOf("</p:spPr>") + "</p:spPr>".length);
+assert.match(gradientShapeOutputValue, /<a:gradFill\b[\s\S]*?<a:lin\b/u);
+assert.equal(gradientShapeProperties(gradientShapeOutputValue), gradientShapeProperties(gradientShapeXml));
+const gradientShapeRoundTrip = await PresentationFile.importPptx(gradientShapeOutput);
+assert.equal(itemByName(gradientShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status").text.value, "Decision: staged rollout");
+
+// A third-party shape may use an image-filled custom path that the semantic
+// geometry reader cannot model. It is still a safe frame-edit boundary when
+// the embedded image fill is strict and source-bound: expose the asset identity
+// while preserving the native custom geometry and blip relationship verbatim.
+const imageFilledCustomGeometryZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const imageFilledCustomGeometryRelsPath = relationshipPartPath("ppt/slides/slide1.xml");
+const imageFilledCustomGeometryRels = await imageFilledCustomGeometryZip.file(imageFilledCustomGeometryRelsPath).async("text");
+const imageFilledCustomGeometryImageRel = [...imageFilledCustomGeometryRels.matchAll(/<Relationship\b[^>]*\bType="[^"]+\/image"[^>]*>/gu)]
+  .map(([tag]) => /\bId="([^"]+)"/u.exec(tag)?.[1])
+  .find(Boolean);
+assert.ok(imageFilledCustomGeometryImageRel, "image-filled custom geometry fixture must have an embedded image relationship");
+const imageFilledCustomGeometrySourceXml = await imageFilledCustomGeometryZip.file("ppt/slides/slide1.xml").async("text");
+const imageFilledCustomGeometryNamePosition = imageFilledCustomGeometrySourceXml.indexOf('name="decision-status"');
+const imageFilledCustomGeometryShapeStart = imageFilledCustomGeometrySourceXml.lastIndexOf("<p:sp>", imageFilledCustomGeometryNamePosition);
+const imageFilledCustomGeometryShapeEnd = imageFilledCustomGeometrySourceXml.indexOf("</p:sp>", imageFilledCustomGeometryNamePosition) + "</p:sp>".length;
+assert.ok(imageFilledCustomGeometryShapeStart >= 0 && imageFilledCustomGeometryShapeEnd > imageFilledCustomGeometryShapeStart);
+const imageFilledCustomGeometryShapeXml = imageFilledCustomGeometrySourceXml.slice(imageFilledCustomGeometryShapeStart, imageFilledCustomGeometryShapeEnd);
+const imageFilledCustomGeometrySpPrStart = imageFilledCustomGeometryShapeXml.indexOf("<p:spPr>");
+const imageFilledCustomGeometrySpPrEnd = imageFilledCustomGeometryShapeXml.indexOf("</p:spPr>", imageFilledCustomGeometrySpPrStart) + "</p:spPr>".length;
+const imageFilledCustomGeometryXfrm = imageFilledCustomGeometryShapeXml.match(/<a:xfrm\b[\s\S]*?<\/a:xfrm>/u)?.[0];
+assert.ok(imageFilledCustomGeometryXfrm);
+const imageFilledCustomGeometrySpPr = `<p:spPr xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">${imageFilledCustomGeometryXfrm}<a:custGeom><a:rect b="b" l="l" r="r" t="t"/><a:pathLst><a:path extrusionOk="0" h="838200" w="3429000"><a:moveTo><a:pt x="0" y="0"/></a:moveTo><a:lnTo><a:pt x="3429000" y="0"/></a:lnTo><a:lnTo><a:pt x="3429000" y="838200"/></a:lnTo><a:lnTo><a:pt x="0" y="838200"/></a:lnTo><a:close/></a:path></a:pathLst></a:custGeom><a:blipFill rotWithShape="1"><a:blip r:embed="${imageFilledCustomGeometryImageRel}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><a:alphaModFix/></a:blip><a:stretch><a:fillRect b="0" l="0" r="0" t="0"/></a:stretch></a:blipFill><a:ln><a:noFill/></a:ln></p:spPr>`;
+assert.ok(imageFilledCustomGeometrySpPrStart >= 0 && imageFilledCustomGeometrySpPrEnd > imageFilledCustomGeometrySpPrStart);
+const imageFilledCustomGeometryXml = imageFilledCustomGeometrySourceXml.slice(0, imageFilledCustomGeometryShapeStart)
+  + imageFilledCustomGeometryShapeXml.slice(0, imageFilledCustomGeometrySpPrStart)
+  + imageFilledCustomGeometrySpPr
+  + imageFilledCustomGeometryShapeXml.slice(imageFilledCustomGeometrySpPrEnd)
+  + imageFilledCustomGeometrySourceXml.slice(imageFilledCustomGeometryShapeEnd);
+assert.notEqual(imageFilledCustomGeometryXml, imageFilledCustomGeometrySourceXml);
+imageFilledCustomGeometryZip.file("ppt/slides/slide1.xml", imageFilledCustomGeometryXml);
+const imageFilledCustomGeometryFile = new FileBlob(
+  await imageFilledCustomGeometryZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageFilledCustomGeometryImported = await PresentationFile.importPptx(imageFilledCustomGeometryFile);
+const imageFilledCustomGeometryShape = itemByName(imageFilledCustomGeometryImported.slides.getItem(0).shapes.items, "decision-status");
+assert.match(imageFilledCustomGeometryShape.imageFill?.assetId || "", /^asset\/presentation\/picture(?:-bullet)?\//u);
+assert.equal(imageFilledCustomGeometryShape.imageFill?.contentType, "image/png");
+assert.deepEqual(imageFilledCustomGeometryShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
+assert.equal(imageFilledCustomGeometryShape.customPaths.length, 0, "unsupported source geometry remains opaque inside the image-filled shape");
+const imageFilledCustomGeometryRecord = imageFilledCustomGeometryShape.inspectRecord();
+assert.equal(imageFilledCustomGeometryRecord.imageFill?.contentType, "image/png");
+const imageFilledCustomGeometryOldPosition = { ...imageFilledCustomGeometryShape.position };
+imageFilledCustomGeometryShape.position = { ...imageFilledCustomGeometryOldPosition, left: imageFilledCustomGeometryOldPosition.left + 7 };
+const imageFilledCustomGeometryOutput = await PresentationFile.exportPptx(imageFilledCustomGeometryImported);
+assert.deepEqual(imageFilledCustomGeometryOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const imageFilledCustomGeometryOutputZip = await JSZip.loadAsync(imageFilledCustomGeometryOutput.bytes);
+const imageFilledCustomGeometryOutputXml = await imageFilledCustomGeometryOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(imageFilledCustomGeometryOutputXml, /<a:custGeom>[\s\S]*?<a:blipFill\b[\s\S]*?<a:alphaModFix\s*\/>[\s\S]*?<\/a:blipFill>/u);
+const imageFilledCustomGeometryNormalizeOffset = (xml) => xml.replace(/(<a:off\b[^>]*?)\bx="[^"]+"/u, '$1x="MASKED"');
+const imageFilledCustomGeometryOutputShapeXml = imageFilledCustomGeometryOutputXml.slice(
+  imageFilledCustomGeometryOutputXml.lastIndexOf("<p:sp>", imageFilledCustomGeometryOutputXml.indexOf('name="decision-status"')),
+  imageFilledCustomGeometryOutputXml.indexOf("</p:sp>", imageFilledCustomGeometryOutputXml.indexOf('name="decision-status"')) + "</p:sp>".length,
+);
+const imageFilledCustomGeometryShapeProperties = (xml) => {
+  const shapeStart = xml.lastIndexOf("<p:sp>", xml.indexOf('name="decision-status"'));
+  const propertiesStart = xml.indexOf("<p:spPr", shapeStart);
+  const propertiesEnd = xml.indexOf("</p:spPr>", propertiesStart) + "</p:spPr>".length;
+  return xml.slice(propertiesStart, propertiesEnd);
+};
+assert.equal(
+  imageFilledCustomGeometryNormalizeOffset(imageFilledCustomGeometryShapeProperties(imageFilledCustomGeometryOutputShapeXml)),
+  imageFilledCustomGeometryNormalizeOffset(imageFilledCustomGeometryShapeProperties(imageFilledCustomGeometryXml.slice(imageFilledCustomGeometryShapeStart, imageFilledCustomGeometryShapeEnd))),
+  "image-filled custom geometry frame edit must preserve the native shape body",
+);
+for (const [partPath, entry] of Object.entries(imageFilledCustomGeometryZip.files)) {
+  if (entry.dir || partPath === "ppt/slides/slide1.xml") continue;
+  assert.deepEqual(
+    await imageFilledCustomGeometryOutputZip.file(partPath).async("uint8array"),
+    await imageFilledCustomGeometryZip.file(partPath).async("uint8array"),
+    `image-filled custom geometry edit changed non-target part ${partPath}`,
+  );
+}
+const imageFilledCustomGeometryRoundTrip = await PresentationFile.importPptx(imageFilledCustomGeometryOutput);
+const imageFilledCustomGeometryRoundTripShape = itemByName(imageFilledCustomGeometryRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(imageFilledCustomGeometryRoundTripShape.imageFill?.assetId, imageFilledCustomGeometryShape.imageFill?.assetId);
+assert.equal(imageFilledCustomGeometryRoundTripShape.position.left, imageFilledCustomGeometryOldPosition.left + 7);
+
+// A source-bound image fill may also carry a valid DrawingML path command that
+// is outside the semantic custom-geometry profile.  Frame edits must still
+// preserve that native path graph instead of failing validation because the
+// projected custom-path list is intentionally empty.
+const unsupportedImageFilledCustomGeometryXml = imageFilledCustomGeometryXml.replace(
+  "<a:close/></a:path>",
+  '<a:arcTo wR="3429000" hR="838200" stAng="0" swAng="0"/><a:close/></a:path>',
+);
+assert.notEqual(unsupportedImageFilledCustomGeometryXml, imageFilledCustomGeometryXml);
+const unsupportedImageFilledCustomGeometryZip = await JSZip.loadAsync(imageFilledCustomGeometryFile.bytes);
+unsupportedImageFilledCustomGeometryZip.file("ppt/slides/slide1.xml", unsupportedImageFilledCustomGeometryXml);
+const unsupportedImageFilledCustomGeometryImported = await PresentationFile.importPptx(new FileBlob(
+  await unsupportedImageFilledCustomGeometryZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+));
+const unsupportedImageFilledCustomGeometryShape = itemByName(
+  unsupportedImageFilledCustomGeometryImported.slides.getItem(0).shapes.items,
+  "decision-status",
+);
+assert.equal(unsupportedImageFilledCustomGeometryShape.customPaths.length, 0);
+unsupportedImageFilledCustomGeometryShape.position = {
+  ...unsupportedImageFilledCustomGeometryShape.position,
+  left: unsupportedImageFilledCustomGeometryShape.position.left + 3,
+};
+const unsupportedImageFilledCustomGeometryOutput = await PresentationFile.exportPptx(unsupportedImageFilledCustomGeometryImported);
+assert.deepEqual(
+  unsupportedImageFilledCustomGeometryOutput.metadata.editPlan.changedParts,
+  ["ppt/slides/slide1.xml"],
+  "unsupported image-filled custom geometry must still allow a bounded frame edit",
+);
+
 const blobImageEdit = await PresentationFile.importPptx(shapeAccessibilitySource);
 const blobImage = itemByName(blobImageEdit.slides.getItem(0).images.items, "decision-evidence");
 blobImage.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }) });
 const blobImageOutput = await PresentationFile.exportPptx(blobImageEdit);
 const blobImageRoundTrip = await PresentationFile.importPptx(blobImageOutput);
 assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT, "imported image replacement must accept a same-format FileBlob");
+
+// A direct picture alpha token is a source-bound image leaf: changing only
+// the opacity must splice the existing a:alphaModFix attribute and leave the
+// embedded payload, relationships, and opaque extensions untouched.
+const imageOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const imageOpacityXml = shapeAccessibilitySourceXml.replace(
+  /<a:blip\b([^>]*)\/>/u,
+  '<a:blip$1><a:alphaModFix amt="72000"/></a:blip>',
+);
+assert.notEqual(imageOpacityXml, shapeAccessibilitySourceXml, "image opacity fixture must contain a picture blip");
+imageOpacityZip.file("ppt/slides/slide1.xml", imageOpacityXml);
+const imageOpacityFile = new FileBlob(
+  await imageOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const emptyImageOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const emptyImageOpacityXml = shapeAccessibilitySourceXml.replace(
+  /<a:blip\b([^>]*)\/>/u,
+  '<a:blip$1><a:alphaModFix/></a:blip>',
+);
+emptyImageOpacityZip.file("ppt/slides/slide1.xml", emptyImageOpacityXml);
+const emptyImageOpacityImported = await PresentationFile.importPptx(new FileBlob(
+  await emptyImageOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+));
+assert.equal(
+  emptyImageOpacityImported.inspect({ includeNativeLeaves: true }).ndjson.trim().split("\n").filter(Boolean)
+    .map((line) => JSON.parse(line)).filter((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent").length,
+  0,
+  "an empty alphaModFix must remain opaque rather than becoming a fabricated 100% leaf",
+);
+const imageOpacityImported = await PresentationFile.importPptx(imageOpacityFile);
+const imageOpacityTarget = itemByName(imageOpacityImported.slides.getItem(0).images.items, "decision-evidence");
+const imageOpacityLeaf = imageOpacityImported.inspect({ includeNativeLeaves: true, target: imageOpacityTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent");
+assert.ok(imageOpacityLeaf, "source-bound images should expose a direct opacity leaf");
+assert.equal(imageOpacityLeaf.value, 0.72);
+imageOpacityImported.editNativeLeaf(imageOpacityLeaf.targetId, imageOpacityLeaf.leafId, {
+  expectedHash: imageOpacityLeaf.expectedHash,
+  value: 0.4,
+});
+const imageOpacityOutput = await PresentationFile.exportPptx(imageOpacityImported);
+assert.equal(imageOpacityOutput.metadata.editPlan.operations[0].leafKind, "imageOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(imageOpacityFile, imageOpacityOutput, imageOpacityOutput.metadata.editPlan.operations);
+const imageOpacityOutputXml = await (await JSZip.loadAsync(imageOpacityOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageOpacityOutputXml, /<a:alphaModFix amt="40000"\s*\/>/u);
+const imageOpacityRoundTrip = await PresentationFile.importPptx(imageOpacityOutput);
+const imageOpacityRoundTripLeaf = imageOpacityRoundTrip.inspect({ includeNativeLeaves: true, target: imageOpacityTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent");
+assert.equal(imageOpacityRoundTripLeaf.value, 0.4);
+
+// A normal source-bound image frame edit must not erase canonical picture
+// effects that ImageElement deliberately does not expose as mutable fields.
+// This is the regression guard for the original image-border/shadow loss.
+const imageEffectsZip = await JSZip.loadAsync(imageOpacityFile.bytes);
+const imageEffectsXml = (await imageEffectsZip.file("ppt/slides/slide1.xml").async("text")).replace(
+  "</a:prstGeom></p:spPr>",
+  "</a:prstGeom><a:ln xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" w=\"9525\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln><a:effectLst xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:outerShdw blurRad=\"12700\" dist=\"19050\" dir=\"2700000\"><a:srgbClr val=\"000000\"><a:alpha val=\"25000\"/></a:srgbClr></a:outerShdw></a:effectLst></p:spPr>",
+);
+imageEffectsZip.file("ppt/slides/slide1.xml", imageEffectsXml);
+const imageEffectsFile = new FileBlob(
+  await imageEffectsZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageEffectsImported = await PresentationFile.importPptx(imageEffectsFile);
+const imageEffectsTarget = imageEffectsImported.slides.getItem(0).images.items[0];
+imageEffectsTarget.position = { ...imageEffectsTarget.position, left: imageEffectsTarget.position.left + 5 };
+const imageEffectsOutput = await PresentationFile.exportPptx(imageEffectsImported);
+const imageEffectsOutputXml = await (await JSZip.loadAsync(imageEffectsOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageEffectsOutputXml, /<a:ln\b/u, "image frame edits must preserve the source border");
+assert.match(imageEffectsOutputXml, /<a:effectLst\b/u, "image frame edits must preserve the source shadow");
+assert.match(imageEffectsOutputXml, /<a:alphaModFix\b[^>]*amt="72000"/u, "image frame edits must preserve source opacity");
+assert.deepEqual(imageEffectsTarget.border, { color: "#FF0000", width: 0.75, style: "solid" });
+assert.deepEqual(imageEffectsTarget.shadow, { color: "#000000", blurRadius: 1.3333333333333333, distance: 2, direction: 45, opacity: 0.25 });
+imageEffectsTarget.border = { color: "#00FF00", width: 2, style: "dashed", cap: "round", join: "bevel", opacity: 0.6 };
+imageEffectsTarget.border.width = 3;
+imageEffectsTarget.shadow = { color: "#111111", blurRadius: 5, distance: 3, direction: 120, opacity: 0.35 };
+imageEffectsTarget.shadow.opacity = 0.4;
+const imageEffectsEditedOutput = await PresentationFile.exportPptx(imageEffectsImported);
+const imageEffectsEditedXml = await (await JSZip.loadAsync(imageEffectsEditedOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageEffectsEditedXml, /<a:ln\b[^>]*w="38100"[^>]*cap="rnd"/u, "picture border edits must reach the native outline");
+assert.match(imageEffectsEditedXml, /<a:prstDash\b[^>]*val="dash"/u, "picture border dash style must be native");
+assert.match(imageEffectsEditedXml, /<a:srgbClr\b[^>]*val="00FF00"[^>]*><a:alpha\b[^>]*val="60000"/u, "picture border opacity must be native");
+assert.match(imageEffectsEditedXml, /<a:outerShdw\b[^>]*blurRad="47625"[^>]*dist="28575"[^>]*dir="7200000"/u, "picture shadow edits must reach the native effect list");
+assert.match(imageEffectsEditedXml, /<a:srgbClr\b[^>]*val="111111"[^>]*><a:alpha\b[^>]*val="40000"/u, "picture shadow opacity must be native");
+const imageEffectsEditedRoundTrip = await PresentationFile.importPptx(imageEffectsEditedOutput);
+const imageEffectsEditedTarget = imageEffectsEditedRoundTrip.slides.getItem(0).images.items[0];
+assert.deepEqual(imageEffectsEditedTarget.border, { color: "#00FF00", width: 3, style: "dashed", cap: "round", join: "bevel", opacity: 0.6 });
+assert.deepEqual(imageEffectsEditedTarget.shadow, { color: "#111111", blurRadius: 5, distance: 3, direction: 120, opacity: 0.4 });
+
+// Preset picture masks are source-bound leaves rather than a geometry escape
+// hatch.  The imported ellipse must be discoverable, editable to another
+// bounded preset, and spliced without changing the embedded image or other
+// package parts.
+const imageMaskZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const imageMaskXml = shapeAccessibilitySourceXml.replace(
+  /(<p:pic>[\s\S]*?<a:prstGeom\b[^>]*\bprst=")rect(")/u,
+  "$1ellipse$2",
+);
+assert.notEqual(imageMaskXml, shapeAccessibilitySourceXml, "image mask fixture must contain a picture preset geometry");
+imageMaskZip.file("ppt/slides/slide1.xml", imageMaskXml);
+const imageMaskFile = new FileBlob(
+  await imageMaskZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const imageMaskImported = await PresentationFile.importPptx(imageMaskFile);
+const imageMaskTarget = itemByName(imageMaskImported.slides.getItem(0).images.items, "decision-evidence");
+assert.equal(imageMaskTarget.maskPreset, "ellipse");
+const imageMaskLeaf = imageMaskImported.inspect({ includeNativeLeaves: true, target: imageMaskTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "imageMaskPreset");
+assert.ok(imageMaskLeaf, "source-bound images should expose a direct mask preset leaf");
+assert.equal(imageMaskLeaf.value, "ellipse");
+imageMaskImported.editNativeLeaf(imageMaskLeaf.targetId, imageMaskLeaf.leafId, {
+  expectedHash: imageMaskLeaf.expectedHash,
+  value: "roundRect",
+});
+const imageMaskOutput = await PresentationFile.exportPptx(imageMaskImported);
+assert.equal(imageMaskOutput.metadata.editPlan.operations[0].leafKind, "imageMaskPreset");
+await assertOnlyDeclaredPptxFootprintChanged(imageMaskFile, imageMaskOutput, imageMaskOutput.metadata.editPlan.operations);
+const imageMaskOutputXml = await (await JSZip.loadAsync(imageMaskOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageMaskOutputXml, /<a:prstGeom\b[^>]*\bprst="roundRect"/u);
+const imageMaskRoundTrip = await PresentationFile.importPptx(imageMaskOutput);
+assert.equal(itemByName(imageMaskRoundTrip.slides.getItem(0).images.items, "decision-evidence").maskPreset, "roundRect");
 
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
@@ -1110,6 +1383,47 @@ const fontCapsRoundTripLeaf = fontCapsRoundTrip.inspect({ includeNativeLeaves: t
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontCaps" && record.value === "all");
 assert.equal(fontCapsRoundTripLeaf.value, "all");
 
+// Direct DrawingML text highlighting is a source-bound color leaf. Keep the
+// vendor extension beside the run while changing only a:highlight, then prove
+// the public RGB value survives a second import.
+const fontHighlightAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontHighlightAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)\s*(?=<a:t>Decision)/u,
+  '$1><a:highlight><a:srgbClr val="FFFF00"/></a:highlight></a:rPr>',
+);
+assert.match(fontHighlightAccessibilityXml, /<a:highlight><a:srgbClr val="FFFF00"\s*\/><\/a:highlight>/);
+fontHighlightAccessibilityZip.file("ppt/slides/slide1.xml", fontHighlightAccessibilityXml);
+const fontHighlightAccessibilityFile = new FileBlob(
+  await fontHighlightAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontHighlightImported = await PresentationFile.importPptx(fontHighlightAccessibilityFile);
+const fontHighlightShape = itemByName(fontHighlightImported.slides.getItem(0).shapes.items, "decision-status");
+const fontHighlightLeaf = fontHighlightImported.inspect({ includeNativeLeaves: true, target: fontHighlightShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontHighlightRgb");
+assert.ok(fontHighlightLeaf, "source-bound shapes should expose a direct run highlight leaf");
+assert.equal(fontHighlightLeaf.value, "#ffff00");
+fontHighlightImported.editNativeLeaf(fontHighlightLeaf.targetId, fontHighlightLeaf.leafId, {
+  expectedHash: fontHighlightLeaf.expectedHash,
+  value: "#00ff00",
+});
+const fontHighlightOutput = await PresentationFile.exportPptx(fontHighlightImported);
+assert.equal(fontHighlightOutput.metadata.editPlan.operations[0].leafKind, "fontHighlightRgb");
+await assertOnlyDeclaredPptxFootprintChanged(fontHighlightAccessibilityFile, fontHighlightOutput, fontHighlightOutput.metadata.editPlan.operations);
+const fontHighlightXml = await (await JSZip.loadAsync(fontHighlightOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontHighlightXml, /<a:highlight><a:srgbClr val="00FF00"\s*\/><\/a:highlight>/);
+assert.match(fontHighlightXml, /fixture:opaque="kept"/);
+const fontHighlightRoundTrip = await PresentationFile.importPptx(fontHighlightOutput);
+const fontHighlightRoundTripLeaf = fontHighlightRoundTrip.inspect({ includeNativeLeaves: true, target: fontHighlightShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontHighlightRgb" && record.value === "#00ff00");
+assert.equal(fontHighlightRoundTripLeaf.value, "#00ff00");
+
 // Direct paragraph alignment is a source-bound token leaf.  The fixture adds
 // one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
 // it must splice only that attribute and retain the vendor cNvPr extension.
@@ -1627,7 +1941,10 @@ const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeN
   .filter(Boolean)
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
-assert.deepEqual(new Set(nativeImageGeometryLeaves.map((record) => record.leafKind)), new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu"]));
+assert.deepEqual(
+  new Set(nativeImageGeometryLeaves.map((record) => record.leafKind)),
+  new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu", "imageMaskPreset"]),
+);
 const nativeImageLeftLeaf = nativeImageGeometryLeaves.find((record) => record.leafKind === "leftEmu");
 assert.ok(nativeImageLeftLeaf);
 const nativeImageNextLeft = nativeImageLeftLeaf.value + 9_525;
@@ -1683,6 +2000,33 @@ const opaquePictureOutputXml = await opaquePictureOutputZip.file("ppt/slides/sli
 assert.match(opaquePictureOutputXml, /fixture:opaque="kept"/);
 const opaquePictureRoundTrip = await PresentationFile.importPptx(opaquePictureOutput);
 assert.equal(opaquePictureRoundTrip.resolve(opaquePicture.id).position.left, opaquePictureNextLeft / 9_525);
+
+// A source-bound picture may intentionally bleed past the slide edge (for
+// example, a cropped background).  Its negative frame offset is safe to move
+// independently of the opaque payload when the direct picture frame remains
+// bounded and the relationship is unique.
+const negativeOpaquePictureZip = await JSZip.loadAsync(opaquePictureFile.bytes);
+const negativeOpaquePictureXml = opaquePictureXml.replace(
+  /(<p:pic\b[\s\S]*?\bname="decision-evidence"[\s\S]*?<a:off\b[^>]*\bx=")([0-9]+)(")/u,
+  '$1-$2$3',
+);
+assert.match(negativeOpaquePictureXml, /<a:off\b[^>]*\bx="-[0-9]+"/u);
+negativeOpaquePictureZip.file("ppt/slides/slide1.xml", negativeOpaquePictureXml);
+const negativeOpaquePictureFile = new FileBlob(
+  await negativeOpaquePictureZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const negativeOpaquePictureImported = await PresentationFile.importPptx(negativeOpaquePictureFile);
+const negativeOpaquePicture = itemByName(negativeOpaquePictureImported.slides.getItem(0).nativeObjects.items, "decision-evidence");
+assert.equal(negativeOpaquePicture.nativeKind, "picture");
+assert.ok(negativeOpaquePicture.position.left < 0);
+assert.equal(negativeOpaquePicture.placementCapability.supported, true);
+negativeOpaquePicture.setPosition({ left: negativeOpaquePicture.position.left + 1 });
+const negativeOpaquePictureOutput = await PresentationFile.exportPptx(negativeOpaquePictureImported);
+const negativeOpaquePictureRoundTrip = await PresentationFile.importPptx(negativeOpaquePictureOutput);
+const negativeOpaquePictureRebound = itemByName(negativeOpaquePictureRoundTrip.slides.getItem(0).nativeObjects.items, "decision-evidence");
+assert.equal(negativeOpaquePictureRebound.position.left, negativeOpaquePicture.position.left);
+assert.match(await (await JSZip.loadAsync(negativeOpaquePictureOutput.bytes)).file("ppt/slides/slide1.xml").async("text"), /fixture:opaque="kept"/);
 
 const nativeShapeGeometryDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
 nativeShapeGeometryDeck.slides.add().shapes.add({
@@ -2469,6 +2813,75 @@ const connectorEditedRoundTrip = await PresentationFile.importPptx(connectorEdit
 const editedConnector = itemByName(connectorEditedRoundTrip.slides.getItem(0).connectors.items, "curved-site-connector");
 assert.equal(editedConnector.endSiteIndex, 6);
 assert.equal(editedConnector.end.x, 800);
+
+// Imported connectors can legitimately have a zero width or height when both
+// endpoints share an axis.  Force the otherwise valid connector through the
+// native projection with an unrelated extension, then move only its direct
+// frame.  The source-bound extension and connection topology must survive.
+const opaqueConnectorZip = await JSZip.loadAsync(connectorFirstExport.bytes);
+const connectorSourceXml = await opaqueConnectorZip.file("ppt/slides/slide1.xml").async("text");
+const opaqueConnectorXml = connectorSourceXml
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="curved-site-connector")/u,
+    '$1 xmlns:fixture="urn:office-kit:opaque-connector" fixture:opaque="kept"',
+  )
+  .replace(
+    /(<p:cxnSp\b[\s\S]*?\bname="curved-site-connector"[\s\S]*?<p:spPr\b[\s\S]*?)(<\/p:spPr>)/u,
+    '$1<a:extLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:ext uri="{office-kit-opaque-connector}" /></a:extLst>$2',
+  );
+assert.notEqual(opaqueConnectorXml, connectorSourceXml);
+opaqueConnectorZip.file("ppt/slides/slide1.xml", opaqueConnectorXml);
+const opaqueConnectorFile = new FileBlob(
+  await opaqueConnectorZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const opaqueConnectorImported = await PresentationFile.importPptx(opaqueConnectorFile);
+const opaqueConnector = itemByName(opaqueConnectorImported.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+assert.equal(opaqueConnector.nativeKind, "connector");
+assert.equal(opaqueConnector.position.height, 0);
+assert.equal(opaqueConnector.placementCapability.supported, true);
+const opaqueConnectorArrowEdit = await PresentationFile.importPptx(opaqueConnectorFile);
+const opaqueConnectorArrowTarget = itemByName(opaqueConnectorArrowEdit.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+const opaqueConnectorArrowLeaves = opaqueConnectorArrowEdit.inspect({ includeNativeLeaves: true, target: opaqueConnectorArrowTarget.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.deepEqual(
+  opaqueConnectorArrowLeaves.filter((record) => record.leafKind === "lineStartArrow" || record.leafKind === "lineEndArrow").map((record) => [record.leafKind, record.value]),
+  [["lineStartArrow", "arrow"], ["lineEndArrow", "diamond"]],
+  "opaque connector arrowheads must be issued as bounded native leaves",
+);
+const opaqueConnectorArrowLeaf = opaqueConnectorArrowLeaves.find((record) => record.leafKind === "lineEndArrow");
+assert.ok(opaqueConnectorArrowLeaf);
+opaqueConnectorArrowEdit.editNativeLeaf(opaqueConnectorArrowLeaf.targetId, opaqueConnectorArrowLeaf.leafId, {
+  expectedHash: opaqueConnectorArrowLeaf.expectedHash,
+  value: "oval",
+});
+const opaqueConnectorArrowRoundTrip = await PresentationFile.importPptx(await PresentationFile.exportPptx(opaqueConnectorArrowEdit));
+const opaqueConnectorArrowRoundTripObject = itemByName(opaqueConnectorArrowRoundTrip.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+const opaqueConnectorArrowRoundTripLeaves = opaqueConnectorArrowRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueConnectorArrowRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(
+  opaqueConnectorArrowRoundTripLeaves.find((record) => record.leafKind === "lineEndArrow")?.value,
+  "oval",
+  "opaque connector arrowhead edits must survive re-import",
+);
+opaqueConnector.setPosition({ top: opaqueConnector.position.top + 1 });
+const opaqueConnectorOutput = await PresentationFile.exportPptx(opaqueConnectorImported);
+const opaqueConnectorOutputZip = await JSZip.loadAsync(opaqueConnectorOutput.bytes);
+const opaqueConnectorOutputXml = await opaqueConnectorOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(opaqueConnectorOutputXml, /fixture:opaque="kept"/);
+assert.match(opaqueConnectorOutputXml, /<a:extLst[^>]*>\s*<a:ext uri="\{office-kit-opaque-connector\}"\s*\/>\s*<\/a:extLst>/u);
+assert.match(opaqueConnectorOutputXml, /<a:stCxn\b[^>]*idx="3"/u);
+assert.match(opaqueConnectorOutputXml, /<a:endCxn\b[^>]*idx="2"/u);
+const opaqueConnectorRoundTrip = await PresentationFile.importPptx(opaqueConnectorOutput);
+const opaqueConnectorRoundTripObject = itemByName(opaqueConnectorRoundTrip.slides.getItem(0).nativeObjects.items, "curved-site-connector");
+assert.equal(opaqueConnectorRoundTripObject.position.top, opaqueConnector.position.top);
+assert.equal(opaqueConnectorRoundTripObject.position.height, 0);
 
 // Custom shows are a real inline PresentationML graph. Source-free decks own
 // the complete list; canonical imports may edit only names and ordered slide
@@ -4122,6 +4535,49 @@ assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-chart")(?=[^>]*
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="Agent evidence group")(?=[^>]*\btitle="Agent evidence flow")(?=[^>]*\bdescr="Grouped visual containing before, target, evidence, table, and chart objects\.")/);
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="grouped-connector")(?=[^>]*\btitle="Before-to-target direction")(?=[^>]*\bdescr="Arrow connecting the before state to the target state\.")/);
 assert.match(groupedFirstXml, /<p:cNvPr\b(?=[^>]*\bname="nested-group")(?=[^>]*\bdescr="Nested custom-shape evidence\.")/);
+
+// A source deck may intentionally place a group just outside the slide
+// canvas (for bleed, trim, or a cropped visual).  Keep that valid source
+// placement editable instead of flattening the whole group to opaque XML.
+const negativeGroupZip = await JSZip.loadAsync(groupedFirstExport.bytes);
+const negativeGroupXml = groupedFirstXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="Agent evidence group"[^>]*\/>[\s\S]*?<a:off\s+x=")(-?\d+)("\s+y=)/u,
+  "$1-9525$3",
+);
+assert.notEqual(negativeGroupXml, groupedFirstXml);
+negativeGroupZip.file("ppt/slides/slide1.xml", negativeGroupXml);
+const negativeGroupBytes = await negativeGroupZip.generateAsync({ type: "uint8array" });
+const negativeGroupImported = await PresentationFile.importPptx(new FileBlob(negativeGroupBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+const negativeGroup = itemByName(negativeGroupImported.slides.getItem(0).groups.items, "Agent evidence group");
+assert.equal(negativeGroup.position.left, -1);
+const negativeGroupChild = itemByName(negativeGroup.shapes.items, "grouped-before");
+negativeGroupChild.fill = "#123456";
+const negativeGroupOutput = await PresentationFile.exportPptx(negativeGroupImported);
+const negativeGroupRoundTrip = await PresentationFile.importPptx(negativeGroupOutput);
+assert.equal(itemByName(itemByName(negativeGroupRoundTrip.slides.getItem(0).groups.items, "Agent evidence group").shapes.items, "grouped-before").fill, "#123456");
+
+// A source group may carry the standard direct rotation used by imported
+// visual motifs.  Project it as group metadata so a child edit does not hide
+// the whole group behind an opaque boundary or lose its orientation.
+const rotatedGroupZip = await JSZip.loadAsync(groupedFirstExport.bytes);
+const rotatedGroupXml = groupedFirstXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="Agent evidence group"[^>]*\/>[\s\S]*?<p:grpSpPr>\s*<a:xfrm)(?=\s|>)/u,
+  '$1 rot="2700000"',
+);
+assert.notEqual(rotatedGroupXml, groupedFirstXml);
+rotatedGroupZip.file("ppt/slides/slide1.xml", rotatedGroupXml);
+const rotatedGroupBytes = await rotatedGroupZip.generateAsync({ type: "uint8array" });
+const rotatedGroupImported = await PresentationFile.importPptx(new FileBlob(rotatedGroupBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+const rotatedGroup = itemByName(rotatedGroupImported.slides.getItem(0).groups.items, "Agent evidence group");
+assert.equal(rotatedGroup.transform?.rotationDegrees, 45);
+const rotatedGroupChild = itemByName(rotatedGroup.shapes.items, "grouped-before");
+rotatedGroupChild.fill = "#654321";
+const rotatedGroupOutput = await PresentationFile.exportPptx(rotatedGroupImported);
+assert.deepEqual(rotatedGroupOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const rotatedGroupRoundTrip = await PresentationFile.importPptx(rotatedGroupOutput);
+const rotatedGroupAfter = itemByName(rotatedGroupRoundTrip.slides.getItem(0).groups.items, "Agent evidence group");
+assert.equal(rotatedGroupAfter.transform?.rotationDegrees, 45);
+assert.equal(itemByName(rotatedGroupAfter.shapes.items, "grouped-before").fill, "#654321");
 
 let groupedImported = await PresentationFile.importPptx(groupedFirstExport);
 let importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");

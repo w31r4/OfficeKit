@@ -223,7 +223,7 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
   }
   if (hasSimpleLinePaint) {
     for (const [endpointName, leafKind] of [["headEnd", "lineStartArrow"], ["tailEnd", "lineEndArrow"]]) {
-      const leaf = nativeLineArrowLeaf(line.groups?.value || "", endpointName, leafKind);
+      const leaf = nativeLineArrowLeaf(line[0], endpointName, leafKind);
       if (leaf) leaves.push({ lineLeafIndex: leaves.length, ...leaf, expectedHash: sha256(leaf.value) });
     }
   }

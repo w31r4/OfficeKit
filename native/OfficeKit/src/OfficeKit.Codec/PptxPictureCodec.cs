@@ -63,8 +63,13 @@ internal static class PptxPictureCodec
             if (accessibility?.HasDecorative == true) image.AccessibilityDecorative = accessibility.Decorative;
             if (crop is not null) image.Crop = ReadCrop(crop);
             image.Tiled = tiled;
-            if (blip.GetFirstChild<A.AlphaModulationFixed>() is { } alpha)
-                image.OpacityThousandthPercent = checked((uint)(alpha.Amount?.Value ?? 100_000));
+            // An empty alphaModFix is a valid no-op effect, not an explicit
+            // opacity token. Preserve it as opaque source structure rather
+            // than manufacturing an editable 100% leaf that the writer
+            // cannot later prove. Only an authored `amt` is a controlled
+            // source-bound opacity value.
+            if (blip.GetFirstChild<A.AlphaModulationFixed>() is { Amount.Value: { } amount })
+                image.OpacityThousandthPercent = checked((uint)amount);
             if (!maskPreset.Equals("rect", StringComparison.Ordinal)) image.MaskPreset = maskPreset;
             image.MaskPresetAdjustments.Add(maskAdjustments);
             image.Border = border;

@@ -117,6 +117,19 @@ internal static class PptxTextCodec
                 if (run.HasFontSpacingPoints && (!(run.FontSpacingPoints >= -768) || run.FontSpacingPoints > 768 || !double.IsFinite(run.FontSpacingPoints)))
                     throw new CodecException("invalid_presentation_text", "Presentation run character spacing must be finite and between -768 and 768 points.");
                 if (run.HasFontCaps) PptxTextDecoration.NormalizeCaps(run.FontCaps);
+                switch (run.HighlightCase)
+                {
+                    case PresentationTextRun.HighlightOneofCase.None:
+                        break;
+                    case PresentationTextRun.HighlightOneofCase.HighlightRgb:
+                        _ = PptxColor.Normalize(run.HighlightRgb);
+                        break;
+                    case PresentationTextRun.HighlightOneofCase.HighlightScheme:
+                        _ = PptxColor.NormalizeScheme(run.HighlightScheme);
+                        break;
+                    default:
+                        throw new CodecException("invalid_presentation_text", "Presentation run contains an unknown highlight color case.");
+                }
                 if (run.HasColorRgb && run.HasColorScheme)
                     throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
@@ -301,6 +314,11 @@ internal static class PptxTextCodec
         if (PptxTextDecoration.TryBaseline(properties, out var baseline)) run.FontBaselinePercent = double.Parse(baseline, System.Globalization.CultureInfo.InvariantCulture) / 1000d;
         if (PptxTextDecoration.TrySpacing(properties, out var spacing)) run.FontSpacingPoints = double.Parse(spacing, System.Globalization.CultureInfo.InvariantCulture) / 100d;
         if (PptxTextDecoration.TryCaps(properties, out var caps)) run.FontCaps = caps;
+        if (PptxTextDecoration.TryHighlight(properties, out var highlightKind, out var highlight))
+        {
+            if (highlightKind == "rgb") run.HighlightRgb = highlight;
+            else run.HighlightScheme = highlight;
+        }
         if (PptxColor.TryDirectSolidRgbWithOpacity(properties?.GetFirstChild<A.SolidFill>(), out var rgb, out var rgbOpacity))
         {
             run.ColorRgb = rgb;
@@ -535,7 +553,7 @@ internal static class PptxTextCodec
 
     private static bool HasStyle(PresentationTextRun run) =>
         run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasFontKerningPoints || run.HasFontBaselinePercent || run.HasFontSpacingPoints || run.HasFontCaps || run.HasColorRgb || run.HasColorScheme ||
-        run.HasColorOpacityThousandthPercent || run.HasUnderline || run.HasStrike;
+        run.HasColorOpacityThousandthPercent || run.HasUnderline || run.HasStrike || run.HighlightCase != PresentationTextRun.HighlightOneofCase.None;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
     {
@@ -548,6 +566,20 @@ internal static class PptxTextCodec
         properties.Baseline = requested.HasFontBaselinePercent ? checked((int)Math.Round(requested.FontBaselinePercent * 1000)) : null;
         properties.Spacing = requested.HasFontSpacingPoints ? checked((int)Math.Round(requested.FontSpacingPoints * 100)) : null;
         properties.Capital = requested.HasFontCaps ? new A.TextCapsValues(PptxTextDecoration.NormalizeCaps(requested.FontCaps)) : null;
+        var existingHighlight = properties.GetFirstChild<A.Highlight>();
+        if (requested.HighlightCase != PresentationTextRun.HighlightOneofCase.None)
+        {
+            if (existingHighlight is not null && !PptxTextDecoration.TryHighlight(properties, out _, out _))
+                throw new CodecException("unsupported_presentation_edit", "Source-preserving PPTX export cannot replace unmodeled run highlight properties.");
+            existingHighlight?.Remove();
+            properties.AddChild(requested.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb
+                ? new A.Highlight(new A.RgbColorModelHex { Val = PptxColor.Normalize(requested.HighlightRgb) })
+                : new A.Highlight(new A.SchemeColor { Val = PptxColor.SchemeValue(requested.HighlightScheme) }), true);
+        }
+        else if (existingHighlight is not null && PptxTextDecoration.TryHighlight(properties, out _, out _))
+        {
+            existingHighlight.Remove();
+        }
         var latin = properties.GetFirstChild<A.LatinFont>();
         if (requested.HasFontFamily)
         {
@@ -600,6 +632,7 @@ internal static class PptxTextCodec
         properties.Baseline = null;
         properties.Spacing = null;
         properties.Capital = null;
+        if (PptxTextDecoration.TryHighlight(properties, out _, out _)) properties.GetFirstChild<A.Highlight>()?.Remove();
         properties.FontSize = null;
         properties.GetFirstChild<A.LatinFont>()?.Remove();
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().ToArray();

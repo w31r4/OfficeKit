@@ -100,6 +100,7 @@ function normalizeRunStyle(style = {}) {
     ...(fontBaseline == null ? {} : { fontBaseline }),
     ...(fontSpacing == null ? {} : { fontSpacing }),
     ...(fontCaps == null ? {} : { fontCaps }),
+    ...(style.highlight == null ? {} : { highlight: String(style.highlight) }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),

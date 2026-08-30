@@ -1095,6 +1095,8 @@
             "fontBaselinePercent",
             "fontSpacingPoints",
             "fontCaps",
+            "fontHighlightRgb",
+            "fontHighlightScheme",
             "fillRgb",
             "fillOpacityThousandthPercent",
             "fillScheme",
@@ -1112,7 +1114,9 @@
             "heightEmu",
             "rotationDegrees",
             "flipHorizontal",
-            "flipVertical"
+            "flipVertical",
+            "imageOpacityThousandthPercent",
+            "imageMaskPreset"
           ]
         },
         "expectedHash": {
