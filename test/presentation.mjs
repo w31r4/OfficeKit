@@ -331,7 +331,7 @@ importedGradientShape.text.set("after");
 const gradientEdited = await PresentationFile.exportPptx(gradientImported);
 const gradientEditedZip = await JSZip.loadAsync(gradientEdited.bytes);
 const gradientEditedXml = await gradientEditedZip.file("ppt/slides/slide1.xml").async("text");
-assert.match(gradientEditedXml, /<a:tileRect\/>/);
+assert.match(gradientEditedXml, /<a:tileRect\b[^>]*\/>/);
 assert.match(gradientEditedXml, />after<\/a:t>/);
 const gradientReimported = await PresentationFile.importPptx(gradientEdited);
 assert.equal(gradientReimported.slides.getItem(0).shapes.getItemAt(0).text.value, "after");
@@ -608,10 +608,10 @@ const gradientShapeSourceFile = new FileBlob(
   { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
 );
 const gradientShapeImported = await PresentationFile.importPptx(gradientShapeSourceFile);
-const gradientShape = itemByName(gradientShapeImported.slides.getItem(0).shapes.items, "decision-status");
-assert.equal(gradientShape.fill, "transparent");
-assert.equal(gradientShape.accessibilityCapability.editable, false);
-gradientShape.text.value = "Decision: staged rollout";
+const importedOpaqueGradientShape = itemByName(gradientShapeImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(importedOpaqueGradientShape.fill, "transparent");
+assert.equal(importedOpaqueGradientShape.accessibilityCapability.editable, false);
+importedOpaqueGradientShape.text.value = "Decision: staged rollout";
 const gradientShapeOutput = await PresentationFile.exportPptx(gradientShapeImported);
 assert.deepEqual(gradientShapeOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
 const gradientShapeOutputZip = await JSZip.loadAsync(gradientShapeOutput.bytes);
@@ -745,10 +745,11 @@ assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "deci
 // the opacity must splice the existing a:alphaModFix attribute and leave the
 // embedded payload, relationships, and opaque extensions untouched.
 const imageOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
-const imageOpacityXml = shapeAccessibilitySourceXml.replace(
-  /<a:blip\b([^>]*)\/>/u,
-  '<a:blip$1><a:alphaModFix amt="72000"/></a:blip>',
+const replacePictureBlip = (xml, alpha) => xml.replace(
+  /<a:blip\b([^>]*?)(?:\/>|>(?:<a:alphaModFix\b[^>]*\/>)?<\/a:blip>)/u,
+  (_match, attributes) => `<a:blip${attributes}><a:alphaModFix${alpha}/></a:blip>`,
 );
+const imageOpacityXml = replacePictureBlip(shapeAccessibilitySourceXml, ' amt="72000"');
 assert.notEqual(imageOpacityXml, shapeAccessibilitySourceXml, "image opacity fixture must contain a picture blip");
 imageOpacityZip.file("ppt/slides/slide1.xml", imageOpacityXml);
 const imageOpacityFile = new FileBlob(
@@ -756,10 +757,7 @@ const imageOpacityFile = new FileBlob(
   { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
 );
 const emptyImageOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
-const emptyImageOpacityXml = shapeAccessibilitySourceXml.replace(
-  /<a:blip\b([^>]*)\/>/u,
-  '<a:blip$1><a:alphaModFix/></a:blip>',
-);
+const emptyImageOpacityXml = replacePictureBlip(shapeAccessibilitySourceXml, "");
 emptyImageOpacityZip.file("ppt/slides/slide1.xml", emptyImageOpacityXml);
 const emptyImageOpacityImported = await PresentationFile.importPptx(new FileBlob(
   await emptyImageOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
@@ -1987,7 +1985,7 @@ const nativeImageGeometryLeaves = nativeImageGeometryImported.inspect({ includeN
   .filter((record) => record.kind === "nativeLeaf");
 assert.deepEqual(
   new Set(nativeImageGeometryLeaves.map((record) => record.leafKind)),
-  new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu", "imageMaskPreset"]),
+  new Set(["leftEmu", "topEmu", "widthEmu", "heightEmu", "imageMaskPreset", "imageOpacityThousandthPercent"]),
 );
 const nativeImageLeftLeaf = nativeImageGeometryLeaves.find((record) => record.leafKind === "leftEmu");
 assert.ok(nativeImageLeftLeaf);
