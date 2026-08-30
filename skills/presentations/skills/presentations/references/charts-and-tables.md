@@ -674,15 +674,39 @@ unsupported native chart graphs remain source-preserved; they are not
 simplified during an unrelated imported edit.
 
 The authored table compiler owns a physical column/row grid, finite rectangular
-merges, one optional header row, row/column banding flags, bounded rich text,
-body and paragraph layout, none/solid/gradient/image cell fills, and direct
-left, top, right, and bottom borders. An image fill uses the same local hashed
-asset, crop, cover/contain/stretch/tile, and opacity contract as other PPJ image
-paint. Use it when the cell itself is an evidence thumbnail, product identity,
-or comparison image; do not turn ordinary data tables into decorative mosaics.
-Named table styles provide defaults and inline style properties override them
-field by field. More than one header row fails closed. Imported table topology
-and unmodeled native style graphs remain source-owned.
+merges, zero or more bounded header rows, row/column banding flags, bounded rich
+text, body and paragraph layout, none/solid/gradient/image cell fills, and
+direct left, top, right, and bottom borders. An image fill uses the same local
+hashed asset, crop, cover/contain/stretch/tile, and opacity contract as other
+PPJ image paint. Use it when the cell itself is an evidence thumbnail, product
+identity, or comparison image; do not turn ordinary data tables into decorative
+mosaics.
+
+For a two-level analytical header, declare the semantic count and shared
+fallbacks once:
+
+```json
+{
+  "style": {
+    "headerRows": 2,
+    "headerCellFill": { "type": "solid", "color": "#E8EEF3" },
+    "headerTextStyle": {
+      "verticalAlignment": "middle",
+      "defaultText": { "font": "sans", "size": 10, "bold": true, "color": "#16324F" }
+    },
+    "defaultCellFill": { "type": "none" }
+  }
+}
+```
+
+Cell-local `fill` and `textStyle` win over the header fallback; header styling
+wins over the ordinary table defaults. `headerRows` cannot exceed the physical
+row count, and header-only styling without a header row is rejected. OfficeKit
+writes direct editable cell formatting for every declared header row and the
+ordinary native first-row flag. Exact counts above one survive through the
+embedded PPJ; a third-party import without that program conservatively reports
+only the native first-row fact. Imported table topology and unmodeled native
+style graphs remain source-owned.
 
 Use [the complete PPJ reference](ppj.md) for exact fields, value ranges, and
 compiler boundaries. This page explains visual choice; it is not a shortened

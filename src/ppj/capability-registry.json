@@ -133,13 +133,6 @@
       "reason": "Authored PPJ diagrams lower to editable groups of ordinary shapes, connectors, text and images; OfficeKit does not rebuild or fabricate a native SmartArt part graph."
     },
     {
-      "feature": "multi-header authored tables",
-      "ppjPath": "table.style",
-      "behavior": "partial",
-      "sourceBound": "Imported table topology and unmodeled styling remain source-preserved.",
-      "reason": "Authored tables support bounded rich cell text, body and paragraph layout, none/solid/gradient/image cell fills, direct borders, banding and one header row. More than one header row fails closed."
-    },
-    {
       "feature": "native-theme bullet identity and uncommon numbering schemes",
       "ppjPath": "text.paragraphs[].style.bullet",
       "behavior": "partial",
