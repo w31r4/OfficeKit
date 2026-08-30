@@ -2494,6 +2494,10 @@ message PresentationImage {
   // False emits the canonical stretch/fillRect owner. True emits one
   // parameter-free a:tile. Crop and direct opacity remain in fields 8 and 12.
   bool tiled = 17;
+  // Bounded literal custom geometry for the picture mask. It is mutually
+  // exclusive with mask_preset/mask_preset_adjustments and reuses the same
+  // ordered path vocabulary as authored custom shapes.
+  repeated PresentationCustomGeometryPath custom_mask_paths = 18;
 }
 
 message PresentationImageBorder {

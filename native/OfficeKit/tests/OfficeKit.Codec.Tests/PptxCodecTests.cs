@@ -132,6 +132,41 @@ public sealed class PptxCodecTests
             ["preset"] = "roundRect",
             ["adjustments"] = new JsonArray(24000),
         };
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "custom-mask-image-main",
+            ["type"] = "image",
+            ["role"] = "irregular editorial crop",
+            ["frame"] = new JsonObject { ["x"] = 520, ["y"] = 300, ["width"] = 80, ["height"] = 80 },
+            ["asset"] = "evidence-mark",
+            ["fit"] = "cover",
+            ["mask"] = new JsonObject
+            {
+                ["kind"] = "custom",
+                ["viewBox"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 160, ["height"] = 160 },
+                ["paths"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["fill"] = true,
+                        ["stroke"] = false,
+                        ["commands"] = new JsonArray
+                        {
+                            new JsonObject { ["op"] = "moveTo", ["x"] = 20, ["y"] = 0 },
+                            new JsonObject { ["op"] = "lineTo", ["x"] = 160, ["y"] = 0 },
+                            new JsonObject { ["op"] = "lineTo", ["x"] = 140, ["y"] = 160 },
+                            new JsonObject { ["op"] = "lineTo", ["x"] = 0, ["y"] = 120 },
+                            new JsonObject { ["op"] = "close" },
+                        },
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Evidence mark clipped by an irregular native path.",
+            },
+        });
         authoredProgram["pages"]![1]!["background"] = new JsonObject
         {
             ["type"] = "image",
@@ -559,7 +594,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(21U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(22U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -596,9 +631,14 @@ public sealed class PptxCodecTests
             Assert.NotNull(nativeImageFillShape.ShapeProperties!.GetFirstChild<A.BlipFill>());
             var nativeTiledPicture = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.Picture>()
-                .Single();
+                .Single(picture => picture.BlipFill!.GetFirstChild<A.Tile>() is not null);
             Assert.NotNull(nativeTiledPicture.BlipFill!.GetFirstChild<A.Tile>());
             Assert.Null(nativeTiledPicture.BlipFill.GetFirstChild<A.Stretch>());
+            var nativeCustomMaskPicture = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.Picture>()
+                .Single(picture => picture.ShapeProperties!.GetFirstChild<A.CustomGeometry>() is not null);
+            Assert.NotNull(nativeCustomMaskPicture.ShapeProperties!.GetFirstChild<A.CustomGeometry>());
+            Assert.Null(nativeCustomMaskPicture.ShapeProperties.GetFirstChild<A.PresetGeometry>());
             var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
                 .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
                 .Uri.OriginalString.TrimStart('/');
@@ -647,7 +687,7 @@ public sealed class PptxCodecTests
         Assert.True(importedImageBackground.Crop.TopThousandthPercent > 0);
         Assert.True(importedImageBackground.Crop.BottomThousandthPercent > 0);
         var importedImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "evidence identity").Image;
         Assert.True(importedImage.Tiled);
         Assert.Equal(92_000U, importedImage.OpacityThousandthPercent);
         Assert.Equal(4_000, importedImage.Crop.LeftThousandthPercent);
@@ -659,6 +699,11 @@ public sealed class PptxCodecTests
         Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Equal("Rising evidence line", importedImage.AltText);
+        var importedCustomMaskImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "irregular editorial crop").Image;
+        Assert.Empty(importedCustomMaskImage.MaskPreset);
+        Assert.Empty(importedCustomMaskImage.MaskPresetAdjustments);
+        Assert.Equal(5, Assert.Single(importedCustomMaskImage.CustomMaskPaths).Commands.Count);
         var importedBubble = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart &&
             element.Chart.Type == SpreadsheetChartType.Bubble).Chart;
@@ -863,6 +908,10 @@ public sealed class PptxCodecTests
                 item.GetProperty("fit").GetString() == "tile" &&
                 item.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray().Any(capability =>
                     capability.GetProperty("operation").GetString() == "setImageFit"));
+            Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "irregular editorial crop" &&
+                item.GetProperty("mask").GetProperty("kind").GetString() == "custom" &&
+                item.GetProperty("mask").GetProperty("paths")[0].GetProperty("commands").GetArrayLength() == 5);
             Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "decision-flow-start" &&
                 item.GetProperty("style").GetProperty("fill").GetProperty("type").GetString() == "image" &&
@@ -1193,7 +1242,8 @@ public sealed class PptxCodecTests
         imagePaintShape["style"]!["fill"]!["opacity"] = 0.44;
         var tiledImage = imagePaintProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "image");
+            .Single(element => element["type"]!.GetValue<string>() == "image" &&
+                element["mask"]?["kind"]?.GetValue<string>() == "preset");
         tiledImage["fit"] = "stretch";
         var imagePaintPageId = imagePaintProgram["pages"]![1]!["id"]!.GetValue<string>();
         var imagePaintShapeId = imagePaintShape["id"]!.GetValue<string>();
@@ -1237,7 +1287,8 @@ public sealed class PptxCodecTests
                 .GetProperty("style").GetProperty("fill");
             Assert.Equal(0.44, reprojectedImageFill.GetProperty("opacity").GetDouble(), 3);
             var reprojectedImage = imagePaintRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(element => element.GetProperty("type").GetString() == "image");
+                .Single(element => element.GetProperty("type").GetString() == "image" &&
+                    element.GetProperty("mask").GetProperty("kind").GetString() == "preset");
             Assert.Equal("stretch", reprojectedImage.GetProperty("fit").GetString());
         }
 
@@ -1403,10 +1454,33 @@ public sealed class PptxCodecTests
             Assert.Equal(22000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
         }
 
+        var changedCustomMaskProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var changedCustomMaskImage = changedCustomMaskProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["name"]?.GetValue<string>() == "irregular editorial crop");
+        Assert.DoesNotContain(changedCustomMaskImage["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setImageMask");
+        changedCustomMaskImage["mask"]!["paths"]![0]!["commands"]![1]!["x"] = 150;
+        var rejectedCustomMaskEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(changedCustomMaskProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.False(rejectedCustomMaskEdit.Ok);
+        Assert.Empty(rejectedCustomMaskEdit.File);
+
         var adjustedMaskProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var adjustedMaskImage = adjustedMaskProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "image");
+            .Single(element => element["type"]!.GetValue<string>() == "image" &&
+                element["mask"]?["kind"]?.GetValue<string>() == "preset");
         Assert.Contains(adjustedMaskImage["nativeRef"]!["capabilities"]!.AsArray(), capability =>
             capability!["operation"]!.GetValue<string>() == "setImageMask");
         adjustedMaskImage["mask"]!["adjustments"]![0] = 32000;
@@ -1816,7 +1890,7 @@ public sealed class PptxCodecTests
 
         var editedArtifact = imported.Artifact.Clone();
         var editedImage = Assert.Single(editedArtifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "evidence identity").Image;
         editedImage.OpacityThousandthPercent = 76_000;
         editedImage.MaskPreset = "roundRect";
         editedImage.Border = null;
@@ -1826,7 +1900,7 @@ public sealed class PptxCodecTests
         var editedRoundTrip = Import(edited.File.ToByteArray());
         Assert.True(editedRoundTrip.Ok, Diagnostics(editedRoundTrip));
         var roundTripImage = Assert.Single(editedRoundTrip.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "evidence identity").Image;
         Assert.Equal(76_000U, roundTripImage.OpacityThousandthPercent);
         Assert.Equal("roundRect", roundTripImage.MaskPreset);
         Assert.Null(roundTripImage.Border);

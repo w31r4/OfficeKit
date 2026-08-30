@@ -450,6 +450,9 @@ internal static partial class PpjPresentationProjector
         var image = element.Image;
         if (!context.TryMaterializeAsset(image.AssetId, out var assetId))
             return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose media payload cannot be materialized safely.");
+        var customMask = image.CustomMaskPaths.Count > 0 ? ImageMaskShape(image) : null;
+        if (customMask is not null && !CanProjectCustomGeometry(customMask))
+            return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose custom mask cannot be represented exactly in PPJ.");
         var output = ElementBase(id, element.Name, ImageFrame(image), ImageAccessibility(image), nativeRef);
         output["type"] = "image";
         output["asset"] = assetId;
@@ -466,7 +469,9 @@ internal static partial class PpjPresentationProjector
         }
         if (image.HasOpacityThousandthPercent)
             output["opacity"] = Unit(image.OpacityThousandthPercent);
-        if (!string.IsNullOrEmpty(image.MaskPreset) && PptxPresetGeometryAdjustmentCodec.HasProfile(image.MaskPreset))
+        if (customMask is not null)
+            output["mask"] = ProjectCustomGeometry(customMask);
+        else if (!string.IsNullOrEmpty(image.MaskPreset) && PptxPresetGeometryAdjustmentCodec.HasProfile(image.MaskPreset))
         {
             var mask = new JsonObject { ["kind"] = "preset", ["preset"] = image.MaskPreset };
             if (image.MaskPresetAdjustments.Count > 0)
@@ -479,6 +484,18 @@ internal static partial class PpjPresentationProjector
         if (image.Shadow is not null && !string.IsNullOrEmpty(image.Shadow.ColorRgb))
             output["shadow"] = Shadow(image.Shadow);
         return output;
+    }
+
+    private static PresentationShape ImageMaskShape(PresentationImage image)
+    {
+        var shape = new PresentationShape
+        {
+            Geometry = "custom",
+            WidthEmu = image.WidthEmu,
+            HeightEmu = image.HeightEmu,
+        };
+        shape.CustomPaths.Add(image.CustomMaskPaths);
+        return shape;
     }
 
     private static JsonObject ProjectChart(PresentationElement element, string id, JsonObject nativeRef)

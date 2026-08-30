@@ -243,10 +243,17 @@ internal static class PpjAuthoredPresentationCompiler
             image.OpacityThousandthPercent = Opacity(opacity.GetDouble());
         if (raw.TryGetProperty("mask", out var mask))
         {
-            if (mask.GetProperty("kind").GetString() != "preset")
-                throw Unsupported(element.Id, "custom image masks require the native custom-geometry picture compiler");
-            image.MaskPreset = mask.GetProperty("preset").GetString()!;
-            image.MaskPresetAdjustments.Add(element.MaskAdjustments);
+            if (mask.GetProperty("kind").GetString() == "preset")
+            {
+                image.MaskPreset = mask.GetProperty("preset").GetString()!;
+                image.MaskPresetAdjustments.Add(element.MaskAdjustments);
+            }
+            else
+            {
+                var customMask = new PresentationShape { Geometry = "custom" };
+                ApplyCustomGeometry(customMask, mask, element.Id + " image mask");
+                image.CustomMaskPaths.Add(customMask.CustomPaths);
+            }
         }
         if (raw.TryGetProperty("border", out var border))
         {

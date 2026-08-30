@@ -41,13 +41,6 @@
   },
   "authoredCompilerBoundaries": [
     {
-      "feature": "custom-path image masks",
-      "ppjPath": "image.mask where kind is custom",
-      "behavior": "fail-closed",
-      "sourceBound": "Existing custom mask topology remains source-preserved.",
-      "reason": "Authored and canonical imported preset masks own the complete ordered adjustment array; arbitrary custom mask paths remain native-owned."
-    },
-    {
       "feature": "independently rotated connector frames",
       "ppjPath": "connector.frame",
       "behavior": "fail-closed",
