@@ -1,6 +1,6 @@
 # PPJ radar spoke axis
 
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Radar authors control one semantic spoke coordinate system
 
@@ -48,4 +48,3 @@ native radar-axis graphs into a guessed `spokeAxis`.
 - **WHEN** OfficeKit projects the chart
 - **THEN** it does not claim a fully editable semantic `spokeAxis`
 - **AND** the source package remains preserved
-
