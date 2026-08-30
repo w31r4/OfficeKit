@@ -36,6 +36,13 @@ sources, and does not contain instructions meant for the audience. After a
 source-bound notes edit, re-import and confirm the intended page notes while
 keeping every non-target slide and native notes graph stable.
 
+Treat `pages[].hidden` as ordinary slide-show routing, not deletion. A hidden
+appendix page still belongs to sections, custom shows, review, and delivery and
+must remain factually and visually valid. On imported pages, change `name` or
+`hidden` only through the page nativeRef capability; set `hidden: false` to show
+a page again rather than removing the field. Neither edit changes custom-show
+membership or presentation order.
+
 Compilation proves that the program lowered. Re-import proves that OfficeKit
 can read the result. Structural motion evidence proves canonical timing state.
 None of these proves that a human saw correct rendering or that desktop

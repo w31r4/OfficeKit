@@ -145,6 +145,15 @@ second projection. Paragraph/run topology or style changes, representation
 conversion, deletion, NotesMaster/layout editing, fields, hyperlinks, picture
 bullets, and irregular notes relationships remain source-owned and fail closed.
 
+Imported PPJ pages now expose their mature native metadata operations as page
+state rather than requiring the retired JavaScript facade. Every hash-bound
+page may issue `setName`; a canonical `p:sld/@show` profile additionally issues
+`setHidden` and projects an explicit boolean. The existing comprehensive PPJ
+state edit renames and hides one page while editing one element, changes only
+that SlidePart, and recovers page and element state after second projection.
+Malformed visibility remains opaque, and neither operation changes order,
+layout, sections, custom shows, notes, comments, transitions, or relationships.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.
