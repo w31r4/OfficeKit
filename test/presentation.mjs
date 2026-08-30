@@ -7581,6 +7581,27 @@ const shadowColorOutputXml = await (await JSZip.loadAsync(shadowColorOutput.byte
 assert.match(shadowColorOutputXml, /<a:srgbClr\s+val="112233"><a:alpha\s+val="25000"\s*\/>/u);
 const shadowColorRoundTrip = await PresentationFile.importPptx(shadowColorOutput);
 assert.equal(itemByName(shadowColorRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.color, "#112233");
+
+// Shadow alpha is a separate source-bound token. Keep the edit narrow so the
+// color, geometry, vendor attributes, and all unrelated package parts survive.
+const shadowOpacityImported = await PresentationFile.importPptx(sourceBound);
+const shadowOpacityTarget = itemByName(shadowOpacityImported.slides.getItem(0).shapes.items, "rounded-card");
+const shadowOpacityLeaf = shadowOpacityImported.inspect({ includeNativeLeaves: true, targetId: shadowOpacityTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowOpacityThousandthPercent");
+assert.ok(shadowOpacityLeaf, "canonical imported shadows should expose a direct opacity leaf");
+assert.equal(shadowOpacityLeaf.value, 0.25);
+shadowOpacityImported.editNativeLeaf(shadowOpacityLeaf.targetId, shadowOpacityLeaf.leafId, {
+  expectedHash: shadowOpacityLeaf.expectedHash,
+  value: 0.4,
+});
+const shadowOpacityOutput = await PresentationFile.exportPptx(shadowOpacityImported);
+assert.equal(shadowOpacityOutput.metadata.editPlan.operations[0].leafKind, "shadowOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(sourceBound, shadowOpacityOutput, shadowOpacityOutput.metadata.editPlan.operations);
+const shadowOpacityOutputXml = await (await JSZip.loadAsync(shadowOpacityOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowOpacityOutputXml, /<a:srgbClr\s+val="000000"><a:alpha\s+val="40000"\s*\/>/u);
+const shadowOpacityRoundTrip = await PresentationFile.importPptx(shadowOpacityOutput);
+assert.equal(itemByName(shadowOpacityRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.opacity, 0.4);
 assert.deepEqual(importedCore.background, { fill: "#f1f5f9", mode: "solid" });
 assert.equal(itemByName(importedCore.shapes.items, "rounded-card").geometry, "roundRect");
 assert.equal(itemByName(importedCore.shapes.items, "target-textbox").geometry, "textbox");
