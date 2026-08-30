@@ -32,9 +32,14 @@ PPJ 2.0 adds no runtime dependency or third-party license.
 Acceptance covers an authored high-density Evidence Ledger deck, exact embedded
 PPJ recovery and continuation from only its PPTX, and source-bound typed plus
 `nativeRef` edits on a complex third-party deck. Packed clean-install evidence
-completed all three workflows. Final release hashes and platform build evidence
-are recorded after the one release gate run; Windows PowerPoint playback remains
-unverified and is not a 2.0 completion condition.
+completed all three workflows. The final npm candidate contains 900 files,
+packs to 29,001,931 bytes (37,025,654 bytes unpacked), and has SHA-256
+`14639e4f2f5b098a61b830b8a5fd13265b9c099c372d2a00ce12507ad7f9ea63`.
+Its darwin-arm64 NativeAOT package is 18,678,655 bytes with SHA-256
+`7dd6de1a948dedc35ae8947f370bfa4643d1ea20966ed09a0d8ad66b8436379e`.
+The final clean-install smoke built and recovered PPJ using only those packaged
+surfaces. Windows PowerPoint playback remains unverified and is not a 2.0
+completion condition.
 
 The npm and self-contained GitHub distributions are independent release
 channels. The verified standalone catalog remains pinned to 1.0.0 until fresh

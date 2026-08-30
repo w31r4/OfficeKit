@@ -35,7 +35,14 @@ A packed darwin-arm64 clean install independently completed authored build,
 embedded recovery/continuation, and third-party typed/nativeRef continuation
 without repository source at runtime. The pre-bump root and codec tarballs were
 SHA-256 `71ba3446…526f4` and `9aa2ea6…dc4ec`. Exact records live in
-`evals/presentation-program-json/`. Windows PowerPoint remains unverified.
+`evals/presentation-program-json/`. The final `office-kit@2.0.0` npm candidate
+contains 900 files, is 29,001,931 bytes, and has SHA-256
+`14639e4f2f5b098a61b830b8a5fd13265b9c099c372d2a00ce12507ad7f9ea63`;
+the matching darwin-arm64 codec tarball is 18,678,655 bytes with SHA-256
+`7dd6de1a948dedc35ae8947f370bfa4643d1ea20966ed09a0d8ad66b8436379e`.
+The final clean-install smoke built and recovered the packaged minimum PPJ and
+also exercised DOCX, XLSX, PPTX, PDF, Skills, templates, and the standalone
+distribution. Windows PowerPoint remains unverified.
 
 ## Gate policy
 

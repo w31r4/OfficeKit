@@ -19,6 +19,26 @@
       "sha256": "9aa2ea6f60ee9144634af0324cc241ccb40ef9ba8c4050b6b201b2869d8dc4ec"
     }
   },
+  "finalReleaseCandidate": {
+    "officeKit": {
+      "file": "office-kit-2.0.0.tgz",
+      "bytes": 29001931,
+      "unpackedBytes": 37025654,
+      "files": 900,
+      "sha256": "14639e4f2f5b098a61b830b8a5fd13265b9c099c372d2a00ce12507ad7f9ea63"
+    },
+    "codec": {
+      "file": "office-kit-codec-darwin-arm64-2.0.0.tgz",
+      "bytes": 18678655,
+      "sha256": "7dd6de1a948dedc35ae8947f370bfa4643d1ea20966ed09a0d8ad66b8436379e"
+    },
+    "smoke": {
+      "minimumPpjBuild": "passed",
+      "embeddedPpjRecovery": "passed",
+      "standaloneDistribution": "passed",
+      "repositorySourceUsedAtRuntime": false
+    }
+  },
   "authoredBuild": {
     "input": "packaged Evidence Ledger reference.ppj",
     "check": "passed",
@@ -72,6 +92,6 @@
   },
   "boundaries": [
     "The clean-install run reused host LibreOffice evidence only by reproducing byte-identical PPTX output hashes; it did not run a second redundant render.",
-    "The candidate still reported version 1.1.0 because the breaking-version update is intentionally reserved for the release milestone."
+    "The three full PPJ acceptance workflows ran on the pre-bump candidate; the final 2.0.0 package smoke independently validated packaged PPJ build/recovery and distribution closure without redundantly repeating those complete workflows."
   ]
 }
