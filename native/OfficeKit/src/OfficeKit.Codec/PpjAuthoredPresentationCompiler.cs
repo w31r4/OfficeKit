@@ -319,8 +319,8 @@ internal static class PpjAuthoredPresentationCompiler
             if (FirstProperty(inlineStyle, namedStyle, "showCategoryAxis") is not null ||
                 FirstProperty(inlineStyle, namedStyle, "showValueAxis") is not null)
                 throw Unsupported(element.Id, "structured axes cannot be combined with legacy axis visibility fields");
-            chart.XAxis = rawXAxis is { } xAxis ? BuildChartAxis(xAxis) : new SpreadsheetChartAxisArtifact();
-            chart.YAxis = rawYAxis is { } yAxis ? BuildChartAxis(yAxis) : new SpreadsheetChartAxisArtifact();
+            chart.XAxis = rawXAxis is { } xAxis ? BuildChartAxis(xAxis, catalog) : new SpreadsheetChartAxisArtifact();
+            chart.YAxis = rawYAxis is { } yAxis ? BuildChartAxis(yAxis, catalog) : new SpreadsheetChartAxisArtifact();
         }
         var rawSecondaryXAxis = Property(raw, "secondaryXAxis");
         var rawSecondaryYAxis = Property(raw, "secondaryYAxis");
@@ -329,10 +329,10 @@ internal static class PpjAuthoredPresentationCompiler
             if (chart.Type != SpreadsheetChartType.Combo)
                 throw Unsupported(element.Id, "secondary axes require a combo chart");
             chart.SecondaryXAxis = rawSecondaryXAxis is { } xAxis
-                ? BuildChartAxis(xAxis)
+                ? BuildChartAxis(xAxis, catalog)
                 : new SpreadsheetChartAxisArtifact();
             chart.SecondaryYAxis = rawSecondaryYAxis is { } yAxis
-                ? BuildChartAxis(yAxis)
+                ? BuildChartAxis(yAxis, catalog)
                 : new SpreadsheetChartAxisArtifact();
         }
 
@@ -413,7 +413,7 @@ internal static class PpjAuthoredPresentationCompiler
         return series;
     }
 
-    private static SpreadsheetChartAxisArtifact BuildChartAxis(JsonElement source)
+    private static SpreadsheetChartAxisArtifact BuildChartAxis(JsonElement source, Catalog catalog)
     {
         var axis = new SpreadsheetChartAxisArtifact
         {
@@ -427,11 +427,7 @@ internal static class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("majorUnit", out var majorUnit)) axis.MajorUnit = majorUnit.GetDouble();
         if (source.TryGetProperty("visible", out var visible)) axis.Visible = visible.GetBoolean();
         if (source.TryGetProperty("textStyle", out var textStyle))
-        {
-            axis.TextStyle = new SpreadsheetChartTextStyleArtifact();
-            if (textStyle.TryGetProperty("fontSize", out var fontSize))
-                axis.TextStyle.FontSizePoints = fontSize.GetDouble();
-        }
+            axis.TextStyle = BuildChartTextStyle(textStyle, catalog);
         return axis;
     }
 
@@ -1326,9 +1322,7 @@ internal static class PpjAuthoredPresentationCompiler
         {
             if (chart.Title.Length == 0)
                 throw Unsupported(elementId, "titleTextStyle requires a non-empty chart title");
-            chart.TitleTextStyle = new SpreadsheetChartTextStyleArtifact();
-            if (titleTextStyle.TryGetProperty("fontSize", out var fontSize))
-                chart.TitleTextStyle.FontSizePoints = fontSize.GetDouble();
+            chart.TitleTextStyle = BuildChartTextStyle(titleTextStyle, catalog);
         }
         var smooth = FirstProperty(inline, named, "smooth");
         var varyColors = FirstProperty(inline, named, "varyColors");
@@ -1381,6 +1375,23 @@ internal static class PpjAuthoredPresentationCompiler
         var resolved = FillColor(fill, catalog) ?? throw new InvalidOperationException("Solid PPJ fill unexpectedly resolved to none.");
         var output = new SpreadsheetChartSurfaceFill { SolidRgb = resolved.Rgb };
         if (resolved.Opacity < 1) output.OpacityThousandthPercent = Opacity(resolved.Opacity);
+        return output;
+    }
+
+    private static SpreadsheetChartTextStyleArtifact BuildChartTextStyle(JsonElement source, Catalog catalog)
+    {
+        var output = new SpreadsheetChartTextStyleArtifact();
+        if (source.TryGetProperty("fontSize", out var fontSize)) output.FontSizePoints = fontSize.GetDouble();
+        if (source.TryGetProperty("fontFamily", out var fontFamily)) output.FontFamily = fontFamily.GetString()!;
+        if (source.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = eastAsia.GetString()!;
+        if (source.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
+        if (source.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
+        if (source.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            output.ColorRgb = resolved.Rgb;
+            if (resolved.Alpha != 1) output.OpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
         return output;
     }
 

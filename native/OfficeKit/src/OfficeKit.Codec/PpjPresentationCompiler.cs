@@ -670,7 +670,9 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static bool ApplyChartElement(PpjChartElementModel before, PpjChartElementModel after, PresentationChart target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "title", "data");
+        RequireEqualExcept(before.Raw, after.Raw, path,
+            "role", "tags", "frame", "title", "data", "style",
+            "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "title"))
         {
@@ -686,7 +688,96 @@ internal static class PpjSourceBoundPresentationCompiler
             ApplyChartData(before, after, target, path + ".data");
             changed = true;
         }
+        changed |= ApplyChartTextStyles(before, after, target, path);
         return changed;
+    }
+
+    private static bool ApplyChartTextStyles(
+        PpjChartElementModel before,
+        PpjChartElementModel after,
+        PresentationChart target,
+        string path)
+    {
+        var changed = ApplyChartTitleTextStyle(before, after, target, path);
+        changed |= ApplyChartAxisTextStyle(before, after, target.XAxis, "xAxis", path);
+        changed |= ApplyChartAxisTextStyle(before, after, target.YAxis, "yAxis", path);
+        changed |= ApplyChartAxisTextStyle(before, after, target.SecondaryXAxis, "secondaryXAxis", path);
+        changed |= ApplyChartAxisTextStyle(before, after, target.SecondaryYAxis, "secondaryYAxis", path);
+        return changed;
+    }
+
+    private static bool ApplyChartTitleTextStyle(
+        PpjChartElementModel before,
+        PpjChartElementModel after,
+        PresentationChart target,
+        string path)
+    {
+        var oldStyle = OptionalProperty(before.Raw, "style");
+        var newStyle = OptionalProperty(after.Raw, "style");
+        if (JsonEqual(oldStyle, newStyle)) return false;
+        RequireOnlyBoundedProperty(oldStyle, newStyle, path + ".style", "titleTextStyle");
+        if (!PropertyChanged(oldStyle, newStyle, "titleTextStyle")) return false;
+        RequireCapability(after, "setChartTextStyle", path + ".style.titleTextStyle");
+        target.TitleTextStyle = SourceBoundChartTextStyle(newStyle, "titleTextStyle", path + ".style.titleTextStyle");
+        return true;
+    }
+
+    private static bool ApplyChartAxisTextStyle(
+        PpjChartElementModel before,
+        PpjChartElementModel after,
+        SpreadsheetChartAxisArtifact? target,
+        string axisName,
+        string path)
+    {
+        var oldAxis = OptionalProperty(before.Raw, axisName);
+        var newAxis = OptionalProperty(after.Raw, axisName);
+        if (JsonEqual(oldAxis, newAxis)) return false;
+        if (oldAxis is null || newAxis is null || target is null)
+            throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
+        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName, "textStyle");
+        if (!PropertyChanged(oldAxis, newAxis, "textStyle")) return false;
+        RequireCapability(after, "setChartTextStyle", path + "." + axisName + ".textStyle");
+        target.TextStyle = SourceBoundChartTextStyle(newAxis, "textStyle", path + "." + axisName + ".textStyle");
+        return true;
+    }
+
+    private static void RequireOnlyBoundedProperty(JsonElement? before, JsonElement? after, string path, string property)
+    {
+        if (before is { } oldValue && after is { } newValue)
+        {
+            RequireEqualExcept(oldValue, newValue, path, property);
+            return;
+        }
+        var present = before ?? after!.Value;
+        foreach (var item in present.EnumerateObject())
+            if (!item.Name.Equals(property, StringComparison.Ordinal))
+                throw Unsupported(path + "." + item.Name, $"changing source-owned {item.Name}");
+    }
+
+    private static SpreadsheetChartTextStyleArtifact? SourceBoundChartTextStyle(
+        JsonElement? owner,
+        string property,
+        string path)
+    {
+        if (owner is null || !owner.Value.TryGetProperty(property, out var source)) return null;
+        var output = new SpreadsheetChartTextStyleArtifact();
+        if (source.TryGetProperty("fontSize", out var fontSize)) output.FontSizePoints = fontSize.GetDouble();
+        if (source.TryGetProperty("fontFamily", out var fontFamily)) output.FontFamily = fontFamily.GetString()!;
+        if (source.TryGetProperty("fontFamilyEastAsia", out var eastAsia)) output.FontFamilyEastAsia = eastAsia.GetString()!;
+        if (source.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
+        if (source.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
+        if (source.TryGetProperty("color", out var color))
+        {
+            if (color.ValueKind != JsonValueKind.String)
+                throw Unsupported(path + ".color", "theme-token chart color in a source-bound edit");
+            var value = color.GetString()!.TrimStart('#');
+            if (value.Length is not (6 or 8) || !value.All(Uri.IsHexDigit))
+                throw Unsupported(path + ".color", "non-RGB chart text color");
+            output.ColorRgb = value[..6].ToUpperInvariant();
+            if (value.Length == 8)
+                output.OpacityThousandthPercent = Unit(Convert.ToByte(value[6..], 16) / 255d);
+        }
+        return output;
     }
 
     private static bool ApplyTableElement(PpjTableElementModel before, PpjTableElementModel after, PresentationTable target, string path)

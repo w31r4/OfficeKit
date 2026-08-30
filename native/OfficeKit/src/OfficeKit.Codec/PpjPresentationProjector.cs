@@ -556,8 +556,8 @@ internal static partial class PpjPresentationProjector
         if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
-        if (chart.TitleTextStyle?.HasFontSizePoints == true)
-            style["titleTextStyle"] = new JsonObject { ["fontSize"] = chart.TitleTextStyle.FontSizePoints };
+        if (chart.TitleTextStyle is not null)
+            style["titleTextStyle"] = ProjectChartTextStyle(chart.TitleTextStyle);
         if (chart.LineOptions?.HasSmooth == true) style["smooth"] = chart.LineOptions.Smooth;
         if (chart.LineOptions?.VaryColors == true) style["varyColors"] = true;
         if (chart.DataLabels is not null)
@@ -652,8 +652,22 @@ internal static partial class PpjPresentationProjector
         if (axis.HasMaximum) output["max"] = axis.Maximum;
         if (axis.HasMajorUnit) output["majorUnit"] = axis.MajorUnit;
         if (axis.HasVisible) output["visible"] = axis.Visible;
-        if (axis.TextStyle?.HasFontSizePoints == true)
-            output["textStyle"] = new JsonObject { ["fontSize"] = axis.TextStyle.FontSizePoints };
+        if (axis.TextStyle is not null)
+            output["textStyle"] = ProjectChartTextStyle(axis.TextStyle);
+        return output;
+    }
+
+    private static JsonObject ProjectChartTextStyle(SpreadsheetChartTextStyleArtifact source)
+    {
+        var output = new JsonObject();
+        if (source.HasFontSizePoints) output["fontSize"] = source.FontSizePoints;
+        if (source.FontFamily.Length > 0) output["fontFamily"] = source.FontFamily;
+        if (source.FontFamilyEastAsia.Length > 0) output["fontFamilyEastAsia"] = source.FontFamilyEastAsia;
+        if (source.HasBold) output["bold"] = source.Bold;
+        if (source.HasItalic) output["italic"] = source.Italic;
+        if (source.ColorRgb.Length > 0)
+            output["color"] = TextColor(source.ColorRgb, null,
+                source.HasOpacityThousandthPercent, source.OpacityThousandthPercent);
         return output;
     }
 
@@ -1264,6 +1278,7 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Chart when source.Editable:
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
+                output.Add(new("setChartTextStyle", ["chart.textStyle"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Table when source.Editable:

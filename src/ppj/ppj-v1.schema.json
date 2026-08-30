@@ -988,6 +988,7 @@
             "setImageMask",
             "setChartTitle",
             "setChartData",
+            "setChartTextStyle",
             "setSmartArtText",
             "setOlePayload",
             "delete",
@@ -1025,6 +1026,7 @@
               "image.mask.adjustments",
               "chart.title",
               "chart.data",
+              "chart.textStyle",
               "smartArt.text",
               "ole.payload",
               "element",
@@ -2714,8 +2716,28 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "maximum": 1000
+        },
+        "fontFamily": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "fontFamilyEastAsia": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "bold": {
+          "type": "boolean"
+        },
+        "italic": {
+          "type": "boolean"
+        },
+        "color": {
+          "$ref": "#/$defs/color"
         }
-      }
+      },
+      "minProperties": 1
     },
     "chartAxis": {
       "type": "object",
