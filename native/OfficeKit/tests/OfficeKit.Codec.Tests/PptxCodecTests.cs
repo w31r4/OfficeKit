@@ -866,6 +866,7 @@ public sealed class PptxCodecTests
             ["title"] = "Half-year",
             ["tickLabelInterval"] = 1,
             ["axisLine"] = new JsonObject { ["color"] = "#16324F", ["width"] = 1.25, ["dash"] = "dash" },
+            ["axisLineArrow"] = new JsonObject { ["start"] = "open", ["end"] = "triangle" },
             ["gridLine"] = false,
             ["textStyle"] = new JsonObject
             {
@@ -904,6 +905,13 @@ public sealed class PptxCodecTests
             ["max"] = 130,
             ["majorUnit"] = 10,
         };
+        var invalidAxisArrowProgram = authoredProgram.DeepClone().AsObject();
+        invalidAxisArrowProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-chart-main")["xAxis"]!["axisLine"] = false;
+        var invalidAxisArrow = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidAxisArrowProgram.ToJsonString()));
+        Assert.False(invalidAxisArrow.IsValid);
+        Assert.Contains(invalidAxisArrow.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.axisArrowHiddenLine");
         var authoredChartSeries = authoredChart["data"]!["series"]![1]!.AsObject();
         authoredChartSeries["color"] = "#F2C14E80";
         authoredChartSeries["marker"] = new JsonObject
@@ -2379,6 +2387,12 @@ public sealed class PptxCodecTests
             Assert.Equal("16324F", primaryCategoryAxis.Element(richChartNamespace + "spPr")!
                 .Element(richDrawingNamespace + "ln")!.Element(richDrawingNamespace + "solidFill")!
                 .Element(richDrawingNamespace + "srgbClr")!.Attribute("val")!.Value);
+            Assert.Equal("arrow", primaryCategoryAxis.Element(richChartNamespace + "spPr")!
+                .Element(richDrawingNamespace + "ln")!.Element(richDrawingNamespace + "headEnd")!
+                .Attribute("type")!.Value);
+            Assert.Equal("triangle", primaryCategoryAxis.Element(richChartNamespace + "spPr")!
+                .Element(richDrawingNamespace + "ln")!.Element(richDrawingNamespace + "tailEnd")!
+                .Attribute("type")!.Value);
             Assert.NotNull(primaryCategoryAxis.Element(richChartNamespace + "majorGridlines")!
                 .Element(richChartNamespace + "spPr")!.Element(richDrawingNamespace + "ln")!
                 .Element(richDrawingNamespace + "noFill"));
@@ -3068,6 +3082,8 @@ public sealed class PptxCodecTests
             Assert.Equal("#,##0", projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("numberFormat").GetString());
             Assert.True(projectedChart.GetProperty("xAxis").GetProperty("reverse").GetBoolean());
             Assert.Equal("#16324F", projectedChart.GetProperty("xAxis").GetProperty("axisLine").GetProperty("color").GetString());
+            Assert.Equal("open", projectedChart.GetProperty("xAxis").GetProperty("axisLineArrow").GetProperty("start").GetString());
+            Assert.Equal("triangle", projectedChart.GetProperty("xAxis").GetProperty("axisLineArrow").GetProperty("end").GetString());
             Assert.False(projectedChart.GetProperty("xAxis").GetProperty("gridLine").GetBoolean());
             Assert.Equal("#DCEFEA", projectedChart.GetProperty("yAxis").GetProperty("gridLine").GetProperty("color").GetString());
             Assert.Contains(projectedChart.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
@@ -3288,6 +3304,8 @@ public sealed class PptxCodecTests
         formattingChart["style"]!["dataLabels"]!["numberFormat"] = "0.0";
         formattingChart["xAxis"]!["reverse"] = false;
         formattingChart["xAxis"]!["axisLine"]!["color"] = "#0B8F8F";
+        formattingChart["xAxis"]!["axisLineArrow"]!["start"] = "none";
+        formattingChart["xAxis"]!["axisLineArrow"]!["end"] = "diamond";
         formattingChart["yAxis"]!["gridLine"] = false;
         var formattingChartId = formattingChart["id"]!.GetValue<string>();
         var formattingBubble = formattingProgram["pages"]![0]!["elements"]!.AsArray()
@@ -3334,6 +3352,8 @@ public sealed class PptxCodecTests
             Assert.Equal("0.0", reprojectedFormattingChart.GetProperty("style").GetProperty("dataLabels").GetProperty("numberFormat").GetString());
             Assert.False(reprojectedFormattingChart.GetProperty("xAxis").GetProperty("reverse").GetBoolean());
             Assert.Equal("#0B8F8F", reprojectedFormattingChart.GetProperty("xAxis").GetProperty("axisLine").GetProperty("color").GetString());
+            Assert.Equal("none", reprojectedFormattingChart.GetProperty("xAxis").GetProperty("axisLineArrow").GetProperty("start").GetString());
+            Assert.Equal("diamond", reprojectedFormattingChart.GetProperty("xAxis").GetProperty("axisLineArrow").GetProperty("end").GetString());
             Assert.False(reprojectedFormattingChart.GetProperty("yAxis").GetProperty("gridLine").GetBoolean());
             var reprojectedFormattingBubble = formattingJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(element => element.GetProperty("id").GetString() == formattingBubbleId);
