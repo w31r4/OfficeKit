@@ -9,6 +9,7 @@ Choose the visual from the relationship the audience must understand.
 | distribution or correlation | scatter, bubble, or distribution view |
 | intensity across two categorical dimensions | heatmap |
 | open/high/low/close movement over ordered periods | candlestick |
+| hierarchical part-to-whole allocation | treemap |
 | multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
@@ -62,7 +63,7 @@ The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
-  candlestick, and bounded bar-line combo plots;
+  candlestick, bounded vector treemap, and bounded bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -407,6 +408,59 @@ restores exact OHLC/HLC intent; without it, import truthfully returns the group
 and does not reverse-engineer arbitrary marks into financial evidence.
 Whole-object animation remains available, while `chartBuild`, secondary axes,
 legends, trendlines, error bars, markers, and automatic data labels fail closed.
+
+Use `treemap` for hierarchical part-to-whole evidence when area is the intended
+comparison. It is not a substitute for a ranked bar chart when exact ordering
+or small differences matter. `categories`, `values`, and `parents` are aligned;
+each parent name references one globally unique category, and `null` marks a
+root:
+
+```json
+{
+  "type": "chart",
+  "id": "budget-allocation",
+  "chartType": "treemap",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Budget allocation",
+  "style": {
+    "treemap": {
+      "rootColors": ["#0B8F8F", "#C8644A", "#F2C14E"],
+      "border": { "color": "#FFFFFF", "width": 0.75 },
+      "gap": 2,
+      "headerHeight": 17,
+      "depthLighten": 0.1,
+      "showValues": true,
+      "labelTextStyle": { "fontSize": 9, "bold": true },
+      "valueTextStyle": { "fontSize": 8 }
+    }
+  },
+  "data": {
+    "categories": ["Engineering", "Frontend", "Backend", "Sales", "Enterprise", "SMB"],
+    "series": [{
+      "id": "budget",
+      "name": "Budget",
+      "values": [1000, 400, 600, 800, 500, 300],
+      "parents": [null, "Engineering", "Engineering", null, "Sales", "Sales"]
+    }]
+  }
+}
+```
+
+The bounded profile accepts one series, 1–128 positive nodes, 1–16 roots, and
+at most eight hierarchy levels. Every named parent must exist, parent chains
+must be acyclic, and each non-leaf value must equal the sum of its direct
+children. Those checks prevent a visually plausible rectangle mosaic from
+silently contradicting its evidence.
+
+NativeAOT uses a deterministic squarified layout and emits one editable
+DrawingML group of rectangles and text. Root colors cycle in root order;
+descendants retain the root hue and lighten by the declared depth step. Labels
+are omitted only when a native rectangle is too small to hold readable text;
+the node remains an editable named shape and the group retains accessibility
+evidence. Embedded PPJ restores the exact forest; without it, import truthfully
+returns the ordinary group. Whole-object animation is supported, but
+`chartBuild`, axes, legends, trendlines, error bars, and arbitrary per-node
+expression-driven paint are not.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a

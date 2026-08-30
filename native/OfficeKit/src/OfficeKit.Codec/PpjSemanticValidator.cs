@@ -325,6 +325,11 @@ internal static class PpjSemanticValidator
                     "ppj.chart.ohlcType",
                     "openValues, highValues, and lowValues apply only to candlestick charts.",
                     seriesPath));
+            if (chart.ChartType != "treemap" && series.Parents.Count != 0)
+                diagnostics.Add(new(
+                    "ppj.chart.parentsType",
+                    "parents applies only to treemap charts.",
+                    seriesPath + ".parents"));
             if (series.Raw.TryGetProperty("trendlines", out var trendlines))
             {
                 var trendlineIndex = 0;
@@ -364,6 +369,9 @@ internal static class PpjSemanticValidator
         if (chart.ChartType == "candlestick") ValidateCandlestick(chart, path, diagnostics);
         else if (chart.Raw.TryGetProperty("style", out var candlestickStyle) && candlestickStyle.TryGetProperty("candlestick", out _))
             diagnostics.Add(new("ppj.chart.candlestickStyleType", "style.candlestick applies only to candlestick charts.", path + ".style.candlestick"));
+        if (chart.ChartType == "treemap") ValidateTreemap(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var treemapStyle) && treemapStyle.TryGetProperty("treemap", out _))
+            diagnostics.Add(new("ppj.chart.treemapStyleType", "style.treemap applies only to treemap charts.", path + ".style.treemap"));
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
@@ -606,6 +614,155 @@ internal static class PpjSemanticValidator
                     "Candlestick body fills must be solid or bounded gradients.",
                     $"{path}.style.candlestick.{role}.fill"));
         }
+    }
+
+    private static void ValidateTreemap(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        var count = chart.Data.Categories.Count;
+        if (count is < 1 or > 128)
+            diagnostics.Add(new(
+                "ppj.chart.treemapNodeCount",
+                "Treemap charts require between 1 and 128 nodes.",
+                path + ".data.categories"));
+        if (chart.Data.Series.Count != 1)
+        {
+            diagnostics.Add(new(
+                "ppj.chart.treemapSeriesCount",
+                "Treemap charts require exactly one hierarchy series.",
+                path + ".data.series"));
+            return;
+        }
+
+        var names = new string?[count];
+        var indexes = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var index = 0; index < count; index++)
+        {
+            var category = chart.Data.Categories[index];
+            if (category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString()))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapCategory",
+                    "Treemap categories must be non-empty strings.",
+                    $"{path}.data.categories[{index}]"));
+            else
+            {
+                names[index] = category.GetString()!;
+                if (!indexes.TryAdd(names[index]!, index))
+                    diagnostics.Add(new(
+                        "ppj.chart.treemapCategoryDuplicate",
+                        $"Treemap category {names[index]} is duplicated.",
+                        $"{path}.data.categories[{index}]"));
+            }
+        }
+
+        var series = chart.Data.Series[0];
+        var seriesPath = path + ".data.series[0]";
+        if (series.Parents.Count != count)
+            diagnostics.Add(new(
+                "ppj.chart.treemapParentLength",
+                "Treemap parents must contain one string or null per category.",
+                seriesPath + ".parents"));
+        if (series.Values.Any(value => value is null || value <= 0))
+            diagnostics.Add(new(
+                "ppj.chart.treemapValue",
+                "Treemap values must be present and strictly positive.",
+                seriesPath + ".values"));
+
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapSeriesField",
+                    $"{property} is not part of the bounded treemap series profile.",
+                    $"{seriesPath}.{property}"));
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapAxis",
+                    "Treemap charts do not use Cartesian axes.",
+                    $"{path}.{property}"));
+
+        if (series.Parents.Count == count && indexes.Count == count)
+        {
+            var roots = 0;
+            for (var index = 0; index < count; index++)
+            {
+                var parent = series.Parents[index];
+                if (parent is null)
+                {
+                    roots++;
+                    continue;
+                }
+                if (!indexes.ContainsKey(parent))
+                    diagnostics.Add(new(
+                        "ppj.chart.treemapMissingParent",
+                        $"Treemap parent {parent} does not name a declared category.",
+                        $"{seriesPath}.parents[{index}]"));
+                else if (string.Equals(parent, names[index], StringComparison.Ordinal))
+                    diagnostics.Add(new(
+                        "ppj.chart.treemapCycle",
+                        "A treemap node cannot parent itself.",
+                        $"{seriesPath}.parents[{index}]"));
+            }
+            if (roots is < 1 or > 16)
+                diagnostics.Add(new(
+                    "ppj.chart.treemapRootCount",
+                    "Treemap charts require between 1 and 16 roots.",
+                    seriesPath + ".parents"));
+
+            for (var index = 0; index < count; index++)
+            {
+                var seen = new HashSet<int>();
+                var current = index;
+                var depth = 0;
+                while (true)
+                {
+                    if (!seen.Add(current))
+                    {
+                        diagnostics.Add(new(
+                            "ppj.chart.treemapCycle",
+                            $"Treemap parent chain for {names[index]} contains a cycle.",
+                            $"{seriesPath}.parents[{index}]"));
+                        break;
+                    }
+                    var parent = series.Parents[current];
+                    if (parent is null || !indexes.TryGetValue(parent, out current)) break;
+                    depth++;
+                    if (depth > 8)
+                    {
+                        diagnostics.Add(new(
+                            "ppj.chart.treemapDepth",
+                            $"Treemap node {names[index]} exceeds the maximum hierarchy depth of eight.",
+                            $"{seriesPath}.parents[{index}]"));
+                        break;
+                    }
+                }
+            }
+
+            if (series.Values.Count == count && series.Values.All(value => value is > 0))
+            {
+                var childSums = new Dictionary<int, double>();
+                for (var index = 0; index < count; index++)
+                    if (series.Parents[index] is { } parent && indexes.TryGetValue(parent, out var parentIndex))
+                        childSums[parentIndex] = childSums.GetValueOrDefault(parentIndex) + series.Values[index]!.Value;
+                foreach (var pair in childSums)
+                {
+                    var declared = series.Values[pair.Key]!.Value;
+                    var tolerance = Math.Max(1e-9, Math.Abs(declared) * 1e-9);
+                    if (Math.Abs(declared - pair.Value) > tolerance)
+                        diagnostics.Add(new(
+                            "ppj.chart.treemapTotal",
+                            $"Treemap parent {names[pair.Key]} value {declared} does not equal its direct-child sum {pair.Value}.",
+                            $"{seriesPath}.values[{pair.Key}]"));
+                }
+            }
+        }
+
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("treemap", out _)) return;
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.treemapStyleField",
+                    $"{property} is not part of the bounded vector treemap style profile.",
+                    $"{path}.style.{property}"));
     }
 
     private static void ValidateWaterfall(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
@@ -968,7 +1125,7 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.animation.textBuild", "textBuild requires a text-bearing target.", $"{path}.textBuild"));
             if (animation.ChartBuild is not null && target is not PpjChartElementModel)
                 diagnostics.Add(new("ppj.animation.chartBuild", "chartBuild requires a chart target.", $"{path}.chartBuild"));
-            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" or "candlestick" })
+            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" or "candlestick" or "treemap" })
                 diagnostics.Add(new(
                     "ppj.animation.vectorChartBuild",
                     "Vector-lowered charts compile to one editable group and support whole-object animation, not ChartPart build modes.",

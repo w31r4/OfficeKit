@@ -793,6 +793,69 @@ public sealed class PptxCodecTests
         var invalidCandlestick = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidCandlestickProgram.ToJsonString()));
         Assert.False(invalidCandlestick.IsValid);
         Assert.Contains(invalidCandlestick.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.candlestickRange");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-treemap-main",
+            ["type"] = "chart",
+            ["role"] = "hierarchical budget allocation",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 275, ["width"] = 540, ["height"] = 195 },
+            ["chartType"] = "treemap",
+            ["title"] = "Budget allocation",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["treemap"] = new JsonObject
+                {
+                    ["rootColors"] = new JsonArray("#0B8F8F", "#C8644A", "#F2C14E"),
+                    ["border"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.75, ["opacity"] = 0.9 },
+                    ["gap"] = 2,
+                    ["headerHeight"] = 17,
+                    ["depthLighten"] = 0.1,
+                    ["showValues"] = true,
+                    ["labelTextStyle"] = new JsonObject { ["fontSize"] = 8, ["bold"] = true },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 7 },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray(
+                    "Engineering", "Frontend", "Backend",
+                    "Sales", "Enterprise", "SMB",
+                    "Design", "Research", "Product"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "budget-hierarchy",
+                        ["name"] = "Budget",
+                        ["values"] = new JsonArray(1000, 400, 600, 800, 500, 300, 400, 150, 250),
+                        ["parents"] = new JsonArray(
+                            null, "Engineering", "Engineering",
+                            null, "Sales", "Sales",
+                            null, "Design", "Design"),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Three department budgets partitioned into six direct child allocations.",
+            },
+        });
+        var invalidTreemapProgram = authoredProgram.DeepClone().AsObject();
+        invalidTreemapProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-treemap-main")
+            ["data"]!["series"]![0]!["parents"]![0] = "Backend";
+        var invalidTreemap = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidTreemapProgram.ToJsonString()));
+        Assert.False(invalidTreemap.IsValid);
+        Assert.Contains(invalidTreemap.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.treemapCycle");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -869,7 +932,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(25U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(26U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -978,6 +1041,14 @@ public sealed class PptxCodecTests
             Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "Daily OHLC");
             Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "116.0");
             Assert.NotEmpty(nativeCandlestick.Descendants<A.GradientFill>());
+            var nativeTreemap = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "hierarchical budget allocation");
+            Assert.Equal(9, nativeTreemap.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("treemap node ", StringComparison.Ordinal) == true));
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Engineering");
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "Frontend");
+            Assert.Contains(nativeTreemap.Descendants<A.Text>(), text => text.Text == "400");
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -1353,6 +1424,14 @@ public sealed class PptxCodecTests
                 item.GetProperty("name").GetString() == "candlestick wick 1");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "daily price range" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedTreemap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "hierarchical budget allocation");
+            Assert.Contains(projectedTreemap.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "treemap node Frontend");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "hierarchical budget allocation" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&

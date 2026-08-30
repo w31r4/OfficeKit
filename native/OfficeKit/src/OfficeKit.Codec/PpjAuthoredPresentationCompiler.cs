@@ -165,6 +165,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel { ChartType: "candlestick" } candlestick:
                 output.Group = BuildCandlestick(candlestick, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "treemap" } treemap:
+                output.Group = BuildTreemap(treemap, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -1144,6 +1147,417 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static string FormatCandlestickValue(double value, string? numberFormat) =>
         value.ToString(numberFormat ?? "0.##", CultureInfo.InvariantCulture);
+
+    private static PresentationGroup BuildTreemap(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector treemap titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateTreemapCompileProfile(element, raw, namedStyle, inlineStyle);
+        var treemap = FirstProperty(inlineStyle, namedStyle, "treemap")!.Value;
+        var series = element.Data.Series[0];
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var values = series.Values.Select(value => value!.Value).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var nodes = names.Select((name, index) => new TreemapNode(
+            index,
+            name,
+            values[index],
+            series.Parents[index] is { } parent ? indexes[parent] : null)).ToArray();
+        foreach (var node in nodes)
+            if (node.ParentIndex is { } parentIndex) nodes[parentIndex].Children.Add(node.Index);
+        var roots = nodes.Where(node => node.ParentIndex is null).Select(node => node.Index).ToArray();
+
+        var rootColors = treemap.GetProperty("rootColors").EnumerateArray()
+            .Select(catalog.Color)
+            .ToArray();
+        var border = Property(treemap, "border");
+        var gap = OptionalDouble(treemap, "gap") ?? 2;
+        var headerHeight = OptionalDouble(treemap, "headerHeight") ?? 17;
+        var depthLighten = OptionalDouble(treemap, "depthLighten") ?? 0.08;
+        var showValues = OptionalBoolean(treemap, "showValues") ?? false;
+        var labelStyle = Property(treemap, "labelTextStyle");
+        var valueStyle = Property(treemap, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var plot = new TreemapRectangle(x, y + titleHeight + 4, width, height - titleHeight - 4);
+        if (plot.Width < 140 || plot.Height < 90)
+            throw Unsupported(element.Id, "treemap frame is too small for a readable native hierarchy");
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                TreemapNativeId(element.Id, "title"),
+                "treemap title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var rootPlacements = SquarifyTreemap(roots, nodes, plot);
+        for (var rootOrder = 0; rootOrder < rootPlacements.Count; rootOrder++)
+        {
+            var placement = rootPlacements[rootOrder];
+            RenderTreemapNode(
+                group,
+                element.Id,
+                nodes,
+                placement.NodeIndex,
+                placement.Rectangle,
+                rootColors[rootOrder % rootColors.Length],
+                depth: 0,
+                gap,
+                headerHeight,
+                depthLighten,
+                showValues,
+                border,
+                labelStyle,
+                valueStyle,
+                catalog);
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateTreemapCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var count = element.Data.Categories.Count;
+        if (count is < 1 or > 128 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != count)
+            throw Unsupported(element.Id, "treemap categories must be 1..128 unique non-empty strings");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "treemap charts require exactly one hierarchy series");
+        var series = element.Data.Series[0];
+        if (series.Values.Count != count || series.Values.Any(value => value is null || value <= 0) || series.Parents.Count != count)
+            throw Unsupported(element.Id, "treemap values and parents must be complete, aligned, and strictly positive");
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"treemap series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "treemap charts do not use Cartesian axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"treemap charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "treemap") is null)
+            throw Unsupported(element.Id, "treemap charts require style.treemap");
+
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var rootCount = 0;
+        for (var index = 0; index < count; index++)
+        {
+            var parent = series.Parents[index];
+            if (parent is null)
+            {
+                rootCount++;
+                continue;
+            }
+            if (!indexes.ContainsKey(parent))
+                throw Unsupported(element.Id, $"treemap parent {parent} does not name a declared category");
+            if (string.Equals(parent, names[index], StringComparison.Ordinal))
+                throw Unsupported(element.Id, "a treemap node cannot parent itself");
+        }
+        if (rootCount is < 1 or > 16)
+            throw Unsupported(element.Id, "treemap charts require between 1 and 16 roots");
+
+        for (var index = 0; index < count; index++)
+        {
+            var seen = new HashSet<int>();
+            var current = index;
+            var depth = 0;
+            while (true)
+            {
+                if (!seen.Add(current)) throw Unsupported(element.Id, $"treemap parent chain for {names[index]} contains a cycle");
+                var parent = series.Parents[current];
+                if (parent is null) break;
+                current = indexes[parent];
+                depth++;
+                if (depth > 8) throw Unsupported(element.Id, $"treemap node {names[index]} exceeds the maximum depth of eight");
+            }
+        }
+
+        var childSums = new Dictionary<int, double>();
+        for (var index = 0; index < count; index++)
+            if (series.Parents[index] is { } parent)
+            {
+                var parentIndex = indexes[parent];
+                childSums[parentIndex] = childSums.GetValueOrDefault(parentIndex) + series.Values[index]!.Value;
+            }
+        foreach (var pair in childSums)
+        {
+            var declared = series.Values[pair.Key]!.Value;
+            var tolerance = Math.Max(1e-9, Math.Abs(declared) * 1e-9);
+            if (Math.Abs(declared - pair.Value) > tolerance)
+                throw Unsupported(element.Id, $"treemap parent {names[pair.Key]} must equal its direct-child sum");
+        }
+    }
+
+    private static void RenderTreemapNode(
+        PresentationGroup group,
+        string elementId,
+        IReadOnlyList<TreemapNode> nodes,
+        int nodeIndex,
+        TreemapRectangle allocated,
+        (string Rgb, double Alpha) rootColor,
+        int depth,
+        double gap,
+        double headerHeight,
+        double depthLighten,
+        bool showValues,
+        JsonElement? border,
+        JsonElement? labelStyle,
+        JsonElement? valueStyle,
+        Catalog catalog)
+    {
+        var node = nodes[nodeIndex];
+        var localGap = Math.Min(gap, Math.Max(0, Math.Min(allocated.Width, allocated.Height) - 0.5) / 2);
+        var rectangle = allocated.Inset(localGap / 2);
+        if (rectangle.Width < 0.5 || rectangle.Height < 0.5)
+            throw Unsupported(elementId, $"treemap node {node.Name} is too small for a stable native rectangle");
+
+        var color = LightenTreemapColor(rootColor, Math.Min(0.72, depth * depthLighten));
+        var shape = ShapeFrame(
+            new PpjFrameModel(rectangle.X, rectangle.Y, rectangle.Width, rectangle.Height, 0, false, false),
+            "rect");
+        shape.FillRgb = color.Rgb;
+        if (color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(color.Alpha);
+        if (border is { } stroke) ApplyLine(shape, stroke, catalog);
+        else shape.LineStyle = "none";
+        group.Children.Add(new PresentationElement
+        {
+            Id = TreemapNativeId(elementId, $"node/{node.Index}"),
+            Name = $"treemap node {node.Name}",
+            Shape = shape,
+        });
+
+        var contrast = TreemapLuminance(color.Rgb) > 0.5 ? "111827" : "FFFFFF";
+        if (node.Children.Count != 0)
+        {
+            var effectiveHeader = Math.Min(headerHeight, Math.Max(0, rectangle.Height * 0.28));
+            if (effectiveHeader >= 9 && rectangle.Width >= 28)
+                group.Children.Add(VectorChartTextElement(
+                    TreemapNativeId(elementId, $"label/{node.Index}"),
+                    $"treemap label {node.Name}",
+                    rectangle.X + 3,
+                    rectangle.Y + 1,
+                    rectangle.Width - 6,
+                    effectiveHeader - 2,
+                    node.Name,
+                    labelStyle,
+                    catalog,
+                    Math.Clamp(Math.Min(effectiveHeader * 0.55, rectangle.Width / Math.Max(4, node.Name.Length) * 1.4), 6, 11),
+                    "left",
+                    contrast));
+            var childArea = new TreemapRectangle(
+                rectangle.X,
+                rectangle.Y + effectiveHeader,
+                rectangle.Width,
+                rectangle.Height - effectiveHeader);
+            if (childArea.Width < 1 || childArea.Height < 1)
+                throw Unsupported(elementId, $"treemap node {node.Name} leaves no room for its children");
+            foreach (var placement in SquarifyTreemap(node.Children, nodes, childArea))
+                RenderTreemapNode(
+                    group,
+                    elementId,
+                    nodes,
+                    placement.NodeIndex,
+                    placement.Rectangle,
+                    rootColor,
+                    depth + 1,
+                    gap,
+                    headerHeight,
+                    depthLighten,
+                    showValues,
+                    border,
+                    labelStyle,
+                    valueStyle,
+                    catalog);
+            return;
+        }
+
+        if (rectangle.Width < 28 || rectangle.Height < 14) return;
+        var labelHeight = showValues && rectangle.Height >= 28 ? rectangle.Height * 0.58 : rectangle.Height;
+        group.Children.Add(VectorChartTextElement(
+            TreemapNativeId(elementId, $"label/{node.Index}"),
+            $"treemap label {node.Name}",
+            rectangle.X + 3,
+            rectangle.Y + 1,
+            rectangle.Width - 6,
+            Math.Max(10, labelHeight - 2),
+            node.Name,
+            labelStyle,
+            catalog,
+            Math.Clamp(Math.Min(labelHeight * 0.34, rectangle.Width / Math.Max(4, node.Name.Length) * 1.5), 6, 12),
+            "left",
+            contrast));
+        if (showValues && rectangle.Height >= 28)
+            group.Children.Add(VectorChartTextElement(
+                TreemapNativeId(elementId, $"value/{node.Index}"),
+                $"treemap value {node.Name}",
+                rectangle.X + 3,
+                rectangle.Y + labelHeight,
+                rectangle.Width - 6,
+                rectangle.Height - labelHeight - 2,
+                node.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                valueStyle,
+                catalog,
+                Math.Clamp((rectangle.Height - labelHeight) * 0.45, 6, 10),
+                "left",
+                contrast));
+    }
+
+    private static IReadOnlyList<TreemapPlacement> SquarifyTreemap(
+        IReadOnlyList<int> nodeIndexes,
+        IReadOnlyList<TreemapNode> nodes,
+        TreemapRectangle rectangle)
+    {
+        var total = nodeIndexes.Sum(index => nodes[index].Value);
+        var scale = rectangle.Width * rectangle.Height / total;
+        var pending = nodeIndexes
+            .Select((nodeIndex, order) => new TreemapArea(nodeIndex, nodes[nodeIndex].Value * scale, order))
+            .OrderByDescending(item => item.Area)
+            .ThenBy(item => item.Order)
+            .ToList();
+        var placements = new List<TreemapPlacement>(pending.Count);
+        var row = new List<TreemapArea>();
+        var remaining = rectangle;
+        while (pending.Count != 0)
+        {
+            var candidate = pending[0];
+            var side = Math.Min(remaining.Width, remaining.Height);
+            if (row.Count == 0 || TreemapWorst(row.Append(candidate), side) <= TreemapWorst(row, side))
+            {
+                row.Add(candidate);
+                pending.RemoveAt(0);
+                continue;
+            }
+            remaining = LayoutTreemapRow(row, remaining, placements);
+            row.Clear();
+        }
+        if (row.Count != 0) LayoutTreemapRow(row, remaining, placements);
+        return placements;
+    }
+
+    private static double TreemapWorst(IEnumerable<TreemapArea> row, double side)
+    {
+        var values = row.Select(item => item.Area).ToArray();
+        var sum = values.Sum();
+        var squaredSide = side * side;
+        return Math.Max(squaredSide * values.Max() / (sum * sum), (sum * sum) / (squaredSide * values.Min()));
+    }
+
+    private static TreemapRectangle LayoutTreemapRow(
+        IReadOnlyList<TreemapArea> row,
+        TreemapRectangle rectangle,
+        ICollection<TreemapPlacement> placements)
+    {
+        var area = row.Sum(item => item.Area);
+        if (rectangle.Width >= rectangle.Height)
+        {
+            var rowWidth = area / rectangle.Height;
+            var cursorY = rectangle.Y;
+            for (var index = 0; index < row.Count; index++)
+            {
+                var height = index == row.Count - 1
+                    ? rectangle.Y + rectangle.Height - cursorY
+                    : row[index].Area / rowWidth;
+                placements.Add(new TreemapPlacement(row[index].NodeIndex, new TreemapRectangle(rectangle.X, cursorY, rowWidth, height)));
+                cursorY += height;
+            }
+            return new TreemapRectangle(rectangle.X + rowWidth, rectangle.Y, Math.Max(0, rectangle.Width - rowWidth), rectangle.Height);
+        }
+
+        var rowHeight = area / rectangle.Width;
+        var cursorX = rectangle.X;
+        for (var index = 0; index < row.Count; index++)
+        {
+            var width = index == row.Count - 1
+                ? rectangle.X + rectangle.Width - cursorX
+                : row[index].Area / rowHeight;
+            placements.Add(new TreemapPlacement(row[index].NodeIndex, new TreemapRectangle(cursorX, rectangle.Y, width, rowHeight)));
+            cursorX += width;
+        }
+        return new TreemapRectangle(rectangle.X, rectangle.Y + rowHeight, rectangle.Width, Math.Max(0, rectangle.Height - rowHeight));
+    }
+
+    private static (string Rgb, double Alpha) LightenTreemapColor((string Rgb, double Alpha) color, double amount)
+    {
+        byte Lighten(byte channel) => checked((byte)Math.Round(channel + (255 - channel) * amount));
+        var red = byte.Parse(color.Rgb.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var green = byte.Parse(color.Rgb.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var blue = byte.Parse(color.Rgb.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return ($"{Lighten(red):X2}{Lighten(green):X2}{Lighten(blue):X2}", color.Alpha);
+    }
+
+    private static double TreemapLuminance(string rgb)
+    {
+        static double Channel(byte value)
+        {
+            var normalized = value / 255d;
+            return normalized <= 0.03928 ? normalized / 12.92 : Math.Pow((normalized + 0.055) / 1.055, 2.4);
+        }
+        var red = byte.Parse(rgb.AsSpan(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var green = byte.Parse(rgb.AsSpan(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var blue = byte.Parse(rgb.AsSpan(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        return 0.2126 * Channel(red) + 0.7152 * Channel(green) + 0.0722 * Channel(blue);
+    }
+
+    private static string TreemapNativeId(string elementId, string suffix) =>
+        $"{elementId}/treemap/{suffix}";
+
+    private sealed class TreemapNode(int index, string name, double value, int? parentIndex)
+    {
+        internal int Index { get; } = index;
+        internal string Name { get; } = name;
+        internal double Value { get; } = value;
+        internal int? ParentIndex { get; } = parentIndex;
+        internal List<int> Children { get; } = [];
+    }
+
+    private readonly record struct TreemapRectangle(double X, double Y, double Width, double Height)
+    {
+        internal TreemapRectangle Inset(double amount) => new(
+            X + amount,
+            Y + amount,
+            Math.Max(0, Width - amount * 2),
+            Math.Max(0, Height - amount * 2));
+    }
+
+    private readonly record struct TreemapPlacement(int NodeIndex, TreemapRectangle Rectangle);
+    private readonly record struct TreemapArea(int NodeIndex, double Area, int Order);
 
     private static void ValidateWaterfallCompileProfile(
         PpjChartElementModel element,
