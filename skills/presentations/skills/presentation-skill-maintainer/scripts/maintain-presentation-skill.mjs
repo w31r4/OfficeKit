@@ -377,6 +377,22 @@ scales, reflows, crops or moves slide, layout, master or element coordinates.
 Because every page is composed against that canvas, render and review every
 page for exposed margins, clipping and changed balance after the edit.
 
+### Imported raster/SVG fallback pairs
+
+PowerPoint may store one visible picture as a raster compatibility fallback
+plus an SVG used by modern hosts. PPJ projects these as two local assets:
+
+- \`image.asset\` is the raster fallback;
+- \`image.svgAsset\` is the true SVG member.
+
+Change \`svgAsset\` only when that image's \`nativeRef\` issues \`replaceSvg\` for
+\`image.svgAsset\`. Declare the replacement as a new content-addressed local
+\`image/svg+xml\` asset, keep \`asset\`, the image ID and nativeRef unchanged,
+then build and re-import. PPJ cannot add or remove the pair and does not invent
+a raster fallback. Review the modern SVG render; when an older host matters,
+record separately that its unchanged raster fallback may still show the prior
+artwork.
+
 ### Closed imported leaf vocabulary
 
 The compiler may issue the following bounded leaves after importing the exact

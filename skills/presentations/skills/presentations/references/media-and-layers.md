@@ -64,6 +64,27 @@ Third-party media timing remains opaque/source-bound: importing it does not
 authorize rewriting triggers, bookmarks, effects, or an unfamiliar timing
 graph.
 
+## Imported paired SVG pictures
+
+Some PowerPoint pictures carry two assets: a PNG or JPEG compatibility image
+in `image.asset` and an SVG for modern hosts in `image.svgAsset`. Treat them as
+different roles. Do not replace the fallback merely because the vector artwork
+is the intended edit.
+
+When inspection issues `replaceSvg` for `image.svgAsset`:
+
+1. create a new local `image/svg+xml` asset declaration with exact bytes and
+   SHA-256;
+2. point only `svgAsset` at the new declaration;
+3. keep `asset`, the element ID, frame, crop, nativeRef and array position;
+4. build, re-import and render the edited page.
+
+The compiler replaces only the proven SVG relationship. It does not create or
+remove a fallback pair and does not rasterize the new SVG. An unchanged raster
+fallback is intentional compatibility state, so legacy-host appearance must be
+checked separately when it matters. A standalone authored SVG remains an
+ordinary `image.asset`; do not add `svgAsset` to source-free PPJ.
+
 ## Layer stack
 
 `pages[].elements[]` is the true back-to-front z-order. A common image-led page

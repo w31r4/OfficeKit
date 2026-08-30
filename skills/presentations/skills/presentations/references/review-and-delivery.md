@@ -43,6 +43,13 @@ changes the native page size without scaling, reflowing, cropping, or moving
 any page object. Re-import the output and render every page to check exposed
 margins, clipping, background coverage, and altered visual balance.
 
+For an imported picture with both `asset` and `svgAsset`, change only
+`svgAsset` when its nativeRef advertises `replaceSvg/image.svgAsset`. Re-import
+and verify that the same image ID, frame and raster fallback hash survive while
+the referenced SVG hash changes. Render the target page in a modern host. Do
+not claim legacy fallback parity unless that unchanged raster member was also
+tested in the target legacy host.
+
 Treat `pages[].hidden` as ordinary slide-show routing, not deletion. A hidden
 appendix page still belongs to sections, custom shows, review, and delivery and
 must remain factually and visually valid. On imported pages, change `name` or

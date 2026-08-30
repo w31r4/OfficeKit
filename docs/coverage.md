@@ -194,6 +194,18 @@ widens the canvas while reordering three pages, changes only
 width plus stable page and element IDs on second projection. This is an exact
 page-size edit, not automatic scale, reflow, crop, or responsive layout.
 
+Imported PowerPoint raster/SVG fallback pictures now project both local assets:
+`image.asset` remains the compatibility raster and `image.svgAsset` names the
+true vector member. A hash-bound image issues `replaceSvg/image.svgAsset` only
+for a proven native pair. The PPJ compiler validates a newly declared SVG's
+MIME and SHA-256, reuses the source picture writer to change only the SVG
+relationship, masks that now-modeled relationship from residual-content drift,
+and rejects pair addition or removal. The existing comprehensive PPJ contract
+uses a real PNG + `asvg:svgBlip` fixture, proves byte-identical no-op, replaces
+only the SVG, reprojects the same image ID and fallback hash, and recovers the
+replacement vector hash. The fallback is not regenerated, so older-host visual
+parity remains a separate review concern.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.
