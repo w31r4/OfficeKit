@@ -379,6 +379,8 @@ internal static class PpjAuthoredPresentationCompiler
             throw Unsupported(source.Id, "chart-series color and fill are aliases and cannot both be present");
         var series = new SpreadsheetChartSeriesArtifact { Name = source.Name };
         series.Values.Add(source.Values.Select(value => value!.Value));
+        series.XValues.Add(source.XValues);
+        series.BubbleSizes.Add(source.BubbleSizes);
         if (raw.TryGetProperty("fill", out var fill))
         {
             var fillColor = FillColor(fill, catalog) ??

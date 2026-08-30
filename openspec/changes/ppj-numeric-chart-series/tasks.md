@@ -5,7 +5,7 @@
 
 ## 2. Compiler and projection
 
-- [ ] 2.1 Lower numeric channels into existing native chart series
+- [x] 2.1 Lower numeric channels into existing native chart series
 - [ ] 2.2 Project recognized numeric caches back into PPJ
 - [ ] 2.3 Preserve the narrow source-bound data-edit boundary
 
