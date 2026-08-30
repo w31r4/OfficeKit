@@ -71,6 +71,17 @@ internal static class PptxPresetGeometryAdjustmentCodec
 
     internal static bool HasProfile(string geometry) => Profiles.ContainsKey(geometry);
 
+    internal static bool TryExpectedCount(string geometry, out int count)
+    {
+        if (Profiles.TryGetValue(geometry, out var names))
+        {
+            count = names.Length;
+            return true;
+        }
+        count = 0;
+        return false;
+    }
+
     internal static bool TryRead(A.PresetGeometry? native, string geometry, out int[] values)
     {
         values = [];

@@ -486,7 +486,7 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         var target = element.Shape;
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "text", "style");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "frame", "geometry", "text", "style");
         var semanticChanged = ApplyFrame(before, after, target, path);
         var changed = semanticChanged;
         if (PropertyChanged(before.Raw, after.Raw, "text"))
@@ -496,6 +496,16 @@ internal static class PpjSourceBoundPresentationCompiler
                 throw Unsupported(path + ".text", "adding or removing a source text body");
             changed |= CollectTextLeafMutations(before.Text, after.Text, before.Raw.GetProperty("text"), after.Raw.GetProperty("text"),
                 target, after.Id, slide, element, shapeTreePath, mutations, path + ".text");
+        }
+        if (PropertyChanged(before.Raw, after.Raw, "geometry"))
+        {
+            RequireCapability(after, "setGeometry", path + ".geometry.adjustments");
+            var oldGeometry = before.Raw.GetProperty("geometry");
+            var newGeometry = after.Raw.GetProperty("geometry");
+            RequireEqualExcept(oldGeometry, newGeometry, path + ".geometry", "adjustments");
+            target.PresetAdjustments.Clear();
+            target.PresetAdjustments.Add(after.GeometryAdjustments);
+            semanticChanged = true;
         }
         semanticChanged |= ApplyShapeStyle(before, after, target, path);
         mutations.SemanticChanges |= semanticChanged;

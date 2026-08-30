@@ -504,9 +504,7 @@ internal static class PpjProgramParser
             {
                 GeometryKind = element.GetProperty("geometry").GetProperty("kind").GetString()!,
                 GeometryPreset = OptionalString(element.GetProperty("geometry"), "preset"),
-                GeometryAdjustments = element.GetProperty("geometry").TryGetProperty("adjustments", out var adjustments)
-                    ? adjustments.EnumerateArray().Select(value => value.GetInt32()).ToArray()
-                    : [],
+                GeometryAdjustments = ParsePresetAdjustments(element.GetProperty("geometry")),
                 Text = element.TryGetProperty("text", out var text) ? ParseText(text) : null,
                 StyleRef = OptionalString(element, "styleRef"),
             },
@@ -597,6 +595,12 @@ internal static class PpjProgramParser
         result.Raw = common.Raw;
         return result;
     }
+
+    private static IReadOnlyList<int> ParsePresetAdjustments(JsonElement geometry) =>
+        geometry.GetProperty("kind").GetString() == "preset" &&
+        geometry.TryGetProperty("adjustments", out var adjustments)
+            ? adjustments.EnumerateArray().Select(value => value.GetInt32()).ToArray()
+            : [];
 
     private static PpjChartDataModel ParseChartData(JsonElement data) => new(
         data.GetProperty("categories").EnumerateArray().Select(item => item.Clone()).ToArray(),

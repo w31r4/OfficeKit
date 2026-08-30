@@ -168,6 +168,7 @@ internal static class PpjSemanticValidator
                 break;
             case PpjShapeElementModel shape:
                 ValidateStyleRef(shape.StyleRef, program.Design.ShapeStyleIds, $"{path}.styleRef", diagnostics);
+                ValidatePresetAdjustments(shape, path, diagnostics);
                 break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
@@ -211,6 +212,28 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.component.slotScope", "Slot placeholders are only valid inside component definitions.", path));
                 break;
         }
+    }
+
+    private static void ValidatePresetAdjustments(
+        PpjShapeElementModel shape,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (shape.GeometryKind != "preset" || shape.GeometryAdjustments.Count == 0) return;
+        if (shape.GeometryPreset is null ||
+            !PptxPresetGeometryAdjustmentCodec.TryExpectedCount(shape.GeometryPreset, out var expectedCount))
+        {
+            diagnostics.Add(new(
+                "ppj.geometry.adjustmentProfile",
+                $"Preset geometry {shape.GeometryPreset ?? "(missing)"} has no canonical adjustment profile.",
+                path + ".geometry.adjustments"));
+            return;
+        }
+        if (shape.GeometryAdjustments.Count != expectedCount)
+            diagnostics.Add(new(
+                "ppj.geometry.adjustmentCount",
+                $"Preset geometry {shape.GeometryPreset} requires either no explicit adjustments or exactly {expectedCount} ordered values.",
+                path + ".geometry.adjustments"));
     }
 
     private static void ValidateChart(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)

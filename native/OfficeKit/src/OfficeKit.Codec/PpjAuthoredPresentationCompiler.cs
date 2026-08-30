@@ -222,8 +222,7 @@ internal static class PpjAuthoredPresentationCompiler
             shape.Text = Flatten(shape.TextBody);
         }
         if (geometry == "custom") ApplyCustomGeometry(shape, raw.GetProperty("geometry"), element.Id);
-        else if (raw.GetProperty("geometry").TryGetProperty("adjustments", out var adjustments) && adjustments.GetArrayLength() > 0)
-            throw Unsupported(element.Id, "preset-geometry adjustments are not yet compiler-owned");
+        else shape.PresetAdjustments.Add(element.GeometryAdjustments);
         ApplyTransform(shape, element.Frame);
         ApplyAccessibility(shape, element.Accessibility);
         return shape;

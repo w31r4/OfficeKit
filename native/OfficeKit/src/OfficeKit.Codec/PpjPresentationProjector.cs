@@ -345,9 +345,15 @@ internal static partial class PpjPresentationProjector
             return common;
         }
         common["type"] = "shape";
-        common["geometry"] = shape.Geometry == "custom"
-            ? ProjectCustomGeometry(shape)
-            : new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
+        if (shape.Geometry == "custom")
+            common["geometry"] = ProjectCustomGeometry(shape);
+        else
+        {
+            var geometry = new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
+            if (shape.PresetAdjustments.Count > 0)
+                geometry["adjustments"] = new JsonArray(shape.PresetAdjustments.Select(value => JsonValue.Create(value)).ToArray());
+            common["geometry"] = geometry;
+        }
         if (hasText) common["text"] = text;
         if (TextBoxStyle(shape.TextBody) is { Count: > 0 } shapeTextStyle) common["textStyle"] = shapeTextStyle;
         var style = ShapeStyle(shape);
@@ -1203,6 +1209,10 @@ internal static partial class PpjPresentationProjector
                     output.Add(new("setFill", ["fill"]));
                     output.Add(new("setStroke", ["stroke"]));
                     output.Add(new("setFrame", element.Shape.Placeholder is null ? EditableFrameFields : PositionFrameFields));
+                    if (element.Shape.Placeholder is null &&
+                        element.Shape.Geometry is not ("textbox" or "none" or "custom") &&
+                        PptxPresetGeometryAdjustmentCodec.HasProfile(element.Shape.Geometry))
+                        output.Add(new("setGeometry", ["geometry.adjustments"]));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:
