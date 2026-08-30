@@ -16,4 +16,4 @@
 - [x] 3.1 Update the capability registry, generated PPJ manual and chart guide.
 - [x] 3.2 Extend the existing integrated PPJ chart contract once.
 - [x] 3.3 Run the affected contract, proto, maintainer and strict OpenSpec checks.
-- [ ] 3.4 Commit atomically and fast-forward remote main.
+- [x] 3.4 Commit atomically and fast-forward remote main.
