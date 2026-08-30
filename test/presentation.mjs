@@ -623,6 +623,23 @@ const imageEffectsOutputXml = await (await JSZip.loadAsync(imageEffectsOutput.by
 assert.match(imageEffectsOutputXml, /<a:ln\b/u, "image frame edits must preserve the source border");
 assert.match(imageEffectsOutputXml, /<a:effectLst\b/u, "image frame edits must preserve the source shadow");
 assert.match(imageEffectsOutputXml, /<a:alphaModFix\b[^>]*amt="72000"/u, "image frame edits must preserve source opacity");
+assert.deepEqual(imageEffectsTarget.border, { color: "#FF0000", width: 0.75, style: "solid" });
+assert.deepEqual(imageEffectsTarget.shadow, { color: "#000000", blurRadius: 1.3333333333333333, distance: 2, direction: 45, opacity: 0.25 });
+imageEffectsTarget.border = { color: "#00FF00", width: 2, style: "dashed", cap: "round", join: "bevel", opacity: 0.6 };
+imageEffectsTarget.border.width = 3;
+imageEffectsTarget.shadow = { color: "#111111", blurRadius: 5, distance: 3, direction: 120, opacity: 0.35 };
+imageEffectsTarget.shadow.opacity = 0.4;
+const imageEffectsEditedOutput = await PresentationFile.exportPptx(imageEffectsImported);
+const imageEffectsEditedXml = await (await JSZip.loadAsync(imageEffectsEditedOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(imageEffectsEditedXml, /<a:ln\b[^>]*w="38100"[^>]*cap="rnd"/u, "picture border edits must reach the native outline");
+assert.match(imageEffectsEditedXml, /<a:prstDash\b[^>]*val="dash"/u, "picture border dash style must be native");
+assert.match(imageEffectsEditedXml, /<a:srgbClr\b[^>]*val="00FF00"[^>]*><a:alpha\b[^>]*val="60000"/u, "picture border opacity must be native");
+assert.match(imageEffectsEditedXml, /<a:outerShdw\b[^>]*blurRad="47625"[^>]*dist="28575"[^>]*dir="7200000"/u, "picture shadow edits must reach the native effect list");
+assert.match(imageEffectsEditedXml, /<a:srgbClr\b[^>]*val="111111"[^>]*><a:alpha\b[^>]*val="40000"/u, "picture shadow opacity must be native");
+const imageEffectsEditedRoundTrip = await PresentationFile.importPptx(imageEffectsEditedOutput);
+const imageEffectsEditedTarget = imageEffectsEditedRoundTrip.slides.getItem(0).images.items[0];
+assert.deepEqual(imageEffectsEditedTarget.border, { color: "#00FF00", width: 3, style: "dashed", cap: "round", join: "bevel", opacity: 0.6 });
+assert.deepEqual(imageEffectsEditedTarget.shadow, { color: "#111111", blurRadius: 5, distance: 3, direction: 120, opacity: 0.4 });
 
 const sourceAccessibilitySvg = await shapeAccessibilityImported.slides.getItem(0).export({ format: "svg" });
 importedAccessibilityShape.setAccessibilityMetadata({ title: "Go decision: controlled rollout", description: null });
