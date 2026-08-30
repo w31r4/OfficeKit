@@ -174,6 +174,10 @@ internal sealed class PptxAssetCatalog
         if (normalized.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ||
             normalized.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
             return MediaAssetPrefix + sha256.ToLowerInvariant();
+        if (normalized.Equals(SpreadsheetContentType, StringComparison.Ordinal))
+            return OleWorkbookAssetPrefix + sha256.ToLowerInvariant();
+        if (normalized.Equals(DocumentContentType, StringComparison.Ordinal))
+            return OleOfficePackageAssetPrefix + sha256.ToLowerInvariant();
         throw new CodecException(
             "ppj.asset.unsupportedPurpose",
             $"PPJ presentation asset MIME {contentType} does not have a native compiler purpose.");

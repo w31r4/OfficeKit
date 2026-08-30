@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -47,12 +48,16 @@ internal static partial class PpjPresentationProjector
             ? "deck.assets/media"
             : request.AssetRootUri.TrimEnd('/');
 
-        var context = new ProjectionContext(sourceSha256, revision, assetRoot, envelope.Assets);
+        var context = new ProjectionContext(sourceSha256, revision, assetRoot, envelope.Assets, envelope.OpaqueOpc, sourceBytes);
         RegisterIds(presentation, context);
 
         var pages = new JsonArray();
         foreach (var slide in presentation.Slides)
             pages.Add(ProjectPage(slide, presentation, context));
+
+        foreach (var nativeAsset in context.NativeSourceAssets)
+            if (!envelope.Assets.Any(asset => asset.Id.Equals(nativeAsset.Id, StringComparison.Ordinal)))
+                envelope.Assets.Add(nativeAsset.Clone());
 
         var assets = context.ProgramAssets;
         var sections = ProjectSections(presentation, context);
@@ -321,6 +326,8 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, slide, pageId, context, shapeTreePath),
             PresentationElement.ContentOneofCase.Opaque when element.Opaque.DiagramText is not null =>
                 ProjectSourceSmartArt(element, id, nativeRef, pageId, context),
+            PresentationElement.ContentOneofCase.Opaque when element.Opaque.OleWorkbook is not null || element.Opaque.OleOfficePackage is not null =>
+                ProjectSourceOle(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Opaque => ProjectOpaque(element, id, nativeRef),
             _ => ProjectOpaque(element, id, nativeRef, "unknown"),
         };
@@ -1003,6 +1010,26 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
+    private static JsonObject ProjectSourceOle(
+        PresentationElement element,
+        string id,
+        JsonObject nativeRef,
+        ProjectionContext context)
+    {
+        var workbook = element.Opaque.OleWorkbook;
+        var package = element.Opaque.OleOfficePackage;
+        var partPath = workbook?.PartPath ?? package?.PartPath;
+        var contentType = workbook?.ContentType ?? package?.ContentType;
+        if (string.IsNullOrWhiteSpace(partPath) || string.IsNullOrWhiteSpace(contentType) ||
+            !context.TryMaterializeSourcePart(partPath, contentType, out var payloadAssetId))
+            return ProjectOpaque(element, id, nativeRef, "oleObject", "Preserved source OLE object whose payload could not be materialized safely.");
+
+        var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
+        output["type"] = "ole";
+        output["payloadAsset"] = payloadAssetId;
+        return output;
+    }
+
     private static JsonNode SmartArtText(IReadOnlyList<string> values)
     {
         if (values.Count == 1) return StringNode(values[0]);
@@ -1625,6 +1652,8 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Opaque:
                 if (element.Opaque.DiagramText is not null)
                     output.Add(new("setSmartArtText", ["smartArt.text"]));
+                if (element.Opaque.OleWorkbook is not null || element.Opaque.OleOfficePackage is not null)
+                    output.Add(new("setOlePayload", ["ole.payload"]));
                 if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
         }
@@ -2028,6 +2057,8 @@ internal static partial class PpjPresentationProjector
     private sealed class ProjectionContext
     {
         private readonly IReadOnlyDictionary<string, Asset> sourceAssets;
+        private readonly IReadOnlyDictionary<string, OpaqueOpcPart> sourceParts;
+        private readonly byte[] sourcePackage;
         private readonly Dictionary<string, string> pageIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> masterIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> layoutIds = new(StringComparer.Ordinal);
@@ -2037,6 +2068,7 @@ internal static partial class PpjPresentationProjector
         private readonly Dictionary<string, string> assetIdByHash = new(StringComparer.Ordinal);
         private readonly JsonArray programAssets = new();
         private readonly List<Asset> resultAssets = [];
+        private readonly List<Asset> nativeSourceAssets = [];
         private readonly JsonArray nodes = new();
         private readonly Dictionary<string, PpjNativeLeafBinding> nativeLeafBindings = new(StringComparer.Ordinal);
 
@@ -2044,12 +2076,16 @@ internal static partial class PpjPresentationProjector
             string sourceSha256,
             string revision,
             string assetRoot,
-            IEnumerable<Asset> assets)
+            IEnumerable<Asset> assets,
+            OpaqueOpcGraph? opaque,
+            byte[] sourcePackage)
         {
             SourceSha256 = sourceSha256;
             Revision = revision;
             AssetRoot = assetRoot;
             sourceAssets = assets.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
+            sourceParts = (opaque?.Parts ?? []).ToDictionary(part => part.Path, StringComparer.OrdinalIgnoreCase);
+            this.sourcePackage = sourcePackage;
         }
 
         internal string SourceSha256 { get; }
@@ -2065,6 +2101,7 @@ internal static partial class PpjPresentationProjector
         internal int VisibleObjectCount { get; private set; }
         internal JsonArray ProgramAssets => programAssets;
         internal IReadOnlyList<Asset> ResultAssets => resultAssets;
+        internal IReadOnlyList<Asset> NativeSourceAssets => nativeSourceAssets;
 
         internal string RegisterPage(string sourceId, string? stableSourceId)
         {
@@ -2151,6 +2188,77 @@ internal static partial class PpjPresentationProjector
             return true;
         }
 
+        internal bool TryMaterializeSourcePart(string partPath, string contentType, out string programAssetId)
+        {
+            var sourceId = $"source-part:{partPath}";
+            if (assetIdBySourceId.TryGetValue(sourceId, out programAssetId!)) return true;
+            if (!sourceParts.TryGetValue(partPath, out var metadata) ||
+                !metadata.ContentType.Equals(contentType, StringComparison.OrdinalIgnoreCase))
+            {
+                programAssetId = string.Empty;
+                return false;
+            }
+
+            byte[] data;
+            using (var stream = new MemoryStream(sourcePackage, writable: false))
+            using (var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false))
+            {
+                var entry = archive.Entries.SingleOrDefault(candidate => candidate.FullName.Equals(partPath, StringComparison.OrdinalIgnoreCase));
+                if (entry is null || entry.Length is <= 0 or > 16 * 1024 * 1024)
+                {
+                    programAssetId = string.Empty;
+                    return false;
+                }
+                using var entryStream = entry.Open();
+                using var memory = new MemoryStream();
+                entryStream.CopyTo(memory);
+                data = memory.ToArray();
+            }
+            var hash = Sha256(data);
+            if (!hash.Equals(metadata.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                programAssetId = string.Empty;
+                return false;
+            }
+
+            if (!assetIdByHash.TryGetValue(hash, out programAssetId!))
+            {
+                programAssetId = UniqueId($"asset-{hash[..20]}");
+                assetIdByHash[hash] = programAssetId;
+                var extension = Extension(contentType, Path.GetFileName(partPath));
+                var fileName = $"{hash}.{extension}";
+                programAssets.Add(new JsonObject
+                {
+                    ["id"] = programAssetId,
+                    ["uri"] = $"{AssetRoot}/{fileName}",
+                    ["mimeType"] = contentType,
+                    ["sha256"] = hash,
+                    ["rights"] = new JsonObject { ["status"] = "user-provided" },
+                    ["accessibility"] = new JsonObject { ["decorative"] = false, ["description"] = "Imported embedded Office package." },
+                });
+                resultAssets.Add(new Asset
+                {
+                    Id = programAssetId,
+                    FileName = fileName,
+                    ContentType = contentType,
+                    Data = ByteString.CopyFrom(data),
+                    Sha256 = hash,
+                });
+            }
+            assetIdBySourceId[sourceId] = programAssetId;
+            var nativeId = PptxAssetCatalog.NativeAssetIdFor(contentType, hash);
+            if (!nativeSourceAssets.Any(asset => asset.Id.Equals(nativeId, StringComparison.Ordinal)))
+                nativeSourceAssets.Add(new Asset
+                {
+                    Id = nativeId,
+                    FileName = Path.GetFileName(partPath),
+                    ContentType = contentType,
+                    Data = ByteString.CopyFrom(data),
+                    Sha256 = hash,
+                });
+            return true;
+        }
+
         internal void RecordNode(string pageId, string id, string type, JsonObject nativeRef)
         {
             VisibleObjectCount++;
@@ -2181,6 +2289,8 @@ internal static partial class PpjPresentationProjector
                 "image/jpeg" => "jpg",
                 "image/gif" => "gif",
                 "image/svg+xml" => "svg",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" => "xlsx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document" => "docx",
                 _ => string.Empty,
             };
             if (fromType.Length > 0) return fromType;
