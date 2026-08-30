@@ -978,6 +978,25 @@ const shadowOpacityRoundTripLeaf = shadowOpacityRoundTrip.inspect({ includeNativ
   .split("\n").filter(Boolean).map((line) => JSON.parse(line))
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowOpacityThousandthPercent");
 assert.equal(shadowOpacityRoundTripLeaf.value, 0.2);
+const shadowColorLeaf = shadowOpacityRoundTrip.inspect({ includeNativeLeaves: true, target: shadowOpacityShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowColorScheme");
+assert.ok(shadowColorLeaf, "source-bound shapes should expose a canonical outer-shadow color leaf");
+assert.equal(shadowColorLeaf.value, "dk1");
+shadowOpacityRoundTrip.editNativeLeaf(shadowColorLeaf.targetId, shadowColorLeaf.leafId, {
+  expectedHash: shadowColorLeaf.expectedHash,
+  value: "accent1",
+});
+const shadowColorOutput = await PresentationFile.exportPptx(shadowOpacityRoundTrip);
+assert.equal(shadowColorOutput.metadata.editPlan.operations[0].leafKind, "shadowColorScheme");
+await assertOnlyDeclaredPptxFootprintChanged(shadowOpacityOutput, shadowColorOutput, shadowColorOutput.metadata.editPlan.operations);
+const shadowColorOutputXml = await (await JSZip.loadAsync(shadowColorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowColorOutputXml, /<a:outerShdw\b[^>]*blurRad="28575"[\s\S]*?<a:schemeClr\s+val="accent1"><a:alpha\s+val="20000"\s*\/>/u);
+const shadowColorRoundTrip = await PresentationFile.importPptx(shadowColorOutput);
+const shadowColorRoundTripLeaf = shadowColorRoundTrip.inspect({ includeNativeLeaves: true, target: shadowOpacityShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowColorScheme");
+assert.equal(shadowColorRoundTripLeaf.value, "accent1");
 
 const nativeLeafSourceFree = Presentation.create();
 nativeLeafSourceFree.slides.add().shapes.add({ text: "Source-free" });
