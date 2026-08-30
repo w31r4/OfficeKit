@@ -770,6 +770,17 @@ internal static class PpjSemanticValidator
                 "ppj.chart.bubbleStyleType",
                 "style.bubbleScale and style.bubbleSizeMode apply only to bubble charts.",
                 path + ".style"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("stacking", out var stacking) &&
+            stacking.GetString() == "stream")
+        {
+            if (chart.ChartType != "area")
+                diagnostics.Add(new(
+                    "ppj.chart.streamType",
+                    "style.stacking stream applies only to area charts.",
+                    path + ".style.stacking"));
+            else ValidateStreamgraph(chart, path, diagnostics);
+        }
         if (chart.ChartType != "combo" &&
             (chart.Raw.TryGetProperty("secondaryXAxis", out _) || chart.Raw.TryGetProperty("secondaryYAxis", out _)))
             diagnostics.Add(new(
@@ -784,6 +795,61 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidateStreamgraph(
+        PpjChartElementModel chart,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Categories.Count is < 3 or > 64)
+            diagnostics.Add(new(
+                "ppj.chart.streamCategories",
+                "Streamgraphs require 3..64 ordered categories.",
+                path + ".data.categories"));
+        if (chart.Data.Categories.Select(category => category.GetRawText()).Distinct(StringComparer.Ordinal).Count() != chart.Data.Categories.Count)
+            diagnostics.Add(new(
+                "ppj.chart.streamCategoryDuplicate",
+                "Streamgraph categories must be unique.",
+                path + ".data.categories"));
+        if (chart.Data.Series.Count is < 2 or > 12)
+            diagnostics.Add(new(
+                "ppj.chart.streamSeriesCount",
+                "Streamgraphs require 2..12 series.",
+                path + ".data.series"));
+        if (chart.Data.Series.Any(series => string.IsNullOrWhiteSpace(series.Name)) ||
+            chart.Data.Series.Select(series => series.Name).Distinct(StringComparer.Ordinal).Count() != chart.Data.Series.Count)
+            diagnostics.Add(new(
+                "ppj.chart.streamSeriesName",
+                "Streamgraph series names must be unique and non-empty.",
+                path + ".data.series"));
+        if (chart.Data.Series.SelectMany(series => series.Values).Any(value => value is null or < 0))
+            diagnostics.Add(new(
+                "ppj.chart.streamValue",
+                "Streamgraph values must be finite and non-negative.",
+                path + ".data.series"));
+        for (var categoryIndex = 0; categoryIndex < chart.Data.Categories.Count; categoryIndex++)
+            if (chart.Data.Series.Sum(series => series.Values.ElementAtOrDefault(categoryIndex) ?? 0) <= 0)
+                diagnostics.Add(new(
+                    "ppj.chart.streamEmptyCategory",
+                    "Every streamgraph category requires a positive total.",
+                    $"{path}.data.categories[{categoryIndex}]"));
+        for (var seriesIndex = 0; seriesIndex < chart.Data.Series.Count; seriesIndex++)
+        {
+            var series = chart.Data.Series[seriesIndex];
+            foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "chartType", "axis", "marker", "trendlines", "errorBars" })
+                if (series.Raw.TryGetProperty(property, out _))
+                    diagnostics.Add(new(
+                        "ppj.chart.streamSeriesField",
+                        $"{property} is not part of the bounded streamgraph series profile.",
+                        $"{path}.data.series[{seriesIndex}].{property}"));
+        }
+        foreach (var property in new[] { "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.streamAxis",
+                    "Streamgraphs use one generated centered value scale and do not accept Y or secondary axes.",
+                    path + "." + property));
     }
 
     private static void ValidateCombo(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
@@ -1950,6 +2016,11 @@ internal static class PpjSemanticValidator
                     "ppj.animation.vectorChartBuild",
                     "Vector-lowered charts compile to one editable group and support whole-object animation, not ChartPart build modes.",
                     $"{path}.chartBuild"));
+            if (animation.ChartBuild is not null && target is PpjChartElementModel streamChart && IsInlineStreamgraph(streamChart))
+                diagnostics.Add(new(
+                    "ppj.animation.vectorChartBuild",
+                    "Vector-lowered streamgraphs support whole-object animation, not ChartPart build modes.",
+                    $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));
 
@@ -1958,6 +2029,12 @@ internal static class PpjSemanticValidator
         if (expandedTimingNodes > 64)
             diagnostics.Add(new("ppj.animation.timingBudget", $"Page expands to {expandedTimingNodes} timing nodes; the limit is 64.", $"{pagePath}.animations"));
     }
+
+    private static bool IsInlineStreamgraph(PpjChartElementModel chart) =>
+        chart.ChartType == "area" &&
+        chart.Raw.TryGetProperty("style", out var style) &&
+        style.TryGetProperty("stacking", out var stacking) &&
+        stacking.GetString() == "stream";
 
     private static int EstimateTimingNodes(PpjAnimationModel animation, PpjElementModel target)
     {

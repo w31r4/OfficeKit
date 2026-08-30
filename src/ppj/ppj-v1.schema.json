@@ -3143,7 +3143,8 @@
           "enum": [
             "none",
             "stacked",
-            "percent-stacked"
+            "percent-stacked",
+            "stream"
           ]
         },
         "gapWidth": {

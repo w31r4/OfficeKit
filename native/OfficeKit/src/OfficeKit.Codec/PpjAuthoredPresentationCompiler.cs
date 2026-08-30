@@ -273,6 +273,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel { ChartType: "sankey" } sankey:
                 output.Group = BuildSankey(sankey, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "area" } streamgraph when IsStreamgraph(streamgraph, raw, catalog):
+                output.Group = BuildStreamgraph(streamgraph, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -585,6 +588,293 @@ internal static class PpjAuthoredPresentationCompiler
         ApplyAccessibility(chart, element.Accessibility);
         return chart;
     }
+
+    private static bool IsStreamgraph(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        return FirstProperty(inlineStyle, namedStyle, "stacking") is { } stacking &&
+               stacking.GetString() == "stream";
+    }
+
+    private static PresentationGroup BuildStreamgraph(
+        PpjChartElementModel element,
+        JsonElement raw,
+        Catalog catalog)
+    {
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateStreamgraphCompileProfile(element, raw, namedStyle, inlineStyle);
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var legend = FirstProperty(inlineStyle, namedStyle, "legend")?.GetString() ?? "right";
+        var legendWidth = legend == "right" ? Math.Clamp(width * 0.18, 88, 132) : 0;
+        var legendGap = legendWidth > 0 ? 14 : 0;
+        var rawXAxis = Property(raw, "xAxis");
+        var showCategories = rawXAxis is null || OptionalBoolean(rawXAxis.Value, "visible") is not false;
+        var categoryHeight = showCategories ? 18 : 0;
+        var plotX = x;
+        var plotY = y + titleHeight + 6;
+        var plotWidth = width - legendWidth - legendGap;
+        var plotHeight = height - titleHeight - categoryHeight - 12;
+        if (plotWidth < 220 || plotHeight < 100)
+            throw Unsupported(element.Id, "streamgraph frame is too small for editable bands and labels");
+
+        var categories = element.Data.Categories.Select(CategoryText).ToArray();
+        var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
+        var totals = new double[categories.Length];
+        foreach (var series in element.Data.Series)
+            for (var categoryIndex = 0; categoryIndex < categories.Length; categoryIndex++)
+                totals[categoryIndex] += series.Values[categoryIndex]!.Value;
+        var maximumTotal = totals.Max();
+        var scale = plotHeight * 0.86 / maximumTotal;
+        var cumulative = new double[categories.Length];
+        var upper = new (double X, double Y)[categories.Length];
+        var lower = new (double X, double Y)[categories.Length];
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        for (var seriesIndex = 0; seriesIndex < element.Data.Series.Count; seriesIndex++)
+        {
+            var series = element.Data.Series[seriesIndex];
+            for (var categoryIndex = 0; categoryIndex < categories.Length; categoryIndex++)
+            {
+                var pointX = plotX + categoryIndex * plotWidth / (categories.Length - 1);
+                var totalHeight = totals[categoryIndex] * scale;
+                var bottom = plotY + (plotHeight + totalHeight) / 2;
+                lower[categoryIndex] = (pointX, bottom - cumulative[categoryIndex] * scale);
+                cumulative[categoryIndex] += series.Values[categoryIndex]!.Value;
+                upper[categoryIndex] = (pointX, bottom - cumulative[categoryIndex] * scale);
+            }
+
+            var shape = ShapeFrame(new PpjFrameModel(plotX, plotY, plotWidth, plotHeight, 0, false, false), "custom");
+            ApplyStreamgraphSeriesPaint(shape, seriesJson[seriesIndex], catalog, seriesIndex, element.Id);
+            shape.CustomPaths.Add(BuildStreamgraphBandPath(plotX, plotY, plotWidth, plotHeight, upper, lower));
+            group.Children.Add(new PresentationElement
+            {
+                Id = StreamgraphNativeId(element.Id, $"band/{series.Id}"),
+                Name = $"stream band {series.Name}",
+                Shape = shape,
+            });
+        }
+
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTitleElement(
+                StreamgraphNativeId(element.Id, "title"),
+                "streamgraph title",
+                x,
+                y,
+                width,
+                titleHeight,
+                raw.GetProperty("title"),
+                FirstProperty(inlineStyle, namedStyle, "titleTextStyle"),
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        if (showCategories)
+        {
+            var labelStyle = Property(rawXAxis, "textStyle");
+            var step = Math.Max(1, (int)Math.Ceiling(categories.Length / 8d));
+            var labelWidth = Math.Clamp(plotWidth / Math.Min(categories.Length, 8), 42, 92);
+            for (var categoryIndex = 0; categoryIndex < categories.Length; categoryIndex++)
+            {
+                if (categoryIndex != 0 && categoryIndex != categories.Length - 1 && categoryIndex % step != 0) continue;
+                var pointX = plotX + categoryIndex * plotWidth / (categories.Length - 1);
+                group.Children.Add(VectorChartTextElement(
+                    StreamgraphNativeId(element.Id, $"category/{categoryIndex}"),
+                    $"stream category {categories[categoryIndex]}",
+                    Math.Clamp(pointX - labelWidth / 2, plotX, plotX + plotWidth - labelWidth),
+                    plotY + plotHeight + 2,
+                    labelWidth,
+                    categoryHeight,
+                    categories[categoryIndex],
+                    labelStyle,
+                    catalog,
+                    7,
+                    categoryIndex == 0 ? "left" : categoryIndex == categories.Length - 1 ? "right" : "center",
+                    "52606D"));
+            }
+        }
+
+        if (legend == "right")
+        {
+            var legendStyle = FirstProperty(inlineStyle, namedStyle, "legendTextStyle");
+            var rowHeight = Math.Min(18, plotHeight / element.Data.Series.Count);
+            var legendY = plotY + (plotHeight - rowHeight * element.Data.Series.Count) / 2;
+            for (var seriesIndex = 0; seriesIndex < element.Data.Series.Count; seriesIndex++)
+            {
+                var series = element.Data.Series[seriesIndex];
+                var rowY = legendY + seriesIndex * rowHeight;
+                var swatch = ShapeFrame(new PpjFrameModel(plotX + plotWidth + legendGap, rowY + rowHeight * 0.38, 12, 3, 0, false, false), "rect");
+                ApplyStreamgraphSeriesPaint(swatch, seriesJson[seriesIndex], catalog, seriesIndex, element.Id, includeStroke: false);
+                group.Children.Add(new PresentationElement
+                {
+                    Id = StreamgraphNativeId(element.Id, $"legend-swatch/{series.Id}"),
+                    Name = $"stream legend swatch {series.Name}",
+                    Shape = swatch,
+                });
+                group.Children.Add(VectorChartTextElement(
+                    StreamgraphNativeId(element.Id, $"legend-label/{series.Id}"),
+                    $"stream legend label {series.Name}",
+                    plotX + plotWidth + legendGap + 18,
+                    rowY,
+                    legendWidth - 18,
+                    rowHeight,
+                    series.Name,
+                    legendStyle,
+                    catalog,
+                    Math.Clamp(rowHeight * 0.48, 6.5, 9),
+                    "left",
+                    "16324F"));
+            }
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateStreamgraphCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var categories = element.Data.Categories.Select(CategoryText).ToArray();
+        if (categories.Length is < 3 or > 64 || categories.Any(string.IsNullOrWhiteSpace) ||
+            categories.Distinct(StringComparer.Ordinal).Count() != categories.Length)
+            throw Unsupported(element.Id, "streamgraph categories must be 3..64 unique non-empty labels");
+        if (element.Data.Series.Count is < 2 or > 12)
+            throw Unsupported(element.Id, "streamgraphs require 2..12 series");
+        if (element.Data.Series.Any(series => string.IsNullOrWhiteSpace(series.Name)) ||
+            element.Data.Series.Select(series => series.Name).Distinct(StringComparer.Ordinal).Count() != element.Data.Series.Count)
+            throw Unsupported(element.Id, "streamgraph series names must be unique and non-empty");
+        if (element.Data.Series.Any(series => series.Values.Count != categories.Length || series.Values.Any(value => value is null or < 0)))
+            throw Unsupported(element.Id, "streamgraph series require complete aligned non-negative values");
+        for (var categoryIndex = 0; categoryIndex < categories.Length; categoryIndex++)
+            if (element.Data.Series.Sum(series => series.Values[categoryIndex]!.Value) <= 0)
+                throw Unsupported(element.Id, $"streamgraph category {categories[categoryIndex]} has no positive magnitude");
+
+        var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
+        for (var seriesIndex = 0; seriesIndex < seriesJson.Length; seriesIndex++)
+        {
+            var series = seriesJson[seriesIndex];
+            RejectProperties(series, element.Id, "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "chartType", "axis", "marker", "trendlines", "errorBars");
+            if (series.TryGetProperty("color", out _) && series.TryGetProperty("fill", out _))
+                throw Unsupported(element.Id, "streamgraph series color and fill are aliases and cannot both be present");
+            if (series.TryGetProperty("fill", out var fill) && fill.GetProperty("type").GetString() is not ("solid" or "gradient"))
+                throw Unsupported(element.Id, "streamgraph series fill must be solid or gradient");
+        }
+        foreach (var property in new[] { "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "streamgraphs use one generated centered value scale and do not accept Y or secondary axes");
+        if (raw.TryGetProperty("xAxis", out var xAxis))
+            foreach (var property in xAxis.EnumerateObject())
+                if (property.Name is not ("visible" or "textStyle"))
+                    throw Unsupported(element.Id, $"streamgraph xAxis does not support {property.Name}");
+
+        foreach (var style in new[] { namedStyle, inlineStyle })
+        {
+            if (style is not { ValueKind: JsonValueKind.Object } value) continue;
+            foreach (var property in value.EnumerateObject())
+                if (property.Name is not ("stacking" or "legend" or "titleTextStyle" or "legendTextStyle"))
+                    throw Unsupported(element.Id, $"streamgraphs do not support chart style field {property.Name}");
+        }
+        if (FirstProperty(inlineStyle, namedStyle, "stacking") is not { } stacking || stacking.GetString() != "stream")
+            throw Unsupported(element.Id, "streamgraphs require style.stacking stream");
+        if (FirstProperty(inlineStyle, namedStyle, "legend") is { } legend && legend.GetString() is not ("none" or "right"))
+            throw Unsupported(element.Id, "streamgraph legend supports only none or right");
+    }
+
+    private static void ApplyStreamgraphSeriesPaint(
+        PresentationShape target,
+        JsonElement series,
+        Catalog catalog,
+        int seriesIndex,
+        string elementId,
+        bool includeStroke = true)
+    {
+        if (series.TryGetProperty("fill", out var fill))
+        {
+            if (fill.GetProperty("type").GetString() == "gradient")
+                target.GradientFill = BuildGradientFill(fill, color => catalog.Color(color));
+            else
+            {
+                var resolved = FillColor(fill, catalog) ??
+                    throw Unsupported(elementId, "streamgraph series cannot use a no-fill paint");
+                target.FillRgb = resolved.Rgb;
+                if (resolved.Opacity < 1) target.FillOpacityThousandthPercent = Opacity(resolved.Opacity);
+            }
+        }
+        else if (series.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            target.FillRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) target.FillOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        else target.FillRgb = catalog.Theme.AccentRgb[seriesIndex % catalog.Theme.AccentRgb.Count];
+
+        if (includeStroke && series.TryGetProperty("stroke", out var stroke)) ApplyLine(target, stroke, catalog);
+        else target.LineStyle = "none";
+    }
+
+    private static PresentationCustomGeometryPath BuildStreamgraphBandPath(
+        double plotX,
+        double plotY,
+        double plotWidth,
+        double plotHeight,
+        IReadOnlyList<(double X, double Y)> upper,
+        IReadOnlyList<(double X, double Y)> lower)
+    {
+        const long viewport = 100_000;
+        PresentationCustomGeometryPoint Point((double X, double Y) source) => new()
+        {
+            X = checked((long)Math.Round((source.X - plotX) / plotWidth * viewport, MidpointRounding.AwayFromZero)),
+            Y = checked((long)Math.Round((source.Y - plotY) / plotHeight * viewport, MidpointRounding.AwayFromZero)),
+        };
+        PresentationCustomGeometryCommand Curve((double X, double Y) start, (double X, double Y) end) => new()
+        {
+            CubicBezierTo = new PresentationCustomGeometryCubicBezier
+            {
+                Control1 = Point((start.X + (end.X - start.X) / 3, start.Y)),
+                Control2 = Point((end.X - (end.X - start.X) / 3, end.Y)),
+                End = Point(end),
+            },
+        };
+
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = viewport,
+            Height = viewport,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = true,
+        };
+        path.Commands.Add(MoveTo(Point(upper[0])));
+        for (var index = 0; index < upper.Count - 1; index++) path.Commands.Add(Curve(upper[index], upper[index + 1]));
+        path.Commands.Add(LineTo(Point(lower[^1])));
+        for (var index = lower.Count - 1; index > 0; index--) path.Commands.Add(Curve(lower[index], lower[index - 1]));
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        return path;
+    }
+
+    private static string StreamgraphNativeId(string elementId, string suffix) =>
+        $"{elementId}/stream/{suffix}";
 
     internal static PresentationTextBody BuildChartTitleBody(
         PpjProgramModel program,

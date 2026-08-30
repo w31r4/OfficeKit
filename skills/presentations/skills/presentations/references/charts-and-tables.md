@@ -5,6 +5,7 @@ Choose the visual from the relationship the audience must understand.
 | Relationship | Prefer |
 | --- | --- |
 | trend or change over ordered time | line, area, or ordered columns |
+| changing composition and total magnitude over ordered time | streamgraph |
 | magnitude across categories | bars or columns with a common baseline |
 | distribution or correlation | scatter, bubble, or distribution view |
 | intensity across two categorical dimensions | heatmap |
@@ -65,8 +66,9 @@ The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
-  candlestick, bounded vector treemap, bounded vector sunburst, bounded vector
-  sankey, and bounded column-line-area category combo plots;
+  candlestick, bounded vector streamgraph, bounded vector treemap, bounded
+  vector sunburst, bounded vector sankey, and bounded column-line-area category
+  combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -414,6 +416,65 @@ Horizontal bars, scatter/bubble overlays, splitting one family across both
 axis pairs and a one-family pseudo-combo are rejected. Use an ordinary scatter
 or bubble chart for numeric X values; PPJ does not disguise a numeric-axis mix
 as a categorical combo.
+
+Use a streamgraph when the audience needs to see both changing composition and
+the changing total across an ordered domain. Use an ordinary line or area chart
+when exact point lookup, a common zero baseline, or independent series trends
+matter more. Do not use a streamgraph merely because curved bands look richer.
+
+```json
+{
+  "type": "chart",
+  "id": "audience-composition",
+  "chartType": "area",
+  "frame": { "x": 72, "y": 112, "width": 720, "height": 300 },
+  "title": "Audience composition changed without losing reach",
+  "xAxis": {
+    "visible": true,
+    "textStyle": { "fontSize": 8, "color": "#52606D" }
+  },
+  "style": {
+    "stacking": "stream",
+    "legend": "right",
+    "titleTextStyle": { "fontSize": 14, "bold": true },
+    "legendTextStyle": { "fontSize": 8 }
+  },
+  "data": {
+    "categories": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    "series": [
+      {
+        "id": "new",
+        "name": "New",
+        "values": [22, 28, 35, 31, 38, 44],
+        "fill": {
+          "type": "gradient",
+          "kind": "linear",
+          "angle": 0,
+          "stops": [
+            { "offset": 0, "color": "#0B8F8F" },
+            { "offset": 1, "color": "#74C7C7", "opacity": 0.82 }
+          ]
+        }
+      },
+      { "id": "returning", "name": "Returning", "values": [31, 34, 30, 39, 42, 46], "color": "#F2C14ECC" },
+      { "id": "enterprise", "name": "Enterprise", "values": [12, 14, 18, 22, 29, 36], "color": "#C8644AE6" }
+    ]
+  }
+}
+```
+
+`stacking: "stream"` is limited to area charts with 2–12 complete,
+non-negative series over 3–64 unique ordered categories. Every category needs
+a positive total. OfficeKit centers each category's raw total around the plot
+midline, so band thickness retains the actual magnitudes; it does not silently
+normalize every period to 100 percent. The compiler writes one editable cubic
+DrawingML path per series plus ordinary title, category, and legend text.
+
+The embedded PPJ restores the exact semantic chart. If that program is removed,
+PPTX import returns the truthful editable group instead of guessing a
+streamgraph from arbitrary paths. Whole-object animation is valid; native
+`chartBuild`, secondary axes, markers, trendlines, error bars, missing/negative
+values, and per-point labels are not.
 
 Use `waterfall` for a cumulative bridge whose opening/closing totals and signed
 changes must remain explicit. Author one semantic series rather than exposing
