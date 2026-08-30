@@ -245,6 +245,21 @@ public sealed class PptxCodecTests
             ["fit"] = "contain",
             ["opacity"] = 0.66,
         };
+        authoredImageFillShape["style"]!["stroke"] = new JsonObject
+        {
+            ["color"] = "#16324F",
+            ["width"] = 1.5,
+            ["opacity"] = 0.8,
+        };
+        authoredImageFillShape["style"]!["shadow"] = new JsonObject
+        {
+            ["color"] = "#16324F",
+            ["blur"] = 3,
+            ["distance"] = 2,
+            ["angle"] = 45,
+            ["opacity"] = 0.6,
+        };
+        authoredImageFillShape["style"]!["opacity"] = 0.5;
         authoredTitle["style"] = new JsonObject
         {
             ["wrap"] = "square",
@@ -354,6 +369,7 @@ public sealed class PptxCodecTests
                 new JsonObject { ["offset"] = 1, ["color"] = "#0B8F8F", ["opacity"] = 0.35 },
             },
         };
+        authoredCustomShape["style"]!["opacity"] = 0.5;
         var authoredConnector = authoredProgram["pages"]!
             .AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
@@ -1293,7 +1309,18 @@ public sealed class PptxCodecTests
             var nativeImageFillShape = package.PresentationPart.SlideParts.ElementAt(1).Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.Shape>()
                 .Single(shape => shape.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "decision-flow-start");
-            Assert.NotNull(nativeImageFillShape.ShapeProperties!.GetFirstChild<A.BlipFill>());
+            var nativeCompoundImageFill = nativeImageFillShape.ShapeProperties!.GetFirstChild<A.BlipFill>()!;
+            Assert.Equal(33_000, nativeCompoundImageFill.GetFirstChild<A.Blip>()!
+                .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+            Assert.Equal(40_000, nativeImageFillShape.ShapeProperties.GetFirstChild<A.Outline>()!
+                .GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(30_000, nativeImageFillShape.ShapeProperties.GetFirstChild<A.EffectList>()!
+                .GetFirstChild<A.OuterShadow>()!.GetFirstChild<A.RgbColorModelHex>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(50_000, nativeImageFillShape.TextBody!.Descendants<A.RunProperties>().Single()
+                .GetFirstChild<A.SolidFill>()!.GetFirstChild<A.RgbColorModelHex>()!
+                .GetFirstChild<A.Alpha>()!.Val!.Value);
             var nativeTiledPicture = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.Picture>()
                 .Single(picture => picture.BlipFill!.GetFirstChild<A.Tile>() is not null);
@@ -1525,6 +1552,12 @@ public sealed class PptxCodecTests
         Assert.Equal(3 * 12_700, importedClaim.TextBody.Paragraphs[0].Runs[0].Shadow.BlurRadiusEmu);
         Assert.Equal(PresentationGradientFill.Types.Kind.Radial, importedClaim.TextBody.Paragraphs[0].DefaultRunProperties.GradientFill.Kind);
         Assert.Equal(2 * 12_700, importedClaim.TextBody.Paragraphs[0].DefaultRunProperties.Shadow.BlurRadiusEmu);
+        var importedCompoundShape = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
+            element.Name == "decision-flow-start" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
+        Assert.Equal(33_000U, importedCompoundShape.ImageFill.OpacityThousandthPercent);
+        Assert.Equal(40_000U, importedCompoundShape.LineOpacityThousandthPercent);
+        Assert.Equal(30_000U, importedCompoundShape.Shadow.OpacityThousandthPercent);
+        Assert.Equal(50_000U, Assert.Single(Assert.Single(importedCompoundShape.TextBody.Paragraphs).Runs).ColorOpacityThousandthPercent);
         var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
         Assert.Equal("custom", importedCustomShape.Geometry);
@@ -1538,8 +1571,10 @@ public sealed class PptxCodecTests
         Assert.Equal(PresentationGradientFill.Types.Kind.Radial, importedCustomShape.GradientFill.Kind);
         Assert.Equal(2, importedCustomShape.GradientFill.Stops.Count);
         Assert.Equal("0B8F8F", importedCustomShape.GradientFill.Stops[1].ColorRgb);
+        Assert.Equal(50_000U, importedCustomShape.GradientFill.Stops[0].OpacityThousandthPercent);
+        Assert.Equal(17_500U, importedCustomShape.GradientFill.Stops[1].OpacityThousandthPercent);
         Assert.True(importedCustomShape.HasLineOpacityThousandthPercent);
-        Assert.Equal(42_000U, importedCustomShape.LineOpacityThousandthPercent);
+        Assert.Equal(21_000U, importedCustomShape.LineOpacityThousandthPercent);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
         Assert.Equal(360_000, importedChart.FrameTransform.RotationAngle60000);
@@ -1720,7 +1755,7 @@ public sealed class PptxCodecTests
                 item.GetProperty("name").GetString() == "claim-rule" &&
                 item.GetProperty("geometry").GetProperty("kind").GetString() == "custom" &&
                 item.GetProperty("style").GetProperty("fill").GetProperty("kind").GetString() == "radial" &&
-                item.GetProperty("style").GetProperty("stroke").GetProperty("opacity").GetDouble() == 0.42);
+                item.GetProperty("style").GetProperty("stroke").GetProperty("opacity").GetDouble() == 0.21);
             var projectedCustomShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("name").GetString() == "claim-rule");
             var projectedArc = projectedCustomShape.GetProperty("geometry").GetProperty("paths")[0]

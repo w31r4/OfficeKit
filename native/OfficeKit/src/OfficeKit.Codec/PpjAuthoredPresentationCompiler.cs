@@ -311,12 +311,14 @@ internal static class PpjAuthoredPresentationCompiler
         var shape = ShapeFrame(element.Frame, geometry);
         var namedStyle = catalog.ShapeStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id, raw.TryGetProperty("text", out _));
+        ApplyShapeStyle(shape, namedStyle, inlineStyle, catalog, element.Id);
         if (raw.TryGetProperty("text", out var text))
         {
             shape.TextBody = BuildTextBody(text, null, Property(raw, "textStyle"), catalog);
             shape.Text = Flatten(shape.TextBody);
         }
+        if (FirstProperty(inlineStyle, namedStyle, "opacity") is { } opacity)
+            ApplyCompoundShapeOpacity(shape, opacity.GetDouble(), element.Id);
         if (geometry == "custom") ApplyCustomGeometry(shape, raw.GetProperty("geometry"), element.Id);
         else shape.PresetAdjustments.Add(element.GeometryAdjustments);
         ApplyTransform(shape, element.Frame);
@@ -3020,7 +3022,7 @@ internal static class PpjAuthoredPresentationCompiler
             : geometry is null ? "rect" : geometry.Value.GetProperty("preset").GetString()!;
         var shape = ShapeFrame(item.Frame, geometryName);
         var shapeStyle = catalog.ShapeStyle(item.Node.ShapeStyleRef ?? element.ShapeStyleRef);
-        ApplyShapeStyle(shape, shapeStyle, null, catalog, item.Node.Id, includeText);
+        ApplyShapeStyle(shape, shapeStyle, null, catalog, item.Node.Id);
         if (geometry is { } value)
         {
             if (geometryKind == "custom") ApplyCustomGeometry(shape, value, item.Node.Id);
@@ -3033,6 +3035,8 @@ internal static class PpjAuthoredPresentationCompiler
             shape.TextBody = BuildTextBody(rawNode.GetProperty("text"), textStyle, null, catalog);
             shape.Text = Flatten(shape.TextBody);
         }
+        if (FirstProperty(null, shapeStyle, "opacity") is { } opacity)
+            ApplyCompoundShapeOpacity(shape, opacity.GetDouble(), item.Node.Id);
         return shape;
     }
 
@@ -3374,8 +3378,7 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement? named,
         JsonElement? inline,
         Catalog catalog,
-        string elementId,
-        bool hasText)
+        string elementId)
     {
         var fill = FirstProperty(inline, named, "fill");
         if (fill is { } fillValue)
@@ -3412,19 +3415,101 @@ internal static class PpjAuthoredPresentationCompiler
         var shadow = FirstProperty(inline, named, "shadow");
         if (shadow is { } shadowValue)
             target.Shadow = BuildShadow(shadowValue, catalog);
-        var overallOpacity = FirstProperty(inline, named, "opacity");
-        if (overallOpacity is { } opacity)
+    }
+
+    private static void ApplyCompoundShapeOpacity(PresentationShape target, double multiplier, string elementId)
+    {
+        if (multiplier >= 1) return;
+
+        if (target.FillRgb.Length > 0 || target.FillScheme.Length > 0)
+            target.FillOpacityThousandthPercent = MultiplyOpacity(
+                target.HasFillOpacityThousandthPercent,
+                target.FillOpacityThousandthPercent,
+                multiplier);
+        if (target.GradientFill is not null)
+            MultiplyGradientOpacity(target.GradientFill, multiplier);
+        if (target.ImageFill is not null)
+            target.ImageFill.OpacityThousandthPercent = MultiplyOpacity(
+                target.ImageFill.HasOpacityThousandthPercent,
+                target.ImageFill.OpacityThousandthPercent,
+                multiplier);
+        if (target.LineStyle != "none" && (target.LineRgb.Length > 0 || target.LineScheme.Length > 0))
+            target.LineOpacityThousandthPercent = MultiplyOpacity(
+                target.HasLineOpacityThousandthPercent,
+                target.LineOpacityThousandthPercent,
+                multiplier);
+        if (target.Shadow is not null)
+            MultiplyShadowOpacity(target.Shadow, multiplier);
+        if (target.TextBody is not null)
+            MultiplyTextBodyOpacity(target.TextBody, multiplier, elementId);
+    }
+
+    private static void MultiplyTextBodyOpacity(PresentationTextBody body, double multiplier, string elementId)
+    {
+        foreach (var paragraph in body.Paragraphs)
         {
-            if (target.FillRgb.Length == 0)
-                throw Unsupported(elementId, "shape opacity without a solid fill cannot be represented losslessly");
-            if (opacity.GetDouble() < 1 && (stroke is not null || shadow is not null || hasText))
-                throw Unsupported(elementId, "shape opacity with stroke, shadow, or text requires per-branch alpha and is not yet compiler-owned");
-            var fillOpacity = target.HasFillOpacityThousandthPercent
-                ? target.FillOpacityThousandthPercent / 100_000d
-                : 1d;
-            target.FillOpacityThousandthPercent = Opacity(fillOpacity * opacity.GetDouble());
+            if ((paragraph.BulletColorCase is PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb or
+                 PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme))
+                paragraph.BulletColorOpacityThousandthPercent = MultiplyOpacity(
+                    paragraph.HasBulletColorOpacityThousandthPercent,
+                    paragraph.BulletColorOpacityThousandthPercent,
+                    multiplier);
+            if (paragraph.DefaultRunProperties is not null)
+                MultiplyTextStyleOpacity(paragraph.DefaultRunProperties, multiplier, elementId);
+            foreach (var run in paragraph.Runs)
+                MultiplyTextRunOpacity(run, multiplier, elementId);
         }
     }
+
+    private static void MultiplyTextRunOpacity(PresentationTextRun run, double multiplier, string elementId)
+    {
+        if (run.HighlightCase != PresentationTextRun.HighlightOneofCase.None)
+            throw Unsupported(elementId, "shape opacity cannot preserve text highlight because the bounded highlight profile has no alpha");
+        if (run.Text.Length > 0 && !run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null)
+            throw Unsupported(elementId, "shape opacity requires explicit text color or gradient paint");
+        if (run.HasColorRgb || run.HasColorScheme)
+            run.ColorOpacityThousandthPercent = MultiplyOpacity(
+                run.HasColorOpacityThousandthPercent,
+                run.ColorOpacityThousandthPercent,
+                multiplier);
+        if (run.GradientFill is not null)
+            MultiplyGradientOpacity(run.GradientFill, multiplier);
+        if (run.Shadow is not null)
+            MultiplyShadowOpacity(run.Shadow, multiplier);
+    }
+
+    private static void MultiplyTextStyleOpacity(PresentationTextStyle style, double multiplier, string elementId)
+    {
+        if (style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None)
+            throw Unsupported(elementId, "shape opacity cannot preserve default text highlight because the bounded highlight profile has no alpha");
+        if (style.ColorCase != PresentationTextStyle.ColorOneofCase.None)
+            style.ColorOpacityThousandthPercent = MultiplyOpacity(
+                style.HasColorOpacityThousandthPercent,
+                style.ColorOpacityThousandthPercent,
+                multiplier);
+        if (style.GradientFill is not null)
+            MultiplyGradientOpacity(style.GradientFill, multiplier);
+        if (style.Shadow is not null)
+            MultiplyShadowOpacity(style.Shadow, multiplier);
+    }
+
+    private static void MultiplyGradientOpacity(PresentationGradientFill fill, double multiplier)
+    {
+        foreach (var stop in fill.Stops)
+            stop.OpacityThousandthPercent = MultiplyOpacity(
+                stop.HasOpacityThousandthPercent,
+                stop.OpacityThousandthPercent,
+                multiplier);
+    }
+
+    private static void MultiplyShadowOpacity(PresentationShadow shadow, double multiplier) =>
+        shadow.OpacityThousandthPercent = MultiplyOpacity(
+            shadow.HasOpacityThousandthPercent,
+            shadow.OpacityThousandthPercent,
+            multiplier);
+
+    private static uint MultiplyOpacity(bool hasLocalOpacity, uint localOpacity, double multiplier) =>
+        Opacity((hasLocalOpacity ? localOpacity / 100_000d : 1d) * multiplier);
 
     private static void ApplyTextBoxFill(
         PresentationShape target,
