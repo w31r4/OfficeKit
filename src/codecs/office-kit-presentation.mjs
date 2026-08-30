@@ -3765,6 +3765,7 @@ function componentImageDescriptor(image) {
     frame: componentFrameSize(layout.frame),
     fit: layout.fit,
     crop: layout.crop,
+    opacity: layout.opacity,
     geometry: layout.geometry,
     borderRadius: layout.borderRadius,
     maskPreset: layout.maskPreset,

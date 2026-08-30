@@ -3030,20 +3030,21 @@ export class ImageElement {
     const flipHorizontal = this.transform?.flipHorizontal === true ? -1 : 1;
     const flipVertical = this.transform?.flipVertical === true ? -1 : 1;
     const transform = this.transform ? ` transform="translate(${cx} ${cy}) rotate(${rotation}) scale(${flipHorizontal} ${flipVertical}) translate(${-cx} ${-cy})"` : "";
+    const opacity = this.opacity == null || this.opacity === 1 ? "" : ` opacity="${this.opacity}"`;
     if (this.dataUrl) {
       const viewport = presentationImageCropViewport({ crop: this.crop, fit: this.fit, dataUrl: this.dataUrl, frame: p });
       if (viewport) {
-        const cropped = `<svg x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" preserveAspectRatio="none" overflow="hidden"><image href="${attrEscape(this.dataUrl)}" x="0" y="0" width="${viewport.imageWidth}" height="${viewport.imageHeight}" preserveAspectRatio="none"/></svg>`;
+        const cropped = `<svg x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" preserveAspectRatio="none" overflow="hidden"${opacity}><image href="${attrEscape(this.dataUrl)}" x="0" y="0" width="${viewport.imageWidth}" height="${viewport.imageHeight}" preserveAspectRatio="none"/></svg>`;
         return transform ? `<g${transform}>${cropped}</g>` : cropped;
       }
       const aspect = this.fit === "cover" ? "xMidYMid slice" : this.fit === "stretch" ? "none" : "xMidYMid meet";
-      return `<image href="${attrEscape(this.dataUrl)}" x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" preserveAspectRatio="${aspect}"${transform}/>`;
+      return `<image href="${attrEscape(this.dataUrl)}" x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" preserveAspectRatio="${aspect}"${opacity}${transform}/>`;
     }
     const rect = this.geometry === "ellipse"
       ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="#e0f2fe" stroke="#0284c7"/>`
       : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="#e0f2fe" stroke="#0284c7"/>`;
     const fallback = `${rect}<text x="${p.left + 12}" y="${p.top + 28}" font-family="Arial" font-size="14" fill="#075985">${xmlEscape(label)}</text>`;
-    return transform ? `<g${transform}>${fallback}</g>` : fallback;
+    return transform || opacity ? `<g${transform}${opacity}>${fallback}</g>` : fallback;
   }
 
 }

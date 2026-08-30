@@ -23,6 +23,22 @@ namespace OfficeKit.Codec.Tests;
 public sealed class PptxCodecTests
 {
     [Fact]
+    public void UnsupportedGradientPercentageCoordinatesRemainOpaque()
+    {
+        var rectangle = new A.FillToRectangle();
+        foreach (var name in new[] { "l", "t", "r", "b" })
+            rectangle.SetAttribute(new OpenXmlAttribute(name, string.Empty, "50%"));
+        var gradient = new A.GradientFill(
+            new A.GradientStopList(
+                new A.GradientStop(new A.RgbColorModelHex { Val = "FFD966" }) { Position = 0 },
+                new A.GradientStop(new A.RgbColorModelHex { Val = "FF9900" }) { Position = 100_000 }),
+            new A.PathGradientFill(rectangle) { Path = A.PathShadeValues.Circle });
+
+        Assert.False(PptxGradientFillCodec.TryRead(gradient, out var semantic));
+        Assert.Empty(semantic.Stops);
+    }
+
+    [Fact]
     public void PpjV1ValidatesAndExpandsCanonicalPresentationProgram()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);

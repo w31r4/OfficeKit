@@ -534,6 +534,7 @@ const shapeAccessibilityImage = shapeAccessibilitySlide.images.add({
   position: { left: 440, top: 72, width: 120, height: 88 },
   dataUrl: PNG,
   fit: "stretch",
+  opacity: 0.72,
   accessibility: {
     title: "Decision evidence image",
     description: "Blue evidence image supporting the controlled rollout decision.",
@@ -577,6 +578,7 @@ assert.deepEqual(importedAccessibilityShape.accessibility, shapeAccessibilitySha
 assert.deepEqual(importedAccessibilityConnector.accessibility, shapeAccessibilityConnector.accessibility);
 assert.deepEqual(importedAccessibilityImage.accessibility, shapeAccessibilityImage.accessibility);
 assert.equal(importedAccessibilityImage.contentType, "image/png", "imported images must expose their embedded MIME type");
+assert.equal(importedAccessibilityImage.opacity, 0.72, "image opacity must round-trip through native alphaModFix");
 assert.deepEqual(importedAccessibilityShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.deepEqual(importedAccessibilityConnector.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
 assert.deepEqual(importedAccessibilityImage.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
