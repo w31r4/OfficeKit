@@ -18,4 +18,4 @@
 
 - [x] 4.1 Extend one integrated PPJ sample with a newly exposed shape and adjusted image mask
 - [x] 4.2 Run the narrow C#, protobuf, Skill-maintainer, and strict OpenSpec checks
-- [ ] 4.3 Fast-forward atomic commits into main and record the exact evidence
+- [x] 4.3 Fast-forward atomic commits into main and record the exact evidence
