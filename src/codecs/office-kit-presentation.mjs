@@ -1946,12 +1946,10 @@ function presentationShadow(shadow, shapeId) {
 function presentationImageBorder(border, imageId) {
   const normalized = normalizePresentationImageBorder(border, `Presentation image ${imageId} border`);
   if (!normalized) return undefined;
-  const colorRgb = presentationRgb(normalized.color, `${imageId}.border.color`);
-  if (!colorRgb) {
-    throw new OfficeKitCodecError(`Presentation image ${imageId} border must use an RGB color.`, [], { code: "unsupported_presentation_features" });
-  }
+  const colorScheme = normalized.colorScheme == null ? undefined : presentationScheme(normalized.colorScheme, `${imageId}.border.colorScheme`);
+  const colorRgb = colorScheme === undefined ? presentationRgb(normalized.color, `${imageId}.border.color`) : undefined;
   return {
-    colorRgb,
+    ...(colorScheme === undefined ? { colorRgb } : { colorScheme }),
     widthEmu: BigInt(Math.round(normalized.width * EMU_PER_POINT)),
     style: normalized.style,
     ...(normalized.cap ? { cap: normalized.cap } : {}),
@@ -1976,7 +1974,7 @@ function modelPresentationShadow(shadow) {
 function modelPresentationImageBorder(border) {
   if (!border) return undefined;
   return {
-    color: border.colorRgb ? `#${border.colorRgb}` : "#000000",
+    ...(border.colorScheme ? { colorScheme: border.colorScheme } : { color: border.colorRgb ? `#${border.colorRgb}` : "#000000" }),
     width: Number(border.widthEmu) / EMU_PER_POINT,
     style: border.style || "solid",
     ...(border.cap ? { cap: border.cap } : {}),
@@ -2468,6 +2466,24 @@ function presentationImageReadOnlySnapshot(image) {
     geometry: image.geometry,
     borderRadius: image.borderRadius,
   });
+}
+
+function presentationImportedImageAssetsUnchanged(image) {
+  const dataUrlSource = image?.[PRESENTATION_IMAGE_DATA_URL_SOURCE];
+  const dataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "dataUrl");
+  const primaryUnchanged = !dataUrlSource || (
+    dataUrlSource.modified !== true &&
+    dataUrlDescriptor?.get === dataUrlSource.get &&
+    dataUrlDescriptor?.set === dataUrlSource.set
+  );
+  const svgDataUrlSource = image?.[PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE];
+  const svgDataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "svgDataUrl");
+  const fallbackUnchanged = !svgDataUrlSource || (
+    svgDataUrlSource.modified !== true &&
+    svgDataUrlDescriptor?.get === svgDataUrlSource.get &&
+    svgDataUrlDescriptor?.set === svgDataUrlSource.set
+  );
+  return primaryUnchanged && fallbackUnchanged;
 }
 
 function distributePresentationTableSize(total, count, ownerLabel) {
@@ -6153,12 +6169,23 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   };
 }
 
+function restoreEquivalentPresentationImageElementState(original, restored) {
+  // Imported cNvPr visibility/locking fields are presence-sensitive in the
+  // source graph, while the image facade intentionally omits them when they
+  // are not edited. Copy their source presence into the proof candidate so an
+  // otherwise asset-only replacement can still be compared byte-for-byte.
+  for (const field of ["hidden", "locked"]) {
+    if (Object.hasOwn(original, field)) restored[field] = original[field];
+  }
+}
+
 function compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "image" || requested.content.case !== "image" || original.source?.editable !== true) return undefined;
   const beforeImage = original.content.value;
   const afterImage = requested.content.value;
   if (!beforeImage.assetId || !afterImage.assetId || beforeImage.assetId === afterImage.assetId) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restoreEquivalentPresentationImageElementState(original, restored);
   restored.content.value.assetId = beforeImage.assetId;
   restored.content.value.crop = beforeImage.crop;
   if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
@@ -6195,6 +6222,7 @@ function compilePresentationImageSvgAssetOperation(original, requested, sourceSl
   const afterImage = requested.content.value;
   if (!beforeImage.svgAssetId || !afterImage.svgAssetId || beforeImage.svgAssetId === afterImage.svgAssetId) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restoreEquivalentPresentationImageElementState(original, restored);
   restored.content.value.svgAssetId = beforeImage.svgAssetId;
   if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
   const source = original.source;
