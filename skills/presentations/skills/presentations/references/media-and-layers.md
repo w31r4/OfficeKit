@@ -42,6 +42,13 @@ editable, crop-able, animated, or reordered. Masks, opacity, borders, and
 shadows belong to the image element; overlays are ordinary shapes placed after
 the image and before text.
 
+The authored native-background profile is intentionally narrow: opaque solid
+color, bounded gradient, or an opaque image with `fit: "stretch"`. A cropped,
+contained, tiled, or translucent picture must be the first image element in
+`pages[].elements[]`; place any scrim and editable foreground content after it.
+Unsupported background paint fails before PPTX output instead of silently
+changing the crop or alpha.
+
 A page background may also use a native linear or centered radial gradient.
 Choose it as a surface hierarchy or directional-light device, not as substitute
 imagery. Keep the stop count small, maintain text contrast across the entire

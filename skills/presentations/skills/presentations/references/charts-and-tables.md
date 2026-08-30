@@ -41,6 +41,36 @@ and style. Tables declare column widths and typed rows; they are not collections
 of manually aligned text boxes. Use chart/table styles to define semantic
 roles, then override only when a specific datum needs emphasis.
 
+The authored chart compiler owns these native visual controls:
+
+- bar, column, line, area, pie, doughnut, scatter, bubble, and bounded bar-line
+  combo plots;
+- legend visibility and top, bottom, left, or right placement;
+- ordinary, stacked, and percent-stacked grouping where the chart family
+  supports it;
+- bar direction, gap width, category/value-axis visibility, major gridlines,
+  data-label visibility and bounded label position;
+- chart-area and plot-area none or solid fills, including opacity;
+- direct solid series color plus editable line width, dash, opacity, cap, join,
+  and bounded markers.
+
+Chart-series gradients, image paint, explicit no-fill series, missing-value
+caches, radar, and waterfall still fail closed. Existing unsupported native
+chart graphs remain source-preserved; they are not simplified during an
+unrelated imported edit.
+
+The authored table compiler owns a physical column/row grid, finite rectangular
+merges, one optional header row, row/column banding flags, bounded rich text,
+body and paragraph layout, none/solid/gradient cell fills, and direct left,
+top, right, and bottom borders. Named table styles provide defaults and inline
+style properties override them field by field. More than one header row and
+image-filled cells fail closed. Imported table topology and unmodeled native
+style graphs remain source-owned.
+
+Use [the complete PPJ reference](ppj.md) for exact fields, value ranges, and
+compiler boundaries. This page explains visual choice; it is not a shortened
+substitute for the language manual.
+
 Render high-risk pages at final dimensions. Verify axes, labels, legends,
 units, source text, value precision, empty cells, merged-looking boundaries,
 and whether the visual still communicates without animation.

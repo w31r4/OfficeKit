@@ -68,6 +68,12 @@ source-bound edits, and rebuild. Use it to keep a secondary relationship
 present without competing with the evidence carrier; do not make required axes
 or data lines faint.
 
+Prefer alpha on the branch that actually needs it: fill, stroke, image, border,
+shadow, or gradient stop. `shape.style.opacity` below one is compiler-owned only
+for a solid-fill-only shape; a compound shape with text, stroke, or shadow fails
+closed because a single DrawingML value cannot represent honest whole-object
+opacity. Text color alpha is likewise rejected until it has a native run owner.
+
 Use a bounded gradient only when direction or depth carries meaning. PPJ owns
 linear gradients with an explicit angle and centered radial gradients with
 ordered RGB stops; each stop may carry opacity. These remain editable native
