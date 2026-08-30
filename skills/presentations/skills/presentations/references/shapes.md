@@ -18,6 +18,11 @@ an optional named style. Connector endpoints should bind stable element IDs
 when the relationship belongs to those objects. Keep arrow direction and label
 placement unambiguous.
 
+Shape, image, chart, table, and group frames support explicit `rotation`,
+`flipH`, and `flipV`. A group transform changes the outer group frame while its
+children keep their owner-local coordinates. Connector orientation is derived
+from its endpoints, so do not add an independent connector rotation.
+
 Custom geometry is justified only when a preset cannot express a necessary
 semantic form. Keep its path finite and editable. Do not trace a decorative
 illustration into arbitrary geometry when an image or SVG asset is the honest

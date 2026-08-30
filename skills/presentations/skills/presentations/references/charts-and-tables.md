@@ -41,6 +41,12 @@ and style. Tables declare column widths and typed rows; they are not collections
 of manually aligned text boxes. Use chart/table styles to define semantic
 roles, then override only when a specific datum needs emphasis.
 
+Chart and table frames may use `rotation`, `flipH`, and `flipV`. These are real
+native graphic-frame transforms and survive PPJ build, import, and a
+capability-issued source edit. Prefer ordinary zero-degree evidence layouts;
+rotate a chart or table only when the orientation itself communicates a real
+spatial relationship, never to decorate a page.
+
 The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, and bounded bar-line

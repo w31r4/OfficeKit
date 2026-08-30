@@ -75,11 +75,11 @@
       "reason": "Authored images currently accept unadjusted preset masks."
     },
     {
-      "feature": "tiled image elements and rotated non-shape frames",
-      "ppjPath": "image.fit or chart/table/connector/group.frame",
+      "feature": "tiled image elements and independently rotated connector frames",
+      "ppjPath": "image.fit or connector.frame",
       "behavior": "fail-closed",
       "sourceBound": "Imported placement and transform topology remains source-preserved unless a matching typed capability is issued.",
-      "reason": "Images own stretch, cover, contain, crop, opacity, preset masks, borders and shadows. Shape, text, placeholder and image frames own rotation/flips; chart, table, connector and group transforms do not yet."
+      "reason": "Images own stretch, cover, contain, crop, opacity, preset masks, borders and shadows. Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived."
     },
     {
       "feature": "radar, waterfall and missing chart points",
