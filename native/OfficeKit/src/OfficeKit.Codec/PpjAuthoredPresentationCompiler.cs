@@ -703,7 +703,11 @@ internal static class PpjAuthoredPresentationCompiler
         if (text.ValueKind == JsonValueKind.String)
         {
             var paragraph = new PresentationTextParagraph();
-            ApplyParagraphStyle(paragraph, FirstProperty(inlineStyle, namedStyle, "paragraph"));
+            ApplyParagraphStyle(
+                paragraph,
+                Property(namedStyle, "paragraph"),
+                Property(inlineStyle, "paragraph"),
+                null);
             paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, inlineStyle, null, null, catalog));
             body.Paragraphs.Add(paragraph);
             return body;
@@ -711,7 +715,11 @@ internal static class PpjAuthoredPresentationCompiler
         foreach (var paragraphJson in text.GetProperty("paragraphs").EnumerateArray())
         {
             var paragraph = new PresentationTextParagraph();
-            ApplyParagraphStyle(paragraph, Property(paragraphJson, "style") ?? FirstProperty(inlineStyle, namedStyle, "paragraph"));
+            ApplyParagraphStyle(
+                paragraph,
+                Property(namedStyle, "paragraph"),
+                Property(inlineStyle, "paragraph"),
+                Property(paragraphJson, "style"));
             foreach (var run in paragraphJson.GetProperty("runs").EnumerateArray())
                 paragraph.Runs.Add(BuildRun(
                     run.GetProperty("text").GetString()!,
@@ -851,20 +859,33 @@ internal static class PpjAuthoredPresentationCompiler
         if (verticalText is { } textMode) target.VerticalTextMode = textMode.GetString()!;
     }
 
-    private static void ApplyParagraphStyle(PresentationTextParagraph target, JsonElement? style)
+    private static void ApplyParagraphStyle(
+        PresentationTextParagraph target,
+        JsonElement? named,
+        JsonElement? inline,
+        JsonElement? direct)
     {
-        if (style is not { } value) return;
-        if (value.TryGetProperty("alignment", out var alignment)) target.Alignment = alignment.GetString()!;
-        if (value.TryGetProperty("level", out var level)) target.Level = checked((uint)level.GetInt32());
-        if (value.TryGetProperty("indent", out var indent)) target.MarginLeftEmu = Emu(indent.GetDouble());
-        if (value.TryGetProperty("hanging", out var hanging)) target.IndentEmu = -Emu(hanging.GetDouble());
-        if (value.TryGetProperty("spaceBefore", out var before)) target.SpaceBeforePoints = before.GetDouble();
-        if (value.TryGetProperty("spaceBeforeMultiplier", out var beforeMultiplier)) target.SpaceBeforeMultiplier = beforeMultiplier.GetDouble();
-        if (value.TryGetProperty("spaceAfter", out var after)) target.SpaceAfterPoints = after.GetDouble();
-        if (value.TryGetProperty("spaceAfterMultiplier", out var afterMultiplier)) target.SpaceAfterMultiplier = afterMultiplier.GetDouble();
-        if (value.TryGetProperty("lineSpacing", out var spacing)) target.LineSpacingPoints = spacing.GetDouble();
-        if (value.TryGetProperty("lineSpacingMultiplier", out var spacingMultiplier)) target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
-        if (value.TryGetProperty("bullet", out var bullet))
+        if (FirstProperty(direct, inline, named, "alignment") is { } alignment)
+            target.Alignment = alignment.GetString()!;
+        if (FirstProperty(direct, inline, named, "level") is { } level)
+            target.Level = checked((uint)level.GetInt32());
+        if (FirstProperty(direct, inline, named, "indent") is { } indent)
+            target.MarginLeftEmu = Emu(indent.GetDouble());
+        if (FirstProperty(direct, inline, named, "hanging") is { } hanging)
+            target.IndentEmu = -Emu(hanging.GetDouble());
+        if (FirstProperty(direct, inline, named, "spaceBefore") is { } before)
+            target.SpaceBeforePoints = before.GetDouble();
+        if (FirstProperty(direct, inline, named, "spaceBeforeMultiplier") is { } beforeMultiplier)
+            target.SpaceBeforeMultiplier = beforeMultiplier.GetDouble();
+        if (FirstProperty(direct, inline, named, "spaceAfter") is { } after)
+            target.SpaceAfterPoints = after.GetDouble();
+        if (FirstProperty(direct, inline, named, "spaceAfterMultiplier") is { } afterMultiplier)
+            target.SpaceAfterMultiplier = afterMultiplier.GetDouble();
+        if (FirstProperty(direct, inline, named, "lineSpacing") is { } spacing)
+            target.LineSpacingPoints = spacing.GetDouble();
+        if (FirstProperty(direct, inline, named, "lineSpacingMultiplier") is { } spacingMultiplier)
+            target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
+        if (FirstProperty(direct, inline, named, "bullet") is { } bullet)
         {
             var kind = bullet.GetProperty("type").GetString();
             if (kind == "none") target.NoBullet = true;
