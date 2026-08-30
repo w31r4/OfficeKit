@@ -25,7 +25,10 @@ if (command === "sync") {
   if (!existsSync(target)) errors.push(`Missing generated PPJ reference: ${path.relative(repo, target)}`);
   else if (readFileSync(target, "utf8") !== generated) errors.push("Generated ppj.md is stale; run the maintainer sync command.");
   if (errors.length) fail(errors);
-  process.stdout.write(`Presentation Skill maintenance check ok · ${Object.keys(registry.helpApis).length} Help APIs · ${registry.hostOnly.length} host-only operations\n`);
+  process.stdout.write(
+    `Presentation Skill maintenance check ok · ${Object.keys(registry.helpApis).length} Help APIs · ` +
+    `${Object.keys(registry.nativeLeafKinds).length} native leaves · ${registry.hostOnly.length} host-only operations\n`,
+  );
 }
 
 function validateRegistry(value, language) {
@@ -41,6 +44,39 @@ function validateRegistry(value, language) {
   for (const name of helpNames) if (!(name in value.helpApis)) errors.push(`Orphan Presentation Help API: ${name}`);
   for (const name of registryNames) if (!helpNames.includes(name)) errors.push(`Registry API has no current Help record: ${name}`);
   for (const [name, classification] of Object.entries(value.helpApis ?? {})) if (!classes.has(classification)) errors.push(`Invalid class for ${name}: ${classification}`);
+
+  const expectedPaths = Object.keys(language.properties ?? {}).map((name) => `$.${name}`).sort();
+  const declaredPaths = Object.keys(value.ppjPathOwners ?? {}).sort();
+  if (JSON.stringify(expectedPaths) !== JSON.stringify(declaredPaths))
+    errors.push("PPJ root fields and ppjPathOwners entries differ.");
+  for (const [field, details] of Object.entries(value.ppjPathOwners ?? {})) {
+    if (!details || typeof details.owner !== "string" || typeof details.surface !== "string" || typeof details.meaning !== "string")
+      errors.push(`PPJ field owner ${field} is incomplete.`);
+  }
+  const boundaryBehaviors = new Set(["fail-closed", "source-bound-only", "partial"]);
+  for (const [index, boundary] of (value.authoredCompilerBoundaries ?? []).entries()) {
+    if (!boundary || !boundaryBehaviors.has(boundary.behavior))
+      errors.push(`Authored compiler boundary ${index} has an invalid behavior.`);
+    for (const field of ["feature", "ppjPath", "sourceBound", "reason"])
+      if (typeof boundary?.[field] !== "string" || boundary[field].length === 0)
+        errors.push(`Authored compiler boundary ${index} is missing ${field}.`);
+  }
+
+  const editPlanSource = readFileSync(path.join(repo, "native/OfficeKit/src/OfficeKit.Codec/PptxEditPlanCodec.cs"), "utf8");
+  const closedLeafSet = /leafKind is not \(([^\n]+)\)/u.exec(editPlanSource)?.[1] ?? "";
+  const runtimeLeaves = [...closedLeafSet.matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort();
+  const registryLeaves = Object.keys(value.nativeLeafKinds ?? {}).sort();
+  if (runtimeLeaves.length === 0) errors.push("Could not discover the closed native leaf set in PptxEditPlanCodec.cs.");
+  if (JSON.stringify(runtimeLeaves) !== JSON.stringify(registryLeaves))
+    errors.push("PptxEditPlanCodec native leaf kinds and capability registry entries differ.");
+  const allowedLeafSurfaces = new Set(["native-leaf", "typed-operation"]);
+  const allowedLeafValueTypes = new Set(["string", "number", "boolean", "asset"]);
+  for (const [name, details] of Object.entries(value.nativeLeafKinds ?? {})) {
+    if (!details || !allowedLeafSurfaces.has(details.surface)) errors.push(`Native leaf ${name} has an invalid surface.`);
+    if (!allowedLeafValueTypes.has(details?.valueType)) errors.push(`Native leaf ${name} has an invalid valueType.`);
+    for (const field of ["unit", "ppjLocation", "boundary"])
+      if (typeof details?.[field] !== "string" || details[field].length === 0) errors.push(`Native leaf ${name} is missing ${field}.`);
+  }
 
   const liveSource = readFileSync(path.join(repo, "src/live/adapters/powerpoint.mjs"), "utf8");
   const liveBlock = /POWERPOINT_LIVE_OPERATIONS\s*=\s*Object\.freeze\(\[([\s\S]*?)\]\)/u.exec(liveSource)?.[1] ?? "";
@@ -141,6 +177,14 @@ function renderManual(schema, registry) {
   }, {});
   const classRows = Object.entries(registry.classes).map(([name, details]) =>
     `| \`${name}\` | ${counts[name] ?? registry.hostOnly.length} | ${details.meaning} |`).join("\n");
+  const fieldOwnerRows = Object.entries(registry.ppjPathOwners).map(([field, details]) =>
+    `| \`${field}\` | \`${details.owner}\` | \`${details.surface}\` | ${details.meaning} |`).join("\n");
+  const nativeLeafRows = Object.entries(registry.nativeLeafKinds).map(([name, details]) =>
+    `| \`${name}\` | \`${details.valueType}\` | \`${details.unit}\` | \`${details.ppjLocation}\` | \`${details.surface}\` | ${details.boundary} |`).join("\n");
+  const authoredBoundaryRows = registry.authoredCompilerBoundaries.map((details) =>
+    `| ${details.feature} | \`${details.ppjPath}\` | \`${details.behavior}\` | ${details.sourceBound} | ${details.reason} |`).join("\n");
+  const definitionSections = Object.entries(schema.$defs).map(([name, definition]) => renderDefinition(name, definition, schema)).join("\n\n");
+  const fieldCount = Object.values(schema.$defs).reduce((sum, definition) => sum + definitionProperties(definition, schema).properties.size, 0) + Object.keys(schema.properties).length;
   const budgets = schema["x-officekit-budgets"];
   return `<!-- GENERATED by presentation-skill-maintainer; do not hand-edit. schema-sha256=${digest(schemaBytes)} registry-sha256=${digest(registryBytes)} -->
 # PPJ language reference
@@ -175,6 +219,17 @@ All objects are closed: undeclared fields fail validation. IDs match
 sizes use points. Page order is \`pages[]\` order. Element order is back-to-front
 \`pages[].elements[]\` order; do not invent a second z-index.
 
+## Capability map
+
+The language contains ${fieldCount} documented root/definition fields and
+${Object.keys(registry.nativeLeafKinds).length} closed source-edit leaf kinds.
+The following owners prevent a runtime feature from existing without an Agent
+route:
+
+| PPJ path | Owner | Surface | Meaning |
+| --- | --- | --- | --- |
+${fieldOwnerRows}
+
 ## Typed page elements
 
 | \`type\` | Required fields beyond \`type\` | Optional fields |
@@ -186,6 +241,20 @@ Simple text uses a string. Mixed formatting uses \`paragraphs[]\` and
 explicit typed color objects. Assets use relative URIs, exact MIME and SHA-256;
 remote URLs and data-fetch instructions are invalid. Accessibility and rights
 metadata travel with the asset or element.
+
+## Authored compiler availability
+
+Schema validity proves that a program belongs to the PPJ language; it does not
+claim that every declared state already has a source-free native writer. The
+compiler owns ordinary text, shapes with preset geometry and solid fills,
+images and native image backgrounds, charts, tables, connectors, groups,
+placeholders, notes, comments, sections, custom shows, transitions, animations
+and Morph subject to the explicit boundaries below. A boundary fails before
+writing output; imported native content remains source-preserved.
+
+| Feature | PPJ path | Authored behavior | Imported/source-bound behavior | Current reason |
+| --- | --- | --- | --- | --- |
+${authoredBoundaryRows}
 
 ## Components terminate
 
@@ -202,6 +271,42 @@ its SHA-256. Every visible object becomes a typed element or \`opaque\` with a
 fields and keep its expected revision/hash; unsupported topology stays opaque.
 No-op build returns the source bytes exactly. A stale, ambiguous or undeclared
 mutation fails instead of rebuilding or flattening the source.
+
+### Closed imported leaf vocabulary
+
+The compiler may issue the following bounded leaves after importing the exact
+source PPTX. \`native-leaf\` values can appear in \`nativeRef.leaves[]\`;
+\`typed-operation\` values are expressed by the typed PPJ element field named
+below and still require the corresponding issued capability.
+
+| Leaf kind | Value | Unit | PPJ location | Surface | Safety boundary |
+| --- | --- | --- | --- | --- | --- |
+${nativeLeafRows}
+
+An imported native leaf has a stable opaque ID, a closed kind, the expected
+source-value hash and its current scalar value. Change only \`value\`; never
+invent an ID, kind or hash:
+
+\`\`\`json
+{
+  "nativeRef": {
+    "handle": "nr-…",
+    "sourceSha256": "<64 lowercase hex>",
+    "revision": "pptx-…",
+    "objectHash": "<64 lowercase hex>",
+    "capabilitySetSha256": "<64 lowercase hex>",
+    "capabilities": [],
+    "leaves": [
+      {
+        "id": "leaf-font-size-…",
+        "kind": "fontSizePoints",
+        "expectedHash": "<64 lowercase hex>",
+        "value": 18
+      }
+    ]
+  }
+}
+\`\`\`
 
 OfficeKit-authored PPTX embeds canonical PPJ and a node map. Import restores
 that PPJ exactly when valid. If native software changed the PPTX but left the
@@ -238,6 +343,13 @@ The registry classifies legacy facade APIs while PPJ 2.0 converges. A
 \`compiler-helper\` is not Agent syntax. PowerPoint Live operations remain in
 the separate host-only list and never serialize into PPJ.
 
+## Complete schema field reference
+
+This section is generated from every PPJ schema definition. It is exhaustive
+for syntax; the focused references explain design judgment and workflows.
+
+${definitionSections}
+
 ## Common mistakes
 
 - Editing a PPTX package path instead of its PPJ ID or issued nativeRef.
@@ -252,6 +364,53 @@ the separate host-only list and never serialize into PPJ.
 }
 
 function code(value) { return `\`${value}\``; }
+function renderDefinition(name, definition, schema) {
+  const { properties, required } = definitionProperties(definition, schema);
+  const summary = schemaSummary(definition);
+  if (properties.size === 0)
+    return `### \`${name}\`\n\n${summary}.`;
+  const rows = [...properties.entries()].map(([field, fieldSchema]) =>
+    `| \`${field}\` | ${required.has(field) ? "yes" : "no"} | ${schemaSummary(fieldSchema)} | ${schemaConstraints(fieldSchema)} |`).join("\n");
+  return `### \`${name}\`\n\n${summary}.\n\n| Field | Required | Type or allowed values | Constraints |\n| --- | --- | --- | --- |\n${rows}`;
+}
+function definitionProperties(definition, schema) {
+  const properties = new Map();
+  const required = new Set();
+  const visit = (fragment, visited = new Set()) => {
+    if (!fragment || typeof fragment !== "object") return;
+    if (fragment.$ref) {
+      const name = fragment.$ref.split("/").at(-1);
+      if (visited.has(name)) return;
+      visit(schema.$defs[name], new Set([...visited, name]));
+    }
+    for (const part of fragment.allOf ?? []) visit(part, visited);
+    for (const [field, value] of Object.entries(fragment.properties ?? {})) properties.set(field, value);
+    for (const field of fragment.required ?? []) required.add(field);
+  };
+  visit(definition);
+  return { properties, required };
+}
+function schemaSummary(value) {
+  if (!value || typeof value !== "object") return "unknown";
+  if (value.$ref) return `\`${value.$ref.split("/").at(-1)}\``;
+  if (Object.hasOwn(value, "const")) return `literal ${code(JSON.stringify(value.const))}`;
+  if (value.enum) return value.enum.map((item) => code(JSON.stringify(item))).join(" | ");
+  if (value.oneOf) return value.oneOf.map(schemaSummary).join(" or ");
+  if (value.allOf) return value.allOf.map(schemaSummary).join(" + ");
+  if (value.type === "array") return `array of ${schemaSummary(value.items)}`;
+  if (Array.isArray(value.type)) return value.type.map(code).join(" or ");
+  if (value.type) return code(value.type);
+  return "validated value";
+}
+function schemaConstraints(value) {
+  if (!value || typeof value !== "object") return "none";
+  const constraints = [];
+  for (const [field, label] of [["minLength", "min chars"], ["maxLength", "max chars"], ["minItems", "min items"], ["maxItems", "max items"], ["minimum", "min"], ["exclusiveMinimum", ">"], ["maximum", "max"], ["exclusiveMaximum", "<"]])
+    if (Object.hasOwn(value, field)) constraints.push(`${label} ${value[field]}`);
+  if (value.pattern) constraints.push(`pattern ${code(value.pattern)}`);
+  if (value.uniqueItems) constraints.push("unique items");
+  return constraints.join("; ") || "none";
+}
 function digest(value) { return createHash("sha256").update(value).digest("hex"); }
 function readJson(file) { return JSON.parse(readFileSync(file, "utf8")); }
 function fail(errors) { for (const error of errors) process.stderr.write(`ERROR ${error}\n`); process.exit(1); }

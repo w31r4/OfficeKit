@@ -11,8 +11,9 @@ runtime change is incomplete when either surface cannot discover it.
 
 ## Start with the owning class
 
-Read `src/ppj/capability-registry.json`. Every stable Presentation Help API is
-classified as one of:
+Read `src/ppj/capability-registry.json`. It is the discoverability ledger for
+three surfaces: PPJ root paths, the closed C# source-edit leaf vocabulary, and
+every stable Presentation Help API. Help APIs are classified as one of:
 
 - `ppj-state`: persistent state belongs in the JSON Schema and compiler;
 - `native-ref`: a source-bound capability belongs in projection, diff and
@@ -30,8 +31,9 @@ arbitrary JavaScript are not Presentation language features.
 2. Update `src/ppj/ppj-v1.schema.json` when persistent state changes.
 3. Update the C# reader, validator, projector, compiler and lowerer surfaces
    that own the classified capability.
-4. Update Help and the capability registry. Classify every new stable Help API
-   explicitly; the checker rejects an orphan.
+4. Update Help and the capability registry. Classify every new stable Help API,
+   PPJ owner path and `PptxEditPlanCodec` leaf explicitly; the checker rejects
+   an orphan in either direction.
 5. Run `sync` to regenerate `references/ppj.md` from the Schema and registry.
 6. Update exactly one focused Agent reference: fonts, shapes, text,
    charts/tables, media/layers, motion, components/templates, imported
@@ -50,7 +52,8 @@ node skills/presentations/skills/presentation-skill-maintainer/scripts/maintain-
 ```
 
 `check` is read-only. It compares the registry with every Presentation Help
-record, verifies PowerPoint Live stays host-only, and proves the generated PPJ
+record and the codec's closed leaf set, verifies every PPJ root path has an
+owner, keeps PowerPoint Live host-only, and proves the exhaustive generated PPJ
 manual matches its inputs. `sync` changes only the generated PPJ manual.
 
 ## Completion boundary
