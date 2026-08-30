@@ -992,6 +992,10 @@ message SpreadsheetChartArtifact {
   // Canonical c:legend/c:txPr typography. The bounded value contract is shared
   // with chart titles and axis labels.
   SpreadsheetChartTextStyleArtifact legend_text_style = 26;
+  // Presence-aware circular-plot geometry. first_slice_angle applies to pie
+  // and doughnut charts; doughnut_hole_size applies only to doughnut charts.
+  optional uint32 first_slice_angle = 27;
+  optional uint32 doughnut_hole_size = 28;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -2452,6 +2456,9 @@ message PresentationChart {
   // remains the flattened compatibility value and must match this body. The
   // field is absent for the historical single-run title profile.
   PresentationTextBody title_body = 30;
+  // Presence-aware circular-plot geometry mirrored from the native ChartPart.
+  optional uint32 first_slice_angle = 31;
+  optional uint32 doughnut_hole_size = 32;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from

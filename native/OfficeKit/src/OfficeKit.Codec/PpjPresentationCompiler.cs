@@ -1211,7 +1211,9 @@ internal static class PpjSourceBoundPresentationCompiler
             "legendTextStyle",
             "dataLabels",
             "chartAreaFill",
-            "plotAreaFill");
+            "plotAreaFill",
+            "startAngle",
+            "holeSize");
 
         var changed = false;
         if (PropertyChanged(oldStyle, newStyle, "titleTextStyle"))
@@ -1260,6 +1262,28 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             RequireCapability(after, "setChartFill", path + ".style.plotAreaFill");
             target.PlotAreaFill = SourceBoundChartFill(newStyle, "plotAreaFill", path + ".style.plotAreaFill");
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "startAngle"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.startAngle");
+            if (target.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut))
+                throw Unsupported(path + ".style.startAngle", "first-slice angle on a non-circular chart");
+            if (newStyle is { } owner && owner.TryGetProperty("startAngle", out var value))
+                target.FirstSliceAngle = checked((uint)value.GetInt32());
+            else
+                target.ClearFirstSliceAngle();
+            changed = true;
+        }
+        if (PropertyChanged(oldStyle, newStyle, "holeSize"))
+        {
+            RequireCapability(after, "setChartPlot", path + ".style.holeSize");
+            if (target.Type != SpreadsheetChartType.Doughnut)
+                throw Unsupported(path + ".style.holeSize", "center-hole size on a non-doughnut chart");
+            if (newStyle is { } owner && owner.TryGetProperty("holeSize", out var value))
+                target.DoughnutHoleSize = checked((uint)value.GetInt32());
+            else
+                target.ClearDoughnutHoleSize();
             changed = true;
         }
         return changed;

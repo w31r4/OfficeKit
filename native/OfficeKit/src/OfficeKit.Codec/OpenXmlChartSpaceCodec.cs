@@ -97,11 +97,11 @@ internal static class OpenXmlChartSpaceCodec
             SpreadsheetChartType.Bar => new XElement(ChartNs + "barChart", new XElement(ChartNs + "barDir", new XAttribute("val", BarDirectionToken(chart.BarDirection))), new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: true))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasGapWidth ? new XElement(ChartNs + "gapWidth", new XAttribute("val", chart.GapWidth)) : null, new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Line => new XElement(ChartNs + "lineChart", XlsxChartLineOptionsCodec.GroupingElement(LineOptions(chart)), XlsxChartLineOptionsCodec.VaryColorsElement(chart.LineOptions), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), XlsxChartLineOptionsCodec.SmoothElement(chart.LineOptions), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Area => new XElement(ChartNs + "areaChart", new XElement(ChartNs + "grouping", new XAttribute("val", GroupingToken(chart.Grouping, clustered: false))), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", "0")), new XElement(ChartNs + "holeSize", new XAttribute("val", "50"))),
+            SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.HasFirstSliceAngle ? chart.FirstSliceAngle : 0U)), new XElement(ChartNs + "holeSize", new XAttribute("val", chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U))),
             SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", "marker")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", "100")), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", "area")), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Radar => new XElement(ChartNs + "radarChart", new XElement(ChartNs + "radarStyle", new XAttribute("val", "standard")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
-            SpreadsheetChartType.Pie => new XElement(ChartNs + "pieChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels)),
+            SpreadsheetChartType.Pie => new XElement(ChartNs + "pieChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), chart.HasFirstSliceAngle ? new XElement(ChartNs + "firstSliceAng", new XAttribute("val", chart.FirstSliceAngle)) : null),
             _ => throw new InvalidOperationException("Validated chart type is unsupported."),
         };
         var plotArea = new XElement(ChartNs + "plotArea", new XElement(ChartNs + "layout"), plot);
@@ -362,9 +362,35 @@ internal static class OpenXmlChartSpaceCodec
             return true;
         }
 
+        if (chart.Type == SpreadsheetChartType.Pie)
+        {
+            if (!TryOptionalUInt(plot, "firstSliceAng", 0, 360, out var hasAngle, out var angle) ||
+                plot.Element(ChartNs + "holeSize") is not null)
+                return false;
+            if (hasAngle) chart.FirstSliceAngle = angle;
+            return plot.Element(ChartNs + "grouping") is null &&
+                   plot.Element(ChartNs + "gapWidth") is null &&
+                   plot.Element(ChartNs + "barDir") is null;
+        }
+
+        if (chart.Type == SpreadsheetChartType.Doughnut)
+        {
+            if (!TryOptionalUInt(plot, "firstSliceAng", 0, 360, out var hasAngle, out var angle) ||
+                !TryOptionalUInt(plot, "holeSize", 10, 90, out var hasHoleSize, out var holeSize) ||
+                !hasHoleSize)
+                return false;
+            if (hasAngle) chart.FirstSliceAngle = angle;
+            chart.DoughnutHoleSize = holeSize;
+            return plot.Element(ChartNs + "grouping") is null &&
+                   plot.Element(ChartNs + "gapWidth") is null &&
+                   plot.Element(ChartNs + "barDir") is null;
+        }
+
         return plot.Element(ChartNs + "grouping") is null &&
                plot.Element(ChartNs + "gapWidth") is null &&
-               plot.Element(ChartNs + "barDir") is null;
+               plot.Element(ChartNs + "barDir") is null &&
+               plot.Element(ChartNs + "firstSliceAng") is null &&
+               plot.Element(ChartNs + "holeSize") is null;
     }
 
     private static void PatchPlotOptions(XElement plot, SpreadsheetChartArtifact chart)
@@ -386,8 +412,19 @@ internal static class OpenXmlChartSpaceCodec
             SetRequiredScalar(plot, "grouping", GroupingToken(chart.Grouping, clustered: false));
             return;
         }
-        if (chart.HasGapWidth || chart.Grouping.Length > 0 || chart.BarDirection.Length > 0)
-            throw new CodecException("invalid_chart_style", "The selected chart type cannot carry grouping, gap width, or bar direction.");
+        if (chart.Type == SpreadsheetChartType.Pie)
+        {
+            PatchOptionalUInt(plot, "firstSliceAng", chart.HasFirstSliceAngle, chart.FirstSliceAngle);
+            return;
+        }
+        if (chart.Type == SpreadsheetChartType.Doughnut)
+        {
+            PatchOptionalUInt(plot, "firstSliceAng", chart.HasFirstSliceAngle, chart.FirstSliceAngle);
+            SetRequiredScalar(plot, "holeSize", (chart.HasDoughnutHoleSize ? chart.DoughnutHoleSize : 50U).ToString(CultureInfo.InvariantCulture));
+            return;
+        }
+        if (chart.HasGapWidth || chart.Grouping.Length > 0 || chart.BarDirection.Length > 0 || chart.HasFirstSliceAngle || chart.HasDoughnutHoleSize)
+            throw new CodecException("invalid_chart_style", "The selected chart type cannot carry grouping, gap width, bar direction, or circular-plot geometry.");
     }
 
     private static SpreadsheetChartLineOptionsArtifact? LineOptions(SpreadsheetChartArtifact chart)
@@ -478,16 +515,17 @@ internal static class OpenXmlChartSpaceCodec
         if (existing is not null) existing.ReplaceWith(replacement);
         else
         {
-            var axis = owner.Elements(ChartNs + "axId").FirstOrDefault();
-            if (axis is null) owner.Add(replacement);
-            else axis.AddBeforeSelf(replacement);
+            var following = owner.Elements().FirstOrDefault(element =>
+                element.Name == ChartNs + "axId" || element.Name == ChartNs + "extLst");
+            if (following is null) owner.Add(replacement);
+            else following.AddBeforeSelf(replacement);
         }
     }
 
     private static bool PlotProfileEditable(XElement plot, SpreadsheetChartType type)
     {
         if (type == SpreadsheetChartType.Area) return true;
-        if (type == SpreadsheetChartType.Doughnut) return ScalarEquals(plot, "firstSliceAng", "0", required: false) && ScalarEquals(plot, "holeSize", "50", required: true);
+        if (type == SpreadsheetChartType.Doughnut) return true;
         if (type == SpreadsheetChartType.Scatter) return ScalarEquals(plot, "scatterStyle", "marker", required: true);
         if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "bubbleScale", "100", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false) && ScalarEquals(plot, "sizeRepresents", "area", required: false);
         if (type == SpreadsheetChartType.Radar) return ScalarEquals(plot, "radarStyle", "standard", required: true) && ScalarEquals(plot, "varyColors", "0", required: false);

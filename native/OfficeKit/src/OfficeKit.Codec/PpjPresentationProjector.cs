@@ -664,6 +664,8 @@ internal static partial class PpjPresentationProjector
         };
         if (chart.Grouping.Length > 0) style["stacking"] = chart.Grouping;
         if (chart.HasGapWidth) style["gapWidth"] = chart.GapWidth;
+        if (chart.HasFirstSliceAngle) style["startAngle"] = chart.FirstSliceAngle;
+        if (chart.HasDoughnutHoleSize) style["holeSize"] = chart.DoughnutHoleSize;
         if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
         if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
         if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
@@ -1636,6 +1638,8 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
                 output.Add(new("setChartFill", ["chart.fill"]));
+                if (element.Chart.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut)
+                    output.Add(new("setChartPlot", ["chart.plot"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Table when source.Editable:

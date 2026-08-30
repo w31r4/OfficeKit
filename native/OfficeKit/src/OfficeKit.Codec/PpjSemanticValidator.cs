@@ -29,6 +29,7 @@ internal static class PpjSemanticValidator
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle"),
             ["setChartFill"] = Set("chart.fill"),
+            ["setChartPlot"] = Set("chart.plot"),
             ["setSmartArtText"] = Set("smartArt.text"),
             ["setOlePayload"] = Set("ole.payload"),
             ["setName"] = Set("name"),
@@ -746,6 +747,20 @@ internal static class PpjSemanticValidator
                 "ppj.chart.dataLabelConflict",
                 "Structured dataLabels cannot be combined with showDataLabels or dataLabelPosition.",
                 path + ".style.dataLabels"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("startAngle", out _) &&
+            chart.ChartType is not ("pie" or "doughnut"))
+            diagnostics.Add(new(
+                "ppj.chart.startAngleType",
+                "style.startAngle applies only to pie and doughnut charts.",
+                path + ".style.startAngle"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("holeSize", out _) &&
+            chart.ChartType != "doughnut")
+            diagnostics.Add(new(
+                "ppj.chart.holeSizeType",
+                "style.holeSize applies only to doughnut charts.",
+                path + ".style.holeSize"));
         if (chart.ChartType != "combo" &&
             (chart.Raw.TryGetProperty("secondaryXAxis", out _) || chart.Raw.TryGetProperty("secondaryYAxis", out _)))
             diagnostics.Add(new(
@@ -873,7 +888,7 @@ internal static class PpjSemanticValidator
                     $"{path}.{property}"));
 
         if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("heatmap", out var heatmap)) return;
-        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall" })
             if (style.TryGetProperty(property, out _))
                 diagnostics.Add(new(
                     "ppj.chart.heatmapStyleField",
@@ -1015,7 +1030,7 @@ internal static class PpjSemanticValidator
                     $"{seriesPath}.{property}"));
 
         if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("candlestick", out var candlestick)) return;
-        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap" })
             if (style.TryGetProperty(property, out _))
                 diagnostics.Add(new(
                     "ppj.chart.candlestickStyleField",
@@ -1173,7 +1188,7 @@ internal static class PpjSemanticValidator
         }
 
         if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("treemap", out _)) return;
-        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick" })
             if (style.TryGetProperty(property, out _))
                 diagnostics.Add(new(
                     "ppj.chart.treemapStyleField",
@@ -1327,7 +1342,7 @@ internal static class PpjSemanticValidator
         }
 
         if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("sunburst", out _)) return;
-        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap" })
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap" })
             if (style.TryGetProperty(property, out _))
                 diagnostics.Add(new(
                     "ppj.chart.sunburstStyleField",
@@ -1495,7 +1510,7 @@ internal static class PpjSemanticValidator
                         "ppj.chart.sankeyNodeColor",
                         $"Sankey nodeColorMap key {property.Name} is not a declared node.",
                         $"{path}.style.sankey.nodeColorMap.{property.Name}"));
-        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "startAngle", "holeSize", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
             if (style.TryGetProperty(property, out _))
                 diagnostics.Add(new(
                     "ppj.chart.sankeyStyleField",

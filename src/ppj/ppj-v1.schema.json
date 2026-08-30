@@ -1159,6 +1159,7 @@
             "setChartData",
             "setChartTextStyle",
             "setChartFill",
+            "setChartPlot",
             "setSmartArtText",
             "setOlePayload",
             "setName",
@@ -1211,6 +1212,7 @@
               "chart.data",
               "chart.textStyle",
               "chart.fill",
+              "chart.plot",
               "smartArt.text",
               "ole.payload",
               "name",
@@ -3144,6 +3146,16 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 500
+        },
+        "startAngle": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "holeSize": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 90
         },
         "showCategoryAxis": {
           "type": "boolean"

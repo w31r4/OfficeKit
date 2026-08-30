@@ -1126,6 +1126,35 @@ public sealed class PptxCodecTests
         });
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
+            ["id"] = "allocation-doughnut-main",
+            ["type"] = "chart",
+            ["role"] = "bounded circular allocation evidence",
+            ["frame"] = new JsonObject { ["x"] = 620, ["y"] = 300, ["width"] = 280, ["height"] = 160 },
+            ["chartType"] = "doughnut",
+            ["title"] = "Allocation mix",
+            ["style"] = new JsonObject
+            {
+                ["legend"] = "right",
+                ["startAngle"] = 135,
+                ["holeSize"] = 68,
+                ["dataLabels"] = new JsonObject { ["showPercent"] = true, ["position"] = "center" },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Core", "Growth", "Reserve"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "allocation-mix",
+                        ["name"] = "Allocation",
+                        ["values"] = new JsonArray(52, 31, 17),
+                    },
+                },
+            },
+        });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
             ["id"] = "waterfall-bridge-main",
             ["type"] = "chart",
             ["role"] = "cumulative operating bridge",
@@ -1887,7 +1916,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(39U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(40U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -2075,7 +2104,13 @@ public sealed class PptxCodecTests
             Assert.Equal(new Dictionary<uint, double> { [1] = 40 }, LiteralValues(waterfallSeries[1]));
             Assert.Equal(new Dictionary<uint, double> { [2] = 25, [3] = 10 }, LiteralValues(waterfallSeries[2]));
             Assert.Equal(new Dictionary<uint, double> { [0] = 120, [4] = 125 }, LiteralValues(waterfallSeries[3]));
-            Assert.Equal(5, package.PresentationPart.SlideParts.SelectMany(slide => slide.ChartParts).Count());
+            var circularChartPath = package.PresentationPart.SlideParts.First().ChartParts
+                .Single(part => part.ChartSpace!.Descendants<C.DoughnutChart>().Any())
+                .Uri.OriginalString.TrimStart('/');
+            var circularChartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), circularChartPath)));
+            Assert.Equal("135", circularChartXml.Descendants(chartNamespace + "firstSliceAng").Single().Attribute("val")!.Value);
+            Assert.Equal("68", circularChartXml.Descendants(chartNamespace + "holeSize").Single().Attribute("val")!.Value);
+            Assert.Equal(6, package.PresentationPart.SlideParts.SelectMany(slide => slide.ChartParts).Count());
             var nativeHeatmap = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
                 .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "correlation intensity matrix");
@@ -2265,6 +2300,13 @@ public sealed class PptxCodecTests
         Assert.True(importedLine.LineOptions.VaryColors);
         Assert.Equal([92D, 0D, 121D], Assert.Single(importedLine.Series).Values);
         Assert.Equal([1U], importedLine.Series[0].MissingValueIndexes);
+        var importedCircular = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Chart &&
+            element.Chart.Type == SpreadsheetChartType.Doughnut).Chart;
+        Assert.True(importedCircular.HasFirstSliceAngle);
+        Assert.Equal(135U, importedCircular.FirstSliceAngle);
+        Assert.True(importedCircular.HasDoughnutHoleSize);
+        Assert.Equal(68U, importedCircular.DoughnutHoleSize);
         var importedClaimElement = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
             element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal));
@@ -2661,6 +2703,14 @@ public sealed class PptxCodecTests
                 .GetProperty("values")[3].GetDouble());
             Assert.Equal("circle", projectedRadar.GetProperty("data").GetProperty("series")[0]
                 .GetProperty("marker").GetProperty("symbol").GetString());
+            var projectedCircular = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "chart" &&
+                    item.GetProperty("chartType").GetString() == "doughnut");
+            Assert.Equal(135, projectedCircular.GetProperty("style").GetProperty("startAngle").GetInt32());
+            Assert.Equal(68, projectedCircular.GetProperty("style").GetProperty("holeSize").GetInt32());
+            Assert.Contains(projectedCircular.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setChartPlot" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "chart.plot"));
             var projectedHeatmap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&
                     item.GetProperty("name").GetString() == "correlation intensity matrix");
@@ -2717,6 +2767,51 @@ public sealed class PptxCodecTests
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
+        }
+        var circularProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var circularChart = circularProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "doughnut");
+        circularChart["style"]!["startAngle"] = 210;
+        circularChart["style"]!["holeSize"] = 74;
+        var circularChartId = circularChart["id"]!.GetValue<string>();
+        var circularEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(circularProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(circularEdit.Ok, Diagnostics(circularEdit));
+        Assert.Single(circularEdit.PresentationProgram.ChangedParts);
+        Assert.Contains("/charts/chart", circularEdit.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+        Assert.EndsWith(".xml", circularEdit.PresentationProgram.ChangedParts[0], StringComparison.Ordinal);
+        Assert.Contains(circularChartId, circularEdit.PresentationProgram.ChangedNodeIds);
+        var circularReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = circularEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/circular-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(circularReprojection.Ok, Diagnostics(circularReprojection));
+        using (var circularJson = JsonDocument.Parse(circularReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedCircular = circularJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == circularChartId);
+            Assert.Equal(210, reprojectedCircular.GetProperty("style").GetProperty("startAngle").GetInt32());
+            Assert.Equal(74, reprojectedCircular.GetProperty("style").GetProperty("holeSize").GetInt32());
         }
         var stateProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var stateClaim = stateProgram["pages"]![0]!["elements"]!.AsArray()
@@ -3375,7 +3470,7 @@ public sealed class PptxCodecTests
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
         Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart5.xml"],
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart6.xml"],
             chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
