@@ -1104,11 +1104,13 @@ opaque or fail closed.
 
 Some third-party decks encode radial-gradient `a:fillToRect` coordinates as
 percent strings such as `50%`, while the Open XML SDK exposes the same
-attributes through numeric accessors. The importer now treats that unsupported
-gradient profile as opaque instead of throwing, so the source package remains
-importable and byte-identical on no-op export. The Data Particles and Minimal
-Business samples now pass the same source-bound no-op path as the other four
-six-sample references; editing that gradient still fails closed.
+attributes through numeric accessors. The importer now reads the raw lexical
+values for the bounded centered-radial profile instead of letting an SDK
+conversion exception hide an otherwise safe semantic fill. No-op export stays
+byte-identical. Data Particles and Minimal Business now expose the background
+gradient as a typed radial fill; changing one stop through `setBackground()`
+changes only that slide XML and survives a second import. Other parameterized,
+effect-bearing, or non-centered profiles remain opaque and fail closed.
 
 ### Imported text effects and nested-group semantics
 
