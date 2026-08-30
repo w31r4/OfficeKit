@@ -100,6 +100,127 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void PpjSourceBoundProgramReusesOneProvenSlide()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var fixture = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        var sourcePage = fixture["pages"]![0]!.DeepClone().AsObject();
+        sourcePage.Remove("notes");
+        sourcePage.Remove("transition");
+        sourcePage.Remove("animations");
+        sourcePage["elements"] = new JsonArray(
+            sourcePage["elements"]![0]!.DeepClone(),
+            sourcePage["elements"]![1]!.DeepClone());
+        fixture["assets"] = new JsonArray();
+        fixture["components"] = new JsonArray();
+        fixture["pages"] = new JsonArray(sourcePage);
+        fixture["sections"] = new JsonArray();
+        fixture["customShows"] = new JsonArray();
+        fixture["comments"] = new JsonArray();
+
+        var authored = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(fixture.ToJsonString()),
+            },
+        });
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = RemoveEmbeddedPpj(authored.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/source.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var origin = state["pages"]![0]!.AsObject();
+        var duplicate = origin["nativeRef"]!["capabilities"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(capability => capability["operation"]!.GetValue<string>() == "duplicate");
+        Assert.Contains(duplicate["fields"]!.AsArray(), field => field!.GetValue<string>() == "pageClone");
+        var cloneId = "page-source-clone";
+        state["pages"]!.AsArray().Insert(1, new JsonObject
+        {
+            ["id"] = cloneId,
+            ["role"] = "source continuation",
+            ["elements"] = new JsonArray(),
+            ["sourceClone"] = new JsonObject
+            {
+                ["page"] = origin["id"]!.GetValue<string>(),
+                ["capability"] = duplicate["id"]!.GetValue<string>(),
+            },
+        });
+
+        var cloned = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(sourceBytes),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(cloned.Ok, Diagnostics(cloned));
+        Assert.Contains(cloneId, cloned.PresentationProgram.ChangedNodeIds);
+        using (var sourceStream = new MemoryStream(sourceBytes, writable: false))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var outputStream = new MemoryStream(cloned.File.ToByteArray(), writable: false))
+        using (var outputPackage = PresentationDocument.Open(outputStream, false))
+        {
+            var sourceSlide = Assert.Single(OrderedSlides(sourcePackage));
+            var outputSlides = OrderedSlides(outputPackage).ToArray();
+            Assert.Equal(2, outputSlides.Length);
+            Assert.Equal(sourceSlide.Uri, outputSlides[0].Uri);
+            Assert.NotEqual(outputSlides[0].Uri, outputSlides[1].Uri);
+            Assert.Equal(sourceSlide.Slide!.OuterXml, outputSlides[0].Slide!.OuterXml);
+            Assert.Equal(sourceSlide.Slide!.OuterXml, outputSlides[1].Slide!.OuterXml);
+        }
+
+        var reopened = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = cloned.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/reopened.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(reopened.Ok, Diagnostics(reopened));
+        using var reopenedJson = JsonDocument.Parse(reopened.PresentationProgram.ProgramJson.ToByteArray());
+        Assert.Equal(2, reopenedJson.RootElement.GetProperty("pages").GetArrayLength());
+        Assert.All(reopenedJson.RootElement.GetProperty("pages").EnumerateArray(), page =>
+        {
+            Assert.False(page.TryGetProperty("sourceClone", out _));
+            Assert.NotEmpty(page.GetProperty("elements").EnumerateArray());
+        });
+    }
+
+    [Fact]
     public void PpjV1CompilesCanonicalPresentationProgramDeterministically()
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
