@@ -4030,7 +4030,7 @@ internal static class PpjAuthoredPresentationCompiler
         return new PresentationSpeakerNotes { TextBody = body, Text = Flatten(body) };
     }
 
-    private static PresentationAnimation BuildAnimation(PpjAnimationModel source, IReadOnlyList<PpjElementModel> elements)
+    internal static PresentationAnimation BuildAnimation(PpjAnimationModel source, IReadOnlyList<PpjElementModel> elements)
     {
         var target = Walk(elements).Single(element => element.Id == source.TargetId);
         var animation = new PresentationAnimation

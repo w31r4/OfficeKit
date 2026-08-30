@@ -498,7 +498,8 @@ internal static class PpjSourceBoundPresentationCompiler
             var before = sourcePage.Program;
             var slide = sourcePage.Wire;
             RequireNativeRef(before.Raw, after.Raw, path);
-            RequireEqualExcept(before.Raw, after.Raw, path, "name", "role", "claim", "background", "transition", "notes", "elements", "hidden");
+            RequireEqualExcept(before.Raw, after.Raw, path, "name", "role", "claim", "background", "transition", "notes", "animations", "elements", "hidden");
+            var animationsChanged = AnimationStateChanged(before, after);
             if (PropertyChanged(before.Raw, after.Raw, "name"))
             {
                 RequireCapability(after.NativeRef, "setName", path + ".name");
@@ -574,6 +575,8 @@ internal static class PpjSourceBoundPresentationCompiler
             if (authored.Length > 0)
             {
                 RequireCapability(after.NativeRef, "appendElement", path + ".elements");
+                if (animationsChanged)
+                    throw Unsupported(path + ".animations", "animating a new source overlay before build and reimport");
                 if (mutations.SemanticChanges || mutations.NativeLeaves.Count > 0 || changedNodeIds.Contains(after.Id))
                     throw Unsupported(path + ".elements", "mixing a source overlay with another mutation; build and reimport between edits");
                 if (retained.Length != before.Elements.Count ||
@@ -647,6 +650,30 @@ internal static class PpjSourceBoundPresentationCompiler
                     RequireCapability(after.Elements[elementIndex], "reorder", $"{path}.elements[{elementIndex}]");
                     changedNodeIds.Add(after.Elements[elementIndex].Id);
                 }
+                changedNodeIds.Add(after.Id);
+                mutations.SemanticChanges = true;
+                changed = true;
+            }
+            if (animationsChanged)
+            {
+                RequireCapabilityField(after.NativeRef, "setAnimations", "animations", path + ".animations");
+                if (slide.Morph is not null ||
+                    slide.Source is null ||
+                    slide.Source.TimingEditable != true && slide.Source.TimingAddable != true)
+                    throw Unsupported(path + ".animations", "the source timing graph is no longer editable or addable");
+
+                var targetIds = SourceAnimationTargetIds(after.Elements, requestedWire, path + ".elements");
+                slide.Animations.Clear();
+                foreach (var animation in after.Animations)
+                {
+                    var lowered = PpjAuthoredPresentationCompiler.BuildAnimation(animation, after.Elements);
+                    if (!targetIds.TryGetValue(animation.TargetId, out var nativeTargetId))
+                        throw Unsupported(path + ".animations", $"animation target {animation.TargetId} has no source wire binding");
+                    lowered.TargetId = nativeTargetId;
+                    slide.Animations.Add(lowered);
+                    changedNodeIds.Add(animation.Id);
+                }
+                foreach (var animation in before.Animations) changedNodeIds.Add(animation.Id);
                 changedNodeIds.Add(after.Id);
                 mutations.SemanticChanges = true;
                 changed = true;
@@ -2087,7 +2114,12 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void RequireCapabilityField(PpjElementModel element, string operation, string field, string path)
     {
-        var reference = element.NativeRef ?? throw new CodecException("ppj.nativeRef.missing", "Source-bound edits require a nativeRef.", path);
+        RequireCapabilityField(element.NativeRef, operation, field, path);
+    }
+
+    private static void RequireCapabilityField(PpjNativeRefModel? nativeRef, string operation, string field, string path)
+    {
+        var reference = nativeRef ?? throw new CodecException("ppj.nativeRef.missing", "Source-bound edits require a nativeRef.", path);
         var capability = reference.Capabilities.FirstOrDefault(item =>
             item.Operation.Equals(operation, StringComparison.Ordinal) &&
             item.Fields.Contains(field, StringComparer.Ordinal));
@@ -2096,6 +2128,45 @@ internal static class PpjSourceBoundPresentationCompiler
                 "ppj.nativeRef.capabilityMissing",
                 $"The exact source object did not issue the {operation}/{field} capability required by this edit.",
                 path);
+    }
+
+    private static bool AnimationStateChanged(PpjPageModel before, PpjPageModel after)
+    {
+        if (before.Animations.Count == 0 && after.Animations.Count == 0) return false;
+        return !before.Raw.TryGetProperty("animations", out var oldAnimations) ||
+            !after.Raw.TryGetProperty("animations", out var newAnimations) ||
+            !JsonEqual(oldAnimations, newAnimations);
+    }
+
+    private static IReadOnlyDictionary<string, string> SourceAnimationTargetIds(
+        IReadOnlyList<PpjElementModel> programElements,
+        IEnumerable<PresentationElement> wireElements,
+        string path)
+    {
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        AddSourceAnimationTargetIds(programElements, wireElements.ToArray(), output, path);
+        return output;
+    }
+
+    private static void AddSourceAnimationTargetIds(
+        IReadOnlyList<PpjElementModel> programElements,
+        IReadOnlyList<PresentationElement> wireElements,
+        IDictionary<string, string> output,
+        string path)
+    {
+        if (programElements.Count != wireElements.Count)
+            throw Unsupported(path, "the source element tree changed while resolving animation targets");
+        for (var index = 0; index < programElements.Count; index++)
+        {
+            var program = programElements[index];
+            var wire = wireElements[index];
+            if (!output.TryAdd(program.Id, wire.Id))
+                throw Unsupported(path, $"duplicate animation target identity {program.Id}");
+            if (program is not PpjGroupElementModel group) continue;
+            if (wire.ContentCase != PresentationElement.ContentOneofCase.Group)
+                throw Unsupported(path, $"group target {program.Id} no longer has a source group binding");
+            AddSourceAnimationTargetIds(group.Elements, wire.Group.Children.ToArray(), output, path + "." + program.Id);
+        }
     }
 
     private static void RequireCapability(PpjNativeRefModel? nativeRef, string operation, string path)
