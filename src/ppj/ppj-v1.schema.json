@@ -2445,6 +2445,49 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
+            "op",
+            "radiusX",
+            "radiusY",
+            "startAngle",
+            "sweepAngle"
+          ],
+          "properties": {
+            "op": {
+              "const": "arcTo"
+            },
+            "radiusX": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "radiusY": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "startAngle": {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 360
+            },
+            "sweepAngle": {
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": -360,
+                  "exclusiveMaximum": 0
+                },
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 360
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
             "op"
           ],
           "properties": {

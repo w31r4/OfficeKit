@@ -3619,6 +3619,8 @@ internal static class PpjAuthoredPresentationCompiler
                     ? PresentationCustomGeometryPath.Types.FillMode.Normal
                     : PresentationCustomGeometryPath.Types.FillMode.None;
             if (sourcePath.TryGetProperty("stroke", out var stroke)) path.Stroke = stroke.GetBoolean();
+            var hasCurrentPoint = false;
+            var hasSubpathStart = false;
             foreach (var sourceCommand in sourcePath.GetProperty("commands").EnumerateArray())
             {
                 var command = new PresentationCustomGeometryCommand();
@@ -3626,9 +3628,12 @@ internal static class PpjAuthoredPresentationCompiler
                 {
                     case "moveTo":
                         command.MoveTo = CustomPoint(sourceCommand, originX, originY, "x", "y");
+                        hasCurrentPoint = true;
+                        hasSubpathStart = true;
                         break;
                     case "lineTo":
                         command.LineTo = CustomPoint(sourceCommand, originX, originY, "x", "y");
+                        hasCurrentPoint = true;
                         break;
                     case "quadraticTo":
                         command.QuadraticBezierTo = new PresentationCustomGeometryQuadraticBezier
@@ -3636,6 +3641,7 @@ internal static class PpjAuthoredPresentationCompiler
                             Control = CustomPoint(sourceCommand, originX, originY, "x1", "y1"),
                             End = CustomPoint(sourceCommand, originX, originY, "x", "y"),
                         };
+                        hasCurrentPoint = true;
                         break;
                     case "cubicTo":
                         command.CubicBezierTo = new PresentationCustomGeometryCubicBezier
@@ -3644,9 +3650,25 @@ internal static class PpjAuthoredPresentationCompiler
                             Control2 = CustomPoint(sourceCommand, originX, originY, "x2", "y2"),
                             End = CustomPoint(sourceCommand, originX, originY, "x", "y"),
                         };
+                        hasCurrentPoint = true;
+                        break;
+                    case "arcTo":
+                        if (!hasCurrentPoint)
+                            throw new CodecException(
+                                "ppj.geometry.arcCurrentPoint",
+                                $"PPJ custom geometry {elementId} has an arc without an established current point.");
+                        command.ArcTo = new PresentationCustomGeometryArc
+                        {
+                            WidthRadius = CustomPathCoordinate(sourceCommand.GetProperty("radiusX").GetDouble()),
+                            HeightRadius = CustomPathCoordinate(sourceCommand.GetProperty("radiusY").GetDouble()),
+                            StartAngle = Angle(sourceCommand.GetProperty("startAngle").GetDouble()),
+                            SweepAngle = Angle(sourceCommand.GetProperty("sweepAngle").GetDouble()),
+                        };
+                        hasCurrentPoint = true;
                         break;
                     case "close":
                         command.Close = true;
+                        hasCurrentPoint = hasSubpathStart;
                         break;
                     default:
                         throw Unsupported(elementId, "custom geometry contains a path operation outside the PPJ vocabulary");

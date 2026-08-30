@@ -265,10 +265,11 @@ public sealed class PptxCodecTests
                     ["stroke"] = true,
                     ["commands"] = new JsonArray
                     {
-                        new JsonObject { ["op"] = "moveTo", ["x"] = 10, ["y"] = 20 },
-                        new JsonObject { ["op"] = "lineTo", ["x"] = 110, ["y"] = 20 },
-                        new JsonObject { ["op"] = "quadraticTo", ["x1"] = 110, ["y1"] = 70, ["x"] = 60, ["y"] = 120 },
-                        new JsonObject { ["op"] = "cubicTo", ["x1"] = 35, ["y1"] = 120, ["x2"] = 10, ["y2"] = 95, ["x"] = 10, ["y"] = 20 },
+                        new JsonObject { ["op"] = "moveTo", ["x"] = 10, ["y"] = 70 },
+                        new JsonObject { ["op"] = "arcTo", ["radiusX"] = 50, ["radiusY"] = 50, ["startAngle"] = 180, ["sweepAngle"] = 180 },
+                        new JsonObject { ["op"] = "lineTo", ["x"] = 110, ["y"] = 75 },
+                        new JsonObject { ["op"] = "quadraticTo", ["x1"] = 110, ["y1"] = 100, ["x"] = 60, ["y"] = 120 },
+                        new JsonObject { ["op"] = "cubicTo", ["x1"] = 35, ["y1"] = 120, ["x2"] = 10, ["y2"] = 95, ["x"] = 10, ["y"] = 70 },
                         new JsonObject { ["op"] = "close" },
                     },
                 },
@@ -1029,6 +1030,22 @@ public sealed class PptxCodecTests
         var invalidAdjustments = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidAdjustmentProgram.ToJsonString()));
         Assert.False(invalidAdjustments.IsValid);
         Assert.Contains(invalidAdjustments.Diagnostics, diagnostic => diagnostic.Code == "ppj.geometry.adjustmentCount");
+        var invalidArcProgram = authoredProgram.DeepClone().AsObject();
+        var invalidArcCommands = invalidArcProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "claim-rule")
+            ["geometry"]!["paths"]![0]!["commands"]!.AsArray();
+        invalidArcCommands.Insert(0, new JsonObject
+        {
+            ["op"] = "arcTo",
+            ["radiusX"] = 20,
+            ["radiusY"] = 20,
+            ["startAngle"] = 0,
+            ["sweepAngle"] = 90,
+        });
+        var invalidArc = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidArcProgram.ToJsonString()));
+        Assert.False(invalidArc.IsValid);
+        Assert.Contains(invalidArc.Diagnostics, diagnostic => diagnostic.Code == "ppj.geometry.arcCurrentPoint");
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -1308,7 +1325,13 @@ public sealed class PptxCodecTests
         var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
         Assert.Equal("custom", importedCustomShape.Geometry);
-        Assert.Equal(5, Assert.Single(importedCustomShape.CustomPaths).Commands.Count);
+        var importedCustomPath = Assert.Single(importedCustomShape.CustomPaths);
+        Assert.Equal(6, importedCustomPath.Commands.Count);
+        var importedArc = importedCustomPath.Commands[1].ArcTo;
+        Assert.Equal(50_000, importedArc.WidthRadius);
+        Assert.Equal(50_000, importedArc.HeightRadius);
+        Assert.Equal(180 * 60_000, importedArc.StartAngle);
+        Assert.Equal(180 * 60_000, importedArc.SweepAngle);
         Assert.Equal(PresentationGradientFill.Types.Kind.Radial, importedCustomShape.GradientFill.Kind);
         Assert.Equal(2, importedCustomShape.GradientFill.Stops.Count);
         Assert.Equal("0B8F8F", importedCustomShape.GradientFill.Stops[1].ColorRgb);
@@ -1493,6 +1516,15 @@ public sealed class PptxCodecTests
                 item.GetProperty("geometry").GetProperty("kind").GetString() == "custom" &&
                 item.GetProperty("style").GetProperty("fill").GetProperty("kind").GetString() == "radial" &&
                 item.GetProperty("style").GetProperty("stroke").GetProperty("opacity").GetDouble() == 0.42);
+            var projectedCustomShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("name").GetString() == "claim-rule");
+            var projectedArc = projectedCustomShape.GetProperty("geometry").GetProperty("paths")[0]
+                .GetProperty("commands").EnumerateArray()
+                .Single(command => command.GetProperty("op").GetString() == "arcTo");
+            Assert.Equal(50, projectedArc.GetProperty("radiusX").GetDouble());
+            Assert.Equal(50, projectedArc.GetProperty("radiusY").GetDouble());
+            Assert.Equal(180, projectedArc.GetProperty("startAngle").GetDouble());
+            Assert.Equal(180, projectedArc.GetProperty("sweepAngle").GetDouble());
             Assert.Contains(
                 projectedRoot.GetProperty("pages").EnumerateArray()
                     .SelectMany(page => page.GetProperty("elements").EnumerateArray()),

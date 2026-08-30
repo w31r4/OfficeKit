@@ -212,11 +212,15 @@ internal static class PpjSemanticValidator
             case PpjShapeElementModel shape:
                 ValidateStyleRef(shape.StyleRef, program.Design.ShapeStyleIds, $"{path}.styleRef", diagnostics);
                 ValidatePresetAdjustments(shape.GeometryKind, shape.GeometryPreset, shape.GeometryAdjustments, path + ".geometry", diagnostics);
+                if (shape.GeometryKind == "custom")
+                    ValidateCustomGeometry(shape.Raw.GetProperty("geometry"), path + ".geometry", diagnostics);
                 break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
                 if (image.MaskKind is not null)
                     ValidatePresetAdjustments(image.MaskKind, image.MaskPreset, image.MaskAdjustments, path + ".mask", diagnostics);
+                if (image.MaskKind == "custom")
+                    ValidateCustomGeometry(image.Raw.GetProperty("mask"), path + ".mask", diagnostics);
                 break;
             case PpjChartElementModel chart:
                 ValidateStyleRef(chart.StyleRef, program.Design.ChartStyleIds, $"{path}.styleRef", diagnostics);
@@ -281,6 +285,48 @@ internal static class PpjSemanticValidator
                 "ppj.geometry.adjustmentCount",
                 $"Preset geometry {geometryPreset} requires either no explicit adjustments or exactly {expectedCount} ordered values.",
                 path + ".adjustments"));
+    }
+
+    private static void ValidateCustomGeometry(
+        JsonElement geometry,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var pathIndex = 0;
+        foreach (var geometryPath in geometry.GetProperty("paths").EnumerateArray())
+        {
+            var hasCurrentPoint = false;
+            var hasSubpathStart = false;
+            var commandIndex = 0;
+            foreach (var command in geometryPath.GetProperty("commands").EnumerateArray())
+            {
+                var operation = command.GetProperty("op").GetString();
+                if (operation == "arcTo" && !hasCurrentPoint)
+                    diagnostics.Add(new(
+                        "ppj.geometry.arcCurrentPoint",
+                        "A custom-geometry arc requires a preceding command that establishes the current point.",
+                        $"{path}.paths[{pathIndex}].commands[{commandIndex}]"));
+
+                switch (operation)
+                {
+                    case "moveTo":
+                        hasCurrentPoint = true;
+                        hasSubpathStart = true;
+                        break;
+                    case "lineTo":
+                    case "quadraticTo":
+                    case "cubicTo":
+                    case "arcTo":
+                        hasCurrentPoint = true;
+                        break;
+                    case "close":
+                        hasCurrentPoint = hasSubpathStart;
+                        break;
+                }
+                commandIndex++;
+            }
+            pathIndex++;
+        }
     }
 
     private static void ValidateChart(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
