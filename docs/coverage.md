@@ -727,11 +727,20 @@ The bounded imported-table projection also accepts the common one-run-per-paragr
 Professional Minimalist's 39 image-filled custom-geometry leaves now enter the
 source-bound shape projection when their direct embedded `a:blipFill` is the
 strict supported profile. `imageFill` keeps the asset relationship, crop, and
-native custom path source-owned while permitting bounded frame placement edits;
-the owning slide is the only changed part and re-import restores the same asset
-identity. Other image-fill graphs and custom-path mutations remain opaque and
-fail closed; this does not provide source-free image-fill authoring or image
-replacement.
+native custom path source-owned while permitting bounded frame placement edits
+and same-format embedded image replacement; replacement changes the owning
+slide relationship/media closure only, preserves the custom path/effect graph,
+and re-import restores the new asset identity. Other image-fill graphs,
+cross-format replacement, and custom-path mutations remain opaque and fail
+closed; this does not provide source-free image-fill authoring.
+
+The real Professional Minimalist sample (`ed26f074…e0547ab`) contains 39
+image-filled custom-geometry shapes. A clean import/edit/export/re-import run
+replaced `Google Shape;244;p25` on slide 19 with a same-format PNG: only
+`ppt/slides/slide19.xml`, its relationship part, and the new media part
+changed; the custom path count remained 1 and the new asset identity survived
+re-import. This is a source-bound image replacement proof, not a claim that
+arbitrary image-fill or custom-geometry graphs are editable.
 
 ### Imported zero-extent connectors
 
