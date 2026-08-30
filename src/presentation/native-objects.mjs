@@ -76,6 +76,7 @@ const NATIVE_LINE_ARROWS = Object.freeze({
   oval: "oval",
   arrow: "arrow",
 });
+const DRAWINGML_NAMESPACE = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
 function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
@@ -123,6 +124,16 @@ function nativeTagAttributes(tag) {
     .map((match) => ({ name: match[1], value: decodeXml(match[3]) }));
 }
 
+function nativeStyleAttributes(tag) {
+  return nativeTagAttributes(tag).filter((attribute) => !/^xmlns(?::|$)/iu.test(attribute.name));
+}
+
+function hasAllowedNativeNamespaceAttributes(tag) {
+  return nativeTagAttributes(tag)
+    .filter((attribute) => /^xmlns(?::|$)/iu.test(attribute.name))
+    .every((attribute) => attribute.value === DRAWINGML_NAMESPACE);
+}
+
 function nativeSchemeColorToken(value) {
   return NATIVE_SCHEME_COLORS[String(value || "").trim().toLowerCase()];
 }
@@ -141,6 +152,50 @@ function nativeLineJoinToken(value) {
 
 function nativeLineArrowToken(value) {
   return NATIVE_LINE_ARROWS[String(value || "").trim().toLowerCase()];
+}
+
+function hasCanonicalStyleReferenceColor(xml) {
+  const source = String(xml || "");
+  const open = /^<[^>]+>/u.exec(source)?.[0] || "";
+  if (!open || !/\/\s*>$/u.test(source)) return false;
+  const attributes = nativeStyleAttributes(open);
+  const localName = /^<(?:(?:[A-Za-z_][\w.-]*):)?(?<name>[A-Za-z_][\w.-]*)\b/u.exec(open)?.groups?.name?.toLowerCase();
+  return hasAllowedNativeNamespaceAttributes(open) && attributes.length === 1 && attributes[0].name.split(":").pop()?.toLowerCase() === "val" && attributes[0].value &&
+    (localName === "schemeclr"
+      ? Boolean(nativeSchemeColorToken(attributes[0].value))
+      : localName === "srgbclr" && /^[0-9a-f]{6}$/iu.test(attributes[0].value));
+}
+
+function hasCanonicalStyleReference(node) {
+  const xml = String(node?.xml || "");
+  const open = /^<[^>]+>/u.exec(xml)?.[0] || "";
+  if (!open || /\/\s*>$/u.test(xml) || !hasAllowedNativeNamespaceAttributes(open)) return false;
+  const attributes = nativeStyleAttributes(open);
+  if (attributes[0].name.split(":").pop()?.toLowerCase() !== "idx") return false;
+  const local = String(node?.localName || "").toLowerCase();
+  const index = attributes[0].value;
+  if (local === "fontref") {
+    if (index !== "minor" && index !== "major") return false;
+  } else if (!/^(?:0|[1-9][0-9]*)$/u.test(index) || Number(index) > 32) {
+    return false;
+  }
+  const children = directPresentationChildren(xml, node.localName);
+  if (children.length !== 1 || !/\/\s*>$/u.test(children[0].xml)) return false;
+  return hasCanonicalStyleReferenceColor(children[0].xml);
+}
+
+function hasCanonicalStyleLineReference(rawXml) {
+  const styles = directPresentationChildren(String(rawXml || ""), "cxnSp")
+    .filter((child) => child.localName.toLowerCase() === "style");
+  if (styles.length !== 1) return false;
+  const styleOpen = /^<[^>]+>/u.exec(styles[0].xml)?.[0] || "";
+  if (!styleOpen || !hasAllowedNativeNamespaceAttributes(styleOpen) || nativeStyleAttributes(styleOpen).length !== 0) return false;
+  const references = directPresentationChildren(styles[0].xml, "style");
+  if (references.length !== 4) return false;
+  const expected = new Set(["lnref", "fillref", "effectref", "fontref"]);
+  if (new Set(references.map((reference) => reference.localName.toLowerCase())).size !== 4 ||
+      references.some((reference) => !expected.has(reference.localName.toLowerCase()))) return false;
+  return references.every((reference) => hasCanonicalStyleReference(reference));
 }
 
 function nativeLineArrowLeaf(xml, endpointName, leafKind) {
@@ -214,6 +269,7 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
   const joinNodes = directPresentationChildren(line[0], "ln")
     .filter((child) => child.localName === "round" || child.localName === "bevel" || child.localName === "miter");
   const hasSimpleLinePaint = leaves.some((leaf) => leaf.leafKind === "lineRgb" || leaf.leafKind === "lineScheme");
+  const hasStyleLineReference = hasCanonicalStyleLineReference(source);
   if (joinNodes.length === 1 && hasSimpleLinePaint) {
     const open = /^<[^>]+>/u.exec(joinNodes[0].xml)?.[0] || "";
     if (/\/\s*>$/u.test(joinNodes[0].xml) && nativeTagAttributes(open).length === 0 && directPresentationChildren(joinNodes[0].xml, joinNodes[0].localName).length === 0) {
@@ -221,7 +277,7 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
       if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineJoin", value, expectedHash: sha256(value) });
     }
   }
-  if (hasSimpleLinePaint) {
+  if (hasSimpleLinePaint || hasStyleLineReference) {
     for (const [endpointName, leafKind] of [["headEnd", "lineStartArrow"], ["tailEnd", "lineEndArrow"]]) {
       const leaf = nativeLineArrowLeaf(line[0], endpointName, leafKind);
       if (leaf) leaves.push({ lineLeafIndex: leaves.length, ...leaf, expectedHash: sha256(leaf.value) });

@@ -1099,22 +1099,24 @@ internal static partial class PptxEditPlanCodec
         if (kind is "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow")
         {
             var fills = outline[0].Elements<A.SolidFill>().ToArray();
-            if (fills.Length != 1 ||
-                (!HasSafeNativeRgbFill(fills[0]) && !HasSafeNativeSchemeFill(fills[0]))) return false;
+            var hasExplicitPaint = fills.Length == 1 &&
+                (HasSafeNativeRgbFill(fills[0]) || HasSafeNativeSchemeFill(fills[0]));
             if (kind == "lineStyle")
             {
+                if (!hasExplicitPaint) return false;
                 var dashes = outline[0].Elements<A.PresetDash>().ToArray();
                 return dashes.Length == 1 && PptxLineStyleCodec.TryReadPresetDash(dashes[0], out _);
             }
-            if (kind == "lineCap") return PptxLineStyleCodec.TryReadCap(outline[0], out _);
+            if (kind == "lineCap") return hasExplicitPaint && PptxLineStyleCodec.TryReadCap(outline[0], out _);
             if (kind is "lineStartArrow" or "lineEndArrow")
             {
                 OpenXmlElement? endpoint = kind == "lineStartArrow"
                     ? outline[0].GetFirstChild<A.HeadEnd>()
                     : outline[0].GetFirstChild<A.TailEnd>();
-                return PptxLineStyleCodec.TryReadArrowType(endpoint, out _);
+                return PptxLineStyleCodec.TryReadArrowType(endpoint, out _) &&
+                    (hasExplicitPaint || HasSafeNativeConnectorStyleReference(connector));
             }
-            return PptxLineStyleCodec.TryReadJoinLeaf(outline[0], out _);
+            return hasExplicitPaint && PptxLineStyleCodec.TryReadJoinLeaf(outline[0], out _);
         }
         var solidFill = outline[0].Elements<A.SolidFill>().ToArray();
         if (solidFill.Length != 1) return false;
@@ -1129,6 +1131,50 @@ internal static partial class PptxEditPlanCodec
             var colors = solidFill[0].Elements<A.SchemeColor>().ToArray();
             return colors.Length == 1 && colors[0].Val?.Value is { } value && PptxColor.TrySchemeToken(value, out _);
         }
+        return false;
+    }
+
+    private static bool HasSafeNativeConnectorStyleReference(P.ConnectionShape connector)
+    {
+        var style = connector.ShapeStyle;
+        if (style is null || style.GetAttributes().Count != 0 || style.ChildElements.Count != 4 ||
+            style.ChildElements.Count(child => child is A.LineReference) != 1 ||
+            style.ChildElements.Count(child => child is A.FillReference) != 1 ||
+            style.ChildElements.Count(child => child is A.EffectReference) != 1 ||
+            style.ChildElements.Count(child => child is A.FontReference) != 1)
+            return false;
+        return HasSafeNativeStyleReference(style.LineReference, font: false) &&
+            HasSafeNativeStyleReference(style.FillReference, font: false) &&
+            HasSafeNativeStyleReference(style.EffectReference, font: false) &&
+            HasSafeNativeStyleReference(style.FontReference, font: true);
+    }
+
+    private static bool HasSafeNativeStyleReference(OpenXmlElement? reference, bool font)
+    {
+        if (reference is null || reference.ChildElements.Count != 1) return false;
+        var attributes = reference.GetAttributes();
+        if (attributes.Count != 1 || attributes[0].LocalName != "idx" || attributes[0].NamespaceUri.Length != 0)
+            return false;
+        var index = attributes[0].Value;
+        if (font)
+        {
+            if (index is not ("minor" or "major")) return false;
+        }
+        else if (!uint.TryParse(index, out var numericIndex) || numericIndex > 32)
+        {
+            return false;
+        }
+        var color = reference.FirstChild;
+        if (color is A.SchemeColor scheme)
+            return scheme.ChildElements.Count == 0 &&
+                scheme.GetAttributes().Count == 1 && scheme.GetAttributes()[0].LocalName == "val" &&
+                scheme.GetAttributes()[0].NamespaceUri.Length == 0 && scheme.Val?.Value is { } schemeValue &&
+                PptxColor.TrySchemeToken(schemeValue, out _);
+        if (color is A.RgbColorModelHex rgb)
+            return rgb.ChildElements.Count == 0 &&
+                rgb.GetAttributes().Count == 1 && rgb.GetAttributes()[0].LocalName == "val" &&
+                rgb.GetAttributes()[0].NamespaceUri.Length == 0 && rgb.Val?.Value is { Length: 6 } rgbValue &&
+                rgbValue.All(Uri.IsHexDigit);
         return false;
     }
 
