@@ -18,4 +18,4 @@
 
 - [x] 4.1 Extend one existing PPJ contract with authored/reimport rich-title assertions.
 - [x] 4.2 Run the focused PPJ contract, proto, Skill-maintainer, and strict OpenSpec checks.
-- [ ] 4.3 Commit the spec, runtime, guidance, and evidence atomically and fast-forward main.
+- [x] 4.3 Commit the spec, runtime, guidance, and evidence atomically and fast-forward main.
