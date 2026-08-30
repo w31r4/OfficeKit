@@ -28,6 +28,7 @@ const LINE_CAPS = new Set(["flat", "round", "square"]);
 const LINE_JOINS = new Set(["round", "bevel", "miter"]);
 const LINE_PROPERTIES = new Set([
   "style", "fill", "color", "width",
+  "opacity",
   "head", "tail", "cap", "join",
   "startArrow", "startArrowWidth", "startArrowLength",
   "endArrow", "endArrowWidth", "endArrowLength",
@@ -130,6 +131,10 @@ export function normalizePresentationLineStyle(value = {}, options = {}) {
   if (!style) throw new RangeError(`${name} style ${requestedStyle} is unsupported.`);
   const width = Number(source.width ?? options.defaultWidth ?? 1);
   if (!Number.isFinite(width) || width < 0) throw new RangeError(`${name} width must be a non-negative finite number.`);
+  const opacity = source.opacity == null ? undefined : Number(source.opacity);
+  if (opacity !== undefined && (!Number.isFinite(opacity) || opacity < 0 || opacity > 1)) {
+    throw new RangeError(`${name} opacity must be from 0 through 1.`);
+  }
   const head = lineEnd(source, "head", "start", `${name} head`);
   const tail = lineEnd(source, "tail", "end", `${name} tail`);
   const cap = normalizePresentationLineCap(source.cap, `${name} cap`);
@@ -137,6 +142,7 @@ export function normalizePresentationLineStyle(value = {}, options = {}) {
   return {
     style,
     width,
+    ...(opacity === undefined ? {} : { opacity }),
     ...(own(source, "fill") ? { fill: source.fill } : {}),
     ...(own(source, "color") ? { color: source.color } : {}),
     ...(head ? { head } : {}),
@@ -186,10 +192,11 @@ export function presentationLineSvgStyle(value, options = {}) {
   const markerEnd = !hidden && line.tail ? ` marker-end="url(#${tailId})"` : "";
   const cap = line.cap ? ` stroke-linecap="${line.cap === "flat" ? "butt" : line.cap}"` : "";
   const join = line.join ? ` stroke-linejoin="${line.join}"` : "";
+  const opacity = line.opacity == null || line.opacity === 1 ? "" : ` stroke-opacity="${line.opacity}"`;
   return {
     line,
     definitions,
-    attributes: `stroke="${xmlEscape(stroke)}" stroke-width="${line.width}"${dash ? ` stroke-dasharray="${dash}"` : ""}${cap}${join}${markerStart}${markerEnd}`,
+    attributes: `stroke="${xmlEscape(stroke)}" stroke-width="${line.width}"${opacity}${dash ? ` stroke-dasharray="${dash}"` : ""}${cap}${join}${markerStart}${markerEnd}`,
   };
 }
 

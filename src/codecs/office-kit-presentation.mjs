@@ -2043,9 +2043,14 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
   if ((!startTargetId && startSiteIndex !== 0) || (!endTargetId && endSiteIndex !== 0)) {
     throw new OfficeKitCodecError(`Presentation connector ${connector.id} cannot define a connection-site index without its target.`, [], { code: "invalid_presentation_connector" });
   }
-  const lineRgb = line.style === "none"
+  const sourceWireLine = original?.content?.case === "connector" ? original.content.value : original?.content?.value;
+  const sourceLineScheme = String(sourceWireLine?.lineScheme || "");
+  const lineColor = presentationLineColor(line, width > 0 ? "#334155" : "transparent");
+  const preserveSourceLineScheme = sourceLineScheme && typeof lineColor === "string" && lineColor.toLowerCase() === sourceLineScheme.toLowerCase();
+  const lineRgb = line.style === "none" || preserveSourceLineScheme
     ? ""
-    : presentationRgb(presentationLineColor(line, width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`);
+    : presentationRgb(lineColor, `${connector.id}.line.fill`);
+  const lineScheme = preserveSourceLineScheme ? sourceLineScheme : "";
   const accessibility = normalizePresentationAccessibility(connector.accessibility, `Presentation connector ${connector.id}`);
   return {
     id: original?.id || connector.id,
@@ -2060,6 +2065,8 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         endXEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.x, `${connector.id}.end.x`, original),
         endYEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.y, `${connector.id}.end.y`, original),
         lineRgb,
+        ...(lineScheme ? { lineScheme } : {}),
+        ...(line.opacity === undefined ? {} : { lineOpacityThousandthPercent: Math.round(line.opacity * 100_000) }),
         lineWidthEmu: BigInt(Math.round(width * EMU_PER_POINT)),
         startArrow: head.type || "",
         endArrow: tail.type || "",
@@ -2067,7 +2074,7 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         endTargetId,
         startConnectionSiteIndex: startSiteIndex,
         endConnectionSiteIndex: endSiteIndex,
-        lineStyle: lineRgb ? line.style : "none",
+        lineStyle: lineRgb || lineScheme ? line.style : "none",
         startArrowWidth: head.width || "",
         startArrowLength: head.length || "",
         endArrowWidth: tail.width || "",
@@ -2300,10 +2307,15 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   if (shape.geometry === "line" && shape.placeholder) {
     throw new OfficeKitCodecError(`Presentation free line ${shape.id} cannot be a placeholder.`, [], { code: "unsupported_presentation_features" });
   }
-  const requestedLineRgb = line.style === "none"
+  const sourceLineScheme = String(originalShape?.lineScheme || "");
+  const lineColor = presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent");
+  const preserveSourceLineScheme = sourceLineScheme && typeof lineColor === "string" &&
+    lineColor.toLowerCase() === sourceLineScheme.toLowerCase();
+  const requestedLineRgb = line.style === "none" || preserveSourceLineScheme
     ? ""
-    : presentationRgb(presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
-  const lineStyle = requestedLineRgb ? line.style : "none";
+    : presentationRgb(lineColor, `${shape.id}.line.fill`);
+  const lineScheme = preserveSourceLineScheme ? sourceLineScheme : "";
+  const lineStyle = requestedLineRgb || lineScheme ? line.style : "none";
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
   const textBody = original?.source?.editable === false && original?.source?.textEditable === true && isPlainPresentationTextRequest(shape)
     ? sourceBoundShapeTextBody(shape, originalShape) || presentationTextBody(shape, originalShape, assetCatalog, customShowLinks)
@@ -2353,6 +2365,8 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(gradientFill ? { gradientFill } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
+        ...(lineScheme ? { lineScheme } : {}),
+        ...(line.opacity === undefined ? {} : { lineOpacityThousandthPercent: Math.round(line.opacity * 100_000) }),
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
         lineStyle,
         startArrow: line.head?.type || "",
@@ -6980,9 +6994,10 @@ function presentationSlidePlaceholder(shape, original, originalState, assetCatal
 
 function modelPresentationShapeLine(shape) {
   return {
-    fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent",
+    fill: shape.lineRgb ? `#${shape.lineRgb}` : shape.lineScheme || "transparent",
     width: Number(shape.lineWidthEmu) / EMU_PER_POINT,
-    style: shape.lineStyle || (shape.lineRgb ? "solid" : "none"),
+    style: shape.lineStyle || (shape.lineRgb || shape.lineScheme ? "solid" : "none"),
+    ...(shape.lineOpacityThousandthPercent === undefined ? {} : { opacity: Number(shape.lineOpacityThousandthPercent) / 100_000 }),
     ...(shape.startArrow ? { head: {
       type: shape.startArrow,
       ...(shape.startArrowWidth ? { width: shape.startArrowWidth } : {}),
@@ -7173,9 +7188,10 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       startSiteIndex: Number(connector.startConnectionSiteIndex || 0),
       endSiteIndex: Number(connector.endConnectionSiteIndex || 0),
       line: {
-        fill: connector.lineRgb ? `#${connector.lineRgb}` : "transparent",
+        fill: connector.lineRgb ? `#${connector.lineRgb}` : connector.lineScheme || "transparent",
         width: Number(connector.lineWidthEmu) / EMU_PER_POINT,
-        style: connector.lineStyle || "solid",
+        style: connector.lineStyle || (connector.lineRgb || connector.lineScheme ? "solid" : "none"),
+        ...(connector.lineOpacityThousandthPercent === undefined ? {} : { opacity: Number(connector.lineOpacityThousandthPercent) / 100_000 }),
         ...(connector.startArrow ? { startArrow: connector.startArrow } : {}),
         ...(connector.endArrow ? { endArrow: connector.endArrow } : {}),
       },
@@ -7519,9 +7535,10 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           startSiteIndex: Number(connector.startConnectionSiteIndex || 0),
           endSiteIndex: Number(connector.endConnectionSiteIndex || 0),
           line: {
-            fill: connector.lineRgb ? `#${connector.lineRgb}` : "transparent",
+            fill: connector.lineRgb ? `#${connector.lineRgb}` : connector.lineScheme || "transparent",
             width: Number(connector.lineWidthEmu) / EMU_PER_POINT,
-            style: connector.lineStyle || "solid",
+            style: connector.lineStyle || (connector.lineRgb || connector.lineScheme ? "solid" : "none"),
+            ...(connector.lineOpacityThousandthPercent === undefined ? {} : { opacity: Number(connector.lineOpacityThousandthPercent) / 100_000 }),
             ...(connector.startArrow ? { startArrow: connector.startArrow } : {}),
             ...(connector.endArrow ? { endArrow: connector.endArrow } : {}),
           },
