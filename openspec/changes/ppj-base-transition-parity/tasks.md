@@ -19,4 +19,4 @@
       transition and one source-bound transition edit.
 - [x] 4.2 Run the focused PPJ contract, C# build, Skill-maintainer, and strict
       OpenSpec checks.
-- [ ] 4.3 Commit atomically and fast-forward main without force pushing.
+- [x] 4.3 Commit atomically and fast-forward main without force pushing.
