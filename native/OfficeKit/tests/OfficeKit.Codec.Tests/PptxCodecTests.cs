@@ -179,6 +179,8 @@ public sealed class PptxCodecTests
         var authoredTable = authoredProgram["pages"]![1]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "method-table-main");
+        authoredTable["frame"]!["rotation"] = -4;
+        authoredTable["frame"]!["flipV"] = true;
         var authoredHeaderCell = authoredTable["rows"]![0]!["cells"]![0]!.AsObject();
         authoredHeaderCell["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA", ["opacity"] = 0.8 };
         authoredHeaderCell["borders"] = new JsonObject
@@ -197,6 +199,8 @@ public sealed class PptxCodecTests
         var authoredChart = authoredProgram["pages"]![1]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "evidence-chart-main");
+        authoredChart["frame"]!["rotation"] = 6;
+        authoredChart["frame"]!["flipH"] = true;
         authoredChart["xAxis"] = new JsonObject
         {
             ["visible"] = true,
@@ -294,6 +298,36 @@ public sealed class PptxCodecTests
         });
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
+            ["id"] = "transform-group-main",
+            ["type"] = "group",
+            ["role"] = "frame transform contract",
+            ["frame"] = new JsonObject
+            {
+                ["x"] = 780,
+                ["y"] = 360,
+                ["width"] = 96,
+                ["height"] = 48,
+                ["rotation"] = 12,
+                ["flipH"] = true,
+            },
+            ["elements"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = "transform-group-child",
+                    ["type"] = "shape",
+                    ["frame"] = new JsonObject { ["x"] = 780, ["y"] = 360, ["width"] = 96, ["height"] = 48 },
+                    ["accessibility"] = new JsonObject { ["decorative"] = true },
+                    ["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "rect" },
+                    ["style"] = new JsonObject
+                    {
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA" },
+                    },
+                },
+            },
+        });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
             ["id"] = "evidence-line-main",
             ["type"] = "chart",
             ["role"] = "bounded line chart behavior",
@@ -348,7 +382,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(18U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(20U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -440,6 +474,8 @@ public sealed class PptxCodecTests
         Assert.Equal(42_000U, importedCustomShape.LineOpacityThousandthPercent);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
+        Assert.Equal(360_000, importedChart.FrameTransform.RotationAngle60000);
+        Assert.True(importedChart.FrameTransform.FlipHorizontal);
         Assert.Equal("bottom", importedChart.LegendPosition);
         Assert.Equal("none", importedChart.Grouping);
         Assert.Equal(90U, importedChart.GapWidth);
@@ -465,8 +501,14 @@ public sealed class PptxCodecTests
         Assert.Equal("Incident hours decline from 69 to 43 while protected workload index rises from 100 to 127.", importedChart.Accessibility.Description);
         var importedTable = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Table).Table;
+        Assert.Equal(-240_000, importedTable.FrameTransform.RotationAngle60000);
+        Assert.True(importedTable.FrameTransform.FlipVertical);
         Assert.Equal("Pilot method table", importedTable.Accessibility.Description);
         Assert.Equal(3, importedTable.Rows.Count);
+        var importedGroup = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
+        Assert.Equal(720_000, importedGroup.FrameTransform.RotationAngle60000);
+        Assert.True(importedGroup.FrameTransform.FlipHorizontal);
         var importedConnector = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
         Assert.True(importedConnector.HasLineOpacityThousandthPercent);
@@ -583,6 +625,11 @@ public sealed class PptxCodecTests
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("color").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
+            Assert.Equal(6, projectedChart.GetProperty("frame").GetProperty("rotation").GetDouble());
+            Assert.True(projectedChart.GetProperty("frame").GetProperty("flipH").GetBoolean());
+            Assert.Contains(projectedChart.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setFrame" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "frame.rotation"));
             Assert.Equal("Half-year", projectedChart.GetProperty("xAxis").GetProperty("title").GetString());
             Assert.Equal(80, projectedChart.GetProperty("yAxis").GetProperty("max").GetDouble());
             var projectedSeries = projectedChart.GetProperty("data").GetProperty("series")[1];
@@ -730,6 +777,50 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceValidation.File);
         Assert.True(sourceValidation.PresentationProgram.SourceBound);
         Assert.Equal(projected.PresentationProgram.ProgramSha256, sourceValidation.PresentationProgram.ProgramSha256);
+
+        var transformedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var transformedChart = transformedProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart");
+        transformedChart["frame"]!["rotation"] = 9;
+        transformedChart["frame"]!["flipH"] = false;
+        var transformedChartId = transformedChart["id"]!.GetValue<string>();
+        var sourceTransformEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(transformedProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceTransformEdit.Ok, Diagnostics(sourceTransformEdit));
+        Assert.Single(sourceTransformEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(transformedChartId, sourceTransformEdit.PresentationProgram.ChangedNodeIds);
+        var sourceTransformReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceTransformEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/transformed.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(sourceTransformReprojection.Ok, Diagnostics(sourceTransformReprojection));
+        using (var transformedJson = JsonDocument.Parse(sourceTransformReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedChart = transformedJson.RootElement.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == transformedChartId);
+            var reprojectedFrame = reprojectedChart.GetProperty("frame");
+            Assert.Equal(9, reprojectedFrame.GetProperty("rotation").GetDouble());
+            Assert.False(reprojectedFrame.TryGetProperty("flipH", out var flipHorizontal) && flipHorizontal.GetBoolean());
+        }
 
         var editedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var editableText = editedProgram["pages"]!.AsArray()
@@ -11466,7 +11557,7 @@ public sealed class PptxCodecTests
     });
 
     private static string Diagnostics(CodecResponse response) =>
-        string.Join("\n", response.Diagnostics.Select(item => $"{item.Code}: {item.Message}"));
+        string.Join("\n", response.Diagnostics.Select(item => $"{item.Code} {item.SourcePath}: {item.Message}"));
 
     private static PresentationElement AuthoredOverlayElement(
         string id = "presentation/slide/1/authored-overlay",
