@@ -34,7 +34,7 @@
     "$.assets": { "owner": "asset-compiler", "surface": "ppj-state", "meaning": "Content-addressed local media, rights and accessibility metadata." },
     "$.source": { "owner": "source-projector", "surface": "native-ref", "meaning": "Immutable third-party PPTX source binding and projection proof." },
     "$.components": { "owner": "component-expander", "surface": "ppj-state", "meaning": "Finite parameterized reuse with bounded repeat and conditions." },
-    "$.pages": { "owner": "presentation-compiler", "surface": "ppj-state", "meaning": "Ordered pages, backgrounds, notes, motion and true element z-order." },
+    "$.pages": { "owner": "presentation-compiler", "surface": "ppj-state", "meaning": "Ordered pages, backgrounds, notes, motion and true element z-order, including capability-issued sourceClone continuation." },
     "$.sections": { "owner": "presentation-compiler", "surface": "ppj-state", "meaning": "Persistent section membership." },
     "$.customShows": { "owner": "presentation-compiler", "surface": "ppj-state", "meaning": "Named ordered page subsets." },
     "$.comments": { "owner": "presentation-compiler", "surface": "ppj-state", "meaning": "Persistent presentation comments and replies." }

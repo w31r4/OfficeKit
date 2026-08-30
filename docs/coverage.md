@@ -181,8 +181,20 @@ two-section repartition, changes only `ppt/presentation.xml`, then proves on
 second projection that page IDs, every unchanged page-local element ID,
 comment binding and custom-show membership remain stable. The native writer
 updates modeled sections before moving `p:sldId` records so no transient invalid
-partition is mistaken for an opaque graph. Page insertion, clone, combined
-delete-plus-reorder, and opaque section graphs remain outside this slice.
+partition is mistaken for an opaque graph. Ordinary page insertion,
+combined delete-plus-reorder, and opaque section graphs remain outside this
+slice.
+
+An imported page whose native ownership analysis proves a closed reusable graph
+now issues `duplicate/pageClone`. PPJ expresses one pending reuse as a fresh,
+empty page with `sourceClone: { page, capability }` immediately after the
+retained source page. NativeAOT resolves the capability against a fresh
+projection and lowers the state through the existing `clone_source` graph
+writer; it does not reserialize the visible projection. A focused contract
+proves the source SlidePart remains unchanged, the new SlidePart has equivalent
+Slide XML, and second projection expands the result into an ordinary
+source-bound page. Pending clones cannot be edited, chained, repeated, mixed
+with page deletion/reorder or route changes, or used from source-free PPJ.
 
 Imported PPJ canvas state now carries its own source-bound nativeRef and issues
 `setCanvas` for `canvas.width` and `canvas.height`. The compiler converts point

@@ -81,10 +81,33 @@ an authored route to make the request appear successful.
 
 ## Source continuation
 
-A source page or component may be reused only when import issues a reuse
-capability. The reused object remains source-derived and must be re-importable.
-New PPJ objects may be composed around it without changing the unknown source
-subgraph.
+A complete source page may be reused only when its `nativeRef` issues
+`duplicate` for `pageClone`. Insert exactly one fresh page immediately after
+that source page:
+
+```json
+{
+  "id": "page-source-copy",
+  "role": "source continuation",
+  "elements": [],
+  "sourceClone": {
+    "page": "page-source",
+    "capability": "cap-duplicate-…"
+  }
+}
+```
+
+The pending page is a finite source macro, not an editable copy. Do not attach
+a nativeRef, elements, layout, background, notes, visibility, transition, or
+animation. Do not clone the same source twice or combine this build with page
+delete/reorder or section/custom-show changes. Build creates a distinct native
+SlidePart through the proven source graph copier. Re-import that PPTX before
+editing the new page; only then does its full typed/opaque content and fresh
+capability set exist.
+
+A source component still requires its separately issued bounded reuse path.
+New PPJ objects may be composed only after the reused native graph has crossed
+the required build/reimport boundary.
 
 OfficeKit-authored PPTX is different: if a valid embedded program exists,
 import restores it exactly. If an external application changed the native file

@@ -439,6 +439,17 @@ so they still form one complete partition in the new presentation order.
 Comments and custom shows keep referring to the same stable page IDs. An
 opaque section graph receives no page-order capability and remains unchanged.
 
+To reuse one complete imported page, find a page whose \`nativeRef\` advertises
+\`duplicate\` with \`pageClone\`. Insert one fresh page immediately after that
+source page with an empty \`elements\` array and
+\`sourceClone: { page: "<source-page-id>", capability: "<issued-capability-id>" }\`.
+Do not copy nativeRef, element state, layout, background, notes, transition,
+animation or visibility into the pending clone. Build and re-import first; the
+new SlidePart then projects as an ordinary source-bound page whose full typed
+or opaque content can be inspected and edited through its newly issued
+capabilities. One source page may have only one pending clone, and the same
+build cannot also delete/reorder pages or change section/custom-show routes.
+
 OfficeKit-authored PPTX embeds canonical PPJ and a node map. Import restores
 that PPJ exactly when valid. If native software changed the PPTX but left the
 embedded program, PPJ remains authoritative; a future build writes a new output
