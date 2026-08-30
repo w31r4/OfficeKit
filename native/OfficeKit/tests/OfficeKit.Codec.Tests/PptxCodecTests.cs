@@ -120,6 +120,7 @@ public sealed class PptxCodecTests
         };
         var authoredRunStyle = authoredParagraph["runs"]![0]!["style"]!.AsObject();
         authoredRunStyle["fontFamilyEastAsia"] = "Arial";
+        authoredRunStyle["color"] = "#16324FCC";
         authoredRunStyle["underline"] = "single";
         authoredRunStyle["strike"] = false;
         authoredRunStyle["kerning"] = 12;
@@ -191,6 +192,8 @@ public sealed class PptxCodecTests
                 ["join"] = "round",
             },
         };
+        var authoredTableTextStyle = authoredProgram["design"]!["styles"]!["table"]![0]!["style"]!["defaultTextStyle"]!["defaultText"]!.AsObject();
+        authoredTableTextStyle["color"] = new JsonObject { ["token"] = "ink", ["alpha"] = 0.72 };
         var authoredChart = authoredProgram["pages"]![1]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "evidence-chart-main");
@@ -376,6 +379,8 @@ public sealed class PptxCodecTests
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
             Assert.Equal("DCEFEA", firstCell.TableCellProperties!.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
             Assert.Equal(80_000, firstCell.TableCellProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(72_000, firstCell.TextBody!.Descendants<A.RunProperties>().Single()
+                .GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
             var bottomBorder = firstCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
             Assert.Equal("19050", bottomBorder.GetAttribute("w", string.Empty).Value);
             Assert.Equal("0B8F8F", bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
@@ -422,6 +427,8 @@ public sealed class PptxCodecTests
         Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
         Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
         Assert.Equal("Main decision claim", importedClaim.Accessibility.Description);
+        Assert.Equal("16324F", importedClaim.TextBody.Paragraphs[0].Runs[0].ColorRgb);
+        Assert.Equal(80_000U, importedClaim.TextBody.Paragraphs[0].Runs[0].ColorOpacityThousandthPercent);
         var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
         Assert.Equal("custom", importedCustomShape.Geometry);
@@ -568,6 +575,12 @@ public sealed class PptxCodecTests
                 item => item.GetProperty("type").GetString() == "table" &&
                     item.GetProperty("nativeRef").GetProperty("leaves").EnumerateArray().Any(leaf =>
                         leaf.GetProperty("kind").GetString() == "tableCellText"));
+            var projectedClaim = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "text" &&
+                    item.GetProperty("text").GetProperty("paragraphs")[0].GetProperty("runs")[0]
+                        .GetProperty("text").GetString() == "Reduce incident hours ");
+            Assert.Equal("#16324FCC", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("runs")[0].GetProperty("style").GetProperty("color").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
             Assert.Equal("Half-year", projectedChart.GetProperty("xAxis").GetProperty("title").GetString());
@@ -642,6 +655,25 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+        var rejectedTextOpacityProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var rejectedTextOpacity = rejectedTextOpacityProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "text" &&
+                element["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
+        rejectedTextOpacity["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["color"] = "#16324F99";
+        var rejectedTextOpacityEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(rejectedTextOpacityProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejectedTextOpacityEdit.Ok);
+        Assert.Contains(rejectedTextOpacityEdit.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
         var rejectedChartStyleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var rejectedChart = rejectedChartStyleProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
