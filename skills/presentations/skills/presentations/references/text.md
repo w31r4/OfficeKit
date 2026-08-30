@@ -72,6 +72,50 @@ Imported text opacity may be visible in projected PPJ, but changing source
 formatting still requires an issued capability. A text-replacement capability
 does not authorize a color or opacity edit.
 
+## Reserve gradient and shadow for display text
+
+PPJ can author one native linear or centered-radial text gradient and one
+native outer shadow on a run or `defaultText` style:
+
+```json
+{
+  "text": "Annual signal",
+  "style": {
+    "defaultText": {
+      "size": 34,
+      "gradient": {
+        "kind": "linear",
+        "angle": 18,
+        "stops": [
+          { "offset": 0, "color": "#16324F" },
+          { "offset": 1, "color": "#0B8F8F", "opacity": 0.82 }
+        ]
+      },
+      "shadow": {
+        "color": "#16324F66",
+        "blur": 3,
+        "distance": 1.5,
+        "angle": 90
+      }
+    }
+  }
+}
+```
+
+Use this treatment for a short hero title, launch wordmark, or one display
+number when it reinforces the deck's design grammar. Keep body copy, sources,
+axes, labels, and evidence text solid. A style cannot declare both `color` and
+`gradient`; resolve the paint choice explicitly. Do not use shadow to rescue
+poor contrast or place legible text over a busy image. Render the actual slide
+and verify the thinnest glyph strokes at delivery size.
+
+The compiler writes editable DrawingML text paint and outer-shadow state, not
+a rasterized title. Canonical imported gradients and shadows project back into
+PPJ, while theme-transformed gradients, glow, reflection, inner shadow,
+WordArt, and irregular effect graphs remain source-owned. A projected effect
+does not by itself grant permission to mutate third-party formatting; follow
+the issued `nativeRef` capability.
+
 ## Style bullets as text, not decoration
 
 Character and numbered bullets may use the same deck-local color tokens and

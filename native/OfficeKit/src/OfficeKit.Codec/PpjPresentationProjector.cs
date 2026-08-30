@@ -994,6 +994,9 @@ internal static partial class PpjPresentationProjector
                 paragraphStyle["spaceAfter"] = Math.Max(0, source.SpaceAfterPoints);
             if (source.SpaceAfterCase == PresentationTextParagraph.SpaceAfterOneofCase.SpaceAfterMultiplier)
                 paragraphStyle["spaceAfterMultiplier"] = Math.Max(0, source.SpaceAfterMultiplier);
+            if (source.DefaultRunStyleCase == PresentationTextParagraph.DefaultRunStyleOneofCase.DefaultRunProperties &&
+                ProjectTextStyle(source.DefaultRunProperties) is { Count: > 0 } defaultText)
+                paragraphStyle["defaultText"] = defaultText;
             if (ProjectBullet(source) is { } bullet) paragraphStyle["bullet"] = bullet;
             if (paragraphStyle.Count > 0) paragraph["style"] = paragraphStyle;
 
@@ -1028,6 +1031,9 @@ internal static partial class PpjPresentationProjector
             style["color"] = TextColor(run.ColorRgb, null, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
         else if (run.HasColorScheme && !string.IsNullOrEmpty(run.ColorScheme))
             style["color"] = TextColor(null, run.ColorScheme, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
+        else if (run.GradientFill is not null)
+            style["gradient"] = TextGradient(run.GradientFill);
+        if (run.Shadow is not null) style["shadow"] = Shadow(run.Shadow);
         if (run.HighlightCase == PresentationTextRun.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(run.HighlightRgb))
             style["highlight"] = Color(run.HighlightRgb);
         if (run.HasUnderline) style["underline"] = run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline };
@@ -1037,6 +1043,33 @@ internal static partial class PpjPresentationProjector
         if (run.HasFontSpacingPoints) style["letterSpacing"] = run.FontSpacingPoints;
         if (run.HasFontCaps) style["capitalization"] = run.FontCaps;
         if (run.HasLanguage) style["language"] = run.Language;
+        return style;
+    }
+
+    private static JsonObject ProjectTextStyle(PresentationTextStyle source)
+    {
+        var style = new JsonObject();
+        if (source.HasFontFamily) style["fontFamily"] = source.FontFamily;
+        if (source.HasFontFamilyEastAsia) style["fontFamilyEastAsia"] = source.FontFamilyEastAsia;
+        if (source.HasFontSizePoints && source.FontSizePoints > 0) style["size"] = source.FontSizePoints;
+        if (source.HasBold) style["bold"] = source.Bold;
+        if (source.HasItalic) style["italic"] = source.Italic;
+        if (source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorRgb && !string.IsNullOrEmpty(source.ColorRgb))
+            style["color"] = TextColor(source.ColorRgb, null, source.HasColorOpacityThousandthPercent, source.ColorOpacityThousandthPercent);
+        else if (source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorScheme && !string.IsNullOrEmpty(source.ColorScheme))
+            style["color"] = TextColor(null, source.ColorScheme, source.HasColorOpacityThousandthPercent, source.ColorOpacityThousandthPercent);
+        else if (source.GradientFill is not null)
+            style["gradient"] = TextGradient(source.GradientFill);
+        if (source.Shadow is not null) style["shadow"] = Shadow(source.Shadow);
+        if (source.HighlightCase == PresentationTextStyle.HighlightOneofCase.HighlightRgb && !string.IsNullOrEmpty(source.HighlightRgb))
+            style["highlight"] = Color(source.HighlightRgb);
+        if (source.HasUnderline) style["underline"] = source.Underline switch { "sng" => "single", "dbl" => "double", _ => source.Underline };
+        if (source.HasStrike) style["strike"] = source.Strike;
+        if (source.HasFontKerningPoints) style["kerning"] = source.FontKerningPoints;
+        if (source.HasFontBaselinePercent) style["baseline"] = source.FontBaselinePercent;
+        if (source.HasFontSpacingPoints) style["letterSpacing"] = source.FontSpacingPoints;
+        if (source.HasFontCaps) style["capitalization"] = source.FontCaps;
+        if (source.HasLanguage) style["language"] = source.Language;
         return style;
     }
 
@@ -1243,6 +1276,13 @@ internal static partial class PpjPresentationProjector
         };
         if (source.Kind == PresentationGradientFill.Types.Kind.Linear && source.HasAngle60000)
             output["angle"] = source.Angle60000 / 60_000d;
+        return output;
+    }
+
+    private static JsonObject TextGradient(PresentationGradientFill source)
+    {
+        var output = Gradient(source);
+        output.Remove("type");
         return output;
     }
 

@@ -53,8 +53,7 @@ Omit the array to use Office defaults; never invent native guide names.
     "adjustments": [42000, 36000]
   },
   "style": {
-    "fill": { "kind": "solid", "color": "#0B8F8F" },
-    "stroke": { "kind": "none" }
+    "fill": { "type": "solid", "color": "#0B8F8F" }
   }
 }
 ```

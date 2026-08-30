@@ -44,10 +44,7 @@ internal static class PptxShadowCodec
             Distance = shadow.DistanceEmu,
             Direction = shadow.DirectionAngle60000,
         };
-        var effects = new A.EffectList(outer);
-        var extensions = properties.GetFirstChild<A.ShapePropertiesExtensionList>();
-        if (extensions is null) properties.Append(effects);
-        else properties.InsertBefore(effects, extensions);
+        properties.AddChild(new A.EffectList(outer), true);
     }
 
     internal static void Validate(PresentationShadow? shadow, string elementId, string subject = "shape")

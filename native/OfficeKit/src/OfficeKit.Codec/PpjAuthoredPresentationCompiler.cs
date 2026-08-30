@@ -270,17 +270,7 @@ internal static class PpjAuthoredPresentationCompiler
             if (borderOpacity < 1) image.Border.OpacityThousandthPercent = Opacity(borderOpacity);
         }
         if (raw.TryGetProperty("shadow", out var shadow))
-        {
-            var color = catalog.Color(shadow.GetProperty("color"));
-            image.Shadow = new PresentationShadow
-            {
-                ColorRgb = color.Rgb,
-                BlurRadiusEmu = Emu(shadow.GetProperty("blur").GetDouble()),
-                DistanceEmu = Emu(shadow.GetProperty("distance").GetDouble()),
-                DirectionAngle60000 = Angle(shadow.GetProperty("angle").GetDouble()),
-                OpacityThousandthPercent = Opacity(OptionalDouble(shadow, "opacity") ?? color.Alpha),
-            };
-        }
+            image.Shadow = BuildShadow(shadow, catalog);
         if (element.Frame.Rotation != 0 || element.Frame.FlipH || element.Frame.FlipV)
         {
             image.Transform = new PresentationImageTransform();
@@ -948,17 +938,7 @@ internal static class PpjAuthoredPresentationCompiler
         else target.LineStyle = "none";
         var shadow = FirstProperty(inline, named, "shadow");
         if (shadow is { } shadowValue)
-        {
-            var shadowColor = catalog.Color(shadowValue.GetProperty("color"));
-            target.Shadow = new PresentationShadow
-            {
-                ColorRgb = shadowColor.Rgb,
-                BlurRadiusEmu = Emu(shadowValue.GetProperty("blur").GetDouble()),
-                DistanceEmu = Emu(shadowValue.GetProperty("distance").GetDouble()),
-                DirectionAngle60000 = Angle(shadowValue.GetProperty("angle").GetDouble()),
-                OpacityThousandthPercent = Opacity(OptionalDouble(shadowValue, "opacity") ?? shadowColor.Alpha),
-            };
-        }
+            target.Shadow = BuildShadow(shadowValue, catalog);
         var overallOpacity = FirstProperty(inline, named, "opacity");
         if (overallOpacity is { } opacity)
         {
@@ -1090,7 +1070,8 @@ internal static class PpjAuthoredPresentationCompiler
         var bold = FirstProperty(inlineRun, inlineDefault, namedDefault, "bold");
         var italic = FirstProperty(inlineRun, inlineDefault, namedDefault, "italic");
         var size = FirstProperty(inlineRun, inlineDefault, namedDefault, "size");
-        var color = FirstProperty(inlineRun, inlineDefault, namedDefault, "color");
+        var paint = FirstTextPaint(inlineRun, inlineDefault, namedDefault);
+        var shadow = FirstProperty(inlineRun, inlineDefault, namedDefault, "shadow");
         var highlight = FirstProperty(inlineRun, inlineDefault, namedDefault, "highlight");
         var font = FirstProperty(inlineRun, inlineDefault, namedDefault, "font");
         var family = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamily");
@@ -1105,12 +1086,17 @@ internal static class PpjAuthoredPresentationCompiler
         if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
         if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
         if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
-        if (color is { } colorValue)
+        if (paint is { Kind: "color" } colorPaint)
         {
-            var resolved = catalog.Color(colorValue);
+            var resolved = catalog.Color(colorPaint.Value);
             run.ColorRgb = resolved.Rgb;
             if (resolved.Alpha < 1) run.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
         }
+        else if (paint is { Kind: "gradient" } gradientPaint)
+        {
+            run.GradientFill = BuildGradientFill(gradientPaint.Value, color => catalog.Color(color));
+        }
+        if (shadow is { } shadowValue) run.Shadow = BuildShadow(shadowValue, catalog);
         if (highlight is { } highlightValue)
         {
             var resolved = catalog.Color(highlightValue);
@@ -1150,6 +1136,13 @@ internal static class PpjAuthoredPresentationCompiler
             output.ColorRgb = resolved.Rgb;
             if (resolved.Alpha < 1) output.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
         }
+        if (value.TryGetProperty("gradient", out var gradient))
+        {
+            if (value.TryGetProperty("color", out _))
+                throw new CodecException("ppj.text.paintConflict", "PPJ text style cannot declare both color and gradient.");
+            output.GradientFill = BuildGradientFill(gradient, color => catalog.Color(color));
+        }
+        if (value.TryGetProperty("shadow", out var shadow)) output.Shadow = BuildShadow(shadow, catalog);
         if (value.TryGetProperty("highlight", out var highlight))
         {
             var resolved = catalog.Color(highlight);
@@ -1234,6 +1227,8 @@ internal static class PpjAuthoredPresentationCompiler
             target.LineSpacingPoints = spacing.GetDouble();
         if (FirstProperty(direct, inline, named, "lineSpacingMultiplier") is { } spacingMultiplier)
             target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
+        if (FirstProperty(direct, inline, named, "defaultText") is { } defaultText && defaultText.EnumerateObject().Any())
+            target.DefaultRunProperties = BuildTextStyle(defaultText, catalog);
         if (FirstProperty(direct, inline, named, "bullet") is { } bullet)
         {
             var kind = bullet.GetProperty("type").GetString();
@@ -2132,6 +2127,36 @@ internal static class PpjAuthoredPresentationCompiler
         }
         PptxGradientFillCodec.Validate(output, "PPJ gradient");
         return output;
+    }
+
+    private static PresentationShadow BuildShadow(JsonElement value, Catalog catalog)
+    {
+        var color = catalog.Color(value.GetProperty("color"));
+        var degrees = value.GetProperty("angle").GetDouble();
+        var normalized = ((degrees % 360) + 360) % 360;
+        return new PresentationShadow
+        {
+            ColorRgb = color.Rgb,
+            BlurRadiusEmu = Emu(value.GetProperty("blur").GetDouble()),
+            DistanceEmu = Emu(value.GetProperty("distance").GetDouble()),
+            DirectionAngle60000 = Angle(normalized),
+            OpacityThousandthPercent = Opacity(OptionalDouble(value, "opacity") ?? color.Alpha),
+        };
+    }
+
+    private static (string Kind, JsonElement Value)? FirstTextPaint(params JsonElement?[] layers)
+    {
+        foreach (var layer in layers)
+        {
+            if (layer is not { ValueKind: JsonValueKind.Object } value) continue;
+            var hasColor = value.TryGetProperty("color", out var color);
+            var hasGradient = value.TryGetProperty("gradient", out var gradient);
+            if (hasColor && hasGradient)
+                throw new CodecException("ppj.text.paintConflict", "PPJ text style cannot declare both color and gradient.");
+            if (hasColor) return ("color", color);
+            if (hasGradient) return ("gradient", gradient);
+        }
+        return null;
     }
 
     private static (string Rgb, double Alpha) ParseHexColor(string value)

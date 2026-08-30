@@ -196,6 +196,25 @@ public sealed class PptxCodecTests
         {
             ["lineSpacingMultiplier"] = 1.1,
             ["spaceAfterMultiplier"] = 0.2,
+            ["defaultText"] = new JsonObject
+            {
+                ["gradient"] = new JsonObject
+                {
+                    ["kind"] = "radial",
+                    ["stops"] = new JsonArray
+                    {
+                        new JsonObject { ["offset"] = 0, ["color"] = "#FFFFFF" },
+                        new JsonObject { ["offset"] = 1, ["color"] = "#DCEFEA", ["opacity"] = 0.7 },
+                    },
+                },
+                ["shadow"] = new JsonObject
+                {
+                    ["color"] = "#16324F80",
+                    ["blur"] = 2,
+                    ["distance"] = 1,
+                    ["angle"] = 45,
+                },
+            },
             ["bullet"] = new JsonObject
             {
                 ["type"] = "character",
@@ -205,7 +224,24 @@ public sealed class PptxCodecTests
         };
         var authoredRunStyle = authoredParagraph["runs"]![0]!["style"]!.AsObject();
         authoredRunStyle["fontFamilyEastAsia"] = "Arial";
-        authoredRunStyle["color"] = "#16324FCC";
+        authoredRunStyle.Remove("color");
+        authoredRunStyle["gradient"] = new JsonObject
+        {
+            ["kind"] = "linear",
+            ["angle"] = 18,
+            ["stops"] = new JsonArray
+            {
+                new JsonObject { ["offset"] = 0, ["color"] = "#16324F" },
+                new JsonObject { ["offset"] = 1, ["color"] = "#0B8F8F", ["opacity"] = 0.8 },
+            },
+        };
+        authoredRunStyle["shadow"] = new JsonObject
+        {
+            ["color"] = "#16324F66",
+            ["blur"] = 3,
+            ["distance"] = 1.5,
+            ["angle"] = 90,
+        };
         authoredRunStyle["highlight"] = "#FFF2CC";
         authoredRunStyle["underline"] = "single";
         authoredRunStyle["strike"] = false;
@@ -609,6 +645,15 @@ public sealed class PptxCodecTests
         var invalidWaterfall = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidWaterfallProgram.ToJsonString()));
         Assert.False(invalidWaterfall.IsValid);
         Assert.Contains(invalidWaterfall.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.waterfallTotalMismatch");
+        var invalidTextPaintProgram = authoredProgram.DeepClone().AsObject();
+        invalidTextPaintProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "claim-title")
+            ["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["color"] = "#16324F";
+        var invalidTextPaint = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidTextPaintProgram.ToJsonString()));
+        Assert.False(invalidTextPaint.IsValid);
+        Assert.Contains(invalidTextPaint.Diagnostics, diagnostic => diagnostic.Path.Contains("claim-title", StringComparison.Ordinal) ||
+            diagnostic.Path.Contains("runs[0].style", StringComparison.Ordinal));
         var invalidAdjustmentProgram = authoredProgram.DeepClone().AsObject();
         invalidAdjustmentProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -705,6 +750,23 @@ public sealed class PptxCodecTests
                 .Single(picture => picture.ShapeProperties!.GetFirstChild<A.CustomGeometry>() is not null);
             Assert.NotNull(nativeCustomMaskPicture.ShapeProperties!.GetFirstChild<A.CustomGeometry>());
             Assert.Null(nativeCustomMaskPicture.ShapeProperties.GetFirstChild<A.PresetGeometry>());
+            var nativeClaim = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.Shape>()
+                .Single(shape => shape.TextBody?.Descendants<A.Text>().Any(text => text.Text == "Reduce incident hours ") == true);
+            var nativeClaimParagraph = Assert.Single(nativeClaim.TextBody!.Elements<A.Paragraph>());
+            var nativeClaimRunProperties = nativeClaimParagraph.Elements<A.Run>().First().RunProperties!;
+            Assert.Equal(18 * 60_000, nativeClaimRunProperties.GetFirstChild<A.GradientFill>()!
+                .GetFirstChild<A.LinearGradientFill>()!.Angle!.Value);
+            Assert.Equal(80_000, nativeClaimRunProperties.GetFirstChild<A.GradientFill>()!
+                .GetFirstChild<A.GradientStopList>()!.Elements<A.GradientStop>().Last()
+                .GetFirstChild<A.RgbColorModelHex>()!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            Assert.Equal(3 * 12_700, nativeClaimRunProperties.GetFirstChild<A.EffectList>()!
+                .GetFirstChild<A.OuterShadow>()!.BlurRadius!.Value);
+            var nativeDefaultText = nativeClaimParagraph.ParagraphProperties!.GetFirstChild<A.DefaultRunProperties>()!;
+            Assert.Equal(A.PathShadeValues.Circle, nativeDefaultText.GetFirstChild<A.GradientFill>()!
+                .GetFirstChild<A.PathGradientFill>()!.Path!.Value);
+            Assert.Equal(2 * 12_700, nativeDefaultText.GetFirstChild<A.EffectList>()!
+                .GetFirstChild<A.OuterShadow>()!.BlurRadius!.Value);
             var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
                 .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
                 .Uri.OriginalString.TrimStart('/');
@@ -819,8 +881,12 @@ public sealed class PptxCodecTests
         Assert.Equal("•", importedClaim.TextBody.Paragraphs[0].BulletCharacter);
         Assert.Equal("0B8F8F", importedClaim.TextBody.Paragraphs[0].BulletColorRgb);
         Assert.Equal(50_000U, importedClaim.TextBody.Paragraphs[0].BulletColorOpacityThousandthPercent);
-        Assert.Equal("16324F", importedClaim.TextBody.Paragraphs[0].Runs[0].ColorRgb);
-        Assert.Equal(80_000U, importedClaim.TextBody.Paragraphs[0].Runs[0].ColorOpacityThousandthPercent);
+        Assert.Equal(PresentationGradientFill.Types.Kind.Linear, importedClaim.TextBody.Paragraphs[0].Runs[0].GradientFill.Kind);
+        Assert.Equal(2, importedClaim.TextBody.Paragraphs[0].Runs[0].GradientFill.Stops.Count);
+        Assert.Equal(80_000U, importedClaim.TextBody.Paragraphs[0].Runs[0].GradientFill.Stops[1].OpacityThousandthPercent);
+        Assert.Equal(3 * 12_700, importedClaim.TextBody.Paragraphs[0].Runs[0].Shadow.BlurRadiusEmu);
+        Assert.Equal(PresentationGradientFill.Types.Kind.Radial, importedClaim.TextBody.Paragraphs[0].DefaultRunProperties.GradientFill.Kind);
+        Assert.Equal(2 * 12_700, importedClaim.TextBody.Paragraphs[0].DefaultRunProperties.Shadow.BlurRadiusEmu);
         var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
         Assert.Equal("custom", importedCustomShape.Geometry);
@@ -1020,8 +1086,15 @@ public sealed class PptxCodecTests
                 .Single(item => item.GetProperty("type").GetString() == "text" &&
                     item.GetProperty("text").GetProperty("paragraphs")[0].GetProperty("runs")[0]
                         .GetProperty("text").GetString() == "Reduce incident hours ");
-            Assert.Equal("#16324FCC", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
-                .GetProperty("runs")[0].GetProperty("style").GetProperty("color").GetString());
+            Assert.Equal("linear", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("runs")[0].GetProperty("style").GetProperty("gradient").GetProperty("kind").GetString());
+            Assert.Equal(0.8, projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("runs")[0].GetProperty("style").GetProperty("gradient").GetProperty("stops")[1]
+                .GetProperty("opacity").GetDouble(), 5);
+            Assert.Equal(3, projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("runs")[0].GetProperty("style").GetProperty("shadow").GetProperty("blur").GetDouble());
+            Assert.Equal("radial", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("style").GetProperty("defaultText").GetProperty("gradient").GetProperty("kind").GetString());
             Assert.Equal("#FFF2CC", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("highlight").GetString());
             Assert.Equal("zh-CN", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
@@ -1380,7 +1453,7 @@ public sealed class PptxCodecTests
             .Select(element => element!.AsObject())
             .Single(element => element["type"]!.GetValue<string>() == "text" &&
                 element["text"]!["paragraphs"]![0]!["runs"]![0]!["text"]!.GetValue<string>() == "Reduce incident hours ");
-        rejectedTextOpacity["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["color"] = "#16324F99";
+        rejectedTextOpacity["text"]!["paragraphs"]![0]!["runs"]![0]!["style"]!["gradient"]!["stops"]![0]!["opacity"] = 0.6;
         var rejectedTextOpacityEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,

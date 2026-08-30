@@ -2768,6 +2768,12 @@ message PresentationTextStyle {
   }
   // Direct DrawingML a:defRPr/@lang BCP-47 language tag.
   optional string language = 17;
+  // Canonical direct-RGB linear or centered-radial a:gradFill. This is
+  // mutually exclusive with the solid color oneof.
+  PresentationGradientFill gradient_fill = 18;
+  // Canonical direct a:effectLst/a:outerShdw. Broader effect graphs remain
+  // source-owned.
+  PresentationShadow shadow = 19;
 }
 
 message PresentationTextParagraph {
@@ -2921,6 +2927,12 @@ message PresentationTextRun {
   }
   // Direct DrawingML a:rPr/@lang BCP-47 language tag.
   optional string language = 22;
+  // Canonical direct-RGB linear or centered-radial a:gradFill. This is
+  // mutually exclusive with color_rgb and color_scheme.
+  PresentationGradientFill gradient_fill = 23;
+  // Canonical direct a:effectLst/a:outerShdw. Broader effect graphs remain
+  // source-owned.
+  PresentationShadow shadow = 24;
 }
 
 message PresentationTextField {
