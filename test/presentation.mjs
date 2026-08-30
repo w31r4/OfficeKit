@@ -337,6 +337,26 @@ const gradientReimported = await PresentationFile.importPptx(gradientEdited);
 assert.equal(gradientReimported.slides.getItem(0).shapes.getItemAt(0).text.value, "after");
 assert.equal(gradientReimported.slides.getItem(0).shapes.getItemAt(0).fill.kind, "radial");
 
+// Imported preset geometry must remain a usable owner when an Agent edits its
+// text. The adjustment list is source identity, not custom-geometry syntax.
+const presetGeometryDeck = Presentation.create({ slideSize: { width: 640, height: 360 } });
+presetGeometryDeck.slides.add().shapes.add({
+  id: "preset-home-plate",
+  geometry: "homePlate",
+  presetAdjustments: [32030],
+  position: { left: 80, top: 80, width: 180, height: 80 },
+  fill: "#E2E8F0",
+  text: "DEC",
+});
+const presetGeometryImported = await PresentationFile.importPptx(await PresentationFile.exportPptx(presetGeometryDeck));
+const importedPresetGeometry = presetGeometryImported.slides.getItem(0).shapes.getItemAt(0);
+assert.equal(importedPresetGeometry.geometry, "homePlate");
+assert.deepEqual(importedPresetGeometry.presetAdjustments, [32030]);
+importedPresetGeometry.text.replace("DEC", "DEC2");
+const presetGeometryEdited = await PresentationFile.importPptx(await PresentationFile.exportPptx(presetGeometryImported));
+assert.equal(presetGeometryEdited.slides.getItem(0).shapes.getItemAt(0).text.value, "DEC2");
+assert.deepEqual(presetGeometryEdited.slides.getItem(0).shapes.getItemAt(0).presetAdjustments, [32030]);
+
 // The JavaScript layer remains the object model, Compose, inspect, resolve,
 // semantic verification, and rendering surface.
 const modelPresentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
