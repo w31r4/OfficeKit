@@ -1361,6 +1361,15 @@ public sealed class PptxCodecTests
                         ["lowValues"] = new JsonArray(90, 91, 92, 96, 97, 104, 106, 107),
                         ["values"] = new JsonArray(96, 94, 101, 99, 108, 111, 109, 116),
                     },
+                    new JsonObject
+                    {
+                        ["id"] = "daily-average",
+                        ["name"] = "Moving average",
+                        ["chartType"] = "line",
+                        ["values"] = new JsonArray(94, 95, 97, 99, 102, 106, 109, 112),
+                        ["stroke"] = new JsonObject { ["color"] = "#F2C14E", ["width"] = 1.4, ["cap"] = "round" },
+                        ["marker"] = new JsonObject { ["symbol"] = "circle", ["size"] = 4, ["fill"] = "#F2C14E" },
+                    },
                 },
             },
             ["accessibility"] = new JsonObject
@@ -1377,6 +1386,85 @@ public sealed class PptxCodecTests
         var invalidCandlestick = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidCandlestickProgram.ToJsonString()));
         Assert.False(invalidCandlestick.IsValid);
         Assert.Contains(invalidCandlestick.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.candlestickRange");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "adoption-numeric-overlay",
+            ["type"] = "chart",
+            ["role"] = "numeric adoption evidence and fitted trajectory",
+            ["frame"] = new JsonObject { ["x"] = 610, ["y"] = 60, ["width"] = 300, ["height"] = 195 },
+            ["chartType"] = "combo",
+            ["title"] = "Adoption response",
+            ["xAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["title"] = "Exposure",
+                ["numberFormat"] = "0.0",
+                ["gridLine"] = false,
+            },
+            ["yAxis"] = new JsonObject
+            {
+                ["visible"] = true,
+                ["title"] = "Adoption",
+                ["numberFormat"] = "0",
+                ["gridLine"] = new JsonObject { ["color"] = "#CBD5E1", ["width"] = 0.5 },
+            },
+            ["style"] = new JsonObject
+            {
+                ["legend"] = "right",
+                ["bubbleScale"] = 90,
+                ["bubbleSizeMode"] = "area",
+                ["titleTextStyle"] = new JsonObject { ["fontSize"] = 13, ["bold"] = true, ["color"] = "#16324F" },
+                ["legendTextStyle"] = new JsonObject { ["fontSize"] = 7.5, ["color"] = "#52606D" },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray(),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "observed-sites",
+                        ["name"] = "Observed",
+                        ["chartType"] = "bubble",
+                        ["xValues"] = new JsonArray(1, 2, 3, 4),
+                        ["values"] = new JsonArray(18, 31, 47, 66),
+                        ["bubbleSizes"] = new JsonArray(8, 14, 20, 12),
+                        ["color"] = "#0B8F8FCC",
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "fitted-response",
+                        ["name"] = "Fitted",
+                        ["chartType"] = "line",
+                        ["xValues"] = new JsonArray(1, 2, 3, 4),
+                        ["values"] = new JsonArray(20, 32, 46, 64),
+                        ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 1.5, ["cap"] = "round" },
+                    },
+                    new JsonObject
+                    {
+                        ["id"] = "minimum-threshold",
+                        ["name"] = "Threshold",
+                        ["chartType"] = "column",
+                        ["xValues"] = new JsonArray(1, 2, 3, 4),
+                        ["values"] = new JsonArray(10, 12, 14, 16),
+                        ["color"] = "#C8644A99",
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Observed bubble evidence, fitted line, and minimum threshold columns share one numeric coordinate system.",
+            },
+        });
+        var invalidNumericComboProgram = authoredProgram.DeepClone().AsObject();
+        invalidNumericComboProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "adoption-numeric-overlay")
+            ["data"]!["series"]![1]!["xValues"]![2] = 2;
+        var invalidNumericCombo = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidNumericComboProgram.ToJsonString()));
+        Assert.False(invalidNumericCombo.IsValid);
+        Assert.Contains(invalidNumericCombo.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.numericComboXOrder");
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
             ["id"] = "evidence-treemap-main",
@@ -2096,7 +2184,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(43U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(44U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -2334,6 +2422,31 @@ public sealed class PptxCodecTests
             Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "Daily OHLC");
             Assert.Contains(nativeCandlestick.Descendants<A.Text>(), text => text.Text == "116.0");
             Assert.NotEmpty(nativeCandlestick.Descendants<A.GradientFill>());
+            Assert.Equal(7, nativeCandlestick.Elements<P.ConnectionShape>().Count(connector =>
+                connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("candlestick line Moving average ", StringComparison.Ordinal) == true));
+            var candlestickChildren = nativeCandlestick.ChildElements.ToArray();
+            var lastBodyIndex = Array.FindLastIndex(candlestickChildren, child =>
+                child.Descendants<P.NonVisualDrawingProperties>().Any(properties => properties.Name?.Value?.Contains(" body ", StringComparison.Ordinal) == true));
+            var firstAverageIndex = Array.FindIndex(candlestickChildren, child =>
+                child.Descendants<P.NonVisualDrawingProperties>().Any(properties => properties.Name?.Value?.StartsWith("candlestick line Moving average ", StringComparison.Ordinal) == true));
+            Assert.True(firstAverageIndex > lastBodyIndex);
+            var nativeNumericCombo = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "numeric adoption evidence and fitted trajectory");
+            Assert.Equal(4, nativeNumericCombo.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("numeric bubble Observed ", StringComparison.Ordinal) == true));
+            Assert.Equal(4, nativeNumericCombo.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("numeric column Threshold ", StringComparison.Ordinal) == true));
+            Assert.Equal(3, nativeNumericCombo.Elements<P.ConnectionShape>().Count(connector =>
+                connector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("numeric line Fitted ", StringComparison.Ordinal) == true));
+            var numericChildren = nativeNumericCombo.ChildElements.ToArray();
+            var lastColumnIndex = Array.FindLastIndex(numericChildren, child =>
+                child.Descendants<P.NonVisualDrawingProperties>().Any(properties => properties.Name?.Value?.StartsWith("numeric column Threshold ", StringComparison.Ordinal) == true));
+            var firstLineIndex = Array.FindIndex(numericChildren, child =>
+                child.Descendants<P.NonVisualDrawingProperties>().Any(properties => properties.Name?.Value?.StartsWith("numeric line Fitted ", StringComparison.Ordinal) == true));
+            var firstBubbleIndex = Array.FindIndex(numericChildren, child =>
+                child.Descendants<P.NonVisualDrawingProperties>().Any(properties => properties.Name?.Value?.StartsWith("numeric bubble Observed ", StringComparison.Ordinal) == true));
+            Assert.True(lastColumnIndex < firstLineIndex && firstLineIndex < firstBubbleIndex);
             var nativeTreemap = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
                 .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "hierarchical budget allocation");
@@ -2976,8 +3089,20 @@ public sealed class PptxCodecTests
                     item.GetProperty("name").GetString() == "daily price range");
             Assert.Contains(projectedCandlestick.GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "candlestick wick 1");
+            Assert.Contains(projectedCandlestick.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "candlestick line Moving average 1");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "daily price range" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedNumericCombo = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "numeric adoption evidence and fitted trajectory");
+            Assert.Contains(projectedNumericCombo.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "numeric bubble Observed 1");
+            Assert.Contains(projectedNumericCombo.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "numeric line Fitted 1");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "numeric adoption evidence and fitted trajectory" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedTreemap = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&
