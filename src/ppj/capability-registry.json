@@ -109,6 +109,20 @@
   },
   "authoredCompilerBoundaries": [
     {
+      "feature": "editable mixed numeric Cartesian overlays",
+      "ppjPath": "pages[].elements[] where chartType is combo and one data.series[].chartType is scatter or bubble",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact numeric combo from its embedded PPJ program. Without that private program, axes and marks import truthfully as an editable group; arbitrary third-party shapes are never inferred as numeric chart data.",
+      "reason": "The bounded profile owns one shared value/value coordinate system, 2..8 scatter, bubble, line, area or column series and 2..64 strictly increasing finite X/Y points per series. It emits stable editable axes, fills, bars, segments and point marks. Secondary axes, chart formulas, statistical transforms, ChartPart build animation and unsupported styling fail closed."
+    },
+    {
+      "feature": "editable candlestick overlays",
+      "ppjPath": "pages[].elements[] where chartType is candlestick and data.series has aligned line, area or column overlays after the OHLC/HLC body",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact candlestick and overlay semantics from its embedded PPJ program. Without that private program, the generated price and overlay marks import truthfully as an editable group; arbitrary third-party groups are not inferred as financial charts.",
+      "reason": "The first series remains the bounded OHLC/HLC body and up to four aligned overlays may add line, area or column evidence on the same scale. Filled overlays render behind wicks and bodies while line overlays render above them. Numeric X channels, secondary axes, formulas and unsupported overlay topology fail closed."
+    },
+    {
       "feature": "editable pictographic bars",
       "ppjPath": "pages[].elements[] where chartType is bar or column and data.series[0].symbol is present",
       "behavior": "partial",

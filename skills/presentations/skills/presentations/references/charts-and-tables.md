@@ -69,7 +69,8 @@ The authored chart compiler owns these native visual controls:
   bounded semantic waterfall, bounded vector heatmap, bounded vector
   candlestick, bounded vector streamgraph, bounded vector pictographic bars and
   columns, bounded vector treemap, bounded vector sunburst, bounded vector
-  sankey, and bounded column-line-area category combo plots;
+  sankey, bounded column-line-area category combo plots, and bounded editable
+  scatter/bubble plus line/area/column numeric overlays;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -413,10 +414,59 @@ OfficeKit emits separate native `c:areaChart`, `c:barChart` and `c:lineChart`
 plots in one editable ChartPart. Area is written behind columns and the line is
 written last so its evidence stroke remains visible. A secondary pair is
 optional, but must be complete and must serve at least one whole plot family.
-Horizontal bars, scatter/bubble overlays, splitting one family across both
-axis pairs and a one-family pseudo-combo are rejected. Use an ordinary scatter
-or bubble chart for numeric X values; PPJ does not disguise a numeric-axis mix
-as a categorical combo.
+Horizontal bars, splitting one family across both axis pairs and a one-family
+pseudo-combo are rejected.
+
+When one combo series is `scatter` or `bubble`, the whole element deliberately
+switches to the bounded numeric profile. Every series then supplies explicit,
+strictly increasing `xValues`, shared categories stay empty, and line, area or
+column evidence uses the same real value/value scale:
+
+```json
+{
+  "type": "chart",
+  "id": "adoption-response",
+  "chartType": "combo",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Observed adoption follows the fitted response",
+  "xAxis": { "title": "Exposure", "numberFormat": "0.0" },
+  "yAxis": { "title": "Adoption", "numberFormat": "0" },
+  "style": { "legend": "right", "bubbleScale": 90 },
+  "data": {
+    "categories": [],
+    "series": [
+      {
+        "id": "observed",
+        "name": "Observed",
+        "chartType": "bubble",
+        "xValues": [1, 2, 3, 4],
+        "values": [18, 31, 47, 66],
+        "bubbleSizes": [8, 14, 20, 12],
+        "color": "#0B8F8FCC"
+      },
+      {
+        "id": "fitted",
+        "name": "Fitted",
+        "chartType": "line",
+        "xValues": [1, 2, 3, 4],
+        "values": [20, 32, 46, 64],
+        "stroke": { "color": "#16324F", "width": 1.5 }
+      }
+    ]
+  }
+}
+```
+
+This is an editable DrawingML group, not a disguised categorical ChartPart.
+Filled area and column marks sit behind lines and points. The profile accepts
+2–8 series and 2–64 complete points per series, one shared axis pair, bounded
+axis formatting, and `none` or `right` legend placement. Area or column
+overlays require a truthful zero baseline. `bubbleScale` is 10–300. Line and
+scatter series may use bounded markers, but scatter cannot choose `none`;
+bubble, area and column marker settings are rejected instead of ignored.
+Secondary axes, formulas,
+trendlines, error bars and `chartBuild` animation fail closed. Without the
+embedded PPJ, import returns the editable group and does not guess chart data.
 
 Use a streamgraph when the audience needs to see both changing composition and
 the changing total across an ordered domain. Use an ordinary line or area chart
@@ -654,21 +704,35 @@ are required, and `openValues` distinguishes OHLC from HLC:
   },
   "data": {
     "categories": ["D1", "D2", "D3", "D4"],
-    "series": [{
-      "id": "price",
-      "name": "Price",
-      "openValues": [92, 96, 94, 101],
-      "highValues": [98, 99, 103, 104],
-      "lowValues": [90, 91, 92, 96],
-      "values": [96, 94, 101, 99]
-    }]
+    "series": [
+      {
+        "id": "price",
+        "name": "Price",
+        "openValues": [92, 96, 94, 101],
+        "highValues": [98, 99, 103, 104],
+        "lowValues": [90, 91, 92, 96],
+        "values": [96, 94, 101, 99]
+      },
+      {
+        "id": "moving-average",
+        "name": "Moving average",
+        "chartType": "line",
+        "values": [94, 95, 97, 99],
+        "stroke": { "color": "#F2C14E", "width": 1.4 },
+        "marker": { "symbol": "circle", "size": 4, "fill": "#F2C14E" }
+      }
+    ]
   }
 }
 ```
 
-The profile accepts one series and 1–64 unique ordered string categories. Every
-open and close must lie inside its low/high interval. Omit `openValues` for HLC;
-OfficeKit then draws an editable close tick instead of inventing a body.
+The profile accepts one OHLC/HLC body plus up to four aligned `line`, `area` or
+`column` overlays across 1–64 unique ordered string categories. Every open and
+close must lie inside its low/high interval. Omit `openValues` for HLC;
+OfficeKit then draws an editable close tick instead of inventing a body. Every
+overlay value is explicit and participates in the same Y domain. Filled area
+and column overlays render before wicks and bodies; line overlays render after
+the bodies so a moving average remains visible.
 `showCloseValues` is limited to 16 observations, and the frame must leave enough
 width for native marks and labels. Bounded axis number formats are `0`, `0.0`,
 `0.00`, `#,##0`, `#,##0.0`, and `#,##0.00`.
@@ -679,7 +743,9 @@ native wick connectors, body shapes, axes, gridlines, and text. Embedded PPJ
 restores exact OHLC/HLC intent; without it, import truthfully returns the group
 and does not reverse-engineer arbitrary marks into financial evidence.
 Whole-object animation remains available, while `chartBuild`, secondary axes,
-legends, trendlines, error bars, markers, and automatic data labels fail closed.
+legends, trendlines, error bars, numeric-X overlays and automatic data labels
+fail closed. Overlay line markers use the ordinary bounded marker vocabulary;
+area and column marker settings are rejected instead of ignored.
 
 Use `treemap` for hierarchical part-to-whole evidence when area is the intended
 comparison. It is not a substitute for a ranked bar chart when exact ordering

@@ -279,6 +279,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel pictograph when IsPictographicChart(pictograph):
                 output.Group = BuildPictographicChart(pictograph, raw, catalog);
                 break;
+            case PpjChartElementModel numericCombo when IsNumericCombo(numericCombo):
+                output.Group = BuildNumericCombo(numericCombo, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -591,6 +594,804 @@ internal static class PpjAuthoredPresentationCompiler
         ApplyAccessibility(chart, element.Accessibility);
         return chart;
     }
+
+    private static bool IsNumericCombo(PpjChartElementModel element) =>
+        element.ChartType == "combo" &&
+        element.Data.Series.Any(series => series.ChartType is "scatter" or "bubble");
+
+    private sealed record VectorAxisRange(
+        double Minimum,
+        double Maximum,
+        double MajorUnit,
+        int TickCount,
+        bool Reverse,
+        string? NumberFormat);
+
+    private static PresentationGroup BuildNumericCombo(
+        PpjChartElementModel element,
+        JsonElement raw,
+        Catalog catalog)
+    {
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateNumericComboCompileProfile(element, raw, namedStyle, inlineStyle);
+
+        var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
+        var xAxis = Property(raw, "xAxis");
+        var yAxis = Property(raw, "yAxis");
+        var showXAxis = xAxis is null || OptionalBoolean(xAxis.Value, "visible") != false;
+        var showYAxis = yAxis is null || OptionalBoolean(yAxis.Value, "visible") != false;
+        var legend = FirstProperty(inlineStyle, namedStyle, "legend")?.GetString() ?? "right";
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(element.Frame.Height * 0.12, 22, 38);
+        var legendWidth = legend == "right" ? Math.Clamp(element.Frame.Width * 0.18, 92, 138) : 0;
+        var legendGap = legendWidth > 0 ? 12 : 0;
+        var leftInset = showYAxis ? Math.Clamp(element.Frame.Width * 0.1, 42, 66) : 8;
+        var bottomInset = showXAxis
+            ? (xAxis is { } xAxisValue && xAxisValue.TryGetProperty("title", out _) ? 38 : 24)
+            : 8;
+        var topInset = titleHeight + 8;
+        var rightInset = legendWidth + legendGap + 8;
+        var plotX = element.Frame.X + leftInset;
+        var plotY = element.Frame.Y + topInset;
+        var plotWidth = element.Frame.Width - leftInset - rightInset;
+        var plotHeight = element.Frame.Height - topInset - bottomInset;
+        if (plotWidth < 120 || plotHeight < 90)
+            throw Unsupported(element.Id, "numeric combo frame is too small for editable axes and marks");
+
+        var xValues = element.Data.Series.SelectMany(series => series.XValues).ToArray();
+        var yValues = element.Data.Series.SelectMany(series => series.Values).Select(value => value!.Value).ToList();
+        var requiresZero = element.Data.Series.Any(series => series.ChartType is "area" or "column");
+        var xRange = BuildVectorAxisRange(xValues, xAxis, includeZero: false, element.Id, "X");
+        var yRange = BuildVectorAxisRange(yValues, yAxis, requiresZero, element.Id, "Y");
+        if (requiresZero && (yRange.Minimum > 0 || yRange.Maximum < 0))
+            throw Unsupported(element.Id, "numeric combo area and column series require zero inside the Y domain");
+
+        double PlotX(double value)
+        {
+            var ratio = (value - xRange.Minimum) / (xRange.Maximum - xRange.Minimum);
+            if (xRange.Reverse) ratio = 1 - ratio;
+            return plotX + ratio * plotWidth;
+        }
+        double PlotY(double value)
+        {
+            var ratio = (value - yRange.Minimum) / (yRange.Maximum - yRange.Minimum);
+            if (yRange.Reverse) ratio = 1 - ratio;
+            return plotY + (1 - ratio) * plotHeight;
+        }
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(element.Frame.X),
+            TopEmu = Emu(element.Frame.Y),
+            WidthEmu = Emu(element.Frame.Width),
+            HeightEmu = Emu(element.Frame.Height),
+            ChildLeftEmu = Emu(element.Frame.X),
+            ChildTopEmu = Emu(element.Frame.Y),
+            ChildWidthEmu = Emu(element.Frame.Width),
+            ChildHeightEmu = Emu(element.Frame.Height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+
+        AddVectorGridlines(group, element.Id, "numeric", plotX, plotY, plotWidth, plotHeight, xRange, yRange, xAxis, yAxis, catalog);
+
+        var ordered = element.Data.Series
+            .Select((series, index) => (Series: series, Json: seriesJson[index], Index: index))
+            .OrderBy(item => NumericSeriesOrder(item.Series.ChartType!))
+            .ThenBy(item => item.Index)
+            .ToArray();
+        var columnSeries = ordered.Where(item => item.Series.ChartType == "column").ToArray();
+        var columnPositions = columnSeries.Select((item, index) => (item.Series.Id, index))
+            .ToDictionary(item => item.Id, item => item.index, StringComparer.Ordinal);
+        var xSpacing = element.Data.Series
+            .SelectMany(series => series.XValues.Zip(series.XValues.Skip(1)).Select(pair => pair.Second - pair.First))
+            .DefaultIfEmpty((xRange.Maximum - xRange.Minimum) / 8)
+            .Min();
+        var slotWidth = Math.Clamp(Math.Abs(PlotX(xRange.Minimum + xSpacing) - PlotX(xRange.Minimum)) * 0.7, 4, 54);
+        var columnWidth = columnSeries.Length == 0 ? 0 : Math.Max(2, slotWidth / columnSeries.Length);
+        var baselineY = PlotY(0);
+
+        foreach (var item in ordered)
+        {
+            var series = item.Series;
+            var points = series.XValues.Zip(series.Values, (xValue, value) => (X: PlotX(xValue), Y: PlotY(value!.Value), Value: value.Value)).ToArray();
+            switch (series.ChartType)
+            {
+                case "area":
+                {
+                    var shape = ShapeFrame(new PpjFrameModel(plotX, plotY, plotWidth, plotHeight, 0, false, false), "custom");
+                    ApplyVectorSeriesFill(shape, item.Json, catalog, item.Index, element.Id, defaultOpacity: 0.32);
+                    shape.CustomPaths.Add(BuildVectorAreaPath(plotX, plotY, plotWidth, plotHeight, points.Select(point => (point.X, point.Y)).ToArray(), baselineY));
+                    group.Children.Add(new PresentationElement
+                    {
+                        Id = NumericComboNativeId(element.Id, $"area/{series.Id}"),
+                        Name = $"numeric area {series.Name}",
+                        Shape = shape,
+                    });
+                    break;
+                }
+                case "column":
+                {
+                    var seriesOffset = columnPositions[series.Id] - (columnSeries.Length - 1) / 2d;
+                    for (var pointIndex = 0; pointIndex < points.Length; pointIndex++)
+                    {
+                        var point = points[pointIndex];
+                        var top = Math.Min(point.Y, baselineY);
+                        var height = Math.Max(1.5, Math.Abs(point.Y - baselineY));
+                        var shape = ShapeFrame(new PpjFrameModel(point.X + seriesOffset * columnWidth - columnWidth * 0.42, top, columnWidth * 0.84, height, 0, false, false), "rect");
+                        ApplyVectorSeriesFill(shape, item.Json, catalog, item.Index, element.Id, defaultOpacity: 0.82);
+                        group.Children.Add(new PresentationElement
+                        {
+                            Id = NumericComboNativeId(element.Id, $"column/{series.Id}/{pointIndex}"),
+                            Name = $"numeric column {series.Name} {pointIndex + 1}",
+                            Shape = shape,
+                        });
+                    }
+                    break;
+                }
+                case "line":
+                    AddVectorLineSeries(group, element.Id, "numeric", series, item.Json, item.Index, points, catalog, drawDefaultMarkers: false);
+                    break;
+                case "scatter":
+                    AddVectorPointSeries(group, element.Id, "numeric", series, item.Json, item.Index, points, null, plotWidth, plotHeight, catalog);
+                    break;
+                case "bubble":
+                    AddVectorPointSeries(group, element.Id, "numeric", series, item.Json, item.Index, points, series.BubbleSizes, plotWidth, plotHeight, catalog,
+                        bubbleScale: FirstProperty(inlineStyle, namedStyle, "bubbleScale")?.GetInt32() ?? 100,
+                        bubbleSizeMode: FirstProperty(inlineStyle, namedStyle, "bubbleSizeMode")?.GetString() ?? "area");
+                    break;
+            }
+        }
+
+        AddVectorAxesAndLabels(group, element.Id, "numeric", plotX, plotY, plotWidth, plotHeight, xRange, yRange, xAxis, yAxis, catalog);
+
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTitleElement(
+                NumericComboNativeId(element.Id, "title"),
+                "numeric combo title",
+                element.Frame.X,
+                element.Frame.Y,
+                element.Frame.Width,
+                titleHeight,
+                raw.GetProperty("title"),
+                FirstProperty(inlineStyle, namedStyle, "titleTextStyle"),
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+        if (legend == "right")
+            AddVectorLegend(group, element.Id, "numeric", ordered.Select(item => (item.Series, item.Json, item.Index)).ToArray(),
+                plotX + plotWidth + legendGap, plotY, legendWidth, plotHeight,
+                FirstProperty(inlineStyle, namedStyle, "legendTextStyle"), catalog);
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateNumericComboCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (!IsNumericCombo(element) || element.Data.Categories.Count != 0 || element.Data.Series.Count is < 2 or > 8)
+            throw Unsupported(element.Id, "numeric combo charts require 2..8 series and an empty categories array");
+        var families = element.Data.Series.Select(series => series.ChartType).Distinct(StringComparer.Ordinal).ToArray();
+        if (!families.Any(family => family is "scatter" or "bubble") || families.Length < 2)
+            throw Unsupported(element.Id, "numeric combo charts require scatter or bubble evidence and a different plot family");
+        foreach (var series in element.Data.Series)
+        {
+            if (series.ChartType is not ("scatter" or "bubble" or "line" or "area" or "column"))
+                throw Unsupported(element.Id, "numeric combo series types are scatter, bubble, line, area and column");
+            if (series.Values.Count is < 2 or > 64 || series.Values.Any(value => value is null || !double.IsFinite(value.Value)) ||
+                series.XValues.Count != series.Values.Count || series.XValues.Any(value => !double.IsFinite(value)) ||
+                series.XValues.Zip(series.XValues.Skip(1)).Any(pair => pair.First >= pair.Second))
+                throw Unsupported(element.Id, $"numeric combo series {series.Id} requires 2..64 finite values with strictly increasing aligned xValues");
+            if (series.ChartType == "bubble")
+            {
+                if (series.BubbleSizes.Count != series.Values.Count || series.BubbleSizes.Any(value => !double.IsFinite(value) || value <= 0))
+                    throw Unsupported(element.Id, $"bubble series {series.Id} requires one finite positive size per point");
+            }
+            else if (series.BubbleSizes.Count != 0)
+                throw Unsupported(element.Id, "bubbleSizes apply only to a bubble series");
+            if (series.Raw.TryGetProperty("marker", out var marker))
+            {
+                if (series.ChartType is "area" or "column" or "bubble")
+                    throw Unsupported(element.Id, $"numeric combo {series.ChartType} series do not render markers");
+                if (series.ChartType == "scatter" &&
+                    (marker.ValueKind == JsonValueKind.String && marker.GetString() == "none" ||
+                     marker.ValueKind == JsonValueKind.Object && OptionalString(marker, "symbol") == "none"))
+                    throw Unsupported(element.Id, "numeric combo scatter series cannot use marker none");
+            }
+            if (series.Axis is not null and not "primary")
+                throw Unsupported(element.Id, "numeric combo charts use one shared primary axis pair");
+            RejectProperties(series.Raw, element.Id, "pointRoles", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "symbol", "trendlines", "errorBars");
+            if (series.Raw.TryGetProperty("fill", out _) && series.Raw.TryGetProperty("color", out _))
+                throw Unsupported(element.Id, "numeric combo series color and fill are aliases and cannot both be present");
+        }
+        foreach (var property in new[] { "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _)) throw Unsupported(element.Id, "numeric combo charts do not support secondary axes");
+        foreach (var style in new[] { namedStyle, inlineStyle })
+        {
+            if (style is not { ValueKind: JsonValueKind.Object } value) continue;
+            foreach (var property in value.EnumerateObject())
+                if (property.Name is not ("legend" or "titleTextStyle" or "legendTextStyle" or "bubbleScale" or "bubbleSizeMode"))
+                    throw Unsupported(element.Id, $"numeric combo charts do not support chart style field {property.Name}");
+        }
+        if (FirstProperty(inlineStyle, namedStyle, "legend") is { } legend && legend.GetString() is not ("none" or "right"))
+            throw Unsupported(element.Id, "numeric combo legends support only none or right");
+        if (FirstProperty(inlineStyle, namedStyle, "bubbleScale") is { } bubbleScale && bubbleScale.GetInt32() < 10)
+            throw Unsupported(element.Id, "generated numeric combo bubbles require bubbleScale between 10 and 300");
+        ValidateVectorAxisCompileProfile(Property(raw, "xAxis"), element.Id, "X");
+        ValidateVectorAxisCompileProfile(Property(raw, "yAxis"), element.Id, "Y");
+    }
+
+    private static void ValidateVectorAxisCompileProfile(JsonElement? axis, string elementId, string name)
+    {
+        if (axis is not { ValueKind: JsonValueKind.Object } value) return;
+        foreach (var property in value.EnumerateObject())
+            if (property.Name is not ("visible" or "title" or "numberFormat" or "min" or "max" or "majorUnit" or "textStyle" or "titleTextStyle" or "reverse" or "axisLine" or "gridLine"))
+                throw Unsupported(elementId, $"generated numeric {name} axis does not support {property.Name}");
+        if (OptionalString(value, "numberFormat") is { } numberFormat && !VectorChartNumberFormats.Contains(numberFormat, StringComparer.Ordinal))
+            throw Unsupported(elementId, $"generated numeric {name} axis numberFormat {numberFormat} is outside the bounded profile");
+    }
+
+    private static VectorAxisRange BuildVectorAxisRange(
+        IReadOnlyCollection<double> values,
+        JsonElement? axis,
+        bool includeZero,
+        string elementId,
+        string name)
+    {
+        var dataMinimum = values.Min();
+        var dataMaximum = values.Max();
+        if (includeZero)
+        {
+            dataMinimum = Math.Min(dataMinimum, 0);
+            dataMaximum = Math.Max(dataMaximum, 0);
+        }
+        var dataRange = dataMaximum - dataMinimum;
+        if (dataRange <= 0) dataRange = Math.Max(1, Math.Abs(dataMaximum) * 0.1);
+        var majorUnit = axis is { } explicitAxis && OptionalDouble(explicitAxis, "majorUnit") is { } explicitMajor
+            ? explicitMajor
+            : NiceVectorChartStep(dataRange / 5);
+        var pad = dataRange * 0.05;
+        var minimum = axis is { } minimumAxis && OptionalDouble(minimumAxis, "min") is { } explicitMinimum
+            ? explicitMinimum
+            : Math.Floor((dataMinimum - pad) / majorUnit) * majorUnit;
+        var maximum = axis is { } maximumAxis && OptionalDouble(maximumAxis, "max") is { } explicitMaximum
+            ? explicitMaximum
+            : Math.Ceiling((dataMaximum + pad) / majorUnit) * majorUnit;
+        if (minimum > dataMinimum || maximum < dataMaximum || maximum <= minimum)
+            throw Unsupported(elementId, $"numeric combo {name} axis must contain every data value and have maximum greater than minimum");
+        var tickCount = checked((int)Math.Floor((maximum - minimum) / majorUnit + 1e-9)) + 1;
+        if (tickCount is < 2 or > 12)
+            throw Unsupported(elementId, $"numeric combo {name} axis must expand to 2..12 major ticks");
+        return new VectorAxisRange(
+            minimum,
+            maximum,
+            majorUnit,
+            tickCount,
+            axis is { } reversed && OptionalBoolean(reversed, "reverse") == true,
+            axis is { } formatted ? OptionalString(formatted, "numberFormat") : null);
+    }
+
+    private static int NumericSeriesOrder(string chartType) => chartType switch
+    {
+        "area" => 0,
+        "column" => 1,
+        "line" => 2,
+        "scatter" => 3,
+        "bubble" => 4,
+        _ => 5,
+    };
+
+    private static string NumericComboNativeId(string elementId, string suffix) =>
+        $"{elementId}/numeric-combo/{suffix}";
+
+    private static readonly string[] VectorChartNumberFormats = ["0", "0.0", "0.00", "#,##0", "#,##0.0", "#,##0.00"];
+
+    private static void AddVectorGridlines(
+        PresentationGroup group,
+        string elementId,
+        string family,
+        double plotX,
+        double plotY,
+        double plotWidth,
+        double plotHeight,
+        VectorAxisRange xRange,
+        VectorAxisRange yRange,
+        JsonElement? xAxis,
+        JsonElement? yAxis,
+        Catalog catalog)
+    {
+        if (AxisLineSetting(yAxis, "gridLine") is { Visible: true } yGrid)
+            for (var index = 0; index < yRange.TickCount; index++)
+            {
+                var ratio = index * yRange.MajorUnit / (yRange.Maximum - yRange.Minimum);
+                if (yRange.Reverse) ratio = 1 - ratio;
+                var y = plotY + (1 - ratio) * plotHeight;
+                group.Children.Add(VectorStyledLineElement(
+                    $"{elementId}/{family}/y-grid/{index}",
+                    $"{family} Y gridline {index + 1}",
+                    plotX,
+                    y,
+                    plotX + plotWidth,
+                    y,
+                    yGrid.Style,
+                    catalog,
+                    "D9DFE8",
+                    0.75));
+            }
+        if (AxisLineSetting(xAxis, "gridLine") is { Visible: true } xGrid)
+            for (var index = 0; index < xRange.TickCount; index++)
+            {
+                var ratio = index * xRange.MajorUnit / (xRange.Maximum - xRange.Minimum);
+                if (xRange.Reverse) ratio = 1 - ratio;
+                var x = plotX + ratio * plotWidth;
+                group.Children.Add(VectorStyledLineElement(
+                    $"{elementId}/{family}/x-grid/{index}",
+                    $"{family} X gridline {index + 1}",
+                    x,
+                    plotY,
+                    x,
+                    plotY + plotHeight,
+                    xGrid.Style,
+                    catalog,
+                    "D9DFE8",
+                    0.75));
+            }
+    }
+
+    private static void AddVectorAxesAndLabels(
+        PresentationGroup group,
+        string elementId,
+        string family,
+        double plotX,
+        double plotY,
+        double plotWidth,
+        double plotHeight,
+        VectorAxisRange xRange,
+        VectorAxisRange yRange,
+        JsonElement? xAxis,
+        JsonElement? yAxis,
+        Catalog catalog)
+    {
+        var showXAxis = xAxis is null || OptionalBoolean(xAxis.Value, "visible") != false;
+        var showYAxis = yAxis is null || OptionalBoolean(yAxis.Value, "visible") != false;
+        if (showXAxis)
+        {
+            if (AxisLineSetting(xAxis, "axisLine", defaultVisible: true) is { Visible: true } axisLine)
+                group.Children.Add(VectorStyledLineElement(
+                    $"{elementId}/{family}/x-axis",
+                    $"{family} X axis",
+                    plotX,
+                    plotY + plotHeight,
+                    plotX + plotWidth,
+                    plotY + plotHeight,
+                    axisLine.Style,
+                    catalog,
+                    "52606D",
+                    1));
+            var labelStyle = Property(xAxis, "textStyle");
+            var labelWidth = Math.Clamp(plotWidth / Math.Min(xRange.TickCount, 8), 42, 88);
+            for (var index = 0; index < xRange.TickCount; index++)
+            {
+                var ratio = index * xRange.MajorUnit / (xRange.Maximum - xRange.Minimum);
+                var value = xRange.Minimum + index * xRange.MajorUnit;
+                if (xRange.Reverse) ratio = 1 - ratio;
+                var x = plotX + ratio * plotWidth;
+                group.Children.Add(VectorChartTextElement(
+                    $"{elementId}/{family}/x-label/{index}",
+                    $"{family} X label {index + 1}",
+                    Math.Clamp(x - labelWidth / 2, plotX, plotX + plotWidth - labelWidth),
+                    plotY + plotHeight + 2,
+                    labelWidth,
+                    16,
+                    FormatVectorChartValue(value, xRange.NumberFormat),
+                    labelStyle,
+                    catalog,
+                    7,
+                    index == 0 ? "left" : index == xRange.TickCount - 1 ? "right" : "center",
+                    "52606D"));
+            }
+            if (xAxis is { } xAxisWithTitle && xAxisWithTitle.TryGetProperty("title", out var title))
+                group.Children.Add(VectorChartTextElement(
+                    $"{elementId}/{family}/x-title",
+                    $"{family} X axis title",
+                    plotX,
+                    plotY + plotHeight + 18,
+                    plotWidth,
+                    16,
+                    title.GetString()!,
+                    Property(xAxis, "titleTextStyle"),
+                    catalog,
+                    8,
+                    "center",
+                    "52606D"));
+        }
+        if (showYAxis)
+        {
+            if (AxisLineSetting(yAxis, "axisLine", defaultVisible: true) is { Visible: true } axisLine)
+                group.Children.Add(VectorStyledLineElement(
+                    $"{elementId}/{family}/y-axis",
+                    $"{family} Y axis",
+                    plotX,
+                    plotY,
+                    plotX,
+                    plotY + plotHeight,
+                    axisLine.Style,
+                    catalog,
+                    "52606D",
+                    1));
+            var labelStyle = Property(yAxis, "textStyle");
+            for (var index = 0; index < yRange.TickCount; index++)
+            {
+                var ratio = index * yRange.MajorUnit / (yRange.Maximum - yRange.Minimum);
+                var value = yRange.Minimum + index * yRange.MajorUnit;
+                if (yRange.Reverse) ratio = 1 - ratio;
+                var y = plotY + (1 - ratio) * plotHeight;
+                group.Children.Add(VectorChartTextElement(
+                    $"{elementId}/{family}/y-label/{index}",
+                    $"{family} Y label {index + 1}",
+                    plotX - 52,
+                    y - 7,
+                    46,
+                    14,
+                    FormatVectorChartValue(value, yRange.NumberFormat),
+                    labelStyle,
+                    catalog,
+                    7,
+                    "right",
+                    "52606D"));
+            }
+            if (yAxis is { } yAxisWithTitle && yAxisWithTitle.TryGetProperty("title", out var title))
+                group.Children.Add(VectorChartTextElement(
+                    $"{elementId}/{family}/y-title",
+                    $"{family} Y axis title",
+                    plotX - 52,
+                    plotY - 18,
+                    Math.Min(140, plotWidth * 0.35),
+                    16,
+                    title.GetString()!,
+                    Property(yAxis, "titleTextStyle"),
+                    catalog,
+                    8,
+                    "left",
+                    "52606D"));
+        }
+    }
+
+    private sealed record VectorLineSetting(bool Visible, JsonElement? Style);
+
+    private static VectorLineSetting? AxisLineSetting(JsonElement? axis, string property, bool defaultVisible = false)
+    {
+        if (axis is null || !axis.Value.TryGetProperty(property, out var value))
+            return defaultVisible ? new VectorLineSetting(true, null) : null;
+        return value.ValueKind == JsonValueKind.False
+            ? new VectorLineSetting(false, null)
+            : value.ValueKind == JsonValueKind.True
+                ? new VectorLineSetting(true, null)
+                : new VectorLineSetting(true, value);
+    }
+
+    private static PresentationElement VectorStyledLineElement(
+        string id,
+        string name,
+        double startX,
+        double startY,
+        double endX,
+        double endY,
+        JsonElement? style,
+        Catalog catalog,
+        string defaultRgb,
+        double defaultWidth)
+    {
+        var connector = new PresentationConnector
+        {
+            ConnectorType = "straight",
+            StartXEmu = Emu(startX),
+            StartYEmu = Emu(startY),
+            EndXEmu = Emu(endX),
+            EndYEmu = Emu(endY),
+        };
+        if (style is { } stroke) ApplyLine(connector, stroke, catalog);
+        else
+        {
+            connector.LineRgb = defaultRgb;
+            connector.LineWidthEmu = Emu(defaultWidth);
+            connector.LineStyle = "solid";
+        }
+        return new PresentationElement { Id = id, Name = name, Connector = connector };
+    }
+
+    private static PresentationCustomGeometryPath BuildVectorAreaPath(
+        double plotX,
+        double plotY,
+        double plotWidth,
+        double plotHeight,
+        IReadOnlyList<(double X, double Y)> points,
+        double baselineY)
+    {
+        const long viewport = 100_000;
+        PresentationCustomGeometryPoint Point((double X, double Y) source) => new()
+        {
+            X = checked((long)Math.Round((source.X - plotX) / plotWidth * viewport, MidpointRounding.AwayFromZero)),
+            Y = checked((long)Math.Round((source.Y - plotY) / plotHeight * viewport, MidpointRounding.AwayFromZero)),
+        };
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = viewport,
+            Height = viewport,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = true,
+        };
+        path.Commands.Add(MoveTo(Point((points[0].X, baselineY))));
+        foreach (var point in points) path.Commands.Add(LineTo(Point(point)));
+        path.Commands.Add(LineTo(Point((points[^1].X, baselineY))));
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        return path;
+    }
+
+    private static void ApplyVectorSeriesFill(
+        PresentationShape target,
+        JsonElement series,
+        Catalog catalog,
+        int seriesIndex,
+        string elementId,
+        double defaultOpacity)
+    {
+        if (series.TryGetProperty("fill", out var fill))
+        {
+            if (fill.GetProperty("type").GetString() == "none")
+                throw Unsupported(elementId, "filled numeric marks cannot use fill none");
+            ApplyTextBoxFill(target, fill, catalog);
+        }
+        else if (series.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            target.FillRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) target.FillOpacityThousandthPercent = Opacity(resolved.Alpha);
+        }
+        else target.FillRgb = catalog.Theme.AccentRgb[seriesIndex % catalog.Theme.AccentRgb.Count];
+        if (defaultOpacity < 1 && !target.HasFillOpacityThousandthPercent && target.GradientFill is null)
+            target.FillOpacityThousandthPercent = Opacity(defaultOpacity);
+        if (series.TryGetProperty("stroke", out var stroke)) ApplyLine(target, stroke, catalog);
+        else target.LineStyle = "none";
+    }
+
+    private static (string Rgb, double Alpha) VectorSeriesColor(JsonElement series, Catalog catalog, int seriesIndex)
+    {
+        if (series.TryGetProperty("color", out var color))
+        {
+            var resolved = catalog.Color(color);
+            return (resolved.Rgb, resolved.Alpha);
+        }
+        if (series.TryGetProperty("fill", out var fill) && fill.GetProperty("type").GetString() == "solid")
+        {
+            var resolved = FillColor(fill, catalog);
+            if (resolved is { } value) return (value.Rgb, value.Opacity);
+        }
+        return (catalog.Theme.AccentRgb[seriesIndex % catalog.Theme.AccentRgb.Count], 1);
+    }
+
+    private static void ApplyVectorSeriesLine(
+        PresentationConnector connector,
+        JsonElement series,
+        Catalog catalog,
+        int seriesIndex)
+    {
+        if (series.TryGetProperty("stroke", out var stroke))
+        {
+            ApplyLine(connector, stroke, catalog);
+            return;
+        }
+        var color = VectorSeriesColor(series, catalog, seriesIndex);
+        connector.LineRgb = color.Rgb;
+        connector.LineWidthEmu = Emu(1.5);
+        connector.LineStyle = "solid";
+        connector.LineCap = "round";
+        connector.LineJoin = "round";
+        if (color.Alpha < 1) connector.LineOpacityThousandthPercent = Opacity(color.Alpha);
+    }
+
+    private static void AddVectorLineSeries(
+        PresentationGroup group,
+        string elementId,
+        string family,
+        PpjChartSeriesModel series,
+        JsonElement seriesJson,
+        int seriesIndex,
+        IReadOnlyList<(double X, double Y, double Value)> points,
+        Catalog catalog,
+        bool drawDefaultMarkers)
+    {
+        for (var index = 0; index < points.Count - 1; index++)
+        {
+            var connector = new PresentationConnector
+            {
+                ConnectorType = "straight",
+                StartXEmu = Emu(points[index].X),
+                StartYEmu = Emu(points[index].Y),
+                EndXEmu = Emu(points[index + 1].X),
+                EndYEmu = Emu(points[index + 1].Y),
+            };
+            ApplyVectorSeriesLine(connector, seriesJson, catalog, seriesIndex);
+            group.Children.Add(new PresentationElement
+            {
+                Id = $"{elementId}/{family}/line/{series.Id}/{index}",
+                Name = $"{family} line {series.Name} {index + 1}",
+                Connector = connector,
+            });
+        }
+        var marker = seriesJson.TryGetProperty("marker", out var configuredMarker) ? configuredMarker : default;
+        if (drawDefaultMarkers || marker.ValueKind != JsonValueKind.Undefined)
+            AddVectorMarkers(group, elementId, family, series, seriesJson, seriesIndex, points, marker, catalog);
+    }
+
+    private static void AddVectorPointSeries(
+        PresentationGroup group,
+        string elementId,
+        string family,
+        PpjChartSeriesModel series,
+        JsonElement seriesJson,
+        int seriesIndex,
+        IReadOnlyList<(double X, double Y, double Value)> points,
+        IReadOnlyList<double>? bubbleSizes,
+        double plotWidth,
+        double plotHeight,
+        Catalog catalog,
+        int bubbleScale = 100,
+        string bubbleSizeMode = "area")
+    {
+        if (bubbleSizes is null)
+        {
+            var marker = seriesJson.TryGetProperty("marker", out var configuredMarker) ? configuredMarker : default;
+            AddVectorMarkers(group, elementId, family, series, seriesJson, seriesIndex, points, marker, catalog, defaultSymbol: "circle");
+            return;
+        }
+        var maximum = bubbleSizes.Max();
+        var maximumDiameter = Math.Clamp(Math.Min(plotWidth, plotHeight) * 0.12 * bubbleScale / 100d, 10, 48);
+        for (var index = 0; index < points.Count; index++)
+        {
+            var ratio = bubbleSizes[index] / maximum;
+            var diameter = Math.Max(4, maximumDiameter * (bubbleSizeMode == "width" ? ratio : Math.Sqrt(ratio)));
+            group.Children.Add(BuildVectorMarkerElement(
+                $"{elementId}/{family}/bubble/{series.Id}/{index}",
+                $"{family} bubble {series.Name} {index + 1}",
+                points[index].X,
+                points[index].Y,
+                diameter,
+                "circle",
+                seriesJson,
+                default,
+                catalog,
+                seriesIndex,
+                defaultOpacity: 0.65));
+        }
+    }
+
+    private static void AddVectorMarkers(
+        PresentationGroup group,
+        string elementId,
+        string family,
+        PpjChartSeriesModel series,
+        JsonElement seriesJson,
+        int seriesIndex,
+        IReadOnlyList<(double X, double Y, double Value)> points,
+        JsonElement marker,
+        Catalog catalog,
+        string? defaultSymbol = null)
+    {
+        var symbol = marker.ValueKind == JsonValueKind.String
+            ? marker.GetString()
+            : marker.ValueKind == JsonValueKind.Object
+                ? OptionalString(marker, "symbol") ?? defaultSymbol ?? "circle"
+                : defaultSymbol;
+        if (symbol is null or "none") return;
+        var size = marker.ValueKind == JsonValueKind.Object && marker.TryGetProperty("size", out var markerSize)
+            ? markerSize.GetDouble()
+            : symbol == "dot" ? 4 : 7;
+        for (var index = 0; index < points.Count; index++)
+            group.Children.Add(BuildVectorMarkerElement(
+                $"{elementId}/{family}/marker/{series.Id}/{index}",
+                $"{family} marker {series.Name} {index + 1}",
+                points[index].X,
+                points[index].Y,
+                size,
+                symbol,
+                seriesJson,
+                marker,
+                catalog,
+                seriesIndex,
+                defaultOpacity: 1));
+    }
+
+    private static PresentationElement BuildVectorMarkerElement(
+        string id,
+        string name,
+        double centerX,
+        double centerY,
+        double size,
+        string symbol,
+        JsonElement series,
+        JsonElement marker,
+        Catalog catalog,
+        int seriesIndex,
+        double defaultOpacity)
+    {
+        var geometry = symbol switch
+        {
+            "dot" or "circle" => "ellipse",
+            "square" => "rect",
+            "diamond" => "diamond",
+            "triangle" => "triangle",
+            "x" => "mathMultiply",
+            "star" => "star5",
+            "plus" => "plus",
+            "dash" => "rect",
+            _ => "ellipse",
+        };
+        var width = symbol == "dash" ? size * 1.6 : size;
+        var height = symbol == "dash" ? Math.Max(1.5, size * 0.28) : size;
+        var shape = ShapeFrame(new PpjFrameModel(centerX - width / 2, centerY - height / 2, width, height, 0, false, false), geometry);
+        ApplyVectorSeriesFill(shape, series, catalog, seriesIndex, id, defaultOpacity);
+        if (marker.ValueKind == JsonValueKind.Object)
+        {
+            if (marker.TryGetProperty("fill", out var markerFill))
+            {
+                var color = catalog.Color(markerFill);
+                shape.FillRgb = color.Rgb;
+                if (color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(color.Alpha);
+            }
+            if (marker.TryGetProperty("stroke", out var markerStroke)) ApplyLine(shape, markerStroke, catalog);
+        }
+        return new PresentationElement { Id = id, Name = name, Shape = shape };
+    }
+
+    private static void AddVectorLegend(
+        PresentationGroup group,
+        string elementId,
+        string family,
+        IReadOnlyList<(PpjChartSeriesModel Series, JsonElement Json, int Index)> series,
+        double x,
+        double y,
+        double width,
+        double height,
+        JsonElement? textStyle,
+        Catalog catalog)
+    {
+        var rowHeight = Math.Min(20, height / series.Count);
+        var startY = y + Math.Max(0, (height - rowHeight * series.Count) / 2);
+        for (var index = 0; index < series.Count; index++)
+        {
+            var item = series[index];
+            var rowY = startY + index * rowHeight;
+            var swatch = ShapeFrame(new PpjFrameModel(x, rowY + rowHeight * 0.35, 12, Math.Max(2, rowHeight * 0.3), 0, false, false), item.Series.ChartType is "scatter" or "bubble" ? "ellipse" : "rect");
+            ApplyVectorSeriesFill(swatch, item.Json, catalog, item.Index, elementId, defaultOpacity: item.Series.ChartType == "area" ? 0.45 : 1);
+            group.Children.Add(new PresentationElement
+            {
+                Id = $"{elementId}/{family}/legend-swatch/{item.Series.Id}",
+                Name = $"{family} legend swatch {item.Series.Name}",
+                Shape = swatch,
+            });
+            group.Children.Add(VectorChartTextElement(
+                $"{elementId}/{family}/legend-label/{item.Series.Id}",
+                $"{family} legend label {item.Series.Name}",
+                x + 18,
+                rowY,
+                width - 18,
+                rowHeight,
+                item.Series.Name,
+                textStyle,
+                catalog,
+                8,
+                "left",
+                "52606D"));
+        }
+    }
+
+    private static string FormatVectorChartValue(double value, string? numberFormat) =>
+        value.ToString(numberFormat ?? "0.##", CultureInfo.InvariantCulture);
 
     private static bool IsStreamgraph(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
@@ -1751,6 +2552,10 @@ internal static class PpjAuthoredPresentationCompiler
         var highValues = series.HighValues;
         var lowValues = series.LowValues;
         var isOhlc = openValues.Count != 0;
+        var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
+        var overlays = element.Data.Series.Skip(1)
+            .Select((item, index) => (Series: item, Json: seriesJson[index + 1], Index: index + 1))
+            .ToArray();
 
         var xAxis = Property(raw, "xAxis");
         var yAxis = Property(raw, "yAxis");
@@ -1768,8 +2573,14 @@ internal static class PpjAuthoredPresentationCompiler
         if (showCloseValues && categories.Length > 16)
             throw Unsupported(element.Id, "showCloseValues is limited to 16 candlesticks to keep labels readable");
 
-        var dataMinimum = lowValues.Min();
-        var dataMaximum = highValues.Max();
+        var overlayValues = overlays.SelectMany(item => item.Series.Values).Select(value => value!.Value).ToArray();
+        var dataMinimum = Math.Min(lowValues.Min(), overlayValues.DefaultIfEmpty(double.PositiveInfinity).Min());
+        var dataMaximum = Math.Max(highValues.Max(), overlayValues.DefaultIfEmpty(double.NegativeInfinity).Max());
+        if (overlays.Any(item => item.Series.ChartType is "area" or "column"))
+        {
+            dataMinimum = Math.Min(dataMinimum, 0);
+            dataMaximum = Math.Max(dataMaximum, 0);
+        }
         var dataRange = dataMaximum - dataMinimum;
         if (dataRange <= 0) dataRange = Math.Max(1, Math.Abs(dataMaximum) * 0.1);
         var majorUnit = yAxis is { } y && OptionalDouble(y, "majorUnit") is { } explicitMajor
@@ -1815,7 +2626,7 @@ internal static class PpjAuthoredPresentationCompiler
             ? checked((int)interval)
             : Math.Max(1, checked((int)Math.Ceiling(categories.Length / 12d)));
         var numberFormat = yAxis is { } formattedAxis ? OptionalString(formattedAxis, "numberFormat") : null;
-        if (numberFormat is not null && !CandlestickNumberFormats.Contains(numberFormat, StringComparer.Ordinal))
+        if (numberFormat is not null && !VectorChartNumberFormats.Contains(numberFormat, StringComparer.Ordinal))
             throw Unsupported(element.Id, $"candlestick yAxis numberFormat {numberFormat} is outside the bounded profile");
 
         double PlotY(double value) => plotY + (maximum - value) * plotHeight / (maximum - minimum);
@@ -1889,6 +2700,50 @@ internal static class PpjAuthoredPresentationCompiler
                     catalog,
                     8,
                     "left"));
+        }
+
+        var overlayPoints = overlays.ToDictionary(
+            item => item.Series.Id,
+            item => item.Series.Values.Select((value, index) => (
+                X: plotX + (index + 0.5) * slotWidth,
+                Y: PlotY(value!.Value),
+                Value: value.Value)).ToArray(),
+            StringComparer.Ordinal);
+        var overlayBaselineY = PlotY(0);
+        foreach (var item in overlays.Where(item => item.Series.ChartType == "area"))
+        {
+            var points = overlayPoints[item.Series.Id];
+            var shape = ShapeFrame(new PpjFrameModel(plotX, plotY, plotWidth, plotHeight, 0, false, false), "custom");
+            ApplyVectorSeriesFill(shape, item.Json, catalog, item.Index, element.Id, defaultOpacity: 0.28);
+            shape.CustomPaths.Add(BuildVectorAreaPath(plotX, plotY, plotWidth, plotHeight, points.Select(point => (point.X, point.Y)).ToArray(), overlayBaselineY));
+            group.Children.Add(new PresentationElement
+            {
+                Id = CandlestickNativeId(element.Id, $"overlay-area/{item.Series.Id}"),
+                Name = $"candlestick area overlay {item.Series.Name}",
+                Shape = shape,
+            });
+        }
+        var columnOverlays = overlays.Where(item => item.Series.ChartType == "column").ToArray();
+        var overlayColumnWidth = columnOverlays.Length == 0 ? 0 : Math.Max(1.5, slotWidth * 0.7 / columnOverlays.Length);
+        for (var seriesIndex = 0; seriesIndex < columnOverlays.Length; seriesIndex++)
+        {
+            var item = columnOverlays[seriesIndex];
+            var offset = seriesIndex - (columnOverlays.Length - 1) / 2d;
+            var points = overlayPoints[item.Series.Id];
+            for (var pointIndex = 0; pointIndex < points.Length; pointIndex++)
+            {
+                var point = points[pointIndex];
+                var top = Math.Min(point.Y, overlayBaselineY);
+                var columnHeight = Math.Max(1.5, Math.Abs(point.Y - overlayBaselineY));
+                var shape = ShapeFrame(new PpjFrameModel(point.X + offset * overlayColumnWidth - overlayColumnWidth * 0.42, top, overlayColumnWidth * 0.84, columnHeight, 0, false, false), "rect");
+                ApplyVectorSeriesFill(shape, item.Json, catalog, item.Index, element.Id, defaultOpacity: 0.42);
+                group.Children.Add(new PresentationElement
+                {
+                    Id = CandlestickNativeId(element.Id, $"overlay-column/{item.Series.Id}/{pointIndex}"),
+                    Name = $"candlestick column overlay {item.Series.Name} {pointIndex + 1}",
+                    Shape = shape,
+                });
+            }
         }
 
         var wickStyle = candlestick.GetProperty("wick");
@@ -1971,6 +2826,18 @@ internal static class PpjAuthoredPresentationCompiler
                     "center"));
         }
 
+        foreach (var item in overlays.Where(item => item.Series.ChartType == "line"))
+            AddVectorLineSeries(
+                group,
+                element.Id,
+                "candlestick",
+                item.Series,
+                item.Json,
+                item.Index,
+                overlayPoints[item.Series.Id],
+                catalog,
+                drawDefaultMarkers: false);
+
         if (showXAxis && xAxis is { } xAxisWithTitle && xAxisWithTitle.TryGetProperty("title", out var xTitle))
             group.Children.Add(VectorChartTextElement(
                 CandlestickNativeId(element.Id, "x-title"),
@@ -1999,8 +2866,8 @@ internal static class PpjAuthoredPresentationCompiler
             element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
             element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != element.Data.Categories.Count)
             throw Unsupported(element.Id, "candlestick categories must be 1..64 unique non-empty strings");
-        if (element.Data.Series.Count != 1)
-            throw Unsupported(element.Id, "candlestick charts require exactly one OHLC or HLC series");
+        if (element.Data.Series.Count is < 1 or > 5)
+            throw Unsupported(element.Id, "candlestick charts require one OHLC or HLC series and at most four overlays");
         var series = element.Data.Series[0];
         var count = element.Data.Categories.Count;
         if (series.Values.Count != count || series.Values.Any(value => value is null) ||
@@ -2019,6 +2886,19 @@ internal static class PpjAuthoredPresentationCompiler
         foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
             if (series.Raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, $"candlestick series do not support {property}");
+        for (var index = 1; index < element.Data.Series.Count; index++)
+        {
+            var overlay = element.Data.Series[index];
+            if (overlay.ChartType is not ("line" or "area" or "column"))
+                throw Unsupported(element.Id, "candlestick overlays support line, area and column series");
+            if (overlay.Values.Count != count || overlay.Values.Any(value => value is null || !double.IsFinite(value.Value)))
+                throw Unsupported(element.Id, $"candlestick overlay {overlay.Id} requires one complete finite value per category");
+            RejectProperties(overlay.Raw, element.Id, "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "sources", "targets", "axis", "symbol", "trendlines", "errorBars");
+            if (overlay.Raw.TryGetProperty("fill", out _) && overlay.Raw.TryGetProperty("color", out _))
+                throw Unsupported(element.Id, "candlestick overlay color and fill are aliases and cannot both be present");
+            if (overlay.ChartType is "area" or "column" && overlay.Raw.TryGetProperty("marker", out _))
+                throw Unsupported(element.Id, $"candlestick {overlay.ChartType} overlays do not render markers");
+        }
         foreach (var property in new[] { "secondaryXAxis", "secondaryYAxis" })
             if (raw.TryGetProperty(property, out _))
                 throw Unsupported(element.Id, "candlestick charts do not support secondary axes");
@@ -2035,8 +2915,14 @@ internal static class PpjAuthoredPresentationCompiler
         }
         if (raw.TryGetProperty("yAxis", out var yAxis))
         {
-            var lowest = series.LowValues.Min();
-            var highest = series.HighValues.Max();
+            var overlayValues = element.Data.Series.Skip(1).SelectMany(item => item.Values).Select(value => value!.Value).ToArray();
+            var lowest = Math.Min(series.LowValues.Min(), overlayValues.DefaultIfEmpty(double.PositiveInfinity).Min());
+            var highest = Math.Max(series.HighValues.Max(), overlayValues.DefaultIfEmpty(double.NegativeInfinity).Max());
+            if (element.Data.Series.Skip(1).Any(item => item.ChartType is "area" or "column"))
+            {
+                lowest = Math.Min(lowest, 0);
+                highest = Math.Max(highest, 0);
+            }
             if (OptionalDouble(yAxis, "min") is { } minimum && minimum > lowest)
                 throw Unsupported(element.Id, "candlestick yAxis.min must not clip the lowest observation");
             if (OptionalDouble(yAxis, "max") is { } maximum && maximum < highest)
@@ -2077,8 +2963,6 @@ internal static class PpjAuthoredPresentationCompiler
         var nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
         return nice * magnitude;
     }
-
-    private static readonly string[] CandlestickNumberFormats = ["0", "0.0", "0.00", "#,##0", "#,##0.0", "#,##0.00"];
 
     private static string FormatCandlestickValue(double value, string? numberFormat) =>
         value.ToString(numberFormat ?? "0.##", CultureInfo.InvariantCulture);
