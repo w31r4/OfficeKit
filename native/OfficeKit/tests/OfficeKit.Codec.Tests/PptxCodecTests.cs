@@ -1356,7 +1356,7 @@ public sealed class PptxCodecTests
         table.Rows.Add(new PresentationTableRow
         {
             HeightEmu = 1_000_000,
-            Cells = { new PresentationTableCell { Text = "Revenue" }, new PresentationTableCell { Text = "$42M" } },
+            Cells = { new PresentationTableCell { Text = "Revenue" }, new PresentationTableCell { Text = "$42M\nPrevious" } },
         });
         request.Artifact.Presentation.Slides[0].Elements.Add(new PresentationElement
         {
@@ -1371,8 +1371,8 @@ public sealed class PptxCodecTests
         Assert.True(imported.Ok, Diagnostics(imported));
         var slide = Assert.Single(imported.Artifact.Presentation.Slides);
         var element = Assert.Single(slide.Elements, candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
-        const string expected = "$42M";
-        const string value = "$47M";
+        const string expected = "$42M\nPrevious";
+        const string value = "$47M\nCurrent";
         var operation = new PresentationEditOperation
         {
             OperationId = "op-table-cell",
@@ -1409,7 +1409,7 @@ public sealed class PptxCodecTests
         Assert.Equal("tableCellText", Assert.Single(edited.PresentationEditPlan.Operations).LeafKind);
         var sourceXml = Encoding.UTF8.GetString(ZipBytes(sourceBytes, operation.SlidePartPath));
         var outputXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), operation.SlidePartPath));
-        Assert.Equal(sourceXml, outputXml.Replace(value, expected, StringComparison.Ordinal));
+        Assert.Equal(sourceXml.Replace("$42M", "$47M", StringComparison.Ordinal).Replace("Previous", "Current", StringComparison.Ordinal), outputXml);
         var reopened = Assert.Single(Assert.Single(Import(edited.File.ToByteArray()).Artifact.Presentation.Slides).Elements,
             candidate => candidate.ContentCase == PresentationElement.ContentOneofCase.Table);
         Assert.Equal(value, reopened.Table.Rows[1].Cells[1].Text);
