@@ -109,11 +109,29 @@ public sealed class PptxCodecTests
         var authoredImage = authoredProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "claim-mark");
+        authoredImage["fit"] = "tile";
         authoredImage["mask"] = new JsonObject
         {
             ["kind"] = "preset",
             ["preset"] = "roundRect",
             ["adjustments"] = new JsonArray(24000),
+        };
+        authoredProgram["pages"]![1]!["background"] = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = "evidence-mark",
+            ["fit"] = "cover",
+            ["opacity"] = 0.72,
+        };
+        var authoredImageFillShape = authoredProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "decision-flow-start");
+        authoredImageFillShape["style"]!["fill"] = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = "evidence-mark",
+            ["fit"] = "contain",
+            ["opacity"] = 0.66,
         };
         authoredTitle["style"] = new JsonObject
         {
@@ -430,6 +448,20 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nativeImageBackground = package.PresentationPart!.SlideParts.ElementAt(1).Slide!
+                .CommonSlideData!.Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>();
+            Assert.NotNull(nativeImageBackground);
+            Assert.NotNull(nativeImageBackground!.GetFirstChild<A.Stretch>());
+            Assert.Null(nativeImageBackground.GetFirstChild<A.Tile>());
+            var nativeImageFillShape = package.PresentationPart.SlideParts.ElementAt(1).Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.Shape>()
+                .Single(shape => shape.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "decision-flow-start");
+            Assert.NotNull(nativeImageFillShape.ShapeProperties!.GetFirstChild<A.BlipFill>());
+            var nativeTiledPicture = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.Picture>()
+                .Single();
+            Assert.NotNull(nativeTiledPicture.BlipFill!.GetFirstChild<A.Tile>());
+            Assert.Null(nativeTiledPicture.BlipFill.GetFirstChild<A.Stretch>());
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -451,8 +483,14 @@ public sealed class PptxCodecTests
         Assert.Equal(3, importedBackground.Stops.Count);
         Assert.True(importedBackground.Stops[1].HasOpacityThousandthPercent);
         Assert.Equal(86_000U, importedBackground.Stops[1].OpacityThousandthPercent);
+        var importedImageBackground = imported.Artifact.Presentation.Slides[1].Background.ImagePaint;
+        Assert.Equal(PresentationImagePaint.Types.Mode.Stretch, importedImageBackground.Mode);
+        Assert.Equal(72_000U, importedImageBackground.OpacityThousandthPercent);
+        Assert.True(importedImageBackground.Crop.TopThousandthPercent > 0);
+        Assert.True(importedImageBackground.Crop.BottomThousandthPercent > 0);
         var importedImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+        Assert.True(importedImage.Tiled);
         Assert.Equal(92_000U, importedImage.OpacityThousandthPercent);
         Assert.Equal(4_000, importedImage.Crop.LeftThousandthPercent);
         Assert.Equal(3_000, importedImage.Crop.TopThousandthPercent);
@@ -624,8 +662,20 @@ public sealed class PptxCodecTests
             Assert.Equal(projected.PresentationProgram.SourceSha256, projectedRoot.GetProperty("source").GetProperty("sha256").GetString());
             Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
             Assert.Equal("linear", projectedRoot.GetProperty("pages")[0].GetProperty("background").GetProperty("kind").GetString());
+            Assert.Equal("image", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("type").GetString());
+            Assert.Equal("stretch", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("fit").GetString());
+            Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setBackground");
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
-                item.GetProperty("type").GetString() == "image");
+                item.GetProperty("type").GetString() == "image" &&
+                item.GetProperty("fit").GetString() == "tile" &&
+                item.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray().Any(capability =>
+                    capability.GetProperty("operation").GetString() == "setImageFit"));
+            Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "decision-flow-start" &&
+                item.GetProperty("style").GetProperty("fill").GetProperty("type").GetString() == "image" &&
+                item.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray().Any(capability =>
+                    capability.GetProperty("operation").GetString() == "setFill"));
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "claim-rule" &&
                 item.GetProperty("geometry").GetProperty("kind").GetString() == "custom" &&
@@ -735,6 +785,64 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var imagePaintProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var imagePaintBackground = imagePaintProgram["pages"]![1]!["background"]!.AsObject();
+        imagePaintBackground["opacity"] = 0.55;
+        var imagePaintShape = imagePaintProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["name"]!.GetValue<string>() == "decision-flow-start");
+        imagePaintShape["style"]!["fill"]!["opacity"] = 0.44;
+        var tiledImage = imagePaintProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "image");
+        tiledImage["fit"] = "stretch";
+        var imagePaintPageId = imagePaintProgram["pages"]![1]!["id"]!.GetValue<string>();
+        var imagePaintShapeId = imagePaintShape["id"]!.GetValue<string>();
+        var tiledImageId = tiledImage["id"]!.GetValue<string>();
+        var imagePaintEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(imagePaintProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(imagePaintEdit.Ok, Diagnostics(imagePaintEdit));
+        Assert.Equal(2, imagePaintEdit.PresentationProgram.ChangedParts.Count);
+        Assert.Contains(imagePaintPageId, imagePaintEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(imagePaintShapeId, imagePaintEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(tiledImageId, imagePaintEdit.PresentationProgram.ChangedNodeIds);
+        var imagePaintReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = imagePaintEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/image-paint-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(imagePaintReprojection.Ok, Diagnostics(imagePaintReprojection));
+        using (var imagePaintJson = JsonDocument.Parse(imagePaintReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var imagePaintRoot = imagePaintJson.RootElement;
+            Assert.Equal(0.55, imagePaintRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("opacity").GetDouble(), 3);
+            var reprojectedImageFill = imagePaintRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("name").GetString() == "decision-flow-start")
+                .GetProperty("style").GetProperty("fill");
+            Assert.Equal(0.44, reprojectedImageFill.GetProperty("opacity").GetDouble(), 3);
+            var reprojectedImage = imagePaintRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("type").GetString() == "image");
+            Assert.Equal("stretch", reprojectedImage.GetProperty("fit").GetString());
+        }
+
         var rejectedTextOpacityProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var rejectedTextOpacity = rejectedTextOpacityProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
