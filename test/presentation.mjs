@@ -4313,6 +4313,29 @@ const negativeGroupOutput = await PresentationFile.exportPptx(negativeGroupImpor
 const negativeGroupRoundTrip = await PresentationFile.importPptx(negativeGroupOutput);
 assert.equal(itemByName(itemByName(negativeGroupRoundTrip.slides.getItem(0).groups.items, "Agent evidence group").shapes.items, "grouped-before").fill, "#123456");
 
+// A source group may carry the standard direct rotation used by imported
+// visual motifs.  Project it as group metadata so a child edit does not hide
+// the whole group behind an opaque boundary or lose its orientation.
+const rotatedGroupZip = await JSZip.loadAsync(groupedFirstExport.bytes);
+const rotatedGroupXml = groupedFirstXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="Agent evidence group"[^>]*\/>[\s\S]*?<p:grpSpPr>\s*<a:xfrm)(?=\s|>)/u,
+  '$1 rot="2700000"',
+);
+assert.notEqual(rotatedGroupXml, groupedFirstXml);
+rotatedGroupZip.file("ppt/slides/slide1.xml", rotatedGroupXml);
+const rotatedGroupBytes = await rotatedGroupZip.generateAsync({ type: "uint8array" });
+const rotatedGroupImported = await PresentationFile.importPptx(new FileBlob(rotatedGroupBytes, { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }));
+const rotatedGroup = itemByName(rotatedGroupImported.slides.getItem(0).groups.items, "Agent evidence group");
+assert.equal(rotatedGroup.transform?.rotationDegrees, 45);
+const rotatedGroupChild = itemByName(rotatedGroup.shapes.items, "grouped-before");
+rotatedGroupChild.fill = "#654321";
+const rotatedGroupOutput = await PresentationFile.exportPptx(rotatedGroupImported);
+assert.deepEqual(rotatedGroupOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const rotatedGroupRoundTrip = await PresentationFile.importPptx(rotatedGroupOutput);
+const rotatedGroupAfter = itemByName(rotatedGroupRoundTrip.slides.getItem(0).groups.items, "Agent evidence group");
+assert.equal(rotatedGroupAfter.transform?.rotationDegrees, 45);
+assert.equal(itemByName(rotatedGroupAfter.shapes.items, "grouped-before").fill, "#654321");
+
 let groupedImported = await PresentationFile.importPptx(groupedFirstExport);
 let importedGroup = itemByName(groupedImported.slides.getItem(0).groups.items, "Agent evidence group");
 assert.deepEqual(importedGroup.children.map((child) => child.layoutJson().kind), ["textbox", "textbox", "connector", "image", "table", "chart", "groupShape"]);
