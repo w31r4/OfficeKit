@@ -1027,6 +1027,11 @@ message SpreadsheetChartSeriesArtifact {
   // ChartSpace series. Presence is fixed after import; unsupported native
   // child graphs leave the containing chart source-owned.
   SpreadsheetChartErrorBarsArtifact error_bars = 13;
+  // Unified explicit series paint. New PPJ compilers use this for no-fill,
+  // alpha-bearing solid fill, and bounded direct-RGB gradients. The legacy
+  // fill field remains the untinted opaque-solid compatibility branch and
+  // must not be combined with series_fill.
+  SpreadsheetChartSurfaceFill series_fill = 14;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
@@ -1055,6 +1060,7 @@ message SpreadsheetChartSurfaceFill {
   oneof fill {
     bool no_fill = 1;
     string solid_rgb = 2;
+    PresentationGradientFill gradient_fill = 4;
   }
   optional uint32 opacity_thousandth_percent = 3;
 }

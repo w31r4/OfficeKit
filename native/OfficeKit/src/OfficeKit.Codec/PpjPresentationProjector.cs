@@ -1285,6 +1285,7 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
+                output.Add(new("setChartFill", ["chart.fill"]));
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Table when source.Editable:

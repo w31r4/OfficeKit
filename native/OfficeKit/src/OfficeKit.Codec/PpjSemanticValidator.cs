@@ -21,6 +21,7 @@ internal static class PpjSemanticValidator
             ["setChartTitle"] = Set("chart.title"),
             ["setChartData"] = Set("chart.data"),
             ["setChartTextStyle"] = Set("chart.textStyle"),
+            ["setChartFill"] = Set("chart.fill"),
             ["setSmartArtText"] = Set("smartArt.text"),
             ["setOlePayload"] = Set("ole.payload"),
             ["delete"] = Set("element"),
