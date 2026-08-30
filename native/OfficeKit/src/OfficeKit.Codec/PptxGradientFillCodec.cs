@@ -73,6 +73,25 @@ internal static class PptxGradientFillCodec
     internal static bool TryRead(A.GradientFill? source, out PresentationGradientFill semantic)
     {
         semantic = new PresentationGradientFill();
+        // Open XML SDK exposes some DrawingML percentage-valued attributes
+        // (for example a:fillToRect l/t/r/b="50%") through numeric Value
+        // properties.  Accessing those properties throws before we can
+        // classify the gradient as unsupported.  Treat that shape as opaque
+        // so the source package can still be imported and preserved.
+        try
+        {
+            return TryReadCore(source, out semantic);
+        }
+        catch (FormatException)
+        {
+            semantic = new PresentationGradientFill();
+            return false;
+        }
+    }
+
+    private static bool TryReadCore(A.GradientFill? source, out PresentationGradientFill semantic)
+    {
+        semantic = new PresentationGradientFill();
         if (source is null || source.GetAttributes().Count != 0 || source.ChildElements.Count is < 2 or > 3 ||
             source.ChildElements[0] is not A.GradientStopList stopList ||
             stopList.GetAttributes().Count != 0 || stopList.ChildElements.Count is < 2 or > 16)
