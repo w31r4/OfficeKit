@@ -2787,16 +2787,31 @@ internal static class PptxCodec
             foreach (var child in element.Group.Children) NormalizeSemanticForHash(child);
             return;
         }
-        if (element.ContentCase == PresentationElement.ContentOneofCase.Chart && element.Chart.TitleBody is not null)
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Chart)
         {
-            var title = new PresentationShape
+            if (element.Chart.TitleBody is not null)
             {
-                Text = element.Chart.Title,
-                TextBody = element.Chart.TitleBody.Clone(),
-            };
-            PptxTextCodec.NormalizeSemantics(title);
-            element.Chart.TitleBody = title.TextBody;
+                var title = new PresentationShape
+                {
+                    Text = element.Chart.Title,
+                    TextBody = element.Chart.TitleBody.Clone(),
+                };
+                PptxTextCodec.NormalizeSemantics(title);
+                element.Chart.TitleBody = title.TextBody;
+            }
+            NormalizeChartAxisForHash(element.Chart.XAxis);
+            NormalizeChartAxisForHash(element.Chart.YAxis);
+            NormalizeChartAxisForHash(element.Chart.SecondaryXAxis);
+            NormalizeChartAxisForHash(element.Chart.SecondaryYAxis);
         }
+    }
+
+    private static void NormalizeChartAxisForHash(SpreadsheetChartAxisArtifact? axis)
+    {
+        // OOXML's native default is to show tick labels. Treat an explicit
+        // request for that default as equivalent to an omitted tickLblPos.
+        if (axis?.HasTickLabelsVisible == true && axis.TickLabelsVisible)
+            axis.ClearTickLabelsVisible();
     }
 
     private static void ClearElementIdentity(PresentationElement element)

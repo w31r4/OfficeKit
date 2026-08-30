@@ -561,7 +561,7 @@ internal static class XlsxChartAxisCodec
         axis.HasShowMajorGridlines ? (axis.ShowMajorGridlines ? "gridlines" : "no-gridlines") : "default-gridlines",
         axis.HasMajorGridlineVisible ? (axis.MajorGridlineVisible ? "visible-gridline" : "hidden-gridline") : "default-gridline-visibility",
         XlsxChartSeriesLineStyleCodec.Semantics(axis.MajorGridlineStyle),
-        axis.HasTickLabelsVisible ? (axis.TickLabelsVisible ? "tick-labels" : "no-tick-labels") : "default-tick-labels",
+        axis.HasTickLabelsVisible && !axis.TickLabelsVisible ? "no-tick-labels" : "default-tick-labels",
         XlsxChartTextStyleCodec.Semantics(axis.TextStyle),
         XlsxChartTextStyleCodec.Semantics(axis.TitleTextStyle));
     private static CodecException Invalid(string worksheetId, string chartId, string message) => new("invalid_spreadsheet_chart", $"Worksheet {worksheetId} chart {chartId} {message}");

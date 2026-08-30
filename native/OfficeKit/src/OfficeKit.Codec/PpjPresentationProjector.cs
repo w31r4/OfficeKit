@@ -675,7 +675,7 @@ internal static partial class PpjPresentationProjector
         if (chart.BubbleSizeMode.Length > 0) style["bubbleSizeMode"] = chart.BubbleSizeMode;
         if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
         if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
-        if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
+        if (chart.YAxis is null && chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
         if (chart.TitleTextStyle is not null)
