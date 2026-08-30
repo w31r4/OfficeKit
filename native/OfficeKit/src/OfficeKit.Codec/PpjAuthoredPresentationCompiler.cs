@@ -2216,9 +2216,11 @@ internal static class PpjAuthoredPresentationCompiler
 
         var indegree = nodes.Select(node => node.Incoming.Count).ToArray();
         var queue = new Queue<int>(nodes.Where(node => indegree[node.Index] == 0).Select(node => node.Index));
+        var topologicalOrder = new List<int>(nodes.Length);
         while (queue.Count != 0)
         {
             var nodeIndex = queue.Dequeue();
+            topologicalOrder.Add(nodeIndex);
             foreach (var edgeIndex in nodes[nodeIndex].Outgoing)
             {
                 var edge = edges[edgeIndex];
@@ -2232,9 +2234,22 @@ internal static class PpjAuthoredPresentationCompiler
         var nodeStroke = Property(sankey, "nodeStroke");
         var nodeWidth = OptionalDouble(sankey, "nodeWidth") ?? 12;
         var nodeGap = OptionalDouble(sankey, "nodeGap") ?? 9;
-        var justify = (OptionalString(sankey, "nodeAlign") ?? "justify") == "justify";
-        if (justify)
+        var nodeAlign = OptionalString(sankey, "nodeAlign") ?? "justify";
+        if (nodeAlign == "justify")
             foreach (var node in nodes.Where(node => node.Outgoing.Count == 0)) node.Column = maximumColumn;
+        else if (nodeAlign == "right")
+        {
+            var distanceToSink = new int[nodes.Length];
+            for (var orderIndex = topologicalOrder.Count - 1; orderIndex >= 0; orderIndex--)
+            {
+                var nodeIndex = topologicalOrder[orderIndex];
+                foreach (var edgeIndex in nodes[nodeIndex].Outgoing)
+                    distanceToSink[nodeIndex] = Math.Max(
+                        distanceToSink[nodeIndex],
+                        distanceToSink[edges[edgeIndex].TargetIndex] + 1);
+            }
+            foreach (var node in nodes) node.Column = maximumColumn - distanceToSink[node.Index];
+        }
         var flowOpacity = OptionalDouble(sankey, "flowOpacity") ?? 0.45;
         var flowCurvature = OptionalDouble(sankey, "flowCurvature") ?? 0.7;
         var flowColorMode = OptionalString(sankey, "flowColorMode") ?? "source";
@@ -2242,7 +2257,12 @@ internal static class PpjAuthoredPresentationCompiler
         var labelStyle = Property(sankey, "labelTextStyle");
         var valueStyle = Property(sankey, "valueTextStyle");
         var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
-        foreach (var node in nodes) node.Color = nodeColors[node.Index % nodeColors.Length];
+        var nodeColorMap = Property(sankey, "nodeColorMap")?.EnumerateObject()
+            .ToDictionary(property => property.Name, property => catalog.Color(property.Value), StringComparer.Ordinal);
+        foreach (var node in nodes)
+            node.Color = nodeColorMap is not null && nodeColorMap.TryGetValue(node.Name, out var nodeColor)
+                ? nodeColor
+                : nodeColors[node.Index % nodeColors.Length];
 
         var x = element.Frame.X;
         var y = element.Frame.Y;
@@ -2430,6 +2450,11 @@ internal static class PpjAuthoredPresentationCompiler
         var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
         var indexes = names.Select((name, index) => (name, index))
             .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        if (FirstProperty(inlineStyle, namedStyle, "sankey") is { } sankeyStyle &&
+            Property(sankeyStyle, "nodeColorMap") is { } nodeColorMap)
+            foreach (var property in nodeColorMap.EnumerateObject())
+                if (!indexes.ContainsKey(property.Name))
+                    throw Unsupported(element.Id, $"sankey nodeColorMap names undeclared node {property.Name}");
         var indegree = new int[nodeCount];
         var outgoing = Enumerable.Range(0, nodeCount).Select(_ => new List<int>()).ToArray();
         var incomingFlow = new double[nodeCount];

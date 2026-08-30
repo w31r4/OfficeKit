@@ -1436,7 +1436,14 @@ internal static class PpjSemanticValidator
             }
         }
 
-        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("sankey", out _)) return;
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("sankey", out var sankey)) return;
+        if (sankey.TryGetProperty("nodeColorMap", out var nodeColorMap))
+            foreach (var property in nodeColorMap.EnumerateObject())
+                if (!nodes.Contains(property.Name))
+                    diagnostics.Add(new(
+                        "ppj.chart.sankeyNodeColor",
+                        $"Sankey nodeColorMap key {property.Name} is not a declared node.",
+                        $"{path}.style.sankey.nodeColorMap.{property.Name}"));
         foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
             if (style.TryGetProperty(property, out _))
                 diagnostics.Add(new(

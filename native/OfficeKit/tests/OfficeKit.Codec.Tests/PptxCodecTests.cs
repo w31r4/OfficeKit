@@ -1461,7 +1461,8 @@ public sealed class PptxCodecTests
                     ["nodeStroke"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.5, ["opacity"] = 0.85 },
                     ["nodeWidth"] = 14,
                     ["nodeGap"] = 10,
-                    ["nodeAlign"] = "justify",
+                    ["nodeAlign"] = "right",
+                    ["nodeColorMap"] = new JsonObject { ["Paid"] = "#C1121F" },
                     ["flowOpacity"] = 0.42,
                     ["flowCurvature"] = 0.72,
                     ["flowColorMode"] = "source",
@@ -1472,23 +1473,23 @@ public sealed class PptxCodecTests
             },
             ["data"] = new JsonObject
             {
-                ["categories"] = new JsonArray("Leads", "Qualified", "Trial", "Nurture", "Paid", "Churn"),
+                ["categories"] = new JsonArray("Leads", "Qualified", "Trial", "Nurture", "Paid", "Churn", "Direct"),
                 ["series"] = new JsonArray
                 {
                     new JsonObject
                     {
                         ["id"] = "conversion-flow",
                         ["name"] = "Accounts",
-                        ["values"] = new JsonArray(100, 60, 40, 45, 15, 25, 15),
-                        ["sources"] = new JsonArray("Leads", "Qualified", "Qualified", "Trial", "Trial", "Nurture", "Nurture"),
-                        ["targets"] = new JsonArray("Qualified", "Trial", "Nurture", "Paid", "Churn", "Paid", "Churn"),
+                        ["values"] = new JsonArray(100, 60, 40, 45, 15, 25, 15, 10),
+                        ["sources"] = new JsonArray("Leads", "Qualified", "Qualified", "Trial", "Trial", "Nurture", "Nurture", "Direct"),
+                        ["targets"] = new JsonArray("Qualified", "Trial", "Nurture", "Paid", "Churn", "Paid", "Churn", "Paid"),
                     },
                 },
             },
             ["accessibility"] = new JsonObject
             {
                 ["decorative"] = false,
-                ["description"] = "One hundred leads split into trial and nurture paths, then converge into seventy paid and thirty churned accounts.",
+                ["description"] = "One hundred leads split into trial and nurture paths while ten direct accounts join the paid outcome.",
             },
         });
         var invalidSankeyProgram = authoredProgram.DeepClone().AsObject();
@@ -1499,6 +1500,14 @@ public sealed class PptxCodecTests
         var invalidSankey = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSankeyProgram.ToJsonString()));
         Assert.False(invalidSankey.IsValid);
         Assert.Contains(invalidSankey.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sankeyCycle");
+        var invalidSankeyColorProgram = authoredProgram.DeepClone().AsObject();
+        invalidSankeyColorProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-sankey-main")
+            ["style"]!["sankey"]!["nodeColorMap"]!["Undeclared"] = "#000000";
+        var invalidSankeyColor = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSankeyColorProgram.ToJsonString()));
+        Assert.False(invalidSankeyColor.IsValid);
+        Assert.Contains(invalidSankeyColor.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sankeyNodeColor");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -1992,15 +2001,25 @@ public sealed class PptxCodecTests
             var nativeSankey = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
                 .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "customer conversion flow");
-            Assert.Equal(7, nativeSankey.Elements<P.Shape>().Count(shape =>
+            Assert.Equal(8, nativeSankey.Elements<P.Shape>().Count(shape =>
                 shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sankey flow ", StringComparison.Ordinal) == true));
-            Assert.Equal(6, nativeSankey.Elements<P.Shape>().Count(shape =>
+            Assert.Equal(7, nativeSankey.Elements<P.Shape>().Count(shape =>
                 shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sankey node ", StringComparison.Ordinal) == true));
             Assert.All(nativeSankey.Elements<P.Shape>().Where(shape =>
                     shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sankey flow ", StringComparison.Ordinal) == true),
                 shape => Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()));
             Assert.Contains(nativeSankey.Descendants<A.Text>(), text => text.Text == "Qualified");
             Assert.Contains(nativeSankey.Descendants<A.Text>(), text => text.Text == "100");
+            var paidNode = nativeSankey.Elements<P.Shape>().Single(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value == "sankey node Paid");
+            Assert.Equal("C1121F", paidNode.ShapeProperties!.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+            var directNode = nativeSankey.Elements<P.Shape>().Single(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value == "sankey node Direct");
+            var trialNode = nativeSankey.Elements<P.Shape>().Single(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value == "sankey node Trial");
+            Assert.Equal(
+                trialNode.ShapeProperties!.Transform2D!.Offset!.X!.Value,
+                directNode.ShapeProperties!.Transform2D!.Offset!.X!.Value);
             var diagramGroups = package.PresentationPart.SlideParts.ElementAt(2).Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>().ToArray();
             Assert.Equal(8, diagramGroups.Length);
