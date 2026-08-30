@@ -379,6 +379,20 @@ public sealed class PptxCodecTests
             ["frame"] = new JsonObject { ["x"] = 560, ["y"] = 440, ["width"] = 300, ["height"] = 48 },
             ["text"] = "Continued through PPJ",
         });
+        var iconOverlayId = "reviewed-source-icon";
+        continuedPage["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = iconOverlayId,
+            ["type"] = "icon",
+            ["role"] = "source continuation lightbulb",
+            ["frame"] = new JsonObject { ["x"] = 880, ["y"] = 440, ["width"] = 36, ["height"] = 36 },
+            ["iconName"] = "fas:lightbulb",
+            ["style"] = new JsonObject
+            {
+                ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#F2C14E" },
+            },
+            ["accessibility"] = new JsonObject { ["decorative"] = true },
+        });
         var continued = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -393,6 +407,7 @@ public sealed class PptxCodecTests
         });
         Assert.True(continued.Ok, Diagnostics(continued));
         Assert.Contains(overlayId, continued.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(iconOverlayId, continued.PresentationProgram.ChangedNodeIds);
         var changedOverlayPart = Assert.Single(continued.PresentationProgram.ChangedParts);
         using (var cloneStream = new MemoryStream(cloned.File.ToByteArray(), writable: false))
         using (var clonePackage = PresentationDocument.Open(cloneStream, false))
@@ -405,6 +420,10 @@ public sealed class PptxCodecTests
             Assert.Equal(cloneSlides[0].Slide!.OuterXml, continuedSlides[0].Slide!.OuterXml);
             Assert.DoesNotContain("Continued through PPJ", cloneSlides[1].Slide!.InnerText);
             Assert.Contains("Continued through PPJ", continuedSlides[1].Slide!.InnerText);
+            var nativeIcon = continuedSlides[1].Slide!.CommonSlideData!.ShapeTree!.Elements<P.Shape>()
+                .Single(shape => shape.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "source continuation lightbulb");
+            Assert.NotNull(nativeIcon.ShapeProperties!.GetFirstChild<A.CustomGeometry>());
+            Assert.Equal("F2C14E", nativeIcon.ShapeProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
         }
 
         var continuedProjection = Invoke(new CodecRequest
@@ -426,6 +445,13 @@ public sealed class PptxCodecTests
             .Single(element => element.GetProperty("type").GetString() == "text" &&
                 element.GetProperty("text").GetRawText().Contains("Continued through PPJ", StringComparison.Ordinal));
         Assert.True(projectedOverlay.TryGetProperty("nativeRef", out _));
+        var projectedIcon = continuedJson.RootElement.GetProperty("pages")[1].GetProperty("elements")
+            .EnumerateArray()
+            .Single(element => element.TryGetProperty("name", out var name) &&
+                name.GetString() == "source continuation lightbulb");
+        Assert.Equal("shape", projectedIcon.GetProperty("type").GetString());
+        Assert.False(projectedIcon.TryGetProperty("iconName", out _));
+        Assert.True(projectedIcon.TryGetProperty("nativeRef", out _));
     }
 
     [Fact]
@@ -1728,6 +1754,30 @@ public sealed class PptxCodecTests
                 },
             },
         };
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "named-icon-main",
+            ["type"] = "icon",
+            ["role"] = "catalog lightbulb",
+            ["frame"] = new JsonObject { ["x"] = 820, ["y"] = 36, ["width"] = 80, ["height"] = 80 },
+            ["iconName"] = "fas:lightbulb",
+            ["style"] = new JsonObject
+            {
+                ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#F2C14E" },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "A lightbulb marks the central experimental insight.",
+            },
+        });
+        var invalidIconProgram = authoredProgram.DeepClone().AsObject();
+        invalidIconProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "named-icon-main")["iconName"] = "fas:not-an-officekit-icon";
+        var invalidIcon = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidIconProgram.ToJsonString()));
+        Assert.False(invalidIcon.IsValid);
+        Assert.Contains(invalidIcon.Diagnostics, diagnostic => diagnostic.Code == "ppj.icon.unknown");
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -1792,7 +1842,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(37U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(38U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -1868,6 +1918,13 @@ public sealed class PptxCodecTests
             Assert.True(nativeClaimLocks.NoMove!.Value);
             Assert.True(nativeClaimLocks.NoResize!.Value);
             Assert.True(nativeClaimLocks.NoTextEdit!.Value);
+            var nativeCatalogIcon = mediaSlide.Slide.CommonSlideData.ShapeTree.Elements<P.Shape>()
+                .Single(shape => shape.NonVisualShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "catalog lightbulb");
+            var nativeIconGeometry = nativeCatalogIcon.ShapeProperties!.GetFirstChild<A.CustomGeometry>()!;
+            Assert.NotEmpty(nativeIconGeometry.Descendants<A.CubicBezierCurveTo>());
+            Assert.Equal("F2C14E", nativeCatalogIcon.ShapeProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+            Assert.Equal("A lightbulb marks the central experimental insight.",
+                nativeCatalogIcon.NonVisualShapeProperties.NonVisualDrawingProperties.Description!.Value);
             var nativeImageBackground = package.PresentationPart!.SlideParts.ElementAt(1).Slide!
                 .CommonSlideData!.Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>();
             Assert.NotNull(nativeImageBackground);
