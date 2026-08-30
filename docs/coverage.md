@@ -99,6 +99,14 @@ The compact result is `evals/presentation-six-sample-import/evidence.v1.json`.
 This is structural/package evidence on macOS, not a claim of complete OOXML
 semantics or Windows PowerPoint acceptance.
 
+The same six-sample runner now exercises the source-bound native slide
+background image surface where it is present. Data Particles and Minimal
+Business each replace one direct `p:bgPr/a:blipFill` with a distinct same-format
+image, re-import the result, and limit the package delta to that slide, its
+relationship part, and at most one media payload. Slides without a direct
+image background report the capability as unavailable rather than treating an
+inherited or unsupported background as editable.
+
 Imported canonical picture effects now project through the public
 `ImageElement`: RGB/dashed borders and one bounded outer shadow can be read,
 changed, removed, exported, and recovered after a second import. An unrelated
