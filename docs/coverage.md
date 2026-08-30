@@ -870,6 +870,16 @@ Bounded rectangular PPTX pictures now project native \`a:alphaModFix\` to
 opacity edit reimports with the same value. Other picture effects remain
 opaque or fail closed.
 
+### Imported percentage gradient coordinates
+
+Some third-party decks encode radial-gradient \`a:fillToRect\` coordinates as
+percent strings such as \`50%\`, while the Open XML SDK exposes the same
+attributes through numeric accessors. The importer now treats that unsupported
+gradient profile as opaque instead of throwing, so the source package remains
+importable and byte-identical on no-op export. The Data Particles and Minimal
+Business samples now pass the same source-bound no-op path as the other four
+six-sample references; editing that gradient still fails closed.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
