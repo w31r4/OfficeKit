@@ -18,4 +18,4 @@
 
 - [x] 4.1 Extend one integrated PPJ sample with authored round trip and one source-bound geometry edit
 - [x] 4.2 Run narrow C#, protobuf, Skill-maintainer, and strict OpenSpec checks
-- [ ] 4.3 Record evidence and fast-forward atomic commits into main
+- [x] 4.3 Record evidence and fast-forward atomic commits into main
