@@ -106,6 +106,15 @@ public sealed class PptxCodecTests
         var authoredTitle = authoredProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "claim-title");
+        var authoredImage = authoredProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "claim-mark");
+        authoredImage["mask"] = new JsonObject
+        {
+            ["kind"] = "preset",
+            ["preset"] = "roundRect",
+            ["adjustments"] = new JsonArray(24000),
+        };
         authoredTitle["style"] = new JsonObject
         {
             ["wrap"] = "square",
@@ -321,8 +330,8 @@ public sealed class PptxCodecTests
                     ["geometry"] = new JsonObject
                     {
                         ["kind"] = "preset",
-                        ["preset"] = "roundRect",
-                        ["adjustments"] = new JsonArray(24000),
+                        ["preset"] = "round2SameRect",
+                        ["adjustments"] = new JsonArray(18000, 8000),
                     },
                     ["style"] = new JsonObject
                     {
@@ -449,7 +458,8 @@ public sealed class PptxCodecTests
         Assert.Equal(3_000, importedImage.Crop.TopThousandthPercent);
         Assert.Equal(2_000, importedImage.Crop.RightThousandthPercent);
         Assert.Equal(1_000, importedImage.Crop.BottomThousandthPercent);
-        Assert.Equal("ellipse", importedImage.MaskPreset);
+        Assert.Equal("roundRect", importedImage.MaskPreset);
+        Assert.Equal([24000], importedImage.MaskPresetAdjustments);
         Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Equal("Rising evidence line", importedImage.AltText);
@@ -522,7 +532,8 @@ public sealed class PptxCodecTests
             element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
         Assert.Equal(720_000, importedGroup.FrameTransform.RotationAngle60000);
         Assert.True(importedGroup.FrameTransform.FlipHorizontal);
-        Assert.Equal([24000], Assert.Single(importedGroup.Children).Shape.PresetAdjustments);
+        Assert.Equal("round2SameRect", Assert.Single(importedGroup.Children).Shape.Geometry);
+        Assert.Equal([18000, 8000], importedGroup.Children[0].Shape.PresetAdjustments);
         var importedConnector = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
         Assert.True(importedConnector.HasLineOpacityThousandthPercent);
@@ -665,7 +676,8 @@ public sealed class PptxCodecTests
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group")
                 .GetProperty("elements")[0];
-            Assert.Equal(24000, projectedAdjustedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
+            Assert.Equal("round2SameRect", projectedAdjustedShape.GetProperty("geometry").GetProperty("preset").GetString());
+            Assert.Equal(18000, projectedAdjustedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
             Assert.Contains(projectedAdjustedShape.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
                 capability.GetProperty("operation").GetString() == "setGeometry" &&
                 capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "geometry.adjustments"));
@@ -847,7 +859,7 @@ public sealed class PptxCodecTests
         var adjustedGeometryShape = adjustedGeometryProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["type"]!.GetValue<string>() == "group")["elements"]![0]!.AsObject();
-        adjustedGeometryShape["geometry"]!["adjustments"]![0] = 32000;
+        adjustedGeometryShape["geometry"]!["adjustments"]![0] = 22000;
         var adjustedGeometryId = adjustedGeometryShape["id"]!.GetValue<string>();
         var sourceGeometryEdit = Invoke(new CodecRequest
         {
@@ -882,7 +894,50 @@ public sealed class PptxCodecTests
             var reprojectedShape = geometryJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(element => element.GetProperty("type").GetString() == "group")
                 .GetProperty("elements")[0];
-            Assert.Equal(32000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
+            Assert.Equal(22000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
+        }
+
+        var adjustedMaskProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var adjustedMaskImage = adjustedMaskProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "image");
+        Assert.Contains(adjustedMaskImage["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setImageMask");
+        adjustedMaskImage["mask"]!["adjustments"]![0] = 32000;
+        var adjustedMaskId = adjustedMaskImage["id"]!.GetValue<string>();
+        var sourceMaskEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(adjustedMaskProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceMaskEdit.Ok, Diagnostics(sourceMaskEdit));
+        Assert.Single(sourceMaskEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(adjustedMaskId, sourceMaskEdit.PresentationProgram.ChangedNodeIds);
+        var maskReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceMaskEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/adjusted-mask.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(maskReprojection.Ok, Diagnostics(maskReprojection));
+        using (var maskJson = JsonDocument.Parse(maskReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedImage = maskJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == adjustedMaskId);
+            Assert.Equal(32000, reprojectedImage.GetProperty("mask").GetProperty("adjustments")[0].GetInt32());
         }
 
         var editedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
