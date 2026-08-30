@@ -133,10 +133,13 @@ present without competing with the evidence carrier; do not make required axes
 or data lines faint.
 
 Prefer alpha on the branch that actually needs it: fill, stroke, image, border,
-shadow, or gradient stop. `shape.style.opacity` below one is compiler-owned only
-for a solid-fill-only shape; a compound shape with text, stroke, or shadow fails
-closed because a single DrawingML value cannot represent honest whole-object
-opacity. Text color alpha is likewise rejected until it has a native run owner.
+shadow, or gradient stop. Use `shape.style.opacity` when the entire authored
+shape must fade as one semantic object. OfficeKit multiplies that value into
+each directly owned solid, gradient or image fill, outline, shadow, explicitly
+painted text, text shadow and bullet color, preserving any branch-local alpha.
+The result remains one native editable shape. Inherited text paint and text
+highlight fail closed under compound opacity because resolving them would
+invent a color or an unsupported highlight alpha.
 
 Use a bounded gradient only when direction or depth carries meaning. PPJ owns
 linear gradients with an explicit angle and centered radial gradients with
