@@ -109,6 +109,7 @@ internal static partial class PptxChartCodec
             HasLegend = source.HasLegend,
             LegendPosition = source.LegendPosition,
             Grouping = source.Grouping,
+            TitleTextStyle = source.TitleTextStyle?.Clone(),
             AbsoluteAnchor = new SpreadsheetAbsoluteAnchorArtifact
             {
                 XEmu = source.LeftEmu,
@@ -195,6 +196,7 @@ internal static partial class PptxChartCodec
             if (richText.Length == 0) editable = false;
             var titleProbe = new SpreadsheetChartArtifact();
             editable &= XlsxChartTextStyleCodec.TryReadTitle(title, titleProbe);
+            if (titleProbe.TitleTextStyle is not null) chart.TitleTextStyle = titleProbe.TitleTextStyle.Clone();
         }
         chart.Type = SpreadsheetChartType.Combo;
         chart.Grouping = barGrouping;
@@ -370,7 +372,7 @@ internal static partial class PptxChartCodec
         if (lineUsesSecondaryAxes) XlsxChartAxisCodec.AppendAuthoredPresentationSecondary(plotArea, ComboAxisCarrier(chart, id, name, secondary: true));
         if (XlsxChartSurfaceFillCodec.Element(chart.PlotAreaFill, "Presentation combo chart plot area") is { } plotFill) plotArea.Add(plotFill);
         var nativeChart = new XElement(ChartNs + "chart");
-        if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, null));
+        if (chart.Title.Length > 0) nativeChart.Add(XlsxChartTextStyleCodec.TitleElement(chart.Title, chart.TitleTextStyle));
         nativeChart.Add(plotArea);
         if (chart.HasLegend) nativeChart.Add(OpenXmlChartSpaceCodec.LegendElement(chart.LegendPosition));
         nativeChart.Add(new XElement(ChartNs + "plotVisOnly", new XAttribute("val", "1")));
@@ -382,7 +384,7 @@ internal static partial class PptxChartCodec
     private static void PatchComboChart(XDocument document, PresentationChart target, string id, string name)
     {
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
-        OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, null, "unsupported_presentation_edit", "Presentation combo chart");
+        OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
         OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition);
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
         var barPlot = plotArea.Element(ChartNs + "barChart")!;
