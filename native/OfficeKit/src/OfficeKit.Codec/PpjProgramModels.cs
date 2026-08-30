@@ -384,9 +384,19 @@ internal sealed record PpjRepeatItemModel(
     string Key,
     IReadOnlyDictionary<string, JsonElement> Arguments);
 
-internal sealed record PpjSectionModel(string Id, string Name, IReadOnlyList<string> PageIds);
+internal sealed record PpjSectionModel(
+    string Id,
+    string Name,
+    IReadOnlyList<string> PageIds,
+    PpjNativeRefModel? NativeRef,
+    JsonElement Raw);
 
-internal sealed record PpjCustomShowModel(string Id, string Name, IReadOnlyList<string> PageIds);
+internal sealed record PpjCustomShowModel(
+    string Id,
+    string Name,
+    IReadOnlyList<string> PageIds,
+    PpjNativeRefModel? NativeRef,
+    JsonElement Raw);
 
 internal sealed record PpjCommentModel(
     string Id,
@@ -442,11 +452,15 @@ internal static class PpjProgramParser
             OptionalArray(root, "sections").Select(item => new PpjSectionModel(
                 item.GetProperty("id").GetString()!,
                 item.GetProperty("name").GetString()!,
-                Strings(item.GetProperty("pages")))).ToArray(),
+                Strings(item.GetProperty("pages")),
+                item.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
+                item.Clone())).ToArray(),
             OptionalArray(root, "customShows").Select(item => new PpjCustomShowModel(
                 item.GetProperty("id").GetString()!,
                 item.GetProperty("name").GetString()!,
-                Strings(item.GetProperty("pages")))).ToArray(),
+                Strings(item.GetProperty("pages")),
+                item.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
+                item.Clone())).ToArray(),
             OptionalArray(root, "comments").Select(ParseComment).ToArray());
     }
 

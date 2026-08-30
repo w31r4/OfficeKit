@@ -127,6 +127,16 @@ internal static class PpjSourceBoundPresentationCompiler
             projected.NativeLeafBindings,
             changedNodeIds,
             mutations);
+        if (ApplySections(baseline, requested, presentation, changedNodeIds))
+        {
+            mutations.SemanticChanges = true;
+            physicalChanges = true;
+        }
+        if (ApplyCustomShows(baseline, requested, presentation, changedNodeIds))
+        {
+            mutations.SemanticChanges = true;
+            physicalChanges = true;
+        }
         if (ApplyComments(baseline, requested, presentation, changedNodeIds))
         {
             mutations.SemanticChanges = true;
@@ -220,8 +230,6 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         if (requested.Components.Count != 0)
             throw Unsupported("$", "source-bound PPJ cannot introduce component definitions in this compiler slice");
-        RequirePropertyEqual(baseline.Root, requested.Root, "sections", "$.sections");
-        RequirePropertyEqual(baseline.Root, requested.Root, "customShows", "$.customShows");
         var baselineDesign = baseline.Root.GetProperty("design");
         var requestedDesign = requested.Root.GetProperty("design");
         RequirePropertyEqual(baselineDesign, requestedDesign, "masters", "$.design.masters");
@@ -549,6 +557,98 @@ internal static class PpjSourceBoundPresentationCompiler
             changed = true;
         }
         return changed;
+    }
+
+    private static bool ApplySections(
+        PpjProgramModel baseline,
+        PpjProgramModel requested,
+        PresentationArtifact presentation,
+        ISet<string> changedNodeIds)
+    {
+        if (baseline.Sections.Count != requested.Sections.Count ||
+            presentation.Sections.Count != baseline.Sections.Count)
+            throw Unsupported("$.sections", "adding or removing source-bound sections");
+        if (baseline.Sections.Count == 0) return false;
+        var slideIdByPageId = RouteSlideIds(baseline, requested, presentation, "$.sections");
+
+        var changed = false;
+        for (var index = 0; index < baseline.Sections.Count; index++)
+        {
+            var before = baseline.Sections[index];
+            var after = requested.Sections[index];
+            var path = $"$.sections[{index}]";
+            if (!before.Id.Equals(after.Id, StringComparison.Ordinal))
+                throw Unsupported(path, "section reorder or identity change");
+            RequireNativeRef(before.Raw, after.Raw, path);
+            RequireEqualExcept(before.Raw, after.Raw, path, "name", "pages");
+            var nameChanged = PropertyChanged(before.Raw, after.Raw, "name");
+            var pagesChanged = PropertyChanged(before.Raw, after.Raw, "pages");
+            if (nameChanged) RequireCapability(after.NativeRef, "setName", path + ".name");
+            if (pagesChanged) RequireCapability(after.NativeRef, "setPages", path + ".pages");
+            if (!nameChanged && !pagesChanged) continue;
+
+            var target = presentation.Sections[index];
+            target.Name = after.Name;
+            target.SlideIds.Clear();
+            foreach (var pageId in after.PageIds)
+                target.SlideIds.Add(slideIdByPageId[pageId]);
+            changedNodeIds.Add(after.Id);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static bool ApplyCustomShows(
+        PpjProgramModel baseline,
+        PpjProgramModel requested,
+        PresentationArtifact presentation,
+        ISet<string> changedNodeIds)
+    {
+        if (baseline.CustomShows.Count != requested.CustomShows.Count ||
+            presentation.CustomShows.Count != baseline.CustomShows.Count)
+            throw Unsupported("$.customShows", "adding or removing source-bound custom shows");
+        if (baseline.CustomShows.Count == 0) return false;
+        var slideIdByPageId = RouteSlideIds(baseline, requested, presentation, "$.customShows");
+
+        var changed = false;
+        for (var index = 0; index < baseline.CustomShows.Count; index++)
+        {
+            var before = baseline.CustomShows[index];
+            var after = requested.CustomShows[index];
+            var path = $"$.customShows[{index}]";
+            if (!before.Id.Equals(after.Id, StringComparison.Ordinal))
+                throw Unsupported(path, "custom-show reorder or identity change");
+            RequireNativeRef(before.Raw, after.Raw, path);
+            RequireEqualExcept(before.Raw, after.Raw, path, "name", "pages");
+            var nameChanged = PropertyChanged(before.Raw, after.Raw, "name");
+            var pagesChanged = PropertyChanged(before.Raw, after.Raw, "pages");
+            if (nameChanged) RequireCapability(after.NativeRef, "setName", path + ".name");
+            if (pagesChanged) RequireCapability(after.NativeRef, "setPages", path + ".pages");
+            if (!nameChanged && !pagesChanged) continue;
+
+            var target = presentation.CustomShows[index];
+            target.Name = after.Name;
+            target.SlideIds.Clear();
+            foreach (var pageId in after.PageIds)
+                target.SlideIds.Add(slideIdByPageId[pageId]);
+            changedNodeIds.Add(after.Id);
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static IReadOnlyDictionary<string, string> RouteSlideIds(
+        PpjProgramModel baseline,
+        PpjProgramModel requested,
+        PresentationArtifact presentation,
+        string path)
+    {
+        if (baseline.Pages.Count != requested.Pages.Count ||
+            presentation.Slides.Count != requested.Pages.Count ||
+            !baseline.Pages.Select(page => page.Id).SequenceEqual(requested.Pages.Select(page => page.Id), StringComparer.Ordinal))
+            throw Unsupported(path, "route editing with changed page topology");
+        return requested.Pages.Select((page, index) => (PageId: page.Id, SlideId: presentation.Slides[index].Id))
+            .ToDictionary(item => item.PageId, item => item.SlideId, StringComparer.Ordinal);
     }
 
     private static bool ApplyElement(

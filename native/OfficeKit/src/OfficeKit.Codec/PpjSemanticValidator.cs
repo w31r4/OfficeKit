@@ -30,6 +30,7 @@ internal static class PpjSemanticValidator
             ["setSmartArtText"] = Set("smartArt.text"),
             ["setOlePayload"] = Set("ole.payload"),
             ["setName"] = Set("name"),
+            ["setPages"] = Set("pages"),
             ["setHidden"] = Set("hidden"),
             ["setLocked"] = Set("locked"),
             ["delete"] = Set("element"),
@@ -1896,9 +1897,15 @@ internal static class PpjSemanticValidator
         List<PpjDiagnostic> diagnostics)
     {
         for (var index = 0; index < program.Sections.Count; index++)
+        {
             ValidatePageList(program.Sections[index].PageIds, pageIds, $"$.sections[{index}].pages", diagnostics);
+            ValidateNativeRef(program.Sections[index].NativeRef, program.Source, $"$.sections[{index}].nativeRef", diagnostics);
+        }
         for (var index = 0; index < program.CustomShows.Count; index++)
+        {
             ValidatePageList(program.CustomShows[index].PageIds, pageIds, $"$.customShows[{index}].pages", diagnostics);
+            ValidateNativeRef(program.CustomShows[index].NativeRef, program.Source, $"$.customShows[{index}].nativeRef", diagnostics);
+        }
 
         var comments = program.Comments
             .GroupBy(item => item.Id, StringComparer.Ordinal)

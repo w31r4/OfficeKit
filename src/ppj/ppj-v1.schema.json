@@ -1156,6 +1156,7 @@
             "setSmartArtText",
             "setOlePayload",
             "setName",
+            "setPages",
             "setHidden",
             "setLocked",
             "delete",
@@ -1200,6 +1201,7 @@
               "smartArt.text",
               "ole.payload",
               "name",
+              "pages",
               "hidden",
               "locked",
               "element",
@@ -5005,6 +5007,9 @@
           "items": {
             "$ref": "#/$defs/id"
           }
+        },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef"
         }
       }
     },
@@ -5032,6 +5037,9 @@
           "items": {
             "$ref": "#/$defs/id"
           }
+        },
+        "nativeRef": {
+          "$ref": "#/$defs/nativeRef"
         }
       }
     },

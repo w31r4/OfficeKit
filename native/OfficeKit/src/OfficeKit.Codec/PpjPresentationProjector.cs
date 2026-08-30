@@ -1397,18 +1397,31 @@ internal static partial class PpjPresentationProjector
     private static JsonArray ProjectSections(PresentationArtifact presentation, ProjectionContext context)
     {
         var output = new JsonArray();
-        foreach (var section in presentation.Sections)
+        for (var sectionIndex = 0; sectionIndex < presentation.Sections.Count; sectionIndex++)
         {
+            var section = presentation.Sections[sectionIndex];
             var pages = new JsonArray();
             foreach (var id in section.SlideIds)
                 if (context.TryPageId(id, out var pageId)) pages.Add(StringNode(pageId));
             if (pages.Count == 0) continue;
-            output.Add(new JsonObject
+            var item = new JsonObject
             {
                 ["id"] = context.UniqueId($"section-{section.Id}"),
                 ["name"] = string.IsNullOrWhiteSpace(section.Name) ? "Section" : section.Name,
                 ["pages"] = pages,
-            });
+            };
+            if (section.Source is { } source)
+            {
+                var capabilities = source.Editable
+                    ? new[] { new CapabilitySpec("setName", ["name"]), new CapabilitySpec("setPages", ["pages"]) }
+                    : [];
+                item["nativeRef"] = NativeRef(
+                    context,
+                    $"section:{sectionIndex}",
+                    HashOrFallback(source.SectionXmlSha256, section.ToByteArray()),
+                    capabilities);
+            }
+            output.Add(item);
         }
         return output;
     }
@@ -1416,18 +1429,31 @@ internal static partial class PpjPresentationProjector
     private static JsonArray ProjectCustomShows(PresentationArtifact presentation, ProjectionContext context)
     {
         var output = new JsonArray();
-        foreach (var show in presentation.CustomShows)
+        for (var showIndex = 0; showIndex < presentation.CustomShows.Count; showIndex++)
         {
+            var show = presentation.CustomShows[showIndex];
             var pages = new JsonArray();
             foreach (var id in show.SlideIds)
                 if (context.TryPageId(id, out var pageId)) pages.Add(StringNode(pageId));
             if (pages.Count == 0) continue;
-            output.Add(new JsonObject
+            var item = new JsonObject
             {
                 ["id"] = context.UniqueId($"show-{show.Id}"),
                 ["name"] = string.IsNullOrWhiteSpace(show.Name) ? "Custom show" : show.Name,
                 ["pages"] = pages,
-            });
+            };
+            if (show.Source is { } source)
+            {
+                var capabilities = source.Editable
+                    ? new[] { new CapabilitySpec("setName", ["name"]), new CapabilitySpec("setPages", ["pages"]) }
+                    : [];
+                item["nativeRef"] = NativeRef(
+                    context,
+                    $"customShow:{showIndex}",
+                    HashOrFallback(source.ShowXmlSha256, show.ToByteArray()),
+                    capabilities);
+            }
+            output.Add(item);
         }
         return output;
     }

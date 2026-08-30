@@ -1266,7 +1266,13 @@ public sealed class PptxCodecTests
             ["advanceOnClick"] = false,
             ["advanceAfterMs"] = 1250,
         };
-        authoredProgram["sections"]![0]!["pages"]!.AsArray().Add("page-authored-diagrams");
+        authoredProgram["sections"]![0]!["pages"] = new JsonArray("page-claim");
+        authoredProgram["sections"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "section-evidence",
+            ["name"] = "Evidence and appendix",
+            ["pages"] = new JsonArray("page-evidence", "page-authored-diagrams"),
+        });
         var mediaBytes = Convert.FromHexString("000000186674797069736F6D0000020069736F6D6D703431");
         var mediaSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(mediaBytes)).ToLowerInvariant();
         authoredProgram["assets"]!.AsArray().Add(new JsonObject
@@ -1988,6 +1994,18 @@ public sealed class PptxCodecTests
             Assert.Contains(projectedComment.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
                 capability.GetProperty("operation").GetString() == "replaceText" &&
                 capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "text"));
+            var projectedSections = projectedRoot.GetProperty("sections");
+            Assert.Equal(2, projectedSections.GetArrayLength());
+            Assert.All(projectedSections.EnumerateArray(), section =>
+            {
+                var capabilities = section.GetProperty("nativeRef").GetProperty("capabilities");
+                Assert.Contains(capabilities.EnumerateArray(), capability => capability.GetProperty("operation").GetString() == "setName");
+                Assert.Contains(capabilities.EnumerateArray(), capability => capability.GetProperty("operation").GetString() == "setPages");
+            });
+            var projectedShow = Assert.Single(projectedRoot.GetProperty("customShows").EnumerateArray());
+            Assert.Contains(projectedShow.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setPages" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "pages"));
             Assert.Equal("image", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("type").GetString());
             Assert.Equal("stretch", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("fit").GetString());
             Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
@@ -2283,6 +2301,63 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var routeProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var routePageIds = routeProgram["pages"]!.AsArray()
+            .Select(page => page!["id"]!.GetValue<string>()).ToArray();
+        var firstSection = routeProgram["sections"]![0]!.AsObject();
+        firstSection["name"] = "Decision and evidence";
+        firstSection["pages"] = new JsonArray(routePageIds[0], routePageIds[1]);
+        var secondSection = routeProgram["sections"]![1]!.AsObject();
+        secondSection["pages"] = new JsonArray(routePageIds[2]);
+        var editedShow = routeProgram["customShows"]![0]!.AsObject();
+        editedShow["name"] = "Executive evidence route";
+        editedShow["pages"] = new JsonArray(routePageIds[1], routePageIds[0], routePageIds[1]);
+        var firstSectionId = firstSection["id"]!.GetValue<string>();
+        var secondSectionId = secondSection["id"]!.GetValue<string>();
+        var editedShowId = editedShow["id"]!.GetValue<string>();
+        var routeEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(routeProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(routeEdit.Ok, Diagnostics(routeEdit));
+        Assert.Equal(["ppt/presentation.xml"], routeEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(firstSectionId, routeEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(secondSectionId, routeEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(editedShowId, routeEdit.PresentationProgram.ChangedNodeIds);
+        var routeReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = routeEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/route-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(routeReprojection.Ok, Diagnostics(routeReprojection));
+        using (var routeJson = JsonDocument.Parse(routeReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var sections = routeJson.RootElement.GetProperty("sections");
+            Assert.Equal("Decision and evidence", sections[0].GetProperty("name").GetString());
+            Assert.Equal(routePageIds[..2], sections[0].GetProperty("pages").EnumerateArray().Select(page => page.GetString()));
+            Assert.Equal([routePageIds[2]], sections[1].GetProperty("pages").EnumerateArray().Select(page => page.GetString()));
+            var show = Assert.Single(routeJson.RootElement.GetProperty("customShows").EnumerateArray());
+            Assert.Equal("Executive evidence route", show.GetProperty("name").GetString());
+            Assert.Equal(
+                new[] { routePageIds[1], routePageIds[0], routePageIds[1] },
+                show.GetProperty("pages").EnumerateArray().Select(page => page.GetString()));
+        }
 
         var notesProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         notesProgram["pages"]![1]!["notes"]!["paragraphs"]![0]!["runs"]![1]!["text"] = "independently verified";
