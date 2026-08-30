@@ -117,11 +117,11 @@
       "reason": "Authored bullets currently accept explicit RGB plus the documented decimal, alpha and Roman schemes."
     },
     {
-      "feature": "translucent text and compound-shape global opacity",
-      "ppjPath": "text color alpha or shape.style.opacity",
+      "feature": "compound-shape global opacity",
+      "ppjPath": "shape.style.opacity",
       "behavior": "partial",
-      "sourceBound": "Imported alpha graphs remain source-preserved unless an exact native leaf is issued.",
-      "reason": "Fill, stroke, image, border, shadow and gradient-stop alpha are compiler-owned. Text alpha fails closed; shape-wide opacity below one is accepted only for a solid-fill-only shape and is multiplied into that fill."
+      "sourceBound": "Imported unmodeled alpha graphs remain source-preserved unless an exact native leaf is issued.",
+      "reason": "Fill, stroke, text, image, border, shadow and gradient-stop alpha are compiler-owned. Shape-wide opacity below one is accepted only for a solid-fill-only shape and is multiplied into that fill."
     }
   ],
   "nativeLeafKinds": {

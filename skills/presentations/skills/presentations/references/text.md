@@ -32,6 +32,29 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
+## Use opacity as hierarchy, not camouflage
+
+PPJ text colors accept eight-digit HEX or a declared color token with `alpha`:
+
+```json
+{
+  "text": "Source: audited operations ledger",
+  "style": {
+    "defaultText": { "color": "#16324FB8", "size": 9 }
+  }
+}
+```
+
+The compiler writes one editable native text-color alpha value. Use it for
+secondary annotation, metadata, or text over a controlled image overlay. Keep
+claims, critical values, and source obligations readable at the intended
+delivery distance. Opacity does not repair weak contrast, a busy photograph,
+or an unclear hierarchy; adjust the background or composition first.
+
+Imported text opacity may be visible in projected PPJ, but changing source
+formatting still requires an issued capability. A text-replacement capability
+does not authorize a color or opacity edit.
+
 ## Fit without shrinking the argument
 
 Respect the page's content budget. If text does not fit, remove duplication,
