@@ -723,6 +723,7 @@ Usage:
   officekit update [path] [--tools <ids>] [--force] [--json]
   officekit run <task.mjs> [-- <task arguments>]
   officekit tasks [<task-id>] [--all] [--json]
+  officekit tasks --new <goal> [--json]
   officekit repl --new <goal> [--workspace <path>]
   officekit repl <task-id> [--workspace <path>]
   officekit template search [search options] [--json]
@@ -736,7 +737,7 @@ Commands:
   update     Refresh Skills already managed by OfficeKit
   run        Run a task with this OfficeKit installation
   repl       Run a persistent JSONL JavaScript task session
-  tasks      List or inspect durable OfficeKit tasks in this workspace
+  tasks      Create, list, or inspect durable OfficeKit tasks in this workspace
   template   Search the bundled and project template catalogs
   ppj        Create, inspect, check, build, render, and review .ppj programs
   excel      Connect an open Microsoft Excel workbook to local OfficeKit control
@@ -759,6 +760,7 @@ Examples:
   officekit update
   officekit run task.mjs -- input.docx output.docx
   officekit tasks
+  officekit tasks --new "Create a quarterly business review"
   officekit repl --new "Create a quarterly business review"
   officekit template search --kind presentation --purpose "quarterly business review"
   officekit ppj import input.pptx -o deck.ppj

@@ -15,7 +15,7 @@ import {
   resumeTaskPpjRevision,
   taskDetail,
 } from "../src/cli/task-store.mjs";
-import { formatTaskList } from "../src/cli/tasks.mjs";
+import { formatTaskList, runTasksCommand } from "../src/cli/tasks.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-tasks-"));
 const workspace = path.join(root, "workspace");
@@ -32,6 +32,19 @@ for (let index = 0; index < 8; index += 1) {
   }));
 }
 const foreign = await createTask({ workspaceRoot: otherWorkspace, goal: "Foreign task" });
+
+let createdByCli = "";
+await runTasksCommand([
+  "--new",
+  "PPJ import continuation",
+  "--workspace",
+  otherWorkspace,
+  "--json",
+], { output: { write(value) { createdByCli += value; } } });
+const createdByCliReceipt = JSON.parse(createdByCli);
+assert.equal(createdByCliReceipt.task.goal, "PPJ import continuation");
+assert.equal(createdByCliReceipt.task.state, "new");
+assert.match(createdByCliReceipt.task.id, /^t_[a-f0-9]{12}$/u);
 
 assert.equal(
   await resolveTaskWorkspace({ cwd: path.join(workspace, "nested", "deep") }),
