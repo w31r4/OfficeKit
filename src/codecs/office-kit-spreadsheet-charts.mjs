@@ -339,6 +339,14 @@ function textStyleFromWire(value, name, chart) {
   return textStyleSnapshot({ fontSize: value.fontSizePoints }, name, chart) || undefined;
 }
 
+function textStyleToWire(value, original) {
+  if (value == null) return undefined;
+  return {
+    ...(original || {}),
+    fontSizePoints: value.fontSize,
+  };
+}
+
 function axisSnapshot(axis, kind, chartType, chart) {
   if (axis == null) return null;
   const title = typeof axis.title === "string" ? axis.title : axis.title?.text;
@@ -493,11 +501,17 @@ function validateAxis(axis, kind, chartType, chart) {
   if (axis.majorUnit != null && axis.majorUnit <= 0) fail(chart, "yAxis.majorUnit must be positive.");
 }
 
-function wireAxis(axis) {
+function wireAxis(axis, original) {
   if (axis == null) return undefined;
   return {
     title: axis.title,
-    textStyle: axis.textStyle == null ? undefined : { fontSizePoints: axis.textStyle.fontSize },
+    textStyle: textStyleToWire(axis.textStyle, original?.textStyle),
+    ...(original?.titleTextStyle ? { titleTextStyle: original.titleTextStyle } : {}),
+    ...(original?.reverse === undefined ? {} : { reverse: original.reverse }),
+    ...(original?.axisLineVisible === undefined ? {} : { axisLineVisible: original.axisLineVisible }),
+    ...(original?.axisLine ? { axisLine: original.axisLine } : {}),
+    ...(original?.majorGridlineStyle ? { majorGridlineStyle: original.majorGridlineStyle } : {}),
+    ...(original?.majorGridlineVisible === undefined ? {} : { majorGridlineVisible: original.majorGridlineVisible }),
     numberFormatCode: axis.numberFormatCode,
     tickLabelInterval: axis.tickLabelInterval == null ? undefined : axis.tickLabelInterval,
     minimum: axis.minimum == null ? undefined : axis.minimum,
@@ -524,13 +538,15 @@ function wireChart(chart, original) {
     accessibilityTitle: snapshot.accessibility?.title || "",
     accessibilityDescription: snapshot.accessibility?.description || "",
     accessibilityDecorative: snapshot.accessibility?.decorative,
-    titleTextStyle: snapshot.titleTextStyle == null ? undefined : { fontSizePoints: snapshot.titleTextStyle.fontSize },
+    titleTextStyle: textStyleToWire(snapshot.titleTextStyle, original?.titleTextStyle),
     lineOptions: snapshot.lineOptions == null ? undefined : {
       grouping: snapshot.lineOptions.grouping == null ? undefined : LINE_GROUPINGS_TO_WIRE.get(snapshot.lineOptions.grouping),
       smooth: snapshot.lineOptions.smooth,
       varyColors: snapshot.lineOptions.varyColors === true,
     },
     dataLabels: snapshot.dataLabels == null ? undefined : {
+      ...(original?.dataLabels?.textStyle ? { textStyle: original.dataLabels.textStyle } : {}),
+      ...(original?.dataLabels?.numberFormatCode ? { numberFormatCode: original.dataLabels.numberFormatCode } : {}),
       showValue: snapshot.dataLabels.showValue,
       showCategoryName: snapshot.dataLabels.showCategoryName,
       position: snapshot.dataLabels.position == null ? undefined : DATA_LABEL_POSITIONS_TO_WIRE.get(snapshot.dataLabels.position),
@@ -540,15 +556,20 @@ function wireChart(chart, original) {
     type,
     hasLegend: snapshot.hasLegend,
     legendPosition: snapshot.legendPosition,
+    ...(snapshot.hasLegend && original?.legendTextStyle ? { legendTextStyle: original.legendTextStyle } : {}),
     grouping: chart?._officeKitNativeChartStyle?.grouping ?? original?.grouping ?? "",
     gapWidth: chart?._officeKitNativeChartStyle?.gapWidth ?? original?.gapWidth,
     barDirection: chart?._officeKitNativeChartStyle?.barDirection ?? original?.barDirection ?? "",
+    ...(original?.firstSliceAngle === undefined ? {} : { firstSliceAngle: original.firstSliceAngle }),
+    ...(original?.doughnutHoleSize === undefined ? {} : { doughnutHoleSize: original.doughnutHoleSize }),
+    ...(original?.bubbleScale === undefined ? {} : { bubbleScale: original.bubbleScale }),
+    ...(original?.bubbleSizeMode ? { bubbleSizeMode: original.bubbleSizeMode } : {}),
     chartAreaFill: chart?._officeKitNativeChartStyle?.chartAreaFill ?? original?.chartAreaFill,
     plotAreaFill: chart?._officeKitNativeChartStyle?.plotAreaFill ?? original?.plotAreaFill,
     categories: snapshot.categories,
-    xAxis: wireAxis(snapshot.xAxis),
-    yAxis: wireAxis(snapshot.yAxis),
-    series: snapshot.series.map((series) => ({
+    xAxis: wireAxis(snapshot.xAxis, original?.xAxis),
+    yAxis: wireAxis(snapshot.yAxis, original?.yAxis),
+    series: snapshot.series.map((series, index) => ({
       name: series.name,
       xValues: series.xValues,
       values: series.values,
@@ -558,6 +579,7 @@ function wireChart(chart, original) {
       valueFormula: series.formula,
       bubbleSizeFormula: series.bubbleSizeFormula,
       fill: series.fill == null ? undefined : { source: { case: "rgb", value: series.fill.slice(1) } },
+      ...(series.fill == null && original?.series?.[index]?.seriesFill ? { seriesFill: original.series[index].seriesFill } : {}),
       line: seriesLineToWire(series.line),
       marker: series.marker == null ? undefined : {
         symbol: series.marker.symbol == null ? SpreadsheetChartMarkerSymbol.UNSPECIFIED : MARKER_SYMBOLS_TO_WIRE.get(series.marker.symbol),
@@ -568,9 +590,15 @@ function wireChart(chart, original) {
           dashStyle: series.marker.line.style == null ? SpreadsheetChartLineDashStyle.UNSPECIFIED : LINE_STYLES_TO_WIRE.get(series.marker.line.style),
           widthPoints: series.marker.line.width == null ? undefined : series.marker.line.width,
         },
+        ...(original?.series?.[index]?.marker?.fillOpacityThousandthPercent === undefined
+          ? {}
+          : { fillOpacityThousandthPercent: original.series[index].marker.fillOpacityThousandthPercent }),
       },
       trendlines: series.trendlines.map(trendlineToWire),
       errorBars: errorBarsToWire(series.errorBars),
+      ...((original?.series?.[index]?.missingValueIndexes || []).length
+        ? { missingValueIndexes: [...original.series[index].missingValueIndexes] }
+        : {}),
     })),
     source: original?.source,
   };
