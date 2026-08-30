@@ -95,6 +95,31 @@ form. On an imported source-bound chart, a `setChartData` capability owns only
 series names and values; it cannot be used to smuggle axis, marker, label,
 trendline, error-bar or paint changes.
 
+Scatter and bubble charts use numeric channels rather than shared category
+labels:
+
+```json
+{
+  "chartType": "bubble",
+  "data": {
+    "categories": [],
+    "series": [{
+      "id": "opportunities",
+      "name": "Opportunities",
+      "xValues": [10, 20, 34],
+      "values": [5, 12, 8],
+      "bubbleSizes": [4, 9, 16]
+    }]
+  }
+}
+```
+
+`xValues` is required for scatter and bubble; `bubbleSizes` is required only
+for bubble. Each vector has exactly the same length as `values`, bubble sizes
+are positive, and `categories` is empty. Do not encode numeric X values as
+strings merely to reuse a category chart. On imported charts, the current
+`setChartData` capability does not authorize changing X values or bubble sizes.
+
 Chart-series gradients, image paint, explicit no-fill series, missing-value
 caches, radar, and waterfall still fail closed. Existing unsupported native
 chart graphs remain source-preserved; they are not simplified during an
