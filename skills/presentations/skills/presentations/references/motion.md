@@ -11,6 +11,46 @@ fade, wipe, fly, zoom, and pulse; start modes are `withPrevious`,
 may build all at once, by series, category, or element. Morph uses explicit
 adjacent-page pairs.
 
+## Slide transitions
+
+PPJ can express every bounded native base transition already supported by the
+compiler:
+
+```text
+blinds checker circle comb cover cut diamond dissolve fade newsflash plus
+pull push random randomBar split strips wedge wheel wipe zoom
+```
+
+Use `fade`, `push`, or `wipe` for ordinary continuity. `split`, `cover`,
+`strips`, and `zoom` are useful only when the movement reinforces the page
+change. `checker`, `newsflash`, `plus`, `random`, `randomBar`, `wedge`, and
+similar high-noise effects require explicit user or stage direction; language
+support does not make them automatic design choices.
+
+Effect-specific fields are validated rather than ignored. Direction may be
+cardinal, corner, or `in`/`out` depending on the effect; blinds, checker, comb,
+randomBar, and split use an orientation; cut and fade may use `throughBlack`;
+wheel uses one through eight spokes. Common state includes `slow`, `medium`, or
+`fast` speed, independent playback `durationMs`, click advance, and optional
+timed advance:
+
+```json
+{
+  "type": "split",
+  "orientation": "horizontal",
+  "direction": "in",
+  "speed": "fast",
+  "durationMs": 750,
+  "advanceOnClick": false,
+  "advanceAfterMs": 1250
+}
+```
+
+Prefer click advance for live talks. Timed advance is appropriate for a kiosk,
+rehearsed loop, or explicitly automatic show. Imported pages expose
+`setTransition` only when the native source graph can be edited or receive a
+transition without disturbing timing or extension topology.
+
 ## Delivery policy
 
 - `reader`: static by default; animation requires explicit user intent.
