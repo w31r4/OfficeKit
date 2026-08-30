@@ -2679,14 +2679,30 @@ function presentationImportedSlideShellWithoutElementsSnapshot(value) {
 }
 
 function presentationElement(element, original, assetCatalog, sourceIdByCloneId, customShowLinks) {
-  if (element instanceof GroupShape) return presentationGroup(element, original, assetCatalog, sourceIdByCloneId, customShowLinks);
-  if (element instanceof ImageElement) return presentationImage(element, original, assetCatalog);
-  if (element instanceof TableElement) return presentationTable(element, original);
-  if (element instanceof ChartElement) return presentationChart(element, original);
-  if (element?.kind === "connector") return presentationConnector(element, original, sourceIdByCloneId);
-  if (element instanceof Shape) return presentationShape(element, original, assetCatalog, customShowLinks);
-  if (element?.kind === "nativeObject") return presentationNestedOpaque(element, original);
-  throw new OfficeKitCodecError(`Presentation element ${element?.id || "<unknown>"} has no supported OfficeKit wire projection.`, [], { code: "unsupported_presentation_element" });
+  let projected;
+  if (element instanceof GroupShape) projected = presentationGroup(element, original, assetCatalog, sourceIdByCloneId, customShowLinks);
+  else if (element instanceof ImageElement) projected = presentationImage(element, original, assetCatalog);
+  else if (element instanceof TableElement) projected = presentationTable(element, original);
+  else if (element instanceof ChartElement) projected = presentationChart(element, original);
+  else if (element?.kind === "connector") projected = presentationConnector(element, original, sourceIdByCloneId);
+  else if (element instanceof Shape) projected = presentationShape(element, original, assetCatalog, customShowLinks);
+  else if (element?.kind === "nativeObject") projected = presentationNestedOpaque(element, original);
+  else throw new OfficeKitCodecError(`Presentation element ${element?.id || "<unknown>"} has no supported OfficeKit wire projection.`, [], { code: "unsupported_presentation_element" });
+
+  // Optional element-state fields are presence-sensitive in the source-bound
+  // artifact. Keep an explicitly imported false distinct from omission while
+  // projecting a sibling whose content is being edited; otherwise the final
+  // whole-artifact source proof rejects an otherwise local native-leaf edit.
+  return preservePresentationElementState(projected, original);
+}
+
+function preservePresentationElementState(projected, original) {
+  if (!original) return projected;
+  return {
+    ...projected,
+    ...(Object.hasOwn(original, "hidden") ? { hidden: original.hidden } : {}),
+    ...(Object.hasOwn(original, "locked") ? { locked: original.locked } : {}),
+  };
 }
 
 function markPresentationImportedGroupSnapshots(group, source, sourceRevisionSha256) {
@@ -3537,27 +3553,47 @@ export function presentationEnvelope(presentation, protocolVersion) {
               return entry.wire;
             }
             if (entry.wire.content.value.placeholder) {
-              return presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks);
+              return preservePresentationElementState(
+                presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks),
+                entry.wire,
+              );
             }
-            return presentationShape(entry.model, entry.wire, assetCatalog, customShowLinks);
+            return preservePresentationElementState(
+              presentationShape(entry.model, entry.wire, assetCatalog, customShowLinks),
+              entry.wire,
+            );
           }
           if (entry.wire.content.case === "image") {
             if (presentationImageReadOnlySnapshot(entry.model) !== entry.snapshot) {
               throw new OfficeKitCodecError(`Presentation image ${entry.model.id} changed outside its embedded rectangular image boundary.`, [], { code: "unsupported_presentation_edit" });
             }
-            return presentationImage(entry.model, entry.wire, assetCatalog);
+            return preservePresentationElementState(
+              presentationImage(entry.model, entry.wire, assetCatalog),
+              entry.wire,
+            );
           }
           if (entry.wire.content.case === "table") {
             if (presentationTableReadOnlySnapshot(entry.model) !== entry.snapshot) {
               throw new OfficeKitCodecError(`Presentation table ${entry.model.id} changed outside its name/frame/plain-text boundary.`, [], { code: "unsupported_presentation_edit" });
             }
-            return presentationTable(entry.model, entry.wire);
+            return preservePresentationElementState(
+              presentationTable(entry.model, entry.wire),
+              entry.wire,
+            );
           }
           if (entry.wire.content.case === "connector") {
             if (presentationImportedConnectorSnapshot(entry.model) === entry.snapshot) return entry.wire;
-            return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+            return preservePresentationElementState(
+              presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId),
+              entry.wire,
+            );
           }
-          if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
+          if (entry.wire.content.case === "chart") {
+            return preservePresentationElementState(
+              presentationChart(entry.model, entry.wire),
+              entry.wire,
+            );
+          }
           if (entry.wire.content.case === "group") {
             // The native validator still checks an unchanged, source-bound
             // group's recursively projected children whenever another object
@@ -3571,9 +3607,15 @@ export function presentationEnvelope(presentation, protocolVersion) {
             if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
               return entry.wire;
             }
-            return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);
+            return preservePresentationElementState(
+              presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks),
+              entry.wire,
+            );
           }
-          return presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog);
+          return preservePresentationElementState(
+            presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog),
+            entry.wire,
+          );
         }),
         ...authoredElements.map((element) => presentationElement(element, undefined, assetCatalog, undefined, customShowLinks)),
       ]
