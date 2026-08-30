@@ -32,8 +32,8 @@ data, a remote URL or an icon-library expression.
 
 The catalog's view box is fitted inside the declared frame while preserving
 aspect ratio. `fill`, `stroke`, opacity and ordinary element transforms remain
-Agent-controlled. Multi-path icons are represented by a bounded group of
-native custom-geometry shapes under the one PPJ identity.
+Agent-controlled. Multiple contours remain bounded subpaths inside the one
+native custom-geometry shape and one PPJ identity.
 
 ### 3. Native vector lowering, not an image shortcut
 
