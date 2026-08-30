@@ -367,6 +367,16 @@ fields and keep its expected revision/hash; unsupported topology stays opaque.
 No-op build returns the source bytes exactly. A stale, ambiguous or undeclared
 mutation fails instead of rebuilding or flattening the source.
 
+### Imported presentation canvas
+
+An imported \`design.canvas\` is editable only when its own \`nativeRef\` issues
+\`setCanvas\` for \`canvas.width\` and \`canvas.height\`. Values stay in points.
+Keep the nativeRef unchanged, edit one or both dimensions, then build and
+re-import. The compiler changes only the native presentation canvas: it never
+scales, reflows, crops or moves slide, layout, master or element coordinates.
+Because every page is composed against that canvas, render and review every
+page for exposed margins, clipping and changed balance after the edit.
+
 ### Closed imported leaf vocabulary
 
 The compiler may issue the following bounded leaves after importing the exact

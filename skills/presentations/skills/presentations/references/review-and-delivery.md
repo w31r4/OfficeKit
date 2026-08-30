@@ -36,6 +36,13 @@ sources, and does not contain instructions meant for the audience. After a
 source-bound notes edit, re-import and confirm the intended page notes while
 keeping every non-target slide and native notes graph stable.
 
+Treat an imported `design.canvas` edit as a whole-deck composition change.
+Change `width` or `height` only when the canvas nativeRef advertises
+`setCanvas`; keep the nativeRef and `unit: "pt"` unchanged. This operation
+changes the native page size without scaling, reflowing, cropping, or moving
+any page object. Re-import the output and render every page to check exposed
+margins, clipping, background coverage, and altered visual balance.
+
 Treat `pages[].hidden` as ordinary slide-show routing, not deletion. A hidden
 appendix page still belongs to sections, custom shows, review, and delivery and
 must remain factually and visually valid. On imported pages, change `name` or

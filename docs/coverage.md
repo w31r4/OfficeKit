@@ -184,6 +184,16 @@ updates modeled sections before moving `p:sldId` records so no transient invalid
 partition is mistaken for an opaque graph. Page insertion, clone, combined
 delete-plus-reorder, and opaque section graphs remain outside this slice.
 
+Imported PPJ canvas state now carries its own source-bound nativeRef and issues
+`setCanvas` for `canvas.width` and `canvas.height`. The compiler converts point
+dimensions to deterministic EMUs and reuses the existing canvas-only native
+writer, which clears a stale preset type but leaves every slide, layout, master,
+and object coordinate untouched. The existing comprehensive PPJ transaction
+widens the canvas while reordering three pages, changes only
+`ppt/presentation.xml`, reports all pages as affected, and recovers the new
+width plus stable page and element IDs on second projection. This is an exact
+page-size edit, not automatic scale, reflow, crop, or responsive layout.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.
