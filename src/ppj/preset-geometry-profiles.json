@@ -5,6 +5,15 @@
     "url": "https://github.com/plutext/docx4j/blob/0eec2587ab38db5265ce66c12423849c1bea2c60/docx4j-core/src/main/resources/org/docx4j/model/shapes/presetShapeDefinitions.xml",
     "sha256": "6fc9592cb55db6e572051f41d15a079ae4164635af902db6f13a8a61d0c949d3"
   },
+  "supplements": [
+    {
+      "kind": "public-ecma-376-preset-tokens",
+      "names": [
+        "lineInv",
+        "upArrow"
+      ]
+    }
+  ],
   "minimumValue": -21600000,
   "maximumValue": 21600000,
   "profiles": {
@@ -1389,6 +1398,12 @@
         "native adjustment 3 (adj3)"
       ]
     },
+    "lineInv": {
+      "nativeToken": "lineInv",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
     "lightningBolt": {
       "nativeToken": "lightningBolt",
       "guides": [],
@@ -2113,6 +2128,21 @@
       ],
       "parameters": [
         "apex horizontal position"
+      ]
+    },
+    "upArrow": {
+      "nativeToken": "upArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead length"
       ]
     },
     "upArrowCallout": {
