@@ -4108,6 +4108,21 @@ public sealed class PptxCodecTests
             var pictureGeometry = document.Descendants(presentation + "pic").First()
                 .Descendants(drawing + "prstGeom").Single();
             pictureGeometry.Element(drawing + "avLst")?.RemoveNodes();
+            var shadowShapeProperties = document.Descendants(presentation + "sp")
+                .Select(shape => shape.Element(presentation + "spPr"))
+                .OfType<XElement>()
+                .First(properties => properties.Element(drawing + "solidFill")?.Element(drawing + "srgbClr") is not null &&
+                    properties.Element(drawing + "effectLst") is null);
+            shadowShapeProperties.Add(new XElement(drawing + "effectLst",
+                new XElement(drawing + "outerShdw",
+                    new XAttribute("blurRad", "142875"),
+                    new XAttribute("dist", "95250"),
+                    new XAttribute("dir", "2700000"),
+                    new XAttribute("algn", "bl"),
+                    new XAttribute("rotWithShape", "0"),
+                    new XElement(drawing + "schemeClr",
+                        new XAttribute("val", "dk1"),
+                        new XElement(drawing + "alpha", new XAttribute("val", "43000"))))));
             return document.ToString(SaveOptions.DisableFormatting);
         });
         var nativeLeafProjection = Invoke(new CodecRequest
@@ -4129,11 +4144,20 @@ public sealed class PptxCodecTests
             .Select(element => element!.AsObject())
             .First(element => element["nativeRef"]?["leaves"]?.AsArray() is { } leaves &&
                 leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "fillRgb") &&
-                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "widthEmu"));
+                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "widthEmu") &&
+                leaves.Any(leaf => leaf!["kind"]!.GetValue<string>() == "shadowOpacityThousandthPercent"));
         var nativeLeaf = nativeLeafOwner["nativeRef"]!["leaves"]!.AsArray()
             .First(leaf => leaf!["kind"]!.GetValue<string>() == "fillRgb")!.AsObject();
         var nativeWidthLeaf = nativeLeafOwner["nativeRef"]!["leaves"]!.AsArray()
             .First(leaf => leaf!["kind"]!.GetValue<string>() == "widthEmu")!.AsObject();
+        JsonObject ShadowLeaf(string kind) => nativeLeafOwner["nativeRef"]!["leaves"]!.AsArray()
+            .Single(leaf => leaf!["kind"]!.GetValue<string>() == kind)!.AsObject();
+        var shadowBlurLeaf = ShadowLeaf("shadowBlurRadiusEmu");
+        var shadowDistanceLeaf = ShadowLeaf("shadowDistanceEmu");
+        var shadowDirectionLeaf = ShadowLeaf("shadowDirectionDegrees");
+        var shadowAlignmentLeaf = ShadowLeaf("shadowAlignment");
+        var shadowColorLeaf = ShadowLeaf("shadowColorScheme");
+        var shadowOpacityLeaf = ShadowLeaf("shadowOpacityThousandthPercent");
         var highlightOwner = nativeLeafProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
@@ -4160,8 +4184,20 @@ public sealed class PptxCodecTests
         var replacementWidth = nativeWidthLeaf["value"]!.GetValue<long>() + 12_700;
         const int replacementImageOpacity = 61_000;
         const string replacementImageMask = "ellipse";
+        const long replacementShadowBlur = 190_500;
+        const long replacementShadowDistance = 127_000;
+        const double replacementShadowDirection = 90;
+        const string replacementShadowAlignment = "tr";
+        const string replacementShadowColor = "accent1";
+        const long replacementShadowOpacity = 33_000;
         nativeLeaf["value"] = replacementFill;
         nativeWidthLeaf["value"] = replacementWidth;
+        shadowBlurLeaf["value"] = replacementShadowBlur;
+        shadowDistanceLeaf["value"] = replacementShadowDistance;
+        shadowDirectionLeaf["value"] = replacementShadowDirection;
+        shadowAlignmentLeaf["value"] = replacementShadowAlignment;
+        shadowColorLeaf["value"] = replacementShadowColor;
+        shadowOpacityLeaf["value"] = replacementShadowOpacity;
         highlightLeaf["value"] = replacementHighlight;
         languageLeaf["value"] = replacementLanguage;
         imageOpacityLeaf["value"] = replacementImageOpacity;
@@ -4205,6 +4241,18 @@ public sealed class PptxCodecTests
             leaf!["kind"]!.GetValue<string>() == "fillRgb" && leaf["value"]!.GetValue<string>() == replacementFill);
         Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
             leaf!["kind"]!.GetValue<string>() == "widthEmu" && leaf["value"]!.GetValue<long>() == replacementWidth);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "shadowBlurRadiusEmu" && leaf["value"]!.GetValue<long>() == replacementShadowBlur);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "shadowDistanceEmu" && leaf["value"]!.GetValue<long>() == replacementShadowDistance);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "shadowDirectionDegrees" && leaf["value"]!.GetValue<double>() == replacementShadowDirection);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "shadowAlignment" && leaf["value"]!.GetValue<string>() == replacementShadowAlignment);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "shadowColorScheme" && leaf["value"]!.GetValue<string>() == replacementShadowColor);
+        Assert.Contains(reprojectedOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "shadowOpacityThousandthPercent" && leaf["value"]!.GetValue<long>() == replacementShadowOpacity);
         var reprojectedHighlightOwner = nativeLeafReprojectedProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
