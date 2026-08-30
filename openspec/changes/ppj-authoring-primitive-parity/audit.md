@@ -29,7 +29,7 @@
 | stream area and pictographic bars | implemented, bounded | editable vector compilers |
 | bubble scale/range | partial | native scale/mode implemented; pixel-radius range remains unsupported |
 | arbitrary pie angle/hole | implemented, bounded | native legal angle and hole-size ranges |
-| axis reverse/arrows/line/grid styling | partial | reverse and direct line/grid style implemented; arrows remain unsupported |
+| axis reverse/arrows/line/grid styling | implemented, bounded | native direction, direct line/grid style and finite axis endpoints |
 | radar spoke styling | implemented, bounded | semantic native spoke/ring coordinate system |
 | label number formats and point overrides | partial | chart-level format implemented; per-series/per-point overrides remain unsupported |
 | treemap/sunburst display depth | implemented, bounded | finite visible-level controls retain full hierarchy |

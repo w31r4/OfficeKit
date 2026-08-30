@@ -323,7 +323,8 @@ labels:
   },
   "xAxis": {
     "reverse": false,
-    "axisLine": { "color": "#355C7D", "width": 1 }
+    "axisLine": { "color": "#355C7D", "width": 1 },
+    "axisLineArrow": { "end": "triangle" }
   },
   "yAxis": {
     "gridLine": { "color": "#D7DEE5", "width": 0.75, "dash": "dot" }
@@ -354,10 +355,14 @@ On imported charts, `setChartData` owns only the bounded data vectors and does
 not authorize changing X values, bubble sizes, or the positions of missing Y
 observations. Bubble scale and size semantics require `setChartPlot`; label
 format requires `setChartLabels`; axis direction and line styling require
-`setChartAxis`. When the matching capability is absent, preserve the native
-graph rather than redrawing it with shapes. Per-point label formats,
-logarithmic transforms, axis arrows, theme/effect line graphs, and other
-irregular native formatting remain source-owned.
+`setChartAxis`. `axisLineArrow` accepts independently bounded `start` and `end`
+values: `none`, `triangle`, `stealth`, `diamond`, `oval`, or `open`. Use an end
+arrow only when direction is part of the analytical meaning; do not add arrows
+as decoration, to grid lines, or to radar spokes. When the matching capability
+is absent, preserve the native graph rather than redrawing it with shapes.
+Per-point label formats, logarithmic transforms, custom arrow sizing,
+theme/effect line graphs, and other irregular native formatting remain
+source-owned.
 
 Use `combo` only when two or three different plot families share one real
 ordered category domain. Each series declares `chartType: "column" | "line" | "area"`

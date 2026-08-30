@@ -148,7 +148,14 @@
       "ppjPath": "pages[].elements[].style.dataLabels.numberFormat, pages[].elements[].style.bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis reverse/axisLine/gridLine",
       "behavior": "partial",
       "sourceBound": "Recognized imported ChartParts issue setChartLabels for canonical chart-level data-label format, setChartPlot for native bubble scale and size semantics, and setChartAxis for bounded axis direction plus direct axis/grid line styling. Each capability owns only its declared field group and patches the existing ChartPart.",
-      "reason": "PPJ owns one chart-level native number format, bubble scale from 0 through 300, native area/width size semantics, presence-aware axis reversal, and direct RGB/no-fill axis and major-grid lines. Per-point labels, pixel-radius ranges, logarithmic transforms, arrowed axes, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
+      "reason": "PPJ owns one chart-level native number format, bubble scale from 0 through 300, native area/width size semantics, presence-aware axis reversal, and direct RGB/no-fill axis and major-grid lines. Per-point labels, pixel-radius ranges, logarithmic transforms, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
+    },
+    {
+      "feature": "native chart axis arrowheads",
+      "ppjPath": "pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis.axisLineArrow.start/end",
+      "behavior": "partial",
+      "sourceBound": "Canonical imported ordinary chart axes project finite endpoint names and reuse setChartAxis. A bounded edit adds, replaces or removes only recognized a:headEnd/a:tailEnd state inside the existing editable axis line container and then re-proves the ChartPart semantics.",
+      "reason": "PPJ owns none, triangle, stealth, diamond, oval and open start/end axis arrowheads. Endpoint size metadata, effects, unknown children, arrows on grid/series/radar-spoke lines, generated vector axes and irregular native line topology remain source-owned and fail closed."
     },
     {
       "feature": "native radar spoke coordinate system",
