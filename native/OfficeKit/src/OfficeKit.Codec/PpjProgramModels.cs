@@ -105,6 +105,7 @@ internal sealed class PpjShapeElementModel : PpjElementModel
 {
     internal required string GeometryKind { get; init; }
     internal string? GeometryPreset { get; init; }
+    internal IReadOnlyList<int> GeometryAdjustments { get; init; } = [];
     internal PpjTextContentModel? Text { get; init; }
     internal string? StyleRef { get; init; }
 }
@@ -503,6 +504,9 @@ internal static class PpjProgramParser
             {
                 GeometryKind = element.GetProperty("geometry").GetProperty("kind").GetString()!,
                 GeometryPreset = OptionalString(element.GetProperty("geometry"), "preset"),
+                GeometryAdjustments = element.GetProperty("geometry").TryGetProperty("adjustments", out var adjustments)
+                    ? adjustments.EnumerateArray().Select(value => value.GetInt32()).ToArray()
+                    : [],
                 Text = element.TryGetProperty("text", out var text) ? ParseText(text) : null,
                 StyleRef = OptionalString(element, "styleRef"),
             },

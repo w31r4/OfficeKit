@@ -2223,6 +2223,10 @@ message PresentationShape {
   // Bounded direct DrawingML linear or centered radial fill. It is mutually
   // exclusive with fill_rgb, fill_scheme and solid-fill opacity.
   PresentationGradientFill gradient_fill = 35;
+  // Complete ordered literal a:avLst values for a recognized preset geometry.
+  // Empty uses the native preset defaults. Guide names are derived from the
+  // geometry profile and never cross the public wire or PPJ language boundary.
+  repeated sint32 preset_adjustments = 36;
 }
 
 message PresentationCustomGeometryPath {

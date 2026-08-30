@@ -1,7 +1,7 @@
 ## 1. Language and wire contract
 
-- [ ] 1.1 Correct the PPJ adjustment scalar range and add the narrow native capability vocabulary
-- [ ] 1.2 Add ordered preset adjustment state to the additive wire-v2 shape message
+- [x] 1.1 Correct the PPJ adjustment scalar range and add the narrow native capability vocabulary
+- [x] 1.2 Add ordered preset adjustment state to the additive wire-v2 shape message
 
 ## 2. Native codec and PPJ compiler
 

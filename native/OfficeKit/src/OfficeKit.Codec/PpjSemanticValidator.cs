@@ -12,6 +12,7 @@ internal static class PpjSemanticValidator
             ["setStroke"] = Set("stroke"),
             ["setOpacity"] = Set("opacity"),
             ["setFrame"] = Set("frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"),
+            ["setGeometry"] = Set("geometry.adjustments"),
             ["replaceImage"] = Set("image.asset"),
             ["setImageCrop"] = Set("image.crop"),
             ["setChartTitle"] = Set("chart.title"),
