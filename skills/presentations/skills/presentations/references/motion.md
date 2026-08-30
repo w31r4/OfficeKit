@@ -11,6 +11,27 @@ fade, wipe, fly, zoom, and pulse; start modes are `withPrevious`,
 may build all at once, by series, category, or element. Morph uses explicit
 adjacent-page pairs.
 
+## Imported object motion
+
+An imported page may edit its complete `animations[]` array only when the page
+`nativeRef` advertises `setAnimations/animations`. OfficeKit issues this
+capability for an absent timing graph that is safe to create or for an existing
+canonical graph that is safe to replace. It never issues it for opaque native
+timing or a page participating in Morph.
+
+Keep the page nativeRef unchanged and use the projected stable element IDs as
+targets. Build privately resolves those IDs to the current native objects,
+including supported descendants in an unchanged group; never substitute a
+drawing ID. Adding, changing order, replacing, or removing entries describes
+the whole canonical object-animation state. A new topmost overlay has no
+native identity during the append build, so build and re-import it before
+adding motion in a later revision.
+
+After build, re-import and confirm effect, target, start mode, duration, and
+text/chart build. This is package-structural evidence only. Keep
+`playbackEvidence: structural` until Keynote or PowerPoint has actually played
+the result.
+
 ## Slide transitions
 
 PPJ can express every bounded native base transition already supported by the

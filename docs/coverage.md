@@ -219,6 +219,19 @@ clone's SlidePart changes, then projects the result as an ordinary typed text
 node with nativeRef. Interleaving, unsupported element kinds, paired SVG
 fallback creation, stale authority, and mixed source mutations fail closed.
 
+Imported pages with no Morph now issue `setAnimations/animations` only when
+their native `p:timing` graph is canonical and editable or absent and safely
+addable. PPJ replaces the complete typed animation array, resolves stable PPJ
+targets back to fresh top-level or group-descendant wire IDs, and reuses the
+existing canonical timing writer. The focused source-bound contract adds a
+paragraph wipe to a rich-text title, changes only its SlidePart, writes native
+timing, and recovers the same target/effect/build after second projection. It
+also exposed and fixed a postwrite oracle bug: authoring-only animation IDs and
+derived target-kind labels are no longer mistaken for package playback
+semantics. Opaque timing, Morph pages, raw presets, sound, arbitrary motion
+paths, and animation of a just-appended overlay remain blocked. This is
+structural round-trip evidence, not desktop playback evidence.
+
 Imported PPJ canvas state now carries its own source-bound nativeRef and issues
 `setCanvas` for `canvas.width` and `canvas.height`. The compiler converts point
 dimensions to deterministic EMUs and reuses the existing canvas-only native

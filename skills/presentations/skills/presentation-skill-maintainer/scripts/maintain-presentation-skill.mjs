@@ -473,6 +473,16 @@ SVG fallback, or combine the append with another source mutation. Build and
 re-import before the next edit so the new native objects receive fresh stable
 source-bound IDs and capability evidence.
 
+For imported object motion, change the complete \`pages[].animations[]\` array
+only when that page's \`nativeRef\` advertises \`setAnimations\` with
+\`animations\`. The capability is issued only for an absent safely addable
+timing graph or an existing canonical editable graph, and never for a Morph
+page. Targets remain stable PPJ element IDs; the compiler privately resolves
+their current native bindings, including supported group descendants. Opaque
+third-party timing receives no capability and remains byte-preserved. Build
+and re-import a newly appended overlay before using it as an animation target.
+Structural round-trip is not desktop playback evidence.
+
 OfficeKit-authored PPTX embeds canonical PPJ and a node map. Import restores
 that PPJ exactly when valid. If native software changed the PPTX but left the
 embedded program, PPJ remains authoritative; a future build writes a new output
