@@ -218,6 +218,10 @@ internal static class PpjSourceBoundPresentationCompiler
         RequirePropertyEqual(baseline.Root, requested.Root, "sections", "$.sections");
         RequirePropertyEqual(baseline.Root, requested.Root, "customShows", "$.customShows");
         RequirePropertyEqual(baseline.Root, requested.Root, "comments", "$.comments");
+        var baselineDesign = baseline.Root.GetProperty("design");
+        var requestedDesign = requested.Root.GetProperty("design");
+        RequirePropertyEqual(baselineDesign, requestedDesign, "masters", "$.design.masters");
+        RequirePropertyEqual(baselineDesign, requestedDesign, "layouts", "$.design.layouts");
     }
 
     private static Dictionary<string, string> BuildAssetCatalog(

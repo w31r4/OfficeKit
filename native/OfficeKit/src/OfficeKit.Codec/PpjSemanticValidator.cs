@@ -34,6 +34,8 @@ internal static class PpjSemanticValidator
         var assets = UniqueIndex(program.Assets, item => item.Id, "$.assets", diagnostics);
         var components = UniqueIndex(program.Components, item => item.Id, "$.components", diagnostics);
         var pages = UniqueIndex(program.Pages, item => item.Id, "$.pages", diagnostics);
+        var masters = UniqueIndex(program.Design.Masters, item => item.Id, "$.design.masters", diagnostics);
+        var layouts = UniqueIndex(program.Design.Layouts, item => item.Id, "$.design.layouts", diagnostics);
 
         ValidateUniqueIds(program.Sections, item => item.Id, "$.sections", diagnostics);
         ValidateUniqueIds(program.CustomShows, item => item.Id, "$.customShows", diagnostics);
@@ -47,6 +49,7 @@ internal static class PpjSemanticValidator
         var pageIds = pages.Keys.ToHashSet(StringComparer.Ordinal);
         ValidateResourceReferences(program.Root, "$", assetIds, program.Design.ColorIds, program.Design.FontIds, diagnostics);
         ValidateTextEffects(program.Root, "$", diagnostics);
+        ValidateMasterLayoutState(program, masters, layouts, diagnostics);
         ValidateComponentDefinitions(program, components, assetIds, diagnostics);
 
         var globalElementIds = new HashSet<string>(StringComparer.Ordinal);
@@ -77,6 +80,145 @@ internal static class PpjSemanticValidator
         ValidateComponentGraph(program.Components, diagnostics);
         ValidateExpansionBudget(program, components, diagnostics);
     }
+
+    private static void ValidateMasterLayoutState(
+        PpjProgramModel program,
+        IReadOnlyDictionary<string, PpjMasterModel> masters,
+        IReadOnlyDictionary<string, PpjLayoutModel> layouts,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (program.Source is null && program.Design.Masters.Count > 1)
+            diagnostics.Add(new(
+                "ppj.master.count",
+                "Source-free PPJ supports exactly one canonical master when master state is declared.",
+                "$.design.masters"));
+        if (program.Source is null && program.Design.Layouts.Count > 0 && program.Design.Masters.Count != 1)
+            diagnostics.Add(new(
+                "ppj.layout.master",
+                "Source-free PPJ layouts require one declared master.",
+                "$.design.layouts"));
+
+        for (var masterIndex = 0; masterIndex < program.Design.Masters.Count; masterIndex++)
+        {
+            var master = program.Design.Masters[masterIndex];
+            var path = $"$.design.masters[{masterIndex}]";
+            ValidateTextStyleLevels(master.TitleTextLevels, path + ".textStyles.title", diagnostics);
+            ValidateTextStyleLevels(master.BodyTextLevels, path + ".textStyles.body", diagnostics);
+            ValidateTextStyleLevels(master.OtherTextLevels, path + ".textStyles.other", diagnostics);
+            ValidateLayoutPlaceholders(master.Placeholders, path + ".placeholders", diagnostics);
+        }
+
+        for (var layoutIndex = 0; layoutIndex < program.Design.Layouts.Count; layoutIndex++)
+        {
+            var layout = program.Design.Layouts[layoutIndex];
+            var path = $"$.design.layouts[{layoutIndex}]";
+            if (!masters.ContainsKey(layout.MasterId))
+                diagnostics.Add(new(
+                    "ppj.layout.master",
+                    $"Layout {layout.Id} references missing master {layout.MasterId}.",
+                    path + ".master"));
+            ValidateLayoutPlaceholders(layout.Placeholders, path + ".placeholders", diagnostics);
+        }
+
+        for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
+        {
+            var page = program.Pages[pageIndex];
+            var path = $"$.pages[{pageIndex}]";
+            if (page.LayoutId is null)
+            {
+                if (program.Source is null && program.Design.Layouts.Count > 0)
+                    diagnostics.Add(new(
+                        "ppj.page.layout",
+                        $"Page {page.Id} must bind one declared layout.",
+                        path + ".layout"));
+                continue;
+            }
+            if (!layouts.TryGetValue(page.LayoutId, out var layout))
+            {
+                // A third-party projection records the immutable native layout
+                // identity without pretending that its complete graph is
+                // authored PPJ state.
+                if (program.Source is null)
+                    diagnostics.Add(new(
+                        "ppj.page.layout",
+                        $"Page {page.Id} references missing layout {page.LayoutId}.",
+                        path + ".layout"));
+                continue;
+            }
+            if (!masters.TryGetValue(layout.MasterId, out var master)) continue;
+            var available = master.Placeholders.Concat(layout.Placeholders)
+                .Select(item => (Type: NativePlaceholderType(item.PlaceholderType), item.Index))
+                .ToHashSet();
+            for (var elementIndex = 0; elementIndex < page.Elements.Count; elementIndex++)
+            {
+                if (page.Elements[elementIndex] is not PpjPlaceholderElementModel placeholder) continue;
+                var elementPath = $"{path}.elements[{elementIndex}]";
+                if (!placeholder.Raw.TryGetProperty("index", out var index))
+                {
+                    diagnostics.Add(new(
+                        "ppj.placeholder.index",
+                        $"Layout-bound placeholder {placeholder.Id} requires an explicit index.",
+                        elementPath + ".index"));
+                    continue;
+                }
+                var identity = (NativePlaceholderType(placeholder.PlaceholderType), index.GetUInt32());
+                if (!available.Contains(identity))
+                    diagnostics.Add(new(
+                        "ppj.placeholder.binding",
+                        $"Placeholder {placeholder.Id} has no matching master/layout type and index.",
+                        elementPath));
+            }
+        }
+    }
+
+    private static void ValidateTextStyleLevels(
+        IReadOnlyList<JsonElement> levels,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var seen = new HashSet<int>();
+        for (var index = 0; index < levels.Count; index++)
+        {
+            var level = levels[index].GetProperty("level").GetInt32();
+            if (!seen.Add(level))
+                diagnostics.Add(new(
+                    "ppj.master.textStyleLevel",
+                    $"Master text style level {level} is duplicated.",
+                    $"{path}[{index}].level"));
+        }
+    }
+
+    private static void ValidateLayoutPlaceholders(
+        IReadOnlyList<PpjLayoutPlaceholderModel> placeholders,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var identities = new HashSet<(string Type, uint Index)>();
+        for (var index = 0; index < placeholders.Count; index++)
+        {
+            var placeholder = placeholders[index];
+            if (!ids.Add(placeholder.Id))
+                diagnostics.Add(new(
+                    "ppj.placeholder.id",
+                    $"Placeholder ID {placeholder.Id} is duplicated within its owner.",
+                    $"{path}[{index}].id"));
+            var identity = (NativePlaceholderType(placeholder.PlaceholderType), placeholder.Index);
+            if (!identities.Add(identity))
+                diagnostics.Add(new(
+                    "ppj.placeholder.identity",
+                    $"Placeholder type/index {placeholder.PlaceholderType}/{placeholder.Index} is duplicated within its owner.",
+                    $"{path}[{index}]"));
+        }
+    }
+
+    private static string NativePlaceholderType(string value) => value switch
+    {
+        "centered-title" or "centerTitle" => "ctrTitle",
+        "subtitle" => "subTitle",
+        "content" => "body",
+        _ => value,
+    };
 
     private static void ValidateTextEffects(JsonElement value, string path, List<PpjDiagnostic> diagnostics)
     {

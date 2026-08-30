@@ -33,7 +33,38 @@ internal sealed record PpjDesignModel(
     IReadOnlySet<string> ShapeStyleIds,
     IReadOnlySet<string> ChartStyleIds,
     IReadOnlySet<string> TableStyleIds,
-    string MotionPolicy);
+    string MotionPolicy,
+    IReadOnlyList<PpjMasterModel> Masters,
+    IReadOnlyList<PpjLayoutModel> Layouts);
+
+internal sealed record PpjMasterModel(
+    string Id,
+    string Name,
+    JsonElement? Background,
+    IReadOnlyList<JsonElement> TitleTextLevels,
+    IReadOnlyList<JsonElement> BodyTextLevels,
+    IReadOnlyList<JsonElement> OtherTextLevels,
+    IReadOnlyList<PpjLayoutPlaceholderModel> Placeholders,
+    JsonElement Raw);
+
+internal sealed record PpjLayoutModel(
+    string Id,
+    string Name,
+    string MasterId,
+    string LayoutType,
+    JsonElement? Background,
+    IReadOnlyList<PpjLayoutPlaceholderModel> Placeholders,
+    JsonElement Raw);
+
+internal sealed record PpjLayoutPlaceholderModel(
+    string Id,
+    string Name,
+    string PlaceholderType,
+    uint Index,
+    PpjFrameModel Frame,
+    PpjTextContentModel? Text,
+    JsonElement? Style,
+    JsonElement Raw);
 
 internal sealed record PpjAssetModel(
     string Id,
@@ -256,6 +287,7 @@ internal sealed record PpjPageModel(
     string Role,
     string? Name,
     string? Claim,
+    string? LayoutId,
     IReadOnlyList<PpjElementModel> Elements,
     IReadOnlyList<PpjAnimationModel> Animations,
     PpjTransitionModel? Transition,
@@ -380,7 +412,9 @@ internal static class PpjProgramParser
                 OptionalIdSet(styles, "shape"),
                 OptionalIdSet(styles, "chart"),
                 OptionalIdSet(styles, "table"),
-                design.GetProperty("motionPolicy").GetString()!),
+                design.GetProperty("motionPolicy").GetString()!,
+                OptionalArray(design, "masters").Select(ParseMaster).ToArray(),
+                OptionalArray(design, "layouts").Select(ParseLayout).ToArray()),
             OptionalArray(root, "assets").Select(ParseAsset).ToArray(),
             root.TryGetProperty("source", out var source) ? ParseSource(source) : null,
             OptionalArray(root, "components").Select(ParseComponent).ToArray(),
@@ -416,11 +450,45 @@ internal static class PpjProgramParser
             projection.GetProperty("visibleObjectCount").GetInt32());
     }
 
+    private static PpjMasterModel ParseMaster(JsonElement master)
+    {
+        var textStyles = master.TryGetProperty("textStyles", out var value) ? value : default;
+        return new PpjMasterModel(
+            master.GetProperty("id").GetString()!,
+            master.GetProperty("name").GetString()!,
+            master.TryGetProperty("background", out var background) ? background.Clone() : null,
+            textStyles.ValueKind == JsonValueKind.Object ? OptionalArray(textStyles, "title").Select(item => item.Clone()).ToArray() : [],
+            textStyles.ValueKind == JsonValueKind.Object ? OptionalArray(textStyles, "body").Select(item => item.Clone()).ToArray() : [],
+            textStyles.ValueKind == JsonValueKind.Object ? OptionalArray(textStyles, "other").Select(item => item.Clone()).ToArray() : [],
+            OptionalArray(master, "placeholders").Select(ParseLayoutPlaceholder).ToArray(),
+            master.Clone());
+    }
+
+    private static PpjLayoutModel ParseLayout(JsonElement layout) => new(
+        layout.GetProperty("id").GetString()!,
+        layout.GetProperty("name").GetString()!,
+        layout.GetProperty("master").GetString()!,
+        layout.GetProperty("layoutType").GetString()!,
+        layout.TryGetProperty("background", out var background) ? background.Clone() : null,
+        OptionalArray(layout, "placeholders").Select(ParseLayoutPlaceholder).ToArray(),
+        layout.Clone());
+
+    private static PpjLayoutPlaceholderModel ParseLayoutPlaceholder(JsonElement placeholder) => new(
+        placeholder.GetProperty("id").GetString()!,
+        placeholder.GetProperty("name").GetString()!,
+        placeholder.GetProperty("placeholderType").GetString()!,
+        placeholder.GetProperty("index").GetUInt32(),
+        ParseFrame(placeholder.GetProperty("frame")),
+        placeholder.TryGetProperty("text", out var text) ? ParseText(text) : null,
+        placeholder.TryGetProperty("style", out var style) ? style.Clone() : null,
+        placeholder.Clone());
+
     private static PpjPageModel ParsePage(JsonElement page) => new(
         page.GetProperty("id").GetString()!,
         page.GetProperty("role").GetString()!,
         OptionalString(page, "name"),
         OptionalString(page, "claim"),
+        OptionalString(page, "layout"),
         page.GetProperty("elements").EnumerateArray().Select(ParseElement).ToArray(),
         OptionalArray(page, "animations").Select(ParseAnimation).ToArray(),
         page.TryGetProperty("transition", out var transition) ? ParseTransition(transition) : null,

@@ -435,7 +435,168 @@
             "none",
             "explicit"
           ]
+        },
+        "masters": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/masterDefinition"
+          }
+        },
+        "layouts": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/layoutDefinition"
+          }
         }
+      }
+    },
+    "masterDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "background": {
+          "$ref": "#/$defs/fill"
+        },
+        "textStyles": {
+          "$ref": "#/$defs/masterTextStyles"
+        },
+        "placeholders": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/layoutPlaceholder"
+          }
+        }
+      }
+    },
+    "layoutDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "master",
+        "layoutType"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "master": {
+          "$ref": "#/$defs/id"
+        },
+        "layoutType": {
+          "enum": [
+            "blank",
+            "title",
+            "titleOnly",
+            "obj"
+          ]
+        },
+        "background": {
+          "$ref": "#/$defs/fill"
+        },
+        "placeholders": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/layoutPlaceholder"
+          }
+        }
+      }
+    },
+    "layoutPlaceholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "placeholderType",
+        "index",
+        "frame"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "placeholderType": {
+          "enum": [
+            "title",
+            "body",
+            "centered-title",
+            "subtitle"
+          ]
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "frame": {
+          "$ref": "#/$defs/frame"
+        },
+        "text": {
+          "$ref": "#/$defs/textContent"
+        },
+        "style": {
+          "$ref": "#/$defs/textBoxStyle"
+        }
+      }
+    },
+    "masterTextStyles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/masterTextLevels"
+        },
+        "body": {
+          "$ref": "#/$defs/masterTextLevels"
+        },
+        "other": {
+          "$ref": "#/$defs/masterTextLevels"
+        }
+      }
+    },
+    "masterTextLevels": {
+      "type": "array",
+      "maxItems": 9,
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/paragraphStyle"
+          },
+          {
+            "type": "object",
+            "required": [
+              "level"
+            ]
+          }
+        ]
       }
     },
     "canvas": {
@@ -4266,6 +4427,9 @@
         "claim": {
           "type": "string",
           "maxLength": 4096
+        },
+        "layout": {
+          "$ref": "#/$defs/id"
         },
         "background": {
           "$ref": "#/$defs/fill"

@@ -101,6 +101,8 @@ internal static class PpjAuthoredPresentationCompiler
             AuthoredTheme = catalog.Theme,
         };
 
+        AddMasterLayoutState(presentation, program, catalog);
+
         var expandedByPage = expansion.Pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
         for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
         {
@@ -110,6 +112,7 @@ internal static class PpjAuthoredPresentationCompiler
             {
                 Id = page.Id,
                 Name = DisplayName(page.Name, page.Role, page.Id),
+                LayoutId = page.LayoutId ?? string.Empty,
             };
             if (page.Raw.TryGetProperty("hidden", out var hidden)) slide.Hidden = hidden.GetBoolean();
             if (page.Raw.TryGetProperty("background", out var background))
@@ -138,6 +141,81 @@ internal static class PpjAuthoredPresentationCompiler
         };
         envelope.Assets.Add(assets.Select(asset => asset.Clone()));
         return envelope;
+    }
+
+    private static void AddMasterLayoutState(
+        PresentationArtifact presentation,
+        PpjProgramModel program,
+        Catalog catalog)
+    {
+        foreach (var source in program.Design.Masters)
+        {
+            var master = new PresentationMaster
+            {
+                Id = source.Id,
+                Name = source.Name,
+                TextStyles = new PresentationMasterTextStyles(),
+            };
+            if (source.Background is { } background)
+                master.Background = BuildBackground(background, catalog, program.Design.Width, program.Design.Height);
+            master.TextStyles.TitleLevels.Add(source.TitleTextLevels.Select(level => BuildMasterTextLevel(level, catalog)));
+            master.TextStyles.BodyLevels.Add(source.BodyTextLevels.Select(level => BuildMasterTextLevel(level, catalog)));
+            master.TextStyles.OtherLevels.Add(source.OtherTextLevels.Select(level => BuildMasterTextLevel(level, catalog)));
+            master.Placeholders.Add(source.Placeholders.Select(placeholder =>
+                BuildLayoutPlaceholder(placeholder, catalog)));
+            presentation.Masters.Add(master);
+        }
+
+        foreach (var source in program.Design.Layouts)
+        {
+            var layout = new PresentationLayout
+            {
+                Id = source.Id,
+                Name = source.Name,
+                MasterId = source.MasterId,
+                Type = source.LayoutType,
+            };
+            if (source.Background is { } background)
+                layout.Background = BuildBackground(background, catalog, program.Design.Width, program.Design.Height);
+            layout.Placeholders.Add(source.Placeholders.Select(placeholder =>
+                BuildLayoutPlaceholder(placeholder, catalog)));
+            presentation.Layouts.Add(layout);
+        }
+    }
+
+    private static PresentationTextParagraph BuildMasterTextLevel(JsonElement source, Catalog catalog)
+    {
+        var level = new PresentationTextParagraph();
+        ApplyParagraphStyle(level, null, null, source, catalog);
+        return level;
+    }
+
+    private static PresentationPlaceholder BuildLayoutPlaceholder(
+        PpjLayoutPlaceholderModel source,
+        Catalog catalog)
+    {
+        var placeholder = new PresentationPlaceholder
+        {
+            Id = source.Id,
+            Name = source.Name,
+            Type = PlaceholderType(source.PlaceholderType),
+            Index = source.Index,
+            DirectFrame = new PresentationPlaceholderFrame
+            {
+                LeftEmu = Emu(source.Frame.X),
+                TopEmu = Emu(source.Frame.Y),
+                WidthEmu = Emu(source.Frame.Width),
+                HeightEmu = Emu(source.Frame.Height),
+            },
+        };
+        if (source.Frame.Rotation != 0)
+            placeholder.DirectFrame.RotationAngle60000 = Angle(source.Frame.Rotation);
+        if (source.Frame.FlipH) placeholder.DirectFrame.FlipHorizontal = true;
+        if (source.Frame.FlipV) placeholder.DirectFrame.FlipVertical = true;
+        placeholder.TextBody = source.Text is null
+            ? EmptyTextBody(null, source.Style)
+            : BuildTextBody(source.Raw.GetProperty("text"), null, source.Style, catalog);
+        return placeholder;
     }
 
     private static PresentationElement BuildElement(PpjElementModel element, JsonElement raw, Catalog catalog)
@@ -3760,7 +3838,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static string PlaceholderType(string value) => value switch
     {
-        "centerTitle" => "ctrTitle",
+        "centerTitle" or "centered-title" => "ctrTitle",
         "subtitle" => "subTitle",
         "content" => "body",
         _ => value,

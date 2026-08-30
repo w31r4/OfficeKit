@@ -29,6 +29,33 @@ reference program only when its license and relevance allow reuse. A reference
 PPTX may also be imported as a source-bound artifact; that is a different route
 from style guidance.
 
+## Native masters and layouts
+
+Use `design.masters[]`, `design.layouts[]`, and `pages[].layout` when a new deck
+needs native PowerPoint layout identity rather than a visual convention only.
+This fits a brand title/body system, recurring authoring placeholders, or a
+reference PPJ/PPTX that should remain easy to continue in PowerPoint.
+
+The source-free profile is deliberately bounded:
+
+- one canonical master;
+- `blank`, `title`, `titleOnly`, or `obj` layouts;
+- solid, gradient, image, or none backgrounds already supported by PPJ fills;
+- title/body/centered-title/subtitle owner-local placeholders with explicit
+  point frames and stable indexes;
+- title, body, and other master paragraph defaults at levels zero through
+  eight.
+
+Bind every page explicitly when layouts are declared. A page-local
+`placeholder` that participates in a layout must use an explicit `index` and
+match a master/layout placeholder type and index. PPJ keeps the page-local frame
+explicit; it does not pretend inherited native geometry is compiler-owned.
+
+Imported third-party pages expose their stable source layout identity through
+`pages[].layout`. Do not invent a new layout ID or add authored master/layout
+definitions to a source-bound PPJ: arbitrary imported topology remains in the
+source package and such changes fail closed.
+
 ## Finite PPJ components
 
 Components may declare parameters, named slots, variants, explicit bindings,

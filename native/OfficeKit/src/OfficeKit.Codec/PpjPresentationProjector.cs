@@ -199,6 +199,8 @@ internal static partial class PpjPresentationProjector
 
     private static void RegisterIds(PresentationArtifact presentation, ProjectionContext context)
     {
+        foreach (var master in presentation.Masters) context.RegisterMaster(master.Id);
+        foreach (var layout in presentation.Layouts) context.RegisterLayout(layout.Id);
         foreach (var slide in presentation.Slides)
         {
             var pageId = context.RegisterPage(slide.Id);
@@ -252,6 +254,8 @@ internal static partial class PpjPresentationProjector
             ["nativeRef"] = NativeRef(context, $"page:{pageId}", pageHash, pageCapabilities),
         };
         if (!string.IsNullOrWhiteSpace(slide.Name)) page["name"] = slide.Name;
+        if (!string.IsNullOrWhiteSpace(slide.LayoutId) && context.TryLayoutId(slide.LayoutId, out var layoutId))
+            page["layout"] = layoutId;
         if (slide.HasHidden) page["hidden"] = slide.Hidden;
         if (!string.IsNullOrEmpty(slide.SpeakerNotes?.Text)) page["notes"] = slide.SpeakerNotes.Text;
         if (ProjectBackground(slide.Background, context) is { } background) page["background"] = background;
@@ -1798,6 +1802,8 @@ internal static partial class PpjPresentationProjector
     {
         private readonly IReadOnlyDictionary<string, Asset> sourceAssets;
         private readonly Dictionary<string, string> pageIds = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> masterIds = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> layoutIds = new(StringComparer.Ordinal);
         private readonly Dictionary<(string Page, string Element), string> elementIds = new();
         private readonly HashSet<string> usedIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> assetIdBySourceId = new(StringComparer.Ordinal);
@@ -1840,6 +1846,20 @@ internal static partial class PpjPresentationProjector
             return id;
         }
 
+        internal string RegisterMaster(string sourceId)
+        {
+            var id = UniqueId($"master-{NormalizeId(sourceId, "master")}");
+            masterIds[sourceId] = id;
+            return id;
+        }
+
+        internal string RegisterLayout(string sourceId)
+        {
+            var id = UniqueId($"layout-{NormalizeId(sourceId, "layout")}");
+            layoutIds[sourceId] = id;
+            return id;
+        }
+
         internal string RegisterElement(string pageId, string sourceId)
         {
             var id = UniqueId($"{pageId}-{NormalizeId(sourceId, "element")}");
@@ -1849,6 +1869,7 @@ internal static partial class PpjPresentationProjector
 
         internal string PageId(string sourceId) => pageIds[sourceId];
         internal bool TryPageId(string sourceId, out string id) => pageIds.TryGetValue(sourceId, out id!);
+        internal bool TryLayoutId(string sourceId, out string id) => layoutIds.TryGetValue(sourceId, out id!);
         internal string ElementId(string pageId, string sourceId) => elementIds[(pageId, sourceId)];
         internal bool TryElementId(string pageId, string sourceId, out string id) => elementIds.TryGetValue((pageId, sourceId), out id!);
 

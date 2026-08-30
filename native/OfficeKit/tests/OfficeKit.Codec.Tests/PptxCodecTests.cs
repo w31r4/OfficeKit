@@ -108,6 +108,66 @@ public sealed class PptxCodecTests
         Assert.NotNull(root);
         var fixtureDirectory = Path.Combine(root!.FullName, "test", "fixtures", "presentation");
         var authoredProgram = JsonNode.Parse(File.ReadAllBytes(Path.Combine(fixtureDirectory, "evidence-ledger-canonical.ppj")))!.AsObject();
+        authoredProgram["design"]!["masters"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "master-evidence",
+                ["name"] = "Evidence master",
+                ["background"] = new JsonObject { ["type"] = "solid", ["color"] = "#F8F6EF" },
+                ["textStyles"] = new JsonObject
+                {
+                    ["title"] = new JsonArray
+                    {
+                        new JsonObject
+                        {
+                            ["level"] = 0,
+                            ["alignment"] = "left",
+                            ["defaultText"] = new JsonObject
+                            {
+                                ["font"] = "sans",
+                                ["size"] = 28,
+                                ["bold"] = true,
+                                ["color"] = "#14324A",
+                            },
+                        },
+                    },
+                },
+                ["placeholders"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "master-title",
+                        ["name"] = "Master title",
+                        ["placeholderType"] = "title",
+                        ["index"] = 1,
+                        ["frame"] = new JsonObject { ["x"] = 48, ["y"] = 36, ["width"] = 624, ["height"] = 64 },
+                    },
+                },
+            },
+        };
+        authoredProgram["design"]!["layouts"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["id"] = "layout-evidence",
+                ["name"] = "Evidence layout",
+                ["master"] = "master-evidence",
+                ["layoutType"] = "titleOnly",
+                ["placeholders"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "layout-title",
+                        ["name"] = "Layout title",
+                        ["placeholderType"] = "title",
+                        ["index"] = 1,
+                        ["frame"] = new JsonObject { ["x"] = 48, ["y"] = 36, ["width"] = 624, ["height"] = 64 },
+                    },
+                },
+            },
+        };
+        foreach (var page in authoredProgram["pages"]!.AsArray()) page!["layout"] = "layout-evidence";
         authoredProgram["pages"]![0]!["background"] = new JsonObject
         {
             ["type"] = "gradient",
@@ -1115,6 +1175,16 @@ public sealed class PptxCodecTests
         using (var package = PresentationDocument.Open(stream, false))
         {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nativeMaster = Assert.Single(package.PresentationPart!.SlideMasterParts);
+            var nativeLayout = Assert.Single(nativeMaster.SlideLayoutParts);
+            Assert.Equal("titleOnly", nativeLayout.SlideLayout!.GetAttribute("type", string.Empty).Value);
+            Assert.NotNull(nativeMaster.SlideMaster!.CommonSlideData!.Background);
+            Assert.Single(nativeMaster.SlideMaster.CommonSlideData.ShapeTree!.Elements<P.Shape>());
+            Assert.Single(nativeLayout.SlideLayout.CommonSlideData!.ShapeTree!.Elements<P.Shape>());
+            Assert.All(package.PresentationPart.SlideParts, slide => Assert.Equal(nativeLayout.Uri, slide.SlideLayoutPart!.Uri));
+            Assert.NotNull(nativeMaster.SlideMaster.TextStyles!.TitleStyle!
+                .GetFirstChild<A.Level1ParagraphProperties>()!
+                .GetFirstChild<A.DefaultRunProperties>());
             var nativeImageBackground = package.PresentationPart!.SlideParts.ElementAt(1).Slide!
                 .CommonSlideData!.Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>();
             Assert.NotNull(nativeImageBackground);
@@ -1492,6 +1562,8 @@ public sealed class PptxCodecTests
             Assert.Equal("office-kit/ppj/v1", projectedRoot.GetProperty("schema").GetString());
             Assert.Equal(projected.PresentationProgram.SourceSha256, projectedRoot.GetProperty("source").GetProperty("sha256").GetString());
             Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
+            Assert.All(projectedRoot.GetProperty("pages").EnumerateArray(), page =>
+                Assert.StartsWith("layout-", page.GetProperty("layout").GetString(), StringComparison.Ordinal));
             Assert.Equal("linear", projectedRoot.GetProperty("pages")[0].GetProperty("background").GetProperty("kind").GetString());
             Assert.Equal("image", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("type").GetString());
             Assert.Equal("stretch", projectedRoot.GetProperty("pages")[1].GetProperty("background").GetProperty("fit").GetString());
@@ -1718,6 +1790,22 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+
+        var changedSourceLayoutProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        changedSourceLayoutProgram["pages"]![0]!["layout"] = "layout-invented";
+        var changedSourceLayout = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(changedSourceLayoutProgram.ToJsonString()),
+            },
+        });
+        Assert.False(changedSourceLayout.Ok);
+        Assert.Equal("ppj.source.unsupportedMutation", Assert.Single(changedSourceLayout.Diagnostics).Code);
 
         var missingPointEditProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var missingPointChart = missingPointEditProgram["pages"]![0]!["elements"]!.AsArray()

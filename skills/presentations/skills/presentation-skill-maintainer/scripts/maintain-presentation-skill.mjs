@@ -55,6 +55,22 @@ function validateRegistry(value, language, geometryProfiles) {
     if (!details || typeof details.owner !== "string" || typeof details.surface !== "string" || typeof details.meaning !== "string")
       errors.push(`PPJ field owner ${field} is incomplete.`);
   }
+  const ppjStateApis = Object.entries(value.helpApis ?? {})
+    .filter(([, classification]) => classification === "ppj-state")
+    .map(([name]) => name)
+    .sort();
+  const mappedStateApis = Object.keys(value.ppjStateApiPaths ?? {}).sort();
+  if (JSON.stringify(ppjStateApis) !== JSON.stringify(mappedStateApis))
+    errors.push("PPJ-state Help APIs and ppjStateApiPaths entries differ.");
+  for (const [name, ppjPath] of Object.entries(value.ppjStateApiPaths ?? {})) {
+    if (typeof ppjPath !== "string" || !ppjPath.startsWith("$.")) {
+      errors.push(`PPJ-state API ${name} has an invalid PPJ path.`);
+      continue;
+    }
+    const rootName = /^\$\.([A-Za-z][A-Za-z0-9]*)/u.exec(ppjPath)?.[1];
+    if (!rootName || !(rootName in (language.properties ?? {})))
+      errors.push(`PPJ-state API ${name} references unknown root path ${ppjPath}.`);
+  }
   if (geometryProfiles.schema !== "office-kit/ppj-preset-geometry-profiles/v1")
     errors.push("Unexpected preset geometry profile schema.");
   const geometrySchema = language.$defs.geometry.oneOf.find((entry) => entry.properties?.kind?.const === "preset");
@@ -218,6 +234,8 @@ function renderManual(schema, registry, presetProfiles) {
     `| \`${name}\` | ${counts[name] ?? registry.hostOnly.length} | ${details.meaning} |`).join("\n");
   const fieldOwnerRows = Object.entries(registry.ppjPathOwners).map(([field, details]) =>
     `| \`${field}\` | \`${details.owner}\` | \`${details.surface}\` | ${details.meaning} |`).join("\n");
+  const ppjStateApiRows = Object.entries(registry.ppjStateApiPaths).map(([name, ppjPath]) =>
+    `| \`${name}\` | \`${ppjPath}\` |`).join("\n");
   const nativeLeafRows = Object.entries(registry.nativeLeafKinds).map(([name, details]) =>
     `| \`${name}\` | \`${details.valueType}\` | \`${details.unit}\` | \`${details.ppjLocation}\` | \`${details.surface}\` | ${details.boundary} |`).join("\n");
   const authoredBoundaryRows = registry.authoredCompilerBoundaries.map((details) =>
@@ -404,6 +422,15 @@ ${classRows}
 The registry classifies legacy facade APIs while PPJ 2.0 converges. A
 \`compiler-helper\` is not Agent syntax. PowerPoint Live operations remain in
 the separate host-only list and never serialize into PPJ.
+
+### Legacy state API mapping
+
+Every facade API classified as persistent PPJ state names the language field
+that replaces the method call. The maintainer rejects an unmapped entry:
+
+| Legacy API | PPJ state |
+| --- | --- |
+${ppjStateApiRows}
 
 ## Complete schema field reference
 
