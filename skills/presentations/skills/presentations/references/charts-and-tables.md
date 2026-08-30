@@ -196,6 +196,12 @@ keeps a gradient semantic rather than rebuilding it from overlaid rectangles:
 }
 ```
 
+For a simple solid series, `"color": "#0A84FF80"` is a compact authored
+alias for the equivalent solid `fill` with alpha. Reimport canonicalizes it to
+the structured fill form so the opacity remains explicit and subsequent edits
+do not oscillate between two spellings. Use `fill` directly when the series
+needs none/gradient paint or a separately named opacity.
+
 The bounded profile accepts two through sixteen ordered direct-RGB stops,
 linear angles, and centered radial gradients. Theme transforms, pattern/image
 paint, path variants, and irregular native gradient graphs remain
