@@ -6,12 +6,14 @@ import { FileBlob } from "../shared/file-blob.mjs";
 import { aid } from "../shared/ids.mjs";
 import { attrEscape, xmlEscape } from "../shared/xml.mjs";
 import { presentationElementDeletionCapability } from "./element-deletion.mjs";
+import { directPresentationChildren } from "./group-shapes.mjs";
 
 const MAX_EMBEDDED_WORKBOOK_BYTES = 16 * 1024 * 1024;
 const MAX_EMBEDDED_OFFICE_PACKAGE_BYTES = 16 * 1024 * 1024;
 const MAX_DIAGRAM_NODE_TEXT_LENGTH = 32_767;
 const MAX_NATIVE_TEXT_LENGTH = 32_767;
 const MAX_NATIVE_LINE_WIDTH_EMU = 20_116_800;
+const MAX_NATIVE_STYLE_LEAVES = 4_096;
 const MAX_DIAGRAM_NODE_RUNS = 256;
 const DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const CHART_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.drawingml.chart+xml";
@@ -22,6 +24,7 @@ const NATIVE_TEXT_CELL = /<(?<prefix>[A-Za-z_][\w.-]*:)?tc\b[^>]*>(?<value>[\s\S
 const NATIVE_TEXT_SHAPE = /<(?<prefix>[A-Za-z_][\w.-]*:)?sp\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?sp\s*>/giu;
 const NATIVE_SPPR_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?spPr\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?spPr\s*>/giu;
 const NATIVE_LINE_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?ln\b(?<attributes>[^>]*)>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?ln\s*>/giu;
+const NATIVE_PRESET_DASH_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?prstDash\b(?<attributes>[^>]*)\s*\/\s*>/giu;
 const NATIVE_SOLID_FILL_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?solidFill\b[^>]*>(?<value>[\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?solidFill\s*>/giu;
 const NATIVE_COLOR_OPEN_TAG = /<(?<prefix>[A-Za-z_][\w.-]*:)?(?<name>[A-Za-z_][\w.-]*Clr)\b(?<attributes>[^>]*)>/giu;
 const NATIVE_SCHEME_COLORS = Object.freeze({
@@ -41,6 +44,37 @@ const NATIVE_SCHEME_COLORS = Object.freeze({
   lt1: "lt1",
   dk2: "dk2",
   lt2: "lt2",
+});
+const NATIVE_LINE_STYLES = Object.freeze({
+  solid: "solid",
+  dash: "dashed",
+  dashed: "dashed",
+  dot: "dotted",
+  dotted: "dotted",
+  dashDot: "dash-dot",
+  "dash-dot": "dash-dot",
+  lgDashDotDot: "dash-dot-dot",
+  "dash-dot-dot": "dash-dot-dot",
+});
+const NATIVE_LINE_CAPS = Object.freeze({
+  flat: "flat",
+  rnd: "round",
+  round: "round",
+  sq: "square",
+  square: "square",
+});
+const NATIVE_LINE_JOINS = Object.freeze({
+  round: "round",
+  bevel: "bevel",
+  miter: "miter",
+});
+const NATIVE_LINE_ARROWS = Object.freeze({
+  none: "none",
+  triangle: "triangle",
+  stealth: "stealth",
+  diamond: "diamond",
+  oval: "oval",
+  arrow: "arrow",
 });
 
 function sha256(value) {
@@ -93,6 +127,37 @@ function nativeSchemeColorToken(value) {
   return NATIVE_SCHEME_COLORS[String(value || "").trim().toLowerCase()];
 }
 
+function nativeLineStyleToken(value) {
+  return NATIVE_LINE_STYLES[String(value || "").trim()];
+}
+
+function nativeLineCapToken(value) {
+  return NATIVE_LINE_CAPS[String(value || "").trim().toLowerCase()];
+}
+
+function nativeLineJoinToken(value) {
+  return NATIVE_LINE_JOINS[String(value || "").trim().toLowerCase()];
+}
+
+function nativeLineArrowToken(value) {
+  return NATIVE_LINE_ARROWS[String(value || "").trim().toLowerCase()];
+}
+
+function nativeLineArrowLeaf(xml, endpointName, leafKind) {
+  const nodes = directPresentationChildren(xml, "ln").filter((child) => child.localName === endpointName);
+  if (nodes.length !== 1) return undefined;
+  const node = nodes[0];
+  const open = /^<[^>]+>/u.exec(node.xml)?.[0] || "";
+  if (!/\/\s*>$/u.test(node.xml) || directPresentationChildren(node.xml, endpointName).length !== 0) return undefined;
+  const attributes = nativeTagAttributes(open);
+  const typeAttributes = attributes.filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "type");
+  if (typeAttributes.length !== 1 || attributes.some((attribute) => !["type", "w", "len"].includes(attribute.name.split(":").pop()?.toLowerCase())) ||
+      ["w", "len"].some((name) => attributes.filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === name).length > 1) ||
+      attributes.filter((attribute) => ["w", "len"].includes(attribute.name.split(":").pop()?.toLowerCase())).some((attribute) => !["sm", "med", "lg"].includes(attribute.value))) return undefined;
+  const value = nativeLineArrowToken(typeAttributes[0].value);
+  return value ? { leafKind, value } : undefined;
+}
+
 function deriveNativeLineLeaves(rawXml, nativeKind) {
   if (nativeKind !== "connector") return undefined;
   const source = String(rawXml || "");
@@ -131,6 +196,37 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
       }
     }
   }
+  const dashMatches = [...(line.groups?.value || "").matchAll(NATIVE_PRESET_DASH_TAG)]
+    .filter((match) => (match.groups?.prefix || "") === linePrefix);
+  if (dashMatches.length === 1 && solidMatches.length === 1) {
+    const attributes = nativeTagAttributes(dashMatches[0].groups?.attributes || "");
+    if (attributes.length === 1 && attributes[0].name.split(":").pop()?.toLowerCase() === "val") {
+      const value = nativeLineStyleToken(attributes[0].value);
+      if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineStyle", value, expectedHash: sha256(value) });
+    }
+  }
+  const capAttributes = nativeTagAttributes(line.groups?.attributes || "")
+    .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "cap");
+  if (capAttributes.length === 1 && solidMatches.length === 1) {
+    const value = nativeLineCapToken(capAttributes[0].value);
+    if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineCap", value, expectedHash: sha256(value) });
+  }
+  const joinNodes = directPresentationChildren(line[0], "ln")
+    .filter((child) => child.localName === "round" || child.localName === "bevel" || child.localName === "miter");
+  const hasSimpleLinePaint = leaves.some((leaf) => leaf.leafKind === "lineRgb" || leaf.leafKind === "lineScheme");
+  if (joinNodes.length === 1 && hasSimpleLinePaint) {
+    const open = /^<[^>]+>/u.exec(joinNodes[0].xml)?.[0] || "";
+    if (/\/\s*>$/u.test(joinNodes[0].xml) && nativeTagAttributes(open).length === 0 && directPresentationChildren(joinNodes[0].xml, joinNodes[0].localName).length === 0) {
+      const value = nativeLineJoinToken(joinNodes[0].localName);
+      if (value) leaves.push({ lineLeafIndex: leaves.length, leafKind: "lineJoin", value, expectedHash: sha256(value) });
+    }
+  }
+  if (hasSimpleLinePaint) {
+    for (const [endpointName, leafKind] of [["headEnd", "lineStartArrow"], ["tailEnd", "lineEndArrow"]]) {
+      const leaf = nativeLineArrowLeaf(line.groups?.value || "", endpointName, leafKind);
+      if (leaf) leaves.push({ lineLeafIndex: leaves.length, ...leaf, expectedHash: sha256(leaf.value) });
+    }
+  }
   return leaves.length ? Object.freeze(leaves) : undefined;
 }
 
@@ -140,7 +236,7 @@ function nativeLineRecord(leaves) {
     leafKind: leaf.leafKind || "lineRgb",
     value: leaf.leafKind === "lineWidthEmu"
       ? Number(leaf.value)
-      : leaf.leafKind === "lineScheme" ? leaf.value : `#${leaf.value.toLowerCase()}`,
+      : leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" || leaf.leafKind === "lineJoin" || leaf.leafKind === "lineStartArrow" || leaf.leafKind === "lineEndArrow" ? leaf.value : `#${leaf.value.toLowerCase()}`,
     expectedValue: leaf.value,
     expectedHash: sha256(leaf.value),
   }))) : undefined;
@@ -148,6 +244,127 @@ function nativeLineRecord(leaves) {
 
 function nativeLineEditableFields(leaves) {
   return leaves?.length ? [...new Set(leaves.map((leaf) => leaf.leafKind || "lineRgb"))] : [];
+}
+
+// A group that the semantic importer cannot model can still expose a tiny,
+// source-bound style surface. Walk only direct PresentationML children and
+// issue leaves for unambiguous solid fills, outline colors, and canonical
+// outline widths on descendant
+// p:sp nodes. This keeps the group topology, effects, and every unsupported
+// paint opaque while making common theme-driven template shapes reusable.
+function deriveNativeStyleLeaves(rawXml, nativeKind) {
+  if (nativeKind !== "group") return undefined;
+  const fillLeaves = [];
+  const lineLeaves = [];
+  const lineWidthLeaves = [];
+  const lineStyleLeaves = [];
+  const lineCapLeaves = [];
+  const lineJoinLeaves = [];
+  const lineStartArrowLeaves = [];
+  const lineEndArrowLeaves = [];
+  const colorLeaf = (solid, prefix) => {
+    const colors = directPresentationChildren(solid.xml, "solidFill")
+      .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
+    if (colors.length !== 1) return undefined;
+    const color = colors[0];
+    if (directPresentationChildren(color.xml, color.localName).length !== 0) return undefined;
+    const open = /^<[^>]+>/u.exec(color.xml)?.[0];
+    const attributes = nativeTagAttributes(open || "");
+    if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val" || !attributes[0].value) return undefined;
+    if (color.localName === "schemeClr") {
+      const value = nativeSchemeColorToken(attributes[0].value);
+      return value ? { leafKind: `${prefix}Scheme`, value } : undefined;
+    }
+    if (!/^[0-9a-f]{6}$/iu.test(attributes[0].value)) return undefined;
+    return { leafKind: `${prefix}Rgb`, value: attributes[0].value.toUpperCase() };
+  };
+  const visitGroup = (xml) => {
+    for (const child of directPresentationChildren(xml, "grpSp")) {
+      if (child.localName === "grpSp") {
+        visitGroup(child.xml);
+        continue;
+      }
+      if (child.localName !== "sp") continue;
+      const shapeProperties = directPresentationChildren(child.xml, "sp").find((entry) => entry.localName === "spPr");
+      if (!shapeProperties) continue;
+      const fillNodes = directPresentationChildren(shapeProperties.xml, "spPr")
+        .filter((entry) => ["noFill", "solidFill", "gradFill", "blipFill", "pattFill"].includes(entry.localName));
+      if (fillNodes.length === 1 && fillNodes[0].localName === "solidFill") {
+        const leaf = colorLeaf(fillNodes[0], "fill");
+        if (leaf) fillLeaves.push(leaf);
+      }
+      const outlines = directPresentationChildren(shapeProperties.xml, "spPr").filter((entry) => entry.localName === "ln");
+      if (outlines.length !== 1) continue;
+      const lineOpen = /^<[^>]+>/u.exec(outlines[0].xml)?.[0];
+      const widthAttributes = nativeTagAttributes(lineOpen || "")
+        .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "w");
+      if (widthAttributes.length === 1 && /^[1-9]\d*$/u.test(widthAttributes[0].value)) {
+        const width = Number(widthAttributes[0].value);
+        if (Number.isSafeInteger(width) && width <= MAX_NATIVE_LINE_WIDTH_EMU) {
+          lineWidthLeaves.push({ leafKind: "lineWidthEmu", value: widthAttributes[0].value });
+        }
+      }
+      const lineFills = directPresentationChildren(outlines[0].xml, "ln")
+        .filter((entry) => ["noFill", "solidFill", "gradFill", "blipFill", "pattFill"].includes(entry.localName));
+      if (lineFills.length !== 1 || lineFills[0].localName !== "solidFill") continue;
+      const lineLeaf = colorLeaf(lineFills[0], "line");
+      if (lineLeaf) lineLeaves.push(lineLeaf);
+      const dashNodes = directPresentationChildren(outlines[0].xml, "ln")
+        .filter((entry) => entry.localName === "prstDash");
+      if (dashNodes.length === 1) {
+        const open = /^<[^>]+>/u.exec(dashNodes[0].xml)?.[0] || "";
+        const attributes = nativeTagAttributes(open);
+        if (attributes.length === 1 && attributes[0].name.split(":").pop()?.toLowerCase() === "val") {
+          const value = nativeLineStyleToken(attributes[0].value);
+          if (value) lineStyleLeaves.push({ leafKind: "lineStyle", value });
+        }
+      }
+      const capAttributes = nativeTagAttributes(lineOpen || "")
+        .filter((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "cap");
+      if (capAttributes.length === 1 && nativeLineCapToken(capAttributes[0].value) && lineLeaf) {
+        lineCapLeaves.push({ leafKind: "lineCap", value: nativeLineCapToken(capAttributes[0].value) });
+      }
+      const joinNodes = directPresentationChildren(outlines[0].xml, "ln")
+        .filter((entry) => entry.localName === "round" || entry.localName === "bevel" || entry.localName === "miter");
+      if (joinNodes.length === 1 && lineLeaf) {
+        const open = /^<[^>]+>/u.exec(joinNodes[0].xml)?.[0] || "";
+        if (/\/\s*>$/u.test(joinNodes[0].xml) && nativeTagAttributes(open).length === 0 && directPresentationChildren(joinNodes[0].xml, joinNodes[0].localName).length === 0) {
+          const value = nativeLineJoinToken(joinNodes[0].localName);
+          if (value) lineJoinLeaves.push({ leafKind: "lineJoin", value });
+        }
+      }
+      if (lineLeaf) {
+        const startArrow = nativeLineArrowLeaf(outlines[0].xml, "headEnd", "lineStartArrow");
+        if (startArrow) lineStartArrowLeaves.push(startArrow);
+        const endArrow = nativeLineArrowLeaf(outlines[0].xml, "tailEnd", "lineEndArrow");
+        if (endArrow) lineEndArrowLeaves.push(endArrow);
+      }
+    }
+  };
+  visitGroup(String(rawXml || ""));
+  // Keep prior color indexes stable; append line widths as a separate family.
+  const leaves = [...fillLeaves, ...lineLeaves, ...lineWidthLeaves, ...lineStyleLeaves, ...lineCapLeaves, ...lineJoinLeaves, ...lineStartArrowLeaves, ...lineEndArrowLeaves].map((leaf, nativeLeafIndex) => ({
+    nativeLeafIndex,
+    ...leaf,
+    expectedHash: sha256(leaf.value),
+  }));
+  return leaves.length && leaves.length <= MAX_NATIVE_STYLE_LEAVES ? Object.freeze(leaves) : undefined;
+}
+
+function nativeStyleRecord(leaves) {
+  return leaves ? Object.freeze(leaves.map((leaf) => Object.freeze({
+    nativeLeafIndex: leaf.nativeLeafIndex,
+    leafKind: leaf.leafKind,
+    value: leaf.leafKind === "fillScheme" || leaf.leafKind === "lineScheme" || leaf.leafKind === "lineStyle" || leaf.leafKind === "lineCap" || leaf.leafKind === "lineJoin" || leaf.leafKind === "lineStartArrow" || leaf.leafKind === "lineEndArrow"
+      ? leaf.value
+      : leaf.leafKind === "lineWidthEmu" ? Number(leaf.value) : `#${leaf.value.toLowerCase()}`,
+    expectedValue: leaf.value,
+    expectedHash: sha256(leaf.value),
+  }))) : undefined;
+}
+
+function nativeStyleEditableFields(leaves) {
+  return leaves?.length ? [...new Set(leaves.map((leaf) => leaf.leafKind))] : [];
 }
 
 function normalizeNativeChart(config) {
@@ -470,6 +687,19 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         writable: false,
         value: nativeLineBinding ? nativeLineBinding.map((leaf) => ({ ...leaf })) : undefined,
       });
+      const nativeStyleBinding = deriveNativeStyleLeaves(this.rawXml, this.nativeKind);
+      Object.defineProperty(this, "_nativeStyleBinding", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeStyleBinding,
+      });
+      Object.defineProperty(this, "_nativeStyleLeaves", {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: nativeStyleBinding ? nativeStyleBinding.map((leaf) => ({ ...leaf })) : undefined,
+      });
       Object.defineProperty(this, "diagramText", {
         configurable: false,
         enumerable: true,
@@ -484,6 +714,11 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         configurable: false,
         enumerable: true,
         get: () => nativeLineRecord(this._nativeLineLeaves),
+      });
+      Object.defineProperty(this, "nativeStyleLeaves", {
+        configurable: false,
+        enumerable: true,
+        get: () => nativeStyleRecord(this._nativeStyleLeaves),
       });
       Object.defineProperty(this, "_embeddedWorkbookReplacement", {
         configurable: false,
@@ -708,12 +943,44 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
       return nativeLineRecord(this._nativeLineLeaves);
     }
 
+    _nativeStyleSourceBinding() {
+      return nativeStyleRecord(this._nativeStyleBinding);
+    }
+
+    _nativeStyleRecords() {
+      return nativeStyleRecord(this._nativeStyleLeaves);
+    }
+
     _setNativeLineLeaf(index, value) {
       if (!this._nativeLineBinding || !this._nativeLineLeaves || !this._nativeLineLeaves[index]) {
         throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native line leaf ${index}.`);
       }
       const color = String(value ?? "").trim();
       const leafKind = this._nativeLineBinding[index].leafKind || "lineRgb";
+      if (leafKind === "lineStyle") {
+        const style = nativeLineStyleToken(color);
+        if (!style || style !== color) throw new RangeError("Native line style requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+        this._nativeLineLeaves[index].value = style;
+        return;
+      }
+      if (leafKind === "lineCap") {
+        const cap = nativeLineCapToken(color);
+        if (!cap || cap !== color) throw new RangeError("Native line cap requires flat, round, or square.");
+        this._nativeLineLeaves[index].value = cap;
+        return;
+      }
+      if (leafKind === "lineJoin") {
+        const join = nativeLineJoinToken(color);
+        if (!join || join !== color) throw new RangeError("Native line join requires round, bevel, or miter.");
+        this._nativeLineLeaves[index].value = join;
+        return;
+      }
+      if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+        const arrow = nativeLineArrowToken(color);
+        if (!arrow || arrow !== color) throw new RangeError("Native line arrow requires none, triangle, stealth, diamond, oval, or arrow.");
+        this._nativeLineLeaves[index].value = arrow;
+        return;
+      }
       if (leafKind === "lineWidthEmu") {
         if (!/^\d+$/u.test(color)) throw new RangeError("Native line width requires a non-negative integer EMU value.");
         const width = Number(color);
@@ -733,6 +1000,59 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         throw new RangeError("Native line color must be a six-digit RGB value.");
       }
       this._nativeLineLeaves[index].value = color.toUpperCase();
+    }
+
+    _setNativeStyleLeaf(index, value) {
+      if (!this._nativeStyleBinding || !this._nativeStyleLeaves || !this._nativeStyleLeaves[index]) {
+        throw new Error(`Native ${this.nativeKind} object ${this.id} has no bounded native style leaf ${index}.`);
+      }
+      const leafKind = this._nativeStyleBinding[index].leafKind;
+      if (leafKind === "lineStyle") {
+        const style = nativeLineStyleToken(String(value ?? "").trim());
+        if (!style || style !== String(value ?? "").trim()) throw new RangeError("Native style line style requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+        this._nativeStyleLeaves[index].value = style;
+        return;
+      }
+      if (leafKind === "lineCap") {
+        const token = String(value ?? "").trim();
+        const cap = nativeLineCapToken(token);
+        if (!cap || cap !== token) throw new RangeError("Native style line cap requires flat, round, or square.");
+        this._nativeStyleLeaves[index].value = cap;
+        return;
+      }
+      if (leafKind === "lineJoin") {
+        const token = String(value ?? "").trim();
+        const join = nativeLineJoinToken(token);
+        if (!join || join !== token) throw new RangeError("Native style line join requires round, bevel, or miter.");
+        this._nativeStyleLeaves[index].value = join;
+        return;
+      }
+      if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+        const token = String(value ?? "").trim();
+        const arrow = nativeLineArrowToken(token);
+        if (!arrow || arrow !== token) throw new RangeError("Native style line arrow requires none, triangle, stealth, diamond, oval, or arrow.");
+        this._nativeStyleLeaves[index].value = arrow;
+        return;
+      }
+      if (leafKind === "lineWidthEmu") {
+        const token = String(value ?? "").trim();
+        if (!/^(?:0|[1-9]\d*)$/u.test(token)) throw new RangeError("Native style line width requires a non-negative integer EMU value.");
+        const width = Number(token);
+        if (!Number.isSafeInteger(width) || width > MAX_NATIVE_LINE_WIDTH_EMU) {
+          throw new RangeError("Native style line width is outside the safe EMU range.");
+        }
+        this._nativeStyleLeaves[index].value = token;
+        return;
+      }
+      if (leafKind === "fillScheme" || leafKind === "lineScheme") {
+        const token = nativeSchemeColorToken(String(value ?? "").trim());
+        if (!token) throw new RangeError("Native style scheme color must be a supported theme token.");
+        this._nativeStyleLeaves[index].value = token;
+        return;
+      }
+      const color = String(value ?? "").trim().replace(/^#/u, "");
+      if (!/^[0-9a-f]{6}$/iu.test(color)) throw new RangeError("Native style color must be a six-digit RGB value.");
+      this._nativeStyleLeaves[index].value = color.toUpperCase();
     }
 
     _setNativeTextLeaf(index, value) {
@@ -775,6 +1095,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
         ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
         ...nativeLineEditableFields(this._nativeLineLeaves),
+        ...nativeStyleEditableFields(this._nativeStyleLeaves),
         ...(this.placementCapability.supported ? ["position"] : []),
       ];
       return {
@@ -801,6 +1122,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         } : undefined,
         nativeTextLeaves: this._nativeTextRecords(),
         nativeLineLeaves: this._nativeLineRecords(),
+        nativeStyleLeaves: this._nativeStyleRecords(),
         ...(this.text ? { text: this.text, textLength: this.textLength, ...(this.textTruncated ? { textTruncated: true } : {}) } : {}),
         deletionCapability: this.deletionCapability,
         placementCapability: this.placementCapability,
@@ -851,6 +1173,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
         nativeChart: this._nativeChartCurrentRecord(),
         nativeTextLeaves: this._nativeTextRecords(),
         nativeLineLeaves: this._nativeLineRecords(),
+        nativeStyleLeaves: this._nativeStyleRecords(),
         placementCapability: this.placementCapability,
         editable: false,
         editableFields: [
@@ -861,6 +1184,7 @@ export function createNativePresentationObjectClass({ normalizeFrame }) {
           ...(this._nativeChartDataPoints?.length ? ["chartDataValue"] : []),
           ...(this._nativeTextLeaves?.length ? ["nativeText"] : []),
           ...nativeLineEditableFields(this._nativeLineLeaves),
+          ...nativeStyleEditableFields(this._nativeStyleLeaves),
           ...(this.placementCapability.supported ? ["position"] : []),
         ],
       };

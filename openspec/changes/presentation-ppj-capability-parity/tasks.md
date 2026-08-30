@@ -1,8 +1,8 @@
 ## 1. Integrate the stable native primitive branch
 
-- [ ] 1.1 Record the frozen primitive branch SHA and merge its atomic history into the PPJ integration branch
-- [ ] 1.2 Resolve protobuf, public Skill, Help, coverage, and package conflicts in favor of the PPJ 2.0 public route
-- [ ] 1.3 Regenerate protobuf bindings and run one narrow native/JS compilation check
+- [x] 1.1 Record the frozen primitive branch SHA and merge its atomic history into the PPJ integration branch
+- [x] 1.2 Resolve protobuf, public Skill, Help, coverage, and package conflicts in favor of the PPJ 2.0 public route
+- [x] 1.3 Regenerate protobuf bindings and run one narrow native/JS compilation check
 
 ## 2. Establish field-level capability ownership
 

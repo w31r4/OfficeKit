@@ -95,6 +95,35 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
     const nativeFill = await verifyNativeFillEdit(bytes);
     const nativeLine = await verifyNativeLineEdit(bytes);
     const nativeLineWidth = await verifyNativeLineWidthEdit(bytes);
+    const nativeLineStyle = await verifyNativeLineStyleEdit(bytes);
+    const nativeLineCap = await verifyNativeLineCapEdit(bytes);
+    const nativeLineJoin = await verifyNativeLineJoinEdit(bytes);
+    const nativeLineStartArrow = await verifyNativeLineArrowEdit(bytes, "lineStartArrow");
+    const nativeLineEndArrow = await verifyNativeLineArrowEdit(bytes, "lineEndArrow");
+    const nativeFontSize = await verifyNativeFontSizeEdit(bytes);
+    const nativeFontFamily = await verifyNativeFontFamilyEdit(bytes);
+    const nativeFontStyle = await verifyNativeFontStyleEdit(bytes);
+    const nativeFontColor = await verifyNativeFontColorEdit(bytes);
+    const nativeFontDecoration = await verifyNativeFontDecorationEdit(bytes);
+    const nativeParagraphAlignment = await verifyNativeParagraphAlignmentEdit(bytes);
+    const nativeParagraphLineSpacing = await verifyNativeParagraphLineSpacingEdit(bytes);
+    const nativeParagraphBlockSpacing = await verifyNativeParagraphBlockSpacingEdit(bytes);
+    const nativeParagraphMargin = await verifyNativeParagraphLayoutEdit(bytes, "paragraphMarginLeftEmu");
+    const nativeParagraphIndent = await verifyNativeParagraphLayoutEdit(bytes, "paragraphIndentEmu");
+    const nativeParagraphBullet = await verifyNativeParagraphBulletEdit(bytes);
+    const nativeParagraphAutoNumberScheme = await verifyNativeParagraphAutoNumberEdit(bytes, "paragraphBulletAutoNumberScheme");
+    const nativeParagraphAutoNumberStartAt = await verifyNativeParagraphAutoNumberEdit(bytes, "paragraphBulletAutoNumberStartAt");
+    const nativeParagraphLevel = await verifyNativeParagraphLevelEdit(bytes);
+    const nativeVerticalAnchor = await verifyNativeVerticalAnchorEdit(bytes);
+    const nativeTextBodyInset = await verifyNativeTextBodyInsetEdit(bytes);
+    const nativeTextBodyWrap = await verifyNativeTextBodyWrapEdit(bytes);
+    const nativeTextBodyColumnCount = await verifyNativeTextBodyColumnCountEdit(bytes);
+    const nativeTextBodyAutoFit = await verifyNativeTextBodyAutoFitEdit(bytes);
+    const nativeTextBodyColumnDirection = await verifyNativeTextBodyColumnDirectionEdit(bytes);
+    const nativeTextBodyVerticalText = await verifyNativeTextBodyVerticalTextEdit(bytes);
+    const nativeRotation = await verifyNativeRotationEdit(bytes);
+    const nativeFlip = await verifyNativeFlipEdit(bytes);
+    const nativeFillOpacity = await verifyNativeFillOpacityEdit(bytes);
     const svgStyle = await verifySvgStyleEdit(bytes);
     const animatedText = await verifyAnimatedTextEdit(bytes);
     const tableCell = await verifyTableCellEdit(bytes);
@@ -129,6 +158,35 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFill,
       nativeLine,
       nativeLineWidth,
+      nativeLineStyle,
+      nativeLineCap,
+      nativeLineJoin,
+      nativeLineStartArrow,
+      nativeLineEndArrow,
+      nativeFontSize,
+      nativeFontFamily,
+      nativeFontStyle,
+      nativeFontColor,
+      nativeFontDecoration,
+      nativeParagraphAlignment,
+      nativeParagraphLineSpacing,
+      nativeParagraphBlockSpacing,
+      nativeParagraphMargin,
+      nativeParagraphIndent,
+      nativeParagraphBullet,
+      nativeParagraphAutoNumberScheme,
+      nativeParagraphAutoNumberStartAt,
+      nativeParagraphLevel,
+      nativeVerticalAnchor,
+      nativeTextBodyInset,
+      nativeTextBodyWrap,
+      nativeTextBodyColumnCount,
+      nativeTextBodyAutoFit,
+      nativeTextBodyColumnDirection,
+      nativeTextBodyVerticalText,
+      nativeRotation,
+      nativeFlip,
+      nativeFillOpacity,
       svgStyle,
       animatedText,
       tableCell,
@@ -162,6 +220,35 @@ export async function collectSixSampleEvidence({ assetsDir = DEFAULT_ASSETS_DIR 
       nativeFillEdits: results.filter((result) => result.nativeFill.status === "passed").length,
       nativeLineEdits: results.filter((result) => result.nativeLine.status === "passed").length,
       nativeLineWidthEdits: results.filter((result) => result.nativeLineWidth.status === "passed").length,
+      nativeLineStyleEdits: results.filter((result) => result.nativeLineStyle.status === "passed").length,
+      nativeLineCapEdits: results.filter((result) => result.nativeLineCap.status === "passed").length,
+      nativeLineJoinEdits: results.filter((result) => result.nativeLineJoin.status === "passed").length,
+      nativeLineStartArrowEdits: results.filter((result) => result.nativeLineStartArrow.status === "passed").length,
+      nativeLineEndArrowEdits: results.filter((result) => result.nativeLineEndArrow.status === "passed").length,
+      nativeFontSizeEdits: results.filter((result) => result.nativeFontSize.status === "passed").length,
+      nativeFontFamilyEdits: results.filter((result) => result.nativeFontFamily.status === "passed").length,
+      nativeFontStyleEdits: results.filter((result) => result.nativeFontStyle.status === "passed").length,
+      nativeFontColorEdits: results.filter((result) => result.nativeFontColor.status === "passed").length,
+      nativeFontDecorationEdits: results.filter((result) => result.nativeFontDecoration.status === "passed").length,
+      nativeParagraphAlignmentEdits: results.filter((result) => result.nativeParagraphAlignment.status === "passed").length,
+      nativeParagraphLineSpacingEdits: results.filter((result) => result.nativeParagraphLineSpacing.status === "passed").length,
+      nativeParagraphBlockSpacingEdits: results.filter((result) => result.nativeParagraphBlockSpacing.status === "passed").length,
+      nativeParagraphMarginEdits: results.filter((result) => result.nativeParagraphMargin.status === "passed").length,
+      nativeParagraphIndentEdits: results.filter((result) => result.nativeParagraphIndent.status === "passed").length,
+      nativeParagraphBulletEdits: results.filter((result) => result.nativeParagraphBullet.status === "passed").length,
+      nativeParagraphAutoNumberSchemeEdits: results.filter((result) => result.nativeParagraphAutoNumberScheme.status === "passed").length,
+      nativeParagraphAutoNumberStartAtEdits: results.filter((result) => result.nativeParagraphAutoNumberStartAt.status === "passed").length,
+      nativeParagraphLevelEdits: results.filter((result) => result.nativeParagraphLevel.status === "passed").length,
+      nativeVerticalAnchorEdits: results.filter((result) => result.nativeVerticalAnchor.status === "passed").length,
+      nativeTextBodyInsetEdits: results.filter((result) => result.nativeTextBodyInset.status === "passed").length,
+      nativeTextBodyWrapEdits: results.filter((result) => result.nativeTextBodyWrap.status === "passed").length,
+      nativeTextBodyColumnCountEdits: results.filter((result) => result.nativeTextBodyColumnCount.status === "passed").length,
+      nativeTextBodyAutoFitEdits: results.filter((result) => result.nativeTextBodyAutoFit.status === "passed").length,
+      nativeTextBodyColumnDirectionEdits: results.filter((result) => result.nativeTextBodyColumnDirection.status === "passed").length,
+      nativeTextBodyVerticalTextEdits: results.filter((result) => result.nativeTextBodyVerticalText.status === "passed").length,
+      nativeRotationEdits: results.filter((result) => result.nativeRotation.status === "passed").length,
+      nativeFlipEdits: results.filter((result) => result.nativeFlip.status === "passed").length,
+      nativeFillOpacityEdits: results.filter((result) => result.nativeFillOpacity.status === "passed").length,
       svgStyleEdits: results.filter((result) => result.svgStyle.status === "passed").length,
       animatedTextEdits: results.filter((result) => result.animatedText.status === "passed").length,
       tableCellEdits: results.filter((result) => result.tableCell.status === "passed").length,
@@ -314,7 +401,7 @@ async function verifyNativeLineWidthEdit(bytes) {
   const presentation = await importPresentation(bytes);
   const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
   const target = records.find((record) => record.leafKind === "lineWidthEmu");
-  if (!target) return { status: "blocked", reason: "no bounded imported connector line-width leaf was discovered" };
+  if (!target) return { status: "blocked", reason: "no bounded imported line-width leaf was discovered" };
   const oldValue = Number(target.value);
   const value = oldValue + 9525 <= 20_116_800 ? oldValue + 9525 : Math.max(0, oldValue - 9525);
   if (!Number.isSafeInteger(oldValue) || value === oldValue) return { status: "blocked", reason: "discovered line width is outside the safe edit range" };
@@ -324,14 +411,628 @@ async function verifyNativeLineWidthEdit(bytes) {
   const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
     .find((record) => record.targetId === target.targetId && record.leafKind === "lineWidthEmu");
   if (!rebound || Number(rebound.value) !== value) {
-    throw new Error(`Native connector line-width edit did not survive re-import for ${target.targetId}.`);
+    throw new Error(`Native line-width edit did not survive re-import for ${target.targetId}.`);
   }
   const changedParts = await changedPackageParts(bytes, output.bytes);
   const expectedPart = `ppt/slides/slide${target.slide}.xml`;
   if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
-    throw new Error(`Native connector line-width edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+    throw new Error(`Native line-width edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
   }
   return { status: "passed", targetId: target.targetId, oldValue, value, changedParts };
+}
+
+async function verifyNativeLineStyleEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "lineStyle");
+  if (!target) return { status: "blocked", reason: "no bounded imported preset dash leaf was discovered" };
+  const value = target.value === "solid" ? "dashed" : "solid";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "lineStyle");
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native line-style edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native line-style edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeLineCapEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "lineCap");
+  if (!target) return { status: "blocked", reason: "no bounded imported line-cap leaf was discovered" };
+  const value = target.value === "flat" ? "round" : "flat";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "lineCap");
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native line-cap edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native line-cap edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeLineJoinEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "lineJoin");
+  if (!target) return { status: "blocked", reason: "no bounded imported line-join leaf was discovered" };
+  const value = target.value === "round" ? "bevel" : "round";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "lineJoin");
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native line-join edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native line-join edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeLineArrowEdit(bytes, leafKind) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === leafKind);
+  if (!target) return { status: "blocked", reason: `no bounded imported ${leafKind} leaf was discovered` };
+  const value = target.value === "none" ? "triangle" : "none";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === leafKind);
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native ${leafKind} edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native ${leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFontSizeEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontSizePoints");
+  if (!target) return { status: "blocked", reason: "no bounded explicit text run font-size leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue + 1 <= 768 ? Math.round((oldValue + 1) * 100) / 100 : Math.round((oldValue - 1) * 100) / 100;
+  if (!Number.isFinite(oldValue) || value <= 0 || value === oldValue) return { status: "blocked", reason: "discovered font size is outside the safe edit range" };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "fontSizePoints");
+  if (!rebound || Math.abs(Number(rebound.value) - value) > 0.001) {
+    throw new Error(`Native font-size edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-size edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, textLeafIndex: target.textLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeFontFamilyEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontFamily" || record.leafKind === "fontFamilyEastAsia");
+  if (!target) return { status: "blocked", reason: "no bounded explicit text run font-family leaf was discovered" };
+  const value = target.value === "OfficeKit Sans" ? "Arial" : "OfficeKit Sans";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind);
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native font-family edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-family edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFontStyleEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontBold" || record.leafKind === "fontItalic");
+  if (!target) return { status: "blocked", reason: "no bounded explicit text run bold/italic leaf was discovered" };
+  const value = !target.value;
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind);
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native font-style edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-style edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFontColorEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontColorRgb");
+  if (!target) return { status: "blocked", reason: "no bounded bare RGB text-run color leaf was discovered" };
+  const value = target.value.toLowerCase() === "#aabbcc" ? "#C3B2A1" : "#AABBCC";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "fontColorRgb");
+  if (!rebound || rebound.value.toLowerCase() !== value.toLowerCase()) {
+    throw new Error(`Native font-color edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-color edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFontDecorationEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fontUnderline" || record.leafKind === "fontStrike");
+  if (!target) return { status: "blocked", reason: "no bounded direct run underline or strike leaf was discovered" };
+  const value = target.leafKind === "fontUnderline"
+    ? (target.value === "sng" ? "dbl" : target.value === "none" ? "sng" : "none")
+    : (target.value === "noStrike" ? "sngStrike" : target.value === "sngStrike" ? "dblStrike" : "noStrike");
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind);
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native font-decoration edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native font-decoration edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, textLeafIndex: target.textLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeParagraphAlignmentEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphAlignment");
+  if (!target) return { status: "blocked", reason: "no bounded direct paragraph-alignment leaf was discovered" };
+  const value = target.value === "left" ? "center" : "left";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "paragraphAlignment" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native paragraph-alignment edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native paragraph-alignment edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeParagraphLineSpacingEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphLineSpacingPoints" || record.leafKind === "paragraphLineSpacingMultiplier");
+  if (!target) return { status: "blocked", reason: "no bounded direct paragraph line-spacing leaf was discovered" };
+  const oldValue = Number(target.value);
+  const maximum = target.leafKind === "paragraphLineSpacingPoints" ? 1584 : 132;
+  const step = 0.01;
+  const value = oldValue + step <= maximum ? Number((oldValue + step).toFixed(5)) : Number((oldValue - step).toFixed(5));
+  if (!Number.isFinite(oldValue) || value <= 0 || value === oldValue) return { status: "blocked", reason: "discovered paragraph line spacing is outside the safe edit range" };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Math.abs(Number(rebound.value) - value) > 0.00001) {
+    throw new Error(`Native paragraph line-spacing edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native paragraph line-spacing edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphBlockSpacingEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => [
+    "paragraphSpaceBeforePoints",
+    "paragraphSpaceBeforeMultiplier",
+    "paragraphSpaceAfterPoints",
+    "paragraphSpaceAfterMultiplier",
+  ].includes(record.leafKind));
+  if (!target) return { status: "blocked", reason: "no bounded direct paragraph before/after-spacing leaf was discovered" };
+  const oldValue = Number(target.value);
+  const maximum = target.leafKind.endsWith("Points") ? 1584 : 132;
+  const step = 0.01;
+  const value = oldValue + step <= maximum
+    ? Number((oldValue + step).toFixed(5))
+    : Number((oldValue - step).toFixed(5));
+  if (!Number.isFinite(oldValue) || value < 0 || value === oldValue) {
+    return { status: "blocked", reason: "discovered paragraph before/after spacing is outside the safe edit range" };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Math.abs(Number(rebound.value) - value) > 0.00001) {
+    throw new Error(`Native paragraph before/after-spacing edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native paragraph before/after-spacing edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphLayoutEdit(bytes, leafKind) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === leafKind);
+  if (!target) return { status: "blocked", reason: `no bounded direct ${leafKind} leaf was discovered` };
+  const oldValue = Number(target.value);
+  const maximum = 51_206_400;
+  const value = oldValue < maximum ? oldValue + 1 : oldValue - 1;
+  if (!Number.isSafeInteger(oldValue) || !Number.isSafeInteger(value) || value === oldValue || value < -maximum || value > maximum || (leafKind === "paragraphMarginLeftEmu" && value < 0)) {
+    return { status: "blocked", reason: `discovered ${leafKind} is outside the safe edit range` };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native ${leafKind} edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native ${leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphBulletEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphBulletCharacter");
+  if (!target) return { status: "blocked", reason: "no bounded direct character-bullet leaf was discovered" };
+  const oldValue = String(target.value);
+  const value = oldValue === "•" ? "◦" : "•";
+  if ([...oldValue].length !== 1 || [...value].length !== 1 || value === oldValue) {
+    return { status: "blocked", reason: "discovered character bullet has no safe alternate scalar" };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "paragraphBulletCharacter" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native character-bullet edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native character-bullet edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphAutoNumberEdit(bytes, leafKind) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === leafKind);
+  if (!target) return { status: "blocked", reason: `no bounded direct ${leafKind} leaf was discovered` };
+  const oldValue = leafKind === "paragraphBulletAutoNumberScheme" ? String(target.value) : Number(target.value);
+  const value = leafKind === "paragraphBulletAutoNumberScheme"
+    ? (oldValue === "arabicPeriod" ? "romanLcPeriod" : "arabicPeriod")
+    : (oldValue < 32767 ? oldValue + 1 : oldValue - 1);
+  if (value === oldValue) return { status: "blocked", reason: `discovered ${leafKind} has no safe alternate value` };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || (leafKind === "paragraphBulletAutoNumberScheme" ? rebound.value !== value : Number(rebound.value) !== value)) {
+    throw new Error(`Native ${leafKind} edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native ${leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeParagraphLevelEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "paragraphLevel");
+  if (!target) return { status: "blocked", reason: "no explicit non-zero paragraph-level leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue < 8 ? oldValue + 1 : oldValue - 1;
+  if (!Number.isInteger(oldValue) || oldValue < 1 || oldValue > 8 || value < 1 || value > 8 || value === oldValue) {
+    return { status: "blocked", reason: "discovered paragraph level has no safe successor value" };
+  }
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "paragraphLevel" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native paragraph-level edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native paragraph-level edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeVerticalAnchorEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "verticalAnchor");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body vertical-anchor leaf was discovered" };
+  const value = target.value === "top" ? "center" : "top";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === "verticalAnchor" && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native vertical-anchor edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native vertical-anchor edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeTextBodyInsetEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyInsetLeftEmu");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body inset leaf was discovered" };
+  const value = Number(target.value) + 1;
+  if (!Number.isSafeInteger(value) || value < 0) return { status: "blocked", reason: "text-body inset leaf has no safe successor value" };
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native text-body inset edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body inset edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeTextBodyWrapEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyWrap");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body wrap leaf was discovered" };
+  const value = target.value === "square" ? "none" : "square";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native text-body wrap edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body wrap edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeTextBodyColumnCountEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyColumnCount");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body column-count leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue === 1 ? 2 : 1;
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native text-body column-count edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body column-count edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeTextBodyAutoFitEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyAutoFit");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body AutoFit leaf was discovered" };
+  const value = target.value === "none" ? "resizeShape" : "none";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native text-body AutoFit edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body AutoFit edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeTextBodyColumnDirectionEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyColumnDirection");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body column-direction leaf was discovered" };
+  const value = !Boolean(target.value);
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native text-body column-direction edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body column-direction edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeTextBodyVerticalTextEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "textBodyVerticalText");
+  if (!target) return { status: "blocked", reason: "no bounded direct text-body vertical-text leaf was discovered" };
+  const value = target.value === "horizontal" ? "vertical" : "horizontal";
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native text-body vertical-text edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native text-body vertical-text edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeRotationEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "rotationDegrees");
+  if (!target) return { status: "blocked", reason: "no bounded direct a:xfrm rotation leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue === 0 ? 1 : 0;
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Number(rebound.value) !== value) {
+    throw new Error(`Native rotation edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native rotation edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
+}
+
+async function verifyNativeFlipEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "flipHorizontal" || record.leafKind === "flipVertical");
+  if (!target) return { status: "blocked", reason: "no bounded direct a:xfrm flip leaf was discovered" };
+  const value = !Boolean(target.value);
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || rebound.value !== value) {
+    throw new Error(`Native ${target.leafKind} edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native ${target.leafKind} edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue: target.value, value, changedParts };
+}
+
+async function verifyNativeFillOpacityEdit(bytes) {
+  const presentation = await importPresentation(bytes);
+  const records = parseNdjson(presentation.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson);
+  const target = records.find((record) => record.leafKind === "fillOpacityThousandthPercent");
+  if (!target) return { status: "blocked", reason: "no bounded direct solid-fill opacity leaf was discovered" };
+  const oldValue = Number(target.value);
+  const value = oldValue > 0.5 ? 0.35 : 0.65;
+  presentation.editNativeLeaf(target.targetId, target.leafId, { expectedHash: target.expectedHash, value });
+  const output = await PresentationFile.exportPptx(presentation);
+  const reopened = await importPresentation(output.bytes);
+  const rebound = parseNdjson(reopened.inspect({ kind: "nativeLeaf", maxChars: Infinity }).ndjson)
+    .find((record) => record.targetId === target.targetId && record.leafKind === target.leafKind && Number(record.nativeLeafIndex) === Number(target.nativeLeafIndex));
+  if (!rebound || Math.abs(Number(rebound.value) - value) > 1e-9) {
+    throw new Error(`Native fill opacity edit did not survive re-import for ${target.targetId}.`);
+  }
+  const changedParts = await changedPackageParts(bytes, output.bytes);
+  const expectedPart = `ppt/slides/slide${target.slide}.xml`;
+  if (changedParts.length !== 1 || changedParts[0] !== expectedPart) {
+    throw new Error(`Native fill opacity edit changed unexpected parts for ${target.targetId}: ${changedParts.join(", ")}`);
+  }
+  return { status: "passed", targetId: target.targetId, leafKind: target.leafKind, nativeLeafIndex: target.nativeLeafIndex, oldValue, value, changedParts };
 }
 
 async function verifySvgStyleEdit(bytes) {

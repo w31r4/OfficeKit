@@ -197,7 +197,23 @@ message PresentationEditOperation {
   // shape_tree_index; an empty path retains the original top-level profile.
   repeated uint32 shape_tree_path = 13;
   // Bounded compiler-issued leaf vocabulary. Empty is the legacy text leaf.
-  // v1 values: text, tableCellText, fillRgb, lineRgb, leftEmu, topEmu,
+  // v1 values: text, tableCellText, paragraphAlignment, paragraphLineSpacingPoints,
+  // paragraphLineSpacingMultiplier, paragraphSpaceBeforePoints,
+  // paragraphSpaceBeforeMultiplier, paragraphSpaceAfterPoints,
+  // paragraphSpaceAfterMultiplier, paragraphMarginLeftEmu, paragraphIndentEmu,
+  // paragraphBulletCharacter, paragraphBulletAutoNumberScheme,
+  // paragraphBulletAutoNumberStartAt, paragraphBulletFontFamily,
+  // paragraphBulletColorRgb, paragraphBulletColorScheme,
+  // paragraphBulletSizePoints, paragraphBulletSizePercent, paragraphLevel, verticalAnchor,
+  // textBodyInsetLeftEmu, textBodyInsetTopEmu, textBodyInsetRightEmu, textBodyInsetBottomEmu,
+  // textBodyWrap, textBodyColumnCount,
+  // fontSizePoints, fontFamily,
+  // fontFamilyEastAsia, fontBold, fontItalic, fontUnderline, fontStrike,
+  // fontKerningPoints, fontBaselinePercent, fontSpacingPoints, fontCaps,
+  // fontColorRgb, fontColorScheme, fillRgb, fillScheme,
+  // lineRgb, lineScheme, lineStyle, lineCap, lineJoin, lineStartArrow,
+  // lineEndArrow, lineWidthEmu,
+  // leftEmu, topEmu,
   // widthEmu, heightEmu, imageAsset, chartTitleText, chartDataValue,
   // diagramText, deleteElement.
   string leaf_kind = 14;
@@ -232,6 +248,10 @@ message PresentationEditOperation {
   // comes from the codec-issued deletion capability and is re-proved against
   // the exact source revision; it is not an arbitrary package selector.
   PresentationEditElementDeletion element_deletion = 30;
+  // Compiler-issued index for a bounded native style leaf inside an opaque
+  // group. It is intentionally separate from text_leaf_index so callers and
+  // proof code cannot confuse a style token with a text token.
+  uint32 native_leaf_index = 31;
 }
 
 message PresentationEditPlanResult {
@@ -2146,6 +2166,10 @@ message PresentationShape {
   // thousandths of one percent. Absence means the native a:alpha child is
   // omitted; the value is valid only when fill_rgb is present.
   optional uint32 fill_opacity_thousandth_percent = 32;
+  // Bounded direct theme color for a source-bound solid fill. This is exposed
+  // only when the native a:solidFill contains exactly one bare a:schemeClr;
+  // effects, transforms, and inherited/style fills remain source-bound.
+  string fill_scheme = 33;
 }
 
 message PresentationCustomGeometryPath {
@@ -2434,9 +2458,15 @@ message PresentationTextBody {
 // explicit no_* choice removes only the modeled attribute or AutoFit child.
 // Insets and column spacing use DrawingML EMUs; rotation retains native
 // 1/60000-degree units. WordArt vertical modes, paragraph compatibility flags,
-// warp/3D and noncanonical AutoFit markup remain source-bound. Normal AutoFit
+// warp/3D and noncanonical AutoFit markup remain source-bound. Direct bare
+// noAutofit, normAutofit, and spAutoFit children may be exposed as a
+// source-bound textBodyAutoFit leaf. Normal AutoFit
 // percentages retain native thousandths-of-a-percent units and attribute
-// presence so omitted schema defaults are not materialized accidentally.
+// presence so omitted schema defaults are not materialized accidentally. A
+// direct canonical rtlCol token may likewise be exposed as a source-bound
+// textBodyColumnDirection leaf. Supported direct vert values may be exposed
+// as a source-bound textBodyVerticalText leaf without materializing other
+// bodyPr defaults.
 message PresentationTextBodyProperties {
   oneof left_inset {
     int64 left_inset_emu = 1;
@@ -2517,6 +2547,22 @@ message PresentationTextStyle {
   // Latin display face and a separate CJK fallback without relying on host
   // substitution.
   optional string font_family_east_asia = 7;
+  // Direct DrawingML decoration tokens for default run properties.
+  optional string underline = 8;
+  optional string strike = 9;
+  // Direct DrawingML a:defRPr/@kern value in points. The wire keeps the
+  // semantic unit while source-bound edits splice the canonical hundredths
+  // of a point token.
+  optional double font_kerning_points = 10;
+  // Direct DrawingML a:defRPr/@baseline value in thousandths of a percent.
+  // Positive values raise glyphs (superscript); negative values lower them
+  // (subscript). Source-bound edits retain the signed native token.
+  optional double font_baseline_percent = 11;
+  // Direct DrawingML a:defRPr/@spc value in hundredths of a point. Source-
+  // bound edits retain the signed native token.
+  optional double font_spacing_points = 12;
+  // Direct DrawingML a:defRPr/@cap token: none, small, or all.
+  optional string font_caps = 13;
 }
 
 message PresentationTextParagraph {
@@ -2634,6 +2680,28 @@ message PresentationTextRun {
   // Direct DrawingML a:ea typeface. The JavaScript authoring layer supplies
   // font_family for East Asian text when no explicit override is present.
   optional string font_family_east_asia = 11;
+  // Direct DrawingML a:rPr decoration tokens. Only standard DrawingML values
+  // are exposed by the native leaf projection; unknown effect-bearing text
+  // properties remain source-bound.
+  optional string underline = 12;
+  optional string strike = 13;
+  // Direct DrawingML a:schemeClr token (for example accent1 or tx1). This is
+  // kept separate from color_rgb so source-bound edits can preserve theme
+  // semantics instead of resolving them to a lossy RGB value.
+  optional string color_scheme = 14;
+  // Direct DrawingML a:rPr/@kern value in points. Source-bound edits retain
+  // the native hundredths-of-a-point token and do not rewrite other run XML.
+  optional double font_kerning_points = 15;
+  // Direct DrawingML a:rPr/@baseline value in thousandths of a percent.
+  // The public value is expressed as percent (for example, 30 for the
+  // common superscript token 30000); source-bound edits splice the exact
+  // signed native integer token.
+  optional double font_baseline_percent = 16;
+  // Direct DrawingML a:rPr/@spc value in points. Source-bound edits retain
+  // the native signed hundredths-of-a-point token.
+  optional double font_spacing_points = 17;
+  // Direct DrawingML a:rPr/@cap token: none, small, or all.
+  optional string font_caps = 18;
 }
 
 message PresentationTextField {

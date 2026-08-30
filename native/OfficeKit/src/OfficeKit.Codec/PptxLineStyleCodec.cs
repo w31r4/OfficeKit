@@ -45,6 +45,152 @@ internal static class PptxLineStyleCodec
         "", "round", "bevel", "miter",
     };
 
+    // Keep the source-bound native leaf vocabulary in semantic terms while
+    // retaining the exact DrawingML token for the final token splice.
+    internal static bool TryReadPresetDash(A.PresetDash? source, out string style)
+    {
+        style = string.Empty;
+        if (source is null || source.ChildElements.Any() || !HasOnlyAttributes(source, "val") || source.Val?.Value is not { } value)
+            return false;
+        style = value.Equals(A.PresetLineDashValues.Solid) ? "solid" :
+            value.Equals(A.PresetLineDashValues.Dash) ? "dashed" :
+            value.Equals(A.PresetLineDashValues.Dot) ? "dotted" :
+            value.Equals(A.PresetLineDashValues.DashDot) ? "dash-dot" :
+            value.Equals(A.PresetLineDashValues.LargeDashDotDot) ? "dash-dot-dot" :
+            string.Empty;
+        return style.Length > 0;
+    }
+
+    internal static bool TryReadPresetDashValue(string? value, out string style)
+    {
+        var normalized = value?.Trim().ToLowerInvariant();
+        style = normalized switch
+        {
+            "solid" => "solid",
+            "dash" => "dashed",
+            "dot" => "dotted",
+            "dashdot" => "dash-dot",
+            "lgdashdotdot" => "dash-dot-dot",
+            _ => string.Empty,
+        };
+        return style.Length > 0;
+    }
+
+    internal static bool TryPresetDashToken(string style, out string token)
+    {
+        token = style switch
+        {
+            "solid" => "solid",
+            "dashed" => "dash",
+            "dotted" => "dot",
+            "dash-dot" => "dashDot",
+            "dash-dot-dot" => "lgDashDotDot",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
+    internal static bool TryReadCapValue(string? value, out string cap)
+    {
+        cap = value?.Trim().ToLowerInvariant() switch
+        {
+            "flat" => "flat",
+            "rnd" or "round" => "round",
+            "sq" or "square" => "square",
+            _ => string.Empty,
+        };
+        return cap.Length > 0;
+    }
+
+    internal static bool TryReadCap(A.Outline? outline, out string cap)
+    {
+        cap = string.Empty;
+        if (outline is null) return false;
+        var attributes = outline.GetAttributes()
+            .Where(attribute => attribute.LocalName == "cap")
+            .ToArray();
+        return attributes.Length == 1 && HasOnlyAttributes(outline, "w", "cap", "cmpd", "algn") &&
+            TryReadCapValue(attributes[0].Value, out cap);
+    }
+
+    internal static bool TryCapToken(string cap, out string token)
+    {
+        token = cap switch
+        {
+            "flat" => "flat",
+            "round" => "rnd",
+            "square" => "sq",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
+    // Source-bound joins are intentionally narrower than the full typed line
+    // profile: only one bare DrawingML join element is safe to token-splice.
+    // A miter limit, extra attributes, or child markup stays opaque.
+    internal static bool TryReadJoinLeaf(A.Outline? outline, out string join)
+    {
+        join = string.Empty;
+        if (outline is null) return false;
+        var joins = outline.ChildElements.Where(child => child is A.Round or A.LineJoinBevel or A.Miter).ToArray();
+        if (joins.Length != 1) return false;
+        var candidate = joins[0];
+        if (candidate.ChildElements.Any() || !HasOnlyAttributes(candidate)) return false;
+        join = candidate switch
+        {
+            A.Round => "round",
+            A.LineJoinBevel => "bevel",
+            A.Miter => "miter",
+            _ => string.Empty,
+        };
+        return join.Length > 0;
+    }
+
+    internal static bool TryJoinToken(string join, out string token)
+    {
+        token = join switch
+        {
+            "round" => "round",
+            "bevel" => "bevel",
+            "miter" => "miter",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
+    // Source-bound arrow leaves only splice an existing explicit endpoint
+    // type. Width/length attributes are retained and must already be
+    // canonical, so an irregular endpoint stays opaque.
+    internal static bool TryReadArrowType(OpenXmlElement? source, out string type)
+    {
+        type = string.Empty;
+        if (source is not (A.HeadEnd or A.TailEnd) || source.ChildElements.Any() ||
+            !HasOnlyAttributes(source, "type", "w", "len") || source.GetAttributes().Count(attribute => attribute.LocalName == "type") != 1) return false;
+        var sourceType = source is A.HeadEnd head ? head.Type?.Value : ((A.TailEnd)source).Type?.Value;
+        var sourceWidth = source is A.HeadEnd headWidth ? headWidth.Width?.Value : ((A.TailEnd)source).Width?.Value;
+        var sourceLength = source is A.HeadEnd headLength ? headLength.Length?.Value : ((A.TailEnd)source).Length?.Value;
+        if (!TryArrow(sourceType, out var parsed) || !TryEndWidth(sourceWidth, out _) || !TryEndLength(sourceLength, out _)) return false;
+        type = parsed.Length == 0 ? "none" : parsed;
+        return true;
+    }
+
+    internal static bool TryArrowTypeToken(string type, out string token)
+    {
+        token = type switch
+        {
+            "none" => "none",
+            "triangle" => "triangle",
+            "stealth" => "stealth",
+            "diamond" => "diamond",
+            "oval" => "oval",
+            "arrow" => "arrow",
+            _ => string.Empty,
+        };
+        return token.Length > 0;
+    }
+
+    internal static bool TryArrowSizeToken(string size) => size is "sm" or "med" or "lg";
+
     internal static bool TryRead(A.Outline? outline, out Profile profile)
     {
         if (outline is null)

@@ -110,7 +110,19 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", "Presentation run font family must contain 1 through 255 characters.");
                 if (run.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(run.FontFamilyEastAsia) || run.FontFamilyEastAsia.Length > 255))
                     throw new CodecException("invalid_presentation_text", "Presentation run East Asian font family must contain 1 through 255 characters.");
+                if (run.HasFontKerningPoints && (!(run.FontKerningPoints >= 0) || run.FontKerningPoints > 768 || !double.IsFinite(run.FontKerningPoints)))
+                    throw new CodecException("invalid_presentation_text", "Presentation run font kerning must be finite and between 0 and 768 points.");
+                if (run.HasFontBaselinePercent && (!(run.FontBaselinePercent >= -400) || run.FontBaselinePercent > 400 || !double.IsFinite(run.FontBaselinePercent)))
+                    throw new CodecException("invalid_presentation_text", "Presentation run font baseline must be finite and between -400% and 400%.");
+                if (run.HasFontSpacingPoints && (!(run.FontSpacingPoints >= -768) || run.FontSpacingPoints > 768 || !double.IsFinite(run.FontSpacingPoints)))
+                    throw new CodecException("invalid_presentation_text", "Presentation run character spacing must be finite and between -768 and 768 points.");
+                if (run.HasFontCaps) PptxTextDecoration.NormalizeCaps(run.FontCaps);
+                if (run.HasColorRgb && run.HasColorScheme)
+                    throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
+                if (run.HasColorScheme) PptxColor.NormalizeScheme(run.ColorScheme);
+                if (run.HasUnderline) PptxTextDecoration.NormalizeUnderline(run.Underline);
+                if (run.HasStrike) PptxTextDecoration.NormalizeStrike(run.Strike);
                 PptxHyperlinkCodec.Validate(run);
             }
         }
@@ -264,7 +276,14 @@ internal static class PptxTextCodec
         if (properties?.GetFirstChild<A.LatinFont>()?.Typeface?.Value is { Length: > 0 } typeface) run.FontFamily = typeface;
         var eastAsianFonts = properties?.Elements<A.EastAsianFont>().Take(2).ToArray() ?? [];
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) run.FontFamilyEastAsia = eastAsianFonts[0].Typeface!.Value!;
-        if (PptxColor.SolidRgb(properties?.GetFirstChild<A.SolidFill>()) is { Length: > 0 } rgb) run.ColorRgb = rgb;
+        if (PptxTextDecoration.TryKerning(properties, out var kerning)) run.FontKerningPoints = double.Parse(kerning, System.Globalization.CultureInfo.InvariantCulture) / 100d;
+        if (PptxTextDecoration.TryBaseline(properties, out var baseline)) run.FontBaselinePercent = double.Parse(baseline, System.Globalization.CultureInfo.InvariantCulture) / 1000d;
+        if (PptxTextDecoration.TrySpacing(properties, out var spacing)) run.FontSpacingPoints = double.Parse(spacing, System.Globalization.CultureInfo.InvariantCulture) / 100d;
+        if (PptxTextDecoration.TryCaps(properties, out var caps)) run.FontCaps = caps;
+        if (PptxColor.TryDirectSolidRgb(properties?.GetFirstChild<A.SolidFill>(), out var rgb)) run.ColorRgb = rgb;
+        else if (PptxColor.TryDirectSolidScheme(properties?.GetFirstChild<A.SolidFill>(), out var scheme)) run.ColorScheme = scheme;
+        if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
+        if (PptxTextDecoration.TryStrike(properties, out var strike)) run.Strike = strike;
         PptxHyperlinkCodec.Read(run, properties, slideContext);
         return run;
     }
@@ -486,13 +505,20 @@ internal static class PptxTextCodec
     };
 
     private static bool HasStyle(PresentationTextRun run) =>
-        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasColorRgb;
+        run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasFontKerningPoints || run.HasFontBaselinePercent || run.HasFontSpacingPoints || run.HasFontCaps || run.HasColorRgb || run.HasColorScheme ||
+        run.HasUnderline || run.HasStrike;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
     {
         properties.Bold = requested.HasBold ? requested.Bold : null;
         properties.Italic = requested.HasItalic ? requested.Italic : null;
+        if (requested.HasUnderline) properties.Underline = new A.TextUnderlineValues(PptxTextDecoration.NormalizeUnderline(requested.Underline));
+        if (requested.HasStrike) properties.Strike = new A.TextStrikeValues(PptxTextDecoration.NormalizeStrike(requested.Strike));
         properties.FontSize = requested.HasFontSizePoints ? checked((int)Math.Round(requested.FontSizePoints * 100)) : null;
+        properties.Kerning = requested.HasFontKerningPoints ? checked((int)Math.Round(requested.FontKerningPoints * 100)) : null;
+        properties.Baseline = requested.HasFontBaselinePercent ? checked((int)Math.Round(requested.FontBaselinePercent * 1000)) : null;
+        properties.Spacing = requested.HasFontSpacingPoints ? checked((int)Math.Round(requested.FontSpacingPoints * 100)) : null;
+        properties.Capital = requested.HasFontCaps ? new A.TextCapsValues(PptxTextDecoration.NormalizeCaps(requested.FontCaps)) : null;
         var latin = properties.GetFirstChild<A.LatinFont>();
         if (requested.HasFontFamily)
         {
@@ -517,12 +543,20 @@ internal static class PptxTextCodec
             eastAsianFonts[0].Remove();
         }
         var fill = properties.GetFirstChild<A.SolidFill>();
+        if (requested.HasColorRgb && requested.HasColorScheme)
+            throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
         if (requested.HasColorRgb)
         {
             fill?.Remove();
             properties.PrependChild(new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(requested.ColorRgb) }));
         }
+        else if (requested.HasColorScheme)
+        {
+            fill?.Remove();
+            properties.PrependChild(new A.SolidFill(new A.SchemeColor { Val = PptxColor.SchemeValue(requested.ColorScheme) }));
+        }
         else if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
+        else if (PptxColor.TryDirectSolidScheme(fill, out _)) fill!.Remove();
     }
 
     private static void ScrubRunProperties(A.RunProperties? properties, PptxPartContext? slideContext)
@@ -530,12 +564,17 @@ internal static class PptxTextCodec
         if (properties is null) return;
         properties.Bold = null;
         properties.Italic = null;
+        properties.Kerning = null;
+        properties.Baseline = null;
+        properties.Spacing = null;
+        properties.Capital = null;
         properties.FontSize = null;
         properties.GetFirstChild<A.LatinFont>()?.Remove();
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().ToArray();
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
         var fill = properties.GetFirstChild<A.SolidFill>();
         if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
+        else if (PptxColor.TryDirectSolidScheme(fill, out _)) fill!.Remove();
         PptxHyperlinkCodec.Scrub(properties, slideContext);
     }
 

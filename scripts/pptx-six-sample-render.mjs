@@ -34,13 +34,20 @@ export async function collectSixSampleRenderEvidence({
     const bytes = await readSource(sourcePath, source.sha256);
     const original = await importPresentation(bytes);
     const target = firstPlacementObject(original);
-    if (!target) throw new Error(`${source.id} has no bounded placement target.`);
-    const before = { ...target.object.position };
-    target.object.setPosition({ left: before.left + 3, top: before.top + 3 });
+    const textTarget = target ? undefined : firstTextRun(original);
+    if (!target && !textTarget) throw new Error(`${source.id} has no bounded placement or text target.`);
+    const targetPage = target?.slide || textTarget.slide;
+    const editKind = target ? "placement" : "text";
+    if (target) {
+      const before = { ...target.object.position };
+      target.object.setPosition({ left: before.left + 3, top: before.top + 3 });
+    } else {
+      const sourceText = textTarget.run.text;
+      textTarget.shape.text.replace(sourceText, `${sourceText} OfficeKit`);
+    }
     const edited = await PresentationFile.exportPptx(original);
     const baseline = await renderPages(bytes, original.slides.count, path.join(renderRoot, source.id, "source"), office, raster);
-    const output = await renderPages(edited.bytes, original.slides.count, path.join(renderRoot, source.id, "placement"), office, raster);
-    const targetPage = target.slide;
+    const output = await renderPages(edited.bytes, original.slides.count, path.join(renderRoot, source.id, editKind), office, raster);
     const pageResults = baseline.map((page, index) => ({
       slide: page.slide,
       sourcePngSha256: page.sha256,
@@ -55,7 +62,10 @@ export async function collectSixSampleRenderEvidence({
       sourceSha256: source.sha256,
       slideCount: baseline.length,
       renderer: { office: "LibreOffice", raster: "Poppler", dpi: 96 },
-      placementTarget: { id: target.object.id, slide: targetPage },
+      ...(target
+        ? { placementTarget: { id: target.object.id, slide: targetPage } }
+        : { textTarget: { id: textTarget.shape.id, slide: targetPage } }),
+      editKind,
       targetPageChanged: pageResults.find((page) => page.slide === targetPage)?.changed === true,
       nonTargetPagesPixelIdentical: pageResults.filter((page) => page.slide !== targetPage).every((page) => !page.changed),
       pages: pageResults,
@@ -107,6 +117,25 @@ function firstPlacementObject(presentation) {
   for (const slide of presentation.slides.items) {
     const object = (slide.nativeObjects?.items || []).find((candidate) => candidate.placementCapability?.supported === true);
     if (object) return { slide: slide.index + 1, object };
+  }
+  return undefined;
+}
+
+function firstTextRun(presentation) {
+  for (const slide of presentation.slides.items) {
+    const shapes = [];
+    const collect = (group) => {
+      shapes.push(...(group.shapes?.items || []));
+      for (const child of group.groups?.items || []) collect(child);
+    };
+    shapes.push(...(slide.shapes?.items || []));
+    for (const group of slide.groups?.items || []) collect(group);
+    for (const shape of shapes) {
+      for (const paragraph of shape.text?.paragraphs || []) {
+        const run = paragraph.runs?.find((candidate) => typeof candidate.text === "string" && candidate.text.trim().length >= 4);
+        if (run) return { slide: slide.index + 1, shape, run };
+      }
+    }
   }
   return undefined;
 }

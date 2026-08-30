@@ -28,6 +28,51 @@ internal static class PptxColor
     internal static string SolidRgb(A.SolidFill? fill) =>
         fill?.GetFirstChild<A.RgbColorModelHex>()?.Val?.Value ?? string.Empty;
 
+    // Source-bound run color edits are limited to a bare, direct RGB paint.
+    // Effects, alpha transforms, scheme colors, and extra children remain
+    // source-owned so a native-leaf operation cannot accidentally normalize
+    // the surrounding run properties.
+    internal static bool TryDirectSolidRgb(A.SolidFill? fill, out string rgb)
+    {
+        rgb = string.Empty;
+        if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
+        if (fill.FirstChild is not A.RgbColorModelHex color || color.ChildElements.Count != 0 ||
+            !HasOnlyAttributes(color, "val") || color.Val?.Value is not { Length: 6 } value ||
+            !value.All(Uri.IsHexDigit)) return false;
+        rgb = value.ToUpperInvariant();
+        return true;
+    }
+
+    // Source-bound run color edits can also preserve a bare theme token. Keep
+    // this strict: scheme colors with transforms or extra attributes remain
+    // source-owned rather than being rebuilt from a lossy semantic value.
+    internal static bool TryDirectSolidScheme(A.SolidFill? fill, out string scheme)
+    {
+        scheme = string.Empty;
+        if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
+        if (fill.FirstChild is not A.SchemeColor color || color.ChildElements.Count != 0 ||
+            !HasOnlyAttributes(color, "val") || color.Val?.Value is not { } value ||
+            !TrySchemeToken(value, out var token)) return false;
+        scheme = token;
+        return true;
+    }
+
+    internal static string SolidScheme(A.SolidFill? fill)
+    {
+        if (fill is null || fill.ChildElements.Count != 1 ||
+            fill.FirstChild is not A.SchemeColor scheme ||
+            scheme.ChildElements.Count != 0 || !HasOnlyAttributes(scheme, "val") ||
+            scheme.Val?.Value is not { } value || !TrySchemeToken(value, out var token))
+            return string.Empty;
+        return token;
+    }
+
+    private static bool HasOnlyAttributes(DocumentFormat.OpenXml.OpenXmlElement element, params string[] allowed)
+    {
+        var accepted = allowed.ToHashSet(StringComparer.Ordinal);
+        return element.GetAttributes().All(attribute => accepted.Contains(attribute.LocalName));
+    }
+
     internal static string Normalize(string value)
     {
         var rgb = value.Trim().TrimStart('#').ToUpperInvariant();
@@ -51,6 +96,19 @@ internal static class PptxColor
         foreach (var entry in SchemeColors)
         {
             if (!entry.Value.Equals(value)) continue;
+            token = entry.Key;
+            return true;
+        }
+        token = string.Empty;
+        return false;
+    }
+
+    internal static bool TrySchemeToken(string value, out string token)
+    {
+        var candidate = value.Trim();
+        foreach (var entry in SchemeColors)
+        {
+            if (!entry.Key.Equals(candidate, StringComparison.OrdinalIgnoreCase)) continue;
             token = entry.Key;
             return true;
         }

@@ -101,6 +101,30 @@ function relationshipPartPath(partPath) {
   return path.posix.join(directory, "_rels", `${path.posix.basename(partPath)}.rels`);
 }
 
+function paragraphAlignmentToken(value) {
+  return ({ left: "l", center: "ctr", right: "r", justify: "just" })[value] || value;
+}
+
+function verticalAnchorToken(value) {
+  return ({ top: "t", center: "ctr", bottom: "b" })[value] || value;
+}
+
+function textBodyAutoFitToken(value) {
+  return ({ none: "noAutofit", shrinkText: "normAutofit", resizeShape: "spAutoFit" })[value] || value;
+}
+
+function textBodyColumnDirectionToken(value) {
+  return typeof value === "boolean" ? (value ? "1" : "0") : String(value);
+}
+
+function textBodyVerticalTextToken(value) {
+  return ({ horizontal: "horz", vertical: "vert", vertical270: "vert270" })[value] || String(value);
+}
+
+function lineStyleToken(value) {
+  return ({ solid: "solid", dashed: "dash", dotted: "dot", "dash-dot": "dashDot", "dash-dot-dot": "lgDashDotDot" })[value] || String(value);
+}
+
 async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation) {
   const operations = Array.isArray(operation) ? operation : [operation];
   assert.equal(operations.length > 0, true);
@@ -116,8 +140,34 @@ async function assertOnlyDeclaredPptxFootprintChanged(source, output, operation)
     const sourceStart = Number(item.footprint.sourceStartOffset);
     const sourceEnd = Number(item.footprint.sourceEndOffset);
     const outputEnd = Number(item.footprint.outputEndOffset);
-    const expected = Buffer.from(String(item.expectedValue), "utf8");
-    const replacement = Buffer.from(String(item.value), "utf8");
+    const expectedValue = item.leafKind === "paragraphAlignment"
+      ? paragraphAlignmentToken(item.expectedValue)
+      : item.leafKind === "verticalAnchor"
+        ? verticalAnchorToken(item.expectedValue)
+        : item.leafKind === "textBodyAutoFit"
+          ? textBodyAutoFitToken(item.expectedValue)
+        : item.leafKind === "textBodyColumnDirection"
+          ? textBodyColumnDirectionToken(item.expectedValue)
+        : item.leafKind === "textBodyVerticalText"
+          ? textBodyVerticalTextToken(item.expectedValue)
+        : item.leafKind === "lineStyle"
+          ? lineStyleToken(item.expectedValue)
+        : String(item.expectedValue);
+    const replacementValue = item.leafKind === "paragraphAlignment"
+      ? paragraphAlignmentToken(item.value)
+      : item.leafKind === "verticalAnchor"
+        ? verticalAnchorToken(item.value)
+        : item.leafKind === "textBodyAutoFit"
+          ? textBodyAutoFitToken(item.value)
+        : item.leafKind === "textBodyColumnDirection"
+          ? textBodyColumnDirectionToken(item.value)
+        : item.leafKind === "textBodyVerticalText"
+          ? textBodyVerticalTextToken(item.value)
+        : item.leafKind === "lineStyle"
+          ? lineStyleToken(item.value)
+        : String(item.value);
+    const expected = Buffer.from(expectedValue, "utf8");
+    const replacement = Buffer.from(replacementValue, "utf8");
     const textLike = item.leafKind === "text" || item.leafKind === "tableCellText";
     const sourceSpan = sourcePart.subarray(sourceStart, sourceEnd);
     const expectedOutputSpan = textLike
@@ -426,7 +476,7 @@ const shapeAccessibilityShape = shapeAccessibilitySlide.shapes.add({
   name: "decision-status",
   position: { left: 48, top: 72, width: 360, height: 88 },
   fill: "#DBEAFE",
-  text: "Decision: controlled rollout",
+  text: [{ runs: [{ text: "Decision: controlled rollout", style: { fontSize: 32 } }] }],
   accessibility: {
     title: "Controlled rollout decision",
     description: "Status box explaining that the rollout is controlled.",
@@ -600,6 +650,975 @@ assert.throws(
   () => nativeLeafRoundTrip.editNativeLeaf(controlledTextLeaf.targetId, controlledTextLeaf.leafId, { expectedHash: controlledTextLeaf.expectedHash, value: "Decision: stale revision" }),
   (error) => error?.code === "presentation_native_leaf_not_issued",
 );
+
+// A shape with otherwise safe text and paint can become source-bound when a
+// vendor adds an unknown cNvPr attribute. Its RGB fill remains a narrow,
+// token-spliceable native leaf; editing it must retain that attribute and
+// avoid reserializing the surrounding shape.
+const irregularStyleImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularStyleLeaves = irregularStyleImported.inspect({ includeNativeLeaves: true, target: irregularAccessibilityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const irregularFillLeaf = irregularStyleLeaves.find((record) => record.leafKind === "fillRgb");
+assert.ok(irregularFillLeaf, "source-bound text shapes should expose a safe RGB fill leaf");
+irregularStyleImported.editNativeLeaf(irregularFillLeaf.targetId, irregularFillLeaf.leafId, {
+  expectedHash: irregularFillLeaf.expectedHash,
+  value: "#A1B2C3",
+});
+const irregularStyleOutput = await PresentationFile.exportPptx(irregularStyleImported);
+assert.equal(irregularStyleOutput.metadata.editPlan.operations[0].leafKind, "fillRgb");
+const irregularStyleXml = await (await JSZip.loadAsync(irregularStyleOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularStyleXml, /fixture:opaque="kept"/);
+assert.equal(irregularStyleXml.replace("A1B2C3", "DBEAFE"), irregularShapeAccessibilityXml);
+const irregularStyleRoundTrip = await PresentationFile.importPptx(irregularStyleOutput);
+assert.equal(itemByName(irregularStyleRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill.toLowerCase(), "#a1b2c3");
+
+// Ordinary source-bound shapes expose the same bounded line-width token as
+// opaque groups. Keep this one direct-shape round-trip beside the existing
+// color contract; the rest of the effect space belongs to the real samples.
+const irregularWidthImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularWidthShape = itemByName(irregularWidthImported.slides.getItem(0).shapes.items, "decision-status");
+const irregularWidthLeaf = irregularWidthImported.inspect({ includeNativeLeaves: true, target: irregularWidthShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "lineWidthEmu");
+assert.ok(irregularWidthLeaf, "source-bound shapes should expose a safe line-width leaf");
+const irregularNextWidth = irregularWidthLeaf.value + 12_700;
+irregularWidthImported.editNativeLeaf(irregularWidthLeaf.targetId, irregularWidthLeaf.leafId, {
+  expectedHash: irregularWidthLeaf.expectedHash,
+  value: irregularNextWidth,
+});
+const irregularWidthOutput = await PresentationFile.exportPptx(irregularWidthImported);
+const irregularWidthOperation = irregularWidthOutput.metadata.editPlan.operations[0];
+assert.equal(irregularWidthOperation.leafKind, "lineWidthEmu");
+await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, irregularWidthOutput, irregularWidthOperation);
+const irregularWidthRoundTrip = await PresentationFile.importPptx(irregularWidthOutput);
+assert.equal(irregularWidthRoundTrip.resolve(irregularWidthShape.id).line.width, irregularNextWidth / 12_700);
+
+// Explicit run font size is a source-bound text leaf. Change only the sz token
+// so vendor attributes and all other slide/package bytes remain untouched.
+const irregularFontSizeImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
+const irregularFontSizeShape = itemByName(irregularFontSizeImported.slides.getItem(0).shapes.items, "decision-status");
+const irregularFontSizeLeaf = irregularFontSizeImported.inspect({ includeNativeLeaves: true, target: irregularFontSizeShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSizePoints");
+assert.ok(irregularFontSizeLeaf, "source-bound shapes should expose an explicit run font-size leaf");
+assert.equal(irregularFontSizeLeaf.value, 24);
+irregularFontSizeImported.editNativeLeaf(irregularFontSizeLeaf.targetId, irregularFontSizeLeaf.leafId, {
+  expectedHash: irregularFontSizeLeaf.expectedHash,
+  value: 30,
+});
+const irregularFontSizeOutput = await PresentationFile.exportPptx(irregularFontSizeImported);
+const irregularFontSizeOperation = irregularFontSizeOutput.metadata.editPlan.operations[0];
+assert.equal(irregularFontSizeOperation.leafKind, "fontSizePoints");
+await assertOnlyDeclaredPptxFootprintChanged(irregularShapeAccessibilityFile, irregularFontSizeOutput, irregularFontSizeOperation);
+const irregularFontSizeXml = await (await JSZip.loadAsync(irregularFontSizeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(irregularFontSizeXml, /<a:rPr\b[^>]*\bsz="3000"/);
+assert.match(irregularFontSizeXml, /fixture:opaque="kept"/);
+const irregularFontSizeRoundTrip = await PresentationFile.importPptx(irregularFontSizeOutput);
+const roundTripFontSizeShape = itemByName(irregularFontSizeRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+const roundTripFontSizeLeaf = irregularFontSizeRoundTrip.inspect({ includeNativeLeaves: true, target: roundTripFontSizeShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSizePoints");
+assert.equal(roundTripFontSizeLeaf.value, 30);
+
+// Explicit run font family follows the same source-bound token splice. Add a
+// literal typeface to the fixture without changing the public construction
+// path, then replace only its a:latin/@typeface token.
+const fontFamilyAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontFamilyAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:r><a:rPr\b[^>]*)(\/>)((?:<a:t>)Decision)/u,
+  '$1><a:latin typeface="Aptos"/></a:rPr>$3',
+);
+assert.match(fontFamilyAccessibilityXml, /<a:latin\s+typeface="Aptos"\s*\/>/);
+fontFamilyAccessibilityZip.file("ppt/slides/slide1.xml", fontFamilyAccessibilityXml);
+const fontFamilyAccessibilityFile = new FileBlob(
+  await fontFamilyAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontFamilyImported = await PresentationFile.importPptx(fontFamilyAccessibilityFile);
+const fontFamilyShape = itemByName(fontFamilyImported.slides.getItem(0).shapes.items, "decision-status");
+const fontFamilyLeaf = fontFamilyImported.inspect({ includeNativeLeaves: true, target: fontFamilyShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontFamily");
+assert.ok(fontFamilyLeaf, "source-bound shapes should expose an explicit run font-family leaf");
+fontFamilyImported.editNativeLeaf(fontFamilyLeaf.targetId, fontFamilyLeaf.leafId, {
+  expectedHash: fontFamilyLeaf.expectedHash,
+  value: "OfficeKit Sans",
+});
+const fontFamilyOutput = await PresentationFile.exportPptx(fontFamilyImported);
+const fontFamilyOperation = fontFamilyOutput.metadata.editPlan.operations[0];
+assert.equal(fontFamilyOperation.leafKind, "fontFamily");
+await assertOnlyDeclaredPptxFootprintChanged(fontFamilyAccessibilityFile, fontFamilyOutput, fontFamilyOperation);
+const fontFamilyXml = await (await JSZip.loadAsync(fontFamilyOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontFamilyXml, /<a:latin\s+typeface="OfficeKit Sans"\s*\/>/);
+assert.match(fontFamilyXml, /fixture:opaque="kept"/);
+const fontFamilyRoundTrip = await PresentationFile.importPptx(fontFamilyOutput);
+const fontFamilyRoundTripLeaf = fontFamilyRoundTrip.inspect({ includeNativeLeaves: true, target: fontFamilyShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontFamily");
+assert.equal(fontFamilyRoundTripLeaf.value, "OfficeKit Sans");
+
+// Explicit run bold/italic flags use the same leaf-only contract. Keep the
+// source fixture's run topology and change only the two boolean attributes.
+const fontStyleAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontStyleAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b)/u,
+  '$1 b="1" i="0"',
+);
+assert.match(fontStyleAccessibilityXml, /<a:rPr\b[^>]*\bb="1"[^>]*\bi="0"/);
+fontStyleAccessibilityZip.file("ppt/slides/slide1.xml", fontStyleAccessibilityXml);
+const fontStyleAccessibilityFile = new FileBlob(
+  await fontStyleAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontStyleImported = await PresentationFile.importPptx(fontStyleAccessibilityFile);
+const fontStyleShape = itemByName(fontStyleImported.slides.getItem(0).shapes.items, "decision-status");
+const fontStyleLeaves = fontStyleImported.inspect({ includeNativeLeaves: true, target: fontStyleShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontBold", "fontItalic"].includes(record.leafKind));
+const fontBoldLeaf = fontStyleLeaves.find((record) => record.leafKind === "fontBold");
+const fontItalicLeaf = fontStyleLeaves.find((record) => record.leafKind === "fontItalic");
+assert.ok(fontBoldLeaf, "source-bound shapes should expose an explicit run bold leaf");
+assert.ok(fontItalicLeaf, "source-bound shapes should expose an explicit run italic leaf");
+fontStyleImported.editNativeLeaf(fontBoldLeaf.targetId, fontBoldLeaf.leafId, {
+  expectedHash: fontBoldLeaf.expectedHash,
+  value: false,
+});
+fontStyleImported.editNativeLeaf(fontItalicLeaf.targetId, fontItalicLeaf.leafId, {
+  expectedHash: fontItalicLeaf.expectedHash,
+  value: true,
+});
+const fontStyleOutput = await PresentationFile.exportPptx(fontStyleImported);
+const fontStyleOperations = fontStyleOutput.metadata.editPlan.operations;
+assert.deepEqual(fontStyleOperations.map((operation) => operation.leafKind).sort(), ["fontBold", "fontItalic"]);
+await assertOnlyDeclaredPptxFootprintChanged(fontStyleAccessibilityFile, fontStyleOutput, fontStyleOperations);
+const fontStyleXml = await (await JSZip.loadAsync(fontStyleOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontStyleXml, /<a:rPr\b[^>]*\bb="0"[^>]*\bi="1"/);
+assert.match(fontStyleXml, /fixture:opaque="kept"/);
+const fontStyleRoundTrip = await PresentationFile.importPptx(fontStyleOutput);
+const fontStyleRoundTripLeaves = fontStyleRoundTrip.inspect({ includeNativeLeaves: true, target: fontStyleShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontBold", "fontItalic"].includes(record.leafKind));
+assert.equal(fontStyleRoundTripLeaves.find((record) => record.leafKind === "fontBold").value, false);
+assert.equal(fontStyleRoundTripLeaves.find((record) => record.leafKind === "fontItalic").value, true);
+
+// Explicit bare run RGB colors use the same source-bound token contract. The
+// fixture intentionally has no color effects so the edit can splice only the
+// a:srgbClr/@val token and retain the vendor attribute above it.
+const fontColorAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontColorAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:r><a:rPr\b[^>]*)(\/>)((?:<a:t>)Decision)/u,
+  '$1><a:solidFill><a:srgbClr val="DBEAFE"/></a:solidFill></a:rPr>$3',
+);
+assert.match(fontColorAccessibilityXml, /<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE"\s*\/><\/a:solidFill>/);
+fontColorAccessibilityZip.file("ppt/slides/slide1.xml", fontColorAccessibilityXml);
+const fontColorAccessibilityFile = new FileBlob(
+  await fontColorAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontColorImported = await PresentationFile.importPptx(fontColorAccessibilityFile);
+const fontColorShape = itemByName(fontColorImported.slides.getItem(0).shapes.items, "decision-status");
+const fontColorLeaf = fontColorImported.inspect({ includeNativeLeaves: true, target: fontColorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorRgb");
+assert.ok(fontColorLeaf, "source-bound shapes should expose an explicit run font-color leaf");
+assert.equal(fontColorLeaf.value, "#dbeafe");
+fontColorImported.editNativeLeaf(fontColorLeaf.targetId, fontColorLeaf.leafId, {
+  expectedHash: fontColorLeaf.expectedHash,
+  value: "#AABBCC",
+});
+const fontColorOutput = await PresentationFile.exportPptx(fontColorImported);
+const fontColorOperation = fontColorOutput.metadata.editPlan.operations[0];
+assert.equal(fontColorOperation.leafKind, "fontColorRgb");
+await assertOnlyDeclaredPptxFootprintChanged(fontColorAccessibilityFile, fontColorOutput, fontColorOperation);
+const fontColorXml = await (await JSZip.loadAsync(fontColorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontColorXml, /<a:solidFill\b[^>]*><a:srgbClr val="AABBCC"\s*\/><\/a:solidFill>/);
+assert.match(fontColorXml, /fixture:opaque="kept"/);
+const fontColorRoundTrip = await PresentationFile.importPptx(fontColorOutput);
+const fontColorRoundTripLeaf = fontColorRoundTrip.inspect({ includeNativeLeaves: true, target: fontColorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorRgb");
+assert.equal(fontColorRoundTripLeaf.value, "#aabbcc");
+
+// Bare run theme colors retain their source token instead of being resolved
+// to RGB. The edit changes only the issued a:schemeClr/@val token.
+const fontSchemeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontSchemeAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:r><a:rPr\b[^>]*)(\/>)((?:<a:t>)Decision)/u,
+  '$1><a:solidFill><a:schemeClr val="accent2"/></a:solidFill></a:rPr>$3',
+);
+fontSchemeAccessibilityZip.file("ppt/slides/slide1.xml", fontSchemeAccessibilityXml);
+const fontSchemeAccessibilityFile = new FileBlob(
+  await fontSchemeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontSchemeImported = await PresentationFile.importPptx(fontSchemeAccessibilityFile);
+const fontSchemeShape = itemByName(fontSchemeImported.slides.getItem(0).shapes.items, "decision-status");
+const fontSchemeLeaf = fontSchemeImported.inspect({ includeNativeLeaves: true, target: fontSchemeShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorScheme");
+assert.ok(fontSchemeLeaf, "source-bound shapes should expose an explicit run theme-color leaf");
+assert.equal(fontSchemeLeaf.value, "accent2");
+fontSchemeImported.editNativeLeaf(fontSchemeLeaf.targetId, fontSchemeLeaf.leafId, {
+  expectedHash: fontSchemeLeaf.expectedHash,
+  value: "accent1",
+});
+const fontSchemeOutput = await PresentationFile.exportPptx(fontSchemeImported);
+assert.equal(fontSchemeOutput.metadata.editPlan.operations[0].leafKind, "fontColorScheme");
+await assertOnlyDeclaredPptxFootprintChanged(fontSchemeAccessibilityFile, fontSchemeOutput, fontSchemeOutput.metadata.editPlan.operations);
+const fontSchemeXml = await (await JSZip.loadAsync(fontSchemeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontSchemeXml, /<a:solidFill\b[^>]*><a:schemeClr val="accent1"\s*\/><\/a:solidFill>/);
+const fontSchemeRoundTrip = await PresentationFile.importPptx(fontSchemeOutput);
+const fontSchemeRoundTripLeaf = fontSchemeRoundTrip.inspect({ includeNativeLeaves: true, target: fontSchemeShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontColorScheme");
+assert.equal(fontSchemeRoundTripLeaf.value, "accent1");
+
+// Plain DrawingML run decorations are source-bound leaves.  The fixture keeps
+// the vendor attribute so the contract proves a token-only splice instead of
+// rebuilding the surrounding run-properties element.
+const fontDecorationAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontDecorationAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 u="sng" strike="noStrike"$2',
+);
+assert.match(fontDecorationAccessibilityXml, /<a:rPr\b[^>]*\bu="sng"[^>]*\bstrike="noStrike"/);
+fontDecorationAccessibilityZip.file("ppt/slides/slide1.xml", fontDecorationAccessibilityXml);
+const fontDecorationAccessibilityFile = new FileBlob(
+  await fontDecorationAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontDecorationImported = await PresentationFile.importPptx(fontDecorationAccessibilityFile);
+const fontDecorationShape = itemByName(fontDecorationImported.slides.getItem(0).shapes.items, "decision-status");
+const fontDecorationLeaves = fontDecorationImported.inspect({ includeNativeLeaves: true, target: fontDecorationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontUnderline", "fontStrike"].includes(record.leafKind));
+const fontUnderlineLeaf = fontDecorationLeaves.find((record) => record.leafKind === "fontUnderline");
+const fontStrikeLeaf = fontDecorationLeaves.find((record) => record.leafKind === "fontStrike");
+assert.ok(fontUnderlineLeaf, "source-bound shapes should expose a plain run underline leaf");
+assert.ok(fontStrikeLeaf, "source-bound shapes should expose a plain run strike leaf");
+assert.equal(fontUnderlineLeaf.value, "sng");
+assert.equal(fontStrikeLeaf.value, "noStrike");
+fontDecorationImported.editNativeLeaf(fontUnderlineLeaf.targetId, fontUnderlineLeaf.leafId, {
+  expectedHash: fontUnderlineLeaf.expectedHash,
+  value: "dbl",
+});
+fontDecorationImported.editNativeLeaf(fontStrikeLeaf.targetId, fontStrikeLeaf.leafId, {
+  expectedHash: fontStrikeLeaf.expectedHash,
+  value: "sngStrike",
+});
+const fontDecorationOutput = await PresentationFile.exportPptx(fontDecorationImported);
+const fontDecorationOperations = fontDecorationOutput.metadata.editPlan.operations;
+assert.deepEqual(fontDecorationOperations.map((operation) => operation.leafKind).sort(), ["fontStrike", "fontUnderline"]);
+await assertOnlyDeclaredPptxFootprintChanged(fontDecorationAccessibilityFile, fontDecorationOutput, fontDecorationOperations);
+const fontDecorationXml = await (await JSZip.loadAsync(fontDecorationOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontDecorationXml, /<a:rPr\b[^>]*\bu="dbl"[^>]*\bstrike="sngStrike"/);
+assert.match(fontDecorationXml, /fixture:opaque="kept"/);
+const fontDecorationRoundTrip = await PresentationFile.importPptx(fontDecorationOutput);
+const fontDecorationRoundTripLeaves = fontDecorationRoundTrip.inspect({ includeNativeLeaves: true, target: fontDecorationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["fontUnderline", "fontStrike"].includes(record.leafKind));
+assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontUnderline").value, "dbl");
+assert.equal(fontDecorationRoundTripLeaves.find((record) => record.leafKind === "fontStrike").value, "sngStrike");
+
+// Direct DrawingML run kerning is a source-bound scalar.  Keep the vendor
+// attribute in place while changing only the canonical hundredths-of-a-point
+// token, then prove the leaf survives a second import.
+const fontKerningAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontKerningAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 kern="1200"$2',
+);
+assert.match(fontKerningAccessibilityXml, /<a:rPr\b[^>]*\bkern="1200"/);
+fontKerningAccessibilityZip.file("ppt/slides/slide1.xml", fontKerningAccessibilityXml);
+const fontKerningAccessibilityFile = new FileBlob(
+  await fontKerningAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontKerningImported = await PresentationFile.importPptx(fontKerningAccessibilityFile);
+const fontKerningShape = itemByName(fontKerningImported.slides.getItem(0).shapes.items, "decision-status");
+const fontKerningLeaf = fontKerningImported.inspect({ includeNativeLeaves: true, target: fontKerningShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontKerningPoints");
+assert.ok(fontKerningLeaf, "source-bound shapes should expose a direct run kerning leaf");
+assert.equal(fontKerningLeaf.value, 12);
+fontKerningImported.editNativeLeaf(fontKerningLeaf.targetId, fontKerningLeaf.leafId, {
+  expectedHash: fontKerningLeaf.expectedHash,
+  value: 14,
+});
+const fontKerningOutput = await PresentationFile.exportPptx(fontKerningImported);
+assert.equal(fontKerningOutput.metadata.editPlan.operations[0].leafKind, "fontKerningPoints");
+await assertOnlyDeclaredPptxFootprintChanged(fontKerningAccessibilityFile, fontKerningOutput, fontKerningOutput.metadata.editPlan.operations);
+const fontKerningXml = await (await JSZip.loadAsync(fontKerningOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontKerningXml, /<a:rPr\b[^>]*\bkern="1400"/);
+assert.match(fontKerningXml, /fixture:opaque="kept"/);
+const fontKerningRoundTrip = await PresentationFile.importPptx(fontKerningOutput);
+const fontKerningRoundTripLeaf = fontKerningRoundTrip.inspect({ includeNativeLeaves: true, target: fontKerningShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontKerningPoints");
+assert.equal(fontKerningRoundTripLeaf.value, 14);
+
+// Direct DrawingML baseline offsets are the native superscript/subscript
+// primitive.  Exercise both signs through the public percent-facing value;
+// the output must splice only the signed integer token and keep neighboring
+// run metadata intact.
+const fontBaselineAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontBaselineAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 baseline="30000"$2',
+);
+assert.match(fontBaselineAccessibilityXml, /<a:rPr\b[^>]*\bbaseline="30000"/);
+fontBaselineAccessibilityZip.file("ppt/slides/slide1.xml", fontBaselineAccessibilityXml);
+const fontBaselineAccessibilityFile = new FileBlob(
+  await fontBaselineAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontBaselineImported = await PresentationFile.importPptx(fontBaselineAccessibilityFile);
+const fontBaselineShape = itemByName(fontBaselineImported.slides.getItem(0).shapes.items, "decision-status");
+const fontBaselineLeaf = fontBaselineImported.inspect({ includeNativeLeaves: true, target: fontBaselineShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontBaselinePercent");
+assert.ok(fontBaselineLeaf, "source-bound shapes should expose a direct run baseline leaf");
+assert.equal(fontBaselineLeaf.value, 30);
+fontBaselineImported.editNativeLeaf(fontBaselineLeaf.targetId, fontBaselineLeaf.leafId, {
+  expectedHash: fontBaselineLeaf.expectedHash,
+  value: -25,
+});
+const fontBaselineOutput = await PresentationFile.exportPptx(fontBaselineImported);
+assert.equal(fontBaselineOutput.metadata.editPlan.operations[0].leafKind, "fontBaselinePercent");
+await assertOnlyDeclaredPptxFootprintChanged(fontBaselineAccessibilityFile, fontBaselineOutput, fontBaselineOutput.metadata.editPlan.operations);
+const fontBaselineXml = await (await JSZip.loadAsync(fontBaselineOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontBaselineXml, /<a:rPr\b[^>]*\bbaseline="-25000"/);
+assert.match(fontBaselineXml, /fixture:opaque="kept"/);
+const fontBaselineRoundTrip = await PresentationFile.importPptx(fontBaselineOutput);
+const fontBaselineRoundTripLeaf = fontBaselineRoundTrip.inspect({ includeNativeLeaves: true, target: fontBaselineShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontBaselinePercent" && record.value === -25);
+assert.equal(fontBaselineRoundTripLeaf.value, -25);
+
+// Direct DrawingML character spacing is a source-bound signed scalar. Keep
+// the vendor extension beside the run while changing only a:rPr/@spc, then
+// prove the public point value survives a second import.
+const fontSpacingAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontSpacingAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)\s*(?=<a:t>Decision)/u,
+  '$1 spc="200"$2',
+);
+assert.match(fontSpacingAccessibilityXml, /<a:rPr\b[^>]*\bspc="200"/);
+fontSpacingAccessibilityZip.file("ppt/slides/slide1.xml", fontSpacingAccessibilityXml);
+const fontSpacingAccessibilityFile = new FileBlob(
+  await fontSpacingAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontSpacingImported = await PresentationFile.importPptx(fontSpacingAccessibilityFile);
+const fontSpacingShape = itemByName(fontSpacingImported.slides.getItem(0).shapes.items, "decision-status");
+const fontSpacingLeaf = fontSpacingImported.inspect({ includeNativeLeaves: true, target: fontSpacingShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSpacingPoints");
+assert.ok(fontSpacingLeaf, "source-bound shapes should expose a direct run character-spacing leaf");
+assert.equal(fontSpacingLeaf.value, 2);
+fontSpacingImported.editNativeLeaf(fontSpacingLeaf.targetId, fontSpacingLeaf.leafId, {
+  expectedHash: fontSpacingLeaf.expectedHash,
+  value: -1.5,
+});
+const fontSpacingOutput = await PresentationFile.exportPptx(fontSpacingImported);
+assert.equal(fontSpacingOutput.metadata.editPlan.operations[0].leafKind, "fontSpacingPoints");
+await assertOnlyDeclaredPptxFootprintChanged(fontSpacingAccessibilityFile, fontSpacingOutput, fontSpacingOutput.metadata.editPlan.operations);
+const fontSpacingXml = await (await JSZip.loadAsync(fontSpacingOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontSpacingXml, /<a:rPr\b[^>]*\bspc="-150"/);
+assert.match(fontSpacingXml, /fixture:opaque="kept"/);
+const fontSpacingRoundTrip = await PresentationFile.importPptx(fontSpacingOutput);
+const fontSpacingRoundTripLeaf = fontSpacingRoundTrip.inspect({ includeNativeLeaves: true, target: fontSpacingShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontSpacingPoints" && record.value === -1.5);
+assert.equal(fontSpacingRoundTripLeaf.value, -1.5);
+
+// Direct DrawingML capitalization is a source-bound token.  Keep the
+// neighboring extension untouched while changing only a:rPr/@cap, then prove
+// the canonical value survives a second import.
+const fontCapsAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontCapsAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:rPr\b[^>]*)(\/>)(?=<a:t>Decision)/u,
+  '$1 cap="small"$2',
+);
+assert.match(fontCapsAccessibilityXml, /<a:rPr\b[^>]*\bcap="small"/);
+fontCapsAccessibilityZip.file("ppt/slides/slide1.xml", fontCapsAccessibilityXml);
+const fontCapsAccessibilityFile = new FileBlob(
+  await fontCapsAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontCapsImported = await PresentationFile.importPptx(fontCapsAccessibilityFile);
+const fontCapsShape = itemByName(fontCapsImported.slides.getItem(0).shapes.items, "decision-status");
+const fontCapsLeaf = fontCapsImported.inspect({ includeNativeLeaves: true, target: fontCapsShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontCaps");
+assert.ok(fontCapsLeaf, "source-bound shapes should expose a direct run capitalization leaf");
+assert.equal(fontCapsLeaf.value, "small");
+fontCapsImported.editNativeLeaf(fontCapsLeaf.targetId, fontCapsLeaf.leafId, {
+  expectedHash: fontCapsLeaf.expectedHash,
+  value: "all",
+});
+const fontCapsOutput = await PresentationFile.exportPptx(fontCapsImported);
+assert.equal(fontCapsOutput.metadata.editPlan.operations[0].leafKind, "fontCaps");
+await assertOnlyDeclaredPptxFootprintChanged(fontCapsAccessibilityFile, fontCapsOutput, fontCapsOutput.metadata.editPlan.operations);
+const fontCapsXml = await (await JSZip.loadAsync(fontCapsOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontCapsXml, /<a:rPr\b[^>]*\bcap="all"/);
+assert.match(fontCapsXml, /fixture:opaque="kept"/);
+const fontCapsRoundTrip = await PresentationFile.importPptx(fontCapsOutput);
+const fontCapsRoundTripLeaf = fontCapsRoundTrip.inspect({ includeNativeLeaves: true, target: fontCapsShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontCaps" && record.value === "all");
+assert.equal(fontCapsRoundTripLeaf.value, "all");
+
+// Direct paragraph alignment is a source-bound token leaf.  The fixture adds
+// one canonical a:pPr/@algn attribute to an otherwise opaque shape; changing
+// it must splice only that attribute and retain the vendor cNvPr extension.
+const paragraphAlignmentAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const paragraphAlignmentAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:p\b[^>]*>)(<a:r>)/u,
+  '$1<a:pPr algn="ctr"/>$2',
+).replace(
+  /(<a:bodyPr\b[^>]*\banchor=")([^"]*)(")/u,
+  '$1ctr$3',
+);
+assert.match(paragraphAlignmentAccessibilityXml, /<a:pPr algn="ctr"\s*\/>/);
+assert.match(paragraphAlignmentAccessibilityXml, /<a:bodyPr\b[^>]*\banchor="ctr"/);
+assert.match(paragraphAlignmentAccessibilityXml, /<a:bodyPr\b[^>]*\blIns="0"[^>]*\btIns="0"[^>]*\brIns="0"[^>]*\bbIns="0"/);
+paragraphAlignmentAccessibilityZip.file("ppt/slides/slide1.xml", paragraphAlignmentAccessibilityXml);
+const paragraphAlignmentAccessibilityFile = new FileBlob(
+  await paragraphAlignmentAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const paragraphAlignmentImported = await PresentationFile.importPptx(paragraphAlignmentAccessibilityFile);
+const paragraphAlignmentShape = itemByName(paragraphAlignmentImported.slides.getItem(0).shapes.items, "decision-status");
+const paragraphAlignmentLeaves = paragraphAlignmentImported.inspect({ includeNativeLeaves: true, target: paragraphAlignmentShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind === "paragraphAlignment");
+assert.equal(paragraphAlignmentLeaves.length, 1, "each direct paragraph alignment must be issued once per paragraph");
+const paragraphAlignmentLeaf = paragraphAlignmentLeaves[0];
+assert.equal(paragraphAlignmentLeaf.value, "center");
+paragraphAlignmentImported.editNativeLeaf(paragraphAlignmentLeaf.targetId, paragraphAlignmentLeaf.leafId, {
+  expectedHash: paragraphAlignmentLeaf.expectedHash,
+  value: "right",
+});
+const paragraphAlignmentOutput = await PresentationFile.exportPptx(paragraphAlignmentImported);
+const paragraphAlignmentOperation = paragraphAlignmentOutput.metadata.editPlan.operations[0];
+assert.equal(paragraphAlignmentOperation.leafKind, "paragraphAlignment");
+await assertOnlyDeclaredPptxFootprintChanged(paragraphAlignmentAccessibilityFile, paragraphAlignmentOutput, paragraphAlignmentOperation);
+const paragraphAlignmentXml = await (await JSZip.loadAsync(paragraphAlignmentOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(paragraphAlignmentXml, /<a:pPr algn="r"\s*\/>/);
+assert.match(paragraphAlignmentXml, /fixture:opaque="kept"/);
+const paragraphAlignmentRoundTrip = await PresentationFile.importPptx(paragraphAlignmentOutput);
+const paragraphAlignmentRoundTripLeaf = paragraphAlignmentRoundTrip.inspect({ includeNativeLeaves: true, target: paragraphAlignmentShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "paragraphAlignment");
+assert.equal(paragraphAlignmentRoundTripLeaf.value, "right");
+
+const verticalAnchorImported = await PresentationFile.importPptx(paragraphAlignmentAccessibilityFile);
+const verticalAnchorShape = itemByName(verticalAnchorImported.slides.getItem(0).shapes.items, "decision-status");
+const verticalAnchorLeaf = verticalAnchorImported.inspect({ includeNativeLeaves: true, target: verticalAnchorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "verticalAnchor");
+assert.ok(verticalAnchorLeaf, "source-bound shapes should expose a direct text vertical-anchor leaf");
+assert.equal(verticalAnchorLeaf.value, "center");
+verticalAnchorImported.editNativeLeaf(verticalAnchorLeaf.targetId, verticalAnchorLeaf.leafId, {
+  expectedHash: verticalAnchorLeaf.expectedHash,
+  value: "bottom",
+});
+const verticalAnchorOutput = await PresentationFile.exportPptx(verticalAnchorImported);
+const verticalAnchorOperation = verticalAnchorOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "verticalAnchor");
+assert.ok(verticalAnchorOperation);
+await assertOnlyDeclaredPptxFootprintChanged(paragraphAlignmentAccessibilityFile, verticalAnchorOutput, verticalAnchorOperation);
+const verticalAnchorXml = await (await JSZip.loadAsync(verticalAnchorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(verticalAnchorXml, /<a:bodyPr\b[^>]*\banchor="b"/);
+assert.match(verticalAnchorXml, /fixture:opaque="kept"/);
+const verticalAnchorRoundTrip = await PresentationFile.importPptx(verticalAnchorOutput);
+const verticalAnchorRoundTripLeaf = verticalAnchorRoundTrip.inspect({ includeNativeLeaves: true, target: verticalAnchorShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "verticalAnchor");
+assert.equal(verticalAnchorRoundTripLeaf.value, "bottom");
+
+// Direct text-body insets are source-bound EMU token leaves.  Keep the
+// fixture intentionally simple so one edit changes only the selected
+// a:bodyPr/@lIns token while the remaining inset tokens and vendor metadata
+// stay untouched.
+const textBodyInsetImported = await PresentationFile.importPptx(paragraphAlignmentAccessibilityFile);
+const textBodyInsetShape = itemByName(textBodyInsetImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyInsetLeaves = textBodyInsetImported.inspect({ includeNativeLeaves: true, target: textBodyInsetShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && record.leafKind.startsWith("textBodyInset"));
+assert.deepEqual(new Set(textBodyInsetLeaves.map((record) => record.leafKind)), new Set([
+  "textBodyInsetLeftEmu",
+  "textBodyInsetTopEmu",
+  "textBodyInsetRightEmu",
+  "textBodyInsetBottomEmu",
+]));
+const textBodyInsetLeft = textBodyInsetLeaves.find((record) => record.leafKind === "textBodyInsetLeftEmu");
+assert.ok(textBodyInsetLeft, "source-bound shapes should expose direct text-body inset leaves");
+assert.equal(textBodyInsetLeft.unit, "emu");
+const textBodyInsetNext = Number(textBodyInsetLeft.value) + 1;
+textBodyInsetImported.editNativeLeaf(textBodyInsetLeft.targetId, textBodyInsetLeft.leafId, {
+  expectedHash: textBodyInsetLeft.expectedHash,
+  value: textBodyInsetNext,
+});
+const textBodyInsetOutput = await PresentationFile.exportPptx(textBodyInsetImported);
+const textBodyInsetOperation = textBodyInsetOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyInsetLeftEmu");
+assert.ok(textBodyInsetOperation);
+await assertOnlyDeclaredPptxFootprintChanged(paragraphAlignmentAccessibilityFile, textBodyInsetOutput, textBodyInsetOperation);
+const textBodyInsetXml = await (await JSZip.loadAsync(textBodyInsetOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyInsetXml, /<a:bodyPr\b[^>]*\blIns="1"[^>]*\btIns="0"[^>]*\brIns="0"[^>]*\bbIns="0"/);
+assert.match(textBodyInsetXml, /fixture:opaque="kept"/);
+const textBodyInsetRoundTrip = await PresentationFile.importPptx(textBodyInsetOutput);
+const textBodyInsetRoundTripLeaf = textBodyInsetRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyInsetShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyInsetLeftEmu");
+assert.equal(textBodyInsetRoundTripLeaf.value, textBodyInsetNext);
+
+// Direct text-body wrapping is a source-bound token leaf. Only an explicit
+// square/none bodyPr value is issued; omitted or inherited wrapping remains
+// source-preserved rather than being synthesized by export. The shared
+// paragraph fixture already contains an explicit square value.
+const textBodyWrapAccessibilityFile = paragraphAlignmentAccessibilityFile;
+const textBodyWrapAccessibilityZip = await JSZip.loadAsync(textBodyWrapAccessibilityFile.bytes);
+const textBodyWrapAccessibilityXml = await textBodyWrapAccessibilityZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyWrapAccessibilityXml, /<a:bodyPr\b[^>]*\bwrap="square"/);
+const textBodyWrapImported = await PresentationFile.importPptx(textBodyWrapAccessibilityFile);
+const textBodyWrapShape = itemByName(textBodyWrapImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyWrapLeaf = textBodyWrapImported.inspect({ includeNativeLeaves: true, target: textBodyWrapShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyWrap");
+assert.ok(textBodyWrapLeaf, "source-bound shapes should expose direct text-body wrap leaves");
+assert.equal(textBodyWrapLeaf.value, "square");
+textBodyWrapImported.editNativeLeaf(textBodyWrapLeaf.targetId, textBodyWrapLeaf.leafId, {
+  expectedHash: textBodyWrapLeaf.expectedHash,
+  value: "none",
+});
+const textBodyWrapOutput = await PresentationFile.exportPptx(textBodyWrapImported);
+const textBodyWrapOperation = textBodyWrapOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyWrap");
+assert.ok(textBodyWrapOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyWrapAccessibilityFile, textBodyWrapOutput, textBodyWrapOperation);
+const textBodyWrapXml = await (await JSZip.loadAsync(textBodyWrapOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyWrapXml, /<a:bodyPr\b[^>]*\bwrap="none"/);
+assert.match(textBodyWrapXml, /fixture:opaque="kept"/);
+const textBodyWrapRoundTrip = await PresentationFile.importPptx(textBodyWrapOutput);
+const textBodyWrapRoundTripLeaf = textBodyWrapRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyWrapShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyWrap");
+assert.equal(textBodyWrapRoundTripLeaf.value, "none");
+
+// Direct text-body column count is a source-bound token leaf. The fixture
+// gains one canonical numCol value; changing it must leave all other bodyPr
+// attributes and the vendor extension untouched.
+const textBodyColumnCountAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyColumnCountAccessibilityXml = (await textBodyColumnCountAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(/<a:bodyPr\b/u, '<a:bodyPr numCol="1"');
+assert.match(textBodyColumnCountAccessibilityXml, /<a:bodyPr\b[^>]*\bnumCol="1"/);
+textBodyColumnCountAccessibilityZip.file("ppt/slides/slide1.xml", textBodyColumnCountAccessibilityXml);
+const textBodyColumnCountAccessibilityFile = new FileBlob(
+  await textBodyColumnCountAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyColumnCountImported = await PresentationFile.importPptx(textBodyColumnCountAccessibilityFile);
+const textBodyColumnCountShape = itemByName(textBodyColumnCountImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyColumnCountLeaf = textBodyColumnCountImported.inspect({ includeNativeLeaves: true, target: textBodyColumnCountShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnCount");
+assert.ok(textBodyColumnCountLeaf, "source-bound shapes should expose direct text-body column-count leaves");
+assert.equal(textBodyColumnCountLeaf.value, 1);
+textBodyColumnCountImported.editNativeLeaf(textBodyColumnCountLeaf.targetId, textBodyColumnCountLeaf.leafId, {
+  expectedHash: textBodyColumnCountLeaf.expectedHash,
+  value: 2,
+});
+const textBodyColumnCountOutput = await PresentationFile.exportPptx(textBodyColumnCountImported);
+const textBodyColumnCountOperation = textBodyColumnCountOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyColumnCount");
+assert.ok(textBodyColumnCountOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyColumnCountAccessibilityFile, textBodyColumnCountOutput, textBodyColumnCountOperation);
+const textBodyColumnCountXml = await (await JSZip.loadAsync(textBodyColumnCountOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyColumnCountXml, /<a:bodyPr\b[^>]*\bnumCol="2"/);
+assert.match(textBodyColumnCountXml, /fixture:opaque="kept"/);
+const textBodyColumnCountRoundTrip = await PresentationFile.importPptx(textBodyColumnCountOutput);
+const textBodyColumnCountRoundTripLeaf = textBodyColumnCountRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyColumnCountShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnCount");
+assert.equal(textBodyColumnCountRoundTripLeaf.value, 2);
+
+// Bare AutoFit choices are source-bound child-token leaves.  Switching the
+// choice must splice only the local element name, preserving the bodyPr
+// attributes and vendor extension around the text body.
+const textBodyAutoFitAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyAutoFitAccessibilityXml = (await textBodyAutoFitAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:bodyPr\b[^>]*)(\/>)/u,
+    '$1><a:spAutoFit/></a:bodyPr>',
+  );
+assert.match(textBodyAutoFitAccessibilityXml, /<a:bodyPr\b[^>]*><a:spAutoFit\s*\/>\s*<\/a:bodyPr>/);
+textBodyAutoFitAccessibilityZip.file("ppt/slides/slide1.xml", textBodyAutoFitAccessibilityXml);
+const textBodyAutoFitAccessibilityFile = new FileBlob(
+  await textBodyAutoFitAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyAutoFitImported = await PresentationFile.importPptx(textBodyAutoFitAccessibilityFile);
+const textBodyAutoFitShape = itemByName(textBodyAutoFitImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyAutoFitLeaf = textBodyAutoFitImported.inspect({ includeNativeLeaves: true, target: textBodyAutoFitShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyAutoFit");
+assert.ok(textBodyAutoFitLeaf, "source-bound shapes should expose bare text-body AutoFit leaves");
+assert.equal(textBodyAutoFitLeaf.value, "resizeShape");
+textBodyAutoFitImported.editNativeLeaf(textBodyAutoFitLeaf.targetId, textBodyAutoFitLeaf.leafId, {
+  expectedHash: textBodyAutoFitLeaf.expectedHash,
+  value: "none",
+});
+const textBodyAutoFitOutput = await PresentationFile.exportPptx(textBodyAutoFitImported);
+const textBodyAutoFitOperation = textBodyAutoFitOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyAutoFit");
+assert.ok(textBodyAutoFitOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyAutoFitAccessibilityFile, textBodyAutoFitOutput, textBodyAutoFitOperation);
+const textBodyAutoFitXml = await (await JSZip.loadAsync(textBodyAutoFitOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyAutoFitXml, /<a:bodyPr\b[^>]*><a:noAutofit\s*\/>\s*<\/a:bodyPr>/);
+assert.match(textBodyAutoFitXml, /fixture:opaque="kept"/);
+const textBodyAutoFitRoundTrip = await PresentationFile.importPptx(textBodyAutoFitOutput);
+const textBodyAutoFitRoundTripLeaf = textBodyAutoFitRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyAutoFitShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyAutoFit");
+assert.equal(textBodyAutoFitRoundTripLeaf.value, "none");
+
+// A direct rtlCol flag is a source-bound column-direction leaf.  Toggle the
+// boolean while preserving the other bodyPr attributes and vendor metadata.
+const textBodyColumnDirectionAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyColumnDirectionAccessibilityXml = (await textBodyColumnDirectionAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:bodyPr\b)(?![^>]*\brtlCol=)([^>]*>)/u,
+    '$1 rtlCol="0"$2',
+  );
+assert.match(textBodyColumnDirectionAccessibilityXml, /<a:bodyPr\b[^>]*\brtlCol="0"/);
+textBodyColumnDirectionAccessibilityZip.file("ppt/slides/slide1.xml", textBodyColumnDirectionAccessibilityXml);
+const textBodyColumnDirectionAccessibilityFile = new FileBlob(
+  await textBodyColumnDirectionAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyColumnDirectionImported = await PresentationFile.importPptx(textBodyColumnDirectionAccessibilityFile);
+const textBodyColumnDirectionShape = itemByName(textBodyColumnDirectionImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyColumnDirectionLeaf = textBodyColumnDirectionImported.inspect({ includeNativeLeaves: true, target: textBodyColumnDirectionShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnDirection");
+assert.ok(textBodyColumnDirectionLeaf, "source-bound shapes should expose direct text-body column-direction leaves");
+assert.equal(textBodyColumnDirectionLeaf.value, false);
+textBodyColumnDirectionImported.editNativeLeaf(textBodyColumnDirectionLeaf.targetId, textBodyColumnDirectionLeaf.leafId, {
+  expectedHash: textBodyColumnDirectionLeaf.expectedHash,
+  value: true,
+});
+const textBodyColumnDirectionOutput = await PresentationFile.exportPptx(textBodyColumnDirectionImported);
+const textBodyColumnDirectionOperation = textBodyColumnDirectionOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyColumnDirection");
+assert.ok(textBodyColumnDirectionOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyColumnDirectionAccessibilityFile, textBodyColumnDirectionOutput, textBodyColumnDirectionOperation);
+const textBodyColumnDirectionXml = await (await JSZip.loadAsync(textBodyColumnDirectionOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyColumnDirectionXml, /<a:bodyPr\b[^>]*\brtlCol="1"/);
+assert.match(textBodyColumnDirectionXml, /fixture:opaque="kept"/);
+const textBodyColumnDirectionRoundTrip = await PresentationFile.importPptx(textBodyColumnDirectionOutput);
+const textBodyColumnDirectionRoundTripLeaf = textBodyColumnDirectionRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyColumnDirectionShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyColumnDirection");
+assert.equal(textBodyColumnDirectionRoundTripLeaf.value, true);
+
+// Direct vert values are a source-bound text-body orientation leaf.  Switch
+// the canonical horizontal marker to vertical without reserializing the shape.
+const textBodyVerticalTextAccessibilityZip = await JSZip.loadAsync(paragraphAlignmentAccessibilityFile.bytes);
+const textBodyVerticalTextAccessibilityXml = (await textBodyVerticalTextAccessibilityZip.file("ppt/slides/slide1.xml").async("text"))
+  .replace(
+    /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<a:bodyPr\b)(?![^>]*\bvert=)([^>]*>)/u,
+    '$1 vert="horz"$2',
+  );
+assert.match(textBodyVerticalTextAccessibilityXml, /<a:bodyPr\b[^>]*\bvert="horz"/);
+textBodyVerticalTextAccessibilityZip.file("ppt/slides/slide1.xml", textBodyVerticalTextAccessibilityXml);
+const textBodyVerticalTextAccessibilityFile = new FileBlob(
+  await textBodyVerticalTextAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const textBodyVerticalTextImported = await PresentationFile.importPptx(textBodyVerticalTextAccessibilityFile);
+const textBodyVerticalTextShape = itemByName(textBodyVerticalTextImported.slides.getItem(0).shapes.items, "decision-status");
+const textBodyVerticalTextLeaf = textBodyVerticalTextImported.inspect({ includeNativeLeaves: true, target: textBodyVerticalTextShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyVerticalText");
+assert.ok(textBodyVerticalTextLeaf, "source-bound shapes should expose direct text-body vertical-text leaves");
+assert.equal(textBodyVerticalTextLeaf.value, "horizontal");
+textBodyVerticalTextImported.editNativeLeaf(textBodyVerticalTextLeaf.targetId, textBodyVerticalTextLeaf.leafId, {
+  expectedHash: textBodyVerticalTextLeaf.expectedHash,
+  value: "vertical",
+});
+const textBodyVerticalTextOutput = await PresentationFile.exportPptx(textBodyVerticalTextImported);
+const textBodyVerticalTextOperation = textBodyVerticalTextOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "textBodyVerticalText");
+assert.ok(textBodyVerticalTextOperation);
+await assertOnlyDeclaredPptxFootprintChanged(textBodyVerticalTextAccessibilityFile, textBodyVerticalTextOutput, textBodyVerticalTextOperation);
+const textBodyVerticalTextXml = await (await JSZip.loadAsync(textBodyVerticalTextOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(textBodyVerticalTextXml, /<a:bodyPr\b[^>]*\bvert="vert"/);
+assert.match(textBodyVerticalTextXml, /fixture:opaque="kept"/);
+const textBodyVerticalTextRoundTrip = await PresentationFile.importPptx(textBodyVerticalTextOutput);
+const textBodyVerticalTextRoundTripLeaf = textBodyVerticalTextRoundTrip.inspect({ includeNativeLeaves: true, target: textBodyVerticalTextShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "textBodyVerticalText");
+assert.equal(textBodyVerticalTextRoundTripLeaf.value, "vertical");
+
+// Direct a:xfrm rotation is a source-bound transform leaf. Changing degrees
+// must splice only the rot token while preserving the shape's other transform
+// fields and the vendor metadata on cNvPr.
+const rotationAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const rotationAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<p:spPr[\s\S]*?<a:xfrm\b)(?![^>]*\brot=)([^>]*>)/u,
+  '$1 rot="600000"$2',
+);
+assert.match(rotationAccessibilityXml, /<a:xfrm\b[^>]*\brot="600000"/);
+rotationAccessibilityZip.file("ppt/slides/slide1.xml", rotationAccessibilityXml);
+const rotationAccessibilityFile = new FileBlob(
+  await rotationAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const rotationImported = await PresentationFile.importPptx(rotationAccessibilityFile);
+const rotationShape = itemByName(rotationImported.slides.getItem(0).shapes.items, "decision-status");
+const rotationLeaf = rotationImported.inspect({ includeNativeLeaves: true, target: rotationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "rotationDegrees");
+assert.ok(rotationLeaf, "source-bound shapes should expose direct a:xfrm rotation leaves");
+assert.equal(rotationLeaf.value, 10);
+assert.equal(rotationLeaf.unit, "degrees");
+rotationImported.editNativeLeaf(rotationLeaf.targetId, rotationLeaf.leafId, {
+  expectedHash: rotationLeaf.expectedHash,
+  value: 12.5,
+});
+const rotationOutput = await PresentationFile.exportPptx(rotationImported);
+const rotationOperation = rotationOutput.metadata.editPlan.operations
+  .find((operation) => operation.leafKind === "rotationDegrees");
+assert.ok(rotationOperation);
+await assertOnlyDeclaredPptxFootprintChanged(rotationAccessibilityFile, rotationOutput, rotationOperation);
+const rotationXml = await (await JSZip.loadAsync(rotationOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(rotationXml, /<a:xfrm\b[^>]*\brot="750000"/);
+assert.match(rotationXml, /fixture:opaque="kept"/);
+const rotationRoundTrip = await PresentationFile.importPptx(rotationOutput);
+const rotationRoundTripLeaf = rotationRoundTrip.inspect({ includeNativeLeaves: true, target: rotationShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "rotationDegrees");
+assert.equal(rotationRoundTripLeaf.value, 12.5);
+
+// Direct flipH/flipV values are source-bound transform leaves. Toggle both
+// booleans while retaining the opaque vendor attribute on the owning shape.
+const flipAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const flipAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<p:cNvPr\b[^>]*\bname="decision-status"[\s\S]*?<p:spPr[\s\S]*?<a:xfrm\b)(?![^>]*\bflipH=)([^>]*>)/u,
+  '$1 flipH="1" flipV="0"$2',
+);
+assert.match(flipAccessibilityXml, /<a:xfrm\b[^>]*\bflipH="1"[^>]*\bflipV="0"/);
+flipAccessibilityZip.file("ppt/slides/slide1.xml", flipAccessibilityXml);
+const flipAccessibilityFile = new FileBlob(
+  await flipAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const flipImported = await PresentationFile.importPptx(flipAccessibilityFile);
+const flipShape = itemByName(flipImported.slides.getItem(0).shapes.items, "decision-status");
+const flipLeaves = flipImported.inspect({ includeNativeLeaves: true, target: flipShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["flipHorizontal", "flipVertical"].includes(record.leafKind));
+assert.equal(flipLeaves.length, 2, "source-bound shapes should expose direct flipH/flipV leaves");
+const flipHorizontalLeaf = flipLeaves.find((record) => record.leafKind === "flipHorizontal");
+const flipVerticalLeaf = flipLeaves.find((record) => record.leafKind === "flipVertical");
+assert.equal(flipHorizontalLeaf.value, true);
+assert.equal(flipVerticalLeaf.value, false);
+flipImported.editNativeLeaf(flipHorizontalLeaf.targetId, flipHorizontalLeaf.leafId, {
+  expectedHash: flipHorizontalLeaf.expectedHash,
+  value: false,
+});
+flipImported.editNativeLeaf(flipVerticalLeaf.targetId, flipVerticalLeaf.leafId, {
+  expectedHash: flipVerticalLeaf.expectedHash,
+  value: true,
+});
+const flipOutput = await PresentationFile.exportPptx(flipImported);
+const flipOperations = flipOutput.metadata.editPlan.operations
+  .filter((operation) => ["flipHorizontal", "flipVertical"].includes(operation.leafKind));
+assert.equal(flipOperations.length, 2);
+await assertOnlyDeclaredPptxFootprintChanged(flipAccessibilityFile, flipOutput, flipOperations);
+const flipXml = await (await JSZip.loadAsync(flipOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(flipXml, /<a:xfrm\b[^>]*\bflipH="0"[^>]*\bflipV="1"/);
+assert.match(flipXml, /fixture:opaque="kept"/);
+const flipRoundTrip = await PresentationFile.importPptx(flipOutput);
+const flipRoundTripLeaves = flipRoundTrip.inspect({ includeNativeLeaves: true, target: flipShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf" && ["flipHorizontal", "flipVertical"].includes(record.leafKind));
+assert.equal(flipRoundTripLeaves.find((record) => record.leafKind === "flipHorizontal").value, false);
+assert.equal(flipRoundTripLeaves.find((record) => record.leafKind === "flipVertical").value, true);
+
+// A source-bound shape with a bare theme-color fill has the same narrow
+// token-splice boundary as an RGB fill. The theme token itself may change,
+// while the surrounding vendor markup must remain byte-for-byte untouched.
+const schemeShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const schemeShapeAccessibilityXml = irregularShapeAccessibilityXml.replace(
+  /(<a:solidFill\b[^>]*><a:)srgbClr(\s+val=")DBEAFE("\s*\/><\/a:solidFill>)/u,
+  '$1schemeClr$2accent2$3',
+);
+assert.match(schemeShapeAccessibilityXml, /<a:solidFill\b[^>]*><a:schemeClr val="accent2"\s*\/><\/a:solidFill>/);
+schemeShapeAccessibilityZip.file("ppt/slides/slide1.xml", schemeShapeAccessibilityXml);
+const schemeShapeAccessibilityFile = new FileBlob(
+  await schemeShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const schemeShapeAccessibilityImported = await PresentationFile.importPptx(schemeShapeAccessibilityFile);
+const schemeShapeLeaves = schemeShapeAccessibilityImported.inspect({ includeNativeLeaves: true, target: irregularAccessibilityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const schemeFillLeaf = schemeShapeLeaves.find((record) => record.leafKind === "fillScheme");
+assert.ok(schemeFillLeaf, "source-bound shapes should expose a bare theme fill leaf");
+assert.equal(schemeFillLeaf.value, "accent2");
+schemeShapeAccessibilityImported.editNativeLeaf(schemeFillLeaf.targetId, schemeFillLeaf.leafId, {
+  expectedHash: schemeFillLeaf.expectedHash,
+  value: "accent1",
+});
+const schemeShapeOutput = await PresentationFile.exportPptx(schemeShapeAccessibilityImported);
+assert.equal(schemeShapeOutput.metadata.editPlan.operations[0].leafKind, "fillScheme");
+const schemeShapeXml = await (await JSZip.loadAsync(schemeShapeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(schemeShapeXml, /fixture:opaque="kept"/);
+assert.equal(schemeShapeXml.replace('val="accent1"', 'val="accent2"'), schemeShapeAccessibilityXml);
+const schemeShapeRoundTrip = await PresentationFile.importPptx(schemeShapeOutput);
+assert.equal(itemByName(schemeShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status").fill, "accent1");
+
+// An alpha-bearing fill exposes a separate token-splice leaf. RGB remains
+// undisclosed so changing the color cannot accidentally discard the alpha
+// child, while the proven alpha scalar can be edited independently.
+assert.match(irregularShapeAccessibilityXml, /<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE"\s*\/><\/a:solidFill>/);
+const alphaShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const alphaShapeAccessibilityXml = irregularShapeAccessibilityXml
+  .replace(
+    /(<a:solidFill\b[^>]*><a:srgbClr val="DBEAFE")\s*(\/><\/a:solidFill>)/u,
+    '$1><a:alpha val="50000"/></a:srgbClr></a:solidFill>',
+  )
+  // The style reference makes the surrounding shape source-bound while its
+  // owner-local text remains safe; this exercises the new narrow branch.
+  .replace(
+    /(<\/p:nvSpPr>)(<p:spPr>)/u,
+    '$1<p:style xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:lnRef idx="1"><a:schemeClr val="accent1"/></a:lnRef><a:fillRef idx="0"><a:schemeClr val="accent1"/></a:fillRef><a:effectRef idx="0"><a:schemeClr val="accent1"/></a:effectRef><a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef></p:style>$2',
+  );
+alphaShapeAccessibilityZip.file("ppt/slides/slide1.xml", alphaShapeAccessibilityXml);
+const alphaShapeAccessibilityFile = new FileBlob(
+  await alphaShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const alphaShapeAccessibilityImported = await PresentationFile.importPptx(alphaShapeAccessibilityFile);
+const alphaShapeLeaves = alphaShapeAccessibilityImported.inspect({ includeNativeLeaves: true, target: irregularAccessibilityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(alphaShapeLeaves.some((record) => record.leafKind === "fillRgb"), false);
+const alphaLeaf = alphaShapeLeaves.find((record) => record.leafKind === "fillOpacityThousandthPercent");
+assert.ok(alphaLeaf, "alpha-bearing source-bound fills should expose an opacity leaf");
+assert.equal(alphaLeaf.value, 0.5);
+assert.deepEqual(
+  (await PresentationFile.exportPptx(alphaShapeAccessibilityImported)).bytes,
+  alphaShapeAccessibilityFile.bytes,
+  "alpha-bearing source-bound fills must retain an exact no-op package",
+);
+alphaShapeAccessibilityImported.editNativeLeaf(alphaLeaf.targetId, alphaLeaf.leafId, {
+  expectedHash: alphaLeaf.expectedHash,
+  value: 0.65,
+});
+const alphaShapeOutput = await PresentationFile.exportPptx(alphaShapeAccessibilityImported);
+assert.equal(alphaShapeOutput.metadata.editPlan.operations[0].leafKind, "fillOpacityThousandthPercent");
+const alphaShapeOutputZip = await JSZip.loadAsync(alphaShapeOutput.bytes);
+const alphaShapeOutputXml = await alphaShapeOutputZip.file("ppt/slides/slide1.xml").async("text");
+assert.match(alphaShapeOutputXml, /<a:alpha val="65000"\s*\/>/);
+assert.match(alphaShapeOutputXml, /fixture:opaque="kept"/);
+await assertOnlyDeclaredPptxFootprintChanged(
+  alphaShapeAccessibilityFile,
+  alphaShapeOutput,
+  alphaShapeOutput.metadata.editPlan.operations[0],
+);
+const alphaShapeRoundTrip = await PresentationFile.importPptx(alphaShapeOutput);
+const alphaShapeRoundTripModel = itemByName(alphaShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(alphaShapeRoundTripModel.fill.opacity, 0.65);
 
 const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
 const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
@@ -930,7 +1949,7 @@ const nativeDiagramRoundTripLeaf = nativeDiagramRoundTrip.inspect({ includeNativ
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "diagramText" && record.nodeId === nativeDiagramLeaf.nodeId);
 assert.equal(nativeDiagramRoundTripLeaf.value, "Scale");
 
-irregularAccessibilityShape.text.set("Decision: reviewed rollout");
+irregularAccessibilityShape.text.paragraphs = [{ runs: [{ text: "Decision: reviewed rollout", style: { fontSize: 32 } }] }];
 const irregularOtherEdit = await PresentationFile.exportPptx(irregularShapeAccessibilityImported);
 assert.equal(irregularOtherEdit.metadata.editPlan?.schema, "office-kit/pptx-edit-plan/v1");
 assert.equal(irregularOtherEdit.metadata.editPlan?.operations.length, 1);
@@ -3148,7 +4167,18 @@ const groupedScalarLeaves = groupedColorLeafImported.inspect({ includeNativeLeav
   .filter(Boolean)
   .map((line) => JSON.parse(line))
   .filter((record) => record.kind === "nativeLeaf");
-assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set(["text", "fillRgb", "lineRgb"]));
+assert.deepEqual(new Set(groupedScalarLeaves.map((record) => record.leafKind)), new Set([
+  "text",
+  "textBodyInsetLeftEmu",
+  "textBodyInsetTopEmu",
+  "textBodyInsetRightEmu",
+  "textBodyInsetBottomEmu",
+  "textBodyWrap",
+  "verticalAnchor",
+  "fillRgb",
+  "lineRgb",
+  "lineWidthEmu",
+]));
 const groupedFillLeaf = groupedScalarLeaves.find((record) => record.leafKind === "fillRgb");
 assert.ok(groupedFillLeaf);
 assert.equal(groupedFillLeaf.value, "#dbeafe");
@@ -3375,6 +4405,124 @@ await assert.rejects(
   () => PresentationFile.exportPptx(irregularGroupPresentation),
   (error) => error?.code === "unsupported_presentation_edit",
 );
+
+// An opaque group keeps its unsupported shell, but an unambiguous descendant
+// solid fill is still a bounded source-bound style leaf. This is deliberately
+// one contract sample rather than an effect matrix: the group remains opaque,
+// only the issued color token may change, and the result must re-import.
+const opaqueGroupStylePresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupStyle = itemByName(opaqueGroupStylePresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleLeaves = opaqueGroupStylePresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupStyle.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupFillLeaf = opaqueGroupStyleLeaves.find((record) => record.leafKind === "fillRgb");
+assert.ok(opaqueGroupFillLeaf, "opaque groups should expose an unambiguous descendant fill leaf");
+opaqueGroupStylePresentation.editNativeLeaf(opaqueGroupFillLeaf.targetId, opaqueGroupFillLeaf.leafId, {
+  expectedHash: opaqueGroupFillLeaf.expectedHash,
+  value: "#A1B2C3",
+});
+const opaqueGroupStyleOutput = await PresentationFile.exportPptx(opaqueGroupStylePresentation);
+const opaqueGroupStyleOperation = opaqueGroupStyleOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupStyleOperation.leafKind, "fillRgb");
+assert.equal(opaqueGroupStyleOperation.nativeLeafIndex ?? 0, opaqueGroupFillLeaf.nativeLeafIndex);
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupStyleOutput, opaqueGroupStyleOperation);
+const opaqueGroupStyleXml = await (await JSZip.loadAsync(opaqueGroupStyleOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(opaqueGroupStyleXml, /<p:grpSpPr bwMode="gray">/);
+const opaqueGroupStyleRoundTrip = await PresentationFile.importPptx(opaqueGroupStyleOutput);
+const opaqueGroupStyleRoundTripObject = itemByName(opaqueGroupStyleRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleRoundTripLeaves = opaqueGroupStyleRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupStyleRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupStyleRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupFillLeaf.nativeLeafIndex)?.value, "#a1b2c3");
+
+const opaqueGroupLinePresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupLine = itemByName(opaqueGroupLinePresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupLineLeaves = opaqueGroupLinePresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupLine.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupLineLeaf = opaqueGroupLineLeaves.find((record) => record.leafKind === "lineRgb");
+assert.ok(opaqueGroupLineLeaf, "opaque groups should expose an unambiguous descendant line color leaf");
+opaqueGroupLinePresentation.editNativeLeaf(opaqueGroupLineLeaf.targetId, opaqueGroupLineLeaf.leafId, {
+  expectedHash: opaqueGroupLineLeaf.expectedHash,
+  value: "#C3B2A1",
+});
+const opaqueGroupLineOutput = await PresentationFile.exportPptx(opaqueGroupLinePresentation);
+const opaqueGroupLineOperation = opaqueGroupLineOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupLineOperation.leafKind, "lineRgb");
+assert.equal(opaqueGroupLineOperation.nativeLeafIndex ?? 0, opaqueGroupLineLeaf.nativeLeafIndex);
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupLineOutput, opaqueGroupLineOperation);
+const opaqueGroupLineRoundTrip = await PresentationFile.importPptx(opaqueGroupLineOutput);
+const opaqueGroupLineRoundTripObject = itemByName(opaqueGroupLineRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupLineRoundTripLeaves = opaqueGroupLineRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupLineRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupLineRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupLineLeaf.nativeLeafIndex)?.value, "#c3b2a1");
+
+// The same opaque group exposes one existing preset dash token as a semantic
+// lineStyle leaf. This contract sample proves token-splice, scope, and
+// re-import without introducing a separate effect matrix.
+const opaqueGroupStyleLinePresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupStyleLine = itemByName(opaqueGroupStyleLinePresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleLineLeaves = opaqueGroupStyleLinePresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupStyleLine.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupLineStyleLeaf = opaqueGroupStyleLineLeaves.find((record) => record.leafKind === "lineStyle");
+assert.ok(opaqueGroupLineStyleLeaf, "opaque groups should expose an existing preset dash leaf");
+assert.equal(opaqueGroupLineStyleLeaf.value, "solid");
+opaqueGroupStyleLinePresentation.editNativeLeaf(opaqueGroupLineStyleLeaf.targetId, opaqueGroupLineStyleLeaf.leafId, {
+  expectedHash: opaqueGroupLineStyleLeaf.expectedHash,
+  value: "dashed",
+});
+const opaqueGroupStyleLineOutput = await PresentationFile.exportPptx(opaqueGroupStyleLinePresentation);
+const opaqueGroupStyleLineOperation = opaqueGroupStyleLineOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupStyleLineOperation.leafKind, "lineStyle");
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupStyleLineOutput, opaqueGroupStyleLineOperation);
+const opaqueGroupStyleLineRoundTrip = await PresentationFile.importPptx(opaqueGroupStyleLineOutput);
+const opaqueGroupStyleLineRoundTripObject = itemByName(opaqueGroupStyleLineRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupStyleLineRoundTripLeaves = opaqueGroupStyleLineRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupStyleLineRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupStyleLineRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupLineStyleLeaf.nativeLeafIndex)?.value, "dashed");
+
+const opaqueGroupWidthPresentation = await PresentationFile.importPptx(irregularGroupFile);
+const opaqueGroupWidth = itemByName(opaqueGroupWidthPresentation.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupWidthLeaves = opaqueGroupWidthPresentation.inspect({ includeNativeLeaves: true, target: opaqueGroupWidth.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const opaqueGroupWidthLeaf = opaqueGroupWidthLeaves.find((record) => record.leafKind === "lineWidthEmu");
+assert.ok(opaqueGroupWidthLeaf, "opaque groups should expose an unambiguous descendant line width leaf");
+assert.equal(opaqueGroupWidthLeaf.value, 25400);
+opaqueGroupWidthPresentation.editNativeLeaf(opaqueGroupWidthLeaf.targetId, opaqueGroupWidthLeaf.leafId, {
+  expectedHash: opaqueGroupWidthLeaf.expectedHash,
+  value: 38100,
+});
+const opaqueGroupWidthOutput = await PresentationFile.exportPptx(opaqueGroupWidthPresentation);
+const opaqueGroupWidthOperation = opaqueGroupWidthOutput.metadata.editPlan.operations[0];
+assert.equal(opaqueGroupWidthOperation.leafKind, "lineWidthEmu");
+assert.equal(opaqueGroupWidthOperation.nativeLeafIndex ?? 0, opaqueGroupWidthLeaf.nativeLeafIndex);
+await assertOnlyDeclaredPptxFootprintChanged(irregularGroupFile, opaqueGroupWidthOutput, opaqueGroupWidthOperation);
+const opaqueGroupWidthRoundTrip = await PresentationFile.importPptx(opaqueGroupWidthOutput);
+const opaqueGroupWidthRoundTripObject = itemByName(opaqueGroupWidthRoundTrip.slides.getItem(0).nativeObjects.items, "Agent evidence group");
+const opaqueGroupWidthRoundTripLeaves = opaqueGroupWidthRoundTrip.inspect({ includeNativeLeaves: true, target: opaqueGroupWidthRoundTripObject.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+assert.equal(opaqueGroupWidthRoundTripLeaves.find((record) => record.nativeLeafIndex === opaqueGroupWidthLeaf.nativeLeafIndex)?.value, 38100);
 
 // Office 2019+ decorative classification is one presence-aware accessibility
 // value across every modeled drawing object. Explicit false remains distinct

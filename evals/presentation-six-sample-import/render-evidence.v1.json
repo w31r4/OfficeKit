@@ -11,9 +11,10 @@
         "dpi": 96
       },
       "placementTarget": {
-        "id": "presentation/slide/2/element/5",
-        "slide": 2
+        "id": "presentation/slide/6/element/5",
+        "slide": 6
       },
+      "editKind": "placement",
       "targetPageChanged": true,
       "nonTargetPagesPixelIdentical": true,
       "pages": [
@@ -26,8 +27,8 @@
         {
           "slide": 2,
           "sourcePngSha256": "338a1e2d157ed74fc2caed3506751bd6c90d77e6b7c6002c476b28241a93f6f8",
-          "editedPngSha256": "b326948f3159feb18c6fb3fc67d95f51d04d3160e60c0e7fceffd7c5f6f6607a",
-          "changed": true
+          "editedPngSha256": "338a1e2d157ed74fc2caed3506751bd6c90d77e6b7c6002c476b28241a93f6f8",
+          "changed": false
         },
         {
           "slide": 3,
@@ -50,8 +51,8 @@
         {
           "slide": 6,
           "sourcePngSha256": "78a515c847f0bb58ce7976be488821b4b9d63ad17c48c7fa90d150821e152ef4",
-          "editedPngSha256": "78a515c847f0bb58ce7976be488821b4b9d63ad17c48c7fa90d150821e152ef4",
-          "changed": false
+          "editedPngSha256": "69019eae45dcc2ee561428f376e3691792114a7feeb0cf0361f91c5ca90b9498",
+          "changed": true
         },
         {
           "slide": 7,
@@ -110,6 +111,7 @@
         "id": "presentation/slide/3/element/5",
         "slide": 3
       },
+      "editKind": "placement",
       "targetPageChanged": true,
       "nonTargetPagesPixelIdentical": true,
       "pages": [
@@ -251,17 +253,18 @@
         "dpi": 96
       },
       "placementTarget": {
-        "id": "presentation/slide/1/element/5",
-        "slide": 1
+        "id": "presentation/slide/17/element/2",
+        "slide": 17
       },
+      "editKind": "placement",
       "targetPageChanged": true,
       "nonTargetPagesPixelIdentical": true,
       "pages": [
         {
           "slide": 1,
           "sourcePngSha256": "01eb78da384eab2e887ab4e930dfd3eec43cd1ca187181f48e928f6811d9baff",
-          "editedPngSha256": "178ab21b90a0e9278591ea99ed17ae5ae0311fec8d5978d42835876abce144a7",
-          "changed": true
+          "editedPngSha256": "01eb78da384eab2e887ab4e930dfd3eec43cd1ca187181f48e928f6811d9baff",
+          "changed": false
         },
         {
           "slide": 2,
@@ -356,8 +359,8 @@
         {
           "slide": 17,
           "sourcePngSha256": "c681e2283c90a1af1e2c7ace8d2c8289d826c60a8bb90b7ee0629c2e0d58b6ed",
-          "editedPngSha256": "c681e2283c90a1af1e2c7ace8d2c8289d826c60a8bb90b7ee0629c2e0d58b6ed",
-          "changed": false
+          "editedPngSha256": "d99298852c4af8dd0a0f176b7f7e1aabd27b85afa2e360b9c43a363c7c8487c3",
+          "changed": true
         },
         {
           "slide": 18,
@@ -419,9 +422,10 @@
         "dpi": 96
       },
       "placementTarget": {
-        "id": "presentation/slide/7/element/4",
+        "id": "presentation/slide/7/element/5",
         "slide": 7
       },
+      "editKind": "placement",
       "targetPageChanged": true,
       "nonTargetPagesPixelIdentical": true,
       "pages": [
@@ -464,7 +468,7 @@
         {
           "slide": 7,
           "sourcePngSha256": "2a4ee365d729cbc56b19c0a645e099b379e970c9d072c93bb231cfd028815f14",
-          "editedPngSha256": "1972249cdff0a6864c2a38e423c6c6579756d9b8aee425577d4d569639ab8c23",
+          "editedPngSha256": "09e5a9b228fd395d4e9e4805f3d96bb62b47c4e9da69cf9e29272431d6659160",
           "changed": true
         },
         {
@@ -670,18 +674,19 @@
         "raster": "Poppler",
         "dpi": 96
       },
-      "placementTarget": {
-        "id": "presentation/slide/7/element/4",
-        "slide": 7
+      "textTarget": {
+        "id": "presentation/slide/1/element/1",
+        "slide": 1
       },
+      "editKind": "text",
       "targetPageChanged": true,
       "nonTargetPagesPixelIdentical": true,
       "pages": [
         {
           "slide": 1,
           "sourcePngSha256": "9c032ec8f49f6b37c5e49efe6afdafa895dbc61e92246c1dc0719cbaf281648a",
-          "editedPngSha256": "9c032ec8f49f6b37c5e49efe6afdafa895dbc61e92246c1dc0719cbaf281648a",
-          "changed": false
+          "editedPngSha256": "894f6b33c0f8eadf6a4d71254f0e797881f568dfcbc5c645caae08ee394addea",
+          "changed": true
         },
         {
           "slide": 2,
@@ -716,8 +721,8 @@
         {
           "slide": 7,
           "sourcePngSha256": "9197ede1e7131b1d5ec83b5cf3a1cdb80a31e10321ad3546c15a471978aa2a9c",
-          "editedPngSha256": "20051fe98f0670628e012a301eb6180103f329b2aab3c2835e570702adcd1989",
-          "changed": true
+          "editedPngSha256": "9197ede1e7131b1d5ec83b5cf3a1cdb80a31e10321ad3546c15a471978aa2a9c",
+          "changed": false
         },
         {
           "slide": 8,
@@ -922,18 +927,19 @@
         "raster": "Poppler",
         "dpi": 96
       },
-      "placementTarget": {
-        "id": "presentation/slide/19/element/1",
-        "slide": 19
+      "textTarget": {
+        "id": "presentation/slide/1/element/1",
+        "slide": 1
       },
+      "editKind": "text",
       "targetPageChanged": true,
       "nonTargetPagesPixelIdentical": true,
       "pages": [
         {
           "slide": 1,
           "sourcePngSha256": "5d3ad5f8edaa6a9278b6780b5119bb261a83d6072482260b9feb613e8b81ff11",
-          "editedPngSha256": "5d3ad5f8edaa6a9278b6780b5119bb261a83d6072482260b9feb613e8b81ff11",
-          "changed": false
+          "editedPngSha256": "36b2be0d10d1fa89b3dd1fb157b017e5d792c1a81888a15d49842df28e755b6f",
+          "changed": true
         },
         {
           "slide": 2,
@@ -1040,8 +1046,8 @@
         {
           "slide": 19,
           "sourcePngSha256": "340c2eb01a9061945a85e13a54f37a9a1f5c6392c449f37e9a6b145436040515",
-          "editedPngSha256": "96de8ebbc974ae01002d5e0bbb14fa997d553e7b1701a3a40f838a8ba95b323a",
-          "changed": true
+          "editedPngSha256": "340c2eb01a9061945a85e13a54f37a9a1f5c6392c449f37e9a6b145436040515",
+          "changed": false
         },
         {
           "slide": 20,

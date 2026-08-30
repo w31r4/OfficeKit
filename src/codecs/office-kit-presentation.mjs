@@ -25,7 +25,7 @@ import { normalizePresentationTextBodyProperties } from "../presentation/text-bo
 import { effectivePresentationImageCrop, presentationImageCropFromWire, presentationImageCropToWire } from "../presentation/image-crop.mjs";
 import { normalizePresentationCustomAdjustmentHandles, normalizePresentationCustomConnectionSites, normalizePresentationCustomPaths, normalizePresentationCustomTextRectangle } from "../presentation/custom-geometry.mjs";
 import { normalizePresentationCustomGeometryFormulaGraph } from "../presentation/custom-geometry-formulas.mjs";
-import { isPresentationAutoNumberType, normalizePresentationParagraphs, normalizePresentationParagraphStyles } from "../presentation/text-paragraphs.mjs";
+import { isPresentationAutoNumberType, normalizePresentationCaps, normalizePresentationParagraphs, normalizePresentationParagraphStyles, normalizePresentationStrike, normalizePresentationUnderline } from "../presentation/text-paragraphs.mjs";
 import { normalizePresentationLineStyle, presentationLineColor } from "../presentation/line-styles.mjs";
 import { normalizePresentationAccessibility } from "../presentation/accessibility.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
@@ -66,6 +66,44 @@ const PRESENTATION_SCHEME_COLORS = new Set([
 const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
   [...PRESENTATION_SCHEME_COLORS].map((token) => [token.toLowerCase(), token]),
 ));
+const NATIVE_LINE_STYLE_CANONICAL = Object.freeze({
+  solid: "solid",
+  dashed: "dashed",
+  dotted: "dotted",
+  "dash-dot": "dash-dot",
+  "dash-dot-dot": "dash-dot-dot",
+});
+const NATIVE_LINE_CAP_CANONICAL = Object.freeze({
+  flat: "flat",
+  round: "round",
+  square: "square",
+});
+const NATIVE_LINE_JOIN_CANONICAL = Object.freeze({
+  round: "round",
+  bevel: "bevel",
+  miter: "miter",
+});
+const NATIVE_LINE_ARROW_CANONICAL = Object.freeze({
+  none: "none",
+  triangle: "triangle",
+  stealth: "stealth",
+  diamond: "diamond",
+  oval: "oval",
+  arrow: "arrow",
+});
+const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
+const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
+const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
+  Object.freeze(["left", "textBodyInsetLeftEmu", "leftInset"]),
+  Object.freeze(["top", "textBodyInsetTopEmu", "topInset"]),
+  Object.freeze(["right", "textBodyInsetRightEmu", "rightInset"]),
+  Object.freeze(["bottom", "textBodyInsetBottomEmu", "bottomInset"]),
+]);
+const PRESENTATION_TEXT_BODY_WRAPS = new Set(["square", "none"]);
+const PRESENTATION_TEXT_BODY_AUTOFITS = new Set(["none", "shrinkText", "resizeShape"]);
+const PRESENTATION_TEXT_BODY_VERTICAL_TEXT = new Set(["horizontal", "vertical", "vertical270"]);
+const MIN_TEXT_BODY_COLUMNS = 1;
+const MAX_TEXT_BODY_COLUMNS = 16;
 const SOURCE_FREE_LAYOUT_TYPES = new Map([
   ["blank", "blank"],
   ["title", "title"],
@@ -79,7 +117,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "fontSize", "fontFamily", "fontFamilyEastAsia", "color"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -833,7 +871,7 @@ function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
 }
 
 function modelPresentationShapeFill(shape) {
-  const color = shape.fillRgb ? `#${shape.fillRgb}` : "transparent";
+  const color = shape.fillScheme || (shape.fillRgb ? `#${shape.fillRgb}` : "transparent");
   return shape.fillOpacityThousandthPercent === undefined
     ? color
     : { color, opacity: Number(shape.fillOpacityThousandthPercent) / 100_000 };
@@ -884,6 +922,21 @@ function wireTextStyle(style = {}, shapeId) {
   }
   const fontFamily = presentationFontFamily(style.fontFamily, `Presentation shape ${shapeId} paragraph`);
   const fontFamilyEastAsia = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} paragraph East Asian`);
+  const fontKerning = style.fontKerning == null ? undefined : Number(style.fontKerning);
+  if (fontKerning !== undefined && (!Number.isFinite(fontKerning) || fontKerning < 0 || fontKerning > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font kerning value outside the supported 0-768 point range.`, [], { code: "invalid_presentation_text" });
+  }
+  const fontBaseline = style.fontBaseline == null ? undefined : Number(style.fontBaseline);
+  if (fontBaseline !== undefined && (!Number.isFinite(fontBaseline) || fontBaseline < -400 || fontBaseline > 400)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font baseline outside the supported -400% to 400% range.`, [], { code: "invalid_presentation_text" });
+  }
+  const fontSpacing = style.fontSpacing == null ? undefined : Number(style.fontSpacing);
+  if (fontSpacing !== undefined && (!Number.isFinite(fontSpacing) || fontSpacing < -768 || fontSpacing > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
+  }
+  const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.paragraphStyle.fontCaps`);
+  const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
+  const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
   let color;
   if (style.color != null) {
     const token = String(style.color).trim();
@@ -898,6 +951,12 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
+    ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
+    ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
+    ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
+    ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(underline === undefined ? {} : { underline }),
+    ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
   };
 }
@@ -958,7 +1017,24 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   const runText = run.field?.text ?? run.text ?? "";
   const explicitEastAsianFamily = presentationFontFamily(style.fontFamilyEastAsia, `Presentation shape ${shapeId} East Asian`);
   const fontFamilyEastAsia = explicitEastAsianFamily ?? (fontFamily && containsEastAsianText(runText) ? fontFamily : undefined);
-  const colorRgb = style.color == null ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
+  const fontKerning = style.fontKerning == null ? undefined : Number(style.fontKerning);
+  if (fontKerning !== undefined && (!Number.isFinite(fontKerning) || fontKerning < 0 || fontKerning > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font kerning value outside the supported 0-768 point range.`, [], { code: "invalid_presentation_text" });
+  }
+  const fontBaseline = style.fontBaseline == null ? undefined : Number(style.fontBaseline);
+  if (fontBaseline !== undefined && (!Number.isFinite(fontBaseline) || fontBaseline < -400 || fontBaseline > 400)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font baseline outside the supported -400% to 400% range.`, [], { code: "invalid_presentation_text" });
+  }
+  const fontSpacing = style.fontSpacing == null ? undefined : Number(style.fontSpacing);
+  if (fontSpacing !== undefined && (!Number.isFinite(fontSpacing) || fontSpacing < -768 || fontSpacing > 768)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
+  }
+  const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.fontCaps`);
+  const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
+  const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
+  const colorToken = style.color == null ? undefined : String(style.color).trim();
+  const colorScheme = colorToken != null && PRESENTATION_SCHEME_COLORS.has(colorToken) ? colorToken : undefined;
+  const colorRgb = style.color == null || colorScheme !== undefined ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
   if (colorRgb === "") {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
   }
@@ -974,7 +1050,14 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontSize === undefined ? {} : { fontSizePoints: fontSize * POINTS_PER_PIXEL }),
     ...(fontFamily === undefined ? {} : { fontFamily }),
     ...(fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia }),
+    ...(fontKerning === undefined ? {} : { fontKerningPoints: fontKerning }),
+    ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
+    ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
+    ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(underline === undefined ? {} : { underline }),
+    ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
+    ...(colorScheme === undefined ? {} : { colorScheme }),
     ...(hyperlink ? { hyperlink } : {}),
   };
 }
@@ -2062,7 +2145,15 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const textBody = presentationTextBody(shape, originalShape, assetCatalog, customShowLinks);
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
-  const fillRgb = presentationRgb(shape.fill, `${shape.id}.fill`);
+  const sourceFillScheme = String(originalShape?.fillScheme || "");
+  const preserveSourceFillScheme = sourceFillScheme && typeof shape.fill === "string" &&
+    shape.fill.toLowerCase() === sourceFillScheme.toLowerCase();
+  // Imported theme fills such as dk1/dk2 are valid DrawingML but are not
+  // authoring color tokens. Keep an unchanged source-bound scheme token in the
+  // wire instead of forcing presentationRgb() to interpret it as RGB. This is
+  // needed when an unrelated source-bound leaf (for example a run font size)
+  // causes the owner shape to be serialized for an edit plan.
+  const fillRgb = preserveSourceFillScheme ? "" : presentationRgb(shape.fill, `${shape.id}.fill`);
   const fillOpacityThousandthPercent = presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
   return {
     id: original?.id || shape.id,
@@ -2079,6 +2170,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         text: shape.text?.value || "",
         textBody,
         fillRgb,
+        ...(preserveSourceFillScheme ? { fillScheme: sourceFillScheme } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
@@ -2295,6 +2387,33 @@ function presentationImportedGroupSnapshot(group) {
     nativeId: group.nativeId,
     creationId: group.creationId,
     layout: group.layoutJson(),
+  });
+}
+
+// Attached connectors expose resolved endpoints through their public layout,
+// so a transform-only edit on a connected shape can make that derived view
+// move even though the connector itself was not edited.  Keep the source
+// connector's raw endpoint state as its preservation fingerprint; an explicit
+// connector edit still changes one of these fields and follows the normal
+// bounded connector compiler path.
+function presentationImportedConnectorSnapshot(connector) {
+  return JSON.stringify({
+    nativeId: connector.nativeId,
+    creationId: connector.creationId,
+    name: connector.name,
+    connectorType: connector.connectorType,
+    startTargetId: connector.startTargetId,
+    endTargetId: connector.endTargetId,
+    startSiteIndex: connector.startSiteIndex,
+    endSiteIndex: connector.endSiteIndex,
+    startSiteExplicit: connector._startSiteExplicit === true,
+    endSiteExplicit: connector._endSiteExplicit === true,
+    start: connector._start,
+    end: connector._end,
+    line: connector.line,
+    cap: connector.cap,
+    join: connector.join,
+    accessibility: connector.accessibility,
   });
 }
 
@@ -3032,6 +3151,17 @@ export function presentationEnvelope(presentation, protocolVersion) {
   if (!presentation.slides?.items?.length) throw new OfficeKitCodecError("Presentation must contain at least one slide.", [], { code: "missing_slides" });
   const state = presentation[PRESENTATION_STATE];
   assertTrustedPresentationState(state);
+  // A native-leaf edit can target a descendant of a source-bound group.  The
+  // descendant is compiled against its original shape-tree path; rebuilding
+  // the parent group here would need to lower every sibling through the
+  // authored geometry subset and can reject unrelated opaque geometry.  Keep
+  // that ownership tree on its source wire while the native edit plan applies
+  // the signed leaf splice later.
+  const pendingNativeLeafRootIds = new Set(
+    [...state?.pendingNativeLeafEdits?.values?.() || []]
+      .map((pending) => pending?.leaf?.rootEntry?.wire?.id)
+      .filter(Boolean),
+  );
   const sourceStates = presentationSourceSlideStateMap(presentation, state);
   if (!state) {
     const unsupported = unsupportedPresentationFeatures(presentation);
@@ -3167,7 +3297,10 @@ export function presentationEnvelope(presentation, protocolVersion) {
             }
             return presentationTable(entry.model, entry.wire);
           }
-          if (entry.wire.content.case === "connector") return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+          if (entry.wire.content.case === "connector") {
+            if (presentationImportedConnectorSnapshot(entry.model) === entry.snapshot) return entry.wire;
+            return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+          }
           if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
           if (entry.wire.content.case === "group") {
             // The native validator still checks an unchanged, source-bound
@@ -3176,6 +3309,9 @@ export function presentationEnvelope(presentation, protocolVersion) {
             // and picture-bullet bytes even when the group itself can reuse
             // its original wire.
             registerPresentationCloneAssets(entry.model, assetCatalog);
+            if (pendingNativeLeafRootIds.has(entry.wire.id)) {
+              return entry.wire;
+            }
             if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
               return entry.wire;
             }
@@ -3294,6 +3430,96 @@ function assertNativeLeafTextValue(value) {
   if (Buffer.byteLength(value, "utf8") > 1_048_576) throw presentationNativeLeafError("presentation_native_leaf_value_too_large", "Presentation native text leaf value exceeds 1048576 UTF-8 bytes.");
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(value) || hasUnpairedUtf16Surrogate(value)) {
     throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native text leaf value contains invalid XML text characters or an unpaired UTF-16 surrogate.");
+  }
+}
+
+function assertNativeLeafFontFamilyValue(value) {
+  if (typeof value !== "string" || value.length < 1 || value.length > 255 || value.trim() !== value || value.startsWith("+") || /[\u0000-\u001f\u007f]/u.test(value) || hasUnpairedUtf16Surrogate(value)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native font-family leaf value must be a trimmed literal typeface name of 1 through 255 characters.");
+  }
+}
+
+function assertNativeLeafBooleanValue(value) {
+  if (typeof value !== "boolean") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native font-style leaf value must be a boolean.");
+  }
+}
+
+function normalizeNativeLeafUnderlineValue(value) {
+  try {
+    return normalizePresentationUnderline(value, "Presentation native underline leaf");
+  } catch {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native underline leaf requires a standard DrawingML underline token or boolean.");
+  }
+}
+
+function normalizeNativeLeafStrikeValue(value) {
+  try {
+    return normalizePresentationStrike(value, "Presentation native strike leaf");
+  } catch {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native strike leaf requires a standard DrawingML strike token or boolean.");
+  }
+}
+
+function normalizeNativeLeafKerningValue(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontKerningPoints leaf requires a finite point value.");
+  }
+  const token = String(value).trim().replace(/pt$/iu, "");
+  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontKerningPoints leaf requires at most two decimal places.");
+  }
+  const points = Number(token);
+  if (!Number.isFinite(points) || points < 0 || points > 768) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontKerningPoints leaf is outside the safe 0-768 point range.");
+  }
+  const hundredths = Math.round(points * 100);
+  return { raw: String(hundredths), publicValue: hundredths / 100 };
+}
+
+function normalizeNativeLeafBaselineValue(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontBaselinePercent leaf requires a finite percentage value.");
+  }
+  const token = String(value).trim().replace(/%$/iu, "");
+  if (!/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,3})?$/u.test(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontBaselinePercent leaf requires at most three decimal places.");
+  }
+  const percent = Number(token);
+  if (!Number.isFinite(percent) || percent < -400 || percent > 400) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontBaselinePercent leaf is outside the safe -400% to 400% range.");
+  }
+  const thousandths = Math.round(percent * 1000);
+  return { raw: String(thousandths), publicValue: thousandths / 1000 };
+}
+
+function normalizeNativeLeafSpacingValue(value) {
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontSpacingPoints leaf requires a finite point value.");
+  }
+  const token = String(value).trim().replace(/pt$/iu, "");
+  if (!/^-?(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontSpacingPoints leaf requires at most two decimal places.");
+  }
+  const points = Number(token);
+  if (!Number.isFinite(points) || points < -768 || points > 768) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontSpacingPoints leaf is outside the safe -768 to 768 point range.");
+  }
+  const hundredths = Math.round(points * 100);
+  return { raw: String(hundredths), publicValue: hundredths / 100 };
+}
+
+function normalizeNativeLeafCapsValue(value) {
+  const token = typeof value === "string" ? value.trim() : "";
+  if (!["none", "small", "all"].includes(token)) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontCaps leaf requires none, small, or all.");
+  }
+  return { raw: token, publicValue: token };
+}
+
+function assertNativeLeafRgbValue(value, leafKind = "fontColorRgb") {
+  if (typeof value !== "string" || !/^#?[0-9a-f]{6}$/iu.test(value.trim())) {
+    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation native ${leafKind} leaf value must be a six-digit RGB color.`);
   }
 }
 
@@ -3702,7 +3928,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
   const registerLeaf = ({ wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue, value, unit, details, compilerBinding, normalize, isNoop, apply }) => {
     const expectedHash = createHash("sha256").update(expectedValue, "utf8").digest("hex");
     const seed = [revisionSha256, slideState.wire.id, wire.id, shapeTreePath.join("/"), wire.source.elementSha256, leafKind,
-      details?.textLeafIndex ?? "", details?.seriesIndex ?? "", details?.pointIndex ?? "", expectedHash].join("\0");
+      details?.textLeafIndex ?? "", details?.nativeLeafIndex ?? "", details?.seriesIndex ?? "", details?.pointIndex ?? "", expectedHash].join("\0");
     const leafId = `nl_${createHash("sha256").update(seed).digest("hex").slice(0, 32)}`;
     const record = Object.freeze({
       kind: "nativeLeaf",
@@ -3745,6 +3971,143 @@ function createPresentationNativeLeafCapability(presentation, state) {
       }
       return;
     }
+    const registerImportedRotationLeaf = () => {
+      const isShape = wire.content.case === "shape";
+      const isPicture = wire.content.case === "image" ||
+        (wire.content.case === "opaque" && wire.content.value.nativeKind === "picture");
+      if ((!isShape && !isPicture) ||
+          (isShape
+            ? wire.source?.editable !== true && wire.source?.textEditable !== true
+            : wire.source?.editable !== true)) return;
+      if (isPicture) {
+        const frame = wire.content.value;
+        const frameTokens = [frame.leftEmu, frame.topEmu, frame.widthEmu, frame.heightEmu].map(String);
+        if (!frameTokens.every((token) => /^-?[0-9]+$/u.test(token))) return;
+        const [left, top, width, height] = frameTokens.map((token) => BigInt(token));
+        // Match the native picture placement proof: negative offsets and
+        // empty extents are not safe direct a:xfrm edits, even when the
+        // surrounding image payload is otherwise source-bound.
+        if (left < 0n || top < 0n || width <= 0n || height <= 0n) return;
+      }
+      const raw = String(wire.content.value?.transform?.rotationAngle60000 ?? "");
+      if (!/^-?[0-9]+$/u.test(raw)) return;
+      let rotation;
+      try { rotation = BigInt(raw); }
+      catch { return; }
+      if (rotation < -21_600_000n || rotation > 21_600_000n) return;
+      const degrees = Number(rotation) / ROTATION_UNITS_PER_DEGREE;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "rotationDegrees",
+        expectedValue: raw,
+        value: degrees,
+        unit: "degrees",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < -360 || candidate > 360) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation rotationDegrees native leaf requires a finite number from -360 through 360 degrees.");
+          }
+          const token = String(Math.round(candidate * ROTATION_UNITS_PER_DEGREE));
+          return { raw: token, publicValue: Number(token) / ROTATION_UNITS_PER_DEGREE };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) {
+          model.transform = { ...(model.transform || {}), rotationDegrees: Number(next) / ROTATION_UNITS_PER_DEGREE };
+        },
+      });
+    };
+    registerImportedRotationLeaf();
+    const registerImportedFlipLeaves = () => {
+      const isShape = wire.content.case === "shape";
+      const isPicture = wire.content.case === "image" ||
+        (wire.content.case === "opaque" && wire.content.value.nativeKind === "picture");
+      if ((!isShape && !isPicture) ||
+          (isShape
+            ? wire.source?.editable !== true && wire.source?.textEditable !== true
+            : wire.source?.editable !== true)) return;
+      if (isPicture) {
+        const frame = wire.content.value;
+        const frameTokens = [frame.leftEmu, frame.topEmu, frame.widthEmu, frame.heightEmu].map(String);
+        if (!frameTokens.every((token) => /^-?[0-9]+$/u.test(token))) return;
+        const [left, top, width, height] = frameTokens.map((token) => BigInt(token));
+        if (left < 0n || top < 0n || width <= 0n || height <= 0n) return;
+      }
+      const transform = wire.content.value?.transform;
+      if (!transform || typeof transform !== "object") return;
+      for (const [field, leafKind] of [["flipHorizontal", "flipHorizontal"], ["flipVertical", "flipVertical"]]) {
+        if (!Object.hasOwn(transform, field) || typeof transform[field] !== "boolean") continue;
+        const raw = transform[field] ? "1" : "0";
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind,
+          expectedValue: raw,
+          value: transform[field],
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            if (typeof next !== "boolean") {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a boolean value.`);
+            }
+            return { raw: next ? "1" : "0", publicValue: next };
+          },
+          isNoop(next) { return next === raw; },
+          apply(next) {
+            model.transform = { ...(model.transform || {}), [field]: next === "1" };
+          },
+        });
+      }
+    };
+    registerImportedFlipLeaves();
+    const registerImportedFillOpacityLeaf = () => {
+      if (wire.content.case !== "shape") return;
+      const fillRgb = String(wire.content.value.fillRgb ?? "");
+      const raw = String(wire.content.value.fillOpacityThousandthPercent ?? "");
+      if (!/^[0-9A-F]{6}$/u.test(fillRgb) || !/^[0-9]+$/u.test(raw)) return;
+      let opacity;
+      try { opacity = BigInt(raw); }
+      catch { return; }
+      if (opacity < 0n || opacity > 100_000n) return;
+      if (wire.source?.editable !== true && wire.source?.textEditable !== true) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "fillOpacityThousandthPercent",
+        expectedValue: raw,
+        value: Number(opacity) / 100_000,
+        unit: "fraction",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillOpacity native leaf requires a finite number from 0 through 1.");
+          }
+          const token = String(Math.round(candidate * 100_000));
+          return { raw: token, publicValue: Number(token) / 100_000 };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) {
+          const color = typeof model.fill === "object" && model.fill !== null
+            ? model.fill.color
+            : (model.fill || `#${fillRgb.toLowerCase()}`);
+          model.fill = { color, opacity: Number(next) / 100_000 };
+        },
+      });
+    };
+    registerImportedFillOpacityLeaf();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
@@ -3912,7 +4275,9 @@ function createPresentationNativeLeafCapability(presentation, state) {
             apply(next) { model._setNativeTextLeaf(index, next); },
           });
         }
-        return;
+        // An opaque native object may expose more than one bounded leaf
+        // family (for example group text and child fill tokens). Continue
+        // collecting the other families instead of making the first one win.
       }
       const nativeLineBinding = model?._nativeLineSourceBinding?.();
       const currentNativeLineLeaves = model?._nativeLineRecords?.();
@@ -3958,20 +4323,126 @@ function createPresentationNativeLeafCapability(presentation, state) {
                 if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineScheme native leaf requires a supported theme color token.");
                 return { raw: canonical, publicValue: canonical };
               }
+              if (leafKind === "lineStyle") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_STYLE_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineStyle native leaf requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineCap") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_CAP_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineCap native leaf requires flat, round, or square.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineJoin") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_JOIN_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineJoin native leaf requires round, bevel, or miter.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_ARROW_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation line arrow native leaf requires none, triangle, stealth, diamond, oval, or arrow.");
+                return { raw: canonical, publicValue: canonical };
+              }
               const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
               if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineRgb native leaf requires a six-digit RGB color.");
               const normalized = match[1].toUpperCase();
               return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
             },
             isNoop(next) {
-              return leafKind === "lineScheme"
+              return leafKind === "lineScheme" || leafKind === "lineStyle" || leafKind === "lineCap" || leafKind === "lineJoin" || leafKind === "lineStartArrow" || leafKind === "lineEndArrow"
                 ? next === sourceLeaf.expectedValue
                 : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
             },
             apply(next) { model._setNativeLineLeaf(index, next); },
           });
         }
-        return;
+        // Continue so a source-bound group can expose both text and style
+        // leaves from the same preserved XML root.
+      }
+      const nativeStyleBinding = model?._nativeStyleSourceBinding?.();
+      const currentNativeStyleLeaves = model?._nativeStyleRecords?.();
+      if (Array.isArray(nativeStyleBinding) || Array.isArray(currentNativeStyleLeaves)) {
+        if (!Array.isArray(nativeStyleBinding) || !Array.isArray(currentNativeStyleLeaves) ||
+            nativeStyleBinding.length !== currentNativeStyleLeaves.length) return;
+        for (let index = 0; index < nativeStyleBinding.length; index += 1) {
+          const sourceLeaf = nativeStyleBinding[index];
+          const currentLeaf = currentNativeStyleLeaves[index];
+          if (sourceLeaf.nativeLeafIndex !== index || currentLeaf.nativeLeafIndex !== index ||
+              sourceLeaf.leafKind !== currentLeaf.leafKind || sourceLeaf.expectedValue !== currentLeaf.expectedValue) return;
+          const leafKind = sourceLeaf.leafKind;
+          registerLeaf({
+            wire,
+            model,
+            slideState,
+            shapeTreePath,
+            parentGroupId,
+            rootEntry,
+            leafKind,
+            expectedValue: sourceLeaf.expectedValue,
+            value: sourceLeaf.value,
+            details: { nativeLeafIndex: index },
+            normalize(next) {
+              if (leafKind === "lineWidthEmu") {
+                if (typeof next !== "string" && typeof next !== "number") {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line width requires a non-negative integer EMU value.");
+                }
+                const token = String(next).trim();
+                let integer;
+                try { integer = BigInt(token); }
+                catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line width requires a non-negative integer EMU value."); }
+                if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line width is outside the safe EMU range.");
+                }
+                return { raw: String(integer), publicValue: Number(integer) };
+              }
+              if (leafKind === "fillScheme" || leafKind === "lineScheme") {
+                const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style scheme native leaf requires a supported theme color token.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineStyle") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_STYLE_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style lineStyle native leaf requires solid, dashed, dotted, dash-dot, or dash-dot-dot.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineCap") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_CAP_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style lineCap native leaf requires flat, round, or square.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineJoin") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_JOIN_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style lineJoin native leaf requires round, bevel, or miter.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              if (leafKind === "lineStartArrow" || leafKind === "lineEndArrow") {
+                const token = String(next ?? "").trim();
+                const canonical = NATIVE_LINE_ARROW_CANONICAL[token];
+                if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style line arrow native leaf requires none, triangle, stealth, diamond, oval, or arrow.");
+                return { raw: canonical, publicValue: canonical };
+              }
+              const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+              if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation style RGB native leaf requires a six-digit RGB color.");
+              const normalized = match[1].toUpperCase();
+              return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+            },
+            isNoop(next) {
+              return leafKind === "lineWidthEmu"
+                ? next === sourceLeaf.expectedValue
+                : leafKind === "fillScheme" || leafKind === "lineScheme" || leafKind === "lineStyle" || leafKind === "lineCap" || leafKind === "lineJoin" || leafKind === "lineStartArrow" || leafKind === "lineEndArrow"
+                ? next === sourceLeaf.expectedValue
+                : next.toUpperCase() === sourceLeaf.expectedValue.toUpperCase();
+            },
+            apply(next) { model._setNativeStyleLeaf(index, next); },
+          });
+        }
       }
       if (wire.content.value.nativeKind === "picture" && wire.source?.editable === true) {
         for (const [field, leafKind] of PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, candidate]) => candidate.endsWith("Emu"))) {
@@ -4007,7 +4478,78 @@ function createPresentationNativeLeafCapability(presentation, state) {
     if ((!isShape && !isImage) || (isShape
       ? wire.source?.editable !== true && wire.source?.textEditable !== true
       : wire.source?.editable !== true)) return;
+    const registerImportedShapeColorLeaves = () => {
+      if (!isShape || wire.source?.editable === true) return;
+      const scheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme || "").toLowerCase()];
+      if (scheme) {
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fillScheme",
+          expectedValue: scheme,
+          value: scheme,
+          normalize(next) {
+            const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+            if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+            return { raw: canonical, publicValue: canonical };
+          },
+          isNoop(next) { return next === scheme; },
+          apply(next) { model.fill = next; },
+        });
+      }
+      const lineWidth = String(wire.content.value.lineWidthEmu ?? "");
+      // A missing a:ln is projected as the protobuf default 0. Only issue a
+      // source-bound width leaf when the source proves a visible, positive
+      // width; the export-time proof still requires one bounded a:ln.
+      if (/^[1-9][0-9]*$/u.test(lineWidth) && BigInt(lineWidth) <= 20_116_800n) {
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "lineWidthEmu",
+          expectedValue: lineWidth,
+          value: Number(lineWidth),
+          unit: "emu",
+          normalize(next) {
+            if (typeof next !== "string" && typeof next !== "number") {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value.");
+            }
+            const token = String(next).trim();
+            let integer;
+            try { integer = BigInt(token); }
+            catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value."); }
+            if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf is outside the safe EMU range.");
+            }
+            return { raw: String(integer), publicValue: Number(integer) };
+          },
+          isNoop(next) { return next === lineWidth; },
+          apply(next) { model.line = { ...(model.line || {}), width: Number(next) / EMU_PER_POINT }; },
+        });
+      }
+      if (wire.source?.textEditable !== true) return;
+      for (const [field, leafKind] of [["fillRgb", "fillRgb"], ["lineRgb", "lineRgb"]]) {
+        // The semantic projection carries opacity separately when the native
+        // color token has an alpha/effect child. Its RGB and alpha tokens have
+        // separate source-bound leaves so changing one cannot discard the other.
+        if (leafKind === "fillRgb" && wire.content.value.fillOpacityThousandthPercent !== undefined) continue;
+        const raw = String(wire.content.value[field] ?? "");
+        if (!/^[0-9A-F]{6}$/iu.test(raw)) continue;
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+          expectedValue: raw,
+          value: `#${raw.toLowerCase()}`,
+          normalize(next) {
+            const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+            if (!match) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a six-digit RGB color.`);
+            const normalized = match[1].toUpperCase();
+            return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+          },
+          isNoop(next) { return next.toUpperCase() === raw.toUpperCase(); },
+          apply(next) {
+            if (leafKind === "fillRgb") model.fill = `#${next.toLowerCase()}`;
+            else model.line = { ...(model.line || {}), fill: `#${next.toLowerCase()}` };
+          },
+        });
+      }
+    };
     if (isShape) {
+      const paragraphAlignmentIndices = new Set();
       for (const leaf of presentationTextLeafRuns(wire.content.value)) {
         const value = leaf.run.content.value;
         registerLeaf({
@@ -4022,16 +4564,932 @@ function createPresentationNativeLeafCapability(presentation, state) {
             model.text.paragraphs = paragraphs;
           },
         });
+        const fontSizePoints = Number(leaf.run.fontSizePoints);
+        // Slide placeholders keep their owner-local paragraph topology under a
+        // stricter source-bound contract; do not issue a font leaf that would
+        // make the placeholder exporter mistake an authorized style change for
+        // an unapproved topology rewrite. Ordinary shapes remain supported.
+        if (!model.placeholder && Number.isFinite(fontSizePoints) && fontSizePoints > 0 && fontSizePoints <= 768) {
+          const expectedValue = String(Math.round(fontSizePoints * 100));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontSizePoints",
+            expectedValue,
+            value: fontSizePoints,
+            unit: "pt",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              if (typeof next !== "string" && typeof next !== "number") {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontSizePoints native leaf requires a finite positive point value.");
+              }
+              const token = String(next).trim();
+              if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontSizePoints native leaf requires at most two decimal places.");
+              }
+              const points = Number(token);
+              if (!Number.isFinite(points) || points <= 0 || points > 768) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fontSizePoints native leaf is outside the safe point range.");
+              }
+              const hundredths = Math.round(points * 100);
+              return { raw: String(hundredths), publicValue: hundredths / 100 };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              // Mutate the imported local paragraph graph in place.  Using the
+              // public getter/setter here would normalize inherited placeholder
+              // formatting and turn a leaf-only edit into a false topology
+              // change during source-bound export.
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontSizePoints native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontSize: (Number(next) / 100) / POINTS_PER_PIXEL };
+            },
+          });
+        }
+        const fontKerningPoints = Number(leaf.run.fontKerningPoints);
+        // Kerning is a direct run scalar in hundredths of a point. Keep the
+        // source-bound capability narrow so transformed/inherited typography
+        // remains owned by the original XML graph.
+        if (Number.isFinite(fontKerningPoints) && fontKerningPoints >= 0 && fontKerningPoints <= 768) {
+          const expectedValue = String(Math.round(fontKerningPoints * 100));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontKerningPoints",
+            expectedValue,
+            value: fontKerningPoints,
+            unit: "pt",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              const normalized = normalizeNativeLeafKerningValue(next);
+              return { raw: normalized.raw, publicValue: normalized.publicValue };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontKerningPoints native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontKerning: Number(next) / 100 };
+            },
+          });
+        }
+        const fontBaselinePercent = Number(leaf.run.fontBaselinePercent);
+        // Baseline uses DrawingML ST_Percentage units: one native unit is
+        // 0.001%. Keep the issued slice bounded so pathological offsets stay
+        // source-owned instead of being mistaken for a safe superscript or
+        // subscript edit.
+        if (!model.placeholder && Number.isFinite(fontBaselinePercent) && fontBaselinePercent >= -400 && fontBaselinePercent <= 400) {
+          const expectedValue = String(Math.round(fontBaselinePercent * 1000));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontBaselinePercent",
+            expectedValue,
+            value: fontBaselinePercent,
+            unit: "%",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              const normalized = normalizeNativeLeafBaselineValue(next);
+              return { raw: normalized.raw, publicValue: normalized.publicValue };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontBaselinePercent native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontBaseline: Number(next) / 1000 };
+            },
+          });
+        }
+        const fontSpacingPoints = Number(leaf.run.fontSpacingPoints);
+        // Character spacing is a signed hundredths-of-a-point scalar. Like
+        // kerning and baseline, only direct non-placeholder run tokens receive
+        // a capability; inherited and effect-bearing style graphs stay opaque.
+        if (!model.placeholder && Number.isFinite(fontSpacingPoints) && fontSpacingPoints >= -768 && fontSpacingPoints <= 768) {
+          const expectedValue = String(Math.round(fontSpacingPoints * 100));
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontSpacingPoints",
+            expectedValue,
+            value: fontSpacingPoints,
+            unit: "pt",
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              const normalized = normalizeNativeLeafSpacingValue(next);
+              return { raw: normalized.raw, publicValue: normalized.publicValue };
+            },
+            isNoop(next) { return next === expectedValue; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontSpacingPoints native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontSpacing: Number(next) / 100 };
+            },
+            });
+        }
+        const fontCaps = leaf.run.fontCaps;
+        // Capitalization is a direct DrawingML token. Keep the capability
+        // source-bound and narrow so inherited paragraph/style capitalization
+        // is not mistaken for a local run edit.
+        if (!model.placeholder && typeof fontCaps === "string" && ["none", "small", "all"].includes(fontCaps)) {
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontCaps",
+            expectedValue: fontCaps,
+            value: fontCaps,
+            details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+            normalize(next) {
+              return normalizeNativeLeafCapsValue(next);
+            },
+            isNoop(next) { return next === fontCaps; },
+            apply(next) {
+              const paragraphs = model.text._paragraphs;
+              const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+              if (!run || typeof run !== "object" || run.break || run.field) {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation fontCaps native leaf no longer resolves to the imported text run.");
+              }
+              run.style = { ...(run.style || {}), fontCaps: next };
+            },
+          });
+        }
+        // A run family is issued only when the imported wire contains an
+        // explicit, literal typeface. Theme tokens (for example +mn-lt) and
+        // malformed/inherited font graphs remain source-owned. Like the
+        // font-size leaf above, skip placeholders so an inherited owner style
+        // cannot be mistaken for a local run token during source-bound export.
+        if (!model.placeholder) {
+          for (const [field, leafKind] of [["fontFamily", "fontFamily"], ["fontFamilyEastAsia", "fontFamilyEastAsia"]]) {
+            const family = leaf.run[field];
+            if (typeof family !== "string" || family.length < 1 || family.length > 255 || family.trim() !== family || family.startsWith("+") || /[\u0000-\u001f\u007f]/u.test(family) || hasUnpairedUtf16Surrogate(family)) continue;
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+              expectedValue: family,
+              value: family,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                assertNativeLeafFontFamilyValue(next);
+                return { raw: next, publicValue: next };
+              },
+              isNoop(next) { return next === family; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-family native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), [field]: next };
+              },
+            });
+          }
+          for (const [field, leafKind] of [["bold", "fontBold"], ["italic", "fontItalic"]]) {
+            const enabled = leaf.run[field];
+            if (typeof enabled !== "boolean") continue;
+            const expectedValue = enabled ? "1" : "0";
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+              expectedValue,
+              value: enabled,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                assertNativeLeafBooleanValue(next);
+                return { raw: next ? "1" : "0", publicValue: next };
+              },
+              isNoop(next) { return next === expectedValue; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-style native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), [field]: next === "1" };
+              },
+            });
+          }
+          for (const [field, leafKind, normalize] of [
+            ["underline", "fontUnderline", normalizeNativeLeafUnderlineValue],
+            ["strike", "fontStrike", normalizeNativeLeafStrikeValue],
+          ]) {
+            const token = leaf.run[field];
+            if (typeof token !== "string") continue;
+            let canonical;
+            try {
+              canonical = normalize(token);
+            } catch {
+              continue;
+            }
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind,
+              expectedValue: canonical,
+              value: canonical,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                const normalized = normalize(next);
+                return { raw: normalized, publicValue: normalized };
+              },
+              isNoop(next) { return next === canonical; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation text-decoration native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), [field]: next };
+              },
+            });
+          }
+          const colorRgb = leaf.run.colorRgb;
+          if (typeof colorRgb === "string" && /^[0-9A-F]{6}$/iu.test(colorRgb)) {
+            const expectedValue = colorRgb.toUpperCase();
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontColorRgb",
+              expectedValue,
+              value: `#${expectedValue.toLowerCase()}`,
+              details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+              normalize(next) {
+                assertNativeLeafRgbValue(next, "fontColorRgb");
+                const normalized = String(next).trim().replace(/^#/u, "").toUpperCase();
+                return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+              },
+              isNoop(next) { return next.toUpperCase() === expectedValue; },
+              apply(next) {
+                const paragraphs = model.text._paragraphs;
+                const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                if (!run || typeof run !== "object" || run.break || run.field) {
+                  throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-color native leaf no longer resolves to the imported text run.");
+                }
+                run.style = { ...(run.style || {}), color: `#${next.toLowerCase()}` };
+              },
+            });
+          }
+          const colorScheme = leaf.run.colorScheme;
+          if (typeof colorScheme === "string") {
+            const expectedValue = NATIVE_SCHEME_COLOR_CANONICAL[colorScheme.toLowerCase()];
+            if (expectedValue) {
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fontColorScheme",
+                expectedValue,
+                value: expectedValue,
+                details: { paragraphIndex: leaf.paragraphIndex, runIndex: leaf.runIndex, textLeafIndex: leaf.textLeafIndex },
+                normalize(next) {
+                  const normalized = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+                  if (!normalized) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation native fontColorScheme leaf requires a supported theme color token.");
+                  }
+                  return { raw: normalized, publicValue: normalized };
+                },
+                isNoop(next) { return next === expectedValue; },
+                apply(next) {
+                  const paragraphs = model.text._paragraphs;
+                  const run = paragraphs[leaf.paragraphIndex]?.runs?.[leaf.runIndex];
+                  if (!run || typeof run !== "object" || run.break || run.field) {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation font-color native leaf no longer resolves to the imported text run.");
+                  }
+                  run.style = { ...(run.style || {}), color: next };
+                },
+              });
+            }
+          }
+        }
+        // Direct paragraph alignment is a safe source-bound token when the
+        // imported run topology is otherwise editable.  Use the paragraph
+        // ordinal as the native leaf index so the codec can splice only the
+        // existing a:pPr/@algn attribute and leave inherited/list properties
+        // untouched.
+        if (!model.placeholder && wire.source?.textEditable === true) {
+          const paragraphs = wire.content.value.textBody?.paragraphs || [];
+          const paragraphSpacingSlots = [
+            { property: "lineSpacing", pointsKind: "paragraphLineSpacingPoints", multiplierKind: "paragraphLineSpacingMultiplier", pointsModel: "lineSpacing", multiplierModel: "lineSpacing", allowZero: false },
+            { property: "spaceBefore", pointsKind: "paragraphSpaceBeforePoints", multiplierKind: "paragraphSpaceBeforeMultiplier", pointsModel: "spaceBefore", multiplierModel: "spaceBeforePercent", allowZero: true },
+            { property: "spaceAfter", pointsKind: "paragraphSpaceAfterPoints", multiplierKind: "paragraphSpaceAfterMultiplier", pointsModel: "spaceAfter", multiplierModel: "spaceAfterPercent", allowZero: true },
+          ];
+          const paragraphLayoutSlots = [
+            { property: "leftMargin", sourceCase: "marginLeftEmu", leafKind: "paragraphMarginLeftEmu", modelField: "marginLeft", minimum: 0, maximum: 51_206_400 },
+            { property: "indentation", sourceCase: "indentEmu", leafKind: "paragraphIndentEmu", modelField: "indent", minimum: -51_206_400, maximum: 51_206_400 },
+          ];
+          paragraphs.forEach((paragraph, paragraphIndex) => {
+            const alignment = paragraph.alignment;
+            if (PRESENTATION_PARAGRAPH_ALIGNMENTS.has(alignment) && !paragraphAlignmentIndices.has(paragraphIndex)) {
+              paragraphAlignmentIndices.add(paragraphIndex);
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind: "paragraphAlignment",
+                expectedValue: alignment,
+                value: alignment,
+                details: { nativeLeafIndex: paragraphIndex },
+                normalize(next) {
+                  const normalized = String(next ?? "").trim();
+                  if (!PRESENTATION_PARAGRAPH_ALIGNMENTS.has(normalized)) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphAlignment native leaf requires left, center, right, or justify.");
+                  }
+                  return { raw: normalized, publicValue: normalized };
+                },
+                isNoop(next) { return next === alignment; },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-alignment native leaf no longer resolves to the imported paragraph.");
+                  }
+                  target.alignment = next;
+                },
+              });
+            }
+            const bullet = paragraph.bullet;
+            if (bullet?.case === "bulletCharacter") {
+              const character = String(bullet.value ?? "");
+              const codePoint = character.codePointAt(0);
+              if ([...character].length === 1 && !(codePoint >= 0xD800 && codePoint <= 0xDFFF) && !/[\u0000-\u001F\u007F-\u009F]/u.test(character)) {
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletCharacter",
+                  expectedValue: character,
+                  value: character,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "");
+                    const point = normalized.codePointAt(0);
+                    if ([...normalized].length !== 1 || (point >= 0xD800 && point <= 0xDFFF) || /[\u0000-\u001F\u007F-\u009F]/u.test(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletCharacter native leaf requires one non-control Unicode scalar value.");
+                    }
+                    return { raw: normalized, publicValue: normalized };
+                  },
+                  isNoop(next) { return next === character; },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation character-bullet native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.bulletCharacter = next;
+                  },
+                });
+              }
+            }
+            if (bullet?.case === "autoNumber") {
+              const scheme = String(bullet.value?.scheme ?? "");
+              if (isPresentationAutoNumberType(scheme)) {
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletAutoNumberScheme",
+                  expectedValue: scheme,
+                  value: scheme,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "").trim();
+                    if (!isPresentationAutoNumberType(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletAutoNumberScheme native leaf requires a supported auto-number scheme.");
+                    }
+                    return { raw: normalized, publicValue: normalized };
+                  },
+                  isNoop(next) { return next === scheme; },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation auto-number scheme native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.autoNumber = { ...(target.autoNumber || {}), type: next };
+                  },
+                });
+              }
+              const startAt = Number(bullet.value?.startAt);
+              if (Number.isInteger(startAt) && startAt >= 1 && startAt <= 32767) {
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletAutoNumberStartAt",
+                  expectedValue: String(startAt),
+                  value: startAt,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "").trim();
+                    if (!/^[1-9][0-9]{0,4}$/u.test(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletAutoNumberStartAt native leaf requires an integer from 1 through 32767.");
+                    }
+                    const candidate = Number(normalized);
+                    if (candidate < 1 || candidate > 32767) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletAutoNumberStartAt native leaf requires an integer from 1 through 32767.");
+                    }
+                    return { raw: normalized, publicValue: candidate };
+                  },
+                  isNoop(next) { return next === String(startAt); },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation auto-number start native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.autoNumber = { ...(target.autoNumber || {}), startAt: Number(next) };
+                  },
+                });
+              }
+            }
+            // Direct bullet styling is useful when it is part of an active
+            // marker.  Latent buFont/buClr/buSz children on a noBullet
+            // paragraph are presentation defaults, not visible leaves, and
+            // remain source-owned until a higher-level style contract exists.
+            if (bullet?.case !== "noBullet") {
+              const bulletFont = paragraph.bulletFont;
+              if (bulletFont?.case === "bulletFontFamily") {
+                const family = String(bulletFont.value ?? "");
+                if (family.length >= 1 && family.length <= 255 && family.trim() === family && !family.startsWith("+") && !/[\u0000-\u001f\u007f]/u.test(family) && !hasUnpairedUtf16Surrogate(family)) {
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletFontFamily",
+                    expectedValue: family,
+                    value: family,
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      assertNativeLeafFontFamilyValue(next);
+                      return { raw: next, publicValue: next };
+                    },
+                    isNoop(next) { return next === family; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-font native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletFont = next;
+                    },
+                  });
+                }
+              }
+              const bulletColor = paragraph.bulletColor;
+              if (bulletColor?.case === "bulletColorRgb") {
+                const rgb = String(bulletColor.value ?? "").toUpperCase();
+                if (/^[0-9A-F]{6}$/u.test(rgb)) {
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletColorRgb",
+                    expectedValue: rgb,
+                    value: `#${rgb.toLowerCase()}`,
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      assertNativeLeafRgbValue(next, "paragraphBulletColorRgb");
+                      const normalized = String(next).trim().replace(/^#/u, "").toUpperCase();
+                      return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+                    },
+                    isNoop(next) { return next.toUpperCase() === rgb; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-color native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletColor = `#${next.toLowerCase()}`;
+                    },
+                  });
+                }
+              }
+              if (bulletColor?.case === "bulletColorScheme" && PRESENTATION_SCHEME_COLORS.has(String(bulletColor.value))) {
+                const scheme = String(bulletColor.value);
+                registerLeaf({
+                  wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                  leafKind: "paragraphBulletColorScheme",
+                  expectedValue: scheme,
+                  value: scheme,
+                  details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                  normalize(next) {
+                    const normalized = String(next ?? "").trim();
+                    if (!PRESENTATION_SCHEME_COLORS.has(normalized)) {
+                      throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletColorScheme native leaf requires a supported theme color token.");
+                    }
+                    return { raw: normalized, publicValue: normalized };
+                  },
+                  isNoop(next) { return next === scheme; },
+                  apply(next) {
+                    const current = model.text._paragraphs;
+                    const target = current[paragraphIndex];
+                    if (!target || typeof target !== "object") {
+                      throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-color native leaf no longer resolves to the imported paragraph.");
+                    }
+                    target.bulletColor = next;
+                  },
+                });
+              }
+              const bulletSize = paragraph.bulletSize;
+              if (bulletSize?.case === "bulletSizePoints") {
+                const points = Number(bulletSize.value);
+                if (Number.isFinite(points) && points >= 1 && points <= 768) {
+                  const expectedValue = String(Math.round(points * 100));
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletSizePoints",
+                    expectedValue,
+                    value: points,
+                    unit: "pt",
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      if (typeof next !== "string" && typeof next !== "number") {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePoints native leaf requires a finite positive point value.");
+                      }
+                      const token = String(next).trim();
+                      if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/u.test(token)) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePoints native leaf requires at most two decimal places.");
+                      }
+                      const candidate = Number(token);
+                      if (!Number.isFinite(candidate) || candidate < 1 || candidate > 768) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePoints native leaf is outside the safe point range.");
+                      }
+                      const hundredths = Math.round(candidate * 100);
+                      return { raw: String(hundredths), publicValue: hundredths / 100 };
+                    },
+                    isNoop(next) { return next === expectedValue; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-size native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletSize = (Number(next) / 100) / POINTS_PER_PIXEL;
+                    },
+                  });
+                }
+              }
+              if (bulletSize?.case === "bulletSizePercent") {
+                const percent = Number(bulletSize.value);
+                if (Number.isFinite(percent) && percent >= 0.25 && percent <= 4) {
+                  const expectedValue = String(Math.round(percent * 100_000));
+                  registerLeaf({
+                    wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                    leafKind: "paragraphBulletSizePercent",
+                    expectedValue,
+                    value: percent,
+                    unit: "ratio",
+                    details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                    normalize(next) {
+                      if (typeof next !== "string" && typeof next !== "number") {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePercent native leaf requires a finite ratio.");
+                      }
+                      const token = String(next).trim();
+                      if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/u.test(token)) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePercent native leaf requires a decimal ratio.");
+                      }
+                      const candidate = Number(token);
+                      if (!Number.isFinite(candidate) || candidate < 0.25 || candidate > 4) {
+                        throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphBulletSizePercent native leaf is outside the safe ratio range.");
+                      }
+                      const hundredThousandths = Math.round(candidate * 100_000);
+                      return { raw: String(hundredThousandths), publicValue: hundredThousandths / 100_000 };
+                    },
+                    isNoop(next) { return next === expectedValue; },
+                    apply(next) {
+                      const current = model.text._paragraphs;
+                      const target = current[paragraphIndex];
+                      if (!target || typeof target !== "object") {
+                        throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation bullet-size native leaf no longer resolves to the imported paragraph.");
+                      }
+                      target.bulletSizePercent = Number(next) / 100_000;
+                    },
+                  });
+                }
+              }
+            }
+            const paragraphLevel = Number(paragraph.level);
+            // The scalar wire field cannot distinguish an omitted level from
+            // an explicit lvl="0".  Issue a source-bound leaf only for
+            // explicit non-zero levels; the codec still validates the full
+            // 0..8 range at the package boundary.
+            if (Number.isInteger(paragraphLevel) && paragraphLevel >= 1 && paragraphLevel <= 8) {
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind: "paragraphLevel",
+                expectedValue: String(paragraphLevel),
+                value: paragraphLevel,
+                details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                normalize(next) {
+                  const normalized = String(next ?? "").trim();
+                  if (!/^[0-8]$/u.test(normalized) || normalized === "0") {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation paragraphLevel native leaf requires an integer from 1 through 8.");
+                  }
+                  return { raw: normalized, publicValue: Number(normalized) };
+                },
+                isNoop(next) { return next === String(paragraphLevel); },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation paragraph-level native leaf no longer resolves to the imported paragraph.");
+                  }
+                  target.level = Number(next);
+                },
+              });
+            }
+            for (const slot of paragraphLayoutSlots) {
+              const choice = paragraph[slot.property];
+              if (choice?.case !== slot.sourceCase) continue;
+              const raw = String(choice.value ?? "");
+              if (!/^-?(?:0|[1-9][0-9]*)$/u.test(raw)) continue;
+              const sourceValue = Number(raw);
+              if (!Number.isSafeInteger(sourceValue) || String(sourceValue) !== raw || sourceValue < slot.minimum || sourceValue > slot.maximum) continue;
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind: slot.leafKind,
+                expectedValue: raw,
+                value: sourceValue,
+                unit: "emu",
+                details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                normalize(next) {
+                  if (typeof next !== "string" && typeof next !== "number") {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${slot.leafKind} native leaf requires a bounded integer EMU value.`);
+                  }
+                  const token = String(next).trim();
+                  if (!/^-?(?:0|[1-9][0-9]*)$/u.test(token)) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${slot.leafKind} native leaf requires a canonical integer EMU value.`);
+                  }
+                  const candidate = Number(token);
+                  if (!Number.isSafeInteger(candidate) || String(candidate) !== token || candidate < slot.minimum || candidate > slot.maximum) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${slot.leafKind} native leaf is outside the safe EMU range.`);
+                  }
+                  return { raw: token, publicValue: candidate };
+                },
+                isNoop(next) { return next === raw; },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", `Presentation ${slot.leafKind} native leaf no longer resolves to the imported paragraph.`);
+                  }
+                  target[slot.modelField] = Number(next) / EMU_PER_PIXEL;
+                },
+              });
+            }
+            for (const slot of paragraphSpacingSlots) {
+              const spacing = paragraph[slot.property];
+              const spacingCase = spacing?.case;
+              if (spacingCase !== "lineSpacingPoints" && spacingCase !== "lineSpacingMultiplier" &&
+                  spacingCase !== "spaceBeforePoints" && spacingCase !== "spaceBeforeMultiplier" &&
+                  spacingCase !== "spaceAfterPoints" && spacingCase !== "spaceAfterMultiplier") continue;
+              const points = spacingCase.endsWith("Points");
+              const scale = points ? 100 : 100_000;
+              const maximum = points ? 1584 : 132;
+              const sourceValue = Number(spacing.value);
+              const sourceRawNumber = sourceValue * scale;
+              const sourceRaw = Math.round(sourceRawNumber);
+              if (!Number.isFinite(sourceValue) || sourceValue < (slot.allowZero ? 0 : Number.EPSILON) || sourceValue > maximum ||
+                  !Number.isSafeInteger(sourceRaw) || sourceRaw < (slot.allowZero ? 0 : 1) || sourceRaw > maximum * scale ||
+                  Math.abs(sourceRawNumber - sourceRaw) > 1e-6) continue;
+              const leafKind = points ? slot.pointsKind : slot.multiplierKind;
+              const expectedValue = String(sourceRaw);
+              const modelField = points ? slot.pointsModel : slot.multiplierModel;
+              registerLeaf({
+                wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+                leafKind,
+                expectedValue,
+                value: sourceRaw / scale,
+                unit: points ? "pt" : "multiplier",
+                details: { nativeLeafIndex: paragraphIndex, paragraphIndex },
+                normalize(next) {
+                  if (typeof next !== "string" && typeof next !== "number") {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a ${points ? "point" : "multiplier"} value.`);
+                  }
+                  const token = String(next).trim();
+                  if (!/^(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/u.test(token)) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a canonical numeric value.`);
+                  }
+                  const candidate = Number(token);
+                  const rawNumber = candidate * scale;
+                  const raw = Math.round(rawNumber);
+                  if (!Number.isFinite(candidate) || candidate < (slot.allowZero ? 0 : Number.EPSILON) || candidate > maximum ||
+                      !Number.isSafeInteger(raw) || raw < (slot.allowZero ? 0 : 1) || raw > maximum * scale ||
+                      Math.abs(rawNumber - raw) > 1e-6) {
+                    throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the supported DrawingML range.`);
+                  }
+                  return { raw: String(raw), publicValue: raw / scale };
+                },
+                isNoop(next) { return next === expectedValue; },
+                apply(next) {
+                  const current = model.text._paragraphs;
+                  const target = current[paragraphIndex];
+                  if (!target || typeof target !== "object") {
+                    throw presentationNativeLeafError("presentation_native_leaf_stale", `Presentation ${leafKind} native leaf no longer resolves to the imported paragraph.`);
+                  }
+                  target[modelField] = (Number(next) / scale) / (points ? POINTS_PER_PIXEL : 1);
+                },
+              });
+            }
+          });
+        }
+      }
+      if (!model.placeholder && wire.source?.textEditable === true) {
+        const bodyProperties = wire.content.value.textBody?.bodyProperties;
+        for (const [side, leafKind, wireField] of PRESENTATION_TEXT_BODY_INSETS) {
+          const choice = bodyProperties?.[wireField];
+          if (choice?.case !== `${wireField}Emu`) continue;
+          const raw = String(choice.value ?? "");
+          if (!/^[0-9]+$/u.test(raw) || BigInt(raw) > 2_147_483_647n) continue;
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind,
+            expectedValue: raw,
+            value: Number(raw),
+            unit: "emu",
+            details: { nativeLeafIndex: 0, inset: side },
+            normalize(next) {
+              if (typeof next !== "string" && typeof next !== "number") {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a non-negative integer EMU value.`);
+              }
+              const token = String(next).trim();
+              let integer;
+              try { integer = BigInt(token); }
+              catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a non-negative integer EMU value.`); }
+              if (String(integer) !== token || integer < 0n || integer > 2_147_483_647n) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf is outside the safe EMU range.`);
+              }
+              return { raw: String(integer), publicValue: Number(integer) };
+            },
+            isNoop(next) { return next === raw; },
+            apply(next) {
+              model.text.bodyProperties = {
+                ...(model.text.bodyProperties || {}),
+                insets: { ...(model.text.bodyProperties?.insets || {}), [side]: Number(next) / EMU_PER_PIXEL },
+              };
+            },
+          });
+        }
+        const wrapping = bodyProperties?.wrapping;
+        if (wrapping?.case === "wrap" && PRESENTATION_TEXT_BODY_WRAPS.has(String(wrapping.value))) {
+          const raw = String(wrapping.value);
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyWrap",
+            expectedValue: raw,
+            value: raw,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_TEXT_BODY_WRAPS.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyWrap native leaf requires square or none.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === raw; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), wrap: next };
+            },
+          });
+        }
+        const columnCount = bodyProperties?.columnCount;
+        if (columnCount?.case === "columns") {
+          const raw = String(columnCount.value ?? "");
+          const count = Number(raw);
+          if (/^[0-9]+$/u.test(raw) && Number.isSafeInteger(count) && count >= MIN_TEXT_BODY_COLUMNS && count <= MAX_TEXT_BODY_COLUMNS) {
+            registerLeaf({
+              wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+              leafKind: "textBodyColumnCount",
+              expectedValue: raw,
+              value: count,
+              details: { nativeLeafIndex: 0 },
+              normalize(next) {
+                if (typeof next !== "string" && typeof next !== "number") {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnCount native leaf requires an integer from 1 through 16.");
+                }
+                const token = String(next).trim();
+                if (!/^[0-9]+$/u.test(token)) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnCount native leaf requires an integer from 1 through 16.");
+                }
+                const normalized = Number(token);
+                if (!Number.isSafeInteger(normalized) || normalized < MIN_TEXT_BODY_COLUMNS || normalized > MAX_TEXT_BODY_COLUMNS) {
+                  throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnCount native leaf is outside the safe range 1 through 16.");
+                }
+                return { raw: String(normalized), publicValue: normalized };
+              },
+              isNoop(next) { return next === raw; },
+              apply(next) {
+                model.text.bodyProperties = {
+                  ...(model.text.bodyProperties || {}),
+                  columns: { ...(model.text.bodyProperties?.columns || {}), count: Number(next) },
+                };
+              },
+            });
+          }
+        }
+        const autoFit = bodyProperties?.autoFit;
+        const normalAutoFit = bodyProperties?.normalAutoFit;
+        const hasNormalAutoFitSettings = normalAutoFit && Object.keys(normalAutoFit).length > 0;
+        if (autoFit?.case === "autoFitMode" && PRESENTATION_TEXT_BODY_AUTOFITS.has(String(autoFit.value)) && !hasNormalAutoFitSettings) {
+          const raw = String(autoFit.value);
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyAutoFit",
+            expectedValue: raw,
+            value: raw,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_TEXT_BODY_AUTOFITS.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyAutoFit native leaf requires none, shrinkText, or resizeShape.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === raw; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), autoFit: next };
+            },
+          });
+        }
+        const columnDirection = bodyProperties?.columnDirection;
+        if (columnDirection?.case === "rightToLeftColumns" && (columnDirection.value === true || columnDirection.value === false)) {
+          const direction = columnDirection.value;
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyColumnDirection",
+            expectedValue: direction ? "1" : "0",
+            value: direction,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              if (typeof next === "boolean") return { raw: next ? "1" : "0", publicValue: next };
+              const normalized = String(next ?? "").trim();
+              if (normalized === "0" || normalized === "1") return { raw: normalized, publicValue: normalized === "1" };
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyColumnDirection native leaf requires a boolean or canonical 0/1 token.");
+            },
+            isNoop(next) { return next === (direction ? "1" : "0"); },
+            apply(next) {
+              model.text.bodyProperties = {
+                ...(model.text.bodyProperties || {}),
+                columns: { ...(model.text.bodyProperties?.columns || {}), rightToLeft: next === "1" },
+              };
+            },
+          });
+        }
+        const verticalText = bodyProperties?.verticalText;
+        if (verticalText?.case === "verticalTextMode" && PRESENTATION_TEXT_BODY_VERTICAL_TEXT.has(String(verticalText.value))) {
+          const mode = String(verticalText.value);
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "textBodyVerticalText",
+            expectedValue: mode,
+            value: mode,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_TEXT_BODY_VERTICAL_TEXT.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation textBodyVerticalText native leaf requires horizontal, vertical, or vertical270.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === mode; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), verticalText: next };
+            },
+          });
+        }
+        const anchor = model.text.bodyProperties?.anchor;
+        if (PRESENTATION_VERTICAL_ANCHORS.has(anchor)) {
+          registerLeaf({
+            wire, model, slideState, shapeTreePath, parentGroupId, rootEntry,
+            leafKind: "verticalAnchor",
+            expectedValue: anchor,
+            value: anchor,
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const normalized = String(next ?? "").trim();
+              if (!PRESENTATION_VERTICAL_ANCHORS.has(normalized)) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation verticalAnchor native leaf requires top, center, or bottom.");
+              }
+              return { raw: normalized, publicValue: normalized };
+            },
+            isNoop(next) { return next === anchor; },
+            apply(next) {
+              model.text.bodyProperties = { ...(model.text.bodyProperties || {}), anchor: next };
+            },
+          });
+        }
       }
     }
-    if (wire.source.editable !== true) return;
+    if (wire.source.editable !== true) {
+      registerImportedShapeColorLeaves();
+      return;
+    }
     const scalarFields = isImage
-      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
+      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
       : PRESENTATION_SCALAR_LEAF_FIELDS;
     for (const [field, leafKind] of scalarFields) {
-      if (leafKind.endsWith("Emu") && connectedTargetIds.has(wire.id)) continue;
+      if (leafKind !== "lineWidthEmu" && leafKind.endsWith("Emu") && connectedTargetIds.has(wire.id)) continue;
+      if (leafKind === "fillRgb" && wire.content.value.fillOpacityThousandthPercent !== undefined) continue;
       const raw = String(wire.content.value[field] ?? "");
-      if ((leafKind === "fillRgb" || leafKind === "lineRgb") && /^[0-9A-F]{6}$/iu.test(raw)) {
+      if (leafKind === "lineWidthEmu" && /^[1-9][0-9]*$/u.test(raw) && BigInt(raw) <= 20_116_800n) {
+        registerLeaf({
+          wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw,
+          value: Number(raw), unit: "emu",
+          normalize(next) {
+            if (typeof next !== "string" && typeof next !== "number") {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value.");
+            }
+            const token = String(next).trim();
+            let integer;
+            try { integer = BigInt(token); }
+            catch { throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf requires a non-negative integer EMU value."); }
+            if (String(integer) !== token || integer < 0n || integer > 20_116_800n) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation lineWidthEmu native leaf is outside the safe EMU range.");
+            }
+            return { raw: String(integer), publicValue: Number(integer) };
+          },
+          isNoop(next) { return next === raw; },
+          apply(next) { model.line = { ...(model.line || {}), width: Number(next) / EMU_PER_POINT }; },
+        });
+      } else if ((leafKind === "fillRgb" || leafKind === "lineRgb") && /^[0-9A-F]{6}$/iu.test(raw)) {
         registerLeaf({
           wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw, value: `#${raw.toLowerCase()}`,
           normalize(next) {
@@ -4046,7 +5504,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
             else model.line = { ...model.line, fill: `#${next.toLowerCase()}` };
           },
         });
-      } else if (leafKind.endsWith("Emu") && /^-?[0-9]+$/u.test(raw)) {
+      } else if (leafKind !== "lineWidthEmu" && leafKind.endsWith("Emu") && /^-?[0-9]+$/u.test(raw)) {
         const frameField = ({ leftEmu: "left", topEmu: "top", widthEmu: "width", heightEmu: "height" })[leafKind];
         registerLeaf({
           wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind, expectedValue: raw, value: Number(raw), unit: "emu",
@@ -4186,9 +5644,10 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
   const slideSource = leaf.slideState.wire.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
   const textLeafIndex = leaf.textLeafIndex ?? 0;
+  const nativeLeafIndex = leaf.nativeLeafIndex ?? 0;
   const operationSeed = leaf.leafKind === "text"
     ? [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), textLeafIndex, leaf.expectedValue, value].join("\0")
-    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, JSON.stringify(leaf.compilerBinding || {}), leaf.expectedValue, value].join("\0");
+    : [sourceSha256, slideSource.partPath, leaf.shapeTreePath.join("/"), leaf.leafKind, nativeLeafIndex, JSON.stringify(leaf.compilerBinding || {}), leaf.expectedValue, value].join("\0");
   return {
     operationId: `pptx-${leaf.leafKind}-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
     slideId: leaf.slideState.wire.id,
@@ -4201,6 +5660,7 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
     expectedElementSha256: source.elementSha256,
     expectedSemanticSha256: source.semanticSha256,
     textLeafIndex,
+    nativeLeafIndex,
     expectedTextSha256: createHash("sha256").update(leaf.expectedValue, "utf8").digest("hex"),
     expectedValue: leaf.expectedValue,
     value,
@@ -4254,7 +5714,9 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
 
 const PRESENTATION_SCALAR_LEAF_FIELDS = Object.freeze([
   Object.freeze(["fillRgb", "fillRgb"]),
+  Object.freeze(["fillOpacityThousandthPercent", "fillOpacityThousandthPercent"]),
   Object.freeze(["lineRgb", "lineRgb"]),
+  Object.freeze(["lineWidthEmu", "lineWidthEmu"]),
   Object.freeze(["leftEmu", "leftEmu"]),
   Object.freeze(["topEmu", "topEmu"]),
   Object.freeze(["widthEmu", "widthEmu"]),
@@ -4282,14 +5744,16 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const beforeElement = original.content.value;
   const afterElement = requested.content.value;
   const scalarFields = contentCase === "image"
-    ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu"))
-    : PRESENTATION_SCALAR_LEAF_FIELDS;
+      ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
+      : PRESENTATION_SCALAR_LEAF_FIELDS;
   const changed = scalarFields.filter(([field]) => String(beforeElement[field] ?? "") !== String(afterElement[field] ?? ""));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;
   const expectedValue = String(beforeElement[field] ?? "");
   const value = String(afterElement[field] ?? "");
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
+  if (leafKind === "fillOpacityThousandthPercent" &&
+      (!/^[0-9]+$/u.test(expectedValue) || !/^[0-9]+$/u.test(value) || BigInt(expectedValue) > 100_000n || BigInt(value) > 100_000n)) return undefined;
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value[field] = beforeElement[field];
@@ -4581,7 +6045,8 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     left.slidePartPath.localeCompare(right.slidePartPath) ||
     left.shapeTreePath.join("/").localeCompare(right.shapeTreePath.join("/"), undefined, { numeric: true }) ||
     left.leafKind.localeCompare(right.leafKind) ||
-    (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0));
+    (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0) ||
+    (left.nativeLeafIndex ?? 0) - (right.nativeLeafIndex ?? 0));
   const sourceArtifact = state.sourceArtifact;
   if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
   const requestedAssetIds = new Set(operations
@@ -4628,9 +6093,15 @@ function modelRun(run, customShowLinks) {
       ...(run.bold === undefined ? {} : { bold: run.bold }),
       ...(run.italic === undefined ? {} : { italic: run.italic }),
       ...(run.fontSizePoints === undefined ? {} : { fontSize: run.fontSizePoints / POINTS_PER_PIXEL }),
+      ...(run.fontKerningPoints === undefined ? {} : { fontKerning: run.fontKerningPoints }),
+      ...(run.fontBaselinePercent === undefined ? {} : { fontBaseline: run.fontBaselinePercent }),
+      ...(run.fontSpacingPoints === undefined ? {} : { fontSpacing: run.fontSpacingPoints }),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
+      ...(run.underline === undefined ? {} : { underline: run.underline }),
+      ...(run.strike === undefined ? {} : { strike: run.strike }),
       ...(run.colorRgb === undefined ? {} : { color: `#${run.colorRgb}` }),
+      ...(run.colorScheme === undefined ? {} : { color: run.colorScheme }),
     },
     ...(hyperlink ? { link: hyperlink } : {}),
   };
@@ -4710,8 +6181,13 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.bold === undefined ? {} : { bold: style.bold }),
     ...(style.italic === undefined ? {} : { italic: style.italic }),
     ...(style.fontSizePoints === undefined ? {} : { fontSize: style.fontSizePoints / POINTS_PER_PIXEL }),
+    ...(style.fontKerningPoints === undefined ? {} : { fontKerning: style.fontKerningPoints }),
+    ...(style.fontBaselinePercent === undefined ? {} : { fontBaseline: style.fontBaselinePercent }),
+    ...(style.fontSpacingPoints === undefined ? {} : { fontSpacing: style.fontSpacingPoints }),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
+    ...(style.underline === undefined ? {} : { underline: style.underline }),
+    ...(style.strike === undefined ? {} : { strike: style.strike }),
     ...(style.color?.case === "colorRgb" ? { color: `#${style.color.value}` } : {}),
     ...(style.color?.case === "colorScheme" ? { color: style.color.value } : {}),
   };
@@ -5710,6 +7186,8 @@ export async function presentationFromEnvelope(envelope, options = {}) {
             ? presentationImageReadOnlySnapshot(model)
             : element.content.case === "table"
               ? presentationTableReadOnlySnapshot(model)
+              : element.content.case === "connector"
+                ? presentationImportedConnectorSnapshot(model)
             : undefined,
       });
     }

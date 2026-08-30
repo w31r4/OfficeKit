@@ -22,7 +22,7 @@ The runner verifies the frozen source hashes, counts visible slide roots and
 their recursive group children, requires a byte-identical no-op export, builds a source-bound design profile,
 and performs one fresh text edit, placement edit, z-order edit, same-format image
 replacement, crop edit, and source-slide reuse per sample. It also probes
-bounded native text, fill, connector line color/width, SVG style, animated text,
+bounded native text, fill, connector line color/width/style/cap/join/start-arrow/end-arrow, direct run font size/family/bold/italic, SVG style, animated text,
 and table-cell leaves when the input exposes a safe target; an unavailable
 operation is reported as blocked rather than skipped silently. It re-imports
 every result and requires the expected mutation to stay within the target slide
@@ -43,15 +43,28 @@ editable leaves.
 
 The current six-sample pass exercises imported-edit paths across the corpus:
 six z-order edits, six image-crop edits, three bounded fill-color edits, four
-connector line-color edits, four connector line-width edits, one SVG style edit,
-one text edit on a slide with an existing animation graph, four table-cell edits,
-and six source-component continuations. A `blocked` status means that the source
+connector line-color edits, four connector line-width edits, four bounded line-join edits, one bounded start-arrow edit, one bounded end-arrow edit, five bounded direct
+shape line-width edits, six explicit text-run font-size edits, six explicit
+text-run font-family edits, five explicit text-run bold/italic edits, one SVG style
+edit, one text edit on a slide with an existing animation graph, four table-cell
+edits, and six source-component continuations. A `blocked` status means that the source
 sample does not contain a safe leaf of that kind; it is retained as evidence
 rather than treated as a skipped or successful edit.
 
+The follow-up style pass selected one canonical descendant outline width in each
+of FROSTE, MMS, Data Particles, and Minimal Business, and the main runner now
+selects one direct `p:sp` outline width where the source exposes a bounded
+positive `a:ln/@w`. Each edit changes only its target `ppt/slides/slideN.xml`
+part and re-imports the requested EMU width. Zero-width or missing-outline
+projections remain blocked because there is no safe token to edit; Business
+Infographic still has no bounded line-width target in this pass. This does not
+alter the frozen baseline totals.
+
 `render-evidence.v1.json` records the one-pass LibreOffice → Poppler check for
-the same six inputs and a bounded placement edit. It includes per-slide PNG
-hashes so non-target pages can be checked without storing the rendered images.
+the same six inputs and a bounded placement edit (or a typed text fallback when
+the imported sample exposes no safe placement target). It includes per-slide
+PNG hashes so non-target pages can be checked without storing the rendered
+images.
 
 `resume-evidence.v1.json` records one three-session `input → review/commit →
 resume/edit/commit → resume/verify/publish` rehearsal for every sample. It

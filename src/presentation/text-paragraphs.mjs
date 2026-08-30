@@ -8,6 +8,12 @@ const MAX_RUNS = 16384;
 const MAX_TAB_POSITION = 2147483647 / EMU_PER_PIXEL;
 const FIELD_ID_PATTERN = /^\{?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\}?$/i;
 const TAB_ALIGNMENTS = new Set(["left", "center", "right", "decimal"]);
+const PRESENTATION_UNDERLINE_VALUES = new Set([
+  "none", "words", "sng", "dbl", "heavy", "dotted", "dottedHeavy", "dash", "dashHeavy", "dashLong", "dashLongHeavy",
+  "dotDash", "dotDashHeavy", "dotDotDash", "dotDotDashHeavy", "wavy", "wavyHeavy", "wavyDbl",
+]);
+const PRESENTATION_STRIKE_VALUES = new Set(["noStrike", "sngStrike", "dblStrike"]);
+const PRESENTATION_CAPS_VALUES = new Set(["none", "small", "all"]);
 let nextPresentationFieldId = 1;
 const AUTO_NUMBER_TYPES = new Set([
   "alphaLcParenBoth", "alphaLcParenR", "alphaLcPeriod", "alphaUcParenBoth", "alphaUcParenR", "alphaUcPeriod",
@@ -51,16 +57,49 @@ function normalizeLevel(value = 0) {
   return level;
 }
 
+export function normalizePresentationUnderline(value, label = "Presentation underline") {
+  const token = typeof value === "boolean" ? (value ? "sng" : "none") : String(value ?? "").trim();
+  if (!PRESENTATION_UNDERLINE_VALUES.has(token)) throw new TypeError(`${label} must be a standard DrawingML underline token.`);
+  return token;
+}
+
+export function normalizePresentationStrike(value, label = "Presentation strike") {
+  const token = typeof value === "boolean" ? (value ? "sngStrike" : "noStrike") : String(value ?? "").trim();
+  if (!PRESENTATION_STRIKE_VALUES.has(token)) throw new TypeError(`${label} must be a standard DrawingML strike token.`);
+  return token;
+}
+
+export function normalizePresentationCaps(value, label = "Presentation caps") {
+  const token = String(value ?? "").trim();
+  if (!PRESENTATION_CAPS_VALUES.has(token)) throw new TypeError(`${label} must be none, small, or all.`);
+  return token;
+}
+
 function normalizeRunStyle(style = {}) {
   if (!style || typeof style !== "object" || Array.isArray(style)) throw new TypeError("Presentation run style must be an object.");
   const rawFontSize = style.fontSize == null ? undefined : String(style.fontSize).trim();
   const fontSize = rawFontSize == null ? undefined : finiteNumber(rawFontSize.replace(/(?:px|pt)$/i, "")) * (/pt$/i.test(rawFontSize) ? 4 / 3 : 1);
   if (fontSize != null && !(fontSize > 0 && fontSize <= 1024)) throw new RangeError("Presentation run fontSize must be between 0 and 1024 pixels.");
+  const rawFontKerning = style.fontKerning == null ? undefined : String(style.fontKerning).trim();
+  const fontKerning = rawFontKerning == null ? undefined : finiteNumber(rawFontKerning.replace(/pt$/i, ""));
+  if (fontKerning != null && !(fontKerning >= 0 && fontKerning <= 768)) throw new RangeError("Presentation run fontKerning must be between 0 and 768 points.");
+  const rawFontBaseline = style.fontBaseline == null ? undefined : String(style.fontBaseline).trim();
+  const fontBaseline = rawFontBaseline == null ? undefined : finiteNumber(rawFontBaseline.replace(/%$/i, ""));
+  if (fontBaseline != null && !(fontBaseline >= -400 && fontBaseline <= 400)) throw new RangeError("Presentation run fontBaseline must be between -400% and 400%.");
+  const rawFontSpacing = style.fontSpacing == null ? undefined : String(style.fontSpacing).trim();
+  const fontSpacing = rawFontSpacing == null ? undefined : finiteNumber(rawFontSpacing.replace(/pt$/i, ""));
+  if (fontSpacing != null && !(fontSpacing >= -768 && fontSpacing <= 768)) throw new RangeError("Presentation run fontSpacing must be between -768 and 768 points.");
+  const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps);
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
-    ...(style.underline == null ? {} : { underline: String(style.underline) }),
+    ...(style.underline == null ? {} : { underline: normalizePresentationUnderline(style.underline) }),
+    ...(style.strike == null ? {} : { strike: normalizePresentationStrike(style.strike) }),
     ...(fontSize == null ? {} : { fontSize }),
+    ...(fontKerning == null ? {} : { fontKerning }),
+    ...(fontBaseline == null ? {} : { fontBaseline }),
+    ...(fontSpacing == null ? {} : { fontSpacing }),
+    ...(fontCaps == null ? {} : { fontCaps }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),
@@ -406,7 +445,12 @@ export function presentationParagraphsSvg(paragraphs, frame, defaultStyle = {}, 
       return text.split("\t").map((segment, segmentIndex) => {
         if (segmentIndex) x = tabX(segment, style);
         const width = segment.length * (style.fontSize || fontSize) * 0.55;
-        const result = segment ? `<text x="${x}" y="${y + fontSize + lineIndex * lineHeight}" font-family="${attrEscape(svgFontFamily(style))}" font-size="${style.fontSize || fontSize}" font-weight="${style.bold ? 700 : 400}" font-style="${style.italic ? "italic" : "normal"}"${style.underline || run.link ? ' text-decoration="underline"' : ""} fill="${attrEscape(style.color || (run.link ? "#2563eb" : paragraphStyle.color || "#0f172a"))}"${hyperlink ? ` data-hyperlink="${attrEscape(hyperlink)}"` : ""}${run.field ? ` data-field-type="${attrEscape(run.field.type)}" data-field-id="${attrEscape(run.field.id)}"` : ""}>${escape(segment)}</text>` : "";
+        const decorations = [
+          style.underline && style.underline !== "none" ? "underline" : "",
+          style.strike && style.strike !== "noStrike" ? "line-through" : "",
+          run.link ? "underline" : "",
+        ].filter(Boolean).join(" ");
+        const result = segment ? `<text x="${x}" y="${y + fontSize + lineIndex * lineHeight}" font-family="${attrEscape(svgFontFamily(style))}" font-size="${style.fontSize || fontSize}" font-weight="${style.bold ? 700 : 400}" font-style="${style.italic ? "italic" : "normal"}"${decorations ? ` text-decoration="${decorations}"` : ""} fill="${attrEscape(style.color || (run.link ? "#2563eb" : paragraphStyle.color || "#0f172a"))}"${hyperlink ? ` data-hyperlink="${attrEscape(hyperlink)}"` : ""}${run.field ? ` data-field-type="${attrEscape(run.field.type)}" data-field-id="${attrEscape(run.field.id)}"` : ""}>${escape(segment)}</text>` : "";
         x += width;
         return result;
       }).join("");
