@@ -960,6 +960,16 @@ language as equivalent to an omitted source value. The existing presentation
 smoke and real MMS text-edit dogfood cover this profile; arbitrary effect
 graphs and complete six-sample edit coverage remain open.
 
+### Imported preset shape geometry
+
+Recognized DrawingML preset shapes now retain their ordered adjustment values
+in the JavaScript model and presentation wire. The finite preset catalog is
+shared with the native codec, so editing text or another bounded leaf on an
+imported `homePlate`, `wedgeRectCallout`, or similar shape no longer rejects
+the owning shape as unsupported. The source preset and adjustment list are
+reimported after the edit; unknown geometry and invalid adjustment topology
+remain fail-closed.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
