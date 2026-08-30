@@ -10,6 +10,7 @@
 - [x] Record compact evidence without committing reference artifacts.
 - [x] Expose recursive group-child classifications with source-tree paths;
   unsupported group subtrees remain discoverable as `opaque-preserved` records.
-- [ ] Add shared Skill/help guidance after the template branch releases its
-  current presentation documentation changes.
-- [ ] Obtain Windows PowerPoint open/save/playback evidence in a later lane.
+- [x] Integrate the source-bound PPJ and data-only task/resume route into the
+  shared Skill and Help after the template documentation settles.
+- [x] Record Windows PowerPoint open/save/playback as an explicit non-goal for
+  this change; native-host evidence remains a separate later lane.

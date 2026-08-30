@@ -71,9 +71,29 @@ overwrite the input.
 
 Task state is optional. Add `--task <id>` only when immutable PPJ revisions,
 review receipts, resume, or publication evidence are useful. Resume from the
-latest verified PPJ revision and reopen its reviewed artifact. Do not attempt
-to restore a JavaScript heap. Legacy `ctx.plan` Presentation tasks are reported
-as unsupported rather than silently migrated.
+latest verified PPJ revision. If its reported status is not `reviewed`, treat
+it as working state and do not deliver its candidate. Do not attempt to restore
+a JavaScript heap. Legacy `ctx.plan` Presentation tasks are reported as
+unsupported rather than silently migrated.
+
+Create and continue the task through data-only commands:
+
+```bash
+officekit tasks --new "Continue the imported presentation" --json
+officekit ppj import input.pptx -o deck.ppj --task <task-id> --json
+officekit ppj check deck.ppj --task <task-id> --json
+officekit ppj build deck.ppj -o candidate.pptx --task <task-id> --json
+officekit ppj review deck.ppj --task <task-id> --json
+
+# In a fresh context:
+officekit tasks <task-id> --json
+officekit ppj resume <task-id> -o resumed/deck.ppj --json
+```
+
+The resumed PPJ is a new editable working copy with its bound source and assets.
+The immutable task revision remains read-only. Re-inspect the resumed program
+before another edit and record the new check, build, and review with the same
+task ID.
 
 ### Review and deliver
 
@@ -128,6 +148,7 @@ not obscure evidence.
 ## Common commands
 
 ```bash
+officekit ppj resume <task-id> -o resumed/deck.ppj --json
 officekit ppj inspect deck.ppj --json
 officekit ppj check deck.ppj --json
 officekit ppj build deck.ppj -o deck.pptx --json

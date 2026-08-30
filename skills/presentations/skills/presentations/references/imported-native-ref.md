@@ -207,4 +207,7 @@ but left the program, the embedded PPJ remains authoritative. Build a new file;
 never overwrite or silently merge native drift.
 
 Use `--task` only when immutable revisions and resume evidence are useful. Task
-state does not weaken source checks or restore process memory.
+state does not weaken source checks or restore process memory. Follow the
+[durable-work route](../SKILL.md#continue-durable-work) to create the task and
+materialize a new editable PPJ workspace in a fresh context; never edit files
+inside `.office-kit/tasks/`.

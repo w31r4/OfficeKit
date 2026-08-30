@@ -48,6 +48,16 @@ committed; it is released manually and does not borrow or fabricate 2.0.0
 hashes. This does not affect the npm 2.0.0 package or its three NativeAOT
 optional packages.
 
+## Unreleased: PPJ durable resume
+
+`officekit tasks --new <goal>` now creates a durable task without entering the
+JavaScript REPL. `officekit ppj resume <task-id> -o <deck.ppj>` verifies the
+latest usable immutable PPJ revision, then materializes its program, source
+PPTX, and local assets into a new editable workspace outside `.office-kit`.
+The receipt includes revision, candidate, and review state; no JavaScript heap
+or command replay is restored. The existing task smoke covers both an authored
+program and a source-bound program with one local asset.
+
 ## Unreleased: Presentation scene stack
 
 Presentation authoring now uses one bottom-to-top scene stack across shapes,
