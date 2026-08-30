@@ -4398,8 +4398,45 @@ internal static class PpjAuthoredPresentationCompiler
                 throw Unsupported(source.Id, "error bars require a bar, column, or line series");
             series.ErrorBars = BuildChartErrorBars(errorBars, catalog);
         }
+        if (raw.TryGetProperty("dataLabels", out var dataLabels))
+            series.DataLabels = BuildSeriesDataLabels(dataLabels, catalog);
         return series;
     }
+
+    private static SpreadsheetChartSeriesDataLabelsArtifact BuildSeriesDataLabels(JsonElement source, Catalog catalog)
+    {
+        var output = new SpreadsheetChartSeriesDataLabelsArtifact();
+        if (HasChartLabelFields(source)) output.Defaults = BuildChartLabelOverride(source, catalog);
+        if (source.TryGetProperty("points", out var points))
+        {
+            foreach (var point in points.EnumerateArray())
+                output.Points.Add(new SpreadsheetChartPointDataLabelArtifact
+                {
+                    Index = checked((uint)point.GetProperty("index").GetInt32()),
+                    Override = BuildChartLabelOverride(point, catalog),
+                });
+        }
+        return output;
+    }
+
+    private static SpreadsheetChartDataLabelOverrideArtifact BuildChartLabelOverride(JsonElement source, Catalog catalog)
+    {
+        var output = new SpreadsheetChartDataLabelOverrideArtifact();
+        if (source.TryGetProperty("showValue", out var showValue)) output.ShowValue = showValue.GetBoolean();
+        if (source.TryGetProperty("showCategory", out var showCategory)) output.ShowCategoryName = showCategory.GetBoolean();
+        if (source.TryGetProperty("showSeries", out var showSeries)) output.ShowSeriesName = showSeries.GetBoolean();
+        if (source.TryGetProperty("showPercent", out var showPercent)) output.ShowPercent = showPercent.GetBoolean();
+        if (source.TryGetProperty("position", out var position)) output.Position = LabelPosition(position.GetString()!);
+        if (source.TryGetProperty("numberFormat", out var numberFormat)) output.NumberFormatCode = numberFormat.GetString()!;
+        if (source.TryGetProperty("textStyle", out var textStyle)) output.TextStyle = BuildChartTextStyle(textStyle, catalog);
+        return output;
+    }
+
+    private static bool HasChartLabelFields(JsonElement source) =>
+        source.TryGetProperty("showValue", out _) || source.TryGetProperty("showCategory", out _) ||
+        source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
+        source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||
+        source.TryGetProperty("textStyle", out _);
 
     private static SpreadsheetChartAxisArtifact BuildChartAxis(JsonElement source, Catalog catalog)
     {

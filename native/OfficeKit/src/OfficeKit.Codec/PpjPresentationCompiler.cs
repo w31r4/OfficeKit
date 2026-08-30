@@ -2387,8 +2387,11 @@ internal static class PpjSourceBoundPresentationCompiler
                 !pair.First.Values.SequenceEqual(pair.Second.Values));
         var fillChanged = before.Data.Series.Zip(after.Data.Series)
             .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "fill"));
+        var labelsChanged = before.Data.Series.Zip(after.Data.Series)
+            .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "dataLabels"));
         if (valueChanged) RequireCapability(after, "setChartData", path);
         if (fillChanged) RequireCapability(after, "setChartFill", path + ".series[].fill");
+        if (labelsChanged) RequireCapability(after, "setChartLabels", path + ".series[].dataLabels");
         var categories = after.Data.Categories.Select((item, index) => item.ValueKind == JsonValueKind.String
             ? item.GetString()!
             : throw Unsupported($"{path}.categories[{index}]", "non-string imported category")).ToArray();
@@ -2413,7 +2416,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void ApplyChartSeries(PpjChartSeriesModel before, PpjChartSeriesModel after, SpreadsheetChartSeriesArtifact target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "fill");
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "fill", "dataLabels");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         if (!before.Values.Select(value => value is null).SequenceEqual(after.Values.Select(value => value is null)))
@@ -2438,7 +2441,66 @@ internal static class PpjSourceBoundPresentationCompiler
                 ? SourceBoundChartFill(fill, path + ".fill")
                 : null;
         }
+        if (PropertyChanged(before.Raw, after.Raw, "dataLabels"))
+        {
+            target.DataLabels = after.Raw.TryGetProperty("dataLabels", out var labels)
+                ? SourceBoundSeriesDataLabels(labels, path + ".dataLabels")
+                : null;
+        }
     }
+
+    private static SpreadsheetChartSeriesDataLabelsArtifact SourceBoundSeriesDataLabels(JsonElement source, string path)
+    {
+        var output = new SpreadsheetChartSeriesDataLabelsArtifact();
+        if (HasChartLabelFields(source)) output.Defaults = SourceBoundChartLabelOverride(source, path);
+        if (source.TryGetProperty("points", out var points))
+        {
+            var index = 0;
+            foreach (var point in points.EnumerateArray())
+            {
+                output.Points.Add(new SpreadsheetChartPointDataLabelArtifact
+                {
+                    Index = checked((uint)point.GetProperty("index").GetInt32()),
+                    Override = SourceBoundChartLabelOverride(point, $"{path}.points[{index}]"),
+                });
+                index++;
+            }
+        }
+        return output;
+    }
+
+    private static SpreadsheetChartDataLabelOverrideArtifact SourceBoundChartLabelOverride(JsonElement source, string path)
+    {
+        var output = new SpreadsheetChartDataLabelOverrideArtifact();
+        if (source.TryGetProperty("showValue", out var showValue)) output.ShowValue = showValue.GetBoolean();
+        if (source.TryGetProperty("showCategory", out var showCategory)) output.ShowCategoryName = showCategory.GetBoolean();
+        if (source.TryGetProperty("showSeries", out var showSeries)) output.ShowSeriesName = showSeries.GetBoolean();
+        if (source.TryGetProperty("showPercent", out var showPercent)) output.ShowPercent = showPercent.GetBoolean();
+        if (source.TryGetProperty("position", out var position)) output.Position = SourceBoundDataLabelPosition(position.GetString()!);
+        if (source.TryGetProperty("numberFormat", out var numberFormat)) output.NumberFormatCode = numberFormat.GetString()!;
+        if (source.TryGetProperty("textStyle", out var textStyle)) output.TextStyle = SourceBoundChartTextStyle(textStyle, path + ".textStyle");
+        return output;
+    }
+
+    private static bool HasChartLabelFields(JsonElement source) =>
+        source.TryGetProperty("showValue", out _) || source.TryGetProperty("showCategory", out _) ||
+        source.TryGetProperty("showSeries", out _) || source.TryGetProperty("showPercent", out _) ||
+        source.TryGetProperty("position", out _) || source.TryGetProperty("numberFormat", out _) ||
+        source.TryGetProperty("textStyle", out _);
+
+    private static SpreadsheetChartDataLabelPosition SourceBoundDataLabelPosition(string value) => value switch
+    {
+        "best-fit" => SpreadsheetChartDataLabelPosition.BestFit,
+        "bottom" => SpreadsheetChartDataLabelPosition.Bottom,
+        "center" => SpreadsheetChartDataLabelPosition.Center,
+        "inside-base" => SpreadsheetChartDataLabelPosition.InsideBase,
+        "inside-end" => SpreadsheetChartDataLabelPosition.InsideEnd,
+        "left" => SpreadsheetChartDataLabelPosition.Left,
+        "outside-end" => SpreadsheetChartDataLabelPosition.OutsideEnd,
+        "right" => SpreadsheetChartDataLabelPosition.Right,
+        "top" => SpreadsheetChartDataLabelPosition.Top,
+        _ => throw Unsupported("chart.dataLabels.position", $"unsupported data-label position {value}"),
+    };
 
     private static bool FrameChanged(PpjElementModel before, PpjElementModel after) =>
         !JsonEqual(before.Raw.GetProperty("frame"), after.Raw.GetProperty("frame"));

@@ -778,6 +778,38 @@ internal static partial class PpjPresentationProjector
                 projected["stroke"] = ProjectChartLine(errorBars.Line);
             output["errorBars"] = projected;
         }
+        if (series.DataLabels is not null)
+            output["dataLabels"] = ProjectSeriesDataLabels(series.DataLabels);
+    }
+
+    private static JsonObject ProjectSeriesDataLabels(SpreadsheetChartSeriesDataLabelsArtifact source)
+    {
+        var output = source.Defaults is null ? new JsonObject() : ProjectChartLabelOverride(source.Defaults);
+        if (source.Points.Count > 0)
+        {
+            var points = new JsonArray();
+            foreach (var point in source.Points.OrderBy(point => point.Index))
+            {
+                var item = ProjectChartLabelOverride(point.Override!);
+                item["index"] = point.Index;
+                points.Add(item);
+            }
+            output["points"] = points;
+        }
+        return output;
+    }
+
+    private static JsonObject ProjectChartLabelOverride(SpreadsheetChartDataLabelOverrideArtifact source)
+    {
+        var output = new JsonObject();
+        if (source.HasShowValue) output["showValue"] = source.ShowValue;
+        if (source.HasShowCategoryName) output["showCategory"] = source.ShowCategoryName;
+        if (source.HasShowSeriesName) output["showSeries"] = source.ShowSeriesName;
+        if (source.HasShowPercent) output["showPercent"] = source.ShowPercent;
+        if (source.HasPosition && DataLabelPosition(source.Position) is { } position) output["position"] = position;
+        if (source.TextStyle is not null) output["textStyle"] = ProjectChartTextStyle(source.TextStyle);
+        if (source.NumberFormatCode.Length > 0) output["numberFormat"] = source.NumberFormatCode;
+        return output;
     }
 
     private static JsonObject ProjectChartAxis(SpreadsheetChartAxisArtifact axis)
@@ -1726,8 +1758,7 @@ internal static partial class PpjPresentationProjector
                 output.Add(new("setChartData", ["chart.data"]));
                 output.Add(new("setChartTextStyle", ["chart.textStyle"]));
                 output.Add(new("setChartFill", ["chart.fill"]));
-                if (element.Chart.DataLabels is not null)
-                    output.Add(new("setChartLabels", ["chart.labels"]));
+                output.Add(new("setChartLabels", ["chart.labels"]));
                 if (element.Chart.XAxis is not null || element.Chart.YAxis is not null ||
                     element.Chart.SecondaryXAxis is not null || element.Chart.SecondaryYAxis is not null)
                     output.Add(new("setChartAxis", ["chart.axis"]));
