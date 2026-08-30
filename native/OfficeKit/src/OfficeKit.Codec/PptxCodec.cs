@@ -1328,8 +1328,9 @@ internal static class PptxCodec
         int elementIndex,
         PptxPartContext slideContext,
         PptxNativeObjectCatalog? nativeObjects = null,
-        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null)
-        => ReadElement(source, $"presentation/slide/{slideIndex + 1}", elementIndex, slideContext, nativeObjects, elementIdsByNativeId);
+        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null,
+        bool allowNegativeOffset = false)
+        => ReadElement(source, $"presentation/slide/{slideIndex + 1}", elementIndex, slideContext, nativeObjects, elementIdsByNativeId, allowNegativeOffset);
 
     private static PresentationElement ReadElement(
         OpenXmlElement source,
@@ -1337,7 +1338,8 @@ internal static class PptxCodec
         int elementIndex,
         PptxPartContext slideContext,
         PptxNativeObjectCatalog? nativeObjects = null,
-        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null)
+        IReadOnlyDictionary<uint, string>? elementIdsByNativeId = null,
+        bool allowNegativeOffset = false)
     {
         var element = new PresentationElement
         {
@@ -1349,7 +1351,7 @@ internal static class PptxCodec
         var modeled = false;
         if (source is P.Shape sourceShape)
         {
-            editable = IsSimpleShape(sourceShape);
+            editable = IsSimpleShape(sourceShape, allowNegativeOffset);
             element.Shape = ReadShape(sourceShape, slideContext);
             modeled = true;
         }
@@ -1553,11 +1555,11 @@ internal static class PptxCodec
             nonVisual.ChildElements[0] is not P.NonVisualDrawingProperties drawing ||
             nonVisual.ChildElements[1] is not P.NonVisualGroupShapeDrawingProperties groupDrawing ||
             nonVisual.ChildElements[2] is not P.ApplicationNonVisualDrawingProperties application ||
-            groupDrawing.ChildElements.Count != 0 || application.ChildElements.Count != 0 ||
+            !SupportsGroupDrawingProperties(groupDrawing) || application.ChildElements.Count != 0 ||
             drawing.Id?.Value is null or 0 || drawing.Name?.Value is not { Length: <= 1_024 } ||
-            !HasOnlyAttributes(groupDrawing) || !HasOnlyAttributes(application) ||
+            !HasOnlyAttributes(application) ||
             properties.ChildElements.Count != 1 || properties.FirstChild != transform || !HasOnlyAttributes(properties) ||
-            !HasOnlyAttributes(transform) || transform.ChildElements.Count != 4 ||
+            !PptxShapeTransformCodec.Supports(transform) || transform.ChildElements.Count != 4 ||
             transform.ChildElements[0] is not A.Offset offset ||
             transform.ChildElements[1] is not A.Extents extents ||
             transform.ChildElements[2] is not A.ChildOffset childOffset ||
@@ -1575,13 +1577,20 @@ internal static class PptxCodec
         group.ChildTopEmu = childOffset.Y?.Value ?? 0;
         group.ChildWidthEmu = childExtents.Cx?.Value ?? 0;
         group.ChildHeightEmu = childExtents.Cy?.Value ?? 0;
+        group.Transform = PptxShapeTransformCodec.Read(transform);
         group.Accessibility = PptxNonVisualAccessibilityCodec.Read(drawing);
         var children = GroupElements(source);
         if (children.Length == 0) return false;
         var zOrderPlan = AnalyzeElementZOrder(children);
         for (var index = 0; index < children.Length; index++)
         {
-            var child = ReadElement(children[index], groupId, index, slideContext, elementIdsByNativeId: elementIdsByNativeId);
+            var child = ReadElement(
+                children[index],
+                groupId,
+                index,
+                slideContext,
+                elementIdsByNativeId: elementIdsByNativeId,
+                allowNegativeOffset: true);
             // Keep a valid group projected when a child is only partially
             // modeled.  The child remains source-bound and read-only unless a
             // separate capability proves a narrower edit; rejecting the whole
@@ -1594,6 +1603,19 @@ internal static class PptxCodec
             group.Children.Add(child);
         }
         return true;
+    }
+
+    private static bool SupportsGroupDrawingProperties(P.NonVisualGroupShapeDrawingProperties groupDrawing)
+    {
+        if (!HasOnlyAttributes(groupDrawing) || groupDrawing.ChildElements.Count == 0) return groupDrawing.ChildElements.Count == 0;
+        if (groupDrawing.ChildElements.Count != 1 || groupDrawing.FirstChild is not A.GroupShapeLocks locks ||
+            locks.ChildElements.Count != 0)
+            return false;
+        // Group locks are UI hints and do not alter the DrawingML render tree.
+        // Keep the observed standard noChangeAspect form source-bound while
+        // allowing the group's semantic children to remain discoverable.
+        return HasOnlyAttributes(locks, "noChangeAspect") &&
+            locks.NoChangeAspect?.Value is true;
     }
 
     private static PresentationShape ReadShape(P.Shape shape, PptxPartContext slideContext)
@@ -1641,7 +1663,7 @@ internal static class PptxCodec
         return result;
     }
 
-    private static bool IsSimpleShape(P.Shape shape)
+    private static bool IsSimpleShape(P.Shape shape, bool allowNegativeOffset = false)
     {
         if (shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null) return false;
         if (shape.ShapeStyle is not null) return false;
@@ -1649,7 +1671,10 @@ internal static class PptxCodec
         var transform = properties?.Transform2D;
         var geometry = Geometry(shape);
         if (properties is null || properties.Elements<A.Transform2D>().Count() != 1 ||
-            !PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")) return false;
+            !PptxShapeTransformCodec.Supports(
+                transform,
+                allowSingleZeroExtent: geometry == "line",
+                allowNegativeOffset: allowNegativeOffset)) return false;
         if (geometry is not ("rect" or "ellipse" or "roundRect" or "textbox" or "line" or "custom")) return false;
         if (geometry == "custom")
         {
@@ -2150,16 +2175,18 @@ internal static class PptxCodec
         var group = element.Group;
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeIdsByElementId[element.Id], Name = element.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, group.Accessibility);
+        var groupTransform = new A.TransformGroup(
+            new A.Offset { X = group.LeftEmu, Y = group.TopEmu },
+            new A.Extents { Cx = group.WidthEmu, Cy = group.HeightEmu },
+            new A.ChildOffset { X = group.ChildLeftEmu, Y = group.ChildTopEmu },
+            new A.ChildExtents { Cx = group.ChildWidthEmu, Cy = group.ChildHeightEmu });
+        PptxShapeTransformCodec.Apply(groupTransform, group.Transform);
         var output = new P.GroupShape(
             new P.NonVisualGroupShapeProperties(
                 nonVisual,
                 new P.NonVisualGroupShapeDrawingProperties(),
                 new P.ApplicationNonVisualDrawingProperties()),
-            new P.GroupShapeProperties(new A.TransformGroup(
-                new A.Offset { X = group.LeftEmu, Y = group.TopEmu },
-                new A.Extents { Cx = group.WidthEmu, Cy = group.HeightEmu },
-                new A.ChildOffset { X = group.ChildLeftEmu, Y = group.ChildTopEmu },
-                new A.ChildExtents { Cx = group.ChildWidthEmu, Cy = group.ChildHeightEmu })));
+            new P.GroupShapeProperties(groupTransform));
         foreach (var child in group.Children)
             output.Append(BuildElement(child, nativeIdsByElementId, slideContext, slidePart));
         return output;
@@ -2269,6 +2296,13 @@ internal static class PptxCodec
             transform.ChildOffset.Y = requested.Group.ChildTopEmu;
             transform.ChildExtents!.Cx = requested.Group.ChildWidthEmu;
             transform.ChildExtents.Cy = requested.Group.ChildHeightEmu;
+            changed = true;
+        }
+        if (!Equals(original.Group.Transform, requested.Group.Transform))
+        {
+            PptxShapeTransformCodec.Validate(requested.Group.Transform, $"{location} group transform");
+            var transform = source.GroupShapeProperties!.GetFirstChild<A.TransformGroup>()!;
+            PptxShapeTransformCodec.Apply(transform, requested.Group.Transform);
             changed = true;
         }
 
@@ -2692,7 +2726,8 @@ internal static class PptxCodec
         PptxAssetCatalog assetCatalog,
         EffectiveCodecLimits limits,
         ref ulong items,
-        int depth)
+        int depth,
+        bool allowNegativeOffset = false)
     {
         items++;
         if (items > limits.MaxCells)
@@ -2725,7 +2760,7 @@ internal static class PptxCodec
             var invalidExtent = freeLine
                 ? element.Shape.WidthEmu == 0 && element.Shape.HeightEmu == 0
                 : element.Shape.WidthEmu == 0 || element.Shape.HeightEmu == 0;
-            if ((!inheritedPlaceholderGeometry && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0 ||
+            if ((!inheritedPlaceholderGeometry && (!allowNegativeOffset && (element.Shape.LeftEmu < 0 || element.Shape.TopEmu < 0) ||
                     element.Shape.WidthEmu < 0 || element.Shape.HeightEmu < 0 ||
                     invalidExtent)) ||
                 element.Shape.LineWidthEmu < 0 || element.Shape.LineWidthEmu > int.MaxValue)
@@ -2799,6 +2834,7 @@ internal static class PptxCodec
                 group.WidthEmu <= 0 || group.HeightEmu <= 0 ||
                 group.ChildWidthEmu <= 0 || group.ChildHeightEmu <= 0 || group.Children.Count == 0)
                 throw new CodecException("invalid_presentation_group", $"Presentation group {element.Id} requires positive outer/child extents and at least one child.");
+            PptxShapeTransformCodec.Validate(group.Transform, element.Id);
             var childIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (var child in group.Children)
             {
@@ -2816,11 +2852,12 @@ internal static class PptxCodec
                     if (!hasSourcePackage || child.Source is null || string.IsNullOrWhiteSpace(child.Source.ElementSha256))
                         throw new CodecException("unsupported_presentation_features", $"Presentation group {element.Id} contains a source-free opaque child.");
                     if (child.Source.Editable &&
-                        (child.Opaque.LeftEmu < 0 || child.Opaque.TopEmu < 0 || child.Opaque.WidthEmu <= 0 || child.Opaque.HeightEmu <= 0))
+                        ((!allowNegativeOffset && (child.Opaque.LeftEmu < 0 || child.Opaque.TopEmu < 0)) ||
+                         child.Opaque.WidthEmu <= 0 || child.Opaque.HeightEmu <= 0))
                         throw new CodecException("invalid_presentation_frame", $"Presentation native child {child.Id} has an invalid frame.");
                     continue;
                 }
-                ValidatePresentationElement(child, hasSourcePackage, assetCatalog, limits, ref items, depth + 1);
+                ValidatePresentationElement(child, hasSourcePackage, assetCatalog, limits, ref items, depth + 1, allowNegativeOffset: true);
             }
         }
         else if (element.ContentCase != PresentationElement.ContentOneofCase.Opaque)

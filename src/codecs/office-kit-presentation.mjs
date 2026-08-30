@@ -632,6 +632,7 @@ function cloneImportedPresentationGroup(container, source, context) {
     name: source.name,
     position: clonedPresentationValue(source.position),
     childFrame: clonedPresentationValue(source.childFrame),
+    ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
     ...(source.accessibility ? { accessibility: clonedPresentationValue(source.accessibility) } : {}),
     _officeKitAccessibilityEditable: source.accessibilityCapability.editable,
   });
@@ -2603,6 +2604,7 @@ function presentationGroup(group, original, assetCatalog, sourceIdByCloneId, cus
         childTopEmu: signedEmuFromPixels(childFrame.top, `${group.id}.childFrame.top`),
         childWidthEmu,
         childHeightEmu,
+        ...(group.transform ? { transform: wirePresentationTransform(group.transform, `group ${group.id}`) } : {}),
         children: group.children.map((child, index) => {
           const imported = child[PRESENTATION_IMPORTED_GROUP_CHILD];
           if (imported && presentationCloneElementSnapshot(child) === imported.snapshot) return imported.wire;
@@ -6967,6 +6969,7 @@ function modelPresentationGroup(element, assetCatalog, customShowLinks, nativeGr
       width: Number(group.childWidthEmu) / EMU_PER_PIXEL,
       height: Number(group.childHeightEmu) / EMU_PER_PIXEL,
     },
+    ...(group.transform ? { transform: modelPresentationTransform(group.transform) } : {}),
     ...modelPresentationAccessibility(group.accessibility, "Imported Presentation group"),
     _officeKitAccessibilityEditable: element.source?.accessibilityEditable === true,
     children: group.children.map((child) => modelPresentationGroupChild(child, assetCatalog, customShowLinks, nativeGraph, sourcePart)),

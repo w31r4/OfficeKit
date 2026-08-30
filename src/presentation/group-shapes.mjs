@@ -66,6 +66,24 @@ export function normalizeGroupGeometry(position = {}, childFrame = {}) {
   return { frame, childFrame: children };
 }
 
+function normalizeGroupTransform(value, name = "Presentation group transform") {
+  if (value == null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
+  const output = {};
+  if (Object.hasOwn(value, "rotationDegrees") && value.rotationDegrees != null) {
+    const degrees = Number(value.rotationDegrees);
+    if (!Number.isFinite(degrees) || degrees < -360 || degrees > 360) throw new RangeError(`${name}.rotationDegrees must be between -360 and 360 degrees.`);
+    output.rotationDegrees = degrees;
+  }
+  for (const key of ["flipHorizontal", "flipVertical"]) {
+    if (!Object.hasOwn(value, key) || value[key] == null) continue;
+    if (typeof value[key] !== "boolean") throw new TypeError(`${name}.${key} must be a boolean.`);
+    output[key] = value[key];
+  }
+  if (!Object.keys(output).length) throw new TypeError(`${name} must define rotationDegrees, flipHorizontal, or flipVertical.`);
+  return output;
+}
+
 export function presentationGroupSvgTransform(position, childFrame) {
   const geometry = normalizeGroupGeometry(position, childFrame);
   const scaleX = geometry.frame.width / geometry.childFrame.width;
@@ -98,6 +116,7 @@ export function createPresentationGroupShapeClass(adapters) {
       const geometry = normalizeGroupGeometry(config.position || config.frame, config.childFrame || config.childrenFrame);
       this.position = geometry.frame;
       this.childFrame = geometry.childFrame;
+      this.transform = normalizeGroupTransform(config.transform, `Presentation group ${this.name || this.id} transform`);
       this.children = [];
       this.shapes = adapters.createShapeCollection(slide, this);
       this.connectors = adapters.createConnectorCollection(slide, this);
@@ -166,7 +185,7 @@ export function createPresentationGroupShapeClass(adapters) {
 
     inspectRecord() {
       const frame = this.absoluteFrame();
-      return { kind: "groupShape", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, children: this.children.length, childIds: this.children.map((child) => child.id), accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, bbox: [frame.left, frame.top, frame.width, frame.height], bboxUnit: "px", childFrame: this.childFrame };
+      return { kind: "groupShape", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, children: this.children.length, childIds: this.children.map((child) => child.id), accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, bbox: [frame.left, frame.top, frame.width, frame.height], bboxUnit: "px", childFrame: this.childFrame, transform: this.transform };
     }
 
     inspectRecords(kinds) {
@@ -195,11 +214,18 @@ export function createPresentationGroupShapeClass(adapters) {
         const record = child.layoutJson();
         return { ...record, localFrame: record.frame || child.position, frame: this.absoluteChildFrame(child), parentGroupId: this.id };
       });
-      return { kind: "groupShape", id: this.id, name: this.name, frame: this.absoluteFrame(), localFrame: this.position, childFrame: this.childFrame, accessibility: this.accessibility ? { ...this.accessibility } : undefined, children };
+      return { kind: "groupShape", id: this.id, name: this.name, frame: this.absoluteFrame(), localFrame: this.position, childFrame: this.childFrame, transform: this.transform, accessibility: this.accessibility ? { ...this.accessibility } : undefined, children };
     }
 
     toSvg() {
-      return `<g data-group-id="${attrEscape(this.id)}" transform="${presentationGroupSvgTransform(this.position, this.childFrame)}">${this.children.map((child) => child.toSvg()).join("")}</g>`;
+      const content = `<g data-group-id="${attrEscape(this.id)}" transform="${presentationGroupSvgTransform(this.position, this.childFrame)}">${this.children.map((child) => child.toSvg()).join("")}</g>`;
+      if (!this.transform) return content;
+      const cx = this.position.left + this.position.width / 2;
+      const cy = this.position.top + this.position.height / 2;
+      const rotation = Number(this.transform.rotationDegrees || 0);
+      const flipHorizontal = this.transform.flipHorizontal === true ? -1 : 1;
+      const flipVertical = this.transform.flipVertical === true ? -1 : 1;
+      return `<g transform="translate(${cx} ${cy}) rotate(${rotation}) scale(${flipHorizontal} ${flipVertical}) translate(${-cx} ${-cy})">${content}</g>`;
     }
 
     validateLayout() {
@@ -215,7 +241,7 @@ export function createPresentationGroupShapeClass(adapters) {
     }
 
     toProto() {
-      return { kind: "groupShape", id: this.id, name: this.name, position: this.position, childFrame: this.childFrame, accessibility: this.accessibility ? { ...this.accessibility } : undefined, children: this.children.map((child) => adapters.isGroup(child) ? child.toProto() : { ...child.layoutJson(), kind: adapters.elementKind(child) }) };
+      return { kind: "groupShape", id: this.id, name: this.name, position: this.position, childFrame: this.childFrame, transform: this.transform, accessibility: this.accessibility ? { ...this.accessibility } : undefined, children: this.children.map((child) => adapters.isGroup(child) ? child.toProto() : { ...child.layoutJson(), kind: adapters.elementKind(child) }) };
     }
   };
 }

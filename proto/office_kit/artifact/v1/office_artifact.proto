@@ -2070,9 +2070,10 @@ message PresentationElementZOrderCapability {
 
 // Bounded recursive p:grpSp projection. The outer frame maps the local child
 // coordinate rectangle through a:xfrm off/ext/chOff/chExt. Children retain
-// their ordinary element semantics and relationship-backed assets. Rotation,
-// flips, group-level effects, locks, extension records, unsupported children,
-// and topology changes remain source-bound opaque content.
+// their ordinary element semantics and relationship-backed assets. A direct
+// group rotation/flip is projected separately from the frame; group-level
+// effects, locks, extension records, unsupported children, and topology
+// changes remain source-bound opaque content.
 message PresentationGroup {
   int64 left_emu = 1;
   int64 top_emu = 2;
@@ -2086,6 +2087,9 @@ message PresentationGroup {
   // Non-visible alternative text stored on p:nvGrpSpPr/p:cNvPr. It describes
   // the group as a whole without changing child text, geometry, or rendering.
   PresentationNonVisualAccessibility accessibility = 10;
+  // Optional direct a:xfrm rotation/flip attributes. The group frame and
+  // child coordinate rectangle remain owned by fields 1-8.
+  PresentationShapeTransform transform = 11;
 }
 
 message PresentationShape {
