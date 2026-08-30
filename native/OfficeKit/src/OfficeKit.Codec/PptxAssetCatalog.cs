@@ -166,6 +166,19 @@ internal sealed class PptxAssetCatalog
         _ => throw new CodecException("invalid_presentation_asset", $"Unsupported presentation image content type {contentType}."),
     };
 
+    internal static string NativeAssetIdFor(string contentType, string sha256)
+    {
+        var normalized = NormalizeContentType(contentType);
+        if (normalized.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            return PictureAssetPrefix + sha256.ToLowerInvariant();
+        if (normalized.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ||
+            normalized.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            return MediaAssetPrefix + sha256.ToLowerInvariant();
+        throw new CodecException(
+            "ppj.asset.unsupportedPurpose",
+            $"PPJ presentation asset MIME {contentType} does not have a native compiler purpose.");
+    }
+
     private void AddRequested(Asset source)
     {
         if (_assets.Count >= MaxAssets)

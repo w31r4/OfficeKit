@@ -1150,6 +1150,7 @@
             "setTransition",
             "setNotes",
             "replaceImage",
+            "replaceSvg",
             "setImageCrop",
             "setImageFit",
             "setImageMask",
@@ -1198,6 +1199,7 @@
               "transition",
               "notes",
               "image.asset",
+              "image.svgAsset",
               "image.crop",
               "image.fit",
               "image.mask.adjustments",
@@ -2728,6 +2730,10 @@
             },
             "asset": {
               "$ref": "#/$defs/id"
+            },
+            "svgAsset": {
+              "$ref": "#/$defs/id",
+              "description": "Source-bound SVG member of a native raster/SVG fallback pair. Authored images use asset and do not manufacture a paired fallback topology."
             },
             "fit": {
               "enum": [

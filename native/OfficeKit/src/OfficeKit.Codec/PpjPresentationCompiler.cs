@@ -272,7 +272,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 throw new CodecException("ppj.asset.hashMismatch", $"PPJ asset {declaration.Id} does not match its declared SHA-256.", "$.assets");
             if (!asset.ContentType.Equals(declaration.MimeType, StringComparison.OrdinalIgnoreCase))
                 throw new CodecException("ppj.asset.mimeMismatch", $"PPJ asset {declaration.Id} does not match its declared MIME type.", "$.assets");
-            var nativeId = $"asset/ppj/{hash}";
+            var nativeId = PptxAssetCatalog.NativeAssetIdFor(declaration.MimeType, hash);
             if (!artifact.Assets.Any(item => item.Id.Equals(nativeId, StringComparison.Ordinal)))
             {
                 var copy = asset.Clone();
@@ -888,7 +888,7 @@ internal static class PpjSourceBoundPresentationCompiler
         IReadOnlyDictionary<string, (double Width, double Height)> assetDimensions,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "asset", "fit", "crop", "opacity", "mask");
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked", "frame", "asset", "svgAsset", "fit", "crop", "opacity", "mask");
         var changed = ApplyFrame(before, after, target, path);
         if (!before.AssetId.Equals(after.AssetId, StringComparison.Ordinal))
         {
@@ -896,6 +896,16 @@ internal static class PpjSourceBoundPresentationCompiler
             if (!assets.TryGetValue(after.AssetId, out var nativeAssetId))
                 throw new CodecException("ppj.asset.missing", $"PPJ image asset {after.AssetId} has no validated bytes.", path + ".asset");
             target.AssetId = nativeAssetId;
+            changed = true;
+        }
+        if (!string.Equals(before.SvgAssetId, after.SvgAssetId, StringComparison.Ordinal))
+        {
+            RequireCapability(after, "replaceSvg", path + ".svgAsset");
+            if (before.SvgAssetId is null || after.SvgAssetId is null)
+                throw Unsupported(path + ".svgAsset", "adding or removing a native raster/SVG fallback pair");
+            if (!assets.TryGetValue(after.SvgAssetId, out var nativeSvgAssetId))
+                throw new CodecException("ppj.asset.missing", $"PPJ SVG asset {after.SvgAssetId} has no validated bytes.", path + ".svgAsset");
+            target.SvgAssetId = nativeSvgAssetId;
             changed = true;
         }
         var cropChanged = PropertyChanged(before.Raw, after.Raw, "crop");

@@ -1939,7 +1939,7 @@ public sealed class PptxCodecTests
         Assert.False(corruptFallback.PresentationProgram.RestoredEmbeddedProgram);
         Assert.True(corruptFallback.PresentationProgram.SourceBound);
 
-        var thirdPartySource = RemoveEmbeddedPpj(first.File.ToByteArray());
+        var thirdPartySource = AddPairedSvgFallback(RemoveEmbeddedPpj(first.File.ToByteArray()));
         var thirdPartySha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(thirdPartySource)).ToLowerInvariant();
         var projected = Invoke(new CodecRequest
         {
@@ -1959,6 +1959,10 @@ public sealed class PptxCodecTests
         Assert.False(projected.PresentationProgram.RestoredEmbeddedProgram);
         Assert.Equal(thirdPartySha256, projected.PresentationProgram.SourceSha256);
         Assert.NotEmpty(projected.PresentationProgram.Assets);
+        string projectedSvgImageId;
+        string projectedSvgFallbackAssetId;
+        string projectedSvgAssetId;
+        string projectedSvgFallbackSha256;
         using (var projectedJson = JsonDocument.Parse(projected.PresentationProgram.ProgramJson.ToByteArray()))
         {
             var projectedRoot = projectedJson.RootElement;
@@ -2019,6 +2023,20 @@ public sealed class PptxCodecTests
                 item.GetProperty("fit").GetString() == "tile" &&
                 item.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray().Any(capability =>
                     capability.GetProperty("operation").GetString() == "setImageFit"));
+            var projectedSvgImage = projectedRoot.GetProperty("pages").EnumerateArray()
+                .SelectMany(page => page.GetProperty("elements").EnumerateArray())
+                .Single(item => item.GetProperty("type").GetString() == "image" && item.TryGetProperty("svgAsset", out _));
+            projectedSvgImageId = projectedSvgImage.GetProperty("id").GetString()!;
+            projectedSvgFallbackAssetId = projectedSvgImage.GetProperty("asset").GetString()!;
+            projectedSvgAssetId = projectedSvgImage.GetProperty("svgAsset").GetString()!;
+            Assert.Contains(projectedSvgImage.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "replaceSvg" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "image.svgAsset"));
+            var projectedAssets = projectedRoot.GetProperty("assets").EnumerateArray()
+                .ToDictionary(asset => asset.GetProperty("id").GetString()!, StringComparer.Ordinal);
+            Assert.Equal("image/png", projectedAssets[projectedSvgFallbackAssetId].GetProperty("mimeType").GetString());
+            Assert.Equal("image/svg+xml", projectedAssets[projectedSvgAssetId].GetProperty("mimeType").GetString());
+            projectedSvgFallbackSha256 = projectedAssets[projectedSvgFallbackAssetId].GetProperty("sha256").GetString()!;
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "irregular editorial crop" &&
                 item.GetProperty("mask").GetProperty("kind").GetString() == "custom" &&
@@ -2306,6 +2324,84 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
 
+        var replacementSvgBytes = Encoding.UTF8.GetBytes(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"32\" height=\"32\" viewBox=\"0 0 32 32\"><rect width=\"32\" height=\"32\" fill=\"#00A6A6\"/><path d=\"M6 16h20\" stroke=\"#FFFFFF\" stroke-width=\"3\"/></svg>");
+        var replacementSvgSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacementSvgBytes)).ToLowerInvariant();
+        const string replacementSvgAssetId = "replacement-paired-svg";
+        const string replacementSvgUri = "deck.assets/media/replacement-paired-svg.svg";
+        var svgProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var svgImage = svgProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element.ContainsKey("svgAsset"));
+        Assert.Equal(projectedSvgImageId, svgImage["id"]!.GetValue<string>());
+        var originalSvgDeclaration = svgProgram["assets"]!.AsArray()
+            .Select(asset => asset!.AsObject())
+            .Single(asset => asset["id"]!.GetValue<string>() == projectedSvgAssetId);
+        var replacementSvgDeclaration = originalSvgDeclaration.DeepClone().AsObject();
+        replacementSvgDeclaration["id"] = replacementSvgAssetId;
+        replacementSvgDeclaration["uri"] = replacementSvgUri;
+        replacementSvgDeclaration["sha256"] = replacementSvgSha256;
+        svgProgram["assets"]!.AsArray().Add(replacementSvgDeclaration);
+        svgImage["svgAsset"] = replacementSvgAssetId;
+        var svgEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(svgProgram.ToJsonString()),
+                IncludeNodeMap = true,
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = replacementSvgAssetId,
+                        FileName = replacementSvgUri,
+                        ContentType = "image/svg+xml",
+                        Data = ByteString.CopyFrom(replacementSvgBytes),
+                        Sha256 = replacementSvgSha256,
+                    },
+                },
+            },
+        });
+        Assert.True(svgEdit.Ok, Diagnostics(svgEdit));
+        Assert.Contains(projectedSvgImageId, svgEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(svgEdit.PresentationProgram.ChangedParts, part =>
+            part.Equals("ppt/slides/slide1.xml", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(svgEdit.PresentationProgram.ChangedParts, part =>
+            part.StartsWith("ppt/media/", StringComparison.OrdinalIgnoreCase) && part.EndsWith(".svg", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(svgEdit.PresentationProgram.ChangedParts, part =>
+            part.Equals("ppt/slides/slide2.xml", StringComparison.OrdinalIgnoreCase) ||
+            part.Equals("ppt/slides/slide3.xml", StringComparison.OrdinalIgnoreCase));
+        var svgReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = svgEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/svg-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(svgReprojection.Ok, Diagnostics(svgReprojection));
+        using (var svgJson = JsonDocument.Parse(svgReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedSvgImage = svgJson.RootElement.GetProperty("pages").EnumerateArray()
+                .SelectMany(page => page.GetProperty("elements").EnumerateArray())
+                .Single(element => element.GetProperty("id").GetString() == projectedSvgImageId);
+            Assert.Equal(projectedSvgFallbackAssetId, reprojectedSvgImage.GetProperty("asset").GetString());
+            var reprojectedAssets = svgJson.RootElement.GetProperty("assets").EnumerateArray()
+                .ToDictionary(asset => asset.GetProperty("id").GetString()!, StringComparer.Ordinal);
+            Assert.Equal(projectedSvgFallbackSha256,
+                reprojectedAssets[reprojectedSvgImage.GetProperty("asset").GetString()!].GetProperty("sha256").GetString());
+            Assert.Equal(replacementSvgSha256,
+                reprojectedAssets[reprojectedSvgImage.GetProperty("svgAsset").GetString()!].GetProperty("sha256").GetString());
+        }
         var reorderProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var sourcePageNodes = reorderProgram["pages"]!.AsArray()
             .Select(page => page!.DeepClone()).ToArray();
@@ -15403,6 +15499,73 @@ public sealed class PptxCodecTests
             var updated = new Regex("<a:blip\\b[^>]*r:embed=\"rIdImage1\"[^>]*(?:/>|>.*?</a:blip>)", RegexOptions.Singleline).Replace(xml, replacement, 1);
             if (updated == xml) throw new InvalidOperationException("Picture fallback fixture could not locate the canonical blip.");
             return updated.Replace("<p:sld ", "<p:sld xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" ", StringComparison.Ordinal);
+        });
+    }
+
+    private static byte[] AddPairedSvgFallback(byte[] bytes)
+    {
+        const string fallbackRelationshipId = "rIdPpjSvgRasterFallback";
+        string? slidePath = null;
+        string? svgRelationshipId = null;
+        uint? pictureId = null;
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var presentation = PresentationDocument.Open(stream, true, new OpenSettings { AutoSave = true }))
+        {
+            foreach (var slidePart in presentation.PresentationPart!.SlideParts)
+            {
+                var match = slidePart.Slide!.Descendants<P.Picture>()
+                    .Select(picture => new
+                    {
+                        Picture = picture,
+                        RelationshipId = picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value,
+                    })
+                    .FirstOrDefault(item =>
+                        !string.IsNullOrEmpty(item.RelationshipId) &&
+                        slidePart.GetPartById(item.RelationshipId) is ImagePart imagePart &&
+                        imagePart.ContentType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase));
+                if (match is null) continue;
+                if (slidePart.Parts.Any(pair => pair.RelationshipId.Equals(fallbackRelationshipId, StringComparison.Ordinal)))
+                    throw new InvalidOperationException("Paired SVG fixture fallback relationship ID is already in use.");
+                var fallbackPart = slidePart.AddImagePart(ImagePartType.Png, fallbackRelationshipId);
+                using (var image = new MemoryStream(Convert.FromBase64String(
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")))
+                    fallbackPart.FeedData(image);
+                slidePath = slidePart.Uri.ToString().TrimStart('/');
+                svgRelationshipId = match.RelationshipId;
+                pictureId = match.Picture.NonVisualPictureProperties!.NonVisualDrawingProperties!.Id!.Value;
+                break;
+            }
+        }
+        if (slidePath is null || svgRelationshipId is null || pictureId is null)
+            throw new InvalidOperationException("Paired SVG fixture could not locate an authored SVG picture.");
+        return ReplaceZipText(stream.ToArray(), slidePath, xml =>
+        {
+            XNamespace presentation = "http://schemas.openxmlformats.org/presentationml/2006/main";
+            XNamespace drawing = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            XNamespace relationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+            XNamespace svg = "http://schemas.microsoft.com/office/drawing/2016/SVG/main";
+            var document = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+            var picture = document.Descendants(presentation + "pic").Single(element =>
+                element.Descendants(presentation + "cNvPr").Any(nonVisual => (uint?)nonVisual.Attribute("id") == pictureId));
+            var blip = picture.Descendants(drawing + "blip").Single(element =>
+                (string?)element.Attribute(relationships + "embed") == svgRelationshipId);
+            blip.SetAttributeValue(relationships + "embed", fallbackRelationshipId);
+            var extensionList = blip.Element(drawing + "extLst");
+            if (extensionList is null)
+            {
+                extensionList = new XElement(drawing + "extLst");
+                blip.Add(extensionList);
+            }
+            extensionList.Add(new XElement(
+                drawing + "ext",
+                new XAttribute("uri", "{96DAC541-7B7A-43D3-8B79-37D633B846F1}"),
+                new XElement(
+                    svg + "svgBlip",
+                    new XAttribute(XNamespace.Xmlns + "asvg", svg.NamespaceName),
+                    new XAttribute(relationships + "embed", svgRelationshipId))));
+            return document.ToString(SaveOptions.DisableFormatting);
         });
     }
 

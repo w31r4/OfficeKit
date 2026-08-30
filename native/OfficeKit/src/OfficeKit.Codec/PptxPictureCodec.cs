@@ -247,6 +247,11 @@ internal static class PptxPictureCodec
         if (source.BlipFill?.GetFirstChild<A.Blip>() is { } blip)
         {
             blip.Embed = string.Empty;
+            SvgFallbackElement(blip)?.SetAttribute(new OpenXmlAttribute(
+                "r",
+                "embed",
+                OfficeRelationshipsNamespace,
+                string.Empty));
             blip.GetFirstChild<A.AlphaModulationFixed>()?.Remove();
         }
         source.BlipFill?.GetFirstChild<A.SourceRectangle>()?.Remove();

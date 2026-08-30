@@ -147,6 +147,7 @@ internal sealed class PpjShapeElementModel : PpjElementModel
 internal sealed class PpjImageElementModel : PpjElementModel
 {
     internal required string AssetId { get; init; }
+    internal string? SvgAssetId { get; init; }
     internal string? Fit { get; init; }
     internal string? MaskKind { get; init; }
     internal string? MaskPreset { get; init; }
@@ -637,6 +638,7 @@ internal static class PpjProgramParser
             "image" => new PpjImageElementModel
             {
                 AssetId = element.GetProperty("asset").GetString()!,
+                SvgAssetId = OptionalString(element, "svgAsset"),
                 Fit = OptionalString(element, "fit"),
                 MaskKind = element.TryGetProperty("mask", out var mask) ? OptionalString(mask, "kind") : null,
                 MaskPreset = element.TryGetProperty("mask", out mask) ? OptionalString(mask, "preset") : null,

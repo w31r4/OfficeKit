@@ -4892,13 +4892,6 @@ internal static class PpjAuthoredPresentationCompiler
             : (normalized, 1d);
     }
 
-    private static string NativeAssetId(string mimeType, string sha256)
-    {
-        if (mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-            return $"asset/presentation/picture-bullet/{sha256.ToLowerInvariant()}";
-        if (mimeType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ||
-            mimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
-            return $"asset/presentation/media/{sha256.ToLowerInvariant()}";
-        throw new CodecException("ppj.asset.unsupportedPurpose", $"PPJ authored presentation asset MIME {mimeType} does not have a native compiler purpose.");
-    }
+    private static string NativeAssetId(string mimeType, string sha256) =>
+        PptxAssetCatalog.NativeAssetIdFor(mimeType, sha256);
 }

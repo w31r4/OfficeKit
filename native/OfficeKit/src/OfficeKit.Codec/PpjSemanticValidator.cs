@@ -21,6 +21,7 @@ internal static class PpjSemanticValidator
             ["setTransition"] = Set("transition"),
             ["setNotes"] = Set("notes"),
             ["replaceImage"] = Set("image.asset"),
+            ["replaceSvg"] = Set("image.svgAsset"),
             ["setImageCrop"] = Set("image.crop"),
             ["setImageFit"] = Set("image.fit"),
             ["setImageMask"] = Set("image.mask.adjustments"),
@@ -370,6 +371,15 @@ internal static class PpjSemanticValidator
                 break;
             case PpjImageElementModel image:
                 ValidateAssetRef(image.AssetId, assetIds, $"{path}.asset", diagnostics);
+                if (image.SvgAssetId is not null)
+                {
+                    ValidateAssetRef(image.SvgAssetId, assetIds, $"{path}.svgAsset", diagnostics);
+                    var svgAsset = program.Assets.FirstOrDefault(asset => asset.Id.Equals(image.SvgAssetId, StringComparison.Ordinal));
+                    if (svgAsset is not null && !svgAsset.MimeType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+                        diagnostics.Add(new("ppj.image.svgMime", "PPJ image.svgAsset requires MIME image/svg+xml.", $"{path}.svgAsset"));
+                    if (program.Source is null)
+                        diagnostics.Add(new("ppj.image.svgAssetSource", "PPJ image.svgAsset is reserved for an imported native raster/SVG fallback pair; authored SVG images use asset.", $"{path}.svgAsset"));
+                }
                 if (image.MaskKind is not null)
                     ValidatePresetAdjustments(image.MaskKind, image.MaskPreset, image.MaskAdjustments, path + ".mask", diagnostics);
                 if (image.MaskKind == "custom")

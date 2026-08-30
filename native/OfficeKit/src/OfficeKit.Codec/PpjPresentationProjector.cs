@@ -524,12 +524,16 @@ internal static partial class PpjPresentationProjector
         var image = element.Image;
         if (!context.TryMaterializeAsset(image.AssetId, out var assetId))
             return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose media payload cannot be materialized safely.");
+        string? svgAssetId = null;
+        if (!string.IsNullOrEmpty(image.SvgAssetId) && !context.TryMaterializeAsset(image.SvgAssetId, out svgAssetId))
+            return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose paired SVG payload cannot be materialized safely.");
         var customMask = image.CustomMaskPaths.Count > 0 ? ImageMaskShape(image) : null;
         if (customMask is not null && !CanProjectCustomGeometry(customMask))
             return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose custom mask cannot be represented exactly in PPJ.");
         var output = ElementBase(id, element.Name, ImageFrame(image), ImageAccessibility(image), nativeRef);
         output["type"] = "image";
         output["asset"] = assetId;
+        if (svgAssetId is not null) output["svgAsset"] = svgAssetId;
         output["fit"] = image.Tiled ? "tile" : "stretch";
         if (image.Crop is not null)
         {
@@ -1533,6 +1537,8 @@ internal static partial class PpjPresentationProjector
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:
                 output.Add(new("replaceImage", ["image.asset"]));
+                if (!string.IsNullOrEmpty(element.Image.SvgAssetId))
+                    output.Add(new("replaceSvg", ["image.svgAsset"]));
                 output.Add(new("setImageCrop", ["image.crop"]));
                 output.Add(new("setImageFit", ["image.fit"]));
                 output.Add(new("setFrame", EditableFrameFields));
