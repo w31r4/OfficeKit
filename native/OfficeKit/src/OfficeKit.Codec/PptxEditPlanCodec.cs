@@ -184,7 +184,7 @@ internal static partial class PptxEditPlanCodec
             if (shapeTreePath.Count > 32 || shapeTreePath[0] != operation.ShapeTreeIndex)
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has an invalid shape-tree path.");
             var leafKind = LeafKind(operation);
-            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
+            if (leafKind is not ("text" or "tableCellText" or "nativeText" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "imageOpacityThousandthPercent" or "imageMaskPreset" or "fillScheme" or "lineRgb" or "lineScheme" or "lineStyle" or "lineCap" or "lineJoin" or "lineStartArrow" or "lineEndArrow" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical" or "imageAsset" or "imageSvgAsset" or "chartTitleText" or "chartDataValue" or "diagramText" or "deleteElement"))
                 throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} has unsupported leaf kind {leafKind}.");
             if (!IsSha256(operation.ExpectedSlideSha256) || !IsSha256(operation.ExpectedElementSha256) ||
                 !IsSha256(operation.ExpectedSemanticSha256) || !IsSha256(operation.ExpectedTextSha256))
@@ -422,6 +422,12 @@ internal static partial class PptxEditPlanCodec
                     operation.ExpectedValue == operation.Value)
                     throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} fillOpacityThousandthPercent must use a changed canonical value from 0 through 100000.");
             }
+            if (leafKind == "shadowOpacityThousandthPercent")
+            {
+                if (!ValidOpacityToken(operation.ExpectedValue) || !ValidOpacityToken(operation.Value) ||
+                    operation.ExpectedValue == operation.Value)
+                    throw new CodecException("invalid_presentation_edit_operation", $"PPTX edit operation {operation.OperationId} shadowOpacityThousandthPercent must use a changed canonical value from 0 through 100000.");
+            }
             if (leafKind == "imageOpacityThousandthPercent")
             {
                 if (!ValidOpacityToken(operation.ExpectedValue) || !ValidOpacityToken(operation.Value) ||
@@ -630,8 +636,8 @@ internal static partial class PptxEditPlanCodec
             }
             if (element is P.Shape shape &&
                 projectedElement.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
-                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
+                 ((projectedElement.Source.Editable && (LeafKind(operation) is "fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "lineRgb" or "lineScheme" or "lineWidthEmu" or "leftEmu" or "topEmu" or "widthEmu" or "heightEmu" or "rotationDegrees" or "flipHorizontal" or "flipVertical")) ||
+                 (!projectedElement.Source.Editable && LeafKind(operation) is ("fillRgb" or "fillOpacityThousandthPercent" or "shadowOpacityThousandthPercent" or "fillScheme" or "lineRgb" or "lineScheme" or "lineWidthEmu") && HasSafeNativeShapeStyle(shape, LeafKind(operation))) ||
                  (projectedElement.Source.TextEditable && LeafKind(operation) is ("text" or "paragraphAlignment" or "paragraphLineSpacingPoints" or "paragraphLineSpacingMultiplier" or "paragraphSpaceBeforePoints" or "paragraphSpaceBeforeMultiplier" or "paragraphSpaceAfterPoints" or "paragraphSpaceAfterMultiplier" or "paragraphMarginLeftEmu" or "paragraphIndentEmu" or "paragraphBulletCharacter" or "paragraphBulletAutoNumberScheme" or "paragraphBulletAutoNumberStartAt" or "paragraphBulletFontFamily" or "paragraphBulletColorRgb" or "paragraphBulletColorScheme" or "paragraphBulletSizePoints" or "paragraphBulletSizePercent" or "paragraphLevel" or "verticalAnchor" or "textBodyInsetLeftEmu" or "textBodyInsetTopEmu" or "textBodyInsetRightEmu" or "textBodyInsetBottomEmu" or "textBodyWrap" or "textBodyColumnCount" or "textBodyAutoFit" or "textBodyColumnDirection" or "textBodyVerticalText" or "fontSizePoints" or "fontFamily" or "fontFamilyEastAsia" or "fontLanguage" or "fontBold" or "fontItalic" or "fontUnderline" or "fontStrike" or "fontColorRgb" or "fontColorScheme" or "fontKerningPoints" or "fontBaselinePercent" or "fontSpacingPoints" or "fontCaps" or "fontHighlightRgb" or "fontHighlightScheme" or "rotationDegrees" or "flipHorizontal" or "flipVertical") && PptxCodec.SupportsBoundTextLeaf(shape))))
             {
                 ProveLeafValue(shape, operation);
@@ -1214,6 +1220,8 @@ internal static partial class PptxEditPlanCodec
     {
         var properties = shape.ShapeProperties;
         if (properties is null) return false;
+        if (kind == "shadowOpacityThousandthPercent")
+            return HasSafeNativeShadowOpacity(properties);
         if (kind is "fillRgb" or "fillOpacityThousandthPercent" or "fillScheme")
         {
             var fills = properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
@@ -1237,6 +1245,23 @@ internal static partial class PptxEditPlanCodec
             (kind == "lineRgb" && HasSafeNativeRgbFill(lineSolid) ||
              kind == "lineScheme" && HasSafeNativeSchemeFill(lineSolid) ||
              kind == "lineStyle" && (HasSafeNativeRgbFill(lineSolid) || HasSafeNativeSchemeFill(lineSolid)));
+    }
+
+    private static bool HasSafeNativeShadowOpacity(OpenXmlCompositeElement properties)
+    {
+        if (!PptxShadowCodec.TryRead(properties, out var shadow) || shadow is null ||
+            !shadow.HasOpacityThousandthPercent || shadow.OpacityThousandthPercent > 100_000)
+            return false;
+        var lists = properties.Elements<A.EffectList>().ToArray();
+        if (lists.Length != 1 || lists[0].ChildElements.Count != 1 || lists[0].FirstChild is not A.OuterShadow outer ||
+            outer.ChildElements.Count != 1)
+            return false;
+        if (outer.FirstChild is not { } color)
+            return false;
+        var alphas = color.Elements<A.Alpha>().ToArray();
+        return alphas.Length == 1 && color.ChildElements.Count == 1 &&
+            alphas[0].Val?.Value is >= 0 and <= 100_000 &&
+            alphas[0].GetAttributes().All(attribute => attribute.NamespaceUri.Length == 0 && attribute.LocalName == "val");
     }
 
     private static bool HasSafeNativePictureOpacity(P.Picture picture)
@@ -1625,6 +1650,14 @@ internal static partial class PptxEditPlanCodec
             return picture.BlipFill!.GetFirstChild<A.Blip>()!.GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value
                 .ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
+        if (kind == "shadowOpacityThousandthPercent")
+        {
+            if (element is not P.Shape shape || shape.ShapeProperties is null || !HasSafeNativeShadowOpacity(shape.ShapeProperties))
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit shadow opacity.", operation.SlidePartPath);
+            if (!PptxShadowCodec.TryRead(shape.ShapeProperties, out var shadow) || shadow is null || !shadow.HasOpacityThousandthPercent)
+                throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no bounded explicit shadow opacity.", operation.SlidePartPath);
+            return shadow.OpacityThousandthPercent.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
         if (kind == "imageMaskPreset")
         {
             if (element is not P.Picture picture || !HasSafeNativePictureMask(picture) ||
@@ -1794,6 +1827,18 @@ internal static partial class PptxEditPlanCodec
                 if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose fillOpacityThousandthPercent.", operation.SlidePartPath);
                 var solidFill = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "srgbClr", operation);
                 leaf = DirectChildRange(xml, solidFill, "srgbClr", "alpha", operation);
+                attribute = "val";
+                break;
+            case "shadowOpacityThousandthPercent":
+                if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose shadowOpacityThousandthPercent.", operation.SlidePartPath);
+                var effectList = DirectChildRange(xml, properties, "spPr", "effectLst", operation);
+                var outerShadow = DirectChildRange(xml, effectList, "effectLst", "outerShdw", operation);
+                var shadowColors = DirectChildRanges(xml, outerShadow)
+                    .Where(entry => entry.LocalName is "srgbClr" or "schemeClr")
+                    .ToArray();
+                if (shadowColors.Length != 1)
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} shadow color is missing or ambiguous.", operation.SlidePartPath);
+                leaf = DirectChildRange(xml, shadowColors[0], shadowColors[0].LocalName, "alpha", operation);
                 attribute = "val";
                 break;
             case "imageOpacityThousandthPercent":
