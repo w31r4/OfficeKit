@@ -67,7 +67,7 @@ The authored chart compiler owns these native visual controls:
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage and native
   position;
-- direct marker symbol, size, fill and stroke;
+- direct marker symbol, size, RGB/alpha fill and bounded stroke;
 - exponential, linear, logarithmic, moving-average, polynomial and power
   trendlines on bar, column and line series;
 - fixed-value, percentage, standard-deviation and standard-error error bars on
@@ -90,7 +90,7 @@ shapes:
       "id": "conversion",
       "name": "Conversion",
       "values": [0.18, 0.22, 0.27, 0.31],
-      "marker": { "symbol": "circle", "size": 7, "fill": "#FFFFFF", "stroke": { "color": "#16697A", "width": 1 } },
+      "marker": { "symbol": "circle", "size": 7, "fill": "#FFFFFFCC", "stroke": { "color": "#16697A", "width": 1 } },
       "trendlines": [{ "type": "linear", "stroke": { "color": "#D9A21B", "width": 1.25, "dash": "dash" } }],
       "errorBars": { "valueType": "standard-error", "direction": "y", "type": "both" }
     }]
