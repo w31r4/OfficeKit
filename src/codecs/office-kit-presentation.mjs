@@ -4796,6 +4796,23 @@ function createPresentationNativeLeafCapability(presentation, state) {
         });
       }
     };
+    const registerImportedShapeSchemeLeaf = () => {
+      if (!isShape) return;
+      const scheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme || "").toLowerCase()];
+      if (!scheme) return;
+      registerLeaf({
+        wire, model, slideState, shapeTreePath, parentGroupId, rootEntry, leafKind: "fillScheme",
+        expectedValue: scheme,
+        value: scheme,
+        normalize(next) {
+          const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+          if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+          return { raw: canonical, publicValue: canonical };
+        },
+        isNoop(next) { return next === scheme; },
+        apply(next) { model.fill = next; },
+      });
+    };
     const registerImportedImageOpacityLeaf = () => {
       if (!isImage || wire.source?.editable !== true) return;
       const raw = String(wire.content.value.opacityThousandthPercent ?? "");
@@ -5821,6 +5838,10 @@ function createPresentationNativeLeafCapability(presentation, state) {
       registerImportedShapeColorLeaves();
       return;
     }
+    // A semantically editable source shape can still carry a bare theme fill.
+    // Expose it through the same bounded token-splice capability instead of
+    // letting a direct scheme-color edit fall through to whole-shape export.
+    registerImportedShapeSchemeLeaf();
     const scalarFields = isImage
       ? PRESENTATION_SCALAR_LEAF_FIELDS.filter(([, leafKind]) => leafKind.endsWith("Emu") && leafKind !== "lineWidthEmu")
       : PRESENTATION_SCALAR_LEAF_FIELDS;
