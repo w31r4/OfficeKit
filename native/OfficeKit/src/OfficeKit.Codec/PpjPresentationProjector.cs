@@ -686,6 +686,10 @@ internal static partial class PpjPresentationProjector
             if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = Unit(shape.FillOpacityThousandthPercent);
             style["fill"] = fill;
         }
+        else if (shape.GradientFill is not null)
+        {
+            style["fill"] = Gradient(shape.GradientFill);
+        }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
             style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
                 shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
@@ -849,6 +853,10 @@ internal static partial class PpjPresentationProjector
             if (shape.HasFillOpacityThousandthPercent) fill["opacity"] = Unit(shape.FillOpacityThousandthPercent);
             output["fill"] = fill;
         }
+        else if (shape.GradientFill is not null)
+        {
+            output["fill"] = Gradient(shape.GradientFill);
+        }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
             output["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
                 shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
@@ -859,9 +867,36 @@ internal static partial class PpjPresentationProjector
         if (background is null) return null;
         if (!string.IsNullOrEmpty(background.ImageAssetId) && context.TryMaterializeAsset(background.ImageAssetId, out var assetId))
             return new JsonObject { ["type"] = "image", ["asset"] = assetId, ["fit"] = "stretch" };
+        if (background.GradientFill is not null)
+            return Gradient(background.GradientFill);
         if (!string.IsNullOrEmpty(background.ColorRgb))
             return new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
         return null;
+    }
+
+    private static JsonObject Gradient(PresentationGradientFill source)
+    {
+        var stops = new JsonArray();
+        foreach (var stop in source.Stops)
+        {
+            var item = new JsonObject
+            {
+                ["offset"] = Unit(stop.PositionThousandthPercent),
+                ["color"] = Color(stop.ColorRgb),
+            };
+            if (stop.HasOpacityThousandthPercent)
+                item["opacity"] = Unit(stop.OpacityThousandthPercent);
+            stops.Add(item);
+        }
+        var output = new JsonObject
+        {
+            ["type"] = "gradient",
+            ["kind"] = source.Kind == PresentationGradientFill.Types.Kind.Radial ? "radial" : "linear",
+            ["stops"] = stops,
+        };
+        if (source.Kind == PresentationGradientFill.Types.Kind.Linear && source.HasAngle60000)
+            output["angle"] = source.Angle60000 / 60_000d;
+        return output;
     }
 
     private static JsonArray ProjectAnimations(PresentationSlide slide, ProjectionContext context)

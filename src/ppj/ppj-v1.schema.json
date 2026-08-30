@@ -1217,6 +1217,12 @@
             "type": {
               "const": "gradient"
             },
+            "kind": {
+              "enum": [
+                "linear",
+                "radial"
+              ]
+            },
             "angle": {
               "type": "number",
               "minimum": -360,

@@ -40,18 +40,18 @@
   },
   "authoredCompilerBoundaries": [
     {
-      "feature": "gradient and image fills on ordinary elements",
-      "ppjPath": "shape.style.fill, chart series fill, table defaultCellFill",
+      "feature": "image fills on authored shapes",
+      "ppjPath": "shape.style.fill",
       "behavior": "fail-closed",
-      "sourceBound": "Existing native fills remain source-preserved; only capability-issued scalar leaves are editable.",
-      "reason": "The authored compiler currently lowers solid and none fills only."
+      "sourceBound": "Existing native image fills remain source-preserved; only capability-issued image and scalar leaves are editable.",
+      "reason": "Use an image element or native slide background when the picture is the visual carrier."
     },
     {
-      "feature": "gradient slide background",
-      "ppjPath": "pages[].background",
+      "feature": "gradient fills in chart series and table defaults",
+      "ppjPath": "chart series fill or table defaultCellFill",
       "behavior": "fail-closed",
-      "sourceBound": "Existing native backgrounds remain source-preserved.",
-      "reason": "Authored backgrounds currently support none, solid and native image background."
+      "sourceBound": "Existing chart and table paint graphs remain source-preserved.",
+      "reason": "Shape and slide-background gradients are compiler-owned; chart and table gradients require their native style owners."
     },
     {
       "feature": "adjusted preset geometry",

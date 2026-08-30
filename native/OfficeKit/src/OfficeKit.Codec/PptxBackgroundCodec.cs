@@ -6,8 +6,9 @@ using P = DocumentFormat.OpenXml.Presentation;
 namespace OfficeKit.Codec;
 
 // Owns only a direct, bounded p:bg choice on one p:cSld. Effective color
-// inheritance stays in the JavaScript model; gradients, patterns, transforms,
-// and effect-bearing backgrounds remain source-bound. Images use the narrow
+// inheritance stays in the JavaScript model. Literal RGB linear gradients and
+// one centered radial profile are typed; patterns, transforms and other
+// effect-bearing backgrounds remain source-bound. Images use the narrow
 // embedded/stretch-only profile represented by PresentationBackground.
 internal static class PptxBackgroundCodec
 {
@@ -26,6 +27,16 @@ internal static class PptxBackgroundCodec
     internal static void Validate(PresentationBackground? source, PptxAssetCatalog? assets = null)
     {
         if (source is null) return;
+        if (source.GradientFill is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(source.ImageAssetId) ||
+                source.ColorCase != PresentationBackground.ColorOneofCase.None ||
+                source.KindCase != PresentationBackground.KindOneofCase.None ||
+                source.ImageAlphaModulationFixed)
+                throw Invalid("Presentation gradient background cannot also define image, color, kind, or image effects.");
+            PptxGradientFillCodec.Validate(source.GradientFill, "Presentation background");
+            return;
+        }
         if (!string.IsNullOrWhiteSpace(source.ImageAssetId))
         {
             if (source.ColorCase != PresentationBackground.ColorOneofCase.None || source.KindCase != PresentationBackground.KindOneofCase.None)
@@ -111,8 +122,15 @@ internal static class PptxBackgroundCodec
                     semantic.ImageAlphaModulationFixed = alphaModulationFixed;
                     return true;
                 }
-                if (children.Length is < 1 or > 2 || children[0] is not A.SolidFill solid) return false;
+                if (children.Length is < 1 or > 2) return false;
                 if (children.Length == 2 && (children[1] is not A.EffectList { ChildElements.Count: 0 } effectList || effectList.GetAttributes().Count != 0)) return false;
+                if (children[0] is A.GradientFill gradient)
+                {
+                    if (!PptxGradientFillCodec.TryRead(gradient, out var gradientSemantic)) return false;
+                    semantic.GradientFill = gradientSemantic;
+                    return true;
+                }
+                if (children[0] is not A.SolidFill solid) return false;
                 if (!TryReadColor(solid, out semantic)) return false;
                 semantic.Solid = true;
                 return true;
@@ -188,6 +206,10 @@ internal static class PptxBackgroundCodec
             fill.Append(new A.Stretch(new A.FillRectangle()));
             return new P.Background(new P.BackgroundProperties(fill));
         }
+        if (source.GradientFill is not null)
+            return new P.Background(new P.BackgroundProperties(
+                PptxGradientFillCodec.Build(source.GradientFill, "Presentation background"),
+                new A.EffectList()));
         return source.KindCase switch
         {
             PresentationBackground.KindOneofCase.Solid =>

@@ -502,12 +502,19 @@ internal static class PpjAuthoredPresentationCompiler
         var fill = FirstProperty(inline, named, "fill");
         if (fill is { } fillValue)
         {
-            var resolved = FillColor(fillValue, catalog);
-            if (resolved is not null)
+            if (fillValue.GetProperty("type").GetString() == "gradient")
             {
-                target.FillRgb = resolved.Value.Rgb;
-                if (resolved.Value.Opacity < 1)
-                    target.FillOpacityThousandthPercent = Opacity(resolved.Value.Opacity);
+                target.GradientFill = BuildGradientFill(fillValue, color => catalog.Color(color));
+            }
+            else
+            {
+                var resolved = FillColor(fillValue, catalog);
+                if (resolved is not null)
+                {
+                    target.FillRgb = resolved.Value.Rgb;
+                    if (resolved.Value.Opacity < 1)
+                        target.FillOpacityThousandthPercent = Opacity(resolved.Value.Opacity);
+                }
             }
         }
         var stroke = FirstProperty(inline, named, "stroke");
@@ -734,6 +741,10 @@ internal static class PpjAuthoredPresentationCompiler
     {
         var type = fill.GetProperty("type").GetString();
         if (type == "solid") return new PresentationBackground { Solid = true, ColorRgb = catalog.Color(fill.GetProperty("color")).Rgb };
+        if (type == "gradient") return new PresentationBackground
+        {
+            GradientFill = BuildGradientFill(fill, color => catalog.Color(color)),
+        };
         if (type == "image") return new PresentationBackground { ImageAssetId = catalog.NativeAssetId(fill.GetProperty("asset").GetString()!) };
         if (type == "none") return new PresentationBackground();
         throw Unsupported("background", $"{type} slide backgrounds are not yet compiler-owned");
@@ -1378,6 +1389,46 @@ internal static class PpjAuthoredPresentationCompiler
         var color = catalog.Color(fill.GetProperty("color"));
         var opacity = OptionalDouble(fill, "opacity") ?? color.Alpha;
         return (color.Rgb, opacity);
+    }
+
+    private static PresentationGradientFill BuildGradientFill(
+        JsonElement fill,
+        Func<JsonElement, (string Rgb, double Alpha)> resolveColor)
+    {
+        var kind = OptionalString(fill, "kind") ?? "linear";
+        var output = new PresentationGradientFill
+        {
+            Kind = kind switch
+            {
+                "linear" => PresentationGradientFill.Types.Kind.Linear,
+                "radial" => PresentationGradientFill.Types.Kind.Radial,
+                _ => throw Unsupported("fill", $"unsupported gradient kind {kind}"),
+            },
+        };
+        if (output.Kind == PresentationGradientFill.Types.Kind.Linear)
+        {
+            var degrees = OptionalDouble(fill, "angle") ?? 0;
+            var normalized = ((degrees % 360) + 360) % 360;
+            output.Angle60000 = Angle(normalized);
+        }
+        else if (fill.TryGetProperty("angle", out _))
+        {
+            throw Unsupported("fill", "radial gradients cannot define a linear angle");
+        }
+        foreach (var item in fill.GetProperty("stops").EnumerateArray())
+        {
+            var color = resolveColor(item.GetProperty("color"));
+            var stop = new PresentationGradientStop
+            {
+                PositionThousandthPercent = Opacity(item.GetProperty("offset").GetDouble()),
+                ColorRgb = color.Rgb,
+            };
+            var alpha = OptionalDouble(item, "opacity") ?? color.Alpha;
+            if (alpha < 1) stop.OpacityThousandthPercent = Opacity(alpha);
+            output.Stops.Add(stop);
+        }
+        PptxGradientFillCodec.Validate(output, "PPJ gradient");
+        return output;
     }
 
     private static string NormalizeRgb(string value) => value.TrimStart('#').ToUpperInvariant();

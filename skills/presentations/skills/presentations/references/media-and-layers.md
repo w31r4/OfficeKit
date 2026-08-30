@@ -42,6 +42,12 @@ editable, crop-able, animated, or reordered. Masks, opacity, borders, and
 shadows belong to the image element; overlays are ordinary shapes placed after
 the image and before text.
 
+A page background may also use a native linear or centered radial gradient.
+Choose it as a surface hierarchy or directional-light device, not as substitute
+imagery. Keep the stop count small, maintain text contrast across the entire
+field, and use a foreground image element when a photographic subject must be
+cropped or animated independently.
+
 Keep the subject, intended focal point, and important edges inside the crop.
 Use `cover` for image-led regions, `contain` for diagrams or logos that must not
 crop, and explicit crop values when reproducibility matters. Re-render after

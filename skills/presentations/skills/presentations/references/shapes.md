@@ -68,6 +68,13 @@ source-bound edits, and rebuild. Use it to keep a secondary relationship
 present without competing with the evidence carrier; do not make required axes
 or data lines faint.
 
+Use a bounded gradient only when direction or depth carries meaning. PPJ owns
+linear gradients with an explicit angle and centered radial gradients with
+ordered RGB stops; each stop may carry opacity. These remain editable native
+DrawingML fills and survive projection and source-bound shape edits. Prefer two
+or three deliberate stops. A many-color gradient used only to make a page look
+busy is the same failure as random decoration.
+
 ## Protect reading and evidence
 
 Order `pages[].elements[]` from back to front. Keep evidence-bearing lines,

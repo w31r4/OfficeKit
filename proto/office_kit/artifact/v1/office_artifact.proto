@@ -1927,11 +1927,30 @@ message PresentationLayoutSourceBinding {
   bool background_editable = 6;
 }
 
-// Bounded direct PresentationML background. Color transforms, gradient,
-// pattern, group, and effect-bearing fills remain source-bound. An image
-// background is limited to one embedded content-addressed picture stretched
-// across the owning slide, layout, or master; crop, tile, effects, and links
-// remain source-bound.
+// Bounded direct PresentationML background. Direct RGB linear and centered
+// radial gradients are typed; theme transforms, patterns and other
+// effect-bearing fills remain source-bound. An image background is limited to
+// one embedded content-addressed picture stretched across the owning slide,
+// layout, or master; crop, tile, effects, and links remain source-bound.
+message PresentationGradientStop {
+  // Position and opacity use DrawingML thousandths of one percent.
+  uint32 position_thousandth_percent = 1;
+  string color_rgb = 2;
+  optional uint32 opacity_thousandth_percent = 3;
+}
+
+message PresentationGradientFill {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_LINEAR = 1;
+    KIND_RADIAL = 2;
+  }
+  Kind kind = 1;
+  repeated PresentationGradientStop stops = 2;
+  // Present only for a linear gradient; values are normalized to one turn.
+  optional int32 angle_60000 = 3;
+}
+
 message PresentationBackground {
   oneof color {
     string color_rgb = 1;
@@ -1948,6 +1967,9 @@ message PresentationBackground {
   // recognized native image background. It is intentionally not a general
   // image-effects surface.
   bool image_alpha_modulation_fixed = 6;
+  // Bounded direct DrawingML linear or centered radial gradient. It is
+  // mutually exclusive with color, solid/style-reference and image state.
+  PresentationGradientFill gradient_fill = 7;
 }
 
 // Bounded owner-local placeholder semantics. Type/index/name are identity and
@@ -2173,6 +2195,9 @@ message PresentationShape {
   // Presence-aware alpha for the direct solid RGB a:ln fill. The value uses
   // DrawingML thousandths of one percent and is valid only for a visible line.
   optional uint32 line_opacity_thousandth_percent = 34;
+  // Bounded direct DrawingML linear or centered radial fill. It is mutually
+  // exclusive with fill_rgb, fill_scheme and solid-fill opacity.
+  PresentationGradientFill gradient_fill = 35;
 }
 
 message PresentationCustomGeometryPath {

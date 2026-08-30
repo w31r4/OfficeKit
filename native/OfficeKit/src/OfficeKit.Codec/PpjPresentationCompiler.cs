@@ -952,10 +952,19 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             target.FillRgb = string.Empty;
             target.ClearFillOpacityThousandthPercent();
+            target.GradientFill = null;
+            return;
+        }
+        if (fill.Value.GetProperty("type").GetString() == "gradient")
+        {
+            target.FillRgb = string.Empty;
+            target.ClearFillOpacityThousandthPercent();
+            target.GradientFill = BuildGradientFill(fill.Value, path);
             return;
         }
         if (fill.Value.GetProperty("type").GetString() != "solid")
-            throw Unsupported(path, "non-solid source-bound fill");
+            throw Unsupported(path, "source-bound image or unsupported fill");
+        target.GradientFill = null;
         target.FillRgb = Rgb(fill.Value.GetProperty("color"), path + ".color");
         if (fill.Value.TryGetProperty("opacity", out var opacity)) target.FillOpacityThousandthPercent = Unit(opacity.GetDouble());
         else target.ClearFillOpacityThousandthPercent();
@@ -988,6 +997,45 @@ internal static class PpjSourceBoundPresentationCompiler
         target.LineJoin = OptionalString(stroke, "join") ?? string.Empty;
         if (stroke.TryGetProperty("opacity", out var opacity)) target.LineOpacityThousandthPercent = Unit(opacity.GetDouble());
         else target.ClearLineOpacityThousandthPercent();
+    }
+
+    private static PresentationGradientFill BuildGradientFill(JsonElement fill, string path)
+    {
+        var kind = OptionalString(fill, "kind") ?? "linear";
+        var output = new PresentationGradientFill
+        {
+            Kind = kind switch
+            {
+                "linear" => PresentationGradientFill.Types.Kind.Linear,
+                "radial" => PresentationGradientFill.Types.Kind.Radial,
+                _ => throw Unsupported(path, $"gradient kind {kind}"),
+            },
+        };
+        if (output.Kind == PresentationGradientFill.Types.Kind.Linear)
+        {
+            var degrees = fill.TryGetProperty("angle", out var angle) ? angle.GetDouble() : 0;
+            var normalized = ((degrees % 360) + 360) % 360;
+            output.Angle60000 = checked((int)Math.Round(normalized * 60_000, MidpointRounding.AwayFromZero));
+        }
+        else if (fill.TryGetProperty("angle", out _))
+        {
+            throw Unsupported(path, "radial gradient with a linear angle");
+        }
+        var index = 0;
+        foreach (var item in fill.GetProperty("stops").EnumerateArray())
+        {
+            var stop = new PresentationGradientStop
+            {
+                PositionThousandthPercent = Unit(item.GetProperty("offset").GetDouble()),
+                ColorRgb = Rgb(item.GetProperty("color"), $"{path}.stops[{index}].color"),
+            };
+            if (item.TryGetProperty("opacity", out var opacity))
+                stop.OpacityThousandthPercent = Unit(opacity.GetDouble());
+            output.Stops.Add(stop);
+            index++;
+        }
+        PptxGradientFillCodec.Validate(output, path);
+        return output;
     }
 
     private static void ApplyChartData(PpjChartElementModel before, PpjChartElementModel after, PresentationChart target, string path)

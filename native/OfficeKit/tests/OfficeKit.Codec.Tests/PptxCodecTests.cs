@@ -91,6 +91,18 @@ public sealed class PptxCodecTests
         Assert.NotNull(root);
         var fixtureDirectory = Path.Combine(root!.FullName, "test", "fixtures", "presentation");
         var authoredProgram = JsonNode.Parse(File.ReadAllBytes(Path.Combine(fixtureDirectory, "evidence-ledger-canonical.ppj")))!.AsObject();
+        authoredProgram["pages"]![0]!["background"] = new JsonObject
+        {
+            ["type"] = "gradient",
+            ["kind"] = "linear",
+            ["angle"] = 24,
+            ["stops"] = new JsonArray
+            {
+                new JsonObject { ["offset"] = 0, ["color"] = "#F8F6EF" },
+                new JsonObject { ["offset"] = 0.62, ["color"] = "#DCEFEA", ["opacity"] = 0.86 },
+                new JsonObject { ["offset"] = 1, ["color"] = "#FFFFFF" },
+            },
+        };
         var authoredTitle = authoredProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "claim-title");
@@ -146,6 +158,16 @@ public sealed class PptxCodecTests
             ["dash"] = "dash",
             ["cap"] = "round",
             ["join"] = "round",
+        };
+        authoredCustomShape["style"]!["fill"] = new JsonObject
+        {
+            ["type"] = "gradient",
+            ["kind"] = "radial",
+            ["stops"] = new JsonArray
+            {
+                new JsonObject { ["offset"] = 0, ["color"] = "#F2C14E" },
+                new JsonObject { ["offset"] = 1, ["color"] = "#0B8F8F", ["opacity"] = 0.35 },
+            },
         };
         var authoredConnector = authoredProgram["pages"]!
             .AsArray()
@@ -209,6 +231,11 @@ public sealed class PptxCodecTests
         var imported = Import(first.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
         Assert.Equal(2, imported.Artifact.Presentation.Slides.Count);
+        var importedBackground = imported.Artifact.Presentation.Slides[0].Background.GradientFill;
+        Assert.Equal(PresentationGradientFill.Types.Kind.Linear, importedBackground.Kind);
+        Assert.Equal(3, importedBackground.Stops.Count);
+        Assert.True(importedBackground.Stops[1].HasOpacityThousandthPercent);
+        Assert.Equal(86_000U, importedBackground.Stops[1].OpacityThousandthPercent);
         var importedImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
         Assert.Equal(92_000U, importedImage.OpacityThousandthPercent);
@@ -231,6 +258,9 @@ public sealed class PptxCodecTests
             element.Name == "claim-rule" && element.ContentCase == PresentationElement.ContentOneofCase.Shape).Shape;
         Assert.Equal("custom", importedCustomShape.Geometry);
         Assert.Equal(5, Assert.Single(importedCustomShape.CustomPaths).Commands.Count);
+        Assert.Equal(PresentationGradientFill.Types.Kind.Radial, importedCustomShape.GradientFill.Kind);
+        Assert.Equal(2, importedCustomShape.GradientFill.Stops.Count);
+        Assert.Equal("0B8F8F", importedCustomShape.GradientFill.Stops[1].ColorRgb);
         Assert.True(importedCustomShape.HasLineOpacityThousandthPercent);
         Assert.Equal(42_000U, importedCustomShape.LineOpacityThousandthPercent);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
@@ -331,11 +361,13 @@ public sealed class PptxCodecTests
             Assert.Equal("office-kit/ppj/v1", projectedRoot.GetProperty("schema").GetString());
             Assert.Equal(projected.PresentationProgram.SourceSha256, projectedRoot.GetProperty("source").GetProperty("sha256").GetString());
             Assert.Equal(2, projectedRoot.GetProperty("pages").GetArrayLength());
+            Assert.Equal("linear", projectedRoot.GetProperty("pages")[0].GetProperty("background").GetProperty("kind").GetString());
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("type").GetString() == "image");
             Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "claim-rule" &&
                 item.GetProperty("geometry").GetProperty("kind").GetString() == "custom" &&
+                item.GetProperty("style").GetProperty("fill").GetProperty("kind").GetString() == "radial" &&
                 item.GetProperty("style").GetProperty("stroke").GetProperty("opacity").GetDouble() == 0.42);
             Assert.Contains(
                 projectedRoot.GetProperty("pages").EnumerateArray()
@@ -462,6 +494,51 @@ public sealed class PptxCodecTests
         Assert.True(sourceEditRoundTrip.Ok, Diagnostics(sourceEditRoundTrip));
         Assert.Contains(sourceEditRoundTrip.Artifact.Presentation.Slides.SelectMany(slide => slide.Elements), element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Text.Contains(sourceBoundReplacement, StringComparison.Ordinal));
+
+        var gradientProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var gradientShape = gradientProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["name"]!.GetValue<string>() == "claim-rule");
+        Assert.Contains(gradientShape["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setFill");
+        gradientShape["style"]!["fill"]!["stops"]![1]!["color"] = "#2255AA";
+        gradientShape["style"]!["fill"]!["stops"]![1]!["opacity"] = 0.64;
+        var gradientEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(gradientProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(gradientEdit.Ok, Diagnostics(gradientEdit));
+        Assert.Single(gradientEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(gradientShape["id"]!.GetValue<string>(), gradientEdit.PresentationProgram.ChangedNodeIds);
+        var gradientReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = gradientEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/gradient-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(gradientReprojection.Ok, Diagnostics(gradientReprojection));
+        var gradientReprojectedProgram = JsonNode.Parse(gradientReprojection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var gradientReprojectedShape = gradientReprojectedProgram["pages"]!.AsArray()
+            .SelectMany(page => page!["elements"]!.AsArray())
+            .Select(element => element!.AsObject())
+            .Single(element => element["name"]!.GetValue<string>() == "claim-rule");
+        Assert.Equal("#2255AA", gradientReprojectedShape["style"]!["fill"]!["stops"]![1]!["color"]!.GetValue<string>());
+        Assert.Equal(0.64, gradientReprojectedShape["style"]!["fill"]!["stops"]![1]!["opacity"]!.GetValue<double>());
 
         // One integrated native-leaf contract is enough here: projection
         // issues the scalar, PPJ changes only value, the source-bound compiler
