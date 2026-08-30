@@ -8,8 +8,8 @@ namespace OfficeKit.Codec;
 // Owns only a direct, bounded p:bg choice on one p:cSld. Effective color
 // inheritance stays in the JavaScript model. Literal RGB linear gradients and
 // one centered radial profile are typed; patterns, transforms and other
-// effect-bearing backgrounds remain source-bound. Images use the narrow
-// embedded/stretch-only profile represented by PresentationBackground.
+// effect-bearing backgrounds remain source-bound. Images use the shared
+// embedded crop/alpha/stretch-or-default-tile profile.
 internal static class PptxBackgroundCodec
 {
     internal static PresentationBackground? Read(P.CommonSlideData? source, PptxPartContext? context = null)
@@ -30,11 +30,21 @@ internal static class PptxBackgroundCodec
         if (source.GradientFill is not null)
         {
             if (!string.IsNullOrWhiteSpace(source.ImageAssetId) ||
+                source.ImagePaint is not null ||
                 source.ColorCase != PresentationBackground.ColorOneofCase.None ||
                 source.KindCase != PresentationBackground.KindOneofCase.None ||
                 source.ImageAlphaModulationFixed)
                 throw Invalid("Presentation gradient background cannot also define image, color, kind, or image effects.");
             PptxGradientFillCodec.Validate(source.GradientFill, "Presentation background");
+            return;
+        }
+        if (source.ImagePaint is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(source.ImageAssetId) || source.ImageAlphaModulationFixed ||
+                source.ColorCase != PresentationBackground.ColorOneofCase.None ||
+                source.KindCase != PresentationBackground.KindOneofCase.None)
+                throw Invalid("Presentation canonical image background cannot also define legacy image, color, kind, or image effects.");
+            PptxImagePaintCodec.Validate(source.ImagePaint, "background", assets);
             return;
         }
         if (!string.IsNullOrWhiteSpace(source.ImageAssetId))
@@ -117,6 +127,11 @@ internal static class PptxBackgroundCodec
                 var children = properties.ChildElements.ToArray();
                 if (children.Length == 1 && children[0] is A.BlipFill imageFill)
                 {
+                    if (PptxImagePaintCodec.TryRead(imageFill, context, out var imagePaint))
+                    {
+                        semantic.ImagePaint = imagePaint;
+                        return true;
+                    }
                     if (!TryReadImage(imageFill, context, out var assetId, out var alphaModulationFixed)) return false;
                     semantic.ImageAssetId = assetId;
                     semantic.ImageAlphaModulationFixed = alphaModulationFixed;
@@ -198,6 +213,9 @@ internal static class PptxBackgroundCodec
     private static P.Background BuildElement(PresentationBackground source, PptxPartContext context)
     {
         Validate(source, context.Assets);
+        if (source.ImagePaint is not null)
+            return new P.Background(new P.BackgroundProperties(
+                PptxImagePaintCodec.Build(source.ImagePaint, context, "background")));
         if (!string.IsNullOrWhiteSpace(source.ImageAssetId))
         {
             var blip = new A.Blip { Embed = context.AddEmbeddedPicture(source.ImageAssetId) };

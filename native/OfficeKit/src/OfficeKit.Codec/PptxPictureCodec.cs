@@ -28,7 +28,7 @@ internal static class PptxPictureCodec
     internal static bool TryRead(P.Picture source, PptxPartContext context, out PresentationImage image)
     {
         image = new PresentationImage();
-        if (!TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out var crop) ||
+        if (!TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out var crop, out var tiled) ||
             !TryReadBorder(properties.GetFirstChild<A.Outline>(), out var border) ||
             !PptxShadowCodec.TryRead(properties, out var shadow) ||
             geometry.Preset?.Value is not { } preset || !PptxCustomGeometryCodec.TryPresetName(preset, out var maskPreset) ||
@@ -62,6 +62,7 @@ internal static class PptxPictureCodec
             };
             if (accessibility?.HasDecorative == true) image.AccessibilityDecorative = accessibility.Decorative;
             if (crop is not null) image.Crop = ReadCrop(crop);
+            image.Tiled = tiled;
             if (blip.GetFirstChild<A.AlphaModulationFixed>() is { } alpha)
                 image.OpacityThousandthPercent = checked((uint)(alpha.Amount?.Value ?? 100_000));
             if (!maskPreset.Equals("rect", StringComparison.Ordinal)) image.MaskPreset = maskPreset;
@@ -129,7 +130,7 @@ internal static class PptxPictureCodec
         ApplyOpacity(blip, image.HasOpacityThousandthPercent ? image.OpacityThousandthPercent : null);
         var fill = new P.BlipFill(blip);
         if (image.Crop is not null) fill.Append(BuildCrop(image.Crop));
-        fill.Append(new A.Stretch(new A.FillRectangle()));
+        fill.Append(image.Tiled ? new A.Tile() : new A.Stretch(new A.FillRectangle()));
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, Accessibility(image));
         var properties = new P.ShapeProperties(
@@ -149,7 +150,7 @@ internal static class PptxPictureCodec
     internal static void Apply(P.Picture source, PresentationElement requested, PptxPartContext context)
     {
         if (!TryRead(source, context, out var currentImage) ||
-            !TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out _))
+            !TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out _, out _))
             throw new CodecException("unsupported_presentation_edit", $"Presentation image {requested.Id} no longer matches the editable picture profile.");
         var current = context.ReadEmbeddedPicture(blip.Embed?.Value ?? string.Empty);
         var replacement = context.Assets?.Get(requested.Image.AssetId) ??
@@ -194,6 +195,11 @@ internal static class PptxPictureCodec
         transform.Extents!.Cx = requested.Image.WidthEmu;
         transform.Extents.Cy = requested.Image.HeightEmu;
         ApplyCrop(source.BlipFill!, requested.Image.Crop);
+        if (currentImage.Tiled != requested.Image.Tiled)
+        {
+            source.BlipFill!.ChildElements.Last().Remove();
+            source.BlipFill.Append(requested.Image.Tiled ? new A.Tile() : new A.Stretch(new A.FillRectangle()));
+        }
         ApplyTransform(transform, requested.Image.Transform);
         if (currentImage.HasOpacityThousandthPercent != requested.Image.HasOpacityThousandthPercent ||
             currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
@@ -223,6 +229,11 @@ internal static class PptxPictureCodec
             blip.GetFirstChild<A.AlphaModulationFixed>()?.Remove();
         }
         source.BlipFill?.GetFirstChild<A.SourceRectangle>()?.Remove();
+        if (source.BlipFill?.ChildElements.LastOrDefault() is A.Tile or A.Stretch)
+        {
+            source.BlipFill.ChildElements.Last().Remove();
+            source.BlipFill.Append(new A.Stretch(new A.FillRectangle()));
+        }
         if (source.ShapeProperties?.Transform2D is { } transform)
         {
             if (transform.Offset is { } offset) { offset.X = 0L; offset.Y = 0L; }
@@ -251,7 +262,8 @@ internal static class PptxPictureCodec
         out P.ShapeProperties properties,
         out A.Transform2D transform,
         out A.PresetGeometry geometry,
-        out A.SourceRectangle? crop)
+        out A.SourceRectangle? crop,
+        out bool tiled)
     {
         nonVisual = null!;
         blip = null!;
@@ -259,6 +271,7 @@ internal static class PptxPictureCodec
         transform = null!;
         geometry = null!;
         crop = null;
+        tiled = false;
         var nonVisualContainer = source.NonVisualPictureProperties;
         var fill = source.BlipFill;
         var pictureProperties = source.ShapeProperties;
@@ -270,9 +283,10 @@ internal static class PptxPictureCodec
         if (source.ChildElements.Count != 3 ||
             nonVisualContainer.ChildElements.Count != 3 ||
             fillChildren.Length is < 2 or > 3 || fillChildren[0] is not A.Blip embedded ||
-            fillChildren[^1] is not A.Stretch stretch ||
+            fillChildren[^1] is not (A.Stretch or A.Tile) ||
             fillChildren.Length == 3 && fillChildren[1] is not A.SourceRectangle ||
-            !StretchSupported(stretch) ||
+            fillChildren[^1] is A.Stretch stretch && !StretchSupported(stretch) ||
+            fillChildren[^1] is A.Tile tile && !TileSupported(tile) ||
             !BlipSupported(embedded) || !BlipFillSupported(fill) ||
             !ShapePropertiesSupported(pictureProperties) ||
             pictureProperties.Elements<A.Transform2D>().SingleOrDefault() is not { } xfrm ||
@@ -283,6 +297,7 @@ internal static class PptxPictureCodec
             adjustments.HasAttributes ||
             !TransformSupported(xfrm)) return false;
         crop = fillChildren.Length == 3 ? (A.SourceRectangle)fillChildren[1] : null;
+        tiled = fillChildren[^1] is A.Tile;
         if (crop is not null && !CropSupported(crop)) return false;
         nonVisual = nv;
         blip = embedded;
@@ -413,6 +428,8 @@ internal static class PptxPictureCodec
         if (stretch.HasAttributes || stretch.ChildElements.Count > 1) return false;
         return stretch.ChildElements.Count == 0 || stretch.GetFirstChild<A.FillRectangle>() is { } fillRect && !fillRect.HasAttributes && !fillRect.HasChildren;
     }
+
+    private static bool TileSupported(A.Tile tile) => !tile.HasAttributes && !tile.HasChildren;
 
     private static bool ShapePropertiesSupported(P.ShapeProperties properties)
     {

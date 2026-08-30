@@ -1004,7 +1004,7 @@ internal static class PptxCodec
                     }
                     if (sourceElement is P.Shape sourceShape &&
                         requested.ContentCase == PresentationElement.ContentOneofCase.Shape &&
-                        IsSimpleShape(sourceShape))
+                        IsSimpleShape(sourceShape, slideContext))
                     {
                         ApplyShape(sourceShape, requested, slideContext);
                         changed = true;
@@ -1349,7 +1349,7 @@ internal static class PptxCodec
         var modeled = false;
         if (source is P.Shape sourceShape)
         {
-            editable = IsSimpleShape(sourceShape);
+            editable = IsSimpleShape(sourceShape, slideContext);
             element.Shape = ReadShape(sourceShape, slideContext);
             modeled = true;
         }
@@ -1608,7 +1608,9 @@ internal static class PptxCodec
         var geometry = Geometry(shape);
         var solidFill = properties?.GetFirstChild<A.SolidFill>();
         var gradientFill = properties?.GetFirstChild<A.GradientFill>();
+        var imageFill = properties?.GetFirstChild<A.BlipFill>();
         _ = PptxGradientFillCodec.TryRead(gradientFill, out var gradientSemantic);
+        _ = PptxImagePaintCodec.TryRead(imageFill, slideContext, out var imageSemantic);
         var result = new PresentationShape
         {
             Geometry = geometry,
@@ -1621,6 +1623,7 @@ internal static class PptxCodec
             FillRgb = PptxColor.SolidRgb(solidFill),
             FillScheme = PptxColor.SolidScheme(solidFill),
             GradientFill = gradientSemantic.Stops.Count > 0 ? gradientSemantic : null,
+            ImageFill = imageSemantic.AssetId.Length > 0 ? imageSemantic : null,
             Placeholder = placeholder,
             DirectFrame = placeholder is null ? null : PptxPlaceholderCodec.ReadDirectFrame(shape),
             Transform = placeholder is null && PptxShapeTransformCodec.Supports(transform, allowSingleZeroExtent: geometry == "line")
@@ -1647,7 +1650,7 @@ internal static class PptxCodec
         return result;
     }
 
-    private static bool IsSimpleShape(P.Shape shape)
+    private static bool IsSimpleShape(P.Shape shape, PptxPartContext slideContext)
     {
         if (shape.NonVisualShapeProperties?.ApplicationNonVisualDrawingProperties?.GetFirstChild<P.PlaceholderShape>() is not null) return false;
         if (shape.ShapeStyle is not null) return false;
@@ -1663,22 +1666,23 @@ internal static class PptxCodec
             var frame = ReadFrame(shape);
             if (!PptxCustomGeometryCodec.Supports(properties.GetFirstChild<A.CustomGeometry>(), frame.Width, frame.Height)) return false;
         }
-        if (!SimpleFill(properties)) return false;
+        if (!SimpleFill(properties, slideContext)) return false;
         var outline = properties.GetFirstChild<A.Outline>();
         if (!PptxLineStyleCodec.TryRead(outline, out var lineStyle)) return false;
         if (!string.Equals(geometry, "line", StringComparison.Ordinal) &&
             (lineStyle.StartArrow.Length > 0 || lineStyle.EndArrow.Length > 0)) return false;
         if (!PptxShadowCodec.TryRead(properties, out _)) return false;
-        if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.GradientFill and not A.Outline and not A.EffectList)) return false;
+        if (properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.CustomGeometry and not A.NoFill and not A.SolidFill and not A.GradientFill and not A.BlipFill and not A.Outline and not A.EffectList)) return false;
         return PptxTextCodec.SupportsEditing(shape.TextBody);
     }
 
-    private static bool SimpleFill(OpenXmlCompositeElement element)
+    private static bool SimpleFill(OpenXmlCompositeElement element, PptxPartContext slideContext)
     {
-        var fills = element.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill).ToArray();
+        var fills = element.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill).ToArray();
         if (fills.Length > 1) return false;
         if (fills.Length == 0 || fills[0] is A.NoFill) return true;
         if (fills[0] is A.GradientFill gradient) return PptxGradientFillCodec.TryRead(gradient, out _);
+        if (fills[0] is A.BlipFill image) return PptxImagePaintCodec.TryRead(image, slideContext, out _);
         var solid = (A.SolidFill)fills[0];
         if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color || !HasOnlyAttributes(color, "val")) return false;
         var alphas = color.Elements<A.Alpha>().ToArray();
@@ -1714,7 +1718,7 @@ internal static class PptxCodec
         PptxNonVisualAccessibilityCodec.ApplyBound(shape.NonVisualShapeProperties?.NonVisualDrawingProperties, semantic.Accessibility);
         if (shape.NonVisualShapeProperties?.NonVisualShapeDrawingProperties is { } drawingProperties)
             drawingProperties.TextBox = semantic.Geometry == "textbox" ? true : null;
-        if (!FillMatches(properties, semantic)) ReplaceFill(properties, semantic);
+        if (!FillMatches(properties, semantic, slideContext)) ReplaceFill(properties, semantic, slideContext);
         PptxLineStyleCodec.Apply(properties, semantic);
         if (shape.NonVisualShapeProperties?.NonVisualDrawingProperties is { } nonVisual)
             nonVisual.Name = source.Name;
@@ -1831,8 +1835,10 @@ internal static class PptxCodec
         transform.Extents.Cy = frame.HeightEmu;
     }
 
-    private static OpenXmlElement BuildFill(PresentationShape source)
+    private static OpenXmlElement BuildFill(PresentationShape source, PptxPartContext context)
     {
+        if (source.ImageFill is not null)
+            return PptxImagePaintCodec.Build(source.ImageFill, context, "shape fill");
         if (source.GradientFill is not null)
             return PptxGradientFillCodec.Build(source.GradientFill, "Presentation shape fill");
         if (string.IsNullOrWhiteSpace(source.FillRgb)) return new A.NoFill();
@@ -1842,17 +1848,23 @@ internal static class PptxCodec
         return new A.SolidFill(color);
     }
 
-    private static void ReplaceFill(OpenXmlCompositeElement parent, PresentationShape source)
+    private static void ReplaceFill(OpenXmlCompositeElement parent, PresentationShape source, PptxPartContext context)
     {
-        foreach (var child in parent.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill).ToArray()) child.Remove();
-        var fill = BuildFill(source);
+        var currentImageRelationshipId = PptxImagePaintCodec.RelationshipId(parent.GetFirstChild<A.BlipFill>());
+        foreach (var child in parent.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill).ToArray()) child.Remove();
+        var fill = BuildFill(source, context);
+        var replacementImageRelationshipId = PptxImagePaintCodec.RelationshipId(fill as A.BlipFill);
         var reference = parent.ChildElements.FirstOrDefault(child => child is A.Outline || child.LocalName is "effectLst" or "effectDag" or "scene3d" or "sp3d");
         if (reference is null) parent.Append(fill);
         else parent.InsertBefore(fill, reference);
+        context.RemoveIfUnreferenced(currentImageRelationshipId == replacementImageRelationshipId ? string.Empty : currentImageRelationshipId);
     }
 
-    private static bool FillMatches(OpenXmlCompositeElement parent, PresentationShape source)
+    private static bool FillMatches(OpenXmlCompositeElement parent, PresentationShape source, PptxPartContext context)
     {
+        if (source.ImageFill is not null)
+            return PptxImagePaintCodec.TryRead(parent.GetFirstChild<A.BlipFill>(), context, out var current) &&
+                current.Equals(source.ImageFill);
         if (source.GradientFill is not null)
             return PptxGradientFillCodec.TryRead(parent.GetFirstChild<A.GradientFill>(), out var current) &&
                 current.Equals(source.GradientFill);
@@ -2200,7 +2212,7 @@ internal static class PptxCodec
         }
         var properties = new P.ShapeProperties(transform);
         PptxCustomGeometryCodec.Apply(properties, semantic, source.Id);
-        properties.Append(BuildFill(semantic));
+        properties.Append(BuildFill(semantic, slideContext));
         properties.Append(PptxLineStyleCodec.Build(semantic));
         PptxShadowCodec.Apply(properties, semantic.Shadow);
         var applicationProperties = new P.ApplicationNonVisualDrawingProperties();
@@ -2338,7 +2350,7 @@ internal static class PptxCodec
         int slideIndex,
         string location)
     {
-        if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape))
+        if (source is P.Shape shape && requested.ContentCase == PresentationElement.ContentOneofCase.Shape && IsSimpleShape(shape, slideContext))
             ApplyShape(shape, requested, slideContext);
         else if (source is P.Picture picture && requested.ContentCase == PresentationElement.ContentOneofCase.Image && PptxPictureCodec.TryRead(picture, slideContext, out _))
             PptxPictureCodec.Apply(picture, requested, slideContext);
@@ -2763,13 +2775,20 @@ internal static class PptxCodec
                 throw new CodecException("unsupported_presentation_features", $"Source-free presentation shape {element.Id} cannot author a theme fill directly.");
             if (element.Shape.HasFillOpacityThousandthPercent &&
                 (string.IsNullOrWhiteSpace(element.Shape.FillRgb) || element.Shape.GradientFill is not null ||
+                 element.Shape.ImageFill is not null ||
                  element.Shape.FillOpacityThousandthPercent > 100_000))
                 throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} has invalid solid-fill opacity.");
             if (element.Shape.GradientFill is not null)
             {
-                if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb) || !string.IsNullOrWhiteSpace(element.Shape.FillScheme))
+                if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb) || !string.IsNullOrWhiteSpace(element.Shape.FillScheme) || element.Shape.ImageFill is not null)
                     throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} cannot combine gradient and solid fill state.");
                 PptxGradientFillCodec.Validate(element.Shape.GradientFill, $"Presentation shape {element.Id}");
+            }
+            if (element.Shape.ImageFill is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(element.Shape.FillRgb) || !string.IsNullOrWhiteSpace(element.Shape.FillScheme) || element.Shape.GradientFill is not null)
+                    throw new CodecException("invalid_presentation_fill", $"Presentation shape {element.Id} cannot combine image and solid or gradient fill state.");
+                PptxImagePaintCodec.Validate(element.Shape.ImageFill, $"shape {element.Id} fill", assetCatalog);
             }
             PptxLineStyleCodec.Validate(element.Shape, element.Id);
             PptxShapeTransformCodec.Validate(element.Shape.Transform, element.Id);
@@ -4312,7 +4331,7 @@ internal static class PptxCodec
             }
             else properties.InsertAfter(new A.PresetGeometry(new A.AdjustValueList()) { Preset = A.ShapeTypeValues.Rectangle }, properties.GetFirstChild<A.Transform2D>());
             properties.GetFirstChild<A.EffectList>()?.Remove();
-            foreach (var fill in properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill).ToArray()) fill.Remove();
+            foreach (var fill in properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill or A.GradientFill or A.BlipFill).ToArray()) fill.Remove();
             if (properties.GetFirstChild<A.Outline>() is { } outline)
                 PptxLineStyleCodec.ScrubModeledContent(outline);
         }
