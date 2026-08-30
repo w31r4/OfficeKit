@@ -564,6 +564,22 @@ const imageOpacityFile = new FileBlob(
   await imageOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
   { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
 );
+const emptyImageOpacityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const emptyImageOpacityXml = shapeAccessibilitySourceXml.replace(
+  /<a:blip\b([^>]*)\/>/u,
+  '<a:blip$1><a:alphaModFix/></a:blip>',
+);
+emptyImageOpacityZip.file("ppt/slides/slide1.xml", emptyImageOpacityXml);
+const emptyImageOpacityImported = await PresentationFile.importPptx(new FileBlob(
+  await emptyImageOpacityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+));
+assert.equal(
+  emptyImageOpacityImported.inspect({ includeNativeLeaves: true }).ndjson.trim().split("\n").filter(Boolean)
+    .map((line) => JSON.parse(line)).filter((record) => record.kind === "nativeLeaf" && record.leafKind === "imageOpacityThousandthPercent").length,
+  0,
+  "an empty alphaModFix must remain opaque rather than becoming a fabricated 100% leaf",
+);
 const imageOpacityImported = await PresentationFile.importPptx(imageOpacityFile);
 const imageOpacityTarget = itemByName(imageOpacityImported.slides.getItem(0).images.items, "decision-evidence");
 const imageOpacityLeaf = imageOpacityImported.inspect({ includeNativeLeaves: true, target: imageOpacityTarget.id }).ndjson
