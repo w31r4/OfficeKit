@@ -56,6 +56,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         internal bool SemanticChanges { get; set; }
         internal List<NativeLeafMutation> NativeLeaves { get; } = [];
+        internal HashSet<string>? AuthoredOverlayNodeIds { get; set; }
     }
 
     private sealed record NativeLeafMutation(
@@ -131,16 +132,19 @@ internal static class PpjSourceBoundPresentationCompiler
             physicalChanges = true;
         if (ApplySections(baseline, requested, presentation, changedNodeIds))
         {
+            RejectMixedAuthoredOverlay(mutations, "$.sections");
             mutations.SemanticChanges = true;
             physicalChanges = true;
         }
         if (ApplyCustomShows(baseline, requested, presentation, changedNodeIds))
         {
+            RejectMixedAuthoredOverlay(mutations, "$.customShows");
             mutations.SemanticChanges = true;
             physicalChanges = true;
         }
         if (ApplyComments(baseline, requested, presentation, changedNodeIds))
         {
+            RejectMixedAuthoredOverlay(mutations, "$.comments");
             mutations.SemanticChanges = true;
             physicalChanges = true;
         }
@@ -517,17 +521,58 @@ internal static class PpjSourceBoundPresentationCompiler
                 mutations.SemanticChanges = true;
                 changed = true;
             }
-            if (before.Elements.Count != slide.Elements.Count || after.Elements.Count > before.Elements.Count)
-                throw Unsupported(path + ".elements", "source-bound element insertion or inconsistent source topology");
+            if (before.Elements.Count != slide.Elements.Count)
+                throw Unsupported(path + ".elements", "inconsistent source topology");
             var sourceElements = before.Elements.Select((element, elementIndex) => new
             {
                 Program = element,
                 Wire = slide.Elements[elementIndex],
             }).ToDictionary(item => item.Program.Id, StringComparer.Ordinal);
             var requestedIds = after.Elements.Select(element => element.Id).ToArray();
-            if (requestedIds.Distinct(StringComparer.Ordinal).Count() != requestedIds.Length ||
-                requestedIds.Any(id => !sourceElements.ContainsKey(id)))
-                throw Unsupported(path + ".elements", "source-bound element insertion or identity change");
+            if (requestedIds.Distinct(StringComparer.Ordinal).Count() != requestedIds.Length)
+                throw Unsupported(path + ".elements", "duplicate element identity");
+            var retainedCount = 0;
+            while (retainedCount < after.Elements.Count && sourceElements.ContainsKey(after.Elements[retainedCount].Id))
+                retainedCount++;
+            var retained = after.Elements.Take(retainedCount).ToArray();
+            var authored = after.Elements.Skip(retainedCount).ToArray();
+            if (authored.Any(element => sourceElements.ContainsKey(element.Id)))
+                throw Unsupported(path + ".elements", "new overlays must remain a topmost suffix after the complete source-owned prefix");
+
+            if (authored.Length > 0)
+            {
+                RequireCapability(after.NativeRef, "appendElement", path + ".elements");
+                if (mutations.SemanticChanges || mutations.NativeLeaves.Count > 0 || changedNodeIds.Contains(after.Id))
+                    throw Unsupported(path + ".elements", "mixing a source overlay with another mutation; build and reimport between edits");
+                if (retained.Length != before.Elements.Count ||
+                    !retained.Select(element => element.Id).SequenceEqual(before.Elements.Select(element => element.Id), StringComparer.Ordinal))
+                    throw Unsupported(path + ".elements", "an overlay requires the complete source element prefix in its original order");
+                for (var elementIndex = 0; elementIndex < retained.Length; elementIndex++)
+                {
+                    if (!JsonEqual(before.Elements[elementIndex].Raw, retained[elementIndex].Raw))
+                        throw Unsupported($"{path}.elements[{elementIndex}]", "an overlay cannot be combined with a source element edit");
+                }
+
+                var currentOverlayNodeIds = new HashSet<string>(StringComparer.Ordinal) { after.Id };
+                var overlayWire = slide.Elements.Select(element => element.Clone()).ToList();
+                foreach (var element in authored)
+                {
+                    overlayWire.Add(PpjAuthoredPresentationCompiler.BuildSourceBoundOverlayElement(requested, element));
+                    currentOverlayNodeIds.Add(element.Id);
+                    changedNodeIds.Add(element.Id);
+                }
+                slide.Elements.Clear();
+                slide.Elements.Add(overlayWire);
+                changedNodeIds.Add(after.Id);
+                mutations.AuthoredOverlayNodeIds = currentOverlayNodeIds;
+                mutations.SemanticChanges = true;
+                changed = true;
+                requestedSlides.Add(slide);
+                continue;
+            }
+
+            if (requestedIds.Any(id => !sourceElements.ContainsKey(id)))
+                throw Unsupported(path + ".elements", "source-bound element identity change");
 
             var requestedWire = new List<PresentationElement>(after.Elements.Count);
             for (var elementIndex = 0; elementIndex < after.Elements.Count; elementIndex++)
@@ -579,6 +624,10 @@ internal static class PpjSourceBoundPresentationCompiler
             requestedSlides.Add(slide);
         }
 
+        if (mutations.AuthoredOverlayNodeIds is { } overlayNodeIds &&
+            changedNodeIds.Any(id => !overlayNodeIds.Contains(id)))
+            throw Unsupported("$.pages", "mixing a source overlay with another page mutation; build and reimport between edits");
+
         foreach (var deleted in baseline.Pages.Where(page => !requestedPageIds.Contains(page.Id, StringComparer.Ordinal)))
         {
             RequireCapability(deleted.NativeRef, "delete", "$.pages");
@@ -592,6 +641,12 @@ internal static class PpjSourceBoundPresentationCompiler
         presentation.Slides.Clear();
         presentation.Slides.Add(requestedSlides);
         return changed;
+    }
+
+    private static void RejectMixedAuthoredOverlay(MutationState mutations, string path)
+    {
+        if (mutations.AuthoredOverlayNodeIds is not null)
+            throw Unsupported(path, "mixing source overlay creation with another source transaction; build and reimport between edits");
     }
 
     private static void RequireSourceClonePage(PpjPageModel page, string path)

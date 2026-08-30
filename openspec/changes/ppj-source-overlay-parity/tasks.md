@@ -5,9 +5,9 @@
 
 ## 2. Source-bound lowering
 
-- [ ] 2.1 Recognize an unchanged source prefix plus a fresh typed suffix.
-- [ ] 2.2 Lower bounded text, shape, and image overlays through existing code.
-- [ ] 2.3 Reject interleaving, unsupported types, and mixed slide mutations.
+- [x] 2.1 Recognize an unchanged source prefix plus a fresh typed suffix.
+- [x] 2.2 Lower bounded text, shape, and image overlays through existing code.
+- [x] 2.3 Reject interleaving, unsupported types, and mixed slide mutations.
 
 ## 3. Agent surface and lean verification
 

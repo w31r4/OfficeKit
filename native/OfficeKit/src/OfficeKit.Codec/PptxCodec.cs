@@ -2254,30 +2254,31 @@ internal static class PptxCodec
 
     private static void ValidateAuthoredOverlayElement(PresentationElement element, int slideIndex, OpenXmlPart owner)
     {
-        if (element.ContentCase == PresentationElement.ContentOneofCase.Image)
-            return;
-        if (element.ContentCase != PresentationElement.ContentOneofCase.Shape)
+        if (BoundedAuthoredOverlayViolation(element) is { } violation)
             throw new CodecException(
                 "unsupported_presentation_authored_overlay",
-                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} must be a canonical textbox, basic shape, or embedded rectangular image.",
+                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} {violation}.",
                 PartPath(owner));
+    }
+
+    internal static string? BoundedAuthoredOverlayViolation(PresentationElement element)
+    {
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Image)
+            return null;
+        if (element.ContentCase != PresentationElement.ContentOneofCase.Shape)
+            return "must be a canonical textbox, basic shape, or embedded rectangular image";
         var shape = element.Shape;
         if (shape.Geometry is not ("textbox" or "rect" or "roundRect" or "ellipse") ||
             shape.Placeholder is not null || shape.DirectFrame is not null || shape.HasUseBackgroundFill ||
             shape.CustomPaths.Count > 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
             shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 || shape.TextRectangle is not null)
-            throw new CodecException(
-                "unsupported_presentation_authored_overlay",
-                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} uses geometry or layout identity outside the bounded textbox/basic-shape profile.",
-                PartPath(owner));
+            return "uses geometry or layout identity outside the bounded textbox/basic-shape profile";
         var paragraphs = (shape.TextBody?.Paragraphs ?? []).Concat(shape.TextBody?.ListStyles ?? []);
-        if (paragraphs.Any(paragraph =>
-                paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet ||
-                paragraph.Runs.Any(run => run.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.RunHyperlink)))
-            throw new CodecException(
-                "unsupported_presentation_authored_overlay",
-                $"Presentation slide {slideIndex + 1} authored overlay {element.Id} cannot add picture or hyperlink relationships.",
-                PartPath(owner));
+        return paragraphs.Any(paragraph =>
+            paragraph.BulletCase == PresentationTextParagraph.BulletOneofCase.PictureBullet ||
+            paragraph.Runs.Any(run => run.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.RunHyperlink))
+                ? "cannot add picture or hyperlink relationships"
+                : null;
     }
 
     private static IReadOnlyDictionary<string, uint> AuthoredOverlayNativeIds(

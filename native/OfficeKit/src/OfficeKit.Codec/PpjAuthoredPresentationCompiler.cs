@@ -86,6 +86,20 @@ internal static class PpjAuthoredPresentationCompiler
         return new(file, receipt, exported.Diagnostics);
     }
 
+    internal static PresentationElement BuildSourceBoundOverlayElement(
+        PpjProgramModel program,
+        PpjElementModel element)
+    {
+        if (element.NativeRef is not null)
+            throw Unsupported(element.Id, "a new source-bound overlay cannot carry nativeRef authority");
+        if (element is PpjImageElementModel { SvgAssetId: not null })
+            throw Unsupported(element.Id, "paired SVG fallback images are outside the bounded source overlay relationship profile");
+        var output = BuildElement(element, element.Raw, new Catalog(program.Root));
+        if (PptxCodec.BoundedAuthoredOverlayViolation(output) is { } violation)
+            throw Unsupported(element.Id, violation);
+        return output;
+    }
+
     private static ArtifactEnvelope BuildEnvelope(
         PpjProgramModel program,
         PpjExpansionResult expansion,
