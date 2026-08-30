@@ -142,6 +142,8 @@ internal sealed record PpjChartSeriesModel(
     IReadOnlyList<double> HighValues,
     IReadOnlyList<double> LowValues,
     IReadOnlyList<string?> Parents,
+    IReadOnlyList<string> Sources,
+    IReadOnlyList<string> Targets,
     string? ChartType,
     string? Axis,
     JsonElement Raw);
@@ -639,6 +641,12 @@ internal static class PpjProgramParser
                 : [],
             series.TryGetProperty("parents", out var parents)
                 ? parents.EnumerateArray().Select(value => value.ValueKind == JsonValueKind.Null ? null : value.GetString()).ToArray()
+                : [],
+            series.TryGetProperty("sources", out var sources)
+                ? sources.EnumerateArray().Select(value => value.GetString()!).ToArray()
+                : [],
+            series.TryGetProperty("targets", out var targets)
+                ? targets.EnumerateArray().Select(value => value.GetString()!).ToArray()
                 : [],
             OptionalString(series, "chartType"),
             OptionalString(series, "axis"),

@@ -171,6 +171,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel { ChartType: "sunburst" } sunburst:
                 output.Group = BuildSunburst(sunburst, raw, catalog);
                 break;
+            case PpjChartElementModel { ChartType: "sankey" } sankey:
+                output.Group = BuildSankey(sankey, raw, catalog);
+                break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
                 break;
@@ -1987,6 +1990,363 @@ internal static class PpjAuthoredPresentationCompiler
         internal int Depth { get; set; }
         internal List<int> Children { get; } = [];
     }
+
+    private static PresentationGroup BuildSankey(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "vector sankey titles must use the bounded string form");
+
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        ValidateSankeyCompileProfile(element, raw, namedStyle, inlineStyle);
+        var sankey = FirstProperty(inlineStyle, namedStyle, "sankey")!.Value;
+        var series = element.Data.Series[0];
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var nodes = names.Select((name, index) => new SankeyNode(index, name)).ToArray();
+        var edges = Enumerable.Range(0, series.Values.Count).Select(index => new SankeyEdge(
+            index,
+            indexes[series.Sources[index]],
+            indexes[series.Targets[index]],
+            series.Values[index]!.Value)).ToArray();
+        foreach (var edge in edges)
+        {
+            nodes[edge.SourceIndex].Outgoing.Add(edge.Index);
+            nodes[edge.TargetIndex].Incoming.Add(edge.Index);
+            nodes[edge.SourceIndex].OutgoingValue += edge.Value;
+            nodes[edge.TargetIndex].IncomingValue += edge.Value;
+        }
+
+        var indegree = nodes.Select(node => node.Incoming.Count).ToArray();
+        var queue = new Queue<int>(nodes.Where(node => indegree[node.Index] == 0).Select(node => node.Index));
+        while (queue.Count != 0)
+        {
+            var nodeIndex = queue.Dequeue();
+            foreach (var edgeIndex in nodes[nodeIndex].Outgoing)
+            {
+                var edge = edges[edgeIndex];
+                nodes[edge.TargetIndex].Column = Math.Max(nodes[edge.TargetIndex].Column, nodes[nodeIndex].Column + 1);
+                if (--indegree[edge.TargetIndex] == 0) queue.Enqueue(edge.TargetIndex);
+            }
+        }
+        var maximumColumn = nodes.Max(node => node.Column);
+
+        var nodeColors = sankey.GetProperty("nodeColors").EnumerateArray().Select(catalog.Color).ToArray();
+        var nodeStroke = Property(sankey, "nodeStroke");
+        var nodeWidth = OptionalDouble(sankey, "nodeWidth") ?? 12;
+        var nodeGap = OptionalDouble(sankey, "nodeGap") ?? 9;
+        var justify = (OptionalString(sankey, "nodeAlign") ?? "justify") == "justify";
+        if (justify)
+            foreach (var node in nodes.Where(node => node.Outgoing.Count == 0)) node.Column = maximumColumn;
+        var flowOpacity = OptionalDouble(sankey, "flowOpacity") ?? 0.45;
+        var flowCurvature = OptionalDouble(sankey, "flowCurvature") ?? 0.7;
+        var flowColorMode = OptionalString(sankey, "flowColorMode") ?? "source";
+        var showValues = OptionalBoolean(sankey, "showValues") ?? false;
+        var labelStyle = Property(sankey, "labelTextStyle");
+        var valueStyle = Property(sankey, "valueTextStyle");
+        var titleStyle = FirstProperty(inlineStyle, namedStyle, "titleTextStyle");
+        foreach (var node in nodes) node.Color = nodeColors[node.Index % nodeColors.Length];
+
+        var x = element.Frame.X;
+        var y = element.Frame.Y;
+        var width = element.Frame.Width;
+        var height = element.Frame.Height;
+        var titleText = element.Title is null ? string.Empty : Flatten(element.Title);
+        var titleHeight = titleText.Length == 0 ? 0 : Math.Clamp(height * 0.12, 22, 38);
+        var plotX = x;
+        var plotY = y + titleHeight + 4;
+        var plotWidth = width;
+        var plotHeight = height - titleHeight - 4;
+        if (plotWidth < 260 || plotHeight < 130 || maximumColumn < 1)
+            throw Unsupported(element.Id, "sankey frame or graph depth is too small for a readable native flow layout");
+
+        var columns = nodes.GroupBy(node => node.Column).OrderBy(group => group.Key).ToArray();
+        var scale = columns.Min(column =>
+        {
+            var available = plotHeight - nodeGap * (column.Count() - 1);
+            var magnitude = column.Sum(node => node.Value);
+            return available / magnitude;
+        });
+        if (!double.IsFinite(scale) || scale <= 0)
+            throw Unsupported(element.Id, "sankey node gaps leave no room for positive flow thickness");
+        var columnStep = (plotWidth - nodeWidth) / maximumColumn;
+        if (columnStep - nodeWidth < 48)
+            throw Unsupported(element.Id, "sankey columns leave insufficient horizontal room for native ribbons and labels");
+        foreach (var column in columns)
+        {
+            var ordered = column.OrderBy(node => node.Index).ToArray();
+            var occupied = ordered.Sum(node => node.Value * scale) + nodeGap * (ordered.Length - 1);
+            var cursorY = plotY + (plotHeight - occupied) / 2;
+            foreach (var node in ordered)
+            {
+                node.X = plotX + node.Column * columnStep;
+                node.Y = cursorY;
+                node.Height = node.Value * scale;
+                cursorY += node.Height + nodeGap;
+            }
+        }
+
+        var group = new PresentationGroup
+        {
+            LeftEmu = Emu(x),
+            TopEmu = Emu(y),
+            WidthEmu = Emu(width),
+            HeightEmu = Emu(height),
+            ChildLeftEmu = Emu(x),
+            ChildTopEmu = Emu(y),
+            ChildWidthEmu = Emu(width),
+            ChildHeightEmu = Emu(height),
+        };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
+        if (titleText.Length > 0)
+            group.Children.Add(VectorChartTextElement(
+                SankeyNativeId(element.Id, "title"),
+                "sankey title",
+                x,
+                y,
+                width,
+                titleHeight,
+                titleText,
+                titleStyle,
+                catalog,
+                Math.Clamp(titleHeight * 0.48, 11, 18),
+                "left"));
+
+        var outgoingOffsets = new double[nodes.Length];
+        var incomingOffsets = new double[nodes.Length];
+        foreach (var edge in edges)
+        {
+            var source = nodes[edge.SourceIndex];
+            var target = nodes[edge.TargetIndex];
+            var thickness = edge.Value * scale;
+            var sourceTop = source.Y + outgoingOffsets[source.Index];
+            var targetTop = target.Y + incomingOffsets[target.Index];
+            var color = flowColorMode == "target" ? target.Color : source.Color;
+            var ribbon = ShapeFrame(new PpjFrameModel(plotX, plotY, plotWidth, plotHeight, 0, false, false), "custom");
+            ribbon.FillRgb = color.Rgb;
+            ribbon.FillOpacityThousandthPercent = Opacity(flowOpacity * color.Alpha);
+            ribbon.LineStyle = "none";
+            ribbon.CustomPaths.Add(BuildSankeyRibbonPath(
+                plotX,
+                plotY,
+                plotWidth,
+                plotHeight,
+                source.X + nodeWidth,
+                sourceTop,
+                sourceTop + thickness,
+                target.X,
+                targetTop,
+                targetTop + thickness,
+                flowCurvature));
+            group.Children.Add(new PresentationElement
+            {
+                Id = SankeyNativeId(element.Id, $"flow/{edge.Index}"),
+                Name = $"sankey flow {source.Name} to {target.Name}",
+                Shape = ribbon,
+            });
+            outgoingOffsets[source.Index] += thickness;
+            incomingOffsets[target.Index] += thickness;
+        }
+
+        var labelWidth = Math.Clamp(columnStep - nodeWidth - 8, 42, 120);
+        foreach (var node in nodes)
+        {
+            var shape = ShapeFrame(new PpjFrameModel(node.X, node.Y, nodeWidth, node.Height, 0, false, false), "rect");
+            shape.FillRgb = node.Color.Rgb;
+            if (node.Color.Alpha < 1) shape.FillOpacityThousandthPercent = Opacity(node.Color.Alpha);
+            if (nodeStroke is { } stroke) ApplyLine(shape, stroke, catalog);
+            else shape.LineStyle = "none";
+            group.Children.Add(new PresentationElement
+            {
+                Id = SankeyNativeId(element.Id, $"node/{node.Index}"),
+                Name = $"sankey node {node.Name}",
+                Shape = shape,
+            });
+
+            if (node.Height < 10) continue;
+            var placeLeft = node.Column == maximumColumn;
+            var textX = placeLeft ? node.X - labelWidth - 4 : node.X + nodeWidth + 4;
+            var labelHeight = showValues && node.Height >= 24 ? Math.Min(14, node.Height * 0.48) : Math.Min(16, node.Height);
+            group.Children.Add(VectorChartTextElement(
+                SankeyNativeId(element.Id, $"label/{node.Index}"),
+                $"sankey label {node.Name}",
+                textX,
+                node.Y,
+                labelWidth,
+                labelHeight,
+                node.Name,
+                labelStyle,
+                catalog,
+                Math.Clamp(Math.Min(labelHeight * 0.62, labelWidth / Math.Max(4, node.Name.Length) * 1.5), 6, 10),
+                placeLeft ? "right" : "left",
+                "16324F"));
+            if (showValues && node.Height >= 24)
+                group.Children.Add(VectorChartTextElement(
+                    SankeyNativeId(element.Id, $"value/{node.Index}"),
+                    $"sankey value {node.Name}",
+                    textX,
+                    node.Y + labelHeight,
+                    labelWidth,
+                    Math.Min(12, node.Height - labelHeight),
+                    node.Value.ToString("0.##", CultureInfo.InvariantCulture),
+                    valueStyle,
+                    catalog,
+                    Math.Clamp(node.Height * 0.18, 6, 9),
+                    placeLeft ? "right" : "left",
+                    "52606D"));
+        }
+
+        ApplyAccessibility(group, element.Accessibility);
+        return group;
+    }
+
+    private static void ValidateSankeyCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        var nodeCount = element.Data.Categories.Count;
+        if (nodeCount is < 2 or > 64 ||
+            element.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            element.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != nodeCount)
+            throw Unsupported(element.Id, "sankey categories must be 2..64 unique non-empty node names");
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "sankey charts require exactly one directed-flow series");
+        var series = element.Data.Series[0];
+        var edgeCount = series.Values.Count;
+        if (edgeCount is < 1 or > 256 || series.Values.Any(value => value is null || value <= 0) ||
+            series.Sources.Count != edgeCount || series.Targets.Count != edgeCount)
+            throw Unsupported(element.Id, "sankey sources, targets, and positive flow values must align across 1..256 edges");
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, $"sankey series do not support {property}");
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (raw.TryGetProperty(property, out _))
+                throw Unsupported(element.Id, "sankey charts do not use Cartesian axes");
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
+            if (FirstProperty(inlineStyle, namedStyle, property) is not null)
+                throw Unsupported(element.Id, $"sankey charts do not support chart style field {property}");
+        if (FirstProperty(inlineStyle, namedStyle, "sankey") is null)
+            throw Unsupported(element.Id, "sankey charts require style.sankey");
+
+        var names = element.Data.Categories.Select(category => category.GetString()!).ToArray();
+        var indexes = names.Select((name, index) => (name, index))
+            .ToDictionary(item => item.name, item => item.index, StringComparer.Ordinal);
+        var indegree = new int[nodeCount];
+        var outgoing = Enumerable.Range(0, nodeCount).Select(_ => new List<int>()).ToArray();
+        var incomingFlow = new double[nodeCount];
+        var outgoingFlow = new double[nodeCount];
+        var used = new bool[nodeCount];
+        var edgeKeys = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < edgeCount; index++)
+        {
+            if (!indexes.TryGetValue(series.Sources[index], out var source) || !indexes.TryGetValue(series.Targets[index], out var target))
+                throw Unsupported(element.Id, "every sankey source and target must name a declared category");
+            if (source == target) throw Unsupported(element.Id, "a sankey edge cannot target its source node");
+            if (!edgeKeys.Add(series.Sources[index] + "\u0000" + series.Targets[index]))
+                throw Unsupported(element.Id, "duplicate sankey endpoints must be combined into one explicit flow value");
+            outgoing[source].Add(target);
+            indegree[target]++;
+            used[source] = true;
+            used[target] = true;
+            outgoingFlow[source] += series.Values[index]!.Value;
+            incomingFlow[target] += series.Values[index]!.Value;
+        }
+        if (used.Any(value => !value)) throw Unsupported(element.Id, "every declared sankey node must be incident to an edge");
+
+        var queue = new Queue<int>(Enumerable.Range(0, nodeCount).Where(index => indegree[index] == 0));
+        var visited = 0;
+        while (queue.Count != 0)
+        {
+            var source = queue.Dequeue();
+            visited++;
+            foreach (var target in outgoing[source]) if (--indegree[target] == 0) queue.Enqueue(target);
+        }
+        if (visited != nodeCount) throw Unsupported(element.Id, "sankey edges must form a directed acyclic graph");
+        for (var index = 0; index < nodeCount; index++)
+            if (incomingFlow[index] > 0 && outgoingFlow[index] > 0)
+            {
+                var tolerance = Math.Max(1e-9, Math.Max(incomingFlow[index], outgoingFlow[index]) * 1e-9);
+                if (Math.Abs(incomingFlow[index] - outgoingFlow[index]) > tolerance)
+                    throw Unsupported(element.Id, $"sankey internal node {names[index]} must conserve flow");
+            }
+    }
+
+    private static PresentationCustomGeometryPath BuildSankeyRibbonPath(
+        double plotX,
+        double plotY,
+        double plotWidth,
+        double plotHeight,
+        double sourceX,
+        double sourceTop,
+        double sourceBottom,
+        double targetX,
+        double targetTop,
+        double targetBottom,
+        double curvature)
+    {
+        const long viewport = 100_000;
+        PresentationCustomGeometryPoint Point(double x, double y) => new()
+        {
+            X = checked((long)Math.Round((x - plotX) / plotWidth * viewport, MidpointRounding.AwayFromZero)),
+            Y = checked((long)Math.Round((y - plotY) / plotHeight * viewport, MidpointRounding.AwayFromZero)),
+        };
+        var controlFraction = curvature * 0.5;
+        var control1X = sourceX + (targetX - sourceX) * controlFraction;
+        var control2X = targetX - (targetX - sourceX) * controlFraction;
+        var path = new PresentationCustomGeometryPath
+        {
+            Width = viewport,
+            Height = viewport,
+            FillMode = PresentationCustomGeometryPath.Types.FillMode.Normal,
+            Stroke = false,
+        };
+        path.Commands.Add(MoveTo(Point(sourceX, sourceTop)));
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            CubicBezierTo = new PresentationCustomGeometryCubicBezier
+            {
+                Control1 = Point(control1X, sourceTop),
+                Control2 = Point(control2X, targetTop),
+                End = Point(targetX, targetTop),
+            },
+        });
+        path.Commands.Add(LineTo(Point(targetX, targetBottom)));
+        path.Commands.Add(new PresentationCustomGeometryCommand
+        {
+            CubicBezierTo = new PresentationCustomGeometryCubicBezier
+            {
+                Control1 = Point(control2X, targetBottom),
+                Control2 = Point(control1X, sourceBottom),
+                End = Point(sourceX, sourceBottom),
+            },
+        });
+        path.Commands.Add(new PresentationCustomGeometryCommand { Close = true });
+        return path;
+    }
+
+    private static string SankeyNativeId(string elementId, string suffix) =>
+        $"{elementId}/sankey/{suffix}";
+
+    private sealed class SankeyNode(int index, string name)
+    {
+        internal int Index { get; } = index;
+        internal string Name { get; } = name;
+        internal List<int> Incoming { get; } = [];
+        internal List<int> Outgoing { get; } = [];
+        internal double IncomingValue { get; set; }
+        internal double OutgoingValue { get; set; }
+        internal double Value => Math.Max(IncomingValue, OutgoingValue);
+        internal int Column { get; set; }
+        internal double X { get; set; }
+        internal double Y { get; set; }
+        internal double Height { get; set; }
+        internal (string Rgb, double Alpha) Color { get; set; }
+    }
+
+    private sealed record SankeyEdge(int Index, int SourceIndex, int TargetIndex, double Value);
 
     private static void ValidateWaterfallCompileProfile(
         PpjChartElementModel element,

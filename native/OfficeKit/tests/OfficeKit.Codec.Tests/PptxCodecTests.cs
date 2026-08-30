@@ -920,6 +920,67 @@ public sealed class PptxCodecTests
         var invalidSunburst = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSunburstProgram.ToJsonString()));
         Assert.False(invalidSunburst.IsValid);
         Assert.Contains(invalidSunburst.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sunburstTotal");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-sankey-main",
+            ["type"] = "chart",
+            ["role"] = "customer conversion flow",
+            ["frame"] = new JsonObject { ["x"] = 40, ["y"] = 275, ["width"] = 870, ["height"] = 205 },
+            ["chartType"] = "sankey",
+            ["title"] = "Lead conversion flow",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject
+                {
+                    ["fontSize"] = 13,
+                    ["fontFamily"] = "Aptos Display",
+                    ["bold"] = true,
+                    ["color"] = "#16324F",
+                },
+                ["sankey"] = new JsonObject
+                {
+                    ["nodeColors"] = new JsonArray("#16324F", "#0B8F8F", "#F2C14E", "#C8644A"),
+                    ["nodeStroke"] = new JsonObject { ["color"] = "#FFFFFF", ["width"] = 0.5, ["opacity"] = 0.85 },
+                    ["nodeWidth"] = 14,
+                    ["nodeGap"] = 10,
+                    ["nodeAlign"] = "justify",
+                    ["flowOpacity"] = 0.42,
+                    ["flowCurvature"] = 0.72,
+                    ["flowColorMode"] = "source",
+                    ["showValues"] = true,
+                    ["labelTextStyle"] = new JsonObject { ["fontSize"] = 8, ["bold"] = true },
+                    ["valueTextStyle"] = new JsonObject { ["fontSize"] = 7, ["color"] = "#52606D" },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Leads", "Qualified", "Trial", "Nurture", "Paid", "Churn"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "conversion-flow",
+                        ["name"] = "Accounts",
+                        ["values"] = new JsonArray(100, 60, 40, 45, 15, 25, 15),
+                        ["sources"] = new JsonArray("Leads", "Qualified", "Qualified", "Trial", "Trial", "Nurture", "Nurture"),
+                        ["targets"] = new JsonArray("Qualified", "Trial", "Nurture", "Paid", "Churn", "Paid", "Churn"),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "One hundred leads split into trial and nurture paths, then converge into seventy paid and thirty churned accounts.",
+            },
+        });
+        var invalidSankeyProgram = authoredProgram.DeepClone().AsObject();
+        invalidSankeyProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-sankey-main")
+            ["data"]!["series"]![0]!["targets"]![6] = "Qualified";
+        var invalidSankey = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidSankeyProgram.ToJsonString()));
+        Assert.False(invalidSankey.IsValid);
+        Assert.Contains(invalidSankey.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.sankeyCycle");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -996,7 +1057,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(27U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(28U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -1124,6 +1185,18 @@ public sealed class PptxCodecTests
             Assert.NotEmpty(nativeSunburst.Descendants<A.CubicBezierCurveTo>());
             Assert.Contains(nativeSunburst.Descendants<A.Text>(), text => text.Text == "Product");
             Assert.Contains(nativeSunburst.Descendants<A.Text>(), text => text.Text == "25");
+            var nativeSankey = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "customer conversion flow");
+            Assert.Equal(7, nativeSankey.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sankey flow ", StringComparison.Ordinal) == true));
+            Assert.Equal(6, nativeSankey.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sankey node ", StringComparison.Ordinal) == true));
+            Assert.All(nativeSankey.Elements<P.Shape>().Where(shape =>
+                    shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("sankey flow ", StringComparison.Ordinal) == true),
+                shape => Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()));
+            Assert.Contains(nativeSankey.Descendants<A.Text>(), text => text.Text == "Qualified");
+            Assert.Contains(nativeSankey.Descendants<A.Text>(), text => text.Text == "100");
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -1516,6 +1589,17 @@ public sealed class PptxCodecTests
                     item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "portfolio contribution hierarchy" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedSankey = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "customer conversion flow");
+            Assert.Contains(projectedSankey.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "sankey flow Qualified to Trial" &&
+                    item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
+            Assert.Contains(projectedSankey.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "sankey node Paid");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "customer conversion flow" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&

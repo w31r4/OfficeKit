@@ -293,7 +293,7 @@ internal static class PpjSemanticValidator
             var seriesType = chart.ChartType == "combo" ? series.ChartType : chart.ChartType;
             if (!seriesIds.Add(series.Id))
                 diagnostics.Add(new("ppj.id.duplicate", $"Chart series ID {series.Id} is duplicated.", $"{seriesPath}.id"));
-            if (seriesType is not ("scatter" or "bubble") && series.Values.Count != chart.Data.Categories.Count)
+            if (seriesType is not ("scatter" or "bubble" or "sankey") && series.Values.Count != chart.Data.Categories.Count)
                 diagnostics.Add(new("ppj.chart.lengthMismatch", $"Series {series.Id} has {series.Values.Count} values for {chart.Data.Categories.Count} categories.", $"{seriesPath}.values"));
             if (chart.ChartType != "waterfall" && series.PointRoles.Count != 0)
                 diagnostics.Add(new("ppj.chart.pointRoleType", "pointRoles applies only to waterfall charts.", $"{seriesPath}.pointRoles"));
@@ -330,6 +330,11 @@ internal static class PpjSemanticValidator
                     "ppj.chart.parentsType",
                     "parents applies only to treemap and sunburst charts.",
                     seriesPath + ".parents"));
+            if (chart.ChartType != "sankey" && (series.Sources.Count != 0 || series.Targets.Count != 0))
+                diagnostics.Add(new(
+                    "ppj.chart.edgeChannelType",
+                    "sources and targets apply only to sankey charts.",
+                    seriesPath));
             if (series.Raw.TryGetProperty("trendlines", out var trendlines))
             {
                 var trendlineIndex = 0;
@@ -375,6 +380,9 @@ internal static class PpjSemanticValidator
         if (chart.ChartType == "sunburst") ValidateSunburst(chart, path, diagnostics);
         else if (chart.Raw.TryGetProperty("style", out var sunburstStyle) && sunburstStyle.TryGetProperty("sunburst", out _))
             diagnostics.Add(new("ppj.chart.sunburstStyleType", "style.sunburst applies only to sunburst charts.", path + ".style.sunburst"));
+        if (chart.ChartType == "sankey") ValidateSankey(chart, path, diagnostics);
+        else if (chart.Raw.TryGetProperty("style", out var sankeyStyle) && sankeyStyle.TryGetProperty("sankey", out _))
+            diagnostics.Add(new("ppj.chart.sankeyStyleType", "style.sankey applies only to sankey charts.", path + ".style.sankey"));
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
             style.TryGetProperty("dataLabels", out _) &&
@@ -922,6 +930,167 @@ internal static class PpjSemanticValidator
                     $"{path}.style.{property}"));
     }
 
+    private static void ValidateSankey(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
+    {
+        var nodeCount = chart.Data.Categories.Count;
+        if (nodeCount is < 2 or > 64)
+            diagnostics.Add(new(
+                "ppj.chart.sankeyNodeCount",
+                "Sankey charts require between 2 and 64 declared nodes.",
+                path + ".data.categories"));
+        if (chart.Data.Series.Count != 1)
+        {
+            diagnostics.Add(new(
+                "ppj.chart.sankeySeriesCount",
+                "Sankey charts require exactly one directed-flow series.",
+                path + ".data.series"));
+            return;
+        }
+
+        var nodes = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < nodeCount; index++)
+        {
+            var category = chart.Data.Categories[index];
+            if (category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString()))
+                diagnostics.Add(new(
+                    "ppj.chart.sankeyNode",
+                    "Sankey node names must be non-empty strings.",
+                    $"{path}.data.categories[{index}]"));
+            else if (!nodes.Add(category.GetString()!))
+                diagnostics.Add(new(
+                    "ppj.chart.sankeyNodeDuplicate",
+                    $"Sankey node {category.GetString()} is duplicated.",
+                    $"{path}.data.categories[{index}]"));
+        }
+
+        var series = chart.Data.Series[0];
+        var seriesPath = path + ".data.series[0]";
+        var edgeCount = series.Values.Count;
+        if (edgeCount is < 1 or > 256)
+            diagnostics.Add(new(
+                "ppj.chart.sankeyEdgeCount",
+                "Sankey charts require between 1 and 256 directed edges.",
+                seriesPath + ".values"));
+        if (series.Sources.Count != edgeCount)
+            diagnostics.Add(new(
+                "ppj.chart.sankeySourceLength",
+                "Sankey sources must contain one node name per flow value.",
+                seriesPath + ".sources"));
+        if (series.Targets.Count != edgeCount)
+            diagnostics.Add(new(
+                "ppj.chart.sankeyTargetLength",
+                "Sankey targets must contain one node name per flow value.",
+                seriesPath + ".targets"));
+        if (series.Values.Any(value => value is null || value <= 0))
+            diagnostics.Add(new(
+                "ppj.chart.sankeyFlow",
+                "Sankey flow values must be present and strictly positive.",
+                seriesPath + ".values"));
+
+        foreach (var property in new[] { "pointRoles", "xValues", "bubbleSizes", "openValues", "highValues", "lowValues", "parents", "chartType", "axis", "color", "fill", "stroke", "marker", "trendlines", "errorBars" })
+            if (series.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.sankeySeriesField",
+                    $"{property} is not part of the bounded sankey series profile.",
+                    $"{seriesPath}.{property}"));
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.sankeyAxis",
+                    "Sankey charts do not use Cartesian axes.",
+                    $"{path}.{property}"));
+
+        if (nodes.Count == nodeCount && series.Sources.Count == edgeCount && series.Targets.Count == edgeCount)
+        {
+            var indegree = nodes.ToDictionary(node => node, _ => 0, StringComparer.Ordinal);
+            var outgoing = nodes.ToDictionary(node => node, _ => new List<string>(), StringComparer.Ordinal);
+            var incomingFlow = nodes.ToDictionary(node => node, _ => 0d, StringComparer.Ordinal);
+            var outgoingFlow = nodes.ToDictionary(node => node, _ => 0d, StringComparer.Ordinal);
+            var used = new HashSet<string>(StringComparer.Ordinal);
+            var edges = new HashSet<string>(StringComparer.Ordinal);
+            for (var index = 0; index < edgeCount; index++)
+            {
+                var source = series.Sources[index];
+                var target = series.Targets[index];
+                if (!nodes.Contains(source))
+                    diagnostics.Add(new(
+                        "ppj.chart.sankeyMissingNode",
+                        $"Sankey source {source} is not a declared node.",
+                        $"{seriesPath}.sources[{index}]"));
+                if (!nodes.Contains(target))
+                    diagnostics.Add(new(
+                        "ppj.chart.sankeyMissingNode",
+                        $"Sankey target {target} is not a declared node.",
+                        $"{seriesPath}.targets[{index}]"));
+                if (!nodes.Contains(source) || !nodes.Contains(target)) continue;
+                if (string.Equals(source, target, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(new(
+                        "ppj.chart.sankeyCycle",
+                        "A Sankey edge cannot target its source node.",
+                        $"{seriesPath}.targets[{index}]"));
+                    continue;
+                }
+                if (!edges.Add(source + "\u0000" + target))
+                    diagnostics.Add(new(
+                        "ppj.chart.sankeyEdgeDuplicate",
+                        $"Sankey edge {source} to {target} is duplicated; combine its flow value explicitly.",
+                        $"{seriesPath}.targets[{index}]"));
+                outgoing[source].Add(target);
+                indegree[target]++;
+                used.Add(source);
+                used.Add(target);
+                if (series.Values[index] is { } flow)
+                {
+                    outgoingFlow[source] += flow;
+                    incomingFlow[target] += flow;
+                }
+            }
+
+            foreach (var node in nodes.Where(node => !used.Contains(node)))
+                diagnostics.Add(new(
+                    "ppj.chart.sankeyDisconnectedNode",
+                    $"Sankey node {node} is not incident to any declared edge.",
+                    path + ".data.categories"));
+
+            var queue = new Queue<string>(chart.Data.Categories
+                .Select(category => category.GetString())
+                .Where(node => node is not null && indegree[node] == 0)!
+                .Select(node => node!));
+            var visited = 0;
+            while (queue.Count != 0)
+            {
+                var node = queue.Dequeue();
+                visited++;
+                foreach (var target in outgoing[node])
+                    if (--indegree[target] == 0) queue.Enqueue(target);
+            }
+            if (visited != nodes.Count)
+                diagnostics.Add(new(
+                    "ppj.chart.sankeyCycle",
+                    "Sankey edges must form a directed acyclic graph.",
+                    seriesPath));
+
+            foreach (var node in nodes.Where(node => incomingFlow[node] > 0 && outgoingFlow[node] > 0))
+            {
+                var tolerance = Math.Max(1e-9, Math.Max(incomingFlow[node], outgoingFlow[node]) * 1e-9);
+                if (Math.Abs(incomingFlow[node] - outgoingFlow[node]) > tolerance)
+                    diagnostics.Add(new(
+                        "ppj.chart.sankeyConservation",
+                        $"Sankey internal node {node} has incoming flow {incomingFlow[node]} and outgoing flow {outgoingFlow[node]}.",
+                        seriesPath + ".values"));
+            }
+        }
+
+        if (!chart.Raw.TryGetProperty("style", out var style) || !style.TryGetProperty("sankey", out _)) return;
+        foreach (var property in new[] { "legend", "stacking", "gapWidth", "showCategoryAxis", "showValueAxis", "showGridlines", "showDataLabels", "dataLabelPosition", "dataLabels", "chartAreaFill", "plotAreaFill", "legendTextStyle", "smooth", "varyColors", "waterfall", "heatmap", "candlestick", "treemap", "sunburst" })
+            if (style.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.sankeyStyleField",
+                    $"{property} is not part of the bounded vector sankey style profile.",
+                    $"{path}.style.{property}"));
+    }
+
     private static void ValidateWaterfall(PpjChartElementModel chart, string path, List<PpjDiagnostic> diagnostics)
     {
         if (chart.Data.Series.Count != 1)
@@ -1282,7 +1451,7 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.animation.textBuild", "textBuild requires a text-bearing target.", $"{path}.textBuild"));
             if (animation.ChartBuild is not null && target is not PpjChartElementModel)
                 diagnostics.Add(new("ppj.animation.chartBuild", "chartBuild requires a chart target.", $"{path}.chartBuild"));
-            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" or "candlestick" or "treemap" or "sunburst" })
+            if (animation.ChartBuild is not null && target is PpjChartElementModel { ChartType: "heatmap" or "candlestick" or "treemap" or "sunburst" or "sankey" })
                 diagnostics.Add(new(
                     "ppj.animation.vectorChartBuild",
                     "Vector-lowered charts compile to one editable group and support whole-object animation, not ChartPart build modes.",

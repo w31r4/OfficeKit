@@ -11,6 +11,7 @@ Choose the visual from the relationship the audience must understand.
 | open/high/low/close movement over ordered periods | candlestick |
 | hierarchical part-to-whole allocation | treemap |
 | hierarchical part-to-whole path across concentric levels | sunburst |
+| conserved magnitude moving through a directed process | sankey |
 | multivariate profile across a small shared scale | standard radar |
 | contribution to change | waterfall |
 | precise lookup or rule comparison | table |
@@ -64,8 +65,8 @@ The authored chart compiler owns these native visual controls:
 
 - bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
   bounded semantic waterfall, bounded vector heatmap, bounded vector
-  candlestick, bounded vector treemap, bounded vector sunburst, and bounded
-  bar-line combo plots;
+  candlestick, bounded vector treemap, bounded vector sunburst, bounded vector
+  sankey, and bounded bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -518,6 +519,62 @@ without it, import exposes the ordinary custom-shape group and does not infer
 sunburst semantics from arbitrary arcs. Whole-object animation is supported;
 `chartBuild`, axes, legends, trendlines, error bars, and expression-driven
 per-node paint fail closed.
+
+Use `sankey` when ribbon thickness must communicate conserved magnitude moving
+through a directed process. Use an ordinary process diagram when sequence or
+responsibility matters but edge width has no quantitative meaning. Declare a
+stable node catalog in `categories`; the one series carries aligned positive
+`values`, `sources`, and `targets`:
+
+```json
+{
+  "type": "chart",
+  "id": "conversion-flow",
+  "chartType": "sankey",
+  "frame": { "x": 50, "y": 96, "width": 860, "height": 330 },
+  "title": "Lead conversion flow",
+  "style": {
+    "sankey": {
+      "nodeColors": ["#16324F", "#0B8F8F", "#F2C14E", "#C8644A"],
+      "nodeStroke": { "color": "#FFFFFF", "width": 0.5 },
+      "nodeWidth": 14,
+      "nodeGap": 10,
+      "nodeAlign": "justify",
+      "flowOpacity": 0.42,
+      "flowCurvature": 0.72,
+      "flowColorMode": "source",
+      "showValues": true,
+      "labelTextStyle": { "fontSize": 8, "bold": true },
+      "valueTextStyle": { "fontSize": 7, "color": "#52606D" }
+    }
+  },
+  "data": {
+    "categories": ["Leads", "Qualified", "Trial", "Nurture", "Paid", "Churn"],
+    "series": [{
+      "id": "accounts",
+      "name": "Accounts",
+      "values": [100, 60, 40, 45, 15, 25, 15],
+      "sources": ["Leads", "Qualified", "Qualified", "Trial", "Trial", "Nurture", "Nurture"],
+      "targets": ["Qualified", "Trial", "Nurture", "Paid", "Churn", "Paid", "Churn"]
+    }]
+  }
+}
+```
+
+The bounded profile accepts 2–64 unique nodes and 1–256 unique directed edges.
+Every endpoint must be declared, every node must participate, flows must be
+positive, and the graph must be acyclic. Any node with both incoming and
+outgoing edges must conserve flow. Combine repeated endpoint pairs explicitly;
+do not rely on a renderer to merge them silently.
+
+NativeAOT assigns stable topological columns, scales node/ribbon thickness from
+the same values, and stacks each ribbon consistently at both endpoints. Flows
+are closed cubic custom shapes behind native node rectangles and ordinary text.
+No PNG or ChartPart is introduced. Embedded PPJ restores exact graph semantics;
+without it, import returns the ordinary editable group and does not infer a
+Sankey from arbitrary ribbons. Whole-object animation is supported;
+`chartBuild`, cycles, negative flows, non-conserving internal nodes, arbitrary
+graph constraints, and expression-driven paint fail closed.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
