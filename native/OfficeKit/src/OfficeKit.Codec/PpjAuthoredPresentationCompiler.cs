@@ -267,8 +267,9 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjPlaceholderElementModel placeholder:
                 output.Shape = BuildPlaceholder(placeholder, raw, catalog);
                 break;
-            case PpjMediaElementModel:
-                throw Unsupported(element.Id, "media authoring requires a typed native media compiler");
+            case PpjMediaElementModel media:
+                output.Media = BuildMedia(media, catalog);
+                break;
             case PpjSmartArtElementModel { Mode: "authored" } diagram:
                 output.Group = BuildAuthoredDiagram(diagram, raw, catalog);
                 break;
@@ -378,6 +379,33 @@ internal static class PpjAuthoredPresentationCompiler
         }
         ApplyAccessibility(image, element.Accessibility);
         return image;
+    }
+
+    private static PresentationMedia BuildMedia(PpjMediaElementModel element, Catalog catalog)
+    {
+        var media = new PresentationMedia
+        {
+            MediaType = element.MediaType,
+            AssetId = catalog.NativeAssetId(element.AssetId),
+            PosterAssetId = catalog.NativeAssetId(element.PosterAssetId),
+            LeftEmu = Emu(element.Frame.X),
+            TopEmu = Emu(element.Frame.Y),
+            WidthEmu = Emu(element.Frame.Width),
+            HeightEmu = Emu(element.Frame.Height),
+            Accessibility = Accessibility(element.Accessibility),
+        };
+        if (element.Frame.Rotation != 0 || element.Frame.FlipH || element.Frame.FlipV)
+        {
+            media.Transform = new PresentationImageTransform();
+            if (element.Frame.Rotation != 0) media.Transform.RotationAngle60000 = Angle(element.Frame.Rotation);
+            if (element.Frame.FlipH) media.Transform.FlipHorizontal = true;
+            if (element.Frame.FlipV) media.Transform.FlipVertical = true;
+        }
+        if (element.StartAtMs is { } startAtMs) media.StartAtMs = startAtMs;
+        if (element.EndAtMs is { } endAtMs) media.EndAtMs = endAtMs;
+        if (element.Loop is { } loop) media.Loop = loop;
+        if (element.Mute is { } mute) media.Mute = mute;
+        return media;
     }
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
@@ -4804,7 +4832,13 @@ internal static class PpjAuthoredPresentationCompiler
             : (normalized, 1d);
     }
 
-    private static string NativeAssetId(string mimeType, string sha256) => mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
-        ? $"asset/presentation/picture-bullet/{sha256.ToLowerInvariant()}"
-        : throw new CodecException("ppj.asset.unsupportedPurpose", $"PPJ authored presentation asset MIME {mimeType} does not have a native compiler purpose.");
+    private static string NativeAssetId(string mimeType, string sha256)
+    {
+        if (mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            return $"asset/presentation/picture-bullet/{sha256.ToLowerInvariant()}";
+        if (mimeType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase) ||
+            mimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            return $"asset/presentation/media/{sha256.ToLowerInvariant()}";
+        throw new CodecException("ppj.asset.unsupportedPurpose", $"PPJ authored presentation asset MIME {mimeType} does not have a native compiler purpose.");
+    }
 }

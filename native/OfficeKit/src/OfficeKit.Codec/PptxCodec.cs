@@ -2104,7 +2104,7 @@ internal static class PptxCodec
             var nativeIdsByElementId = flattenedElements.Select((element, index) => (element.Id, NativeId: checked((uint)(index + 2))))
                 .ToDictionary(item => item.Id, item => item.NativeId, StringComparer.Ordinal);
             foreach (var element in source.Elements)
-                shapeTree.Append(BuildElement(element, nativeIdsByElementId, slideContext, slidePart));
+                shapeTree.Append(BuildElement(element, nativeIdsByElementId, slideContext, slidePart, package));
             PptxTimingCodec.ValidateMorphContext(source, slideIndex > 0 ? artifact.Slides[slideIndex - 1] : null);
             PptxTimingCodec.Build(slidePart.Slide!, source, nativeIdsByElementId);
             slidePart.Slide.Save();
@@ -2268,14 +2268,20 @@ internal static class PptxCodec
         PresentationElement element,
         IReadOnlyDictionary<string, uint> nativeIdsByElementId,
         PptxPartContext slideContext,
-        SlidePart slidePart) => element.ContentCase switch
+        SlidePart slidePart,
+        PresentationDocument? package = null) => element.ContentCase switch
         {
             PresentationElement.ContentOneofCase.Shape => BuildShape(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Image => PptxPictureCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Table => PptxTableCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Connector => PptxConnectorCodec.Build(element, nativeIdsByElementId[element.Id], nativeIdsByElementId),
             PresentationElement.ContentOneofCase.Chart => PptxChartCodec.Build(element, nativeIdsByElementId[element.Id], slidePart),
-            PresentationElement.ContentOneofCase.Group => BuildGroup(element, nativeIdsByElementId, slideContext, slidePart),
+            PresentationElement.ContentOneofCase.Group => BuildGroup(element, nativeIdsByElementId, slideContext, slidePart, package),
+            PresentationElement.ContentOneofCase.Media when package is not null =>
+                PptxMediaCodec.Build(element, nativeIdsByElementId[element.Id], slideContext, slidePart, package),
+            PresentationElement.ContentOneofCase.Media => throw new CodecException(
+                "unsupported_presentation_authored_overlay",
+                $"Presentation media {element.Id} can be authored only in a source-free PPJ build."),
             _ => throw new CodecException("unsupported_presentation_element", $"Opaque presentation element {element.Id} requires its validated source package and cannot be authored from scratch."),
         };
 
@@ -2283,7 +2289,8 @@ internal static class PptxCodec
         PresentationElement element,
         IReadOnlyDictionary<string, uint> nativeIdsByElementId,
         PptxPartContext slideContext,
-        SlidePart slidePart)
+        SlidePart slidePart,
+        PresentationDocument? package)
     {
         var group = element.Group;
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeIdsByElementId[element.Id], Name = element.Name };
@@ -2301,7 +2308,7 @@ internal static class PptxCodec
                 new P.ApplicationNonVisualDrawingProperties()),
             new P.GroupShapeProperties(transform));
         foreach (var child in group.Children)
-            output.Append(BuildElement(child, nativeIdsByElementId, slideContext, slidePart));
+            output.Append(BuildElement(child, nativeIdsByElementId, slideContext, slidePart, package));
         return output;
     }
 
@@ -2968,6 +2975,12 @@ internal static class PptxCodec
                 element.Chart.ComboSeries.Sum(entry => entry.Series?.Values.Count ?? 0)));
             if (items > limits.MaxCells)
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).");
+        }
+        else if (element.ContentCase == PresentationElement.ContentOneofCase.Media)
+        {
+            if (hasSourcePackage)
+                throw new CodecException("unsupported_presentation_authored_overlay", $"Presentation media {element.Id} cannot be added to a source-bound slide.");
+            PptxMediaCodec.Validate(element.Media, element.Id, assetCatalog);
         }
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Group)
         {

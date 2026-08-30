@@ -218,7 +218,11 @@ internal sealed class PpjMediaElementModel : PpjElementModel
 {
     internal required string MediaType { get; init; }
     internal required string AssetId { get; init; }
-    internal string? PosterAssetId { get; init; }
+    internal required string PosterAssetId { get; init; }
+    internal ulong? StartAtMs { get; init; }
+    internal ulong? EndAtMs { get; init; }
+    internal bool? Loop { get; init; }
+    internal bool? Mute { get; init; }
 }
 
 internal sealed class PpjPlaceholderElementModel : PpjElementModel
@@ -627,7 +631,11 @@ internal static class PpjProgramParser
             {
                 MediaType = element.GetProperty("mediaType").GetString()!,
                 AssetId = element.GetProperty("asset").GetString()!,
-                PosterAssetId = OptionalString(element, "posterAsset"),
+                PosterAssetId = element.GetProperty("posterAsset").GetString()!,
+                StartAtMs = element.TryGetProperty("startAtMs", out var startAtMs) ? startAtMs.GetUInt64() : null,
+                EndAtMs = element.TryGetProperty("endAtMs", out var endAtMs) ? endAtMs.GetUInt64() : null,
+                Loop = element.TryGetProperty("loop", out var loop) ? loop.GetBoolean() : null,
+                Mute = element.TryGetProperty("mute", out var mute) ? mute.GetBoolean() : null,
             },
             "placeholder" => new PpjPlaceholderElementModel
             {

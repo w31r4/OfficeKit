@@ -3954,7 +3954,8 @@
           "type": "object",
           "required": [
             "mediaType",
-            "asset"
+            "asset",
+            "posterAsset"
           ],
           "properties": {
             "type": {
@@ -3974,11 +3975,13 @@
             },
             "startAtMs": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 86400000
             },
             "endAtMs": {
               "type": "integer",
-              "minimum": 0
+              "minimum": 0,
+              "maximum": 86400000
             },
             "loop": {
               "type": "boolean"

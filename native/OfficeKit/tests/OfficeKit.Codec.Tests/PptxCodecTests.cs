@@ -1222,6 +1222,47 @@ public sealed class PptxCodecTests
             },
         });
         authoredProgram["sections"]![0]!["pages"]!.AsArray().Add("page-authored-diagrams");
+        var mediaBytes = Convert.FromHexString("000000186674797069736F6D0000020069736F6D6D703431");
+        var mediaSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(mediaBytes)).ToLowerInvariant();
+        authoredProgram["assets"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-video",
+            ["uri"] = "ppj-assets/evidence-video.mp4",
+            ["mimeType"] = "video/mp4",
+            ["sha256"] = mediaSha256,
+            ["rights"] = new JsonObject
+            {
+                ["status"] = "internal",
+                ["author"] = "OfficeKit",
+                ["licenseName"] = "AGPL-3.0-or-later",
+                ["creditLine"] = "Synthetic authored-media contract fixture.",
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Synthetic embedded video used to verify the PPJ media contract.",
+            },
+        });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "evidence-video",
+            ["type"] = "media",
+            ["name"] = "authored evidence video",
+            ["role"] = "playback evidence",
+            ["frame"] = new JsonObject { ["x"] = 700, ["y"] = 300, ["width"] = 180, ["height"] = 100 },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Embedded evidence video with an explicit poster.",
+            },
+            ["mediaType"] = "video",
+            ["asset"] = "evidence-video",
+            ["posterAsset"] = "evidence-mark",
+            ["startAtMs"] = 1200,
+            ["endAtMs"] = 400,
+            ["loop"] = true,
+            ["mute"] = true,
+        });
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -1242,6 +1283,14 @@ public sealed class PptxCodecTests
                         ContentType = "image/svg+xml",
                         Data = ByteString.CopyFrom(assetBytes),
                         Sha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(assetBytes)).ToLowerInvariant(),
+                    },
+                    new Asset
+                    {
+                        Id = "evidence-video",
+                        FileName = "evidence-video.mp4",
+                        ContentType = "video/mp4",
+                        Data = ByteString.CopyFrom(mediaBytes),
+                        Sha256 = mediaSha256,
                     },
                 },
             },
@@ -1265,7 +1314,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(36U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(37U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -1279,6 +1328,8 @@ public sealed class PptxCodecTests
                 binding.GetProperty("id").GetString() == "claim-title" && binding.GetProperty("nativeId").GetUInt32() >= 2);
             Assert.Contains(embeddedMap.RootElement.GetProperty("assets").EnumerateArray(), asset =>
                 asset.GetProperty("id").GetString() == "evidence-mark");
+            Assert.Contains(embeddedMap.RootElement.GetProperty("assets").EnumerateArray(), asset =>
+                asset.GetProperty("id").GetString() == "evidence-video");
         }
         var validationOnlyRequest = request.Clone();
         validationOnlyRequest.PresentationProgram.ValidationOnly = true;
@@ -1301,6 +1352,27 @@ public sealed class PptxCodecTests
             Assert.NotNull(nativeMaster.SlideMaster.TextStyles!.TitleStyle!
                 .GetFirstChild<A.Level1ParagraphProperties>()!
                 .GetFirstChild<A.DefaultRunProperties>());
+            var mediaSlide = package.PresentationPart.SlideParts.First();
+            var nativeMedia = mediaSlide.Slide!.CommonSlideData!.ShapeTree!.Elements<P.Picture>()
+                .Single(picture => picture.NonVisualPictureProperties!.NonVisualDrawingProperties!.Name!.Value == "authored evidence video");
+            Assert.Equal("ppaction://media", nativeMedia.NonVisualPictureProperties!.NonVisualDrawingProperties!
+                .GetFirstChild<A.HyperlinkOnClick>()!.Action!.Value);
+            var nativeMediaProperties = nativeMedia.NonVisualPictureProperties.ApplicationNonVisualDrawingProperties!;
+            Assert.NotNull(nativeMediaProperties.GetFirstChild<A.VideoFromFile>());
+            var nativeMediaExtension = nativeMediaProperties.GetFirstChild<P.ApplicationNonVisualDrawingPropertiesExtensionList>()!
+                .GetFirstChild<P.ApplicationNonVisualDrawingPropertiesExtension>()!
+                .GetFirstChild<P14.Media>()!;
+            Assert.Equal("1200", nativeMediaExtension.GetFirstChild<P14.MediaTrim>()!.Start!.Value);
+            Assert.Equal("400", nativeMediaExtension.GetFirstChild<P14.MediaTrim>()!.End!.Value);
+            var videoRelationship = Assert.Single(mediaSlide.DataPartReferenceRelationships.OfType<VideoReferenceRelationship>());
+            var mediaRelationship = Assert.Single(mediaSlide.DataPartReferenceRelationships.OfType<MediaReferenceRelationship>());
+            Assert.Same(videoRelationship.DataPart, mediaRelationship.DataPart);
+            Assert.Equal(mediaBytes, ReadDataPart(mediaRelationship.DataPart));
+            var mediaTiming = mediaSlide.Slide.Timing!.OuterXml;
+            Assert.Contains("<p:video", mediaTiming, StringComparison.Ordinal);
+            Assert.Contains("mute=\"1\"", mediaTiming, StringComparison.Ordinal);
+            Assert.Contains("repeatCount=\"indefinite\"", mediaTiming, StringComparison.Ordinal);
+            Assert.Contains("<p:animEffect", mediaTiming, StringComparison.Ordinal);
             var nativeImageBackground = package.PresentationPart!.SlideParts.ElementAt(1).Slide!
                 .CommonSlideData!.Background!.BackgroundProperties!.GetFirstChild<A.BlipFill>();
             Assert.NotNull(nativeImageBackground);
@@ -1666,10 +1738,15 @@ public sealed class PptxCodecTests
         Assert.Equal(first.PresentationProgram.ProgramJson, recovered.PresentationProgram.ProgramJson);
         Assert.Equal(programBytes, recovered.PresentationProgram.OriginalProgramJson.ToByteArray());
         Assert.Equal(first.PresentationProgram.NodeMapJson, recovered.PresentationProgram.NodeMapJson);
-        var recoveredAsset = Assert.Single(recovered.PresentationProgram.Assets);
+        Assert.Equal(2, recovered.PresentationProgram.Assets.Count);
+        var recoveredAsset = Assert.Single(recovered.PresentationProgram.Assets, asset => asset.Id == "evidence-mark");
         Assert.Equal("evidence-mark", recoveredAsset.Id);
         Assert.Equal("ppj-assets/evidence-mark.svg", recoveredAsset.FileName);
         Assert.Equal(assetBytes, recoveredAsset.Data.ToByteArray());
+        var recoveredMedia = Assert.Single(recovered.PresentationProgram.Assets, asset => asset.Id == "evidence-video");
+        Assert.Equal("ppj-assets/evidence-video.mp4", recoveredMedia.FileName);
+        Assert.Equal("video/mp4", recoveredMedia.ContentType);
+        Assert.Equal(mediaBytes, recoveredMedia.Data.ToByteArray());
 
         var nativeDrift = ReplaceZipText(first.File.ToByteArray(), "ppt/slides/slide1.xml", xml =>
             xml.Replace("</p:sld>", "<!-- external native drift --></p:sld>", StringComparison.Ordinal));

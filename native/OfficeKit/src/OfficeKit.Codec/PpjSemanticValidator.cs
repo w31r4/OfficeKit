@@ -4,6 +4,9 @@ namespace OfficeKit.Codec;
 
 internal static class PpjSemanticValidator
 {
+    private static readonly IReadOnlySet<string> AuthoredVideoMimeTypes = Set("video/mp4");
+    private static readonly IReadOnlySet<string> AuthoredAudioMimeTypes = Set("audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav");
+
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> CapabilityFields =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.Ordinal)
         {
@@ -378,8 +381,25 @@ internal static class PpjSemanticValidator
                 break;
             case PpjMediaElementModel media:
                 ValidateAssetRef(media.AssetId, assetIds, $"{path}.asset", diagnostics);
-                if (media.PosterAssetId is not null)
-                    ValidateAssetRef(media.PosterAssetId, assetIds, $"{path}.posterAsset", diagnostics);
+                ValidateAssetRef(media.PosterAssetId, assetIds, $"{path}.posterAsset", diagnostics);
+                var mediaAsset = program.Assets.FirstOrDefault(asset => asset.Id.Equals(media.AssetId, StringComparison.Ordinal));
+                if (mediaAsset is not null)
+                {
+                    var supported = media.MediaType == "video"
+                        ? AuthoredVideoMimeTypes.Contains(mediaAsset.MimeType)
+                        : AuthoredAudioMimeTypes.Contains(mediaAsset.MimeType);
+                    if (!supported)
+                        diagnostics.Add(new(
+                            "ppj.media.mime",
+                            $"PPJ {media.MediaType} element {element.Id} cannot compile asset MIME {mediaAsset.MimeType}.",
+                            $"{path}.asset"));
+                }
+                var poster = program.Assets.FirstOrDefault(asset => asset.Id.Equals(media.PosterAssetId, StringComparison.Ordinal));
+                if (poster is not null && !poster.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                    diagnostics.Add(new(
+                        "ppj.media.posterMime",
+                        $"PPJ media element {element.Id} requires an image poster asset.",
+                        $"{path}.posterAsset"));
                 break;
             case PpjPlaceholderElementModel placeholder:
                 ValidateStyleRef(placeholder.StyleRef, program.Design.TextStyleIds, $"{path}.styleRef", diagnostics);

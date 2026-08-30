@@ -2095,6 +2095,7 @@ message PresentationElement {
     PresentationConnector connector = 14;
     PresentationChart chart = 15;
     PresentationGroup group = 16;
+    PresentationMedia media = 17;
   }
 }
 
@@ -2516,6 +2517,27 @@ message PresentationImage {
   // exclusive with mask_preset/mask_preset_adjustments and reuses the same
   // ordered path vocabulary as authored custom shapes.
   repeated PresentationCustomGeometryPath custom_mask_paths = 18;
+}
+
+// Source-free embedded audio/video lowered from PPJ. The media asset and its
+// explicit poster are independently content-addressed; relationship IDs,
+// MediaDataPart names, click actions, p14 extensions, and timing-node IDs stay
+// codec-owned. start_at_ms and end_at_ms are the bounded start/tail trim
+// offsets written to p14:trim, not an arbitrary playback expression.
+message PresentationMedia {
+  string media_type = 1;
+  string asset_id = 2;
+  string poster_asset_id = 3;
+  int64 left_emu = 4;
+  int64 top_emu = 5;
+  int64 width_emu = 6;
+  int64 height_emu = 7;
+  PresentationImageTransform transform = 8;
+  PresentationNonVisualAccessibility accessibility = 9;
+  optional uint64 start_at_ms = 10;
+  optional uint64 end_at_ms = 11;
+  optional bool loop = 12;
+  optional bool mute = 13;
 }
 
 message PresentationImageBorder {

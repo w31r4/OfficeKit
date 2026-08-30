@@ -49,6 +49,11 @@ internal static class PptxTimingCodec
         try
         {
             var root = XElement.Parse(timing.OuterXml, LoadOptions.PreserveWhitespace);
+            // Authored media is restored from the embedded PPJ snapshot. A
+            // third-party media timing graph remains source-owned because the
+            // animation projection does not own its playback semantics.
+            if (root.Descendants().Any(node => node.Name == XName.Get("audio", PNamespace) || node.Name == XName.Get("video", PNamespace)))
+                return Opaque(root);
             var animations = new List<PresentationAnimation>();
             var index = 0;
             foreach (var behavior in root.Descendants(XName.Get("animEffect", PNamespace)))
@@ -248,7 +253,7 @@ internal static class PptxTimingCodec
 
     internal static void Build(P.Slide target, PresentationSlide source, IReadOnlyDictionary<string, uint> nativeIdsByElementId)
     {
-        if (source.Animations.Count == 0 && source.Morph is null) return;
+        if (source.Animations.Count == 0 && !MediaElements(source.Elements).Any() && source.Morph is null) return;
         Apply(target, source, nativeIdsByElementId, allowOpaqueReplacement: true);
     }
 
@@ -259,7 +264,7 @@ internal static class PptxTimingCodec
             throw new CodecException("unsupported_presentation_timing_edit", "Imported presentation timing is opaque and cannot be replaced safely.");
         RemoveCanonicalMorph(target);
         target.Timing?.Remove();
-        if (source.Animations.Count == 0)
+        if (source.Animations.Count == 0 && !MediaElements(source.Elements).Any())
         {
             if (source.Morph is not null) ApplyMorphTransition(target, source.Morph, nativeIdsByElementId);
             return;
@@ -332,6 +337,9 @@ internal static class PptxTimingCodec
             if (animation.HasAnimateChartBackground && string.IsNullOrEmpty(animation.ChartBuild))
                 throw new CodecException("invalid_presentation_animation", "Presentation chart-background animation requires a chart build.");
         }
+        foreach (var element in MediaElements(source.Elements))
+            if (!nativeIdsByElementId.ContainsKey(element.Id))
+                throw new CodecException("invalid_presentation_media", $"Presentation media target {element.Id} is not present on the slide.");
         if (source.Morph is not null)
         {
             if (string.IsNullOrWhiteSpace(source.Morph.FromSlideId))
@@ -406,7 +414,18 @@ internal static class PptxTimingCodec
         // Build-list grpId values refer to timing groups (cTn@grpId), not
         // cTn@id. PowerPoint and the Open XML validator both accept the
         // canonical group zero used by authored chart/text build lists.
-        sb.Append($"<p:timing xmlns:p=\"{PNamespace}\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:officekit=\"{OfficeKitNamespace}\"><p:tnLst><p:par><p:cTn id=\"1\" grpId=\"0\" dur=\"indefinite\" nodeType=\"tmRoot\"><p:childTnLst><p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" grpId=\"0\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>");
+        sb.Append($"<p:timing xmlns:p=\"{PNamespace}\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:officekit=\"{OfficeKitNamespace}\"><p:tnLst><p:par><p:cTn id=\"1\" grpId=\"0\" dur=\"indefinite\" nodeType=\"tmRoot\"><p:childTnLst>");
+        var mediaNodeId = 100U;
+        foreach (var element in MediaElements(source.Elements))
+        {
+            var media = element.Media;
+            var mute = media.HasMute && media.Mute ? " mute=\"1\"" : string.Empty;
+            var repeat = media.HasLoop && media.Loop ? " repeatCount=\"indefinite\"" : string.Empty;
+            var kind = media.MediaType == "audio" ? "audio" : "video";
+            sb.Append($"<p:{kind}><p:cMediaNode vol=\"80000\"{mute}><p:cTn id=\"{mediaNodeId++}\" fill=\"hold\" display=\"0\"{repeat}><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"{nativeIdsByElementId[element.Id]}\"/></p:tgtEl></p:cMediaNode></p:{kind}>");
+        }
+        if (source.Animations.Count > 0)
+            sb.Append("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" grpId=\"0\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>");
         var id = 10U;
         var groupId = 3U;
         var groups = new List<List<(PresentationAnimation Animation, uint NativeId, uint Id)>>();
@@ -441,7 +460,9 @@ internal static class PptxTimingCodec
                 sb.Append($"<p:par><p:cTn id=\"{animationId}\" dur=\"{animation.DurationMs}\">{start}{IterateXml(animation)}{AnimationBehaviorXml(animation, nativeId, animationId)}</p:cTn></p:par>");
             }
         }
-        sb.Append("</p:childTnLst></p:cTn></p:seq></p:childTnLst></p:cTn></p:par></p:tnLst>");
+        if (source.Animations.Count > 0)
+            sb.Append("</p:childTnLst></p:cTn></p:seq>");
+        sb.Append("</p:childTnLst></p:cTn></p:par></p:tnLst>");
         var builds = new StringBuilder();
         foreach (var animation in source.Animations.Where(animation => !string.IsNullOrEmpty(animation.TextBuild) || !string.IsNullOrEmpty(animation.ChartBuild)))
         {
@@ -458,6 +479,16 @@ internal static class PptxTimingCodec
         if (builds.Length > 0) sb.Append($"<p:bldLst>{builds}</p:bldLst>");
         sb.Append("</p:timing>");
         return sb.ToString();
+    }
+
+    private static IEnumerable<PresentationElement> MediaElements(IEnumerable<PresentationElement> elements)
+    {
+        foreach (var element in elements)
+        {
+            if (element.ContentCase == PresentationElement.ContentOneofCase.Media) yield return element;
+            if (element.ContentCase != PresentationElement.ContentOneofCase.Group) continue;
+            foreach (var child in MediaElements(element.Group.Children)) yield return child;
+        }
     }
 
     private static string IterateXml(PresentationAnimation animation) =>
