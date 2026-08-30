@@ -139,6 +139,7 @@
     "fontSizePoints": { "valueType": "number", "unit": "pt", "ppjLocation": "run.style.size", "surface": "native-leaf", "boundary": "One located run property." },
     "fontFamily": { "valueType": "string", "unit": "font-family", "ppjLocation": "run.style.fontFamily", "surface": "native-leaf", "boundary": "Latin typeface for one located run." },
     "fontFamilyEastAsia": { "valueType": "string", "unit": "font-family", "ppjLocation": "run.style.fontFamilyEastAsia", "surface": "native-leaf", "boundary": "East Asian typeface for one located run." },
+    "fontLanguage": { "valueType": "string", "unit": "bcp47", "ppjLocation": "run.style.language", "surface": "native-leaf", "boundary": "One canonical direct run language tag." },
     "fontBold": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "run.style.bold", "surface": "native-leaf", "boundary": "One located run property." },
     "fontItalic": { "valueType": "boolean", "unit": "boolean", "ppjLocation": "run.style.italic", "surface": "native-leaf", "boundary": "One located run property." },
     "fontUnderline": { "valueType": "string", "unit": "enum", "ppjLocation": "run.style.underline", "surface": "native-leaf", "boundary": "Canonical DrawingML underline value." },

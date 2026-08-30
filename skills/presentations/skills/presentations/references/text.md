@@ -32,6 +32,23 @@ Simple PPJ text is a string. Mixed formatting uses `paragraphs[]` and `runs[]`.
 Do not put Markdown, HTML, CSS, or invented inline markup into a text string.
 Assign language and font roles explicitly for mixed-script runs.
 
+For mixed-script text, make the language boundary explicit where shaping,
+font fallback, spell checking, or accessibility depends on it:
+
+```json
+{
+  "runs": [
+    { "text": "关键结论", "style": { "language": "zh-CN", "font": "body-cjk" } },
+    { "text": " / Evidence", "style": { "language": "en-US", "font": "body-latin" } }
+  ]
+}
+```
+
+Use a bounded BCP-47 tag; do not invent tags from font names or locale display
+labels. Language and typeface solve different problems, so setting one does not
+authorize guessing the other. Imported direct run language is editable only
+through an issued `fontLanguage` leaf.
+
 ## Use opacity as hierarchy, not camouflage
 
 PPJ text colors accept eight-digit HEX or a declared color token with `alpha`:
