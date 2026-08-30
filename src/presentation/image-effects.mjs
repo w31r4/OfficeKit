@@ -12,7 +12,12 @@ const BORDER_STYLES = new Map([
 const BORDER_CAPS = new Set(["flat", "round", "square"]);
 const BORDER_JOINS = new Set(["miter", "round", "bevel"]);
 const BORDER_KEYS = new Set(["color", "fill", "width", "style", "dash", "cap", "join", "opacity"]);
-const SHADOW_KEYS = new Set(["color", "fill", "blurRadius", "blur", "distance", "direction", "angle", "opacity"]);
+const SHADOW_KEYS = new Set(["color", "fill", "colorScheme", "scheme", "blurRadius", "blur", "distance", "direction", "angle", "opacity", "alignment", "rotateWithShape"]);
+const SHADOW_SCHEME_COLORS = new Set([
+  "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
+  "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
+]);
+const SHADOW_ALIGNMENTS = new Set(["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"]);
 const SHADOW_PRESETS = Object.freeze({
   "shadow-sm": { color: "#000000", blurRadius: 4, distance: 2, direction: 45, opacity: 0.15 },
   shadow: { color: "#000000", blurRadius: 6, distance: 3, direction: 45, opacity: 0.18 },
@@ -104,15 +109,25 @@ export function normalizePresentationImageShadow(value, label = "Presentation im
   const input = assertObject(source, label);
   const unsupported = Object.keys(input).filter((key) => !SHADOW_KEYS.has(key));
   if (unsupported.length) throw new RangeError(`${label} uses unsupported properties: ${unsupported.sort().join(", ")}.`);
-  const color = input.color ?? input.fill ?? "#000000";
-  const normalizedColor = normalizeColor(color, label);
+  const rawScheme = input.colorScheme ?? input.scheme;
+  const color = input.color ?? input.fill;
+  if (rawScheme != null && color != null && String(color).trim()) throw new RangeError(`${label} cannot combine color with colorScheme.`);
+  const colorScheme = rawScheme == null ? undefined : String(rawScheme).trim().toLowerCase();
+  if (colorScheme !== undefined && !SHADOW_SCHEME_COLORS.has(colorScheme)) throw new RangeError(`${label}.colorScheme must be a supported theme color token.`);
+  const normalizedColor = colorScheme === undefined ? normalizeColor(color ?? "#000000", label) : undefined;
   const direction = ((boundedNumber(input.direction ?? input.angle ?? 0, `${label}.direction`, { min: -Infinity, max: Infinity }) % 360) + 360) % 360;
+  const alignment = input.alignment == null ? undefined : String(input.alignment).trim();
+  if (alignment !== undefined && !SHADOW_ALIGNMENTS.has(alignment)) throw new RangeError(`${label}.alignment must be a supported DrawingML rectangle alignment.`);
+  const rotateWithShape = input.rotateWithShape == null ? undefined : input.rotateWithShape;
+  if (rotateWithShape !== undefined && typeof rotateWithShape !== "boolean") throw new TypeError(`${label}.rotateWithShape must be boolean.`);
   return {
-    color: normalizedColor,
+    ...(colorScheme === undefined ? { color: normalizedColor } : { colorScheme }),
     blurRadius: boundedNumber(input.blurRadius ?? input.blur ?? 0, `${label}.blurRadius`),
     distance: boundedNumber(input.distance ?? 0, `${label}.distance`),
     direction,
     opacity: boundedNumber(input.opacity ?? 0.2, `${label}.opacity`, { max: 1 }),
+    ...(alignment === undefined ? {} : { alignment }),
+    ...(rotateWithShape === undefined ? {} : { rotateWithShape }),
   };
 }
 

@@ -505,7 +505,7 @@ internal static partial class PpjPresentationProjector
         if (image.Border is not null && !string.IsNullOrEmpty(image.Border.ColorRgb))
             output["border"] = Stroke(image.Border.ColorRgb, image.Border.WidthEmu, image.Border.Style, image.Border.Cap, image.Border.Join,
                 image.Border.HasOpacityThousandthPercent ? Unit(image.Border.OpacityThousandthPercent) : null);
-        if (image.Shadow is not null && !string.IsNullOrEmpty(image.Shadow.ColorRgb))
+        if (image.Shadow is not null && (!string.IsNullOrEmpty(image.Shadow.ColorRgb) || !string.IsNullOrEmpty(image.Shadow.ColorScheme)))
             output["shadow"] = Shadow(image.Shadow);
         return output;
     }
@@ -954,7 +954,7 @@ internal static partial class PpjPresentationProjector
             style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
                 shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null,
                 shape.LineScheme);
-        if (shape.Shadow is not null && !string.IsNullOrEmpty(shape.Shadow.ColorRgb))
+        if (shape.Shadow is not null && (!string.IsNullOrEmpty(shape.Shadow.ColorRgb) || !string.IsNullOrEmpty(shape.Shadow.ColorScheme)))
             style["shadow"] = Shadow(shape.Shadow);
         return style;
     }
@@ -1644,14 +1644,22 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
-    private static JsonObject Shadow(PresentationShadow shadow) => new()
+    private static JsonObject Shadow(PresentationShadow shadow)
     {
-        ["color"] = Color(shadow.ColorRgb),
-        ["opacity"] = Unit(shadow.OpacityThousandthPercent),
-        ["blur"] = Math.Max(0, Points(shadow.BlurRadiusEmu)),
-        ["distance"] = Math.Max(0, Points(shadow.DistanceEmu)),
-        ["angle"] = shadow.DirectionAngle60000 / 60_000d,
-    };
+        var output = new JsonObject
+        {
+            ["color"] = !string.IsNullOrEmpty(shadow.ColorScheme)
+                ? new JsonObject { ["token"] = shadow.ColorScheme }
+                : Color(string.IsNullOrEmpty(shadow.ColorRgb) ? "000000" : shadow.ColorRgb),
+            ["opacity"] = shadow.HasOpacityThousandthPercent ? Unit(shadow.OpacityThousandthPercent) : 1,
+            ["blur"] = Math.Max(0, Points(shadow.HasBlurRadiusEmu ? shadow.BlurRadiusEmu : 0)),
+            ["distance"] = Math.Max(0, Points(shadow.HasDistanceEmu ? shadow.DistanceEmu : 0)),
+            ["angle"] = (shadow.HasDirectionAngle60000 ? shadow.DirectionAngle60000 : 0) / 60_000d,
+        };
+        if (shadow.HasAlignment) output["alignment"] = shadow.Alignment;
+        if (shadow.HasRotateWithShape) output["rotateWithShape"] = shadow.RotateWithShape;
+        return output;
+    }
 
     private static JsonObject? Accessibility(PresentationNonVisualAccessibility? value)
     {

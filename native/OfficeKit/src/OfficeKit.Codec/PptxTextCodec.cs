@@ -53,6 +53,11 @@ internal static class PptxTextCodec
             // no_hyperlink is edit intent; native absence reimports as an unset
             // choice, so canonical semantic hashes collapse both forms.
             if (run.HyperlinkCase == PresentationTextRun.HyperlinkOneofCase.NoHyperlink) run.ClearHyperlink();
+            // DrawingML writers commonly materialize the default language on a
+            // run even when the source omitted the attribute. Treat the
+            // default en-US value as equivalent to absence so editing an
+            // otherwise unlocalized run does not fail post-write semantics.
+            if (run.HasLanguage && run.Language.Equals("en-US", StringComparison.OrdinalIgnoreCase)) run.ClearLanguage();
         }
         foreach (var paragraph in shape.TextBody.Paragraphs) NormalizeParagraphEditIntent(paragraph);
         foreach (var style in shape.TextBody.ListStyles) NormalizeParagraphEditIntent(style);

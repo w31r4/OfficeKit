@@ -2673,15 +2673,23 @@ internal static class PptxCodec
         var semantic = element.Clone();
         var placementEditable = semantic.ContentCase == PresentationElement.ContentOneofCase.Opaque && semantic.Source?.Editable == true;
         ClearElementIdentity(semantic);
-        if (semantic.ContentCase == PresentationElement.ContentOneofCase.Shape)
-        {
-            PptxTextCodec.NormalizeSemantics(semantic.Shape);
-            PptxLineStyleCodec.NormalizeSemantics(semantic.Shape);
-            semantic.Shape.FillRgb = string.IsNullOrWhiteSpace(semantic.Shape.FillRgb) ? string.Empty : PptxColor.Normalize(semantic.Shape.FillRgb);
-            semantic.Shape.FillScheme = string.IsNullOrWhiteSpace(semantic.Shape.FillScheme) ? string.Empty : PptxColor.NormalizeScheme(semantic.Shape.FillScheme);
-        }
-        else if (placementEditable) semantic.Opaque.RawXml = string.Empty;
+        NormalizeSemanticForHash(semantic);
+        if (placementEditable) semantic.Opaque.RawXml = string.Empty;
         return Hash(semantic.ToByteArray());
+    }
+
+    private static void NormalizeSemanticForHash(PresentationElement element)
+    {
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Shape)
+        {
+            PptxTextCodec.NormalizeSemantics(element.Shape);
+            PptxLineStyleCodec.NormalizeSemantics(element.Shape);
+            element.Shape.FillRgb = string.IsNullOrWhiteSpace(element.Shape.FillRgb) ? string.Empty : PptxColor.Normalize(element.Shape.FillRgb);
+            element.Shape.FillScheme = string.IsNullOrWhiteSpace(element.Shape.FillScheme) ? string.Empty : PptxColor.NormalizeScheme(element.Shape.FillScheme);
+            return;
+        }
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Group)
+            foreach (var child in element.Group.Children) NormalizeSemanticForHash(child);
     }
 
     private static void ClearElementIdentity(PresentationElement element)

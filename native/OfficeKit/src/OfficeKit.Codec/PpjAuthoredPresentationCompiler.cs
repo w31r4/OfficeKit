@@ -3325,10 +3325,17 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationShadow BuildShadow(JsonElement value, Catalog catalog)
     {
-        var color = catalog.Color(value.GetProperty("color"));
+        var colorValue = value.GetProperty("color");
+        var schemeToken = colorValue.ValueKind == JsonValueKind.Object && colorValue.TryGetProperty("token", out var token) &&
+                          PptxColor.TrySchemeToken(token.GetString() ?? string.Empty, out var recognizedScheme)
+            ? recognizedScheme
+            : null;
+        var color = schemeToken is null
+            ? catalog.Color(colorValue)
+            : (Rgb: string.Empty, Alpha: colorValue.TryGetProperty("alpha", out var alpha) ? alpha.GetDouble() : 1d);
         var degrees = value.GetProperty("angle").GetDouble();
         var normalized = ((degrees % 360) + 360) % 360;
-        return new PresentationShadow
+        var output = new PresentationShadow
         {
             ColorRgb = color.Rgb,
             BlurRadiusEmu = Emu(value.GetProperty("blur").GetDouble()),
@@ -3336,6 +3343,11 @@ internal static class PpjAuthoredPresentationCompiler
             DirectionAngle60000 = Angle(normalized),
             OpacityThousandthPercent = Opacity(OptionalDouble(value, "opacity") ?? color.Alpha),
         };
+        if (schemeToken is not null)
+            output.ColorScheme = schemeToken;
+        if (value.TryGetProperty("alignment", out var alignment)) output.Alignment = alignment.GetString()!;
+        if (value.TryGetProperty("rotateWithShape", out var rotateWithShape)) output.RotateWithShape = rotateWithShape.GetBoolean();
+        return output;
     }
 
     private static (string Kind, JsonElement Value)? FirstTextPaint(params JsonElement?[] layers)

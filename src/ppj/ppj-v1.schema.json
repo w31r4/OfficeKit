@@ -1465,6 +1465,22 @@
           "type": "number",
           "minimum": -360,
           "maximum": 360
+        },
+        "alignment": {
+          "enum": [
+            "tl",
+            "t",
+            "tr",
+            "l",
+            "ctr",
+            "r",
+            "bl",
+            "b",
+            "br"
+          ]
+        },
+        "rotateWithShape": {
+          "type": "boolean"
         }
       }
     },

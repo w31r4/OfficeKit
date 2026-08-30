@@ -122,7 +122,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "language", "fontFamily", "fontFamilyEastAsia", "color", "highlight"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "language", "fontFamily", "fontFamilyEastAsia", "color", "highlight", "gradient", "shadow"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -874,6 +874,12 @@ function presentationRgb(value, name) {
   return match[1].toUpperCase();
 }
 
+function presentationScheme(value, name) {
+  const token = NATIVE_SCHEME_COLOR_CANONICAL[String(value ?? "").trim().toLowerCase()];
+  if (!token) throw new OfficeKitCodecError(`${name} must be a supported theme color token.`, [], { code: "unsupported_presentation_features" });
+  return token;
+}
+
 function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
   if (typeof value === "string" || value?.opacity == null) return undefined;
   const opacity = Number(value.opacity);
@@ -992,6 +998,8 @@ function wireTextStyle(style = {}, shapeId) {
   const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.paragraphStyle.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
+  const gradientFill = style.gradient == null ? undefined : presentationGradientFill(style.gradient, `${shapeId}.text.paragraphStyle.gradient`);
+  const shadow = style.shadow == null ? undefined : presentationShadow(style.shadow, `${shapeId}.text.paragraphStyle`);
   let color;
   if (style.color != null) {
     const token = String(style.color).trim();
@@ -1000,6 +1008,7 @@ function wireTextStyle(style = {}, shapeId) {
       : { case: "colorRgb", value: presentationRgb(style.color, `${shapeId}.text.paragraphStyle.color`) };
     if (!color.value) throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent paragraph color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
   }
+  if (gradientFill && color) throw new OfficeKitCodecError(`Presentation shape ${shapeId} paragraph text cannot combine a gradient and solid color.`, [], { code: "invalid_presentation_text" });
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
@@ -1015,6 +1024,8 @@ function wireTextStyle(style = {}, shapeId) {
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
     ...(color ? { color } : {}),
+    ...(gradientFill ? { gradientFill } : {}),
+    ...(shadow ? { shadow } : {}),
   };
 }
 
@@ -1091,11 +1102,16 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
   const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
+  const gradientFill = style.gradient == null ? undefined : presentationGradientFill(style.gradient, `${shapeId}.text.gradient`);
+  const shadow = style.shadow == null ? undefined : presentationShadow(style.shadow, `${shapeId}.text`);
   const colorToken = style.color == null ? undefined : String(style.color).trim();
   const colorScheme = colorToken != null && PRESENTATION_SCHEME_COLORS.has(colorToken) ? colorToken : undefined;
   const colorRgb = style.color == null || colorScheme !== undefined ? undefined : presentationRgb(style.color, `${shapeId}.text.color`);
   if (colorRgb === "") {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a transparent run color outside the PPTX NativeAOT text slice.`, [], { code: "unsupported_presentation_features" });
+  }
+  if (gradientFill && (colorRgb !== undefined || colorScheme !== undefined)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} text cannot combine a gradient and solid color.`, [], { code: "invalid_presentation_text" });
   }
   const hyperlink = wireHyperlink(run.link, original, shapeId, customShowLinks);
   return {
@@ -1119,6 +1135,8 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(strike === undefined ? {} : { strike }),
     ...(colorRgb === undefined ? {} : { colorRgb }),
     ...(colorScheme === undefined ? {} : { colorScheme }),
+    ...(gradientFill === undefined ? {} : { gradientFill }),
+    ...(shadow === undefined ? {} : { shadow }),
     ...(hyperlink ? { hyperlink } : {}),
   };
 }
@@ -1884,20 +1902,42 @@ function presentationShadow(shadow, shapeId) {
   if (!source || typeof source !== "object") {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses an unsupported shadow.`, [], { code: "unsupported_presentation_features" });
   }
+  const rawScheme = source.colorScheme ?? source.scheme;
+  const colorScheme = rawScheme == null ? undefined : presentationScheme(rawScheme, `${shapeId}.shadow.colorScheme`);
+  const rawColor = source.color ?? source.fill;
+  if (colorScheme !== undefined && rawColor != null && String(rawColor).trim()) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} shadow cannot combine an RGB color with a theme color.`, [], { code: "invalid_presentation_shadow" });
+  }
   const blurRadius = Number(source.blurRadius ?? source.blur ?? 0);
   const distance = Number(source.distance ?? 0);
   const direction = Number(source.direction ?? source.angle ?? 0);
   const opacity = Number(source.opacity ?? 0.2);
+  const alignment = source.alignment == null ? undefined : String(source.alignment).trim();
+  if (alignment !== undefined && !new Set(["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"]).has(alignment)) {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} shadow alignment is unsupported.`, [], { code: "invalid_presentation_shadow" });
+  }
+  const rotateWithShape = source.rotateWithShape == null ? undefined : source.rotateWithShape;
+  if (rotateWithShape !== undefined && typeof rotateWithShape !== "boolean") {
+    throw new OfficeKitCodecError(`Presentation shape ${shapeId} shadow rotateWithShape must be boolean.`, [], { code: "invalid_presentation_shadow" });
+  }
   if (![blurRadius, distance, direction, opacity].every(Number.isFinite) || blurRadius < 0 || distance < 0 || opacity < 0 || opacity > 1) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} has an invalid shadow.`, [], { code: "invalid_presentation_shadow" });
   }
   const normalizedDirection = ((direction % 360) + 360) % 360;
+  const hasBlurRadius = Object.hasOwn(source, "blurRadius") || Object.hasOwn(source, "blur");
+  const hasDistance = Object.hasOwn(source, "distance");
+  const hasDirection = Object.hasOwn(source, "direction") || Object.hasOwn(source, "angle");
+  const hasOpacity = Object.hasOwn(source, "opacity");
   return {
-    colorRgb: presentationRgb(source.color || source.fill || "#000000", `${shapeId}.shadow.color`),
-    blurRadiusEmu: emuFromPixels(blurRadius, `${shapeId}.shadow.blurRadius`),
-    distanceEmu: emuFromPixels(distance, `${shapeId}.shadow.distance`),
-    directionAngle60000: Math.round(normalizedDirection * ROTATION_UNITS_PER_DEGREE),
-    opacityThousandthPercent: Math.round(opacity * 100_000),
+    ...(colorScheme === undefined
+      ? { colorRgb: presentationRgb(rawColor || "#000000", `${shapeId}.shadow.color`) }
+      : { colorScheme }),
+    ...(hasBlurRadius ? { blurRadiusEmu: emuFromPixels(blurRadius, `${shapeId}.shadow.blurRadius`) } : {}),
+    ...(hasDistance ? { distanceEmu: emuFromPixels(distance, `${shapeId}.shadow.distance`) } : {}),
+    ...(hasDirection ? { directionAngle60000: Math.round(normalizedDirection * ROTATION_UNITS_PER_DEGREE) } : {}),
+    ...(hasOpacity ? { opacityThousandthPercent: Math.round(opacity * 100_000) } : {}),
+    ...(alignment === undefined ? {} : { alignment }),
+    ...(rotateWithShape === undefined ? {} : { rotateWithShape }),
   };
 }
 
@@ -1921,11 +1961,13 @@ function presentationImageBorder(border, imageId) {
 function modelPresentationShadow(shadow) {
   if (!shadow) return undefined;
   return {
-    color: shadow.colorRgb ? `#${shadow.colorRgb}` : "#000000",
-    blurRadius: Number(shadow.blurRadiusEmu) / EMU_PER_PIXEL,
-    distance: Number(shadow.distanceEmu) / EMU_PER_PIXEL,
-    direction: Number(shadow.directionAngle60000) / ROTATION_UNITS_PER_DEGREE,
-    opacity: Number(shadow.opacityThousandthPercent) / 100_000,
+    ...(shadow.colorScheme ? { colorScheme: shadow.colorScheme } : { color: shadow.colorRgb ? `#${shadow.colorRgb}` : "#000000" }),
+    ...(shadow.blurRadiusEmu === undefined ? {} : { blurRadius: Number(shadow.blurRadiusEmu) / EMU_PER_PIXEL }),
+    ...(shadow.distanceEmu === undefined ? {} : { distance: Number(shadow.distanceEmu) / EMU_PER_PIXEL }),
+    ...(shadow.directionAngle60000 === undefined ? {} : { direction: Number(shadow.directionAngle60000) / ROTATION_UNITS_PER_DEGREE }),
+    ...(shadow.opacityThousandthPercent === undefined ? {} : { opacity: Number(shadow.opacityThousandthPercent) / 100_000 }),
+    ...(shadow.alignment === undefined ? {} : { alignment: shadow.alignment }),
+    ...(shadow.rotateWithShape === undefined ? {} : { rotateWithShape: shadow.rotateWithShape }),
   };
 }
 
@@ -3593,6 +3635,15 @@ function presentationTextLeafRuns(shape) {
     }
   }
   return leaves;
+}
+
+function samePresentationTextRunForEdit(left, right) {
+  const normalize = (value) => {
+    const copy = clonePresentationWire(PresentationTextRunSchema, value);
+    if (typeof copy.language === "string" && copy.language.toLowerCase() === "en-us") copy.language = undefined;
+    return copy;
+  };
+  return samePresentationWire(PresentationTextRunSchema, normalize(left), normalize(right));
 }
 
 function presentationNativeLeafError(code, message, details = {}) {
@@ -5973,14 +6024,16 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
     const before = originalLeaves[index];
     const after = requestedLeaves[index];
     if (before.paragraphIndex !== after.paragraphIndex || before.runIndex !== after.runIndex || before.textLeafIndex !== after.textLeafIndex) return undefined;
-    if (!samePresentationWire(PresentationTextRunSchema, before.run, after.run)) changed.push({ before, after });
+    if (!samePresentationTextRunForEdit(before.run, after.run)) changed.push({ before, after });
   }
   if (changed.length !== 1) return undefined;
   const [{ before, after }] = changed;
   if (before.run.content?.case !== "text" || after.run.content?.case !== "text" || before.run.content.value === after.run.content.value) return undefined;
   const restoredRun = clonePresentationWire(PresentationTextRunSchema, after.run);
   restoredRun.content.value = before.run.content.value;
-  if (!samePresentationWire(PresentationTextRunSchema, restoredRun, before.run)) return undefined;
+  if (!samePresentationTextRunForEdit(restoredRun, before.run)) {
+    return undefined;
+  }
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value.text = original.content.value.text;
   restored.content.value.textBody.paragraphs[before.paragraphIndex].runs[before.runIndex] = before.run;
@@ -6412,6 +6465,8 @@ function modelRun(run, customShowLinks) {
       ...(run.language === undefined ? {} : { language: run.language }),
       ...(run.highlight?.case === "highlightRgb" ? { highlight: `#${run.highlight.value}` } : {}),
       ...(run.highlight?.case === "highlightScheme" ? { highlight: run.highlight.value } : {}),
+      ...(run.gradientFill ? { gradient: modelPresentationGradientFill(run.gradientFill) } : {}),
+      ...(run.shadow ? { shadow: modelPresentationShadow(run.shadow) } : {}),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
       ...(run.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: run.fontFamilyEastAsia }),
       ...(run.underline === undefined ? {} : { underline: run.underline }),
@@ -6503,6 +6558,8 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.language === undefined ? {} : { language: style.language }),
     ...(style.highlight?.case === "highlightRgb" ? { highlight: `#${style.highlight.value}` } : {}),
     ...(style.highlight?.case === "highlightScheme" ? { highlight: style.highlight.value } : {}),
+    ...(style.gradientFill ? { gradient: modelPresentationGradientFill(style.gradientFill) } : {}),
+    ...(style.shadow ? { shadow: modelPresentationShadow(style.shadow) } : {}),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
     ...(style.fontFamilyEastAsia === undefined ? {} : { fontFamilyEastAsia: style.fontFamilyEastAsia }),
     ...(style.underline === undefined ? {} : { underline: style.underline }),

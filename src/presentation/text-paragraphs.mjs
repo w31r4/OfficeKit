@@ -1,6 +1,7 @@
 import { attrEscape } from "../ooxml/source-reference-xml.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { normalizePresentationRunLink } from "./ooxml-hyperlinks.mjs";
+import { normalizePresentationImageShadow } from "./image-effects.mjs";
 
 const EMU_PER_PIXEL = 9525;
 const MAX_PARAGRAPHS = 4096;
@@ -95,6 +96,11 @@ function normalizeRunStyle(style = {}) {
   if (language != null && (language.length < 2 || language.length > 63 || !PRESENTATION_LANGUAGE_TAG.test(language))) {
     throw new TypeError("Presentation run language must be a bounded BCP-47 language tag.");
   }
+  const shadow = style.shadow == null ? undefined : normalizePresentationRunShadow(style.shadow);
+  const gradient = style.gradient == null ? undefined : style.gradient;
+  if (gradient !== undefined && (!gradient || typeof gradient !== "object" || Array.isArray(gradient))) {
+    throw new TypeError("Presentation run gradient must be an object.");
+  }
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
@@ -107,10 +113,29 @@ function normalizeRunStyle(style = {}) {
     ...(fontCaps == null ? {} : { fontCaps }),
     ...(language == null ? {} : { language }),
     ...(style.highlight == null ? {} : { highlight: String(style.highlight) }),
+    ...(gradient == null ? {} : { gradient: structuredClone(gradient) }),
+    ...(shadow == null ? {} : { shadow }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),
     ...(style.color || style.fill ? { color: normalizePresentationColor(style.color || style.fill, "Presentation run color") } : {}),
   };
+}
+
+// Keep source-bound DrawingML omission semantics for imported run effects.
+// The shared image shadow normalizer supplies authoring defaults, while a
+// text run must not invent blur/distance/angle/alpha attributes that were not
+// present in the source XML when an unrelated token is edited.
+function normalizePresentationRunShadow(value) {
+  const normalized = normalizePresentationImageShadow(value, "Presentation run shadow");
+  if (!value || typeof value !== "object" || Array.isArray(value)) return normalized;
+  const has = (...keys) => keys.some((key) => Object.hasOwn(value, key));
+  if (!has("blurRadius", "blur")) delete normalized.blurRadius;
+  if (!has("distance")) delete normalized.distance;
+  if (!has("direction", "angle")) delete normalized.direction;
+  if (!has("opacity")) delete normalized.opacity;
+  if (!has("alignment")) delete normalized.alignment;
+  if (!has("rotateWithShape")) delete normalized.rotateWithShape;
+  return normalized;
 }
 
 function svgFontFamily(style = {}) {
