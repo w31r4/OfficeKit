@@ -17,5 +17,5 @@
 ## 4. Lean verification and delivery
 
 - [x] 4.1 Extend one integrated PPJ sample with a newly exposed shape and adjusted image mask
-- [ ] 4.2 Run the narrow C#, protobuf, Skill-maintainer, and strict OpenSpec checks
+- [x] 4.2 Run the narrow C#, protobuf, Skill-maintainer, and strict OpenSpec checks
 - [ ] 4.3 Fast-forward atomic commits into main and record the exact evidence
