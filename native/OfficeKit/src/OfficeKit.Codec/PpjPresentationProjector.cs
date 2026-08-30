@@ -973,6 +973,7 @@ internal static partial class PpjPresentationProjector
         if (run.HasFontBaselinePercent) style["baseline"] = run.FontBaselinePercent;
         if (run.HasFontSpacingPoints) style["letterSpacing"] = run.FontSpacingPoints;
         if (run.HasFontCaps) style["capitalization"] = run.FontCaps;
+        if (run.HasLanguage) style["language"] = run.Language;
         return style;
     }
 

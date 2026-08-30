@@ -171,6 +171,7 @@ public sealed class PptxCodecTests
         authoredRunStyle["letterSpacing"] = 0.4;
         authoredRunStyle["baseline"] = 0;
         authoredRunStyle["capitalization"] = "none";
+        authoredRunStyle["language"] = "zh-CN";
         var authoredCustomShape = authoredProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "claim-rule");
@@ -802,6 +803,8 @@ public sealed class PptxCodecTests
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("color").GetString());
             Assert.Equal("#FFF2CC", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("highlight").GetString());
+            Assert.Equal("zh-CN", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("runs")[0].GetProperty("style").GetProperty("language").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
             Assert.Equal(6, projectedChart.GetProperty("frame").GetProperty("rotation").GetDouble());
@@ -1409,6 +1412,9 @@ public sealed class PptxCodecTests
                 leaf!["kind"]!.GetValue<string>() == "fontHighlightRgb") == true);
         var highlightLeaf = highlightOwner["nativeRef"]!["leaves"]!.AsArray()
             .Single(leaf => leaf!["kind"]!.GetValue<string>() == "fontHighlightRgb")!.AsObject();
+        var languageLeaf = highlightOwner["nativeRef"]!["leaves"]!.AsArray()
+            .First(leaf => leaf!["kind"]!.GetValue<string>() == "fontLanguage" &&
+                leaf["value"]!.GetValue<string>() == "zh-CN")!.AsObject();
         var imageLeafOwner = nativeLeafProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())
@@ -1421,12 +1427,14 @@ public sealed class PptxCodecTests
             .Single(leaf => leaf!["kind"]!.GetValue<string>() == "imageMaskPreset")!.AsObject();
         const string replacementFill = "#123456";
         const string replacementHighlight = "#F2C14E";
+        const string replacementLanguage = "zh-TW";
         var replacementWidth = nativeWidthLeaf["value"]!.GetValue<long>() + 12_700;
         const int replacementImageOpacity = 61_000;
         const string replacementImageMask = "ellipse";
         nativeLeaf["value"] = replacementFill;
         nativeWidthLeaf["value"] = replacementWidth;
         highlightLeaf["value"] = replacementHighlight;
+        languageLeaf["value"] = replacementLanguage;
         imageOpacityLeaf["value"] = replacementImageOpacity;
         imageMaskLeaf["value"] = replacementImageMask;
         var nativeLeafEdit = Invoke(new CodecRequest
@@ -1475,6 +1483,9 @@ public sealed class PptxCodecTests
         Assert.Contains(reprojectedHighlightOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
             leaf!["kind"]!.GetValue<string>() == "fontHighlightRgb" &&
             leaf["value"]!.GetValue<string>() == replacementHighlight.ToLowerInvariant());
+        Assert.Contains(reprojectedHighlightOwner["nativeRef"]!["leaves"]!.AsArray(), leaf =>
+            leaf!["kind"]!.GetValue<string>() == "fontLanguage" &&
+            leaf["value"]!.GetValue<string>() == replacementLanguage);
         var reprojectedImageOwner = nativeLeafReprojectedProgram["pages"]!.AsArray()
             .SelectMany(page => page!["elements"]!.AsArray())
             .Select(element => element!.AsObject())

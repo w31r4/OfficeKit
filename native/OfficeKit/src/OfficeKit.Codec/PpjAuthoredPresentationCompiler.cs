@@ -910,8 +910,6 @@ internal static class PpjAuthoredPresentationCompiler
         var baseline = FirstProperty(inlineRun, inlineDefault, namedDefault, "baseline");
         var capitalization = FirstProperty(inlineRun, inlineDefault, namedDefault, "capitalization");
         var language = FirstProperty(inlineRun, inlineDefault, namedDefault, "language");
-        if (language is not null)
-            throw Unsupported("text", "run language is valid PPJ but not yet compiler-owned");
         if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
         if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
         if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
@@ -938,6 +936,7 @@ internal static class PpjAuthoredPresentationCompiler
         if (spacing is { } spacingValue) run.FontSpacingPoints = spacingValue.GetDouble();
         if (baseline is { } baselineValue) run.FontBaselinePercent = baselineValue.GetDouble();
         if (capitalization is { } capitalizationValue) run.FontCaps = capitalizationValue.GetString()!;
+        if (language is { } languageValue) run.Language = languageValue.GetString()!;
         if (hyperlink is { } link)
         {
             run.RunHyperlink = new PresentationRunHyperlink { Uri = link.GetProperty("uri").GetString()! };
@@ -950,7 +949,6 @@ internal static class PpjAuthoredPresentationCompiler
     {
         var output = new PresentationTextStyle();
         if (style is not { } value) return output;
-        RejectProperties(value, "text", "language");
         if (value.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
         if (value.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
         if (value.TryGetProperty("size", out var size)) output.FontSizePoints = size.GetDouble();
@@ -977,6 +975,7 @@ internal static class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("letterSpacing", out var spacing)) output.FontSpacingPoints = spacing.GetDouble();
         if (value.TryGetProperty("baseline", out var baseline)) output.FontBaselinePercent = baseline.GetDouble();
         if (value.TryGetProperty("capitalization", out var capitalization)) output.FontCaps = capitalization.GetString()!;
+        if (value.TryGetProperty("language", out var language)) output.Language = language.GetString()!;
         return output;
     }
 
