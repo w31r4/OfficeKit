@@ -968,9 +968,9 @@ message SpreadsheetChartArtifact {
   // Optional line-plot behavior. The bounded profile owns explicit grouping
   // and smooth interpolation plus direct color variation.
   SpreadsheetChartLineOptionsArtifact line_options = 15;
-  // Optional plot-level labels. The bounded profile owns standard value/
-  // category-name booleans plus one optional semantic position. Per-series/
-  // per-point labels, text styles, and number formats remain source-owned.
+  // Optional plot-level labels. The bounded profile owns standard visibility,
+  // position, direct number-format and typography state. Series defaults and
+  // sparse point overrides live on SpreadsheetChartSeriesArtifact.
   SpreadsheetChartDataLabelsArtifact data_labels = 16;
   // Non-visible xdr:cNvPr metadata is independent from the visible ChartSpace
   // title and from ChartSpace editability.
@@ -1048,6 +1048,10 @@ message SpreadsheetChartSeriesArtifact {
   // these positions; ChartSpace omits the corresponding c:pt while retaining
   // the full c:ptCount. Indexes are strictly increasing, unique, and in range.
   repeated uint32 missing_value_indexes = 15;
+  // Presence-aware defaults and sparse point overrides from one canonical
+  // c:ser/c:dLbls container. This is independent from the plot-level labels
+  // stored on SpreadsheetChartArtifact.
+  SpreadsheetChartSeriesDataLabelsArtifact data_labels = 16;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
@@ -4118,6 +4122,32 @@ message SpreadsheetChartDataLabelsArtifact {
   // Direct plot-level c:numFmt with sourceLinked=false. Per-point formats and
   // source-linked workbook formats remain source-owned.
   string number_format_code = 7;
+}
+
+// Presence-aware fields that inherit from the containing series/plot when
+// omitted. Direct number formats always map to sourceLinked=false. The bounded
+// text style is shared with other canonical chart typography.
+message SpreadsheetChartDataLabelOverrideArtifact {
+  optional bool show_value = 1;
+  optional bool show_category_name = 2;
+  optional SpreadsheetChartDataLabelPosition position = 3;
+  optional bool show_series_name = 4;
+  optional bool show_percent = 5;
+  SpreadsheetChartTextStyleArtifact text_style = 6;
+  string number_format_code = 7;
+}
+
+// One zero-based c:dLbl/c:idx and its sparse inherited-field overrides.
+message SpreadsheetChartPointDataLabelArtifact {
+  uint32 index = 1;
+  SpreadsheetChartDataLabelOverrideArtifact override = 2;
+}
+
+// One canonical c:ser/c:dLbls container. Defaults may be omitted when the
+// container owns only sparse point overrides.
+message SpreadsheetChartSeriesDataLabelsArtifact {
+  SpreadsheetChartDataLabelOverrideArtifact defaults = 1;
+  repeated SpreadsheetChartPointDataLabelArtifact points = 2;
 }
 
 // Appended to preserve every pre-existing generated descriptor index while the

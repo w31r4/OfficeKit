@@ -150,7 +150,7 @@ internal static class XlsxChartTextStyleCodec
             throw Invalid(worksheetId, chartId, $"{field} requires a non-empty axis title.");
     }
 
-    private static void ValidateStyle(SpreadsheetChartTextStyleArtifact? style, string worksheetId, string chartId, string field)
+    internal static void ValidateStyle(SpreadsheetChartTextStyleArtifact? style, string worksheetId, string chartId, string field)
     {
         if (style is null) return;
         if (!style.HasFontSizePoints && style.FontFamily.Length == 0 && style.FontFamilyEastAsia.Length == 0 &&
