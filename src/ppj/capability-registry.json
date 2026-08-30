@@ -41,20 +41,6 @@
   },
   "authoredCompilerBoundaries": [
     {
-      "feature": "image fills on authored shapes",
-      "ppjPath": "shape.style.fill",
-      "behavior": "fail-closed",
-      "sourceBound": "Existing native image fills remain source-preserved; only capability-issued image and scalar leaves are editable.",
-      "reason": "Use an image element or native slide background when the picture is the visual carrier."
-    },
-    {
-      "feature": "cropped, tiled, or translucent native slide backgrounds",
-      "ppjPath": "pages[].background",
-      "behavior": "fail-closed",
-      "sourceBound": "Recognized existing native image backgrounds remain source-preserved and capability-bound.",
-      "reason": "Authored native backgrounds own opaque solid color, bounded gradient, or stretch-only image paint. Use a backmost image element plus overlay layers when crop or opacity is required."
-    },
-    {
       "feature": "gradient or no-fill chart series and image table-cell fills",
       "ppjPath": "chart data.series[].fill or table rows[].cells[].fill",
       "behavior": "fail-closed",
@@ -69,11 +55,11 @@
       "reason": "Authored and canonical imported preset masks own the complete ordered adjustment array; arbitrary custom mask paths remain native-owned."
     },
     {
-      "feature": "tiled image elements and independently rotated connector frames",
-      "ppjPath": "image.fit or connector.frame",
+      "feature": "independently rotated connector frames",
+      "ppjPath": "connector.frame",
       "behavior": "fail-closed",
       "sourceBound": "Imported placement and transform topology remains source-preserved unless a matching typed capability is issued.",
-      "reason": "Images own stretch, cover, contain, crop, opacity, preset masks, borders and shadows. Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived."
+      "reason": "Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived."
     },
     {
       "feature": "radar, waterfall and missing chart points",

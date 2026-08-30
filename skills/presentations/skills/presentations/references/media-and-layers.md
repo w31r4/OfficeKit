@@ -36,18 +36,30 @@ background image
 → foreground action or source
 ```
 
-Use an image as the page `background` only when its behavior belongs to the
-slide background. Use an image element when it must remain independently
-editable, crop-able, animated, or reordered. Masks, opacity, borders, and
-shadows belong to the image element; overlays are ordinary shapes placed after
-the image and before text.
+Use an image as the page `background` when it is a true non-selectable slide
+surface. PPJ compiles it into native `<p:bg>` image paint, not a backmost picture
+shape. Native image backgrounds support `stretch`, `cover`, `contain`, explicit
+signed crop, direct opacity, and parameter-free `tile`. Use an image element
+when it must remain independently selectable, masked, bordered, shadowed,
+animated, or reordered.
 
-The authored native-background profile is intentionally narrow: opaque solid
-color, bounded gradient, or an opaque image with `fit: "stretch"`. A cropped,
-contained, tiled, or translucent picture must be the first image element in
-`pages[].elements[]`; place any scrim and editable foreground content after it.
-Unsupported background paint fails before PPTX output instead of silently
-changing the crop or alpha.
+```json
+{
+  "background": {
+    "type": "image",
+    "asset": "wetland-aerial",
+    "fit": "cover",
+    "opacity": 0.78
+  }
+}
+```
+
+`cover` and `contain` lower deterministically from the declared asset dimensions
+and slide frame. An explicit `crop` overrides that calculation. `tile` emits
+only the portable default DrawingML tile profile; arbitrary tile scale, offset,
+alignment, mirroring, external links, and extra image effects fail closed. An
+imported native background can change only when the page `nativeRef` issues
+`setBackground` for that exact source revision.
 
 A page background may also use a native linear or centered radial gradient.
 Choose it as a surface hierarchy or directional-light device, not as substitute
@@ -57,8 +69,34 @@ cropped or animated independently.
 
 Keep the subject, intended focal point, and important edges inside the crop.
 Use `cover` for image-led regions, `contain` for diagrams or logos that must not
-crop, and explicit crop values when reproducibility matters. Re-render after
-font, crop, mask, or z-order changes.
+crop, `tile` only for a genuinely repeatable texture, and explicit crop values
+when reproducibility matters. Re-render after font, crop, mask, or z-order
+changes.
+
+Shape and text-container fills can use the same bounded native image-paint
+profile. This is useful when a photograph or texture must be clipped by editable
+shape geometry:
+
+```json
+{
+  "type": "shape",
+  "id": "material-window",
+  "frame": { "x": 72, "y": 110, "width": 360, "height": 250 },
+  "geometry": { "kind": "preset", "preset": "arc" },
+  "style": {
+    "fill": {
+      "type": "image",
+      "asset": "material-photo",
+      "fit": "cover",
+      "opacity": 0.9
+    }
+  }
+}
+```
+
+This creates a real `a:blipFill` on the shape. It is not a rasterized silhouette.
+Imported canonical image fills project back into PPJ and may be changed only
+when `nativeRef.capabilities` issues `setFill`.
 
 ## Image masks
 

@@ -119,6 +119,14 @@ DrawingML fills and survive projection and source-bound shape edits. Prefer two
 or three deliberate stops. A many-color gradient used only to make a page look
 busy is the same failure as random decoration.
 
+A shape may also own a native image fill with `style.fill.type: "image"`.
+`stretch`, `cover`, `contain`, explicit crop, opacity, and default tile use the
+same bounded profile as a native image background. The shape geometry remains
+editable and clips the picture without flattening it. Use this for a meaningful
+image window or material surface, not to texture every box. See
+[Media and layers](media-and-layers.md#layer-stack) for the full contract and
+source-bound `setFill` rule.
+
 ## Protect reading and evidence
 
 Order `pages[].elements[]` from back to front. Keep evidence-bearing lines,
