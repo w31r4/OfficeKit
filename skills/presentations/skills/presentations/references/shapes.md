@@ -75,6 +75,30 @@ identical parameter order and defaults; see [Media and layers](media-and-layers.
 Connector presets are intentionally absent from shape geometry because PPJ has
 a typed connector element with endpoint semantics.
 
+## Lines are connectors
+
+Use `connector` as PPJ's ordinary line primitive. A connector may join two
+literal points or bind to stable element IDs, and it owns straight, elbow, or
+curved routing plus stroke and arrowheads. Do not use custom geometry merely to
+draw a line, and do not introduce a second line element with overlapping
+semantics.
+
+```json
+{
+  "type": "connector",
+  "id": "threshold-line",
+  "connectorType": "straight",
+  "from": { "x": 84, "y": 260 },
+  "to": { "x": 520, "y": 260 },
+  "stroke": { "color": "#16324F", "width": 1.5, "dash": "dash" },
+  "endArrow": "none"
+}
+```
+
+Bind endpoints to elements when the relationship must survive movement. Use
+literal points for rules, axes, baselines, thresholds, or deliberate visual
+dividers that do not belong to another object.
+
 ```json
 {
   "type": "shape",
