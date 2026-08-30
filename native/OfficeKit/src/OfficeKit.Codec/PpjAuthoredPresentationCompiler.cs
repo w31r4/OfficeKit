@@ -538,7 +538,20 @@ internal static class PpjAuthoredPresentationCompiler
 
         var rawXAxis = Property(raw, "xAxis");
         var rawYAxis = Property(raw, "yAxis");
-        if (rawXAxis is not null || rawYAxis is not null)
+        var rawSpokeAxis = Property(raw, "spokeAxis");
+        if (rawSpokeAxis is { } spokeAxis)
+        {
+            if (chart.Type != SpreadsheetChartType.Radar)
+                throw Unsupported(element.Id, "spokeAxis applies only to radar charts");
+            if (rawXAxis is not null || rawYAxis is not null || Property(raw, "secondaryXAxis") is not null || Property(raw, "secondaryYAxis") is not null)
+                throw Unsupported(element.Id, "spokeAxis cannot be combined with generic or secondary chart axes");
+            if (FirstProperty(inlineStyle, namedStyle, "showCategoryAxis") is not null ||
+                FirstProperty(inlineStyle, namedStyle, "showValueAxis") is not null ||
+                FirstProperty(inlineStyle, namedStyle, "showGridlines") is not null)
+                throw Unsupported(element.Id, "spokeAxis cannot be combined with legacy chart-axis visibility fields");
+            (chart.XAxis, chart.YAxis) = BuildRadarSpokeAxes(spokeAxis, catalog);
+        }
+        else if (rawXAxis is not null || rawYAxis is not null)
         {
             if (chart.Type is SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut)
                 throw Unsupported(element.Id, "pie and doughnut charts cannot define axes");
@@ -4401,6 +4414,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("max", out var maximum)) axis.Maximum = maximum.GetDouble();
         if (source.TryGetProperty("majorUnit", out var majorUnit)) axis.MajorUnit = majorUnit.GetDouble();
         if (source.TryGetProperty("visible", out var visible)) axis.Visible = visible.GetBoolean();
+        if (source.TryGetProperty("tickLabelsVisible", out var tickLabelsVisible))
+            axis.TickLabelsVisible = tickLabelsVisible.GetBoolean();
         if (source.TryGetProperty("reverse", out var reverse)) axis.Reverse = reverse.GetBoolean();
         if (source.TryGetProperty("axisLine", out var axisLine))
         {
@@ -4434,6 +4449,59 @@ internal static class PpjAuthoredPresentationCompiler
             axis.TitleTextStyle = BuildChartTextStyle(titleTextStyle, catalog);
         }
         return axis;
+    }
+
+    private static (SpreadsheetChartAxisArtifact XAxis, SpreadsheetChartAxisArtifact YAxis) BuildRadarSpokeAxes(
+        JsonElement source,
+        Catalog catalog)
+    {
+        var xAxis = new SpreadsheetChartAxisArtifact();
+        var yAxis = new SpreadsheetChartAxisArtifact();
+        var show = !source.TryGetProperty("show", out var showValue) || showValue.GetBoolean();
+        xAxis.Visible = show;
+        yAxis.Visible = show;
+
+        if (source.TryGetProperty("min", out var minimum)) yAxis.Minimum = minimum.GetDouble();
+        if (source.TryGetProperty("max", out var maximum)) yAxis.Maximum = maximum.GetDouble();
+        if (source.TryGetProperty("majorUnit", out var majorUnit)) yAxis.MajorUnit = majorUnit.GetDouble();
+
+        if (!show)
+        {
+            yAxis.TickLabelsVisible = false;
+            return (xAxis, yAxis);
+        }
+
+        if (!source.TryGetProperty("label", out var label))
+            yAxis.TickLabelsVisible = true;
+        else if (label.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            yAxis.TickLabelsVisible = label.GetBoolean();
+        else
+        {
+            yAxis.TickLabelsVisible = true;
+            yAxis.NumberFormatCode = OptionalString(label, "numberFormat") ?? string.Empty;
+            yAxis.TextStyle = BuildChartTextStyle(label, catalog);
+        }
+
+        ApplyRadarGuideLine(xAxis, source, "axisLine", catalog);
+        ApplyRadarGuideLine(yAxis, source, "gridLine", catalog);
+        return (xAxis, yAxis);
+    }
+
+    private static void ApplyRadarGuideLine(
+        SpreadsheetChartAxisArtifact axis,
+        JsonElement source,
+        string propertyName,
+        Catalog catalog)
+    {
+        axis.ShowMajorGridlines = true;
+        if (!source.TryGetProperty(propertyName, out var line)) return;
+        if (line.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            axis.MajorGridlineVisible = line.GetBoolean();
+            return;
+        }
+        axis.MajorGridlineVisible = true;
+        axis.MajorGridlineStyle = BuildChartLine(line, catalog);
     }
 
     private static SpreadsheetChartMarkerArtifact BuildChartMarker(JsonElement source, Catalog catalog)

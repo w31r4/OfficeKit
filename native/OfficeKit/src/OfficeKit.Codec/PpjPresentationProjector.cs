@@ -652,8 +652,13 @@ internal static partial class PpjPresentationProjector
             seriesJson.Add(entry);
         }
         output["data"] = new JsonObject { ["categories"] = categories, ["series"] = seriesJson };
-        if (chart.XAxis is not null) output["xAxis"] = ProjectChartAxis(chart.XAxis);
-        if (chart.YAxis is not null) output["yAxis"] = ProjectChartAxis(chart.YAxis);
+        if (chart.Type == SpreadsheetChartType.Radar && TryProjectRadarSpokeAxis(chart, out var spokeAxis))
+            output["spokeAxis"] = spokeAxis;
+        else
+        {
+            if (chart.XAxis is not null) output["xAxis"] = ProjectChartAxis(chart.XAxis);
+            if (chart.YAxis is not null) output["yAxis"] = ProjectChartAxis(chart.YAxis);
+        }
         if (chart.SecondaryXAxis is not null) output["secondaryXAxis"] = ProjectChartAxis(chart.SecondaryXAxis);
         if (chart.SecondaryYAxis is not null) output["secondaryYAxis"] = ProjectChartAxis(chart.SecondaryYAxis);
         var style = new JsonObject
@@ -786,6 +791,7 @@ internal static partial class PpjPresentationProjector
         if (axis.HasMajorUnit) output["majorUnit"] = axis.MajorUnit;
         if (axis.HasVisible) output["visible"] = axis.Visible;
         if (axis.HasReverse) output["reverse"] = axis.Reverse;
+        if (axis.HasTickLabelsVisible) output["tickLabelsVisible"] = axis.TickLabelsVisible;
         if (axis.AxisLine is not null && !string.IsNullOrEmpty(axis.AxisLine.Color?.Rgb))
             output["axisLine"] = ProjectChartLine(axis.AxisLine);
         else if (axis.HasAxisLineVisible)
@@ -801,6 +807,65 @@ internal static partial class PpjPresentationProjector
         if (axis.TitleTextStyle is not null)
             output["titleTextStyle"] = ProjectChartTextStyle(axis.TitleTextStyle);
         return output;
+    }
+
+    private static bool TryProjectRadarSpokeAxis(PresentationChart chart, out JsonObject output)
+    {
+        output = new JsonObject();
+        var xAxis = chart.XAxis;
+        var yAxis = chart.YAxis;
+        if (xAxis is null || yAxis is null ||
+            xAxis.Title.Length > 0 || xAxis.NumberFormatCode.Length > 0 || xAxis.HasTickLabelInterval ||
+            xAxis.HasMinimum || xAxis.HasMaximum || xAxis.HasMajorUnit || xAxis.HasReverse && xAxis.Reverse ||
+            xAxis.AxisLine is not null || xAxis.HasAxisLineVisible || xAxis.TextStyle is not null || xAxis.TitleTextStyle is not null ||
+            xAxis.HasTickLabelsVisible ||
+            yAxis.Title.Length > 0 || yAxis.HasTickLabelInterval || yAxis.HasReverse && yAxis.Reverse ||
+            yAxis.AxisLine is not null || yAxis.HasAxisLineVisible || yAxis.TitleTextStyle is not null)
+            return false;
+
+        if (xAxis.HasVisible != yAxis.HasVisible ||
+            xAxis.HasVisible && xAxis.Visible != yAxis.Visible)
+            return false;
+
+        var hasEvidence = xAxis.HasVisible || yAxis.HasVisible ||
+            xAxis.HasShowMajorGridlines || xAxis.HasMajorGridlineVisible || xAxis.MajorGridlineStyle is not null ||
+            yAxis.HasShowMajorGridlines || yAxis.HasMajorGridlineVisible || yAxis.MajorGridlineStyle is not null ||
+            yAxis.HasMinimum || yAxis.HasMaximum || yAxis.HasMajorUnit ||
+            yAxis.HasTickLabelsVisible || yAxis.NumberFormatCode.Length > 0 || yAxis.TextStyle is not null;
+        if (!hasEvidence) return false;
+
+        var show = !xAxis.HasVisible || xAxis.Visible;
+        if (xAxis.HasVisible) output["show"] = show;
+        if (yAxis.HasMinimum) output["min"] = yAxis.Minimum;
+        if (yAxis.HasMaximum) output["max"] = yAxis.Maximum;
+        if (yAxis.HasMajorUnit) output["majorUnit"] = yAxis.MajorUnit;
+
+        if (yAxis.HasTickLabelsVisible && !yAxis.TickLabelsVisible)
+            output["label"] = false;
+        else if (yAxis.NumberFormatCode.Length > 0 || yAxis.TextStyle is not null)
+        {
+            var label = yAxis.TextStyle is null ? new JsonObject() : ProjectChartTextStyle(yAxis.TextStyle);
+            if (yAxis.NumberFormatCode.Length > 0) label["numberFormat"] = yAxis.NumberFormatCode;
+            output["label"] = label;
+        }
+        else if (yAxis.HasTickLabelsVisible)
+            output["label"] = yAxis.TickLabelsVisible;
+
+        if (show)
+        {
+            output["axisLine"] = ProjectRadarGuideLine(xAxis) ?? false;
+            output["gridLine"] = ProjectRadarGuideLine(yAxis) ?? false;
+        }
+        return true;
+    }
+
+    private static JsonNode? ProjectRadarGuideLine(SpreadsheetChartAxisArtifact axis)
+    {
+        if (axis.MajorGridlineStyle is not null && !string.IsNullOrEmpty(axis.MajorGridlineStyle.Color?.Rgb))
+            return ProjectChartLine(axis.MajorGridlineStyle);
+        if (axis.HasMajorGridlineVisible) return JsonValue.Create(axis.MajorGridlineVisible);
+        if (axis.HasShowMajorGridlines) return JsonValue.Create(axis.ShowMajorGridlines);
+        return null;
     }
 
     private static JsonObject ProjectChartTextStyle(SpreadsheetChartTextStyleArtifact source)

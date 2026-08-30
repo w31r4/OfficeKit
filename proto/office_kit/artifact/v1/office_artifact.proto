@@ -1083,6 +1083,10 @@ message SpreadsheetChartAxisArtifact {
   // Distinguishes a present major-gridline container with a:noFill from an
   // omitted container. A direct style implies visible=true.
   optional bool major_gridline_visible = 15;
+  // Presence-aware tick-label visibility. False writes c:tickLblPos=none;
+  // true removes that explicit suppression and uses the native default.
+  // Custom high/low native positions remain outside the bounded profile.
+  optional bool tick_labels_visible = 16;
 }
 
 message SpreadsheetChartSurfaceFill {
