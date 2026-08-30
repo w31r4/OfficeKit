@@ -43,6 +43,13 @@ must remain factually and visually valid. On imported pages, change `name` or
 a page again rather than removing the field. Neither edit changes custom-show
 membership or presentation order.
 
+Imported legacy comments are source-bound review evidence. Edit an existing
+`comments[].text` only when that comment's nativeRef advertises `replaceText`;
+keep its ID, page, author, timestamp, position, resolution state, nativeRef, and
+array order unchanged. Re-import and confirm the edited text. Adding, removing,
+reordering, resolving, replying to, or changing metadata on imported comments
+is outside this bounded profile and must fail closed.
+
 Compilation proves that the program lowered. Re-import proves that OfficeKit
 can read the result. Structural motion evidence proves canonical timing state.
 None of these proves that a human saw correct rendering or that desktop

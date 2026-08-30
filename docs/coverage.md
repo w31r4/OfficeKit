@@ -154,6 +154,15 @@ that SlidePart, and recovers page and element state after second projection.
 Malformed visibility remains opaque, and neither operation changes order,
 layout, sections, custom shows, notes, comments, transitions, or relationships.
 
+Bounded imported legacy comments now project a hash-bound nativeRef and issue
+`replaceText` only when the owning slide's native comment profile is editable.
+The existing comprehensive PPJ transaction changes one chart title and one
+legacy comment body, changes only the chart and comment parts, and recovers the
+new comment text after a second projection. Comment identity, page binding,
+author, timestamp, position, resolution state, order, author catalog, and
+topology remain source-owned; additions, removals, metadata edits, replies, and
+modern-comment graphs fail closed.
+
 The third-party continuation uses the 21-page, 595-part, 660-relationship
 “算秩未来” source (`b34ddad8…e1762`). Projection classified 731 visible objects
 and retained 1,115 opaque parts or relationships. No-op build was byte-identical.
