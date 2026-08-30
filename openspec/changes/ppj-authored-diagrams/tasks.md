@@ -10,4 +10,4 @@
 - [x] 2.1 Add one focused diagram example and usage boundaries to PPJ guidance.
 - [x] 2.2 Extend the existing comprehensive PPJ contract with authored diagrams.
 - [x] 2.3 Run the owning contract, maintainer check, and strict OpenSpec validation.
-- [ ] 2.4 Commit atomically and fast-forward the verified branch into main.
+- [x] 2.4 Commit atomically and fast-forward the verified branch into main.
