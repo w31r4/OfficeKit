@@ -2277,6 +2277,10 @@ message PresentationShape {
   // permits bounded placement edits without reconstructing or replacing the
   // image fill. Source-free authoring and image replacement remain unsupported.
   string image_fill_asset_id = 38;
+  // Direct theme token for an imported a:ln solidFill. RGB and scheme are
+  // mutually exclusive; source-bound edits preserve the token instead of
+  // resolving it through the presentation theme.
+  string line_scheme = 39;
 }
 
 message PresentationCustomGeometryPath {
@@ -2362,6 +2366,10 @@ message PresentationConnector {
   PresentationNonVisualAccessibility accessibility = 21;
   // Presence-aware alpha for the direct solid RGB a:ln fill.
   optional uint32 line_opacity_thousandth_percent = 22;
+  // Direct theme token for an imported a:ln solidFill. RGB and scheme are
+  // mutually exclusive; source-bound edits preserve the token instead of
+  // resolving it through the presentation theme.
+  string line_scheme = 23;
 }
 
 message PresentationChart {

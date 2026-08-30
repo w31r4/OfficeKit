@@ -808,12 +808,13 @@ internal static partial class PpjPresentationProjector
         output["from"] = ConnectorEndpoint(connector.StartTargetId, connector.StartXEmu, connector.StartYEmu, pageId, context);
         output["to"] = ConnectorEndpoint(connector.EndTargetId, connector.EndXEmu, connector.EndYEmu, pageId, context);
         output["stroke"] = Stroke(
-            string.IsNullOrEmpty(connector.LineRgb) ? "000000" : connector.LineRgb,
+            connector.LineRgb,
             connector.LineWidthEmu,
             connector.LineStyle,
             connector.LineCap,
             connector.LineJoin,
-            connector.HasLineOpacityThousandthPercent ? Unit(connector.LineOpacityThousandthPercent) : null);
+            connector.HasLineOpacityThousandthPercent ? Unit(connector.LineOpacityThousandthPercent) : null,
+            connector.LineScheme);
         if (Arrow(connector.StartArrow) is { } startArrow) output["startArrow"] = startArrow;
         if (Arrow(connector.EndArrow) is { } endArrow) output["endArrow"] = endArrow;
         return output;
@@ -922,9 +923,10 @@ internal static partial class PpjPresentationProjector
                 ["fit"] = "stretch",
             };
         }
-        if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
+        if ((!string.IsNullOrEmpty(shape.LineRgb) || !string.IsNullOrEmpty(shape.LineScheme)) && shape.LineStyle != "none")
             style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
-                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
+                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null,
+                shape.LineScheme);
         if (shape.Shadow is not null && !string.IsNullOrEmpty(shape.Shadow.ColorRgb))
             style["shadow"] = Shadow(shape.Shadow);
         return style;
@@ -1135,9 +1137,10 @@ internal static partial class PpjPresentationProjector
         {
             output["fill"] = imageFill;
         }
-        if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
+        if ((!string.IsNullOrEmpty(shape.LineRgb) || !string.IsNullOrEmpty(shape.LineScheme)) && shape.LineStyle != "none")
             output["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
-                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
+                shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null,
+                shape.LineScheme);
     }
 
     private static JsonObject? ProjectBackground(PresentationBackground? background, ProjectionContext context)
@@ -1548,11 +1551,14 @@ internal static partial class PpjPresentationProjector
         string? style,
         string? cap,
         string? join,
-        double? opacity)
+        double? opacity,
+        string? scheme = null)
     {
         var output = new JsonObject
         {
-            ["color"] = Color(rgb),
+            ["color"] = !string.IsNullOrEmpty(scheme)
+                ? new JsonObject { ["token"] = scheme }
+                : Color(string.IsNullOrEmpty(rgb) ? "000000" : rgb),
             ["width"] = Math.Max(0, Points(widthEmu)),
         };
         var dash = Dash(style);

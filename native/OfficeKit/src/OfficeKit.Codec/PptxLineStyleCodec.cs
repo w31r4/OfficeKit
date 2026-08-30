@@ -13,6 +13,7 @@ internal static class PptxLineStyleCodec
 {
     internal sealed record Profile(
         string Rgb,
+        string Scheme,
         uint? OpacityThousandthPercent,
         long WidthEmu,
         string Style,
@@ -202,39 +203,38 @@ internal static class PptxLineStyleCodec
 
         profile = null!;
         var width = outline.Width?.Value ?? 0;
-        if (width < 0 || width > int.MaxValue || outline.CompoundLineType is not null ||
-            outline.Alignment is not null || !HasOnlyAttributes(outline, "w", "cap") ||
+        if (width < 0 || width > int.MaxValue ||
+            !HasOnlyAttributes(outline, "w", "cap", "cmpd", "algn") ||
             !TryCap(outline.CapType?.Value, out var cap))
             return false;
+
+        // These are the canonical single-line/centered defaults. A number of
+        // exporters write them explicitly on otherwise ordinary connectors;
+        // accepting only these values keeps the editable profile bounded while
+        // preserving the common native representation.
+        if (outline.CompoundLineType?.Value is { } compound &&
+            !compound.Equals(A.CompoundLineValues.Single)) return false;
+        if (outline.Alignment?.Value is { } alignment &&
+            !alignment.Equals(A.PenAlignmentValues.Center)) return false;
 
         var noFills = outline.Elements<A.NoFill>().ToArray();
         var solidFills = outline.Elements<A.SolidFill>().ToArray();
         // The rendered result of an a:ln without EG_LineFillProperties is not
         // stable enough to expose as editable. Require one explicit noFill or
-        // one direct sRGB solidFill.
+        // one direct RGB/theme solidFill.
         if (noFills.Length + solidFills.Length != 1) return false;
 
         var rgb = string.Empty;
+        var scheme = string.Empty;
         uint? opacity = null;
         var noFill = noFills.Length == 1;
         if (noFill && (noFills[0].ChildElements.Any() || !HasOnlyAttributes(noFills[0]))) return false;
         if (solidFills.Length == 1)
         {
             var solid = solidFills[0];
-            if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color ||
-                !HasOnlyAttributes(solid) || !HasOnlyAttributes(color, "val") ||
-                color.Val?.Value is not { Length: 6 } value || !value.All(Uri.IsHexDigit))
-                return false;
-            var alpha = color.Elements<A.Alpha>().ToArray();
-            if (color.ChildElements.Any(child => child is not A.Alpha) || alpha.Length > 1) return false;
-            if (alpha.SingleOrDefault() is { } alphaValue)
-            {
-                if (alphaValue.ChildElements.Any() || !HasOnlyAttributes(alphaValue, "val") ||
-                    alphaValue.Val?.Value is not int rawOpacity || rawOpacity is < 0 or > 100_000)
-                    return false;
-                opacity = checked((uint)rawOpacity);
-            }
-            rgb = value.ToUpperInvariant();
+            if (!HasOnlyAttributes(solid) ||
+                !PptxColor.TryDirectSolidRgbWithOpacity(solid, out rgb, out opacity) &&
+                !PptxColor.TryDirectSolidSchemeWithOpacity(solid, out scheme, out opacity)) return false;
         }
 
         var dashes = outline.Elements<A.PresetDash>().ToArray();
@@ -268,7 +268,7 @@ internal static class PptxLineStyleCodec
                 not A.Round and not A.LineJoinBevel and not A.Miter and not A.HeadEnd and not A.TailEnd))
             return false;
 
-        profile = new Profile(rgb, opacity, width, style, cap, join,
+        profile = new Profile(rgb, scheme, opacity, width, style, cap, join,
             startArrow, startArrowWidth, startArrowLength,
             endArrow, endArrowWidth, endArrowLength);
         return true;
@@ -285,9 +285,10 @@ internal static class PptxLineStyleCodec
         // The enclosing element remains source-bound. Keep the historic RGB
         // inspection projection without granting editability.
         target.LineRgb = FallbackRgb(outline?.GetFirstChild<A.SolidFill>());
+        target.LineScheme = FallbackScheme(outline?.GetFirstChild<A.SolidFill>());
         var width = outline?.Width?.Value ?? 0;
         target.LineWidthEmu = width is >= 0 and <= int.MaxValue ? width : 0;
-        target.LineStyle = target.LineRgb.Length > 0 ? "solid" : "none";
+        target.LineStyle = target.LineRgb.Length > 0 || target.LineScheme.Length > 0 ? "solid" : "none";
         target.StartArrow = target.EndArrow = target.StartArrowWidth = target.StartArrowLength =
             target.EndArrowWidth = target.EndArrowLength = target.LineCap = target.LineJoin = string.Empty;
     }
@@ -295,6 +296,7 @@ internal static class PptxLineStyleCodec
     internal static void CopyTo(Profile source, PresentationConnector target)
     {
         target.LineRgb = source.Rgb;
+        target.LineScheme = source.Scheme;
         if (source.OpacityThousandthPercent is { } opacity) target.LineOpacityThousandthPercent = opacity;
         else target.ClearLineOpacityThousandthPercent();
         target.LineWidthEmu = source.WidthEmu;
@@ -311,8 +313,9 @@ internal static class PptxLineStyleCodec
 
     internal static void NormalizeSemantics(PresentationShape source)
     {
-        source.LineStyle = NormalizeStyle(source.LineStyle, source.LineRgb);
+        source.LineStyle = NormalizeStyle(source.LineStyle, source.LineRgb, source.LineScheme);
         source.LineRgb = string.IsNullOrWhiteSpace(source.LineRgb) ? string.Empty : PptxColor.Normalize(source.LineRgb);
+        source.LineScheme = string.IsNullOrWhiteSpace(source.LineScheme) ? string.Empty : PptxColor.NormalizeScheme(source.LineScheme);
     }
 
     internal static void Validate(PresentationShape source, string shapeId)
@@ -374,22 +377,27 @@ internal static class PptxLineStyleCodec
             throw new CodecException(invalidCode, $"{subject} has incomplete line-end state.");
         if (source.Style == "none")
         {
-            if (!string.IsNullOrWhiteSpace(source.Rgb) || source.OpacityThousandthPercent is not null)
+            if (!string.IsNullOrWhiteSpace(source.Rgb) || !string.IsNullOrWhiteSpace(source.Scheme) || source.OpacityThousandthPercent is not null)
                 throw new CodecException(invalidCode, $"{subject} cannot combine line style none with a color.");
-            return source with { Rgb = string.Empty };
+            return source with { Rgb = string.Empty, Scheme = string.Empty };
         }
-        if (string.IsNullOrWhiteSpace(source.Rgb))
-            throw new CodecException(invalidCode, $"{subject} line style {source.Style} requires an RGB color.");
+        if (string.IsNullOrWhiteSpace(source.Rgb) == string.IsNullOrWhiteSpace(source.Scheme))
+            throw new CodecException(invalidCode, $"{subject} line style {source.Style} requires exactly one RGB or theme color.");
         if (source.OpacityThousandthPercent is > 100_000)
             throw new CodecException(invalidCode, $"{subject} has an invalid line opacity.");
-        return source with { Rgb = PptxColor.Normalize(source.Rgb) };
+        return source with
+        {
+            Rgb = string.IsNullOrWhiteSpace(source.Rgb) ? string.Empty : PptxColor.Normalize(source.Rgb),
+            Scheme = string.IsNullOrWhiteSpace(source.Scheme) ? string.Empty : PptxColor.NormalizeScheme(source.Scheme),
+        };
     }
 
     private static Profile FromWire(PresentationShape source) => new(
         source.LineRgb,
+        source.LineScheme,
         source.HasLineOpacityThousandthPercent ? source.LineOpacityThousandthPercent : null,
         source.LineWidthEmu,
-        NormalizeStyle(source.LineStyle, source.LineRgb),
+        NormalizeStyle(source.LineStyle, source.LineRgb, source.LineScheme),
         source.LineCap,
         source.LineJoin,
         source.StartArrow,
@@ -401,9 +409,10 @@ internal static class PptxLineStyleCodec
 
     private static Profile FromWire(PresentationConnector source) => new(
         source.LineRgb,
+        source.LineScheme,
         source.HasLineOpacityThousandthPercent ? source.LineOpacityThousandthPercent : null,
         source.LineWidthEmu,
-        NormalizeStyle(source.LineStyle, source.LineRgb),
+        NormalizeStyle(source.LineStyle, source.LineRgb, source.LineScheme),
         source.LineCap,
         source.LineJoin,
         source.StartArrow,
@@ -413,9 +422,9 @@ internal static class PptxLineStyleCodec
         source.EndArrowWidth,
         source.EndArrowLength);
 
-    private static string NormalizeStyle(string style, string rgb) =>
+    private static string NormalizeStyle(string style, string rgb, string scheme = "") =>
         string.IsNullOrWhiteSpace(style)
-            ? string.IsNullOrWhiteSpace(rgb) ? "none" : "solid"
+            ? string.IsNullOrWhiteSpace(rgb) && string.IsNullOrWhiteSpace(scheme) ? "none" : "solid"
             : style;
 
     private static A.Outline Build(Profile source, bool emitSolidDash)
@@ -438,7 +447,9 @@ internal static class PptxLineStyleCodec
         if (source.Style == "none") outline.Append(new A.NoFill());
         else
         {
-            var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(source.Rgb) };
+            OpenXmlElement color = source.Scheme.Length > 0
+                ? new A.SchemeColor { Val = PptxColor.SchemeValue(source.Scheme) }
+                : new A.RgbColorModelHex { Val = PptxColor.Normalize(source.Rgb) };
             if (source.OpacityThousandthPercent is { } opacity)
                 color.Append(new A.Alpha { Val = checked((int)opacity) });
             outline.Append(new A.SolidFill(color));
@@ -517,7 +528,15 @@ internal static class PptxLineStyleCodec
         if (source.ChildElements.Any() || !HasOnlyAttributes(source, "type", "w", "len") ||
             !TryArrow(sourceType, out type) || !TryEndWidth(sourceWidth, out width) || !TryEndLength(sourceLength, out length))
             return false;
-        return type.Length > 0 || width.Length == 0 && length.Length == 0;
+        // `type="none"` has no rendered head/tail. Some native exporters
+        // still serialize the default width/length attributes alongside it;
+        // those values are inert and cannot affect the resulting line.
+        if (type.Length == 0)
+        {
+            width = length = string.Empty;
+            return true;
+        }
+        return true;
     }
 
     private static bool TryArrow(A.LineEndValues? source, out string arrow)
@@ -597,6 +616,7 @@ internal static class PptxLineStyleCodec
     private static void CopyTo(Profile source, PresentationShape target)
     {
         target.LineRgb = source.Rgb;
+        target.LineScheme = source.Scheme;
         if (source.OpacityThousandthPercent is { } opacity) target.LineOpacityThousandthPercent = opacity;
         else target.ClearLineOpacityThousandthPercent();
         target.LineWidthEmu = source.WidthEmu;
@@ -611,7 +631,7 @@ internal static class PptxLineStyleCodec
         target.EndArrowLength = source.EndArrowLength;
     }
 
-    private static Profile EmptyProfile() => new(string.Empty, null, 0, "none", string.Empty, string.Empty,
+    private static Profile EmptyProfile() => new(string.Empty, string.Empty, null, 0, "none", string.Empty, string.Empty,
         string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
 
     private static bool IsProfileChild(OpenXmlElement child) =>
@@ -622,6 +642,8 @@ internal static class PptxLineStyleCodec
         var color = solid?.GetFirstChild<A.RgbColorModelHex>()?.Val?.Value;
         return color is { Length: 6 } && color.All(Uri.IsHexDigit) ? color.ToUpperInvariant() : string.Empty;
     }
+
+    private static string FallbackScheme(A.SolidFill? solid) => PptxColor.SolidScheme(solid);
 
     private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
     {

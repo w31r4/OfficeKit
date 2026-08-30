@@ -24,7 +24,10 @@ internal static class PptxConnectorCodec
             !TryGeometryType(geometry, out var connectorType) ||
             !TryTransformEndpoints(transform, out var startX, out var startY, out var endX, out var endY) ||
             !PptxLineStyleCodec.TryRead(outline, out var lineStyle) ||
-            properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.Outline)) return false;
+            // Some exporters emit a harmless shape-level fill and an empty
+            // effect list on connectors. They do not participate in connector
+            // geometry or line semantics, and Apply preserves them verbatim.
+            properties.ChildElements.Any(child => child is not A.Transform2D and not A.PresetGeometry and not A.NoFill and not A.SolidFill and not A.Outline and not A.EffectList)) return false;
 
         var nonVisual = source.NonVisualConnectionShapeProperties?.NonVisualConnectorShapeDrawingProperties;
         if (nonVisual is null ||
@@ -94,8 +97,17 @@ internal static class PptxConnectorCodec
             geometry?.Remove();
             properties.InsertAfter(CanonicalGeometry(requested.Connector.ConnectorType), properties.Transform2D);
         }
-        properties.GetFirstChild<A.Outline>()?.Remove();
-        properties.Append(PptxLineStyleCodec.Build(requested.Connector));
+        var sourceOutline = properties.GetFirstChild<A.Outline>();
+        var preserveSingleCompound = sourceOutline?.CompoundLineType?.Value.Equals(A.CompoundLineValues.Single) == true;
+        var preserveCenteredAlignment = sourceOutline?.Alignment?.Value.Equals(A.PenAlignmentValues.Center) == true;
+        sourceOutline?.Remove();
+        var line = PptxLineStyleCodec.Build(requested.Connector);
+        if (preserveSingleCompound) line.CompoundLineType = A.CompoundLineValues.Single;
+        if (preserveCenteredAlignment) line.Alignment = A.PenAlignmentValues.Center;
+        if (properties.GetFirstChild<A.EffectList>() is { } effectList)
+            properties.InsertBefore(line, effectList);
+        else
+            properties.Append(line);
     }
 
     internal static void Validate(

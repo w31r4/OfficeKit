@@ -217,6 +217,8 @@ internal static class PpjNativeLeafProjection
             add("fillScheme", shape.FillScheme, JsonValue.Create(shape.FillScheme), 0, 0);
         if (!string.IsNullOrEmpty(shape.LineRgb))
             add("lineRgb", shape.LineRgb.ToUpperInvariant(), JsonValue.Create($"#{shape.LineRgb.ToLowerInvariant()}"), 0, 0);
+        if (!string.IsNullOrEmpty(shape.LineScheme))
+            add("lineScheme", shape.LineScheme, JsonValue.Create(shape.LineScheme), 0, 0);
         if (shape.LineWidthEmu > 0)
             AddInteger(add, "lineWidthEmu", shape.LineWidthEmu);
 
@@ -257,6 +259,8 @@ internal static class PpjNativeLeafProjection
         if (source is null) return;
         if (!string.IsNullOrEmpty(connector.LineRgb))
             add("lineRgb", connector.LineRgb.ToUpperInvariant(), JsonValue.Create($"#{connector.LineRgb.ToLowerInvariant()}"), 0, 0);
+        if (!string.IsNullOrEmpty(connector.LineScheme))
+            add("lineScheme", connector.LineScheme, JsonValue.Create(connector.LineScheme), 0, 0);
         if (connector.LineWidthEmu > 0) AddInteger(add, "lineWidthEmu", connector.LineWidthEmu);
         if (!string.IsNullOrEmpty(connector.LineStyle)) add("lineStyle", connector.LineStyle, JsonValue.Create(connector.LineStyle), 0, 0);
         if (!string.IsNullOrEmpty(connector.LineCap)) add("lineCap", connector.LineCap, JsonValue.Create(connector.LineCap), 0, 0);

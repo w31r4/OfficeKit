@@ -1338,11 +1338,12 @@ internal static class PpjSourceBoundPresentationCompiler
         if (stroke is null)
         {
             target.LineRgb = string.Empty;
+            target.LineScheme = string.Empty;
             target.LineStyle = "none";
             target.LineWidthEmu = 0;
             return;
         }
-        target.LineRgb = Rgb(stroke.Value.GetProperty("color"), path + ".color");
+        ApplyStrokeColor(stroke.Value.GetProperty("color"), target, path + ".color");
         target.LineWidthEmu = Emu(stroke.Value.GetProperty("width").GetDouble());
         target.LineStyle = NativeDash(OptionalString(stroke.Value, "dash"));
         target.LineCap = OptionalString(stroke.Value, "cap") ?? string.Empty;
@@ -1353,7 +1354,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void ApplyConnectorStroke(JsonElement stroke, PresentationConnector target, string path)
     {
-        target.LineRgb = Rgb(stroke.GetProperty("color"), path + ".color");
+        ApplyStrokeColor(stroke.GetProperty("color"), target, path + ".color");
         target.LineWidthEmu = Emu(stroke.GetProperty("width").GetDouble());
         target.LineStyle = NativeDash(OptionalString(stroke, "dash"));
         target.LineCap = OptionalString(stroke, "cap") ?? string.Empty;
@@ -1752,6 +1753,32 @@ internal static class PpjSourceBoundPresentationCompiler
         var value = color.GetString()!.TrimStart('#');
         if (value.Length != 6 || !value.All(Uri.IsHexDigit)) throw Unsupported(path, "non-RGB source-bound color");
         return value.ToUpperInvariant();
+    }
+
+    private static void ApplyStrokeColor(JsonElement color, PresentationShape target, string path)
+    {
+        if (color.ValueKind == JsonValueKind.Object && color.TryGetProperty("token", out var token) &&
+            token.ValueKind == JsonValueKind.String)
+        {
+            target.LineScheme = PptxColor.NormalizeScheme(token.GetString()!);
+            target.LineRgb = string.Empty;
+            return;
+        }
+        target.LineRgb = Rgb(color, path);
+        target.LineScheme = string.Empty;
+    }
+
+    private static void ApplyStrokeColor(JsonElement color, PresentationConnector target, string path)
+    {
+        if (color.ValueKind == JsonValueKind.Object && color.TryGetProperty("token", out var token) &&
+            token.ValueKind == JsonValueKind.String)
+        {
+            target.LineScheme = PptxColor.NormalizeScheme(token.GetString()!);
+            target.LineRgb = string.Empty;
+            return;
+        }
+        target.LineRgb = Rgb(color, path);
+        target.LineScheme = string.Empty;
     }
 
     private static string NativeDash(string? value) => value switch
