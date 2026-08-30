@@ -8,8 +8,8 @@
 - PPJ preset geometries before this batch: 176; after adding the two missing
   public presets: 178.
 - Compared preset geometries: 177 after excluding the table header.
-- Exact preset difference: PPJ lacks `upArrow` and `lineInv`; PPJ alone has
-  `flowChartData`.
+- PPJ now includes the compared `upArrow` and `lineInv` spellings while
+  retaining the compatible `flowChartData` alias.
 - PPJ chart families: bar, column, line, area, pie, doughnut, scatter, bubble,
   radar, waterfall, heatmap, candlestick, treemap, sunburst, Sankey and combo.
 
@@ -17,22 +17,22 @@
 
 | Observation | Classification | Current decision |
 | --- | --- | --- |
-| named icon | semantic convenience gap | separate pinned offline-catalog design |
-| inline LaTeX | semantic gap | separate formula representation/lowering design |
-| `upArrow`, `lineInv` | finite semantic gap | implement now |
+| named icon | implemented, bounded | pinned offline Font Awesome Free catalog |
+| inline LaTeX | implemented, bounded | finite non-executable LaTeX to editable Office Math |
+| `upArrow`, `lineInv` | implemented | shared preset geometry profile registry |
 | independent line syntax | already covered | use `connector` free points/anchors/routing |
 | remote URL image/fill | intentional constraint | keep local SHA-256 assets |
-| table first/last/body style inheritance | convenience gap | implement now |
-| Sankey right alignment and named colors | bounded vector gap | implement now |
+| table first/last/body style inheritance | implemented | bounded deterministic precedence |
+| Sankey right alignment and named colors | implemented | bounded vector compiler |
 | scatter/bubble/candlestick families | already covered individually | retain current bounded profiles |
-| broader Cartesian/candlestick mixing | semantic gap | later chart topology/wire slice |
-| stream area and pictographic bars | semantic gap | later vector/native chart slice |
-| bubble scale/range | semantic gap | later chart plot-control slice |
-| arbitrary pie angle/hole | semantic gap | later native chart writer slice |
-| axis reverse/arrows/line/grid styling | semantic gap | later axis wire/writer slice |
-| radar spoke styling | semantic gap | later radar axis slice |
-| label number formats and point overrides | partial gap | later label/point-style slice |
-| treemap/sunburst display depth | semantic gap | later vector hierarchy slice |
+| broader Cartesian/candlestick mixing | implemented, bounded | numeric Cartesian and OHLC overlay profiles |
+| stream area and pictographic bars | implemented, bounded | editable vector compilers |
+| bubble scale/range | partial | native scale/mode implemented; pixel-radius range remains unsupported |
+| arbitrary pie angle/hole | implemented, bounded | native legal angle and hole-size ranges |
+| axis reverse/arrows/line/grid styling | partial | reverse and direct line/grid style implemented; arrows remain unsupported |
+| radar spoke styling | implemented, bounded | semantic native spoke/ring coordinate system |
+| label number formats and point overrides | partial | chart-level format implemented; per-series/per-point overrides remain unsupported |
+| treemap/sunburst display depth | implemented, bounded | finite visible-level controls retain full hierarchy |
 
 This audit compares observable language contracts. It does not copy a third
 party implementation or claim parity from a visually similar raster result.
@@ -47,6 +47,11 @@ party implementation or claim parity from a visually similar raster result.
 - Sankey charts now support reverse-depth `right` alignment and exact
   declared-node color overrides; unknown node names fail validation.
 - `connector` is explicitly documented as the one ordinary line primitive.
+- Named icons, native inline formulas, finite stream/pictographic charts,
+  numeric and candlestick overlays, circular geometry, hierarchy display
+  levels, native plot/axis formatting, and the radar spoke coordinate system
+  were subsequently closed as bounded PPJ features. Remaining limitations are
+  recorded by capability rather than left as an undifferentiated language gap.
 
 The existing comprehensive authored PPJ contract exercised all new state in
 one compile/native inspection/import/determinism run. No effect matrix, new

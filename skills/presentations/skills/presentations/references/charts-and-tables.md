@@ -951,8 +951,19 @@ replacement for precise lookup or ordered ranking:
       "marker": { "symbol": "circle", "size": 5 }
     }]
   },
-  "xAxis": {},
-  "yAxis": { "min": 0, "max": 100, "majorUnit": 20 }
+  "spokeAxis": {
+    "show": true,
+    "min": 0,
+    "max": 100,
+    "majorUnit": 20,
+    "label": {
+      "numberFormat": "0",
+      "fontSize": 8.5,
+      "color": "#475569"
+    },
+    "axisLine": { "color": "#CBD5E1", "width": 0.75 },
+    "gridLine": { "color": "#E2E8F0", "width": 0.5, "dash": "dot" }
+  }
 }
 ```
 
@@ -961,6 +972,16 @@ polygon from shapes. Category/value axes, series stroke, bounded markers,
 legend, labels, chart surfaces and fixed-topology source continuation use the
 same chart contracts as the other category families. Filled, marker-only, 3D,
 extension-bearing and irregular native radar variants remain source-owned.
+
+`spokeAxis` is the preferred radar interface. It describes one coordinate
+system instead of exposing the underlying category/value axis pair: `axisLine`
+styles the radial spokes, while `gridLine` styles the concentric rings. Set
+`label: false` to hide numeric scale labels without hiding the rings. Do not
+combine `spokeAxis` with `xAxis`, `yAxis`, secondary axes, or the legacy
+`style.showGridlines` fields. Canonical imported standard radar charts project
+the same object and may continue through capability-issued local edits;
+custom label positions, logarithmic scales, arrows, filled/3D variants and
+irregular native axis graphs remain source-owned.
 
 Chart image/pattern paint, theme-transformed gradients, irregular sparse
 caches, and unrecognized waterfall/ChartEx graphs still fail closed. Existing
