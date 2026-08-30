@@ -16,4 +16,4 @@
 - [x] 3.1 Update capability registry, generated `ppj.md`, and chart guidance.
 - [x] 3.2 Extend the existing integrated PPJ chart contract once.
 - [x] 3.3 Run only the affected test, proto check, maintainer check, and strict OpenSpec validation.
-- [ ] 3.4 Commit atomically and fast-forward remote main after ancestry verification.
+- [x] 3.4 Commit atomically and fast-forward remote main after ancestry verification.
