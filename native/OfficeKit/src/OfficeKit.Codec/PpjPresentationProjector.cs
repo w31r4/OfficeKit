@@ -1202,30 +1202,30 @@ internal static partial class PpjPresentationProjector
                 {
                     output.Add(new("setFill", ["fill"]));
                     output.Add(new("setStroke", ["stroke"]));
-                    output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                    output.Add(new("setFrame", element.Shape.Placeholder is null ? EditableFrameFields : PositionFrameFields));
                 }
                 break;
             case PresentationElement.ContentOneofCase.Image when source.Editable:
                 output.Add(new("replaceImage", ["image.asset"]));
                 output.Add(new("setImageCrop", ["image.crop"]));
-                output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                output.Add(new("setFrame", EditableFrameFields));
                 output.Add(new("setOpacity", ["opacity"]));
                 break;
             case PresentationElement.ContentOneofCase.Chart when source.Editable:
                 output.Add(new("setChartTitle", ["chart.title"]));
                 output.Add(new("setChartData", ["chart.data"]));
-                output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Table when source.Editable:
                 output.Add(new("replaceText", ["text"]));
-                output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Connector when source.Editable:
                 output.Add(new("setStroke", ["stroke"]));
                 output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
                 break;
             case PresentationElement.ContentOneofCase.Group when source.Editable:
-                output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                output.Add(new("setFrame", EditableFrameFields));
                 break;
             case PresentationElement.ContentOneofCase.Opaque:
                 if (source.Editable) output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
@@ -1303,6 +1303,12 @@ internal static partial class PpjPresentationProjector
         return frame;
     }
 
+    private static readonly string[] EditableFrameFields =
+        ["frame.x", "frame.y", "frame.width", "frame.height", "frame.rotation", "frame.flipH", "frame.flipV"];
+
+    private static readonly string[] PositionFrameFields =
+        ["frame.x", "frame.y", "frame.width", "frame.height"];
+
     private static JsonObject ImageFrame(PresentationImage image)
     {
         var frame = Frame(image.LeftEmu, image.TopEmu, image.WidthEmu, image.HeightEmu);
@@ -1312,9 +1318,14 @@ internal static partial class PpjPresentationProjector
         return frame;
     }
 
-    private static JsonObject TableFrame(PresentationTable table) => Frame(table.LeftEmu, table.TopEmu, table.WidthEmu, table.HeightEmu);
-    private static JsonObject ChartFrame(PresentationChart chart) => Frame(chart.LeftEmu, chart.TopEmu, chart.WidthEmu, chart.HeightEmu);
-    private static JsonObject GroupFrame(PresentationGroup group) => Frame(group.LeftEmu, group.TopEmu, group.WidthEmu, group.HeightEmu);
+    private static JsonObject TableFrame(PresentationTable table) =>
+        Frame(table.LeftEmu, table.TopEmu, table.WidthEmu, table.HeightEmu, table.FrameTransform);
+
+    private static JsonObject ChartFrame(PresentationChart chart) =>
+        Frame(chart.LeftEmu, chart.TopEmu, chart.WidthEmu, chart.HeightEmu, chart.FrameTransform);
+
+    private static JsonObject GroupFrame(PresentationGroup group) =>
+        Frame(group.LeftEmu, group.TopEmu, group.WidthEmu, group.HeightEmu, group.FrameTransform);
 
     private static JsonObject ConnectorFrame(PresentationConnector connector)
     {
@@ -1342,6 +1353,20 @@ internal static partial class PpjPresentationProjector
         ["width"] = Math.Max(0.001, Points(width)),
         ["height"] = Math.Max(0.001, Points(height)),
     };
+
+    private static JsonObject Frame(
+        long left,
+        long top,
+        long width,
+        long height,
+        PresentationFrameTransform? transform)
+    {
+        var frame = Frame(left, top, width, height);
+        if (transform?.HasRotationAngle60000 == true) frame["rotation"] = transform.RotationAngle60000 / 60_000d;
+        if (transform?.HasFlipHorizontal == true) frame["flipH"] = transform.FlipHorizontal;
+        if (transform?.HasFlipVertical == true) frame["flipV"] = transform.FlipVertical;
+        return frame;
+    }
 
     private static JsonObject ConnectorEndpoint(
         string targetId,

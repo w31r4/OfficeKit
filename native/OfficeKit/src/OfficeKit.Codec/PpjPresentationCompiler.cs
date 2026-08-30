@@ -744,62 +744,68 @@ internal static class PpjSourceBoundPresentationCompiler
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationShape target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        var allowTransform = target.Placeholder is null;
+        RequireFrameChange(before, after, path, allowTransform);
         target.LeftEmu = Emu(after.Frame.X);
         target.TopEmu = Emu(after.Frame.Y);
         target.WidthEmu = Emu(after.Frame.Width);
         target.HeightEmu = Emu(after.Frame.Height);
+        if (allowTransform) target.Transform = ShapeTransform(after.Frame);
         return true;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationImage target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        RequireFrameChange(before, after, path, allowTransform: true);
         target.LeftEmu = Emu(after.Frame.X);
         target.TopEmu = Emu(after.Frame.Y);
         target.WidthEmu = Emu(after.Frame.Width);
         target.HeightEmu = Emu(after.Frame.Height);
+        target.Transform = ImageTransform(after.Frame);
         return true;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationChart target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        RequireFrameChange(before, after, path, allowTransform: true);
         target.LeftEmu = Emu(after.Frame.X);
         target.TopEmu = Emu(after.Frame.Y);
         target.WidthEmu = Emu(after.Frame.Width);
         target.HeightEmu = Emu(after.Frame.Height);
+        target.FrameTransform = FrameTransform(after.Frame);
         return true;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationTable target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        RequireFrameChange(before, after, path, allowTransform: true);
         target.LeftEmu = Emu(after.Frame.X);
         target.TopEmu = Emu(after.Frame.Y);
         target.WidthEmu = Emu(after.Frame.Width);
         target.HeightEmu = Emu(after.Frame.Height);
+        target.FrameTransform = FrameTransform(after.Frame);
         return true;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationGroup target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        RequireFrameChange(before, after, path, allowTransform: true);
         target.LeftEmu = Emu(after.Frame.X);
         target.TopEmu = Emu(after.Frame.Y);
         target.WidthEmu = Emu(after.Frame.Width);
         target.HeightEmu = Emu(after.Frame.Height);
+        target.FrameTransform = FrameTransform(after.Frame);
         return true;
     }
 
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationOpaqueElement target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        RequireFrameChange(before, after, path, allowTransform: false);
         target.LeftEmu = Emu(after.Frame.X);
         target.TopEmu = Emu(after.Frame.Y);
         target.WidthEmu = Emu(after.Frame.Width);
@@ -810,7 +816,7 @@ internal static class PpjSourceBoundPresentationCompiler
     private static bool ApplyConnectorFrame(PpjElementModel before, PpjElementModel after, PresentationConnector target, string path)
     {
         if (!FrameChanged(before, after)) return false;
-        RequireFrameChange(before, after, path);
+        RequireFrameChange(before, after, path, allowTransform: false);
         var old = before.Frame;
         var next = after.Frame;
         target.StartXEmu = TransformCoordinate(target.StartXEmu, old.X, old.Width, next.X, next.Width);
@@ -820,12 +826,49 @@ internal static class PpjSourceBoundPresentationCompiler
         return true;
     }
 
-    private static void RequireFrameChange(PpjElementModel before, PpjElementModel after, string path)
+    private static void RequireFrameChange(
+        PpjElementModel before,
+        PpjElementModel after,
+        string path,
+        bool allowTransform)
     {
         RequireCapability(after, "setFrame", path + ".frame");
         var oldFrame = before.Raw.GetProperty("frame");
         var newFrame = after.Raw.GetProperty("frame");
-        RequireEqualExcept(oldFrame, newFrame, path + ".frame", "x", "y", "width", "height");
+        if (allowTransform)
+            RequireEqualExcept(oldFrame, newFrame, path + ".frame", "x", "y", "width", "height", "rotation", "flipH", "flipV");
+        else
+            RequireEqualExcept(oldFrame, newFrame, path + ".frame", "x", "y", "width", "height");
+    }
+
+    private static PresentationShapeTransform? ShapeTransform(PpjFrameModel frame)
+    {
+        if (frame.Rotation == 0 && !frame.FlipH && !frame.FlipV) return null;
+        var transform = new PresentationShapeTransform();
+        if (frame.Rotation != 0) transform.RotationAngle60000 = RotationAngle(frame.Rotation);
+        if (frame.FlipH) transform.FlipHorizontal = true;
+        if (frame.FlipV) transform.FlipVertical = true;
+        return transform;
+    }
+
+    private static PresentationImageTransform? ImageTransform(PpjFrameModel frame)
+    {
+        if (frame.Rotation == 0 && !frame.FlipH && !frame.FlipV) return null;
+        var transform = new PresentationImageTransform();
+        if (frame.Rotation != 0) transform.RotationAngle60000 = RotationAngle(frame.Rotation);
+        if (frame.FlipH) transform.FlipHorizontal = true;
+        if (frame.FlipV) transform.FlipVertical = true;
+        return transform;
+    }
+
+    private static PresentationFrameTransform? FrameTransform(PpjFrameModel frame)
+    {
+        if (frame.Rotation == 0 && !frame.FlipH && !frame.FlipV) return null;
+        var transform = new PresentationFrameTransform();
+        if (frame.Rotation != 0) transform.RotationAngle60000 = RotationAngle(frame.Rotation);
+        if (frame.FlipH) transform.FlipHorizontal = true;
+        if (frame.FlipV) transform.FlipVertical = true;
+        return transform;
     }
 
     private static bool CollectTextLeafMutations(
@@ -1351,6 +1394,9 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static bool JsonEqual(JsonElement? left, JsonElement? right) =>
         left is null || right is null ? left is null && right is null : JsonEqual(left.Value, right.Value);
+
+    private static int RotationAngle(double degrees) =>
+        checked((int)Math.Round(degrees * 60_000, MidpointRounding.AwayFromZero));
 
     private static long Emu(double points) => checked((long)Math.Round(points * EmuPerPoint, MidpointRounding.AwayFromZero));
     private static uint Unit(double value) => checked((uint)Math.Round(Math.Clamp(value, 0, 1) * 100_000, MidpointRounding.AwayFromZero));

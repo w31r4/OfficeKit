@@ -289,7 +289,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        RejectUnsupportedFrameTransform(element.Id, element.Frame, "chart");
         if (element.Data.Series.Any(series => series.Values.Any(value => value is null)))
             throw Unsupported(element.Id, "null chart values require a missing-value-aware native chart cache");
         if (element.ChartType is "radar" or "waterfall")
@@ -307,6 +306,7 @@ internal static class PpjAuthoredPresentationCompiler
             Title = element.Title is null ? string.Empty : Flatten(element.Title),
             BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType == "column" ? "column" : string.Empty,
         };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) chart.FrameTransform = frameTransform;
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
@@ -506,7 +506,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationTable BuildTable(PpjTableElementModel element, JsonElement raw, Catalog catalog)
     {
-        RejectUnsupportedFrameTransform(element.Id, element.Frame, "table");
         var table = new PresentationTable
         {
             LeftEmu = Emu(element.Frame.X),
@@ -514,6 +513,7 @@ internal static class PpjAuthoredPresentationCompiler
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
         };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) table.FrameTransform = frameTransform;
         var namedStyle = catalog.TableStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         var defaultTextStyle = FirstProperty(inlineStyle, namedStyle, "defaultTextStyle");
@@ -668,7 +668,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationGroup BuildGroup(PpjGroupElementModel element, JsonElement raw, Catalog catalog)
     {
-        RejectUnsupportedFrameTransform(element.Id, element.Frame, "group");
         var group = new PresentationGroup
         {
             LeftEmu = Emu(element.Frame.X),
@@ -680,6 +679,7 @@ internal static class PpjAuthoredPresentationCompiler
             ChildWidthEmu = Emu(element.Frame.Width),
             ChildHeightEmu = Emu(element.Frame.Height),
         };
+        if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
         var childJson = raw.GetProperty("elements").EnumerateArray().ToArray();
         for (var index = 0; index < element.Elements.Count; index++)
             group.Children.Add(BuildElement(element.Elements[index], childJson[index], catalog));
@@ -1034,6 +1034,16 @@ internal static class PpjAuthoredPresentationCompiler
         if (frame.Rotation != 0) target.Transform.RotationAngle60000 = Angle(frame.Rotation);
         if (frame.FlipH) target.Transform.FlipHorizontal = true;
         if (frame.FlipV) target.Transform.FlipVertical = true;
+    }
+
+    private static PresentationFrameTransform? BuildFrameTransform(PpjFrameModel frame)
+    {
+        if (frame.Rotation == 0 && !frame.FlipH && !frame.FlipV) return null;
+        var transform = new PresentationFrameTransform();
+        if (frame.Rotation != 0) transform.RotationAngle60000 = Angle(frame.Rotation);
+        if (frame.FlipH) transform.FlipHorizontal = true;
+        if (frame.FlipV) transform.FlipVertical = true;
+        return transform;
     }
 
     private static void RejectUnsupportedFrameTransform(
