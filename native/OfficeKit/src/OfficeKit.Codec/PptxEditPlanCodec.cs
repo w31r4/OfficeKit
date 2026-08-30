@@ -1151,17 +1151,39 @@ internal static partial class PptxEditPlanCodec
             return hasExplicitPaint && PptxLineStyleCodec.TryReadJoinLeaf(outline[0], out _);
         }
         var solidFill = outline[0].Elements<A.SolidFill>().ToArray();
-        if (solidFill.Length != 1) return false;
-        if (solidFill[0].ChildElements.Count != 1) return false;
-        if (kind == "lineRgb")
+        if (solidFill.Length == 1 && solidFill[0].ChildElements.Count == 1)
         {
-            var colors = solidFill[0].Elements<A.RgbColorModelHex>().ToArray();
-            return colors.Length == 1 && colors[0].Val?.Value is { Length: 6 } value && value.All(Uri.IsHexDigit);
+            if (kind == "lineRgb")
+            {
+                var colors = solidFill[0].Elements<A.RgbColorModelHex>().ToArray();
+                return colors.Length == 1 && colors[0].Val?.Value is { Length: 6 } value && value.All(Uri.IsHexDigit);
+            }
+            if (kind == "lineScheme")
+            {
+                var colors = solidFill[0].Elements<A.SchemeColor>().ToArray();
+                return colors.Length == 1 && colors[0].Val?.Value is { } value && PptxColor.TrySchemeToken(value, out _);
+            }
         }
-        if (kind == "lineScheme")
+        if (solidFill.Length != 0 || kind is not ("lineRgb" or "lineScheme")) return false;
+        return TryReadNativeConnectorStyleColor(connector, kind, out _);
+    }
+
+    private static bool TryReadNativeConnectorStyleColor(P.ConnectionShape connector, string kind, out string value)
+    {
+        value = string.Empty;
+        if (!HasSafeNativeConnectorStyleReference(connector)) return false;
+        var color = connector.ShapeStyle?.LineReference?.FirstChild;
+        if (kind == "lineScheme" && color is A.SchemeColor scheme && scheme.Val?.Value is { } schemeValue &&
+            PptxColor.TrySchemeToken(schemeValue, out var schemeToken))
         {
-            var colors = solidFill[0].Elements<A.SchemeColor>().ToArray();
-            return colors.Length == 1 && colors[0].Val?.Value is { } value && PptxColor.TrySchemeToken(value, out _);
+            value = schemeToken;
+            return true;
+        }
+        if (kind == "lineRgb" && color is A.RgbColorModelHex rgb && rgb.Val?.Value is { Length: 6 } rgbValue &&
+            rgbValue.All(Uri.IsHexDigit))
+        {
+            value = rgbValue.ToUpperInvariant();
+            return true;
         }
         return false;
     }
@@ -1753,6 +1775,13 @@ internal static partial class PptxEditPlanCodec
             _ => null,
         } ??
             throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} target has no p:spPr.", operation.SlidePartPath);
+        if (element is P.ConnectionShape styleConnector && kind is ("lineRgb" or "lineScheme"))
+        {
+            var directOutline = properties.GetFirstChild<A.Outline>();
+            if (directOutline?.Elements<A.SolidFill>().Any() != true &&
+                TryReadNativeConnectorStyleColor(styleConnector, kind, out var styleColor))
+                return styleColor;
+        }
         var transform = properties.Transform2D;
         return kind switch
         {
@@ -1956,12 +1985,16 @@ internal static partial class PptxEditPlanCodec
             case "lineRgb":
                 if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineRgb.", operation.SlidePartPath);
                 var outline = DirectChildRange(xml, properties, "spPr", "ln", operation);
+                if (owner == "cxnSp" && DirectChildRanges(xml, outline).Count(entry => entry.LocalName == "solidFill") == 0)
+                    return CompileNativeConnectorStyleColorXmlPatch(xml, elementRange, proof);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, outline, "ln", "solidFill", operation), "solidFill", "srgbClr", operation);
                 attribute = "val";
                 break;
             case "lineScheme":
                 if (owner is not ("sp" or "cxnSp")) throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose lineScheme.", operation.SlidePartPath);
                 var schemeOutline = DirectChildRange(xml, properties, "spPr", "ln", operation);
+                if (owner == "cxnSp" && DirectChildRanges(xml, schemeOutline).Count(entry => entry.LocalName == "solidFill") == 0)
+                    return CompileNativeConnectorStyleColorXmlPatch(xml, elementRange, proof);
                 leaf = DirectChildRange(xml, DirectChildRange(xml, schemeOutline, "ln", "solidFill", operation), "solidFill", "schemeClr", operation);
                 attribute = "val";
                 break;
@@ -3120,6 +3153,52 @@ internal static partial class PptxEditPlanCodec
         var valueGroup = typeAttributes[0].Groups["value"];
         var start = arrow.Start + opening.Index + valueGroup.Index;
         return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacementToken, proof.SourceElementSha256, proof.MutationPartPath);
+    }
+
+    private static PptxXmlPatch CompileNativeConnectorStyleColorXmlPatch(
+        string xml,
+        XmlRange connectorRange,
+        PptxEditPlanProof proof)
+    {
+        var operation = proof.Operation;
+        var kind = LeafKind(operation);
+        var style = DirectChildRange(xml, connectorRange, "cxnSp", "style", operation);
+        var lineReference = DirectChildRange(xml, style, "style", "lnRef", operation);
+        var colors = DirectChildRanges(xml, lineReference)
+            .Where(entry => entry.LocalName is "schemeClr" or "srgbClr")
+            .ToArray();
+        var expectedName = kind == "lineRgb" ? "srgbClr" : "schemeClr";
+        if (kind is not ("lineRgb" or "lineScheme") || colors.Length != 1 || colors[0].LocalName != expectedName ||
+            DirectChildRanges(xml, colors[0]).Count != 0)
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} connector style line color is missing or ambiguous.", operation.SlidePartPath);
+
+        var color = colors[0];
+        var fragment = xml[color.Start..color.End];
+        var opening = XmlTokenPattern().Matches(fragment).Cast<Match>()
+            .FirstOrDefault(match => !match.Value.StartsWith("</", StringComparison.Ordinal) && LocalName(match.Value) == expectedName)
+            ?? throw new CodecException("presentation_edit_target_missing", $"PPTX edit operation {operation.OperationId} connector style color tag was not found.", operation.SlidePartPath);
+        var attributes = XmlAttributePattern().Matches(opening.Value).Cast<Match>()
+            .Where(match => LocalAttributeName(match.Groups["name"].Value) == "val")
+            .ToArray();
+        if (attributes.Length != 1 || XmlAttributePattern().Matches(opening.Value).Cast<Match>()
+                .Any(match => LocalAttributeName(match.Groups["name"].Value) != "val"))
+            throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} connector style color value is missing or ambiguous.", operation.SlidePartPath);
+
+        var valueGroup = attributes[0].Groups["value"];
+        var actual = System.Net.WebUtility.HtmlDecode(valueGroup.Value);
+        var expected = kind == "lineRgb"
+            ? PptxColor.Normalize(operation.ExpectedValue)
+            : PptxColor.NormalizeScheme(operation.ExpectedValue);
+        var replacement = kind == "lineRgb"
+            ? PptxColor.Normalize(operation.Value)
+            : PptxColor.NormalizeScheme(operation.Value);
+        var matches = kind == "lineRgb"
+            ? IsRgbToken(actual) && PptxColor.Normalize(actual) == expected
+            : PptxColor.TrySchemeToken(actual, out var actualScheme) && actualScheme == expected;
+        if (!matches)
+            throw new CodecException("presentation_leaf_precondition_failed", $"PPTX edit operation {operation.OperationId} connector style color does not match the expected value.", operation.SlidePartPath);
+        var start = color.Start + opening.Index + valueGroup.Index;
+        return new PptxXmlPatch(operation, start, start + valueGroup.Length, replacement, proof.SourceElementSha256, proof.MutationPartPath);
     }
 
     private static PptxXmlPatch CompileNativeStyleXmlPatch(string xml, XmlRange groupRange, PptxEditPlanProof proof)
