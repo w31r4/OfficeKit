@@ -31,7 +31,7 @@ internal static class PpjNativeLeafProjection
         "paragraphBulletCharacter", "paragraphBulletAutoNumberScheme",
         "paragraphBulletFontFamily", "paragraphBulletColorScheme", "verticalAnchor",
         "textBodyWrap", "textBodyAutoFit", "textBodyVerticalText", "fontFamily",
-        "fontFamilyEastAsia", "fontUnderline", "fontStrike", "fontColorScheme",
+        "fontFamilyEastAsia", "fontLanguage", "fontUnderline", "fontStrike", "fontColorScheme",
         "fontCaps", "fontHighlightScheme", "fillScheme", "lineScheme", "lineStyle", "lineCap", "lineJoin",
         "lineStartArrow", "lineEndArrow", "imageMaskPreset",
     };
@@ -369,6 +369,7 @@ internal static class PpjNativeLeafProjection
         if (run.HasFontSizePoints) AddScaled(add, "fontSizePoints", run.FontSizePoints, 100, index);
         if (run.HasFontFamily) add("fontFamily", run.FontFamily, JsonValue.Create(run.FontFamily), index, 0);
         if (run.HasFontFamilyEastAsia) add("fontFamilyEastAsia", run.FontFamilyEastAsia, JsonValue.Create(run.FontFamilyEastAsia), index, 0);
+        if (run.HasLanguage) add("fontLanguage", run.Language, JsonValue.Create(run.Language), index, 0);
         if (run.HasBold) AddBoolean(add, "fontBold", run.Bold, index);
         if (run.HasItalic) AddBoolean(add, "fontItalic", run.Italic, index);
         if (run.HasUnderline) add("fontUnderline", run.Underline, JsonValue.Create(run.Underline), index, 0);

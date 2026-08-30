@@ -29,6 +29,7 @@ internal static class PptxDefaultRunStyleCodec
             if (highlightKind == "rgb") style.HighlightRgb = highlight;
             else style.HighlightScheme = highlight;
         }
+        if (PptxLanguageTag.IsValid(properties.Language?.Value)) style.Language = properties.Language!.Value!;
         var latin = properties.Elements<A.LatinFont>().SingleOrDefault();
         if (latin is not null && ModeledLatinFont(latin)) style.FontFamily = latin.Typeface!.Value!;
         var eastAsianFonts = properties.Elements<A.EastAsianFont>().Take(2).ToArray();
@@ -117,6 +118,7 @@ internal static class PptxDefaultRunStyleCodec
             throw Invalid("Presentation default-run font family must contain 1 through 255 characters.");
         if (style.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(style.FontFamilyEastAsia) || style.FontFamilyEastAsia.Length > 255))
             throw Invalid("Presentation default-run East Asian font family must contain 1 through 255 characters.");
+        if (style.HasLanguage) _ = PptxLanguageTag.Validate(style.Language);
         if (style.HasFontKerningPoints && (!(style.FontKerningPoints >= 0) || style.FontKerningPoints > 768 || !double.IsFinite(style.FontKerningPoints)))
             throw Invalid("Presentation default-run font kerning must be finite and between 0 and 768 points.");
         if (style.HasFontBaselinePercent && (!(style.FontBaselinePercent >= -400) || style.FontBaselinePercent > 400 || !double.IsFinite(style.FontBaselinePercent)))
@@ -160,7 +162,7 @@ internal static class PptxDefaultRunStyleCodec
 
     private static bool HasFields(PresentationTextStyle style) =>
         style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
-        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
+        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.HasLanguage || style.HighlightCase != PresentationTextStyle.HighlightOneofCase.None || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
     {
@@ -180,6 +182,8 @@ internal static class PptxDefaultRunStyleCodec
         target.Baseline = source.HasFontBaselinePercent ? checked((int)Math.Round(source.FontBaselinePercent * 1000)) : null;
         target.Spacing = source.HasFontSpacingPoints ? checked((int)Math.Round(source.FontSpacingPoints * 100)) : null;
         target.Capital = source.HasFontCaps ? new A.TextCapsValues(PptxTextDecoration.NormalizeCaps(source.FontCaps)) : null;
+        if (source.HasLanguage) target.Language = PptxLanguageTag.Validate(source.Language);
+        else if (PptxLanguageTag.IsValid(target.Language?.Value)) target.Language = null;
         var existingHighlight = target.GetFirstChild<A.Highlight>();
         if (source.HighlightCase != PresentationTextStyle.HighlightOneofCase.None)
         {
@@ -260,6 +264,7 @@ internal static class PptxDefaultRunStyleCodec
         target.Baseline = null;
         target.Spacing = null;
         target.Capital = null;
+        if (PptxLanguageTag.IsValid(target.Language?.Value)) target.Language = null;
         if (PptxTextDecoration.TryHighlight(target, out _, out _)) target.GetFirstChild<A.Highlight>()?.Remove();
         if (PptxTextDecoration.TryUnderline(target, out _)) target.Underline = null;
         if (PptxTextDecoration.TryStrike(target, out _)) target.Strike = null;

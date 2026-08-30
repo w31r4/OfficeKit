@@ -5,7 +5,7 @@ using OfficeKit.Artifact.Wire.V1;
 namespace OfficeKit.Codec;
 
 // Owns the direct symbol/size plus bounded RGB fill/outline projection of one
-// line/scatter-series marker. Picture markers, transformed colors, extensions, and
+// line/scatter/radar-series marker. Picture markers, transformed colors, extensions, and
 // unknown children keep the containing source-bound chart read-only so their
 // native graph stays exact.
 internal static class XlsxChartSeriesMarkerCodec
@@ -19,8 +19,8 @@ internal static class XlsxChartSeriesMarkerCodec
     {
         var marker = series.Marker;
         if (marker is null) return;
-        if (chartType is not (SpreadsheetChartType.Line or SpreadsheetChartType.Scatter))
-            throw Invalid(worksheetId, chartId, series.Name, "is supported only on line or scatter charts");
+        if (chartType is not (SpreadsheetChartType.Line or SpreadsheetChartType.Scatter or SpreadsheetChartType.Radar))
+            throw Invalid(worksheetId, chartId, series.Name, "is supported only on line, scatter, or radar charts");
         if (!IsSupported(marker.Symbol))
             throw Invalid(worksheetId, chartId, series.Name, "symbol is outside the bounded catalog");
         if (marker.HasSize && marker.Size is < MinSize or > MaxSize)
@@ -33,7 +33,7 @@ internal static class XlsxChartSeriesMarkerCodec
     {
         var markers = nativeSeries.Elements(ChartNs + "marker").ToArray();
         if (markers.Length == 0) return true;
-        if (markers.Length != 1 || chartType is not (SpreadsheetChartType.Line or SpreadsheetChartType.Scatter)) return false;
+        if (markers.Length != 1 || chartType is not (SpreadsheetChartType.Line or SpreadsheetChartType.Scatter or SpreadsheetChartType.Radar)) return false;
         var native = markers[0];
         if (native.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration) ||
             native.Nodes().Any(node => node is XText text ? !string.IsNullOrWhiteSpace(text.Value) : node is not XElement)) return false;

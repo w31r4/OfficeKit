@@ -43,6 +43,24 @@ signed crop, direct opacity, and parameter-free `tile`. Use an image element
 when it must remain independently selectable, masked, bordered, shadowed,
 animated, or reordered.
 
+A native solid background also retains direct opacity. Use either an
+alpha-bearing color or an explicit `opacity`; the explicit value wins:
+
+```json
+{
+  "background": {
+    "type": "solid",
+    "color": "#0A84FF",
+    "opacity": 0.45
+  }
+}
+```
+
+The page owns one background paint, not a stack of background paints. To place
+a color scrim over a background photograph, keep the photograph as the native
+image background and put an ordinary translucent shape first in
+`elements[]`, before foreground text.
+
 ```json
 {
   "background": {

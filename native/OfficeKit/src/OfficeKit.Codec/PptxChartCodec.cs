@@ -134,7 +134,7 @@ internal static partial class PptxChartCodec
         var spreadsheet = ToSpreadsheet(chart, elementId, name);
         try
         {
-            XlsxChartCodec.Validate([spreadsheet], $"presentation/{elementId}");
+            XlsxChartCodec.Validate([spreadsheet], $"presentation/{elementId}", allowStandardRadar: true);
         }
         catch (CodecException error) when (error.Code == "invalid_spreadsheet_chart")
         {

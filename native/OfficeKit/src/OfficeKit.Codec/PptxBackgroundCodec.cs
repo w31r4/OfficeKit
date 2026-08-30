@@ -33,7 +33,8 @@ internal static class PptxBackgroundCodec
                 source.ImagePaint is not null ||
                 source.ColorCase != PresentationBackground.ColorOneofCase.None ||
                 source.KindCase != PresentationBackground.KindOneofCase.None ||
-                source.ImageAlphaModulationFixed)
+                source.ImageAlphaModulationFixed ||
+                source.HasOpacityThousandthPercent)
                 throw Invalid("Presentation gradient background cannot also define image, color, kind, or image effects.");
             PptxGradientFillCodec.Validate(source.GradientFill, "Presentation background");
             return;
@@ -42,14 +43,17 @@ internal static class PptxBackgroundCodec
         {
             if (!string.IsNullOrWhiteSpace(source.ImageAssetId) || source.ImageAlphaModulationFixed ||
                 source.ColorCase != PresentationBackground.ColorOneofCase.None ||
-                source.KindCase != PresentationBackground.KindOneofCase.None)
+                source.KindCase != PresentationBackground.KindOneofCase.None ||
+                source.HasOpacityThousandthPercent)
                 throw Invalid("Presentation canonical image background cannot also define legacy image, color, kind, or image effects.");
             PptxImagePaintCodec.Validate(source.ImagePaint, "background", assets);
             return;
         }
         if (!string.IsNullOrWhiteSpace(source.ImageAssetId))
         {
-            if (source.ColorCase != PresentationBackground.ColorOneofCase.None || source.KindCase != PresentationBackground.KindOneofCase.None)
+            if (source.ColorCase != PresentationBackground.ColorOneofCase.None ||
+                source.KindCase != PresentationBackground.KindOneofCase.None ||
+                source.HasOpacityThousandthPercent)
                 throw Invalid("Presentation image background cannot also define a color or kind.");
             if (source.ImageAssetId.Length > 512)
                 throw Invalid("Presentation image background asset ID exceeds 512 characters.");
@@ -58,6 +62,8 @@ internal static class PptxBackgroundCodec
         }
         if (source.ImageAlphaModulationFixed)
             throw Invalid("Presentation image alpha modulation requires an image background asset.");
+        if (source.HasOpacityThousandthPercent && source.OpacityThousandthPercent > 100_000)
+            throw Invalid("Presentation solid background opacity must be from 0 to 100000.");
         switch (source.ColorCase)
         {
             case PresentationBackground.ColorOneofCase.ColorRgb:
@@ -74,6 +80,8 @@ internal static class PptxBackgroundCodec
             case PresentationBackground.KindOneofCase.Solid when source.Solid:
                 break;
             case PresentationBackground.KindOneofCase.StyleReferenceIndex:
+                if (source.HasOpacityThousandthPercent)
+                    throw Invalid("Presentation background opacity requires a direct solid mode.");
                 break;
             default:
                 throw Invalid("Presentation background requires a solid mode or style-reference index.");
@@ -146,13 +154,13 @@ internal static class PptxBackgroundCodec
                     return true;
                 }
                 if (children[0] is not A.SolidFill solid) return false;
-                if (!TryReadColor(solid, out semantic)) return false;
+                if (!TryReadSolidColor(solid, out semantic)) return false;
                 semantic.Solid = true;
                 return true;
             case P.BackgroundStyleReference reference:
                 if (reference.Index?.Value is not { } index ||
                     reference.GetAttributes().Any(attribute => attribute.LocalName != "idx") ||
-                    !TryReadColor(reference, out semantic)) return false;
+                    !TryReadStyleColor(reference, out semantic)) return false;
                 semantic.StyleReferenceIndex = index;
                 return true;
             default:
@@ -190,16 +198,35 @@ internal static class PptxBackgroundCodec
         }
     }
 
-    private static bool TryReadColor(OpenXmlCompositeElement source, out PresentationBackground target)
+    private static bool TryReadSolidColor(A.SolidFill source, out PresentationBackground target)
     {
         target = new PresentationBackground();
-        if ((source is A.SolidFill && source.GetAttributes().Count != 0) || source.ChildElements.Count != 1) return false;
+        if (PptxColor.TryDirectSolidRgbWithOpacity(source, out var rgb, out var rgbOpacity))
+        {
+            target.ColorRgb = rgb;
+            if (rgbOpacity is { } opacity) target.OpacityThousandthPercent = opacity;
+            return true;
+        }
+        if (!PptxColor.TryDirectSolidSchemeWithOpacity(source, out var scheme, out var schemeOpacity)) return false;
+        target.ColorScheme = scheme;
+        if (schemeOpacity is { } opacityValue) target.OpacityThousandthPercent = opacityValue;
+        return true;
+    }
+
+    private static bool TryReadStyleColor(P.BackgroundStyleReference source, out PresentationBackground target)
+    {
+        target = new PresentationBackground();
+        if (source.ChildElements.Count != 1) return false;
         switch (source.FirstChild)
         {
-            case A.RgbColorModelHex rgb when rgb.ChildElements.Count == 0 && rgb.GetAttributes().All(attribute => attribute.LocalName == "val") && rgb.Val?.Value is { Length: 6 } value:
+            case A.RgbColorModelHex rgb when rgb.ChildElements.Count == 0 &&
+                rgb.GetAttributes().All(attribute => attribute.LocalName == "val") &&
+                rgb.Val?.Value is { Length: 6 } value:
                 try { target.ColorRgb = PptxColor.Normalize(value); return true; }
                 catch (CodecException) { return false; }
-            case A.SchemeColor scheme when scheme.ChildElements.Count == 0 && scheme.GetAttributes().All(attribute => attribute.LocalName == "val") && scheme.Val?.Value is { } value && PptxColor.TrySchemeToken(value, out var token):
+            case A.SchemeColor scheme when scheme.ChildElements.Count == 0 &&
+                scheme.GetAttributes().All(attribute => attribute.LocalName == "val") &&
+                scheme.Val?.Value is { } value && PptxColor.TrySchemeToken(value, out var token):
                 target.ColorScheme = token;
                 return true;
             default:
@@ -231,19 +258,25 @@ internal static class PptxBackgroundCodec
         return source.KindCase switch
         {
             PresentationBackground.KindOneofCase.Solid =>
-                new P.Background(new P.BackgroundProperties(new A.SolidFill(Color(source)), new A.EffectList())),
+                new P.Background(new P.BackgroundProperties(new A.SolidFill(Color(source, includeOpacity: true)), new A.EffectList())),
             PresentationBackground.KindOneofCase.StyleReferenceIndex =>
-                new P.Background(new P.BackgroundStyleReference(Color(source)) { Index = source.StyleReferenceIndex }),
+                new P.Background(new P.BackgroundStyleReference(Color(source, includeOpacity: false)) { Index = source.StyleReferenceIndex }),
             _ => throw Invalid("Presentation background kind is missing."),
         };
     }
 
-    private static OpenXmlElement Color(PresentationBackground source) => source.ColorCase switch
+    private static OpenXmlElement Color(PresentationBackground source, bool includeOpacity)
     {
-        PresentationBackground.ColorOneofCase.ColorRgb => new A.RgbColorModelHex { Val = PptxColor.Normalize(source.ColorRgb) },
-        PresentationBackground.ColorOneofCase.ColorScheme => new A.SchemeColor { Val = PptxColor.SchemeValue(source.ColorScheme) },
-        _ => throw Invalid("Presentation background color is missing."),
-    };
+        OpenXmlElement color = source.ColorCase switch
+        {
+            PresentationBackground.ColorOneofCase.ColorRgb => new A.RgbColorModelHex { Val = PptxColor.Normalize(source.ColorRgb) },
+            PresentationBackground.ColorOneofCase.ColorScheme => new A.SchemeColor { Val = PptxColor.SchemeValue(source.ColorScheme) },
+            _ => throw Invalid("Presentation background color is missing."),
+        };
+        if (includeOpacity && source.HasOpacityThousandthPercent)
+            color.Append(new A.Alpha { Val = checked((int)source.OpacityThousandthPercent) });
+        return color;
+    }
 
     private static CodecException Invalid(string message) => new("invalid_presentation_background", message);
 }

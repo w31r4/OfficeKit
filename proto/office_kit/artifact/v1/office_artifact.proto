@@ -939,6 +939,9 @@ enum SpreadsheetChartType {
   // PresentationML uses this only with PresentationChart.combo_series. XLSX
   // charts do not yet own mixed plots and reject this enum value explicitly.
   SPREADSHEET_CHART_TYPE_COMBO = 8;
+  // One bounded native c:radarChart profile with radarStyle=standard. Filled,
+  // marker-only, 3D, and extension-bearing radar variants remain source owned.
+  SPREADSHEET_CHART_TYPE_RADAR = 9;
 }
 
 // One worksheet chart graphic frame and its relationship-backed ChartPart.
@@ -2010,6 +2013,9 @@ message PresentationBackground {
   // profile; legacy image_asset_id/image_alpha_modulation_fixed remain readable
   // for wire-v2 compatibility and must not be combined with image_paint.
   PresentationImagePaint image_paint = 8;
+  // Present only for a direct solid background color. Values use
+  // 0..100000 and lower to one direct DrawingML a:alpha transform.
+  optional uint32 opacity_thousandth_percent = 9;
 }
 
 // Bounded embedded DrawingML image paint shared by shape fills and native
@@ -2739,6 +2745,8 @@ message PresentationTextStyle {
     string highlight_rgb = 15;
     string highlight_scheme = 16;
   }
+  // Direct DrawingML a:defRPr/@lang BCP-47 language tag.
+  optional string language = 17;
 }
 
 message PresentationTextParagraph {
@@ -2887,6 +2895,8 @@ message PresentationTextRun {
     string highlight_rgb = 20;
     string highlight_scheme = 21;
   }
+  // Direct DrawingML a:rPr/@lang BCP-47 language tag.
+  optional string language = 22;
 }
 
 message PresentationTextField {

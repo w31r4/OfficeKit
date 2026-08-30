@@ -110,6 +110,7 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", "Presentation run font family must contain 1 through 255 characters.");
                 if (run.HasFontFamilyEastAsia && (string.IsNullOrWhiteSpace(run.FontFamilyEastAsia) || run.FontFamilyEastAsia.Length > 255))
                     throw new CodecException("invalid_presentation_text", "Presentation run East Asian font family must contain 1 through 255 characters.");
+                if (run.HasLanguage) _ = PptxLanguageTag.Validate(run.Language);
                 if (run.HasFontKerningPoints && (!(run.FontKerningPoints >= 0) || run.FontKerningPoints > 768 || !double.IsFinite(run.FontKerningPoints)))
                     throw new CodecException("invalid_presentation_text", "Presentation run font kerning must be finite and between 0 and 768 points.");
                 if (run.HasFontBaselinePercent && (!(run.FontBaselinePercent >= -400) || run.FontBaselinePercent > 400 || !double.IsFinite(run.FontBaselinePercent)))
@@ -304,6 +305,7 @@ internal static class PptxTextCodec
             _ => throw new CodecException("unsupported_presentation_text", $"Unsupported Presentation inline element {source.LocalName}."),
         };
         var properties = InlineProperties(source);
+        if (PptxLanguageTag.IsValid(properties?.Language?.Value)) run.Language = properties!.Language!.Value!;
         if (properties?.Bold is not null) run.Bold = properties.Bold.Value;
         if (properties?.Italic is not null) run.Italic = properties.Italic.Value;
         if (properties?.FontSize is not null) run.FontSizePoints = properties.FontSize.Value / 100d;
@@ -351,7 +353,7 @@ internal static class PptxTextCodec
 
     private static OpenXmlElement BuildInline(PresentationTextRun source, PptxPartContext? slideContext)
     {
-        var properties = new A.RunProperties { Language = "en-US" };
+        var properties = new A.RunProperties { Language = source.HasLanguage ? source.Language : "en-US" };
         ApplyRunProperties(properties, source);
         PptxHyperlinkCodec.Append(properties, source, slideContext);
         return source.ContentCase switch
@@ -553,7 +555,7 @@ internal static class PptxTextCodec
 
     private static bool HasStyle(PresentationTextRun run) =>
         run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasFontKerningPoints || run.HasFontBaselinePercent || run.HasFontSpacingPoints || run.HasFontCaps || run.HasColorRgb || run.HasColorScheme ||
-        run.HasColorOpacityThousandthPercent || run.HasUnderline || run.HasStrike || run.HighlightCase != PresentationTextRun.HighlightOneofCase.None;
+        run.HasColorOpacityThousandthPercent || run.HasUnderline || run.HasStrike || run.HasLanguage || run.HighlightCase != PresentationTextRun.HighlightOneofCase.None;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
     {
@@ -566,6 +568,7 @@ internal static class PptxTextCodec
         properties.Baseline = requested.HasFontBaselinePercent ? checked((int)Math.Round(requested.FontBaselinePercent * 1000)) : null;
         properties.Spacing = requested.HasFontSpacingPoints ? checked((int)Math.Round(requested.FontSpacingPoints * 100)) : null;
         properties.Capital = requested.HasFontCaps ? new A.TextCapsValues(PptxTextDecoration.NormalizeCaps(requested.FontCaps)) : null;
+        if (requested.HasLanguage) properties.Language = PptxLanguageTag.Validate(requested.Language);
         var existingHighlight = properties.GetFirstChild<A.Highlight>();
         if (requested.HighlightCase != PresentationTextRun.HighlightOneofCase.None)
         {
@@ -632,6 +635,7 @@ internal static class PptxTextCodec
         properties.Baseline = null;
         properties.Spacing = null;
         properties.Capital = null;
+        if (PptxLanguageTag.IsValid(properties.Language?.Value)) properties.Language = null;
         if (PptxTextDecoration.TryHighlight(properties, out _, out _)) properties.GetFirstChild<A.Highlight>()?.Remove();
         properties.FontSize = null;
         properties.GetFirstChild<A.LatinFont>()?.Remove();

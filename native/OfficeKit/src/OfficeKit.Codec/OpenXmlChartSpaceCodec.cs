@@ -25,7 +25,7 @@ internal static class OpenXmlChartSpaceCodec
         var nativeChart = root?.Element(ChartNs + "chart");
         var plotArea = nativeChart?.Element(ChartNs + "plotArea");
         if (root?.Name != ChartNs + "chartSpace" || nativeChart is null || plotArea is null || root.Element(ChartNs + "externalData") is not null) return false;
-        var plots = plotArea.Elements().Where(item => item.Name == ChartNs + "barChart" || item.Name == ChartNs + "lineChart" || item.Name == ChartNs + "pieChart" || item.Name == ChartNs + "areaChart" || item.Name == ChartNs + "doughnutChart" || item.Name == ChartNs + "scatterChart" || item.Name == ChartNs + "bubbleChart").ToArray();
+        var plots = plotArea.Elements().Where(item => item.Name == ChartNs + "barChart" || item.Name == ChartNs + "lineChart" || item.Name == ChartNs + "pieChart" || item.Name == ChartNs + "areaChart" || item.Name == ChartNs + "doughnutChart" || item.Name == ChartNs + "scatterChart" || item.Name == ChartNs + "bubbleChart" || item.Name == ChartNs + "radarChart").ToArray();
         if (plots.Length != 1 || plotArea.Elements().Any(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal) && !plots.Contains(item))) return false;
         var plot = plots[0];
         chart.Type = plot.Name.LocalName switch
@@ -37,6 +37,7 @@ internal static class OpenXmlChartSpaceCodec
             "doughnutChart" => SpreadsheetChartType.Doughnut,
             "scatterChart" => SpreadsheetChartType.Scatter,
             "bubbleChart" => SpreadsheetChartType.Bubble,
+            "radarChart" => SpreadsheetChartType.Radar,
             _ => SpreadsheetChartType.Unspecified,
         };
         if (chart.Type == SpreadsheetChartType.Unspecified) return false;
@@ -94,6 +95,7 @@ internal static class OpenXmlChartSpaceCodec
             SpreadsheetChartType.Doughnut => new XElement(ChartNs + "doughnutChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "firstSliceAng", new XAttribute("val", "0")), new XElement(ChartNs + "holeSize", new XAttribute("val", "50"))),
             SpreadsheetChartType.Scatter => new XElement(ChartNs + "scatterChart", new XElement(ChartNs + "scatterStyle", new XAttribute("val", "marker")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Bubble => new XElement(ChartNs + "bubbleChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "bubble3D", new XAttribute("val", "0")), new XElement(ChartNs + "bubbleScale", new XAttribute("val", "100")), new XElement(ChartNs + "showNegBubbles", new XAttribute("val", "0")), new XElement(ChartNs + "sizeRepresents", new XAttribute("val", "area")), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
+            SpreadsheetChartType.Radar => new XElement(ChartNs + "radarChart", new XElement(ChartNs + "radarStyle", new XAttribute("val", "standard")), new XElement(ChartNs + "varyColors", new XAttribute("val", "0")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels), new XElement(ChartNs + "axId", new XAttribute("val", "1")), new XElement(ChartNs + "axId", new XAttribute("val", "2"))),
             SpreadsheetChartType.Pie => new XElement(ChartNs + "pieChart", new XElement(ChartNs + "varyColors", new XAttribute("val", "1")), series, XlsxChartDataLabelsCodec.Element(chart.DataLabels)),
             _ => throw new InvalidOperationException("Validated chart type is unsupported."),
         };
@@ -125,6 +127,7 @@ internal static class OpenXmlChartSpaceCodec
             SpreadsheetChartType.Doughnut => "doughnutChart",
             SpreadsheetChartType.Scatter => "scatterChart",
             SpreadsheetChartType.Bubble => "bubbleChart",
+            SpreadsheetChartType.Radar => "radarChart",
             _ => throw new InvalidOperationException("Validated chart type is unsupported."),
         };
         var plot = plotArea.Element(ChartNs + plotName) ?? throw Topology(errorCode, subject, $"is missing c:{plotName}");
@@ -466,6 +469,7 @@ internal static class OpenXmlChartSpaceCodec
         if (type == SpreadsheetChartType.Doughnut) return ScalarEquals(plot, "firstSliceAng", "0", required: false) && ScalarEquals(plot, "holeSize", "50", required: true);
         if (type == SpreadsheetChartType.Scatter) return ScalarEquals(plot, "scatterStyle", "marker", required: true);
         if (type == SpreadsheetChartType.Bubble) return ScalarEquals(plot, "varyColors", "0", required: false) && ScalarEquals(plot, "bubble3D", "0", required: false) && ScalarEquals(plot, "bubbleScale", "100", required: false) && ScalarEquals(plot, "showNegBubbles", "0", required: false) && ScalarEquals(plot, "sizeRepresents", "area", required: false);
+        if (type == SpreadsheetChartType.Radar) return ScalarEquals(plot, "radarStyle", "standard", required: true) && ScalarEquals(plot, "varyColors", "0", required: false);
         return true;
     }
 

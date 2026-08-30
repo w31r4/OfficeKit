@@ -996,6 +996,7 @@ internal static partial class PpjPresentationProjector
         if (run.HasFontBaselinePercent) style["baseline"] = run.FontBaselinePercent;
         if (run.HasFontSpacingPoints) style["letterSpacing"] = run.FontSpacingPoints;
         if (run.HasFontCaps) style["capitalization"] = run.FontCaps;
+        if (run.HasLanguage) style["language"] = run.Language;
         return style;
     }
 
@@ -1101,7 +1102,12 @@ internal static partial class PpjPresentationProjector
         if (background.GradientFill is not null)
             return Gradient(background.GradientFill);
         if (!string.IsNullOrEmpty(background.ColorRgb))
-            return new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
+        {
+            var output = new JsonObject { ["type"] = "solid", ["color"] = Color(background.ColorRgb) };
+            if (background.HasOpacityThousandthPercent)
+                output["opacity"] = Unit(background.OpacityThousandthPercent);
+            return output;
+        }
         return null;
     }
 
@@ -1560,6 +1566,7 @@ internal static partial class PpjPresentationProjector
         SpreadsheetChartType.Doughnut => "doughnut",
         SpreadsheetChartType.Scatter => "scatter",
         SpreadsheetChartType.Bubble => "bubble",
+        SpreadsheetChartType.Radar => "radar",
         SpreadsheetChartType.Combo => "combo",
         _ => null,
     };
