@@ -99,6 +99,12 @@ The compact result is `evals/presentation-six-sample-import/evidence.v1.json`.
 This is structural/package evidence on macOS, not a claim of complete OOXML
 semantics or Windows PowerPoint acceptance.
 
+Imported canonical picture effects now project through the public
+`ImageElement`: RGB/dashed borders and one bounded outer shadow can be read,
+changed, removed, exported, and recovered after a second import. An unrelated
+image frame edit keeps the original border, shadow, and alpha token byte-safe;
+effect graphs outside this profile remain source-bound.
+
 The three-sample component scan records the boundary honestly: each sample now has one passed repeated-component reuse with zero non-topology part drift, and the evidence records the selected occurrence index. After the clone is exported and re-imported, the same evidence performs one bounded continuation edit: a direct image frame on 算秩未来, a shape text leaf on the blue-gray template, and an SVG text leaf on the McKinsey sample. Each continuation preserves the source slide, survives a second import, and records its exact clone-only footprint. Duplicate native IDs, timing/extension identity, and relationship-bound siblings still block the affected candidates. Opaque pictures with negative or otherwise unsafe direct frames remain read-only rather than blocking unrelated source-preserving reuse. Multi-element and broader component mutation remain explicit gaps. The evidence records both a raw output SHA for diagnostics and a canonical OPC-content SHA so ZIP container timestamps cannot masquerade as nondeterministic mutation.
 
 Status meanings:

@@ -38,9 +38,12 @@ background image
 
 Use an image as the page `background` only when its behavior belongs to the
 slide background. Use an image element when it must remain independently
-editable, crop-able, animated, or reordered. Masks, opacity, borders, and
-shadows belong to the image element; overlays are ordinary shapes placed after
-the image and before text.
+editable, crop-able, animated, or reordered. Masks, opacity, bounded RGB
+borders, and one bounded outer shadow belong to the image element; overlays are
+ordinary shapes placed after the image and before text. On imported files, use
+the effect values returned by `inspect()` and change only the supported
+border/shadow profile; unfamiliar effect graphs stay source-bound instead of
+being flattened.
 
 Keep the subject, intended focal point, and important edges inside the crop.
 Use `cover` for image-led regions, `contain` for diagrams or logos that must not
