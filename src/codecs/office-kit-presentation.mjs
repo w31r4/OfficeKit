@@ -313,6 +313,7 @@ function cloneImportedPresentationImage(container, source, context) {
     ...(source.svgDataUrl ? { svgDataUrl: source.svgDataUrl } : {}),
     fit: source.fit,
     ...(source.crop ? { crop: clonedPresentationValue(source.crop) } : {}),
+    ...(source.opacity === undefined ? {} : { opacity: source.opacity }),
     geometry: source.geometry,
     ...(source.transform ? { transform: clonedPresentationValue(source.transform) } : {}),
   });
@@ -2294,6 +2295,7 @@ function presentationImage(image, original, assetCatalog) {
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
         heightEmu: emuFromPixels(position.height, `${image.id}.position.height`),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
+        ...(image.opacity === undefined ? {} : { opacityThousandthPercent: Math.round(image.opacity * 100_000) }),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
         ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),
         ...(accessibility?.decorative === undefined ? {} : { accessibilityDecorative: accessibility.decorative }),
@@ -3646,6 +3648,7 @@ function componentImageDescriptor(image) {
     frame: componentFrameSize(layout.frame),
     fit: layout.fit,
     crop: layout.crop,
+    opacity: layout.opacity,
     geometry: layout.geometry,
     borderRadius: layout.borderRadius,
     transform: layout.transform,
@@ -6725,6 +6728,7 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
       fit: "stretch",
       ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
+      ...(image.opacityThousandthPercent === undefined ? {} : { opacity: Number(image.opacityThousandthPercent) / 100_000 }),
       geometry: "rect",
       ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
     };
@@ -7053,6 +7057,7 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           ...(image.svgAssetId ? { _officeKitSvgDataUrlSource: assetCatalog.dataUrlSource(image.svgAssetId) } : {}),
           fit: "stretch",
           ...(image.crop ? { crop: presentationImageCropFromWire(image.crop) } : {}),
+          ...(image.opacityThousandthPercent === undefined ? {} : { opacity: Number(image.opacityThousandthPercent) / 100_000 }),
           geometry: "rect",
           ...(image.transform ? { transform: modelPresentationTransform(image.transform) } : {}),
         });

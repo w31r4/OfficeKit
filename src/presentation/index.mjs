@@ -2699,6 +2699,15 @@ function normalizeNativePresentationBackgroundImage(config, label, previous) {
   return normalizePresentationBackground({ image: { ...(assetId ? { assetId } : {}), ...(embedded.dataUrl ? { dataUrl: embedded.dataUrl } : {}), fit: "stretch", ...(alphaModulationFixed ? { alphaModulationFixed: true } : {}) } });
 }
 
+function normalizePresentationImageOpacity(value, label) {
+  if (value == null) return undefined;
+  const opacity = Number(value);
+  if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
+    throw new RangeError(`${label}.opacity must be from 0 through 1.`);
+  }
+  return opacity;
+}
+
 export class ImageElement {
   constructor(slide, config = {}) {
     this.slide = slide;
@@ -2800,6 +2809,7 @@ export class ImageElement {
     this.geometry = config.geometry || "rect";
     this.borderRadius = config.borderRadius;
     this.transform = config.transform == null ? undefined : normalizePresentationPlaceholderTransform(config.transform, `Presentation image ${this.name || this.id} transform`);
+    this.opacity = config.opacity;
   }
 
   get frame() { return this.position; }
@@ -2826,6 +2836,8 @@ export class ImageElement {
   set fit(value) { this._fit = normalizePresentationImageFit(value); }
   get crop() { return this._crop; }
   set crop(value) { this._crop = normalizePresentationImageCrop(value); }
+  get opacity() { return this._opacity; }
+  set opacity(value) { this._opacity = normalizePresentationImageOpacity(value, `Presentation image ${this.id}`); }
   setAccessibilityMetadata(update) {
     this.accessibility = setPresentationAccessibilityMetadata(this, this.accessibility, update, `Presentation image ${this.id}`);
   }
@@ -2919,10 +2931,10 @@ export class ImageElement {
 
   inspectRecord() {
     const p = this.position;
-    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, transform: this.transform };
+    return { kind: "image", id: this.id, slide: this.slide.index + 1, name: this.name || undefined, nativeId: this.nativeId, creationId: this.creationId, contentType: this.contentType, alt: this.alt || undefined, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, deletionCapability: this.deletionCapability, svgFallback: Boolean(this.svgDataUrl), svgTextCapability: this.svgTextCapability, svgEditCapability: this.svgEditCapability, prompt: this.prompt || undefined, bbox: [p.left, p.top, p.width, p.height], bboxUnit: "px", fit: this.fit, crop: this.crop, opacity: this.opacity, transform: this.transform };
   }
 
-  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
+  layoutJson() { return { kind: "image", id: this.id, name: this.name, frame: this.position, alt: this.alt, accessibility: this.accessibility ? { ...this.accessibility } : undefined, accessibilityCapability: this.accessibilityCapability, prompt: this.prompt, uri: this.uri, contentType: this.contentType, dataUrl: this.dataUrl, svgDataUrl: this.svgDataUrl, fit: this.fit, crop: this.crop, opacity: this.opacity, geometry: this.geometry, borderRadius: this.borderRadius, transform: this.transform }; }
 
   toSvg() {
     const p = this.position;
@@ -2933,20 +2945,21 @@ export class ImageElement {
     const flipHorizontal = this.transform?.flipHorizontal === true ? -1 : 1;
     const flipVertical = this.transform?.flipVertical === true ? -1 : 1;
     const transform = this.transform ? ` transform="translate(${cx} ${cy}) rotate(${rotation}) scale(${flipHorizontal} ${flipVertical}) translate(${-cx} ${-cy})"` : "";
+    const opacity = this.opacity == null || this.opacity === 1 ? "" : ` opacity="${this.opacity}"`;
     if (this.dataUrl) {
       const viewport = presentationImageCropViewport({ crop: this.crop, fit: this.fit, dataUrl: this.dataUrl, frame: p });
       if (viewport) {
-        const cropped = `<svg x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" preserveAspectRatio="none" overflow="hidden"><image href="${attrEscape(this.dataUrl)}" x="0" y="0" width="${viewport.imageWidth}" height="${viewport.imageHeight}" preserveAspectRatio="none"/></svg>`;
+        const cropped = `<svg x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}" preserveAspectRatio="none" overflow="hidden"${opacity}><image href="${attrEscape(this.dataUrl)}" x="0" y="0" width="${viewport.imageWidth}" height="${viewport.imageHeight}" preserveAspectRatio="none"/></svg>`;
         return transform ? `<g${transform}>${cropped}</g>` : cropped;
       }
       const aspect = this.fit === "cover" ? "xMidYMid slice" : this.fit === "stretch" ? "none" : "xMidYMid meet";
-      return `<image href="${attrEscape(this.dataUrl)}" x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" preserveAspectRatio="${aspect}"${transform}/>`;
+      return `<image href="${attrEscape(this.dataUrl)}" x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" preserveAspectRatio="${aspect}"${opacity}${transform}/>`;
     }
     const rect = this.geometry === "ellipse"
       ? `<ellipse cx="${p.left + p.width / 2}" cy="${p.top + p.height / 2}" rx="${p.width / 2}" ry="${p.height / 2}" fill="#e0f2fe" stroke="#0284c7"/>`
       : `<rect x="${p.left}" y="${p.top}" width="${p.width}" height="${p.height}" rx="${this.borderRadius ? 12 : 0}" fill="#e0f2fe" stroke="#0284c7"/>`;
     const fallback = `${rect}<text x="${p.left + 12}" y="${p.top + 28}" font-family="Arial" font-size="14" fill="#075985">${xmlEscape(label)}</text>`;
-    return transform ? `<g${transform}>${fallback}</g>` : fallback;
+    return transform || opacity ? `<g${transform}${opacity}>${fallback}</g>` : fallback;
   }
 
 }

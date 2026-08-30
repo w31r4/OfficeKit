@@ -863,6 +863,13 @@ record structural review separately from `visualReview: "unavailable"`.
 Native PowerPoint and aesthetic equivalence remain outside this portable
 status.
 
+### Imported picture opacity
+
+Bounded rectangular PPTX pictures now project native \`a:alphaModFix\` to
+\`ImageElement.opacity\` (0..1). No-op export preserves the source bytes; an
+opacity edit reimports with the same value. Other picture effects remain
+opaque or fail closed.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
