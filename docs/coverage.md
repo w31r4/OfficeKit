@@ -1152,6 +1152,17 @@ second import with the updated frame. A focused codec regression covers
 import, byte-identical no-op, edit, and reimport. This does not claim arbitrary
 custom-geometry formulas, effects, or vendor extensions are editable.
 
+### Imported bent connectors with a canonical adjustment
+
+The Data Particles deck uses six `bentConnector3` objects with the common
+`adj1=50000` midpoint guide. That bounded guide is now accepted by the typed
+connector importer instead of making the connector an opaque native object.
+Its source bend remains intact while endpoint, line, or accessibility edits
+use the existing source-bound connector path; a real Data Particles line-color
+edit changes only `ppt/slides/slide12.xml` and survives a second import. Other
+connector routing formulas and style-reference graphs remain source-owned and
+are not promoted by this profile.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
