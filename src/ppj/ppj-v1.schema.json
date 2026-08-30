@@ -2704,6 +2704,9 @@
         "titleTextStyle": {
           "$ref": "#/$defs/chartTextStyle"
         },
+        "legendTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
         "smooth": {
           "type": "boolean"
         },
@@ -2775,6 +2778,9 @@
         },
         "textStyle": {
           "$ref": "#/$defs/chartTextStyle"
+        },
+        "titleTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
         }
       }
     },
@@ -2837,6 +2843,9 @@
             "right",
             "top"
           ]
+        },
+        "textStyle": {
+          "$ref": "#/$defs/chartTextStyle"
         }
       }
     },

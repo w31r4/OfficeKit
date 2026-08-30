@@ -986,6 +986,9 @@ message SpreadsheetChartArtifact {
   // bar means horizontal bars; column means vertical bars. Empty retains the
   // historical column default.
   string bar_direction = 25;
+  // Canonical c:legend/c:txPr typography. The bounded value contract is shared
+  // with chart titles and axis labels.
+  SpreadsheetChartTextStyleArtifact legend_text_style = 26;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -1043,6 +1046,9 @@ message SpreadsheetChartAxisArtifact {
   SpreadsheetChartTextStyleArtifact text_style = 7;
   optional bool visible = 8;
   optional bool show_major_gridlines = 9;
+  // Typography for the canonical rich-text axis title. This is independent
+  // from text_style, which owns tick labels.
+  SpreadsheetChartTextStyleArtifact title_text_style = 10;
 }
 
 message SpreadsheetChartSurfaceFill {
@@ -2390,6 +2396,8 @@ message PresentationChart {
   // mixed-plot behavior separate and leave this message unset.
   SpreadsheetChartLineOptionsArtifact line_options = 27;
   PresentationFrameTransform frame_transform = 28;
+  // Canonical c:legend/c:txPr typography.
+  SpreadsheetChartTextStyleArtifact legend_text_style = 29;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from
@@ -3927,6 +3935,9 @@ message SpreadsheetChartDataLabelsArtifact {
   // Presence distinguishes an explicit native false from omission so an
   // imported c:showPercent node can round-trip without inventing a default.
   optional bool show_percent = 5;
+  // Canonical plot-level c:dLbls/c:txPr typography. Per-point label runs and
+  // effect-bearing text graphs remain source-owned.
+  SpreadsheetChartTextStyleArtifact text_style = 6;
 }
 
 // Appended to preserve every pre-existing generated descriptor index while the
