@@ -9091,6 +9091,36 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void ImportedPictureWithCanonicalInvisibleOutlineRemainsEditable()
+    {
+        var authored = Invoke(ExportRequest());
+        Assert.True(authored.Ok, Diagnostics(authored));
+        var sourceBytes = AddPicture(authored.File.ToByteArray());
+        sourceBytes = ReplaceZipText(sourceBytes, "ppt/slides/slide1.xml", xml =>
+        {
+            const string marker = "<a:prstGeom prst=\"rect\"><a:avLst /></a:prstGeom></p:spPr></p:pic>";
+            const string replacement = "<a:prstGeom prst=\"rect\"><a:avLst /></a:prstGeom><a:noFill /><a:ln w=\"9525\" cmpd=\"sng\" algn=\"ctr\"><a:noFill /><a:miter lim=\"800000\" /><a:headEnd /><a:tailEnd /></a:ln></p:spPr></p:pic>";
+            var updated = xml.Replace(marker, replacement, StringComparison.Ordinal);
+            Assert.NotEqual(xml, updated);
+            return updated;
+        });
+
+        var imported = Import(sourceBytes);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var image = Assert.Single(Assert.Single(imported.Artifact.Presentation.Slides).Elements,
+            element => element.ContentCase == PresentationElement.ContentOneofCase.Image);
+        var noOp = Export(imported.Artifact);
+        Assert.True(noOp.Ok, Diagnostics(noOp));
+        Assert.Equal(sourceBytes, noOp.File.ToByteArray());
+
+        image.Image.LeftEmu += 1_000;
+        var edited = Export(imported.Artifact);
+        Assert.True(edited.Ok, Diagnostics(edited));
+        var editedXml = Encoding.UTF8.GetString(ZipBytes(edited.File.ToByteArray(), "ppt/slides/slide1.xml"));
+        Assert.Contains("<a:ln w=\"9525\" cmpd=\"sng\" algn=\"ctr\"><a:noFill /><a:miter lim=\"800000\" /><a:headEnd /><a:tailEnd /></a:ln>", editedXml, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SourcePreservingPictureDeletionRetainsMediaSharedByAnotherSlide()
     {
         var request = ExportRequest();
