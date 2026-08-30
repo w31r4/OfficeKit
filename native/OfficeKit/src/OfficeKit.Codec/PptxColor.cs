@@ -61,7 +61,8 @@ internal static class PptxColor
     // source-owned rather than being rebuilt from a lossy semantic value.
     internal static bool TryDirectSolidScheme(A.SolidFill? fill, out string scheme)
     {
-        if (!TryDirectSolidSchemeWithOpacity(fill, out scheme, out var opacity) || opacity is not null)
+        if (!TryDirectSolidSchemeWithOpacity(fill, out scheme, out var opacity) || opacity is not null ||
+            fill?.FirstChild is not A.SchemeColor color || color.ChildElements.Count != 0)
         {
             scheme = string.Empty;
             return false;
@@ -76,7 +77,7 @@ internal static class PptxColor
         if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
         if (fill.FirstChild is not A.SchemeColor color ||
             !HasOnlyAttributes(color, "val") || color.Val?.Value is not { } value ||
-            !TrySchemeToken(value, out var token) || !TryDirectOpacity(color, out opacity)) return false;
+            !TrySchemeToken(value, out var token) || !TryDirectSchemeTransforms(color, out opacity)) return false;
         scheme = token;
         return true;
     }
@@ -105,6 +106,17 @@ internal static class PptxColor
         return token;
     }
 
+    // Semantic projection may carry a single bounded alpha child alongside a
+    // direct theme token. Keep the strict bare helper above for callers that
+    // intentionally require an unmodified scheme color, while allowing the
+    // shape projection to preserve this safe source-bound form.
+    internal static string SolidSchemeWithOpacity(A.SolidFill? fill)
+    {
+        return TryDirectSolidSchemeWithOpacity(fill, out var scheme, out _)
+            ? scheme
+            : string.Empty;
+    }
+
     private static bool HasOnlyAttributes(DocumentFormat.OpenXml.OpenXmlElement element, params string[] allowed)
     {
         var accepted = allowed.ToHashSet(StringComparer.Ordinal);
@@ -119,6 +131,42 @@ internal static class PptxColor
             alpha.ChildElements.Count != 0 || !HasOnlyAttributes(alpha, "val") ||
             alpha.Val?.Value is not { } value || value is < 0 or > 100_000) return false;
         opacity = checked((uint)value);
+        return true;
+    }
+
+    // Theme colors in imported decks sometimes carry luminance transforms in
+    // addition to alpha (for example lumMod/lumOff/alpha). These transforms
+    // are retained as source-owned XML; accepting this small, fully bounded
+    // profile lets a native leaf change only alpha or the theme token without
+    // reconstructing the visual paint.
+    private static bool TryDirectSchemeTransforms(A.SchemeColor color, out uint? opacity)
+    {
+        opacity = null;
+        var alpha = color.Elements<A.Alpha>().ToArray();
+        var luminanceModulation = color.Elements<A.LuminanceModulation>().ToArray();
+        var luminanceOffset = color.Elements<A.LuminanceOffset>().ToArray();
+        if (alpha.Length > 1 || luminanceModulation.Length > 1 || luminanceOffset.Length > 1 ||
+            color.ChildElements.Any(child => child is not A.Alpha and not A.LuminanceModulation and not A.LuminanceOffset))
+            return false;
+        if (alpha.Length == 1)
+        {
+            var value = alpha[0].Val?.Value;
+            if (alpha[0].ChildElements.Count != 0 || !HasOnlyAttributes(alpha[0], "val") || value is not (>= 0 and <= 100_000))
+                return false;
+            opacity = checked((uint)value);
+        }
+        if (luminanceModulation.Length == 1)
+        {
+            var value = luminanceModulation[0].Val?.Value;
+            if (luminanceModulation[0].ChildElements.Count != 0 || !HasOnlyAttributes(luminanceModulation[0], "val") || value is not (>= 0 and <= 100_000))
+                return false;
+        }
+        if (luminanceOffset.Length == 1)
+        {
+            var value = luminanceOffset[0].Val?.Value;
+            if (luminanceOffset[0].ChildElements.Count != 0 || !HasOnlyAttributes(luminanceOffset[0], "val") || value is not (>= -100_000 and <= 100_000))
+                return false;
+        }
         return true;
     }
 

@@ -1226,7 +1226,7 @@ internal static partial class PptxEditPlanCodec
             var fills = properties.ChildElements.Where(child => child is A.NoFill or A.SolidFill).ToArray();
             return fills.Length == 1 && fills[0] is A.SolidFill solid &&
                 (kind == "fillRgb" ? HasSafeNativeRgbFill(solid) :
-                 kind == "fillOpacityThousandthPercent" ? HasSafeNativeRgbFillOpacity(solid) :
+                 kind == "fillOpacityThousandthPercent" ? HasSafeNativeRgbFillOpacity(solid) || HasSafeNativeSchemeFillOpacity(solid) :
                  HasSafeNativeSchemeFill(solid));
         }
         var outlines = properties.Elements<A.Outline>().ToArray();
@@ -1367,6 +1367,11 @@ internal static partial class PptxEditPlanCodec
             !PptxColor.TrySchemeToken(value, out _))
             return false;
         return color.GetAttributes().All(attribute => attribute.LocalName == "val");
+    }
+
+    private static bool HasSafeNativeSchemeFillOpacity(A.SolidFill fill)
+    {
+        return PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out var opacity) && opacity is not null;
     }
 
     private static string ReadLeafValue(OpenXmlElement element, PresentationEditOperation operation)
@@ -1769,7 +1774,7 @@ internal static partial class PptxEditPlanCodec
         {
             "fillRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.SolidFill>()), operation),
             "fillOpacityThousandthPercent" => ReadFillOpacity(properties.GetFirstChild<A.SolidFill>(), operation),
-            "fillScheme" => RequiredLeafValue(PptxColor.SolidScheme(properties.GetFirstChild<A.SolidFill>()), operation),
+            "fillScheme" => RequiredLeafValue(PptxColor.SolidSchemeWithOpacity(properties.GetFirstChild<A.SolidFill>()), operation),
             "lineRgb" => RequiredLeafValue(PptxColor.SolidRgb(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>()), operation),
             "lineScheme" => RequiredLeafValue(NativeSchemeToken(properties.GetFirstChild<A.Outline>()?.GetFirstChild<A.SolidFill>(), operation), operation),
             "lineStyle" => RequiredLeafValue(ReadLineStyle(properties.GetFirstChild<A.Outline>(), operation), operation),
@@ -1796,14 +1801,11 @@ internal static partial class PptxEditPlanCodec
 
     private static string ReadFillOpacity(A.SolidFill? fill, PresentationEditOperation operation)
     {
-        if (fill?.ChildElements.Count != 1 || fill.FirstChild is not A.RgbColorModelHex color ||
-            color.ChildElements.Count != 1 || color.FirstChild is not A.Alpha alpha ||
-            color.Val?.Value is not { Length: 6 } value || !IsRgbToken(value) ||
-            alpha.Val?.Value is not { } opacity || opacity is < 0 or > 100_000 ||
-            color.GetAttributes().Any(attribute => attribute.LocalName != "val") ||
-            alpha.GetAttributes().Any(attribute => attribute.LocalName != "val"))
-            return MissingLeaf(operation);
-        return opacity.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (PptxColor.TryDirectSolidRgbWithOpacity(fill, out _, out var rgbOpacity) && rgbOpacity is not null)
+            return rgbOpacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out var schemeOpacity) && schemeOpacity is not null)
+            return schemeOpacity.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return MissingLeaf(operation);
     }
 
     private static string NativeSchemeToken(A.SolidFill? fill, PresentationEditOperation operation)
@@ -1906,8 +1908,12 @@ internal static partial class PptxEditPlanCodec
                 break;
             case "fillOpacityThousandthPercent":
                 if (owner != "sp") throw new CodecException("invalid_presentation_edit_target", $"PPTX edit operation {operation.OperationId} target does not expose fillOpacityThousandthPercent.", operation.SlidePartPath);
-                var solidFill = DirectChildRange(xml, DirectChildRange(xml, properties, "spPr", "solidFill", operation), "solidFill", "srgbClr", operation);
-                leaf = DirectChildRange(xml, solidFill, "srgbClr", "alpha", operation);
+                var solidFill = DirectChildRange(xml, properties, "spPr", "solidFill", operation);
+                var solidColors = DirectChildRanges(xml, solidFill);
+                if (solidColors.Count != 1 || solidColors[0].LocalName is not ("srgbClr" or "schemeClr"))
+                    throw new CodecException("presentation_edit_target_mismatch", $"PPTX edit operation {operation.OperationId} requires one direct RGB or theme color under solidFill.", operation.SlidePartPath);
+                var solidColor = solidColors[0];
+                leaf = DirectChildRange(xml, solidColor, solidColor.LocalName, "alpha", operation);
                 attribute = "val";
                 break;
             case "shadowBlurRadiusEmu":
