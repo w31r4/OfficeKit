@@ -2,6 +2,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using Google.Protobuf;
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -132,6 +133,41 @@ public sealed class PptxCodecTests
             ["preset"] = "roundRect",
             ["adjustments"] = new JsonArray(24000),
         };
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "custom-mask-image-main",
+            ["type"] = "image",
+            ["role"] = "irregular editorial crop",
+            ["frame"] = new JsonObject { ["x"] = 520, ["y"] = 300, ["width"] = 80, ["height"] = 80 },
+            ["asset"] = "evidence-mark",
+            ["fit"] = "cover",
+            ["mask"] = new JsonObject
+            {
+                ["kind"] = "custom",
+                ["viewBox"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["width"] = 160, ["height"] = 160 },
+                ["paths"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["fill"] = true,
+                        ["stroke"] = false,
+                        ["commands"] = new JsonArray
+                        {
+                            new JsonObject { ["op"] = "moveTo", ["x"] = 20, ["y"] = 0 },
+                            new JsonObject { ["op"] = "lineTo", ["x"] = 160, ["y"] = 0 },
+                            new JsonObject { ["op"] = "lineTo", ["x"] = 140, ["y"] = 160 },
+                            new JsonObject { ["op"] = "lineTo", ["x"] = 0, ["y"] = 120 },
+                            new JsonObject { ["op"] = "close" },
+                        },
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Evidence mark clipped by an irregular native path.",
+            },
+        });
         authoredProgram["pages"]![1]!["background"] = new JsonObject
         {
             ["type"] = "image",
@@ -160,6 +196,12 @@ public sealed class PptxCodecTests
         {
             ["lineSpacingMultiplier"] = 1.1,
             ["spaceAfterMultiplier"] = 0.2,
+            ["bullet"] = new JsonObject
+            {
+                ["type"] = "character",
+                ["character"] = "•",
+                ["color"] = new JsonObject { ["token"] = "signal", ["alpha"] = 0.5 },
+            },
         };
         var authoredRunStyle = authoredParagraph["runs"]![0]!["style"]!.AsObject();
         authoredRunStyle["fontFamilyEastAsia"] = "Arial";
@@ -226,8 +268,22 @@ public sealed class PptxCodecTests
             .Single(element => element["id"]!.GetValue<string>() == "method-table-main");
         authoredTable["frame"]!["rotation"] = -4;
         authoredTable["frame"]!["flipV"] = true;
+        authoredProgram["design"]!["styles"]!["table"]![0]!["style"]!["defaultCellFill"] = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = "evidence-mark",
+            ["fit"] = "cover",
+            ["opacity"] = 0.22,
+        };
         var authoredHeaderCell = authoredTable["rows"]![0]!["cells"]![0]!.AsObject();
         authoredHeaderCell["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA", ["opacity"] = 0.8 };
+        authoredTable["rows"]![0]!["cells"]![1]!["fill"] = new JsonObject
+        {
+            ["type"] = "image",
+            ["asset"] = "evidence-mark",
+            ["fit"] = "tile",
+            ["opacity"] = 0.55,
+        };
         authoredHeaderCell["borders"] = new JsonObject
         {
             ["bottom"] = new JsonObject
@@ -293,7 +349,7 @@ public sealed class PptxCodecTests
         {
             ["symbol"] = "circle",
             ["size"] = 8,
-            ["fill"] = "#F2C14E",
+            ["fill"] = "#F2C14E80",
             ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 1 },
         };
         authoredChartSeries["trendlines"] = new JsonArray
@@ -458,7 +514,7 @@ public sealed class PptxCodecTests
                     {
                         ["id"] = "measured-trend",
                         ["name"] = "Index",
-                        ["values"] = new JsonArray(92, 106, 121),
+                        ["values"] = new JsonArray(JsonValue.Create(92), null, JsonValue.Create(121)),
                     },
                 },
             },
@@ -488,6 +544,71 @@ public sealed class PptxCodecTests
                 },
             },
         });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "waterfall-bridge-main",
+            ["type"] = "chart",
+            ["role"] = "cumulative operating bridge",
+            ["frame"] = new JsonObject { ["x"] = 620, ["y"] = 300, ["width"] = 280, ["height"] = 160 },
+            ["chartType"] = "waterfall",
+            ["title"] = "Operating bridge",
+            ["yAxis"] = new JsonObject { ["title"] = "Run-rate", ["min"] = 0, ["max"] = 180, ["majorUnit"] = 30 },
+            ["style"] = new JsonObject
+            {
+                ["legend"] = "none",
+                ["gapWidth"] = 55,
+                ["chartAreaFill"] = new JsonObject { ["type"] = "none" },
+                ["plotAreaFill"] = new JsonObject { ["type"] = "none" },
+                ["waterfall"] = new JsonObject
+                {
+                    ["increase"] = new JsonObject
+                    {
+                        ["label"] = "Increase",
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#0B8F8F" },
+                        ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.5 },
+                    },
+                    ["decrease"] = new JsonObject
+                    {
+                        ["label"] = "Decrease",
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#C8644A" },
+                        ["stroke"] = new JsonObject { ["color"] = "#C8644A", ["width"] = 0.5 },
+                    },
+                    ["total"] = new JsonObject
+                    {
+                        ["label"] = "Total",
+                        ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#16324F" },
+                        ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 0.5 },
+                    },
+                },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Opening", "Growth", "Churn", "Cost", "Closing"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "run-rate-bridge",
+                        ["name"] = "Run-rate",
+                        ["values"] = new JsonArray(120, 40, -25, -10, 125),
+                        ["pointRoles"] = new JsonArray("total", "delta", "delta", "delta", "total"),
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Run-rate opens at 120, rises 40, falls 25 and 10, and closes at 125.",
+            },
+        });
+        var invalidWaterfallProgram = authoredProgram.DeepClone().AsObject();
+        invalidWaterfallProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "waterfall-bridge-main")
+            ["data"]!["series"]![0]!["values"]![4] = 124;
+        var invalidWaterfall = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidWaterfallProgram.ToJsonString()));
+        Assert.False(invalidWaterfall.IsValid);
+        Assert.Contains(invalidWaterfall.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.waterfallTotalMismatch");
         var invalidAdjustmentProgram = authoredProgram.DeepClone().AsObject();
         invalidAdjustmentProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -539,7 +660,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(21U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(23U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -576,9 +697,41 @@ public sealed class PptxCodecTests
             Assert.NotNull(nativeImageFillShape.ShapeProperties!.GetFirstChild<A.BlipFill>());
             var nativeTiledPicture = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.Picture>()
-                .Single();
+                .Single(picture => picture.BlipFill!.GetFirstChild<A.Tile>() is not null);
             Assert.NotNull(nativeTiledPicture.BlipFill!.GetFirstChild<A.Tile>());
             Assert.Null(nativeTiledPicture.BlipFill.GetFirstChild<A.Stretch>());
+            var nativeCustomMaskPicture = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.Picture>()
+                .Single(picture => picture.ShapeProperties!.GetFirstChild<A.CustomGeometry>() is not null);
+            Assert.NotNull(nativeCustomMaskPicture.ShapeProperties!.GetFirstChild<A.CustomGeometry>());
+            Assert.Null(nativeCustomMaskPicture.ShapeProperties.GetFirstChild<A.PresetGeometry>());
+            var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
+                .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
+                .Uri.OriginalString.TrimStart('/');
+            var lineChartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), lineChartPath)));
+            XNamespace chartNamespace = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            var lineValues = lineChartXml.Descendants(chartNamespace + "lineChart").Single()
+                .Descendants(chartNamespace + "val").Single()
+                .Element(chartNamespace + "numLit")!;
+            Assert.Equal("3", lineValues.Element(chartNamespace + "ptCount")!.Attribute("val")!.Value);
+            Assert.Equal(["0", "2"], lineValues.Elements(chartNamespace + "pt").Select(point => point.Attribute("idx")!.Value));
+            var waterfallChartPart = package.PresentationPart.SlideParts.First().ChartParts
+                .Single(part => part.ChartSpace!.Descendants<C.BarChart>().Any(chart =>
+                    chart.Descendants<C.SeriesText>().Any(text => text.InnerText == "__offset__")));
+            var waterfallChart = waterfallChartPart.ChartSpace!.Descendants<C.BarChart>().Single();
+            Assert.Equal(C.BarGroupingValues.Stacked, waterfallChart.BarGrouping!.Val!.Value);
+            var waterfallSeries = waterfallChart.Elements<C.BarChartSeries>().ToArray();
+            Assert.Equal(4, waterfallSeries.Length);
+            Assert.Equal(["__offset__", "Increase", "Decrease", "Total"],
+                waterfallSeries.Select(series => series.SeriesText!.InnerText));
+            Assert.NotNull(waterfallSeries[0].ChartShapeProperties!.GetFirstChild<A.NoFill>());
+            static Dictionary<uint, double> LiteralValues(C.BarChartSeries series) =>
+                series.GetFirstChild<C.Values>()!.GetFirstChild<C.NumberLiteral>()!.Elements<C.NumericPoint>()
+                    .ToDictionary(point => point.Index!.Value, point => double.Parse(point.NumericValue!.Text, CultureInfo.InvariantCulture));
+            Assert.Equal(new Dictionary<uint, double> { [0] = 0, [1] = 120, [2] = 135, [3] = 125, [4] = 0 }, LiteralValues(waterfallSeries[0]));
+            Assert.Equal(new Dictionary<uint, double> { [1] = 40 }, LiteralValues(waterfallSeries[1]));
+            Assert.Equal(new Dictionary<uint, double> { [2] = 25, [3] = 10 }, LiteralValues(waterfallSeries[2]));
+            Assert.Equal(new Dictionary<uint, double> { [0] = 120, [4] = 125 }, LiteralValues(waterfallSeries[3]));
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
@@ -586,6 +739,17 @@ public sealed class PptxCodecTests
             Assert.Equal(80_000, firstCell.TableCellProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
             Assert.Equal(72_000, firstCell.TextBody!.Descendants<A.RunProperties>().Single()
                 .GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var explicitImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(1);
+            var explicitImageFill = explicitImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
+            Assert.NotNull(explicitImageFill.GetFirstChild<A.Tile>());
+            Assert.Equal(55_000, explicitImageFill.GetFirstChild<A.Blip>()!
+                .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
+            var inheritedImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(2);
+            var inheritedImageFill = inheritedImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
+            Assert.NotNull(inheritedImageFill.GetFirstChild<A.Stretch>());
+            Assert.NotNull(inheritedImageFill.GetFirstChild<A.SourceRectangle>());
+            Assert.Equal(22_000, inheritedImageFill.GetFirstChild<A.Blip>()!
+                .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
             var bottomBorder = firstCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
             Assert.Equal("19050", bottomBorder.GetAttribute("w", string.Empty).Value);
             Assert.Equal("0B8F8F", bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
@@ -606,7 +770,7 @@ public sealed class PptxCodecTests
         Assert.True(importedImageBackground.Crop.TopThousandthPercent > 0);
         Assert.True(importedImageBackground.Crop.BottomThousandthPercent > 0);
         var importedImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "evidence identity").Image;
         Assert.True(importedImage.Tiled);
         Assert.Equal(92_000U, importedImage.OpacityThousandthPercent);
         Assert.Equal(4_000, importedImage.Crop.LeftThousandthPercent);
@@ -618,6 +782,11 @@ public sealed class PptxCodecTests
         Assert.Equal("0B8F8F", importedImage.Border.ColorRgb);
         Assert.Equal(24_000U, importedImage.Shadow.OpacityThousandthPercent);
         Assert.Equal("Rising evidence line", importedImage.AltText);
+        var importedCustomMaskImage = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "irregular editorial crop").Image;
+        Assert.Empty(importedCustomMaskImage.MaskPreset);
+        Assert.Empty(importedCustomMaskImage.MaskPresetAdjustments);
+        Assert.Equal(5, Assert.Single(importedCustomMaskImage.CustomMaskPaths).Commands.Count);
         var importedBubble = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart &&
             element.Chart.Type == SpreadsheetChartType.Bubble).Chart;
@@ -638,6 +807,8 @@ public sealed class PptxCodecTests
         Assert.True(importedLine.LineOptions.HasSmooth);
         Assert.False(importedLine.LineOptions.Smooth);
         Assert.True(importedLine.LineOptions.VaryColors);
+        Assert.Equal([92D, 0D, 121D], Assert.Single(importedLine.Series).Values);
+        Assert.Equal([1U], importedLine.Series[0].MissingValueIndexes);
         var importedClaim = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Shape &&
             element.Shape.Text.Contains("Reduce incident hours", StringComparison.Ordinal)).Shape;
@@ -645,6 +816,9 @@ public sealed class PptxCodecTests
         Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
         Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
         Assert.Equal("Main decision claim", importedClaim.Accessibility.Description);
+        Assert.Equal("•", importedClaim.TextBody.Paragraphs[0].BulletCharacter);
+        Assert.Equal("0B8F8F", importedClaim.TextBody.Paragraphs[0].BulletColorRgb);
+        Assert.Equal(50_000U, importedClaim.TextBody.Paragraphs[0].BulletColorOpacityThousandthPercent);
         Assert.Equal("16324F", importedClaim.TextBody.Paragraphs[0].Runs[0].ColorRgb);
         Assert.Equal(80_000U, importedClaim.TextBody.Paragraphs[0].Runs[0].ColorOpacityThousandthPercent);
         var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
@@ -695,6 +869,7 @@ public sealed class PptxCodecTests
         Assert.Equal(SpreadsheetChartMarkerSymbol.Circle, importedAnalyticalSeries.Marker.Symbol);
         Assert.Equal(8U, importedAnalyticalSeries.Marker.Size);
         Assert.Equal("F2C14E", importedAnalyticalSeries.Marker.Fill.Rgb);
+        Assert.Equal(50_196U, importedAnalyticalSeries.Marker.FillOpacityThousandthPercent);
         Assert.Equal(SpreadsheetChartTrendlineType.Linear, Assert.Single(importedAnalyticalSeries.Trendlines).Type);
         Assert.Equal(SpreadsheetChartErrorBarValueType.StandardError, importedAnalyticalSeries.ErrorBars.ValueType);
         Assert.True(importedAnalyticalSeries.ErrorBars.NoEndCap);
@@ -816,6 +991,10 @@ public sealed class PptxCodecTests
                 item.GetProperty("fit").GetString() == "tile" &&
                 item.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray().Any(capability =>
                     capability.GetProperty("operation").GetString() == "setImageFit"));
+            Assert.Contains(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "irregular editorial crop" &&
+                item.GetProperty("mask").GetProperty("kind").GetString() == "custom" &&
+                item.GetProperty("mask").GetProperty("paths")[0].GetProperty("commands").GetArrayLength() == 5);
             Assert.Contains(projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "decision-flow-start" &&
                 item.GetProperty("style").GetProperty("fill").GetProperty("type").GetString() == "image" &&
@@ -847,6 +1026,8 @@ public sealed class PptxCodecTests
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("highlight").GetString());
             Assert.Equal("zh-CN", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("language").GetString());
+            Assert.Equal("#0B8F8F80", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("style").GetProperty("bullet").GetProperty("color").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
             Assert.Equal(6, projectedChart.GetProperty("frame").GetProperty("rotation").GetDouble());
@@ -858,6 +1039,7 @@ public sealed class PptxCodecTests
             Assert.Equal(80, projectedChart.GetProperty("yAxis").GetProperty("max").GetDouble());
             var projectedSeries = projectedChart.GetProperty("data").GetProperty("series")[1];
             Assert.Equal(8, projectedSeries.GetProperty("marker").GetProperty("size").GetInt32());
+            Assert.Equal("#F2C14E80", projectedSeries.GetProperty("marker").GetProperty("fill").GetString());
             Assert.Equal("solid", projectedSeries.GetProperty("fill").GetProperty("type").GetString());
             Assert.Equal("#F2C14E", projectedSeries.GetProperty("fill").GetProperty("color").GetString());
             Assert.Equal(128 / 255d, projectedSeries.GetProperty("fill").GetProperty("opacity").GetDouble(), 5);
@@ -889,6 +1071,8 @@ public sealed class PptxCodecTests
                 capability.GetProperty("operation").GetString() == "setChartTextStyle");
             Assert.False(projectedLine.GetProperty("style").GetProperty("smooth").GetBoolean());
             Assert.True(projectedLine.GetProperty("style").GetProperty("varyColors").GetBoolean());
+            Assert.Equal(JsonValueKind.Null, projectedLine.GetProperty("data").GetProperty("series")[0]
+                .GetProperty("values")[1].ValueKind);
             var projectedRadar = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "radar");
@@ -960,6 +1144,67 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
 
+        var missingPointEditProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var missingPointChart = missingPointEditProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "line");
+        missingPointChart["data"]!["series"]![0]!["values"]![0] = 95;
+        var missingPointEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(missingPointEditProgram.ToJsonString()),
+            },
+        });
+        Assert.True(missingPointEdit.Ok, Diagnostics(missingPointEdit));
+        var missingPointReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = missingPointEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/missing-point-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(missingPointReprojection.Ok, Diagnostics(missingPointReprojection));
+        using (var missingPointJson = JsonDocument.Parse(missingPointReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedValues = missingPointJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("type").GetString() == "chart" &&
+                    element.GetProperty("chartType").GetString() == "line")
+                .GetProperty("data").GetProperty("series")[0].GetProperty("values");
+            Assert.Equal(95, reprojectedValues[0].GetDouble());
+            Assert.Equal(JsonValueKind.Null, reprojectedValues[1].ValueKind);
+        }
+
+        var rejectedMissingTopologyProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var rejectedMissingTopologyChart = rejectedMissingTopologyProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "line");
+        rejectedMissingTopologyChart["data"]!["series"]![0]!["values"]![1] = 106;
+        var rejectedMissingTopology = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(rejectedMissingTopologyProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejectedMissingTopology.Ok);
+        Assert.Contains(rejectedMissingTopology.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
+
         var chartTextStyleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var chartTextStyleChart = chartTextStyleProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -1027,7 +1272,7 @@ public sealed class PptxCodecTests
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
         Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart4.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart5.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
             chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
@@ -1080,7 +1325,8 @@ public sealed class PptxCodecTests
         imagePaintShape["style"]!["fill"]!["opacity"] = 0.44;
         var tiledImage = imagePaintProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "image");
+            .Single(element => element["type"]!.GetValue<string>() == "image" &&
+                element["mask"]?["kind"]?.GetValue<string>() == "preset");
         tiledImage["fit"] = "stretch";
         var imagePaintPageId = imagePaintProgram["pages"]![1]!["id"]!.GetValue<string>();
         var imagePaintShapeId = imagePaintShape["id"]!.GetValue<string>();
@@ -1124,7 +1370,8 @@ public sealed class PptxCodecTests
                 .GetProperty("style").GetProperty("fill");
             Assert.Equal(0.44, reprojectedImageFill.GetProperty("opacity").GetDouble(), 3);
             var reprojectedImage = imagePaintRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
-                .Single(element => element.GetProperty("type").GetString() == "image");
+                .Single(element => element.GetProperty("type").GetString() == "image" &&
+                    element.GetProperty("mask").GetProperty("kind").GetString() == "preset");
             Assert.Equal("stretch", reprojectedImage.GetProperty("fit").GetString());
         }
 
@@ -1290,10 +1537,33 @@ public sealed class PptxCodecTests
             Assert.Equal(22000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
         }
 
+        var changedCustomMaskProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var changedCustomMaskImage = changedCustomMaskProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["name"]?.GetValue<string>() == "irregular editorial crop");
+        Assert.DoesNotContain(changedCustomMaskImage["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setImageMask");
+        changedCustomMaskImage["mask"]!["paths"]![0]!["commands"]![1]!["x"] = 150;
+        var rejectedCustomMaskEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(changedCustomMaskProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.False(rejectedCustomMaskEdit.Ok);
+        Assert.Empty(rejectedCustomMaskEdit.File);
+
         var adjustedMaskProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         var adjustedMaskImage = adjustedMaskProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
-            .Single(element => element["type"]!.GetValue<string>() == "image");
+            .Single(element => element["type"]!.GetValue<string>() == "image" &&
+                element["mask"]?["kind"]?.GetValue<string>() == "preset");
         Assert.Contains(adjustedMaskImage["nativeRef"]!["capabilities"]!.AsArray(), capability =>
             capability!["operation"]!.GetValue<string>() == "setImageMask");
         adjustedMaskImage["mask"]!["adjustments"]![0] = 32000;
@@ -1703,7 +1973,7 @@ public sealed class PptxCodecTests
 
         var editedArtifact = imported.Artifact.Clone();
         var editedImage = Assert.Single(editedArtifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "evidence identity").Image;
         editedImage.OpacityThousandthPercent = 76_000;
         editedImage.MaskPreset = "roundRect";
         editedImage.Border = null;
@@ -1713,7 +1983,7 @@ public sealed class PptxCodecTests
         var editedRoundTrip = Import(edited.File.ToByteArray());
         Assert.True(editedRoundTrip.Ok, Diagnostics(editedRoundTrip));
         var roundTripImage = Assert.Single(editedRoundTrip.Artifact.Presentation.Slides[0].Elements, element =>
-            element.ContentCase == PresentationElement.ContentOneofCase.Image).Image;
+            element.ContentCase == PresentationElement.ContentOneofCase.Image && element.Name == "evidence identity").Image;
         Assert.Equal(76_000U, roundTripImage.OpacityThousandthPercent);
         Assert.Equal("roundRect", roundTripImage.MaskPreset);
         Assert.Null(roundTripImage.Border);

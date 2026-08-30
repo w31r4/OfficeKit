@@ -243,10 +243,17 @@ internal static class PpjAuthoredPresentationCompiler
             image.OpacityThousandthPercent = Opacity(opacity.GetDouble());
         if (raw.TryGetProperty("mask", out var mask))
         {
-            if (mask.GetProperty("kind").GetString() != "preset")
-                throw Unsupported(element.Id, "custom image masks require the native custom-geometry picture compiler");
-            image.MaskPreset = mask.GetProperty("preset").GetString()!;
-            image.MaskPresetAdjustments.Add(element.MaskAdjustments);
+            if (mask.GetProperty("kind").GetString() == "preset")
+            {
+                image.MaskPreset = mask.GetProperty("preset").GetString()!;
+                image.MaskPresetAdjustments.Add(element.MaskAdjustments);
+            }
+            else
+            {
+                var customMask = new PresentationShape { Geometry = "custom" };
+                ApplyCustomGeometry(customMask, mask, element.Id + " image mask");
+                image.CustomMaskPaths.Add(customMask.CustomPaths);
+            }
         }
         if (raw.TryGetProperty("border", out var border))
         {
@@ -287,27 +294,25 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (element.Data.Series.Any(series => series.Values.Any(value => value is null)))
-            throw Unsupported(element.Id, "null chart values require a missing-value-aware native chart cache");
-        if (element.ChartType == "waterfall")
-            throw Unsupported(element.Id, $"{element.ChartType} chart authoring is not yet compiler-owned");
         if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
             throw Unsupported(element.Id, "rich chart-title formatting is not yet compiler-owned");
 
+        var isWaterfall = element.ChartType == "waterfall";
         var chart = new PresentationChart
         {
             LeftEmu = Emu(element.Frame.X),
             TopEmu = Emu(element.Frame.Y),
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
-            Type = ChartType(element.ChartType),
+            Type = isWaterfall ? SpreadsheetChartType.Bar : ChartType(element.ChartType),
             Title = element.Title is null ? string.Empty : Flatten(element.Title),
-            BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType == "column" ? "column" : string.Empty,
+            BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType is "column" or "waterfall" ? "column" : string.Empty,
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) chart.FrameTransform = frameTransform;
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
+        if (isWaterfall) ValidateWaterfallCompileProfile(element, raw, namedStyle, inlineStyle);
         ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id);
 
         var rawXAxis = Property(raw, "xAxis");
@@ -337,6 +342,12 @@ internal static class PpjAuthoredPresentationCompiler
         }
 
         var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
+        if (isWaterfall)
+        {
+            BuildWaterfallSeries(chart, element, namedStyle, inlineStyle, catalog);
+            ApplyAccessibility(chart, element.Accessibility);
+            return chart;
+        }
         for (var index = 0; index < element.Data.Series.Count; index++)
         {
             var source = element.Data.Series[index];
@@ -367,6 +378,141 @@ internal static class PpjAuthoredPresentationCompiler
         return chart;
     }
 
+    private static void ValidateWaterfallCompileProfile(
+        PpjChartElementModel element,
+        JsonElement raw,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle)
+    {
+        if (element.Data.Series.Count != 1)
+            throw Unsupported(element.Id, "waterfall charts require exactly one semantic series");
+        var series = raw.GetProperty("data").GetProperty("series")[0];
+        RejectProperties(
+            series,
+            element.Id,
+            "chartType",
+            "axis",
+            "color",
+            "fill",
+            "stroke",
+            "marker",
+            "trendlines",
+            "errorBars",
+            "xValues",
+            "bubbleSizes");
+        foreach (var name in new[] { "stacking", "showDataLabels", "dataLabelPosition", "dataLabels", "smooth", "varyColors" })
+            if (FirstProperty(inlineStyle, namedStyle, name) is not null)
+                throw Unsupported(element.Id, $"{name} is outside the bounded waterfall style profile");
+        if (FirstProperty(inlineStyle, namedStyle, "legend") is { } legend && legend.GetString() != "none")
+            throw Unsupported(element.Id, "waterfall charts do not expose their internal lowering series through a legend");
+        if (FirstProperty(inlineStyle, namedStyle, "waterfall") is not { } waterfall)
+            throw Unsupported(element.Id, "waterfall charts require style.waterfall increase, decrease, and total role styles");
+        foreach (var role in new[] { "increase", "decrease", "total" })
+        {
+            var fillType = waterfall.GetProperty(role).GetProperty("fill").GetProperty("type").GetString();
+            if (fillType is "none" or "image")
+                throw Unsupported(element.Id, $"waterfall {role} fill must be solid or a bounded gradient");
+        }
+    }
+
+    private static void BuildWaterfallSeries(
+        PresentationChart chart,
+        PpjChartElementModel element,
+        JsonElement? namedStyle,
+        JsonElement? inlineStyle,
+        Catalog catalog)
+    {
+        var semantic = element.Data.Series[0];
+        if (semantic.PointRoles.Count != semantic.Values.Count || semantic.Values.Any(value => value is null))
+            throw Unsupported(element.Id, "waterfall values and pointRoles must be complete and aligned");
+
+        var count = semantic.Values.Count;
+        var offset = new double[count];
+        var increase = new double[count];
+        var decrease = new double[count];
+        var total = new double[count];
+        var increaseMissing = new List<uint>(count);
+        var decreaseMissing = new List<uint>(count);
+        var totalMissing = new List<uint>(count);
+        var running = 0d;
+        for (var index = 0; index < count; index++)
+        {
+            var value = semantic.Values[index]!.Value;
+            if (semantic.PointRoles[index] == "total")
+            {
+                offset[index] = 0;
+                total[index] = value;
+                increaseMissing.Add(checked((uint)index));
+                decreaseMissing.Add(checked((uint)index));
+                running = value;
+                continue;
+            }
+
+            var next = running + value;
+            offset[index] = Math.Min(running, next);
+            if (value >= 0)
+            {
+                increase[index] = value;
+                decreaseMissing.Add(checked((uint)index));
+            }
+            else
+            {
+                decrease[index] = -value;
+                increaseMissing.Add(checked((uint)index));
+            }
+            totalMissing.Add(checked((uint)index));
+            running = next;
+        }
+
+        var waterfall = FirstProperty(inlineStyle, namedStyle, "waterfall")!.Value;
+        chart.Grouping = "stacked";
+        if (!chart.HasGapWidth) chart.GapWidth = 60;
+        chart.HasLegend = false;
+        chart.LegendPosition = string.Empty;
+        chart.DataLabels = null;
+        chart.YAxis ??= new SpreadsheetChartAxisArtifact();
+        if (!chart.YAxis.HasMinimum) chart.YAxis.Minimum = 0;
+
+        var offsetSeries = new SpreadsheetChartSeriesArtifact
+        {
+            Name = "__offset__",
+            SeriesFill = new SpreadsheetChartSurfaceFill { NoFill = true },
+            Line = new SpreadsheetChartLineStyleArtifact
+            {
+                Color = new SpreadsheetColor { Rgb = "000000" },
+                WidthPoints = 0,
+                OpacityThousandthPercent = 0,
+            },
+        };
+        offsetSeries.Values.Add(offset);
+        chart.Series.Add(offsetSeries);
+        chart.Series.Add(WaterfallRoleSeries(
+            waterfall.GetProperty("increase"), increase, increaseMissing, catalog, element.Id, "increase"));
+        chart.Series.Add(WaterfallRoleSeries(
+            waterfall.GetProperty("decrease"), decrease, decreaseMissing, catalog, element.Id, "decrease"));
+        chart.Series.Add(WaterfallRoleSeries(
+            waterfall.GetProperty("total"), total, totalMissing, catalog, element.Id, "total"));
+    }
+
+    private static SpreadsheetChartSeriesArtifact WaterfallRoleSeries(
+        JsonElement role,
+        IReadOnlyList<double> values,
+        IEnumerable<uint> missingIndexes,
+        Catalog catalog,
+        string elementId,
+        string roleName)
+    {
+        var output = new SpreadsheetChartSeriesArtifact
+        {
+            Name = role.GetProperty("label").GetString()!,
+            SeriesFill = BuildChartFill(role.GetProperty("fill"), catalog, $"{elementId} waterfall {roleName} fill"),
+        };
+        output.Values.Add(values);
+        output.MissingValueIndexes.Add(missingIndexes);
+        if (role.TryGetProperty("stroke", out var stroke)) output.Line = BuildChartLine(stroke, catalog);
+        return output;
+    }
+
     private static SpreadsheetChartSeriesArtifact BuildSeries(
         PpjChartSeriesModel source,
         JsonElement raw,
@@ -376,7 +522,16 @@ internal static class PpjAuthoredPresentationCompiler
         if (raw.TryGetProperty("fill", out _) && raw.TryGetProperty("color", out _))
             throw Unsupported(source.Id, "chart-series color and fill are aliases and cannot both be present");
         var series = new SpreadsheetChartSeriesArtifact { Name = source.Name };
-        series.Values.Add(source.Values.Select(value => value!.Value));
+        for (var index = 0; index < source.Values.Count; index++)
+        {
+            var value = source.Values[index];
+            if (value is null)
+            {
+                series.Values.Add(0d);
+                series.MissingValueIndexes.Add(checked((uint)index));
+            }
+            else series.Values.Add(value.Value);
+        }
         series.XValues.Add(source.XValues);
         series.BubbleSizes.Add(source.BubbleSizes);
         if (raw.TryGetProperty("fill", out var fill))
@@ -453,8 +608,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (source.TryGetProperty("fill", out var fill))
         {
             var color = catalog.Color(fill);
-            if (color.Alpha != 1) throw Unsupported("chart marker", "fill opacity is not compiler-owned");
             marker.Fill = new SpreadsheetColor { Rgb = color.Rgb };
+            if (color.Alpha < 1) marker.FillOpacityThousandthPercent = Opacity(color.Alpha);
         }
         if (source.TryGetProperty("stroke", out var stroke)) marker.Line = BuildChartLine(stroke, catalog);
         return marker;
@@ -552,7 +707,23 @@ internal static class PpjAuthoredPresentationCompiler
                     catalog);
                 targetCell.Text = PptxTextCodec.Flatten(targetCell.TextBody);
                 if ((Property(rawCell, "fill") ?? defaultCellFill) is { } cellFill)
-                    targetCell.Fill = BuildTableCellFill(cellFill, catalog, element.Id);
+                {
+                    var cellWidthEmu = table.ColumnWidthsEmu
+                        .Skip(cursor)
+                        .Take(cell.ColumnSpan)
+                        .Sum();
+                    var cellHeightEmu = rowHeights
+                        .Skip(rowIndex)
+                        .Take(cell.RowSpan)
+                        .Sum();
+                    targetCell.Fill = BuildTableCellFill(
+                        cellFill,
+                        cellWidthEmu,
+                        cellHeightEmu,
+                        catalog,
+                        element.Id,
+                        $"table {element.Id} row {rowIndex} cell {sourceCellIndex} fill");
+                }
                 if (Property(rawCell, "borders") is { } borders)
                     targetCell.Borders = BuildTableCellBorders(borders, catalog);
                 if (cell.RowSpan > 1 || cell.ColumnSpan > 1)
@@ -605,8 +776,11 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationTableCellFill BuildTableCellFill(
         JsonElement fill,
+        double cellWidth,
+        double cellHeight,
         Catalog catalog,
-        string elementId)
+        string elementId,
+        string path)
     {
         var type = fill.GetProperty("type").GetString();
         if (type == "none") return new PresentationTableCellFill { NoFill = true };
@@ -622,6 +796,17 @@ internal static class PpjAuthoredPresentationCompiler
             return new PresentationTableCellFill
             {
                 GradientFill = BuildGradientFill(fill, color => catalog.Color(color)),
+            };
+        if (type == "image")
+            return new PresentationTableCellFill
+            {
+                ImagePaint = PpjImagePaintLowering.Build(
+                    fill,
+                    cellWidth,
+                    cellHeight,
+                    catalog.NativeAssetId,
+                    catalog.AssetDimensions,
+                    path),
             };
         throw Unsupported(elementId, $"table-cell {type} fills are not compiler-owned");
     }
@@ -856,7 +1041,8 @@ internal static class PpjAuthoredPresentationCompiler
                 paragraph,
                 Property(namedStyle, "paragraph"),
                 Property(inlineStyle, "paragraph"),
-                null);
+                null,
+                catalog);
             paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, inlineStyle, null, null, catalog));
             body.Paragraphs.Add(paragraph);
             return body;
@@ -868,7 +1054,8 @@ internal static class PpjAuthoredPresentationCompiler
                 paragraph,
                 Property(namedStyle, "paragraph"),
                 Property(inlineStyle, "paragraph"),
-                Property(paragraphJson, "style"));
+                Property(paragraphJson, "style"),
+                catalog);
             foreach (var run in paragraphJson.GetProperty("runs").EnumerateArray())
                 paragraph.Runs.Add(BuildRun(
                     run.GetProperty("text").GetString()!,
@@ -1024,7 +1211,8 @@ internal static class PpjAuthoredPresentationCompiler
         PresentationTextParagraph target,
         JsonElement? named,
         JsonElement? inline,
-        JsonElement? direct)
+        JsonElement? direct,
+        Catalog catalog)
     {
         if (FirstProperty(direct, inline, named, "alignment") is { } alignment)
             target.Alignment = alignment.GetString()!;
@@ -1062,7 +1250,12 @@ internal static class PpjAuthoredPresentationCompiler
                 if (bullet.TryGetProperty("startAt", out var startAt)) target.AutoNumber.StartAt = checked((uint)startAt.GetInt32());
             }
             if (bullet.TryGetProperty("fontFamily", out var bulletFont)) target.BulletFontFamily = bulletFont.GetString()!;
-            if (bullet.TryGetProperty("color", out var bulletColor)) target.BulletColorRgb = NormalizeRgbToken(bulletColor);
+            if (bullet.TryGetProperty("color", out var bulletColor))
+            {
+                var color = catalog.Color(bulletColor);
+                target.BulletColorRgb = color.Rgb;
+                if (color.Alpha < 1) target.BulletColorOpacityThousandthPercent = Opacity(color.Alpha);
+            }
             if (bullet.TryGetProperty("size", out var bulletSize)) target.BulletSizePoints = bulletSize.GetDouble();
             if (bullet.TryGetProperty("sizePercent", out var bulletSizePercent)) target.BulletSizePercent = bulletSizePercent.GetDouble();
         }
@@ -1732,16 +1925,6 @@ internal static class PpjAuthoredPresentationCompiler
         "upper-roman" => "romanUcPeriod",
         _ => throw Unsupported("text", $"unsupported numbered bullet format {value}"),
     };
-
-    private static string NormalizeRgbToken(JsonElement color)
-    {
-        if (color.ValueKind != JsonValueKind.String)
-            throw Unsupported("text", "theme bullet colors require the theme-aware text compiler");
-        var resolved = ParseHexColor(color.GetString()!);
-        if (resolved.Alpha != 1)
-            throw Unsupported("text", "bullet color alpha is not yet compiler-owned");
-        return resolved.Rgb;
-    }
 
     private static string Flatten(PpjTextContentModel text) =>
         text.PlainText ?? string.Join('\n', text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(run => run.Text))));

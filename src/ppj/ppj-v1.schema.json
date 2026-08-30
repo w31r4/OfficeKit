@@ -2596,6 +2596,16 @@
             ]
           }
         },
+        "pointRoles": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "enum": [
+              "delta",
+              "total"
+            ]
+          }
+        },
         "xValues": {
           "type": "array",
           "maxItems": 10000,
@@ -2734,6 +2744,50 @@
         },
         "varyColors": {
           "type": "boolean"
+        },
+        "waterfall": {
+          "$ref": "#/$defs/waterfallStyle"
+        }
+      }
+    },
+    "waterfallRoleStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "fill"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        }
+      }
+    },
+    "waterfallStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "increase",
+        "decrease",
+        "total"
+      ],
+      "properties": {
+        "increase": {
+          "$ref": "#/$defs/waterfallRoleStyle"
+        },
+        "decrease": {
+          "$ref": "#/$defs/waterfallRoleStyle"
+        },
+        "total": {
+          "$ref": "#/$defs/waterfallRoleStyle"
         }
       }
     },

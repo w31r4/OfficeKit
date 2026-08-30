@@ -24,6 +24,14 @@ and a chart that merely repeats one large number.
 - Show missing values and estimates honestly.
 - Put the exact source and as-of date on the page or in a visible source area.
 
+Use JSON `null` for a genuinely missing Y observation. OfficeKit keeps the
+logical point count and writes a native chart gap; it does not coerce the value
+to zero or invent an estimate. This works for the bounded authored chart
+families, including numeric scatter/bubble Y values. Numeric `xValues` and
+`bubbleSizes` remain complete arrays. In a source-bound chart, edit measured
+values around an existing gap, but do not add or remove gaps: missing-point
+topology remains tied to the exact source cache.
+
 Lines, markers, labels, confidence intervals, error bars, and decision
 thresholds are protected foreground evidence. Bars, areas, fills, masks, and
 annotations may not hide them. For truthful combo charts, first keep the real
@@ -50,8 +58,8 @@ spatial relationship, never to decorate a page.
 
 The authored chart compiler owns these native visual controls:
 
-- bar, column, line, area, pie, doughnut, scatter, bubble, standard radar, and
-  bounded bar-line combo plots;
+- bar, column, line, area, pie, doughnut, scatter, bubble, standard radar,
+  bounded semantic waterfall, and bounded bar-line combo plots;
 - legend visibility and top, bottom, left, or right placement;
 - ordinary, stacked, and percent-stacked grouping where the chart family
   supports it;
@@ -67,7 +75,7 @@ The authored chart compiler owns these native visual controls:
   RGB/alpha plus canonical line-chart smoothing and direct color variation;
 - structured data labels for value, category, series, percentage and native
   position;
-- direct marker symbol, size, fill and stroke;
+- direct marker symbol, size, RGB/alpha fill and bounded stroke;
 - exponential, linear, logarithmic, moving-average, polynomial and power
   trendlines on bar, column and line series;
 - fixed-value, percentage, standard-deviation and standard-error error bars on
@@ -90,7 +98,7 @@ shapes:
       "id": "conversion",
       "name": "Conversion",
       "values": [0.18, 0.22, 0.27, 0.31],
-      "marker": { "symbol": "circle", "size": 7, "fill": "#FFFFFF", "stroke": { "color": "#16697A", "width": 1 } },
+      "marker": { "symbol": "circle", "size": 7, "fill": "#FFFFFFCC", "stroke": { "color": "#16697A", "width": 1 } },
       "trendlines": [{ "type": "linear", "stroke": { "color": "#D9A21B", "width": 1.25, "dash": "dash" } }],
       "errorBars": { "valueType": "standard-error", "direction": "y", "type": "both" }
     }]
@@ -234,10 +242,56 @@ labels:
 ```
 
 `xValues` is required for scatter and bubble; `bubbleSizes` is required only
-for bubble. Each vector has exactly the same length as `values`, bubble sizes
-are positive, and `categories` is empty. Do not encode numeric X values as
-strings merely to reuse a category chart. On imported charts, the current
-`setChartData` capability does not authorize changing X values or bubble sizes.
+for bubble. Each vector has exactly the same logical length as `values`, X
+values are finite, bubble sizes are positive, and `categories` is empty. Only
+Y `values` may contain `null`. Do not encode numeric X values as strings merely
+to reuse a category chart. On imported charts, the current `setChartData`
+capability does not authorize changing X values, bubble sizes, or the positions
+of missing Y observations.
+
+Use `waterfall` for a cumulative bridge whose opening/closing totals and signed
+changes must remain explicit. Author one semantic series rather than exposing
+the four implementation series used by the native lowering:
+
+```json
+{
+  "type": "chart",
+  "id": "operating-bridge",
+  "chartType": "waterfall",
+  "frame": { "x": 72, "y": 112, "width": 640, "height": 300 },
+  "title": "Operating bridge",
+  "yAxis": { "title": "Run-rate", "min": 0, "max": 180, "majorUnit": 30 },
+  "style": {
+    "legend": "none",
+    "gapWidth": 55,
+    "waterfall": {
+      "increase": { "label": "Increase", "fill": { "type": "solid", "color": "#0B8F8F" } },
+      "decrease": { "label": "Decrease", "fill": { "type": "solid", "color": "#C8644A" } },
+      "total": { "label": "Total", "fill": { "type": "solid", "color": "#16324F" } }
+    }
+  },
+  "data": {
+    "categories": ["Opening", "Growth", "Churn", "Cost", "Closing"],
+    "series": [{
+      "id": "run-rate",
+      "name": "Run-rate",
+      "values": [120, 40, -25, -10, 125],
+      "pointRoles": ["total", "delta", "delta", "delta", "total"]
+    }]
+  }
+}
+```
+
+A `total` value is absolute. A `delta` value is added to the running total;
+every later total must equal that computed value. The bounded profile keeps the
+cumulative value non-negative and requires explicit increase, decrease, and
+total styles. It deliberately omits legends, automatic data labels, secondary
+axes, trendlines, markers, and error bars because those would expose or confuse
+the hidden offset series. OfficeKit compiles the result to one editable native
+stacked-column ChartPart; it does not fake the bridge with rectangles. Exact
+waterfall intent recovers from the embedded PPJ. If that snapshot is removed,
+ordinary PPTX import truthfully exposes the four native series instead of
+guessing that an arbitrary stacked chart is a waterfall.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
@@ -271,18 +325,21 @@ legend, labels, chart surfaces and fixed-topology source continuation use the
 same chart contracts as the other category families. Filled, marker-only, 3D,
 extension-bearing and irregular native radar variants remain source-owned.
 
-Chart image/pattern paint, theme-transformed gradients, missing-value caches,
-and waterfall still fail closed. Existing unsupported native chart
-graphs remain source-preserved; they are not simplified during an unrelated
-imported edit.
+Chart image/pattern paint, theme-transformed gradients, irregular sparse
+caches, and unrecognized waterfall/ChartEx graphs still fail closed. Existing
+unsupported native chart graphs remain source-preserved; they are not
+simplified during an unrelated imported edit.
 
 The authored table compiler owns a physical column/row grid, finite rectangular
 merges, one optional header row, row/column banding flags, bounded rich text,
-body and paragraph layout, none/solid/gradient cell fills, and direct left,
-top, right, and bottom borders. Named table styles provide defaults and inline
-style properties override them field by field. More than one header row and
-image-filled cells fail closed. Imported table topology and unmodeled native
-style graphs remain source-owned.
+body and paragraph layout, none/solid/gradient/image cell fills, and direct
+left, top, right, and bottom borders. An image fill uses the same local hashed
+asset, crop, cover/contain/stretch/tile, and opacity contract as other PPJ image
+paint. Use it when the cell itself is an evidence thumbnail, product identity,
+or comparison image; do not turn ordinary data tables into decorative mosaics.
+Named table styles provide defaults and inline style properties override them
+field by field. More than one header row fails closed. Imported table topology
+and unmodeled native style graphs remain source-owned.
 
 Use [the complete PPJ reference](ppj.md) for exact fields, value ranges, and
 compiler boundaries. This page explains visual choice; it is not a shortened

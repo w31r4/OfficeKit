@@ -26,9 +26,17 @@ internal static class PptxBulletStyleCodec
             if (color[0] is A.BulletColor specified)
             {
                 if (specified.GetFirstChild<A.RgbColorModelHex>() is { } rgb)
+                {
                     target.BulletColorRgb = PptxColor.Normalize(rgb.Val!.Value!);
+                    if (TryDirectOpacity(rgb, out var opacity) && opacity is { } value)
+                        target.BulletColorOpacityThousandthPercent = value;
+                }
                 else if (specified.GetFirstChild<A.SchemeColor>() is { } scheme && PptxColor.TrySchemeToken(scheme.Val!.Value, out var token))
+                {
                     target.BulletColorScheme = token;
+                    if (TryDirectOpacity(scheme, out var opacity) && opacity is { } value)
+                        target.BulletColorOpacityThousandthPercent = value;
+                }
             }
             else target.BulletColorFollowText = true;
         }
@@ -84,6 +92,11 @@ internal static class PptxBulletStyleCodec
             default:
                 throw Invalid("Presentation paragraph contains an unknown bullet-color case.");
         }
+        if (paragraph.HasBulletColorOpacityThousandthPercent &&
+            (paragraph.BulletColorCase is not (PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb or
+             PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme) ||
+             paragraph.BulletColorOpacityThousandthPercent > 100_000))
+            throw Invalid("Presentation bullet color opacity requires an RGB or theme color and must be from 0 to 100000.");
 
         switch (paragraph.BulletSizeCase)
         {
@@ -165,11 +178,18 @@ internal static class PptxBulletStyleCodec
 
     private static OpenXmlElement BuildColor(PresentationTextParagraph source) => source.BulletColorCase switch
     {
-        PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb => new A.BulletColor(new A.RgbColorModelHex { Val = PptxColor.Normalize(source.BulletColorRgb) }),
-        PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme => new A.BulletColor(new A.SchemeColor { Val = PptxColor.SchemeValue(source.BulletColorScheme) }),
+        PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb => new A.BulletColor(Color(source, new A.RgbColorModelHex { Val = PptxColor.Normalize(source.BulletColorRgb) })),
+        PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme => new A.BulletColor(Color(source, new A.SchemeColor { Val = PptxColor.SchemeValue(source.BulletColorScheme) })),
         PresentationTextParagraph.BulletColorOneofCase.BulletColorFollowText => new A.BulletColorText(),
         _ => throw Invalid("Presentation paragraph has no modeled bullet-color style."),
     };
+
+    private static OpenXmlElement Color(PresentationTextParagraph source, OpenXmlElement color)
+    {
+        if (source.HasBulletColorOpacityThousandthPercent)
+            color.Append(new A.Alpha { Val = checked((int)source.BulletColorOpacityThousandthPercent) });
+        return color;
+    }
 
     private static OpenXmlElement BuildSize(PresentationTextParagraph source) => source.BulletSizeCase switch
     {
@@ -198,9 +218,9 @@ internal static class PptxBulletStyleCodec
     private static bool ModeledColor(OpenXmlElement source) => source switch
     {
         A.BulletColor color when EmptyAttributes(color) && color.ChildElements.Count == 1 && color.GetFirstChild<A.RgbColorModelHex>() is { } rgb =>
-            SimpleAttribute(rgb, "val") && rgb.ChildElements.Count == 0 && ValidRgb(rgb.Val?.Value),
+            ColorAttribute(rgb) && ValidRgb(rgb.Val?.Value) && TryDirectOpacity(rgb, out _),
         A.BulletColor color when EmptyAttributes(color) && color.ChildElements.Count == 1 && color.GetFirstChild<A.SchemeColor>() is { } scheme =>
-            SimpleAttribute(scheme, "val") && scheme.ChildElements.Count == 0 && ValidScheme(scheme.Val?.Value),
+            ColorAttribute(scheme) && ValidScheme(scheme.Val?.Value) && TryDirectOpacity(scheme, out _),
         A.BulletColorText follow => Empty(follow),
         _ => false,
     };
@@ -221,6 +241,23 @@ internal static class PptxBulletStyleCodec
     {
         var attributes = source.GetAttributes();
         return source.ChildElements.Count == 0 && attributes.Count == 1 && attributes[0].LocalName == name;
+    }
+
+    private static bool ColorAttribute(OpenXmlElement source)
+    {
+        var attributes = source.GetAttributes();
+        return attributes.Count == 1 && attributes[0].LocalName == "val";
+    }
+
+    private static bool TryDirectOpacity(OpenXmlElement source, out uint? opacity)
+    {
+        opacity = null;
+        if (source.ChildElements.Count == 0) return true;
+        if (source.ChildElements.Count != 1 || source.FirstChild is not A.Alpha alpha ||
+            alpha.ChildElements.Count != 0 || !SimpleAttribute(alpha, "val") ||
+            alpha.Val?.Value is not { } value || value is < 0 or > 100_000) return false;
+        opacity = checked((uint)value);
+        return true;
     }
 
     private static bool ValidRgb(string? value)

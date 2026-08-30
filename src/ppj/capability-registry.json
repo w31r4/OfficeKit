@@ -41,32 +41,11 @@
   },
   "authoredCompilerBoundaries": [
     {
-      "feature": "image-filled table cells",
-      "ppjPath": "table rows[].cells[].fill where type is image",
-      "behavior": "fail-closed",
-      "sourceBound": "Existing unsupported table-cell image fills remain source-preserved.",
-      "reason": "Authored table cells own none, solid, and bounded direct-RGB gradients. Image-filled table cells remain native-owned. Authored chart areas, plot areas, and series separately own none, solid, and bounded direct-RGB gradients."
-    },
-    {
-      "feature": "custom-path image masks",
-      "ppjPath": "image.mask where kind is custom",
-      "behavior": "fail-closed",
-      "sourceBound": "Existing custom mask topology remains source-preserved.",
-      "reason": "Authored and canonical imported preset masks own the complete ordered adjustment array; arbitrary custom mask paths remain native-owned."
-    },
-    {
       "feature": "independently rotated connector frames",
       "ppjPath": "connector.frame",
       "behavior": "fail-closed",
       "sourceBound": "Imported placement and transform topology remains source-preserved unless a matching typed capability is issued.",
       "reason": "Shape, text, placeholder, image, chart, table and group frames own rotation/flips; connector orientation remains endpoint-derived."
-    },
-    {
-      "feature": "waterfall and missing chart points",
-      "ppjPath": "chart.chartType or chart.data.series[].values[]",
-      "behavior": "fail-closed",
-      "sourceBound": "Existing chart parts remain source-preserved; title and proven data-point edits use typed operations.",
-      "reason": "The authored chart compiler owns finite bounded chart families including standard radar, numeric scatter/bubble channels, and typed axes, labels, markers, trendlines and non-formula error bars where the native family permits them."
     },
     {
       "feature": "effect-bearing and irregular chart typography",
@@ -83,18 +62,18 @@
       "reason": "PPJ models their persistent state, but authored native creation is not yet compiler-owned."
     },
     {
-      "feature": "multi-header and image-filled authored tables",
+      "feature": "multi-header authored tables",
       "ppjPath": "table.style",
       "behavior": "partial",
       "sourceBound": "Imported table topology and unmodeled styling remain source-preserved.",
-      "reason": "Authored tables support bounded rich cell text, body and paragraph layout, none/solid/gradient cell fills, direct borders, banding and one header row. More than one header row and image cell fills fail closed."
+      "reason": "Authored tables support bounded rich cell text, body and paragraph layout, none/solid/gradient/image cell fills, direct borders, banding and one header row. More than one header row fails closed."
     },
     {
-      "feature": "theme-colored bullets and uncommon numbering schemes",
+      "feature": "native-theme bullet identity and uncommon numbering schemes",
       "ppjPath": "text.paragraphs[].style.bullet",
       "behavior": "partial",
       "sourceBound": "Existing paragraph bullet leaves are editable only when capability-issued.",
-      "reason": "Authored bullets currently accept explicit RGB plus the documented decimal, alpha and Roman schemes."
+      "reason": "Authored bullets accept literal RGB/alpha or deck-local color tokens resolved to RGB/alpha, plus the documented decimal, alpha and Roman schemes. Existing native theme-token identity remains source-bound and leaf-editable rather than being guessed during source-free authoring."
     },
     {
       "feature": "compound-shape global opacity",

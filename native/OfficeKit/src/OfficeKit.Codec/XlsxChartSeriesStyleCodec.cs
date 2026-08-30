@@ -58,9 +58,13 @@ internal static class XlsxChartSeriesStyleCodec
         return true;
     }
 
-    internal static bool TryReadSolidFill(XElement? shapeProperties, out SpreadsheetColor? fill)
+    internal static bool TryReadSolidFill(
+        XElement? shapeProperties,
+        out SpreadsheetColor? fill,
+        out uint? opacityThousandthPercent)
     {
         fill = null;
+        opacityThousandthPercent = null;
         if (shapeProperties is null) return true;
         var fills = shapeProperties.Elements().Where(item => FillNames.Contains(item.Name)).ToArray();
         if (fills.Length == 0) return true;
@@ -71,9 +75,16 @@ internal static class XlsxChartSeriesStyleCodec
         var colors = solidFill.Elements().ToArray();
         if (colors.Length != 1 || colors[0].Name != DrawingNs + "srgbClr") return false;
         var color = colors[0];
-        if (color.HasElements || color.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val")) return false;
+        if (color.Attributes().Any(attribute => !attribute.IsNamespaceDeclaration && attribute.Name != "val")) return false;
         var value = (string?)color.Attribute("val");
         if (value is null || value.Length != 6 || !value.All(Uri.IsHexDigit)) return false;
+        var transforms = color.Elements().ToArray();
+        if (transforms.Length > 1 || transforms.Any(transform => transform.Name != DrawingNs + "alpha")) return false;
+        if (transforms.SingleOrDefault() is { } alpha)
+        {
+            if (!IsScalarAlpha(alpha, out var opacity)) return false;
+            opacityThousandthPercent = opacity;
+        }
         fill = new SpreadsheetColor { Rgb = value.ToUpperInvariant() };
         return true;
     }
@@ -129,8 +140,22 @@ internal static class XlsxChartSeriesStyleCodec
     internal static string Semantics(SpreadsheetChartSeriesArtifact series) =>
         XlsxChartSurfaceFillCodec.Semantics(EffectiveFill(series));
 
-    internal static XElement SolidFillElement(string rgb) =>
-        new(DrawingNs + "solidFill", new XElement(DrawingNs + "srgbClr", new XAttribute("val", rgb.ToUpperInvariant())));
+    internal static XElement SolidFillElement(string rgb, uint? opacityThousandthPercent = null)
+    {
+        var color = new XElement(DrawingNs + "srgbClr", new XAttribute("val", rgb.ToUpperInvariant()));
+        if (opacityThousandthPercent is { } opacity)
+            color.Add(new XElement(DrawingNs + "alpha", new XAttribute("val", opacity)));
+        return new XElement(DrawingNs + "solidFill", color);
+    }
+
+    private static bool IsScalarAlpha(XElement element, out uint opacity)
+    {
+        opacity = 0;
+        return element.Attributes().All(attribute => attribute.IsNamespaceDeclaration || attribute.Name == "val") &&
+            element.Nodes().All(node => node is XText text && string.IsNullOrWhiteSpace(text.Value)) &&
+            uint.TryParse((string?)element.Attribute("val"), NumberStyles.None, CultureInfo.InvariantCulture, out opacity) &&
+            opacity <= 100_000;
+    }
 
     private static SpreadsheetChartSurfaceFill? EffectiveFill(SpreadsheetChartSeriesArtifact series)
     {

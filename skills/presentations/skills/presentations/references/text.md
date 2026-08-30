@@ -72,6 +72,29 @@ Imported text opacity may be visible in projected PPJ, but changing source
 formatting still requires an issued capability. A text-replacement capability
 does not authorize a color or opacity edit.
 
+## Style bullets as text, not decoration
+
+Character and numbered bullets may use the same deck-local color tokens and
+alpha-bearing literals as other authored text:
+
+```json
+{
+  "style": {
+    "bullet": {
+      "type": "character",
+      "character": "•",
+      "color": { "token": "signal", "alpha": 0.72 },
+      "sizePercent": 0.9
+    }
+  }
+}
+```
+
+A PPJ palette token resolves to its declared RGB/alpha; it does not silently
+claim a native PowerPoint theme identity. Keep bullets subordinate to their
+text and use indentation, baseline and spacing for hierarchy. Do not turn each
+bullet into a badge, pill or card.
+
 ## Highlight only the evidence that needs it
 
 Use `highlight` on a run when the audience must locate a short phrase, changed

@@ -1035,6 +1035,11 @@ message SpreadsheetChartSeriesArtifact {
   // fill field remains the untinted opaque-solid compatibility branch and
   // must not be combined with series_fill.
   SpreadsheetChartSurfaceFill series_fill = 14;
+  // Zero-based logical Y-value indexes that have no observation. values keeps
+  // the complete logical point count and stores canonical zero placeholders at
+  // these positions; ChartSpace omits the corresponding c:pt while retaining
+  // the full c:ptCount. Indexes are strictly increasing, unique, and in range.
+  repeated uint32 missing_value_indexes = 15;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
@@ -2462,8 +2467,9 @@ message PresentationShapeTransform {
 // literal adjustments, direct border, opacity, and outer shadow. The legacy alt_text field is
 // the canonical description field for wire compatibility; accessibility_title
 // appends the independent p:cNvPr title without duplicating description state.
-// External links, transformed blips, custom mask geometry, and effect graphs
-// outside the canonical outer-shadow profile remain source-bound opaque content.
+// External links, transformed blips, formula/handle-bearing custom mask
+// geometry, and effect graphs outside the canonical outer-shadow profile
+// remain source-bound opaque content. Literal custom mask paths use field 18.
 message PresentationImage {
   string asset_id = 1;
   string alt_text = 2;
@@ -2497,6 +2503,10 @@ message PresentationImage {
   // False emits the canonical stretch/fillRect owner. True emits one
   // parameter-free a:tile. Crop and direct opacity remain in fields 8 and 12.
   bool tiled = 17;
+  // Bounded literal custom geometry for the picture mask. It is mutually
+  // exclusive with mask_preset/mask_preset_adjustments and reuses the same
+  // ordered path vocabulary as authored custom shapes.
+  repeated PresentationCustomGeometryPath custom_mask_paths = 18;
 }
 
 message PresentationImageBorder {
@@ -2583,6 +2593,9 @@ message PresentationTableCellFill {
     bool no_fill = 1;
     string solid_rgb = 2;
     PresentationGradientFill gradient_fill = 3;
+    // Canonical embedded image paint owned by the table cell's a:tcPr. The
+    // relationship is resolved against the containing slide asset catalog.
+    PresentationImagePaint image_paint = 5;
   }
   // Presence-aware alpha for a direct solid RGB fill, in DrawingML
   // thousandths of one percent. Gradient stops own their alpha individually.
@@ -2826,6 +2839,9 @@ message PresentationTextParagraph {
     PresentationTextStyle default_run_properties = 31;
     bool no_default_run_properties = 32;
   }
+  // Present only with an explicit RGB or theme bullet color. Values use
+  // 0..100000 and lower to one direct DrawingML a:alpha transform.
+  optional uint32 bullet_color_opacity_thousandth_percent = 33;
 }
 
 message PresentationPictureBullet {
@@ -3911,6 +3927,8 @@ message SpreadsheetChartMarkerArtifact {
   SpreadsheetColor fill = 3;
   // Optional bounded direct marker outline; reuses the series-line profile.
   SpreadsheetChartLineStyleArtifact line = 4;
+  // Present only with fill; 0..100000 lowers to one direct DrawingML a:alpha.
+  optional uint32 fill_opacity_thousandth_percent = 5;
 }
 
 enum SpreadsheetChartLineGrouping {

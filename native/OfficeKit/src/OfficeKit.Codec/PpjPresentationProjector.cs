@@ -474,6 +474,9 @@ internal static partial class PpjPresentationProjector
         var image = element.Image;
         if (!context.TryMaterializeAsset(image.AssetId, out var assetId))
             return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose media payload cannot be materialized safely.");
+        var customMask = image.CustomMaskPaths.Count > 0 ? ImageMaskShape(image) : null;
+        if (customMask is not null && !CanProjectCustomGeometry(customMask))
+            return ProjectOpaque(element, id, nativeRef, "picture", "Preserved source picture whose custom mask cannot be represented exactly in PPJ.");
         var output = ElementBase(id, element.Name, ImageFrame(image), ImageAccessibility(image), nativeRef);
         output["type"] = "image";
         output["asset"] = assetId;
@@ -490,7 +493,9 @@ internal static partial class PpjPresentationProjector
         }
         if (image.HasOpacityThousandthPercent)
             output["opacity"] = Unit(image.OpacityThousandthPercent);
-        if (!string.IsNullOrEmpty(image.MaskPreset) && PptxPresetGeometryAdjustmentCodec.HasProfile(image.MaskPreset))
+        if (customMask is not null)
+            output["mask"] = ProjectCustomGeometry(customMask);
+        else if (!string.IsNullOrEmpty(image.MaskPreset) && PptxPresetGeometryAdjustmentCodec.HasProfile(image.MaskPreset))
         {
             var mask = new JsonObject { ["kind"] = "preset", ["preset"] = image.MaskPreset };
             if (image.MaskPresetAdjustments.Count > 0)
@@ -503,6 +508,18 @@ internal static partial class PpjPresentationProjector
         if (image.Shadow is not null && !string.IsNullOrEmpty(image.Shadow.ColorRgb))
             output["shadow"] = Shadow(image.Shadow);
         return output;
+    }
+
+    private static PresentationShape ImageMaskShape(PresentationImage image)
+    {
+        var shape = new PresentationShape
+        {
+            Geometry = "custom",
+            WidthEmu = image.WidthEmu,
+            HeightEmu = image.HeightEmu,
+        };
+        shape.CustomPaths.Add(image.CustomMaskPaths);
+        return shape;
     }
 
     private static JsonObject ProjectChart(PresentationElement element, string id, JsonObject nativeRef)
@@ -533,7 +550,9 @@ internal static partial class PpjPresentationProjector
         {
             var item = series[index];
             var values = new JsonArray();
-            foreach (var value in item.Values) values.Add(NumberNode(value));
+            var missingValueIndexes = item.MissingValueIndexes.ToHashSet();
+            for (var valueIndex = 0; valueIndex < item.Values.Count; valueIndex++)
+                values.Add(missingValueIndexes.Contains((uint)valueIndex) ? null : NumberNode(item.Values[valueIndex]));
             var entry = new JsonObject
             {
                 ["id"] = $"series-{index + 1}",
@@ -625,7 +644,15 @@ internal static partial class PpjPresentationProjector
                     var marker = new JsonObject { ["symbol"] = symbol };
                     if (series.Marker.HasSize) marker["size"] = series.Marker.Size;
                     if (series.Marker.Fill is not null && !string.IsNullOrEmpty(series.Marker.Fill.Rgb))
-                        marker["fill"] = Color(series.Marker.Fill.Rgb);
+                    {
+                        var color = Color(series.Marker.Fill.Rgb);
+                        if (series.Marker.HasFillOpacityThousandthPercent)
+                        {
+                            var alpha = Math.Clamp((int)Math.Round(Unit(series.Marker.FillOpacityThousandthPercent) * 255), 0, 255);
+                            color += $"{alpha:X2}";
+                        }
+                        marker["fill"] = color;
+                    }
                     if (series.Marker.Line is not null && !string.IsNullOrEmpty(series.Marker.Line.Color?.Rgb))
                         marker["stroke"] = ProjectChartLine(series.Marker.Line);
                     output["marker"] = marker;
@@ -1041,9 +1068,17 @@ internal static partial class PpjPresentationProjector
         if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
             bullet["fontFamily"] = paragraph.BulletFontFamily;
         if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
-            bullet["color"] = Color(paragraph.BulletColorRgb);
+            bullet["color"] = TextColor(
+                paragraph.BulletColorRgb,
+                null,
+                paragraph.HasBulletColorOpacityThousandthPercent,
+                paragraph.BulletColorOpacityThousandthPercent);
         else if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme)
-            bullet["color"] = new JsonObject { ["token"] = paragraph.BulletColorScheme };
+            bullet["color"] = TextColor(
+                null,
+                paragraph.BulletColorScheme,
+                paragraph.HasBulletColorOpacityThousandthPercent,
+                paragraph.BulletColorOpacityThousandthPercent);
         if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints)
             bullet["size"] = paragraph.BulletSizePoints;
         else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)

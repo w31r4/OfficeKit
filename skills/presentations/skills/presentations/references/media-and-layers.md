@@ -148,8 +148,44 @@ The adjustment array is complete or omitted for native defaults. Its order and
 defaults come from the [generated PPJ preset table](ppj.md#preset-geometry-adjustments).
 An imported picture can change only these values when `nativeRef.capabilities`
 issues `setImageMask`; the preset identity, crop, asset, frame, and native
-topology remain fixed. Custom-path picture masks remain source-preserved and
-fail closed for authored or source-bound mutation.
+topology remain fixed.
+
+Use a custom mask only when the silhouette carries a real editorial or brand
+role that no preset geometry expresses. It uses the same finite literal-path
+vocabulary as a custom shape:
+
+```json
+{
+  "type": "image",
+  "id": "field-photo",
+  "frame": { "x": 552, "y": 72, "width": 360, "height": 396 },
+  "asset": "field-photo",
+  "fit": "cover",
+  "mask": {
+    "kind": "custom",
+    "viewBox": { "x": 0, "y": 0, "width": 160, "height": 160 },
+    "paths": [{
+      "fill": true,
+      "stroke": false,
+      "commands": [
+        { "op": "moveTo", "x": 20, "y": 0 },
+        { "op": "lineTo", "x": 160, "y": 0 },
+        { "op": "lineTo", "x": 140, "y": 160 },
+        { "op": "lineTo", "x": 0, "y": 120 },
+        { "op": "close" }
+      ]
+    }]
+  }
+}
+```
+
+The compiler writes a native picture `<a:custGeom>`; it does not rasterize the
+mask. Keep the path count and command count small, and do not invent irregular
+blobs merely to decorate empty space. Canonical imported literal masks can be
+inspected and projected into PPJ, but their path topology remains source-owned:
+without a separately issued mutation capability, changing those paths fails
+before output. Guide formulas, handles, connection sites, text rectangles and
+other richer custom-geometry graphs remain opaque-preserved.
 
 ## Protect content
 

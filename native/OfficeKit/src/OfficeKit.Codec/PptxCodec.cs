@@ -2934,7 +2934,8 @@ internal static class PptxCodec
             PptxTableCodec.Validate(
                 element.Table,
                 element.Id,
-                allowScaledFrame: hasSourcePackage && element.Source is not null);
+                allowScaledFrame: hasSourcePackage && element.Source is not null,
+                assets: assetCatalog);
             items += checked((ulong)element.Table.Rows.Sum(row => row.Cells.Count));
             if (items > limits.MaxCells)
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).");

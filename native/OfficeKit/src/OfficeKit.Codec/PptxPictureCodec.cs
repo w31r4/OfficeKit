@@ -8,7 +8,7 @@ namespace OfficeKit.Codec;
 
 // Owns the deliberately bounded, source-preserving p:pic projection. The
 // semantic image owns a compact canonical picture profile: asset, frame, crop,
-// accessibility, opacity, preset mask, border, and one outer shadow. SVG
+// accessibility, opacity, preset or bounded custom mask, border, and one outer shadow. SVG
 // fallback and bounded presentation extensions remain source-preserved.
 internal static class PptxPictureCodec
 {
@@ -30,9 +30,7 @@ internal static class PptxPictureCodec
         image = new PresentationImage();
         if (!TryParts(source, out var nonVisual, out var blip, out var properties, out var transform, out var geometry, out var crop, out var tiled) ||
             !TryReadBorder(properties.GetFirstChild<A.Outline>(), out var border) ||
-            !PptxShadowCodec.TryRead(properties, out var shadow) ||
-            geometry.Preset?.Value is not { } preset || !PptxCustomGeometryCodec.TryPresetName(preset, out var maskPreset) ||
-            !PptxPresetGeometryAdjustmentCodec.TryRead(geometry, maskPreset, out var maskAdjustments)) return false;
+            !PptxShadowCodec.TryRead(properties, out var shadow)) return false;
         // Accessibility is a leaf capability, not ownership of the whole
         // picture. An ambiguous known extension hides the modeled metadata and
         // disables only that setter; unrelated picture edits remain residual-
@@ -70,8 +68,7 @@ internal static class PptxPictureCodec
             // source-bound opacity value.
             if (blip.GetFirstChild<A.AlphaModulationFixed>() is { Amount.Value: { } amount })
                 image.OpacityThousandthPercent = checked((uint)amount);
-            if (!maskPreset.Equals("rect", StringComparison.Ordinal)) image.MaskPreset = maskPreset;
-            image.MaskPresetAdjustments.Add(maskAdjustments);
+            if (!TryReadMask(geometry, image.WidthEmu, image.HeightEmu, image)) return false;
             image.Border = border;
             image.Shadow = shadow;
             var visual = ReadTransform(transform);
@@ -110,8 +107,17 @@ internal static class PptxPictureCodec
             throw Invalid(elementId, "crop edges must be between -100% and 100% and opposing sums must remain below 100%");
         if (image.HasOpacityThousandthPercent && image.OpacityThousandthPercent > 100_000)
             throw Invalid(elementId, "opacity must be between 0% and 100%");
-        var maskPreset = image.MaskPreset.Length == 0 ? "rect" : image.MaskPreset;
-        PptxPresetGeometryAdjustmentCodec.Validate(maskPreset, image.MaskPresetAdjustments, elementId + " image mask");
+        if (image.CustomMaskPaths.Count > 0)
+        {
+            if (image.MaskPreset.Length > 0 || image.MaskPresetAdjustments.Count > 0)
+                throw Invalid(elementId, "custom image mask paths cannot be combined with preset mask state");
+            PptxCustomGeometryCodec.Validate(CustomMaskShape(image), elementId + " image mask");
+        }
+        else
+        {
+            var maskPreset = image.MaskPreset.Length == 0 ? "rect" : image.MaskPreset;
+            PptxPresetGeometryAdjustmentCodec.Validate(maskPreset, image.MaskPresetAdjustments, elementId + " image mask");
+        }
         ValidateBorder(image.Border, elementId);
         PptxShadowCodec.Validate(image.Shadow, elementId, "image");
         ValidateTransform(image.Transform, elementId);
@@ -138,9 +144,11 @@ internal static class PptxPictureCodec
         fill.Append(image.Tiled ? new A.Tile() : new A.Stretch(new A.FillRectangle()));
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = source.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, Accessibility(image));
-        var properties = new P.ShapeProperties(
-            transform,
-            BuildMask(image.MaskPreset, image.MaskPresetAdjustments, source.Id));
+        var properties = new P.ShapeProperties(transform);
+        if (image.CustomMaskPaths.Count > 0)
+            PptxCustomGeometryCodec.Apply(properties, CustomMaskShape(image), source.Id + " image mask");
+        else
+            properties.Append(BuildMask(image.MaskPreset, image.MaskPresetAdjustments, source.Id));
         if (image.Border is not null) properties.Append(BuildBorder(image.Border));
         PptxShadowCodec.Apply(properties, image.Shadow);
         return new P.Picture(
@@ -209,12 +217,20 @@ internal static class PptxPictureCodec
         if (currentImage.HasOpacityThousandthPercent != requested.Image.HasOpacityThousandthPercent ||
             currentImage.OpacityThousandthPercent != requested.Image.OpacityThousandthPercent)
             ApplyOpacity(blip, requested.Image.HasOpacityThousandthPercent ? requested.Image.OpacityThousandthPercent : null);
+        if (!currentImage.CustomMaskPaths.SequenceEqual(requested.Image.CustomMaskPaths))
+            throw new CodecException(
+                "unsupported_presentation_edit",
+                $"Presentation image {requested.Id} custom mask path topology is source-owned and cannot be changed.");
         if (!currentImage.MaskPreset.Equals(requested.Image.MaskPreset, StringComparison.Ordinal) ||
             !currentImage.MaskPresetAdjustments.SequenceEqual(requested.Image.MaskPresetAdjustments))
         {
+            if (geometry is not A.PresetGeometry presetGeometry)
+                throw new CodecException(
+                    "unsupported_presentation_edit",
+                    $"Presentation image {requested.Id} custom mask identity is source-owned and cannot be replaced by a preset mask.");
             var maskPreset = requested.Image.MaskPreset.Length == 0 ? "rect" : requested.Image.MaskPreset;
-            geometry.Preset = MaskPreset(requested.Image.MaskPreset);
-            PptxPresetGeometryAdjustmentCodec.Apply(geometry, maskPreset, requested.Image.MaskPresetAdjustments, requested.Id + " image mask");
+            presetGeometry.Preset = MaskPreset(requested.Image.MaskPreset);
+            PptxPresetGeometryAdjustmentCodec.Apply(presetGeometry, maskPreset, requested.Image.MaskPresetAdjustments, requested.Id + " image mask");
         }
         if (!Equals(currentImage.Border, requested.Image.Border)) ApplyBorder(properties, requested.Image.Border);
         if (!Equals(currentImage.Shadow, requested.Image.Shadow)) PptxShadowCodec.Apply(properties, requested.Image.Shadow);
@@ -266,7 +282,7 @@ internal static class PptxPictureCodec
         out A.Blip blip,
         out P.ShapeProperties properties,
         out A.Transform2D transform,
-        out A.PresetGeometry geometry,
+        out OpenXmlElement geometry,
         out A.SourceRectangle? crop,
         out bool tiled)
     {
@@ -295,12 +311,23 @@ internal static class PptxPictureCodec
             !BlipSupported(embedded) || !BlipFillSupported(fill) ||
             !ShapePropertiesSupported(pictureProperties) ||
             pictureProperties.Elements<A.Transform2D>().SingleOrDefault() is not { } xfrm ||
-            pictureProperties.Elements<A.PresetGeometry>().SingleOrDefault() is not { } presetGeometry ||
-            presetGeometry.Preset is null || presetGeometry.GetAttributes().Count != 1 ||
-            presetGeometry.GetAttributes()[0].LocalName != "prst" || presetGeometry.GetAttributes()[0].NamespaceUri.Length != 0 ||
-            presetGeometry.ChildElements.Count != 1 || presetGeometry.GetFirstChild<A.AdjustValueList>() is not { } adjustments ||
-            adjustments.HasAttributes ||
             !TransformSupported(xfrm)) return false;
+        var geometries = pictureProperties.ChildElements
+            .Where(child => child is A.PresetGeometry or A.CustomGeometry)
+            .ToArray();
+        if (geometries.Length != 1) return false;
+        if (geometries[0] is A.PresetGeometry presetGeometry)
+        {
+            if (presetGeometry.Preset is null || presetGeometry.GetAttributes().Count != 1 ||
+                presetGeometry.GetAttributes()[0].LocalName != "prst" || presetGeometry.GetAttributes()[0].NamespaceUri.Length != 0 ||
+                presetGeometry.ChildElements.Count != 1 || presetGeometry.GetFirstChild<A.AdjustValueList>() is not { } adjustments ||
+                adjustments.HasAttributes) return false;
+        }
+        else if (geometries[0] is not A.CustomGeometry customGeometry ||
+                 !PptxCustomGeometryCodec.Supports(
+                     customGeometry,
+                     xfrm.Extents?.Cx?.Value ?? 0,
+                     xfrm.Extents?.Cy?.Value ?? 0)) return false;
         crop = fillChildren.Length == 3 ? (A.SourceRectangle)fillChildren[1] : null;
         tiled = fillChildren[^1] is A.Tile;
         if (crop is not null && !CropSupported(crop)) return false;
@@ -308,7 +335,7 @@ internal static class PptxPictureCodec
         blip = embedded;
         properties = pictureProperties;
         transform = xfrm;
-        geometry = presetGeometry;
+        geometry = geometries[0];
         return true;
     }
 
@@ -441,10 +468,11 @@ internal static class PptxPictureCodec
         var attributes = properties.GetAttributes().ToArray();
         if (attributes.Any(attribute => attribute.LocalName != "bwMode" || attribute.NamespaceUri.Length != 0 || attribute.Value is not ("auto" or "gray" or "ltGray" or "invGray" or "grayWhite" or "blackGray" or "blackWhite" or "clr"))) return false;
         if (properties.ChildElements.Count < 2 || properties.ChildElements.Count > 6) return false;
-        if (properties.ChildElements.Count(child => child is A.Transform2D) != 1 || properties.ChildElements.Count(child => child is A.PresetGeometry) != 1) return false;
+        if (properties.ChildElements.Count(child => child is A.Transform2D) != 1 ||
+            properties.ChildElements.Count(child => child is A.PresetGeometry or A.CustomGeometry) != 1) return false;
         return properties.ChildElements.All(child => child switch
         {
-            A.Transform2D or A.PresetGeometry => true,
+            A.Transform2D or A.PresetGeometry or A.CustomGeometry => true,
             A.NoFill noFill => !noFill.HasAttributes && !noFill.HasChildren,
             A.Outline outline => TryReadBorder(outline, out _),
             A.EffectList => PptxShadowCodec.TryRead(properties, out _),
@@ -587,6 +615,49 @@ internal static class PptxPictureCodec
         var output = new A.PresetGeometry { Preset = MaskPreset(value) };
         PptxPresetGeometryAdjustmentCodec.Apply(output, name, adjustments, elementId + " image mask");
         return output;
+    }
+
+    private static bool TryReadMask(
+        OpenXmlElement geometry,
+        long widthEmu,
+        long heightEmu,
+        PresentationImage image)
+    {
+        if (geometry is A.PresetGeometry presetGeometry)
+        {
+            if (presetGeometry.Preset?.Value is not { } preset ||
+                !PptxCustomGeometryCodec.TryPresetName(preset, out var maskPreset) ||
+                !PptxPresetGeometryAdjustmentCodec.TryRead(presetGeometry, maskPreset, out var maskAdjustments))
+                return false;
+            if (!maskPreset.Equals("rect", StringComparison.Ordinal)) image.MaskPreset = maskPreset;
+            image.MaskPresetAdjustments.Add(maskAdjustments);
+            return true;
+        }
+        if (geometry is not A.CustomGeometry customGeometry) return false;
+        var shape = new PresentationShape
+        {
+            Geometry = "custom",
+            WidthEmu = widthEmu,
+            HeightEmu = heightEmu,
+        };
+        PptxCustomGeometryCodec.Read(customGeometry, widthEmu, heightEmu, shape);
+        if (shape.CustomPaths.Count == 0 || shape.CustomAdjustments.Count > 0 || shape.CustomGuides.Count > 0 ||
+            shape.CustomConnectionSites.Count > 0 || shape.CustomAdjustmentHandles.Count > 0 || shape.TextRectangle is not null)
+            return false;
+        image.CustomMaskPaths.Add(shape.CustomPaths);
+        return true;
+    }
+
+    private static PresentationShape CustomMaskShape(PresentationImage image)
+    {
+        var shape = new PresentationShape
+        {
+            Geometry = "custom",
+            WidthEmu = image.WidthEmu,
+            HeightEmu = image.HeightEmu,
+        };
+        shape.CustomPaths.Add(image.CustomMaskPaths);
+        return shape;
     }
 
     private static A.ShapeTypeValues MaskPreset(string value)

@@ -26,6 +26,9 @@ internal static class XlsxChartSeriesMarkerCodec
         if (marker.HasSize && marker.Size is < MinSize or > MaxSize)
             throw Invalid(worksheetId, chartId, series.Name, $"size must be an integer from {MinSize} through {MaxSize}");
         XlsxChartSeriesStyleCodec.ValidateFill(marker.Fill, worksheetId, chartId, series.Name, "marker fill");
+        if (marker.HasFillOpacityThousandthPercent &&
+            (marker.Fill is null || marker.FillOpacityThousandthPercent > 100_000))
+            throw Invalid(worksheetId, chartId, series.Name, "fill opacity requires a fill and must be from 0 to 100000");
         XlsxChartSeriesLineStyleCodec.ValidateLine(marker.Line, worksheetId, chartId, series.Name, "marker line");
     }
 
@@ -65,9 +68,10 @@ internal static class XlsxChartSeriesMarkerCodec
             if (shapeChildren.Any(child => child.Name != DrawingNs + "solidFill" && child.Name != DrawingNs + "ln") ||
                 shapeChildren.Count(child => child.Name == DrawingNs + "solidFill") > 1 ||
                 shapeChildren.Count(child => child.Name == DrawingNs + "ln") > 1) return false;
-            if (!XlsxChartSeriesStyleCodec.TryReadSolidFill(shapeProperties, out var fill) ||
+            if (!XlsxChartSeriesStyleCodec.TryReadSolidFill(shapeProperties, out var fill, out var fillOpacity) ||
                 !XlsxChartSeriesLineStyleCodec.TryReadLine(shapeProperties, out var line)) return false;
             if (fill is not null) output.Fill = fill;
+            if (fillOpacity is { } opacity) output.FillOpacityThousandthPercent = opacity;
             if (line is not null) output.Line = line;
         }
         series.Marker = output;
@@ -82,7 +86,11 @@ internal static class XlsxChartSeriesMarkerCodec
             output.Add(new XElement(ChartNs + "symbol", new XAttribute("val", SymbolValue(marker.Symbol))));
         if (marker.HasSize)
             output.Add(new XElement(ChartNs + "size", new XAttribute("val", marker.Size.ToString(CultureInfo.InvariantCulture))));
-        var fill = marker.Fill is null ? null : XlsxChartSeriesStyleCodec.SolidFillElement(marker.Fill.Rgb);
+        var fill = marker.Fill is null
+            ? null
+            : XlsxChartSeriesStyleCodec.SolidFillElement(
+                marker.Fill.Rgb,
+                marker.HasFillOpacityThousandthPercent ? marker.FillOpacityThousandthPercent : null);
         var line = XlsxChartSeriesLineStyleCodec.Element(marker.Line);
         if (fill is not null || line is not null) output.Add(new XElement(ChartNs + "spPr", fill, line));
         return output;
@@ -104,7 +112,8 @@ internal static class XlsxChartSeriesMarkerCodec
         if (marker is null) return "no-marker";
         var fill = marker.Fill is null
             ? "no-fill"
-            : string.Join(':', marker.Fill.SourceCase, marker.Fill.Rgb.ToUpperInvariant(), marker.Fill.HasTint ? marker.Fill.Tint.ToString("R", CultureInfo.InvariantCulture) : "no-tint");
+            : string.Join(':', marker.Fill.SourceCase, marker.Fill.Rgb.ToUpperInvariant(), marker.Fill.HasTint ? marker.Fill.Tint.ToString("R", CultureInfo.InvariantCulture) : "no-tint",
+                marker.HasFillOpacityThousandthPercent ? marker.FillOpacityThousandthPercent.ToString(CultureInfo.InvariantCulture) : "opaque");
         return string.Join(':', "marker", (int)marker.Symbol, marker.HasSize ? marker.Size.ToString(CultureInfo.InvariantCulture) : "no-size", fill, XlsxChartSeriesLineStyleCodec.Semantics(marker.Line));
     }
 
