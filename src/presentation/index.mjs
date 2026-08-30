@@ -2,6 +2,7 @@ import { inspectOoxmlPackage, ooxmlResolveRelationshipTarget, ooxmlSafePartPath,
 import { validatePptxPackageSemantics } from "../ooxml/pptx-package-semantics.mjs";
 import { queryHelpRecords } from "../help/index.mjs";
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { toUint8Array } from "../shared/binary.mjs";
 import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
@@ -2018,9 +2019,16 @@ export class Shape {
         assetId,
         contentType: String(config._officeKitImageFillContentType || ""),
         dataUrlSource,
+        ...(config._officeKitImageFillSourceAssetId ? {
+          sourceAssetId: String(config._officeKitImageFillSourceAssetId),
+        } : {}),
       });
       importedShapeImageFill.set(this, descriptor);
-      Object.defineProperty(this, PRESENTATION_SHAPE_IMAGE_FILL, { value: descriptor });
+      Object.defineProperty(this, PRESENTATION_SHAPE_IMAGE_FILL, {
+        configurable: true,
+        enumerable: false,
+        get: () => importedShapeImageFill.get(this),
+      });
     }
     this._text = new TextFrame(config.text ?? "", config.textBodyProperties, { defaultBodyProperties: config.textBodyProperties === undefined });
     this._text.style = { ...(config.textStyle || config.style?.text || {}) };
@@ -2032,6 +2040,56 @@ export class Shape {
   get imageFill() {
     const descriptor = importedShapeImageFill.get(this);
     return descriptor ? { assetId: descriptor.assetId, contentType: descriptor.contentType || undefined } : undefined;
+  }
+
+  replaceImageFill(config = {}) {
+    const current = importedShapeImageFill.get(this);
+    if (!current) {
+      const error = new Error(`Presentation shape ${this.id} does not have a source-bound image fill.`);
+      error.code = "presentation_image_fill_source_required";
+      throw error;
+    }
+    if (!config || typeof config !== "object" || Array.isArray(config)) {
+      throw new TypeError(`Presentation shape ${this.id} image-fill replacement requires an options object.`);
+    }
+    const unsupported = Object.keys(config).filter((key) => !new Set(["blob", "contentType"]).has(key));
+    if (unsupported.length) {
+      throw new TypeError(`Presentation shape ${this.id} image-fill replacement has unsupported fields: ${unsupported.join(", ")}.`);
+    }
+    if (config.blob == null) {
+      throw new TypeError(`Presentation shape ${this.id} image-fill replacement requires an embedded blob.`);
+    }
+    const embedded = presentationImageDataUrlFromBlob(config.blob, config.contentType, `Presentation shape ${this.id} image fill`);
+    if (embedded.contentType !== current.contentType) {
+      const error = new Error(`Presentation shape ${this.id} image-fill replacement must retain content type ${current.contentType}.`);
+      error.code = "unsupported_presentation_image_fill_replacement";
+      throw error;
+    }
+    const assetDigest = createHash("sha256").update(embedded.bytes).digest("hex");
+    const assetId = `asset/presentation/picture-bullet/${assetDigest}`;
+    const dataUrlSource = Object.freeze({
+      asset: Object.freeze({
+        id: assetId,
+        contentType: embedded.contentType,
+        data: embedded.bytes,
+        sha256: assetDigest,
+      }),
+      resolve: () => embedded.dataUrl,
+    });
+    const descriptor = Object.freeze({
+      assetId,
+      contentType: embedded.contentType,
+      dataUrlSource,
+      sourceAssetId: current.sourceAssetId || current.assetId,
+    });
+    importedShapeImageFill.set(this, descriptor);
+    return Object.freeze({
+      kind: "imageFillReplacement",
+      shapeId: this.id,
+      oldAssetId: current.assetId,
+      assetId,
+      contentType: embedded.contentType,
+    });
   }
   get accessibilityCapability() { return presentationAccessibilityCapability(this); }
   get deletionCapability() { return presentationElementDeletionCapability(this, "shape"); }
@@ -2733,6 +2791,7 @@ function presentationImageDataUrlFromBlob(blob, contentType, label) {
   return {
     contentType: resolvedContentType,
     dataUrl: `data:${resolvedContentType};base64,${Buffer.from(bytes).toString("base64")}`,
+    bytes,
   };
 }
 

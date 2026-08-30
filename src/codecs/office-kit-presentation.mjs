@@ -300,6 +300,7 @@ function cloneImportedPresentationShape(container, source, context) {
       _officeKitImageFillAssetId: imageFill.assetId,
       _officeKitImageFillContentType: imageFill.contentType,
       _officeKitImageFillDataUrlSource: imageFill.dataUrlSource,
+      ...(imageFill.sourceAssetId ? { _officeKitImageFillSourceAssetId: imageFill.sourceAssetId } : {}),
     } : {}),
     text: clonedPresentationValue(source.text.paragraphs),
     textBodyProperties: clonedPresentationValue(source.text.bodyProperties),
@@ -2276,6 +2277,9 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     }),
   }));
   const imageFill = shape[PRESENTATION_SHAPE_IMAGE_FILL];
+  const imageFillAssetId = imageFill?.dataUrlSource?.resolve
+    ? assetCatalog.addDataUrl(imageFill.dataUrlSource.resolve())
+    : imageFill?.assetId;
   // The model deliberately withholds an unrecognized custom-path grammar.
   // An unchanged source-bound, non-editable shape can still be carried by the
   // C# codec, which rechecks its source binding and rejects every mutation.
@@ -2313,7 +2317,9 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const shadow = presentationShadow(shape.shadow, shape.id);
   const accessibility = normalizePresentationAccessibility(shape.accessibility, `Presentation shape ${shape.id}`);
   const sourceImageFillAssetId = String(originalShape?.imageFillAssetId || "");
-  if (sourceImageFillAssetId && (!imageFill || imageFill.assetId !== sourceImageFillAssetId)) {
+  const imageFillReplacementSourceAssetId = String(imageFill?.sourceAssetId || "");
+  if (sourceImageFillAssetId && (!imageFill ||
+      (imageFill.assetId !== sourceImageFillAssetId && imageFillReplacementSourceAssetId !== sourceImageFillAssetId))) {
     throw new OfficeKitCodecError(
       `Presentation shape ${shape.id} changed its source-bound image fill identity.`,
       [],
@@ -2351,7 +2357,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         textBody,
         fillRgb,
         ...(preserveSourceFillScheme ? { fillScheme: sourceFillScheme } : {}),
-        ...(imageFill ? { imageFillAssetId: imageFill.assetId } : {}),
+        ...(imageFillAssetId ? { imageFillAssetId } : {}),
         ...(gradientFill ? { gradientFill } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
@@ -6154,19 +6160,28 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
 }
 
 function compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
-  if (original.content.case !== "image" || requested.content.case !== "image" || original.source?.editable !== true) return undefined;
-  const beforeImage = original.content.value;
-  const afterImage = requested.content.value;
-  if (!beforeImage.assetId || !afterImage.assetId || beforeImage.assetId === afterImage.assetId) return undefined;
+  if (original.content.case !== requested.content.case || original.source?.editable !== true ||
+      !new Set(["image", "shape"]).has(original.content.case)) return undefined;
+  const beforeContent = original.content.value;
+  const afterContent = requested.content.value;
+  const beforeAssetId = original.content.case === "image" ? beforeContent.assetId : beforeContent.imageFillAssetId;
+  const afterAssetId = requested.content.case === "image" ? afterContent.assetId : afterContent.imageFillAssetId;
+  if (!beforeAssetId || !afterAssetId || beforeAssetId === afterAssetId) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
-  restored.content.value.assetId = beforeImage.assetId;
-  restored.content.value.crop = beforeImage.crop;
+  if (original.content.case === "image") {
+    restored.content.value.assetId = beforeAssetId;
+    restored.content.value.crop = beforeContent.crop;
+  } else {
+    restored.content.value.imageFillAssetId = beforeAssetId;
+  }
   if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
-  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath.join("/"), "imageAsset", beforeImage.assetId, afterImage.assetId,
-    JSON.stringify(beforeImage.crop || null), JSON.stringify(afterImage.crop || null)].join("\0");
+  const beforeCrop = original.content.case === "image" ? beforeContent.crop : undefined;
+  const afterCrop = requested.content.case === "image" ? afterContent.crop : undefined;
+  const operationSeed = [sourceSha256, slideSource.partPath, shapeTreePath.join("/"), "imageAsset", beforeAssetId, afterAssetId,
+    JSON.stringify(beforeCrop || null), JSON.stringify(afterCrop || null)].join("\0");
   return {
     operationId: `pptx-imageAsset-${createHash("sha256").update(operationSeed).digest("hex").slice(0, 20)}`,
     slideId: sourceSlide.id,
@@ -6179,12 +6194,12 @@ function compilePresentationImageAssetOperation(original, requested, sourceSlide
     expectedElementSha256: source.elementSha256,
     expectedSemanticSha256: source.semanticSha256,
     textLeafIndex: 0,
-    expectedTextSha256: createHash("sha256").update(beforeImage.assetId, "utf8").digest("hex"),
-    expectedValue: beforeImage.assetId,
-    value: afterImage.assetId,
+    expectedTextSha256: createHash("sha256").update(beforeAssetId, "utf8").digest("hex"),
+    expectedValue: beforeAssetId,
+    value: afterAssetId,
     imageReplacement: {
-      assetId: afterImage.assetId,
-      ...(afterImage.crop ? { crop: afterImage.crop } : {}),
+      assetId: afterAssetId,
+      ...(afterCrop ? { crop: afterCrop } : {}),
     },
   };
 }
@@ -6304,11 +6319,11 @@ function compilePresentationElementEditOperations(original, requested, sourceSli
   if (original.content.case === requested.content.case && new Set(["shape", "image"]).has(original.content.case)) {
     const scalarOperation = compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     if (scalarOperation) return [scalarOperation];
+    const imageOperation = compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
+    if (imageOperation) return [imageOperation];
     if (original.content.case === "image") {
-      const operation = compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
-      if (operation) return [operation];
       const svgOperation = compilePresentationImageSvgAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
-      return svgOperation ? [svgOperation] : undefined;
+      if (svgOperation) return [svgOperation];
     }
     const operation = compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath);
     return operation ? [operation] : undefined;

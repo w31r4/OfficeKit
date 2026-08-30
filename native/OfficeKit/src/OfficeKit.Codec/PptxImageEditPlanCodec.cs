@@ -49,10 +49,17 @@ internal static partial class PptxEditPlanCodec
         PresentationEditOperation operation,
         PptxAssetCatalog requestedAssets)
     {
-        if (element is not P.Picture picture || projectedElement.ContentCase != PresentationElement.ContentOneofCase.Image ||
-            projectedElement.Source.Editable != true || projectedElement.Image.AssetId != operation.ExpectedValue)
-            throw new CodecException("unsupported_presentation_edit", $"PPTX image operation {operation.OperationId} target is not a bounded editable picture.", operation.SlidePartPath);
-        var relationshipId = picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
+        var projectedAssetId = projectedElement.ContentCase switch
+        {
+            PresentationElement.ContentOneofCase.Image => projectedElement.Image.AssetId,
+            PresentationElement.ContentOneofCase.Shape => projectedElement.Shape.ImageFillAssetId,
+            _ => string.Empty,
+        };
+        if (element is not (P.Picture or P.Shape) ||
+            projectedElement.ContentCase is not (PresentationElement.ContentOneofCase.Image or PresentationElement.ContentOneofCase.Shape) ||
+            projectedElement.Source.Editable != true || projectedAssetId != operation.ExpectedValue)
+            throw new CodecException("unsupported_presentation_edit", $"PPTX image operation {operation.OperationId} target is not a bounded editable picture or image-filled shape.", operation.SlidePartPath);
+        var relationshipId = ImageBlip(element)?.Embed?.Value ?? string.Empty;
         if (relationshipId.Length == 0)
             throw new CodecException("presentation_edit_target_missing", $"PPTX image operation {operation.OperationId} source relationship is missing.", operation.SlidePartPath);
         ImagePart sourcePart;
@@ -187,7 +194,8 @@ internal static partial class PptxEditPlanCodec
     {
         var operation = proof.Operation;
         var image = proof.Image ?? throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} lost its package proof.", operation.SlidePartPath);
-        if (elementRange.LocalName != "pic")
+        if (LeafKind(operation) == "imageSvgAsset" && elementRange.LocalName != "pic" ||
+            LeafKind(operation) == "imageAsset" && elementRange.LocalName is not ("pic" or "sp"))
             throw new CodecException("presentation_edit_target_mismatch", $"PPTX image operation {operation.OperationId} raw target is not p:pic.", operation.SlidePartPath);
         var namespaceByPrefix = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var declaration in NamespacePattern().Matches(xml).Cast<Match>())
@@ -291,11 +299,13 @@ internal static partial class PptxEditPlanCodec
         PresentationEditOperation operation,
         PresentationEditOperationResult result)
     {
-        if (element is not P.Picture picture)
-            throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} target is no longer a picture.", operation.SlidePartPath);
+        if (element is not (P.Picture or P.Shape))
+            throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} target is no longer a picture or image-filled shape.", operation.SlidePartPath);
+        if (LeafKind(operation) == "imageSvgAsset" && element is not P.Picture)
+            throw new CodecException("presentation_edit_verification_failed", $"PPTX SVG image operation {operation.OperationId} target is no longer a picture.", operation.SlidePartPath);
         var relationshipId = LeafKind(operation) == "imageSvgAsset"
-            ? SvgFallbackRelationshipId(picture)
-            : picture.BlipFill?.GetFirstChild<A.Blip>()?.Embed?.Value ?? string.Empty;
+            ? SvgFallbackRelationshipId((P.Picture)element)
+            : ImageBlip(element)?.Embed?.Value ?? string.Empty;
         if (string.IsNullOrWhiteSpace(relationshipId))
             throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} output relationship is missing.", operation.SlidePartPath);
         ImagePart imagePart;
@@ -309,10 +319,18 @@ internal static partial class PptxEditPlanCodec
             throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} output relationship is missing.", operation.SlidePartPath, exception);
         }
         if (PictureAssetPrefix + Hash(ReadOpenXmlPart(imagePart)) != operation.Value ||
-            LeafKind(operation) == "imageAsset" && !SameCrop(picture.BlipFill?.GetFirstChild<A.SourceRectangle>(), operation.ImageReplacement.Crop))
+            LeafKind(operation) == "imageAsset" && element is P.Picture picture && !SameCrop(picture.BlipFill?.GetFirstChild<A.SourceRectangle>(), operation.ImageReplacement.Crop) ||
+            LeafKind(operation) == "imageAsset" && element is P.Shape && operation.ImageReplacement.Crop is not null)
             throw new CodecException("presentation_edit_verification_failed", $"PPTX image operation {operation.OperationId} did not retain its asset and crop.", operation.SlidePartPath);
         result.OutputElementSha256 = HashElement(element);
     }
+
+    private static A.Blip? ImageBlip(OpenXmlElement element) => element switch
+    {
+        P.Picture picture => picture.BlipFill?.GetFirstChild<A.Blip>(),
+        P.Shape shape => shape.ShapeProperties?.GetFirstChild<A.BlipFill>()?.GetFirstChild<A.Blip>(),
+        _ => null,
+    };
 
     private static OpenXmlElement? SvgFallbackElement(P.Picture picture) => picture.BlipFill?.GetFirstChild<A.Blip>()?.ChildElements
         .Where(child => child.LocalName == "extLst" && child.NamespaceUri == DrawingNamespace)
