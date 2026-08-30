@@ -1867,7 +1867,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     name: { type: "string", description: "Inspectable slide name." },
     hidden: { type: "boolean", description: "Whether the new source-free slide is skipped by the ordinary slide show." },
     layout: { type: "string|object", description: "Optional bounded layout name/ID/facade. The new source-free slide is created and materialized transactionally." },
-    background: { type: "string|object", description: "Optional direct slide background: RGB/theme color or { fill, mode: 'solid'|'reference', index? }." },
+    background: { type: "string|object", description: "Optional direct slide background: RGB/theme color, { fill, mode: 'solid'|'reference', index? }, or bounded { type: 'gradient', kind: 'linear'|'radial', stops, angle? }." },
     transition: { type: "object", description: "Optional direct transition with the same complete ECMA-376 base-effect, speed, click, and timer profile as presentation.slides.add." },
     notes: { type: "string|PresentationParagraph[]", description: "Optional speaker notes authored into the canonical PresentationML notes graph. A paragraph has runs plus ordinary direct paragraph/run styling; note-local links, fields, picture bullets, list styles, and body layout are rejected." },
   }, "slide", "Slide", "Inserted source-free slide. Unknown insertion targets or layouts leave the collection unchanged; imported additions remain fail-closed. See slide.duplicate for the separate bounded source-preserving clone profile."),
@@ -1886,8 +1886,8 @@ const PRESENTATION_HELP_SCHEMAS = {
   "slide.duplicate": helpSchema({}, "slide", "Slide", "A new adjacent Slide available only when slide.cloneCapability.supported is true and the original imported slide remains semantically unchanged. The Codec recursively copies the uniquely owned OPC descendant closure, including unknown OpenXmlParts, DataParts, relationship-bearing modeled leaves, and external relationships, while preserving relationship IDs and exact bytes. It reuses proven shared layouts, NotesMaster, images, and retained slide targets. The pending clone must stay unchanged until export/reimport. Sections, modern comments, any owned node with an outside parent, a jump to a removed slide, unresolved semantic elements or connector targets, pending native replacements, repeated pending clones, origin deletion, and graph-budget overflow fail closed before partial model mutation."),
   "slide.delete": helpSchema({}, "result", "undefined", "No return value. The slide must belong to a presentation with at least two slides. Imported deletion checks slide.deletionCapability before mutating the model, then export independently recomputes the graph. The actual SlidePart, its relationships, and every exclusively owned OpenXml/DataPart descendant are removed; shared layout/master/theme/image/media descendants remain. Any inbound slide reference or presentation-level custom-show/section/extension identity fails closed."),
   "slide.setBackground": helpSchema({
-    background: { type: "string|object", required: true, description: "Direct RGB/theme color or { fill, mode: 'solid'|'reference', index? }; reference index must be an unsigned 32-bit integer." },
-  }, "slide", "Slide", "The same slide with a normalized direct background; canonical PPTX export never flattens inherited Layout/Master backgrounds."),
+    background: { type: "string|object", required: true, description: "Direct RGB/theme color, { fill, mode: 'solid'|'reference', index? }, or bounded { type: 'gradient', kind: 'linear'|'radial', stops, angle? }; reference index must be an unsigned 32-bit integer." },
+  }, "slide", "Slide", "The same slide with a normalized direct background; bounded RGB linear and centered-radial gradients remain native and canonical export never flattens inherited Layout/Master backgrounds."),
   "slide.clearBackground": helpSchema({}, "slide", "Slide", "The same slide with no direct background, inheriting from its preserved Layout/Master chain."),
   "slide.setBackgroundImage": helpSchema({
     blob: { type: "FileBlob", description: "Embedded PNG, JPEG, GIF, or safe SVG bytes. Prefer FileBlob.load(path, { type }) over building base64 in task code." },
@@ -2252,8 +2252,8 @@ const PRESENTATION_HELP_SCHEMAS = {
     idOrName: { type: "string", required: true, description: "Stable master ID or native master name." },
   }, "master", "PresentationSlideMaster|undefined", "Matching Slide Master or undefined."),
   "presentation.master.setBackground": helpSchema({
-    background: { type: "string|object", required: true, description: "Direct solid RGB/scheme background or native style reference with index." },
-  }, "master", "PresentationSlideMaster", "Sets the direct background of the one canonical source-free master. Imported-master edits fail closed."),
+    background: { type: "string|object", required: true, description: "Direct solid RGB/scheme background, bounded RGB linear/centered-radial gradient, or native style reference with index." },
+  }, "master", "PresentationSlideMaster", "Sets the direct solid or bounded RGB gradient background of the one canonical source-free master. Imported-master edits fail closed."),
   "presentation.master.clearBackground": helpSchema({}, "master", "PresentationSlideMaster", "Clears the direct background of the one canonical source-free master. Imported-master edits fail closed."),
   "presentation.master.setTheme": helpSchema({
     theme: { type: "object|null", required: true, description: "Partial master theme override, or null to inherit presentation.theme." },
@@ -2262,7 +2262,7 @@ const PRESENTATION_HELP_SCHEMAS = {
     name: { type: "string", required: true, description: "Layout name; passing a name string is also accepted." },
     type: { type: "string", description: "Source-free type: blank, title, titleOnly, obj, or aliases object/content/titleAndContent. Imported layouts retain their native type read-only." },
     masterId: { type: "string", description: "Master identity." },
-    background: { type: "string|object", description: "Optional layout background overriding the linked master background." },
+    background: { type: "string|object", description: "Optional solid or bounded RGB linear/centered-radial gradient background overriding the linked master background." },
     placeholders: { type: "object[]", description: "Direct-frame title/body/ctrTitle/subTitle source-free text placeholders. Each needs type, idx/index, and position left/top/width/height; object/chart/table/media placeholders are not authored." },
     slideGuides: { type: "object[]", description: "Imported layouts expose the presentation's read-only native guide definitions. Canonical export preserves them through the source-bound view-properties part." },
   }, "layout", "SlideLayoutTemplate", "Appended bounded source-free layout under the canonical master. Imported layout graphs remain source-bound and read-only."),
@@ -2279,8 +2279,8 @@ const PRESENTATION_HELP_SCHEMAS = {
     id: { type: "string", required: true, description: "Exact stable layout ID." },
   }, "layout", "SlideLayoutTemplate|undefined", "Matching layout or undefined."),
   "presentation.layout.setBackground": helpSchema({
-    background: { type: "string|object", required: true, description: "Direct solid RGB/scheme background or native style reference with index." },
-  }, "layout", "SlideLayoutTemplate", "Sets a direct background on a bounded source-free layout. Imported-layout edits fail closed."),
+    background: { type: "string|object", required: true, description: "Direct solid RGB/scheme background, bounded RGB linear/centered-radial gradient, or native style reference with index." },
+  }, "layout", "SlideLayoutTemplate", "Sets a direct solid or bounded RGB gradient background on a bounded source-free layout. Imported-layout edits fail closed."),
   "presentation.layout.clearBackground": helpSchema({}, "layout", "SlideLayoutTemplate", "Clears a direct background on a bounded source-free layout. Imported-layout edits fail closed."),
   "slide.applyLayout": helpSchema({
     layout: { type: "string|SlideLayoutTemplate", required: true, description: "Layout name/ID or layout facade." },
