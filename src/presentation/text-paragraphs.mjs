@@ -14,6 +14,7 @@ const PRESENTATION_UNDERLINE_VALUES = new Set([
 ]);
 const PRESENTATION_STRIKE_VALUES = new Set(["noStrike", "sngStrike", "dblStrike"]);
 const PRESENTATION_CAPS_VALUES = new Set(["none", "small", "all"]);
+const PRESENTATION_LANGUAGE_TAG = /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/u;
 let nextPresentationFieldId = 1;
 const AUTO_NUMBER_TYPES = new Set([
   "alphaLcParenBoth", "alphaLcParenR", "alphaLcPeriod", "alphaUcParenBoth", "alphaUcParenR", "alphaUcPeriod",
@@ -90,6 +91,10 @@ function normalizeRunStyle(style = {}) {
   const fontSpacing = rawFontSpacing == null ? undefined : finiteNumber(rawFontSpacing.replace(/pt$/i, ""));
   if (fontSpacing != null && !(fontSpacing >= -768 && fontSpacing <= 768)) throw new RangeError("Presentation run fontSpacing must be between -768 and 768 points.");
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps);
+  const language = style.language == null ? undefined : String(style.language).trim();
+  if (language != null && (language.length < 2 || language.length > 63 || !PRESENTATION_LANGUAGE_TAG.test(language))) {
+    throw new TypeError("Presentation run language must be a bounded BCP-47 language tag.");
+  }
   return {
     ...(style.bold == null ? {} : { bold: Boolean(style.bold) }),
     ...(style.italic == null ? {} : { italic: Boolean(style.italic) }),
@@ -100,6 +105,7 @@ function normalizeRunStyle(style = {}) {
     ...(fontBaseline == null ? {} : { fontBaseline }),
     ...(fontSpacing == null ? {} : { fontSpacing }),
     ...(fontCaps == null ? {} : { fontCaps }),
+    ...(language == null ? {} : { language }),
     ...(style.highlight == null ? {} : { highlight: String(style.highlight) }),
     ...(style.fontFamily || style.typeface ? { fontFamily: String(style.fontFamily || style.typeface) } : {}),
     ...(style.fontFamilyEastAsia ? { fontFamilyEastAsia: String(style.fontFamilyEastAsia) } : {}),

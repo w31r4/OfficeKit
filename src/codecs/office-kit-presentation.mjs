@@ -67,6 +67,7 @@ const PRESENTATION_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
   "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink",
 ]);
+const PRESENTATION_LANGUAGE_TAG = /^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/u;
 const NATIVE_SCHEME_COLOR_CANONICAL = Object.freeze(Object.fromEntries(
   [...PRESENTATION_SCHEME_COLORS].map((token) => [token.toLowerCase(), token]),
 ));
@@ -121,7 +122,7 @@ const SOURCE_FREE_LAYOUT_TYPES = new Map([
 ]);
 const SOURCE_FREE_TEXT_PLACEHOLDER_TYPES = new Set(["title", "body", "ctrTitle", "subTitle"]);
 const DEFAULT_PRESENTATION_THEME = JSON.stringify(normalizePresentationThemeConfig({}));
-const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "fontFamily", "fontFamilyEastAsia", "color", "highlight"]);
+const RUN_STYLE_KEYS = new Set(["bold", "italic", "underline", "strike", "fontSize", "fontKerning", "fontBaseline", "fontSpacing", "fontCaps", "language", "fontFamily", "fontFamilyEastAsia", "color", "highlight"]);
 const TEXT_FRAME_PARAGRAPH_KEYS = new Set(["alignment", "tabStops", "marginLeft", "indent", "lineSpacing", "spaceBefore", "spaceBeforePercent", "spaceAfter", "spaceAfterPercent"]);
 const CUSTOM_TEXT_RECTANGLE_FIELDS = Object.freeze([
   Object.freeze(["left", "leftEmu", "leftReference"]),
@@ -944,6 +945,15 @@ function presentationFontFamily(value, label) {
   return family;
 }
 
+function presentationLanguage(value, label) {
+  if (value == null) return undefined;
+  const language = String(value).trim();
+  if (language.length < 2 || language.length > 63 || !PRESENTATION_LANGUAGE_TAG.test(language)) {
+    throw new OfficeKitCodecError(`${label} uses an invalid BCP-47 language tag.`, [], { code: "invalid_presentation_text" });
+  }
+  return language;
+}
+
 function wireTextHighlight(value, label) {
   const token = String(value ?? "").trim();
   if (PRESENTATION_SCHEME_COLORS.has(token)) return { case: "highlightScheme", value: token };
@@ -978,6 +988,7 @@ function wireTextStyle(style = {}, shapeId) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a paragraph font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.paragraphStyle.fontCaps`);
+  const language = presentationLanguage(style.language, `Presentation shape ${shapeId} paragraph`);
   const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.paragraphStyle.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.paragraphStyle.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.paragraphStyle.strike`);
@@ -999,6 +1010,7 @@ function wireTextStyle(style = {}, shapeId) {
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(language === undefined ? {} : { language }),
     ...(highlight === undefined ? {} : { highlight }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
@@ -1075,6 +1087,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     throw new OfficeKitCodecError(`Presentation shape ${shapeId} uses a font spacing outside the supported -768 to 768 point range.`, [], { code: "invalid_presentation_text" });
   }
   const fontCaps = style.fontCaps == null ? undefined : normalizePresentationCaps(style.fontCaps, `${shapeId}.text.fontCaps`);
+  const language = presentationLanguage(style.language, `Presentation shape ${shapeId} text`);
   const highlight = style.highlight == null ? undefined : wireTextHighlight(style.highlight, `${shapeId}.text.highlight`);
   const underline = style.underline == null ? undefined : normalizePresentationUnderline(style.underline, `${shapeId}.text.underline`);
   const strike = style.strike == null ? undefined : normalizePresentationStrike(style.strike, `${shapeId}.text.strike`);
@@ -1100,6 +1113,7 @@ function wireRun(run, inheritedStyle, shapeId, original, customShowLinks) {
     ...(fontBaseline === undefined ? {} : { fontBaselinePercent: fontBaseline }),
     ...(fontSpacing === undefined ? {} : { fontSpacingPoints: fontSpacing }),
     ...(fontCaps === undefined ? {} : { fontCaps }),
+    ...(language === undefined ? {} : { language }),
     ...(highlight === undefined ? {} : { highlight }),
     ...(underline === undefined ? {} : { underline }),
     ...(strike === undefined ? {} : { strike }),
@@ -6395,6 +6409,7 @@ function modelRun(run, customShowLinks) {
       ...(run.fontKerningPoints === undefined ? {} : { fontKerning: run.fontKerningPoints }),
       ...(run.fontBaselinePercent === undefined ? {} : { fontBaseline: run.fontBaselinePercent }),
       ...(run.fontSpacingPoints === undefined ? {} : { fontSpacing: run.fontSpacingPoints }),
+      ...(run.language === undefined ? {} : { language: run.language }),
       ...(run.highlight?.case === "highlightRgb" ? { highlight: `#${run.highlight.value}` } : {}),
       ...(run.highlight?.case === "highlightScheme" ? { highlight: run.highlight.value } : {}),
       ...(run.fontFamily === undefined ? {} : { fontFamily: run.fontFamily }),
@@ -6485,6 +6500,7 @@ function modelDefaultRunStyle(paragraph) {
     ...(style.fontKerningPoints === undefined ? {} : { fontKerning: style.fontKerningPoints }),
     ...(style.fontBaselinePercent === undefined ? {} : { fontBaseline: style.fontBaselinePercent }),
     ...(style.fontSpacingPoints === undefined ? {} : { fontSpacing: style.fontSpacingPoints }),
+    ...(style.language === undefined ? {} : { language: style.language }),
     ...(style.highlight?.case === "highlightRgb" ? { highlight: `#${style.highlight.value}` } : {}),
     ...(style.highlight?.case === "highlightScheme" ? { highlight: style.highlight.value } : {}),
     ...(style.fontFamily === undefined ? {} : { fontFamily: style.fontFamily }),
