@@ -684,6 +684,17 @@ the final accessibility and visual-review path.
 
 The bounded imported-table projection also accepts the common one-run-per-paragraph cell shape. It exposes paragraph text joined with `\n`, and a source-bound cell edit splices each existing `a:t` leaf in one operation while preserving paragraph/run properties and interstitial XML. Cells with multiple runs, richer text, or irregular topology remain source-bound and are not flattened.
 
+### Imported image-filled custom geometry
+
+Professional Minimalist's 39 image-filled custom-geometry leaves now enter the
+source-bound shape projection when their direct embedded `a:blipFill` is the
+strict supported profile. `imageFill` keeps the asset relationship, crop, and
+native custom path source-owned while permitting bounded frame placement edits;
+the owning slide is the only changed part and re-import restores the same asset
+identity. Other image-fill graphs and custom-path mutations remain opaque and
+fail closed; this does not provide source-free image-fill authoring or image
+replacement.
+
 ## PDF
 
 | Capability | Status | Notes |

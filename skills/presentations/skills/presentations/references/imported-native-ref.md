@@ -28,6 +28,13 @@ only the target part and necessary dependencies. Unrelated parts,
 relationships, master/layout/theme state, unknown timing, OLE, SmartArt, and
 other opaque topology must remain stable.
 
+Some imported shapes with a strict direct embedded `a:blipFill` and a custom
+geometry that is not yet semantically decoded may expose a source-bound
+`imageFill` capability. This is a bounded frame-edit path: the existing image
+relationship, crop, and custom geometry remain source-owned while the shape's
+position or size changes. Image replacement, fill conversion, custom-path
+rewriting, and any other image-fill graph stay opaque and fail closed.
+
 Stale hash, ambiguous target, unsupported field, unsafe relationship change,
 cross-object mutation, or topology rewrite must fail. Do not patch raw OOXML,
 replace the whole slide with an image, flatten the deck, or rebuild it through
