@@ -315,10 +315,12 @@ internal static partial class PpjPresentationProjector
         var hasText = !string.IsNullOrEmpty(shape.Text) || shape.TextBody?.Paragraphs.Count > 0;
         var isPlaceholder = shape.Placeholder is not null;
         var isTextBox = shape.Geometry is "textbox" or "none" || string.IsNullOrEmpty(shape.Geometry);
+        var sourceImageFill = !string.IsNullOrWhiteSpace(shape.ImageFillAssetId) &&
+            context.TryMaterializeAsset(shape.ImageFillAssetId, out var sourceImageAssetId);
         if (shape.ImageFill is not null && !context.TryMaterializeAsset(shape.ImageFill.AssetId, out _))
             return ProjectOpaque(element, id, nativeRef, "shape", "Preserved source shape whose image fill cannot be materialized safely.");
         if (!isPlaceholder && !isTextBox && !PptxPresetGeometryAdjustmentCodec.HasProfile(shape.Geometry) &&
-            !CanProjectCustomGeometry(shape))
+            !CanProjectCustomGeometry(shape) && !sourceImageFill)
             return ProjectOpaque(element, id, nativeRef, "shape", $"Preserved source shape with unsupported geometry '{shape.Geometry}'.");
 
         var common = ElementBase(id, element.Name, frame, Accessibility(shape.Accessibility), nativeRef);
@@ -341,7 +343,18 @@ internal static partial class PpjPresentationProjector
         }
         common["type"] = "shape";
         if (shape.Geometry == "custom")
-            common["geometry"] = ProjectCustomGeometry(shape);
+            common["geometry"] = shape.CustomPaths.Count > 0
+                ? ProjectCustomGeometry(shape)
+                : new JsonObject
+                {
+                    // The path graph is intentionally not guessed when a
+                    // source-bound image-filled custom shape falls outside
+                    // the bounded custom-geometry profile. Keep the shape's
+                    // native geometry behind an explicit source-bound marker
+                    // while exposing its frame, image asset and capabilities.
+                    ["kind"] = "source-custom",
+                    ["sourceBound"] = true,
+                };
         else
         {
             var geometry = new JsonObject { ["kind"] = "preset", ["preset"] = shape.Geometry };
@@ -888,6 +901,16 @@ internal static partial class PpjPresentationProjector
         {
             style["fill"] = imageFill;
         }
+        else if (!string.IsNullOrWhiteSpace(shape.ImageFillAssetId) &&
+                 context.TryMaterializeAsset(shape.ImageFillAssetId, out var sourceImageAssetId))
+        {
+            style["fill"] = new JsonObject
+            {
+                ["type"] = "image",
+                ["asset"] = sourceImageAssetId,
+                ["fit"] = "stretch",
+            };
+        }
         if (!string.IsNullOrEmpty(shape.LineRgb) && shape.LineStyle != "none")
             style["stroke"] = Stroke(shape.LineRgb, shape.LineWidthEmu, shape.LineStyle, shape.LineCap, shape.LineJoin,
                 shape.HasLineOpacityThousandthPercent ? Unit(shape.LineOpacityThousandthPercent) : null);
@@ -1266,7 +1289,14 @@ internal static partial class PpjPresentationProjector
                     output.Add(new("replaceText", ["text"]));
                 if (source.Editable)
                 {
-                    output.Add(new("setFill", ["fill"]));
+                    // Source-bound image-filled custom geometry is projected
+                    // for discovery and frame/stroke edits, but its native
+                    // fill graph is not represented by a lossless PPJ
+                    // replacement operation. Do not advertise setFill for
+                    // that bounded shape profile.
+                    if (string.IsNullOrWhiteSpace(element.Shape.ImageFillAssetId) ||
+                        element.Shape.Geometry != "custom")
+                        output.Add(new("setFill", ["fill"]));
                     output.Add(new("setStroke", ["stroke"]));
                     output.Add(new("setFrame", element.Shape.Placeholder is null ? EditableFrameFields : PositionFrameFields));
                     if (element.Shape.Placeholder is null &&

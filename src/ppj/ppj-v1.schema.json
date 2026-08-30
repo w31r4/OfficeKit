@@ -2258,6 +2258,22 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "sourceBound"
+          ],
+          "properties": {
+            "kind": {
+              "const": "source-custom"
+            },
+            "sourceBound": {
+              "const": true
+            }
+          }
         }
       ]
     },
