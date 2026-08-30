@@ -1105,6 +1105,40 @@ const fontFamilyRoundTripLeaf = fontFamilyRoundTrip.inspect({ includeNativeLeave
   .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontFamily");
 assert.equal(fontFamilyRoundTripLeaf.value, "OfficeKit Sans");
 
+// Explicit run language is a source-bound token as well. Keep the localized
+// tag discoverable and splice only `a:rPr/@lang`, preserving the vendor
+// attribute and all surrounding run topology.
+const fontLanguageAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const fontLanguageAccessibilityXml = irregularShapeAccessibilityXml.replace('lang="en-US"', 'lang="en"');
+assert.match(fontLanguageAccessibilityXml, /<a:rPr\b[^>]*\blang="en"/);
+fontLanguageAccessibilityZip.file("ppt/slides/slide1.xml", fontLanguageAccessibilityXml);
+const fontLanguageAccessibilityFile = new FileBlob(
+  await fontLanguageAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const fontLanguageImported = await PresentationFile.importPptx(fontLanguageAccessibilityFile);
+const fontLanguageShape = itemByName(fontLanguageImported.slides.getItem(0).shapes.items, "decision-status");
+const fontLanguageLeaf = fontLanguageImported.inspect({ includeNativeLeaves: true, target: fontLanguageShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontLanguage");
+assert.ok(fontLanguageLeaf, "source-bound shapes should expose an explicit run language leaf");
+assert.equal(fontLanguageLeaf.value, "en");
+fontLanguageImported.editNativeLeaf(fontLanguageLeaf.targetId, fontLanguageLeaf.leafId, {
+  expectedHash: fontLanguageLeaf.expectedHash,
+  value: "fr-FR",
+});
+const fontLanguageOutput = await PresentationFile.exportPptx(fontLanguageImported);
+assert.equal(fontLanguageOutput.metadata.editPlan.operations[0].leafKind, "fontLanguage");
+await assertOnlyDeclaredPptxFootprintChanged(fontLanguageAccessibilityFile, fontLanguageOutput, fontLanguageOutput.metadata.editPlan.operations);
+const fontLanguageXml = await (await JSZip.loadAsync(fontLanguageOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(fontLanguageXml, /<a:rPr\b[^>]*\blang="fr-FR"/);
+assert.match(fontLanguageXml, /fixture:opaque="kept"/);
+const fontLanguageRoundTrip = await PresentationFile.importPptx(fontLanguageOutput);
+const fontLanguageRoundTripLeaf = fontLanguageRoundTrip.inspect({ includeNativeLeaves: true, target: fontLanguageShape.id }).ndjson
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "fontLanguage");
+assert.equal(fontLanguageRoundTripLeaf.value, "fr-FR");
+
 // Explicit run bold/italic flags use the same leaf-only contract. Keep the
 // source fixture's run topology and change only the two boolean attributes.
 const fontStyleAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
