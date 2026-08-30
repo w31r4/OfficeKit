@@ -10106,6 +10106,93 @@ public sealed class PptxCodecTests
         Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacement)).ToLowerInvariant(), rebound.SourceSha256);
         Assert.Empty(rebound.ReplacementAssetId);
 
+        var ppjProjected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/ole-workbook.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(ppjProjected.Ok, Diagnostics(ppjProjected));
+        var ppjState = JsonNode.Parse(ppjProjected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var ppjOle = ppjState["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "ole");
+        var sourcePayloadId = ppjOle["payloadAsset"]!.GetValue<string>();
+        var sourcePayload = Assert.Single(ppjProjected.PresentationProgram.Assets, asset => asset.Id == sourcePayloadId);
+        Assert.Equal(ZipBytes(source, binding.PartPath), sourcePayload.Data.ToByteArray());
+        Assert.Contains(ppjOle["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setOlePayload" &&
+            capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "ole.payload"));
+
+        const string replacementProgramAssetId = "replacement-workbook";
+        var replacementHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(replacement)).ToLowerInvariant();
+        ppjState["assets"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = replacementProgramAssetId,
+            ["uri"] = $"deck.assets/media/{replacementHash}.xlsx",
+            ["mimeType"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ["sha256"] = replacementHash,
+            ["rights"] = new JsonObject { ["status"] = "user-provided" },
+            ["accessibility"] = new JsonObject { ["decorative"] = false, ["description"] = "Replacement embedded workbook." },
+        });
+        ppjOle["payloadAsset"] = replacementProgramAssetId;
+        var ppjCompileRequest = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(ppjState.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        };
+        ppjCompileRequest.PresentationProgram.Assets.Add(new Asset
+        {
+            Id = replacementProgramAssetId,
+            FileName = $"{replacementHash}.xlsx",
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            Data = ByteString.CopyFrom(replacement),
+            Sha256 = replacementHash,
+        });
+        var ppjEdited = Invoke(ppjCompileRequest);
+        Assert.True(ppjEdited.Ok, Diagnostics(ppjEdited));
+        Assert.Equal([binding.PartPath], ppjEdited.PresentationProgram.ChangedParts);
+        var ppjBytes = ppjEdited.File.ToByteArray();
+        Assert.Equal(replacement, ZipBytes(ppjBytes, binding.PartPath));
+        foreach (var path in ZipPartPaths(source).Where(path => !path.Equals(binding.PartPath, StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(source, path), ZipBytes(ppjBytes, path));
+
+        var ppjReprojected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ppjEdited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/ole-workbook-edited.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(ppjReprojected.Ok, Diagnostics(ppjReprojected));
+        using (var ppjJson = JsonDocument.Parse(ppjReprojected.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedOle = ppjJson.RootElement.GetProperty("pages")[0].GetProperty("elements")
+                .EnumerateArray().Single(item => item.GetProperty("type").GetString() == "ole");
+            var reprojectedAssetId = reprojectedOle.GetProperty("payloadAsset").GetString();
+            Assert.Equal(replacementHash, ppjJson.RootElement.GetProperty("assets").EnumerateArray()
+                .Single(item => item.GetProperty("id").GetString() == reprojectedAssetId)
+                .GetProperty("sha256").GetString());
+        }
+
         imported = Import(source);
         imported.Artifact.Presentation.Slides[0].Elements[1].Opaque.OleWorkbook.PartPath = "ppt/embeddings/other.xlsx";
         var pathRejected = Export(imported.Artifact);
