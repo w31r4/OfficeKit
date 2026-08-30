@@ -86,7 +86,7 @@
       "ppjPath": "chart.chartType or chart.data.series[].values[]",
       "behavior": "fail-closed",
       "sourceBound": "Existing chart parts remain source-preserved; title and proven data-point edits use typed operations.",
-      "reason": "The authored chart compiler currently owns bar, column, line, area, pie, doughnut, scatter, bubble and combo with finite values."
+      "reason": "The authored chart compiler owns finite bounded chart families plus typed axes, labels, markers, trendlines and non-formula error bars where the native family permits them."
     },
     {
       "feature": "source-free media, SmartArt and OLE",

@@ -52,7 +52,48 @@ The authored chart compiler owns these native visual controls:
   data-label visibility and bounded label position;
 - chart-area and plot-area none or solid fills, including opacity;
 - direct solid series color plus editable line width, dash, opacity, cap, join,
-  and bounded markers.
+  and bounded markers;
+- category/value-axis titles, number formats, label interval, tick-label size,
+  value bounds and major unit; bounded combo charts may declare the matching
+  secondary pair;
+- structured data labels for value, category, series, percentage and native
+  position;
+- direct marker symbol, size, fill and stroke;
+- exponential, linear, logarithmic, moving-average, polynomial and power
+  trendlines on bar, column and line series;
+- fixed-value, percentage, standard-deviation and standard-error error bars on
+  bar, column and line series.
+
+Use the analytical fields as chart semantics, not as decorative paint. A
+typical evidence series can be expressed without replacing the chart with
+shapes:
+
+```json
+{
+  "xAxis": { "title": "Quarter", "tickLabelInterval": 1 },
+  "yAxis": { "title": "Conversion rate", "numberFormat": "0.0%", "min": 0, "max": 0.4, "majorUnit": 0.1 },
+  "style": {
+    "dataLabels": { "showValue": true, "position": "outside-end" }
+  },
+  "data": {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [{
+      "id": "conversion",
+      "name": "Conversion",
+      "values": [0.18, 0.22, 0.27, 0.31],
+      "marker": { "symbol": "circle", "size": 7, "fill": "#FFFFFF", "stroke": { "color": "#16697A", "width": 1 } },
+      "trendlines": [{ "type": "linear", "stroke": { "color": "#D9A21B", "width": 1.25, "dash": "dash" } }],
+      "errorBars": { "valueType": "standard-error", "direction": "y", "type": "both" }
+    }]
+  }
+}
+```
+
+The scalar marker spelling and `showDataLabels` / `dataLabelPosition` remain
+valid for older PPJ. Do not combine either legacy spelling with its structured
+form. On an imported source-bound chart, a `setChartData` capability owns only
+series names and values; it cannot be used to smuggle axis, marker, label,
+trendline, error-bar or paint changes.
 
 Chart-series gradients, image paint, explicit no-fill series, missing-value
 caches, radar, and waterfall still fail closed. Existing unsupported native
