@@ -34,11 +34,24 @@ internal static class PptxColor
     // the surrounding run properties.
     internal static bool TryDirectSolidRgb(A.SolidFill? fill, out string rgb)
     {
+        if (!TryDirectSolidRgbWithOpacity(fill, out rgb, out var opacity) || opacity is not null)
+        {
+            rgb = string.Empty;
+            return false;
+        }
+        return true;
+    }
+
+    // Semantic projection may own one direct alpha child while native-leaf
+    // color edits remain intentionally limited to the bare form above.
+    internal static bool TryDirectSolidRgbWithOpacity(A.SolidFill? fill, out string rgb, out uint? opacity)
+    {
         rgb = string.Empty;
+        opacity = null;
         if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
-        if (fill.FirstChild is not A.RgbColorModelHex color || color.ChildElements.Count != 0 ||
+        if (fill.FirstChild is not A.RgbColorModelHex color ||
             !HasOnlyAttributes(color, "val") || color.Val?.Value is not { Length: 6 } value ||
-            !value.All(Uri.IsHexDigit)) return false;
+            !value.All(Uri.IsHexDigit) || !TryDirectOpacity(color, out opacity)) return false;
         rgb = value.ToUpperInvariant();
         return true;
     }
@@ -48,13 +61,38 @@ internal static class PptxColor
     // source-owned rather than being rebuilt from a lossy semantic value.
     internal static bool TryDirectSolidScheme(A.SolidFill? fill, out string scheme)
     {
+        if (!TryDirectSolidSchemeWithOpacity(fill, out scheme, out var opacity) || opacity is not null)
+        {
+            scheme = string.Empty;
+            return false;
+        }
+        return true;
+    }
+
+    internal static bool TryDirectSolidSchemeWithOpacity(A.SolidFill? fill, out string scheme, out uint? opacity)
+    {
         scheme = string.Empty;
+        opacity = null;
         if (fill is null || fill.ChildElements.Count != 1 || !HasOnlyAttributes(fill)) return false;
-        if (fill.FirstChild is not A.SchemeColor color || color.ChildElements.Count != 0 ||
+        if (fill.FirstChild is not A.SchemeColor color ||
             !HasOnlyAttributes(color, "val") || color.Val?.Value is not { } value ||
-            !TrySchemeToken(value, out var token)) return false;
+            !TrySchemeToken(value, out var token) || !TryDirectOpacity(color, out opacity)) return false;
         scheme = token;
         return true;
+    }
+
+    internal static A.SolidFill BuildSolidRgb(string value, uint? opacity)
+    {
+        var color = new A.RgbColorModelHex { Val = Normalize(value) };
+        AppendOpacity(color, opacity);
+        return new A.SolidFill(color);
+    }
+
+    internal static A.SolidFill BuildSolidScheme(string value, uint? opacity)
+    {
+        var color = new A.SchemeColor { Val = SchemeValue(value) };
+        AppendOpacity(color, opacity);
+        return new A.SolidFill(color);
     }
 
     internal static string SolidScheme(A.SolidFill? fill)
@@ -71,6 +109,25 @@ internal static class PptxColor
     {
         var accepted = allowed.ToHashSet(StringComparer.Ordinal);
         return element.GetAttributes().All(attribute => accepted.Contains(attribute.LocalName));
+    }
+
+    private static bool TryDirectOpacity(DocumentFormat.OpenXml.OpenXmlElement color, out uint? opacity)
+    {
+        opacity = null;
+        if (color.ChildElements.Count == 0) return true;
+        if (color.ChildElements.Count != 1 || color.FirstChild is not A.Alpha alpha ||
+            alpha.ChildElements.Count != 0 || !HasOnlyAttributes(alpha, "val") ||
+            alpha.Val?.Value is not { } value || value is < 0 or > 100_000) return false;
+        opacity = checked((uint)value);
+        return true;
+    }
+
+    private static void AppendOpacity(DocumentFormat.OpenXml.OpenXmlElement color, uint? opacity)
+    {
+        if (opacity is null) return;
+        if (opacity > 100_000)
+            throw new CodecException("invalid_presentation_color", "Presentation color opacity must be at most 100000 thousandths of a percent.");
+        color.Append(new A.Alpha { Val = checked((int)opacity.Value) });
     }
 
     internal static string Normalize(string value)

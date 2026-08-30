@@ -2660,6 +2660,9 @@ message PresentationTextStyle {
   optional double font_spacing_points = 12;
   // Direct DrawingML a:defRPr/@cap token: none, small, or all.
   optional string font_caps = 13;
+  // Presence-aware direct a:alpha under the modeled solid text color.
+  // 100000 is fully opaque; omission means no native alpha child.
+  optional uint32 color_opacity_thousandth_percent = 14;
 }
 
 message PresentationTextParagraph {
@@ -2799,6 +2802,9 @@ message PresentationTextRun {
   optional double font_spacing_points = 17;
   // Direct DrawingML a:rPr/@cap token: none, small, or all.
   optional string font_caps = 18;
+  // Presence-aware direct a:alpha under the modeled solid text color.
+  // 100000 is fully opaque; omission means no native alpha child.
+  optional uint32 color_opacity_thousandth_percent = 19;
 }
 
 message PresentationTextField {

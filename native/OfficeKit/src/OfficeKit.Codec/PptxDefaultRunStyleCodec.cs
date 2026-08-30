@@ -32,10 +32,16 @@ internal static class PptxDefaultRunStyleCodec
         if (colors.Length == 1 && ModeledColor(colors[0]))
         {
             var fill = (A.SolidFill)colors[0];
-            if (fill.GetFirstChild<A.RgbColorModelHex>() is { } rgb)
-                style.ColorRgb = PptxColor.Normalize(rgb.Val!.Value!);
-            else if (fill.GetFirstChild<A.SchemeColor>() is { } scheme && PptxColor.TrySchemeToken(scheme.Val!.Value, out var token))
-                style.ColorScheme = token;
+            if (PptxColor.TryDirectSolidRgbWithOpacity(fill, out var rgb, out var rgbOpacity))
+            {
+                style.ColorRgb = rgb;
+                if (rgbOpacity is { } opacity) style.ColorOpacityThousandthPercent = opacity;
+            }
+            else if (PptxColor.TryDirectSolidSchemeWithOpacity(fill, out var scheme, out var schemeOpacity))
+            {
+                style.ColorScheme = scheme;
+                if (schemeOpacity is { } opacity) style.ColorOpacityThousandthPercent = opacity;
+            }
         }
         if (HasFields(style)) target.DefaultRunProperties = style;
     }
@@ -128,11 +134,15 @@ internal static class PptxDefaultRunStyleCodec
             default:
                 throw Invalid("Presentation default run properties contain an unknown color case.");
         }
+        if (style.HasColorOpacityThousandthPercent && style.ColorCase == PresentationTextStyle.ColorOneofCase.None)
+            throw Invalid("Presentation default-run color opacity requires a modeled text color.");
+        if (style.HasColorOpacityThousandthPercent && style.ColorOpacityThousandthPercent > 100_000)
+            throw Invalid("Presentation default-run color opacity must be at most 100000 thousandths of a percent.");
     }
 
     private static bool HasFields(PresentationTextStyle style) =>
         style.HasBold || style.HasItalic || style.HasFontSizePoints || style.HasFontFamily || style.HasFontFamilyEastAsia ||
-        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasUnderline || style.HasStrike;
+        style.HasFontKerningPoints || style.HasFontBaselinePercent || style.HasFontSpacingPoints || style.HasFontCaps || style.ColorCase != PresentationTextStyle.ColorOneofCase.None || style.HasColorOpacityThousandthPercent || style.HasUnderline || style.HasStrike;
 
     private static A.DefaultRunProperties Build(PresentationTextStyle source)
     {
@@ -197,9 +207,12 @@ internal static class PptxDefaultRunStyleCodec
             if (colors.Length > 1 || colors.Any(color => !ModeledColor(color)))
                 throw Unsupported("Source-preserving PPTX export cannot replace unmodeled default-run color properties.");
             foreach (var color in colors) color.Remove();
+            var opacity = source.HasColorOpacityThousandthPercent
+                ? source.ColorOpacityThousandthPercent
+                : (uint?)null;
             target.AddChild(source.ColorCase == PresentationTextStyle.ColorOneofCase.ColorRgb
-                ? new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(source.ColorRgb) })
-                : new A.SolidFill(new A.SchemeColor { Val = PptxColor.SchemeValue(source.ColorScheme) }), true);
+                ? PptxColor.BuildSolidRgb(source.ColorRgb, opacity)
+                : PptxColor.BuildSolidScheme(source.ColorScheme, opacity), true);
         }
         else if (colors.Length == 1 && ModeledColor(colors[0]))
         {
@@ -229,14 +242,9 @@ internal static class PptxDefaultRunStyleCodec
     private static IEnumerable<OpenXmlElement> ColorChoices(A.DefaultRunProperties source) =>
         source.ChildElements.Where(child => child.LocalName is "noFill" or "solidFill" or "gradFill" or "blipFill" or "pattFill" or "grpFill");
 
-    private static bool ModeledColor(OpenXmlElement source) => source switch
-    {
-        A.SolidFill fill when fill.ChildElements.Count == 1 && fill.GetFirstChild<A.RgbColorModelHex>() is { } rgb =>
-            SimpleValue(rgb, "val") && ValidRgb(rgb.Val?.Value),
-        A.SolidFill fill when fill.ChildElements.Count == 1 && fill.GetFirstChild<A.SchemeColor>() is { } scheme =>
-            SimpleValue(scheme, "val") && scheme.Val?.Value is { } value && PptxColor.TrySchemeToken(value, out _),
-        _ => false,
-    };
+    private static bool ModeledColor(OpenXmlElement source) => source is A.SolidFill fill &&
+        (PptxColor.TryDirectSolidRgbWithOpacity(fill, out _, out _) ||
+         PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out _));
 
     private static bool ModeledLatinFont(A.LatinFont source) =>
         SimpleValue(source, "typeface") && !string.IsNullOrWhiteSpace(source.Typeface?.Value) && source.Typeface.Value.Length <= 255;
@@ -248,19 +256,6 @@ internal static class PptxDefaultRunStyleCodec
     {
         var attributes = source.GetAttributes();
         return source.ChildElements.Count == 0 && attributes.Count == 1 && attributes[0].LocalName == name;
-    }
-
-    private static bool ValidRgb(string? value)
-    {
-        try
-        {
-            _ = PptxColor.Normalize(value ?? string.Empty);
-            return true;
-        }
-        catch (CodecException)
-        {
-            return false;
-        }
     }
 
     private static void RemoveIfEmpty(A.DefaultRunProperties target)

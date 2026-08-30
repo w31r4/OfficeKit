@@ -121,6 +121,10 @@ internal static class PptxTextCodec
                     throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
                 if (run.HasColorRgb) PptxColor.Normalize(run.ColorRgb);
                 if (run.HasColorScheme) PptxColor.NormalizeScheme(run.ColorScheme);
+                if (run.HasColorOpacityThousandthPercent && !run.HasColorRgb && !run.HasColorScheme)
+                    throw new CodecException("invalid_presentation_text", "Presentation run color opacity requires a modeled text color.");
+                if (run.HasColorOpacityThousandthPercent && run.ColorOpacityThousandthPercent > 100_000)
+                    throw new CodecException("invalid_presentation_text", "Presentation run color opacity must be at most 100000 thousandths of a percent.");
                 if (run.HasUnderline) PptxTextDecoration.NormalizeUnderline(run.Underline);
                 if (run.HasStrike) PptxTextDecoration.NormalizeStrike(run.Strike);
                 PptxHyperlinkCodec.Validate(run);
@@ -297,8 +301,16 @@ internal static class PptxTextCodec
         if (PptxTextDecoration.TryBaseline(properties, out var baseline)) run.FontBaselinePercent = double.Parse(baseline, System.Globalization.CultureInfo.InvariantCulture) / 1000d;
         if (PptxTextDecoration.TrySpacing(properties, out var spacing)) run.FontSpacingPoints = double.Parse(spacing, System.Globalization.CultureInfo.InvariantCulture) / 100d;
         if (PptxTextDecoration.TryCaps(properties, out var caps)) run.FontCaps = caps;
-        if (PptxColor.TryDirectSolidRgb(properties?.GetFirstChild<A.SolidFill>(), out var rgb)) run.ColorRgb = rgb;
-        else if (PptxColor.TryDirectSolidScheme(properties?.GetFirstChild<A.SolidFill>(), out var scheme)) run.ColorScheme = scheme;
+        if (PptxColor.TryDirectSolidRgbWithOpacity(properties?.GetFirstChild<A.SolidFill>(), out var rgb, out var rgbOpacity))
+        {
+            run.ColorRgb = rgb;
+            if (rgbOpacity is { } opacity) run.ColorOpacityThousandthPercent = opacity;
+        }
+        else if (PptxColor.TryDirectSolidSchemeWithOpacity(properties?.GetFirstChild<A.SolidFill>(), out var scheme, out var schemeOpacity))
+        {
+            run.ColorScheme = scheme;
+            if (schemeOpacity is { } opacity) run.ColorOpacityThousandthPercent = opacity;
+        }
         if (PptxTextDecoration.TryUnderline(properties, out var underline)) run.Underline = underline;
         if (PptxTextDecoration.TryStrike(properties, out var strike)) run.Strike = strike;
         PptxHyperlinkCodec.Read(run, properties, slideContext);
@@ -523,7 +535,7 @@ internal static class PptxTextCodec
 
     private static bool HasStyle(PresentationTextRun run) =>
         run.HasBold || run.HasItalic || run.HasFontSizePoints || run.HasFontFamily || run.HasFontFamilyEastAsia || run.HasFontKerningPoints || run.HasFontBaselinePercent || run.HasFontSpacingPoints || run.HasFontCaps || run.HasColorRgb || run.HasColorScheme ||
-        run.HasUnderline || run.HasStrike;
+        run.HasColorOpacityThousandthPercent || run.HasUnderline || run.HasStrike;
 
     private static void ApplyRunProperties(A.RunProperties properties, PresentationTextRun requested)
     {
@@ -562,18 +574,21 @@ internal static class PptxTextCodec
         var fill = properties.GetFirstChild<A.SolidFill>();
         if (requested.HasColorRgb && requested.HasColorScheme)
             throw new CodecException("invalid_presentation_text", "Presentation run cannot specify both RGB and theme colors.");
+        var colorOpacity = requested.HasColorOpacityThousandthPercent
+            ? requested.ColorOpacityThousandthPercent
+            : (uint?)null;
         if (requested.HasColorRgb)
         {
             fill?.Remove();
-            properties.PrependChild(new A.SolidFill(new A.RgbColorModelHex { Val = PptxColor.Normalize(requested.ColorRgb) }));
+            properties.PrependChild(PptxColor.BuildSolidRgb(requested.ColorRgb, colorOpacity));
         }
         else if (requested.HasColorScheme)
         {
             fill?.Remove();
-            properties.PrependChild(new A.SolidFill(new A.SchemeColor { Val = PptxColor.SchemeValue(requested.ColorScheme) }));
+            properties.PrependChild(PptxColor.BuildSolidScheme(requested.ColorScheme, colorOpacity));
         }
         else if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
-        else if (PptxColor.TryDirectSolidScheme(fill, out _)) fill!.Remove();
+        else if (PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out _)) fill!.Remove();
     }
 
     private static void ScrubRunProperties(A.RunProperties? properties, PptxPartContext? slideContext)
@@ -591,7 +606,7 @@ internal static class PptxTextCodec
         if (eastAsianFonts.Length == 1 && ModeledEastAsianFont(eastAsianFonts[0])) eastAsianFonts[0].Remove();
         var fill = properties.GetFirstChild<A.SolidFill>();
         if (PptxColor.SolidRgb(fill).Length > 0) fill!.Remove();
-        else if (PptxColor.TryDirectSolidScheme(fill, out _)) fill!.Remove();
+        else if (PptxColor.TryDirectSolidSchemeWithOpacity(fill, out _, out _)) fill!.Remove();
         PptxHyperlinkCodec.Scrub(properties, slideContext);
     }
 
