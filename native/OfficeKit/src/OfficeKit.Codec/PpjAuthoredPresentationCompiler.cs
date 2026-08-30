@@ -142,6 +142,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationElement BuildElement(PpjElementModel element, JsonElement raw, Catalog catalog)
     {
+        RejectProperties(raw, element.Id, "hidden", "locked");
         var output = new PresentationElement
         {
             Id = element.Id,
@@ -200,6 +201,9 @@ internal static class PpjAuthoredPresentationCompiler
             ? BuildTextBody(text, namedStyle, inlineStyle, catalog)
             : EmptyTextBody(namedStyle, inlineStyle);
         shape.Text = Flatten(shape.TextBody);
+        if (raw.TryGetProperty("fill", out var fill)) ApplyTextBoxFill(shape, fill, catalog);
+        if (raw.TryGetProperty("stroke", out var stroke)) ApplyLine(shape, stroke, catalog);
+        else shape.LineStyle = "none";
         ApplyTransform(shape, element.Frame);
         ApplyAccessibility(shape, element.Accessibility);
         return shape;
@@ -289,6 +293,8 @@ internal static class PpjAuthoredPresentationCompiler
             throw Unsupported(element.Id, "null chart values require a missing-value-aware native chart cache");
         if (element.ChartType is "radar" or "waterfall")
             throw Unsupported(element.Id, $"{element.ChartType} chart authoring is not yet compiler-owned");
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+            throw Unsupported(element.Id, "rich chart-title formatting is not yet compiler-owned");
 
         var chart = new PresentationChart
         {
@@ -298,19 +304,28 @@ internal static class PpjAuthoredPresentationCompiler
             HeightEmu = Emu(element.Frame.Height),
             Type = ChartType(element.ChartType),
             Title = element.Title is null ? string.Empty : Flatten(element.Title),
+            BarDirection = element.ChartType == "bar" ? "bar" : element.ChartType == "column" ? "column" : string.Empty,
         };
         chart.Categories.Add(element.Data.Categories.Select(CategoryText));
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        ApplyChartStyle(chart, namedStyle, inlineStyle);
+        ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id);
 
         var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
         for (var index = 0; index < element.Data.Series.Count; index++)
         {
             var source = element.Data.Series[index];
+            if (element.ChartType != "combo") RejectProperties(seriesJson[index], element.Id, "chartType", "axis");
             var series = BuildSeries(source, seriesJson[index], catalog);
             if (chart.Type == SpreadsheetChartType.Combo)
             {
+                if (source.ChartType is "bar" or "column")
+                {
+                    var direction = source.ChartType == "bar" ? "bar" : "column";
+                    if (chart.BarDirection.Length > 0 && chart.BarDirection != direction)
+                        throw Unsupported(element.Id, "combo charts cannot mix horizontal bars and vertical columns");
+                    chart.BarDirection = direction;
+                }
                 chart.ComboSeries.Add(new PresentationComboSeriesArtifact
                 {
                     Type = ChartType(source.ChartType!),
@@ -330,18 +345,32 @@ internal static class PpjAuthoredPresentationCompiler
     {
         var series = new SpreadsheetChartSeriesArtifact { Name = source.Name };
         series.Values.Add(source.Values.Select(value => value!.Value));
-        if (raw.TryGetProperty("fill", out var fill) && FillColor(fill, catalog) is { } fillColor)
+        if (raw.TryGetProperty("fill", out var fill))
+        {
+            var fillColor = FillColor(fill, catalog) ??
+                throw Unsupported(source.Id, "explicit no-fill chart series are not yet compiler-owned");
+            if (fillColor.Opacity != 1)
+                throw Unsupported(source.Id, "chart-series fill opacity is not yet compiler-owned");
             series.Fill = new SpreadsheetColor { Rgb = fillColor.Rgb };
+        }
         else if (raw.TryGetProperty("color", out var color))
-            series.Fill = new SpreadsheetColor { Rgb = catalog.Color(color).Rgb };
+        {
+            var resolved = catalog.Color(color);
+            if (resolved.Alpha != 1)
+                throw Unsupported(source.Id, "chart-series color opacity is not yet compiler-owned");
+            series.Fill = new SpreadsheetColor { Rgb = resolved.Rgb };
+        }
         if (raw.TryGetProperty("stroke", out var stroke))
         {
             series.Line = new SpreadsheetChartLineStyleArtifact
             {
                 Color = new SpreadsheetColor { Rgb = catalog.Color(stroke.GetProperty("color")).Rgb },
                 DashStyle = ChartDash(OptionalString(stroke, "dash")),
+                Cap = OptionalString(stroke, "cap") ?? string.Empty,
+                Join = OptionalString(stroke, "join") ?? string.Empty,
             };
             if (stroke.TryGetProperty("width", out var width)) series.Line.WidthPoints = width.GetDouble();
+            if (OptionalDouble(stroke, "opacity") is { } opacity) series.Line.OpacityThousandthPercent = Opacity(opacity);
         }
         if (raw.TryGetProperty("marker", out var marker))
             series.Marker = new SpreadsheetChartMarkerArtifact { Symbol = Marker(marker.GetString()!) };
@@ -357,6 +386,10 @@ internal static class PpjAuthoredPresentationCompiler
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
         };
+        var namedStyle = catalog.TableStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        var defaultTextStyle = FirstProperty(inlineStyle, namedStyle, "defaultTextStyle");
+        var defaultCellFill = FirstProperty(inlineStyle, namedStyle, "defaultCellFill");
         table.ColumnWidthsEmu.Add(ScaledExtents(
             element.Columns.Select(column => column.Width).ToArray(),
             table.WidthEmu));
@@ -372,12 +405,24 @@ internal static class PpjAuthoredPresentationCompiler
             for (var columnIndex = 0; columnIndex < element.Columns.Count; columnIndex++)
                 row.Cells.Add(new PresentationTableCell());
             var cursor = 0;
-            foreach (var cell in source.Cells)
+            for (var sourceCellIndex = 0; sourceCellIndex < source.Cells.Count; sourceCellIndex++)
             {
+                var cell = source.Cells[sourceCellIndex];
                 while (cursor < element.Columns.Count && occupied[rowIndex, cursor]) cursor++;
                 if (cursor >= element.Columns.Count)
                     throw Unsupported(element.Id, "table span expansion exceeded the declared physical grid");
-                row.Cells[cursor].Text = Flatten(cell.Text);
+                var rawCell = raw.GetProperty("rows")[rowIndex].GetProperty("cells")[sourceCellIndex];
+                var targetCell = row.Cells[cursor];
+                targetCell.TextBody = BuildTextBody(
+                    rawCell.GetProperty("text"),
+                    defaultTextStyle,
+                    Property(rawCell, "textStyle"),
+                    catalog);
+                targetCell.Text = PptxTextCodec.Flatten(targetCell.TextBody);
+                if ((Property(rawCell, "fill") ?? defaultCellFill) is { } cellFill)
+                    targetCell.Fill = BuildTableCellFill(cellFill, catalog, element.Id);
+                if (Property(rawCell, "borders") is { } borders)
+                    targetCell.Borders = BuildTableCellBorders(borders, catalog);
                 if (cell.RowSpan > 1 || cell.ColumnSpan > 1)
                 {
                     table.MergeRanges.Add(new PresentationTableMergeRange
@@ -396,35 +441,82 @@ internal static class PpjAuthoredPresentationCompiler
             }
             table.Rows.Add(row);
         }
-        var style = Property(raw, "style") ?? catalog.TableStyle(element.StyleRef);
-        if (style is { } tableStyle)
+        if (FirstProperty(inlineStyle, namedStyle, "headerRows") is { } headerRows)
         {
-            if (tableStyle.TryGetProperty("headerRows", out var headerRows))
-            {
-                if (headerRows.GetInt32() > 1)
-                    throw Unsupported(element.Id, "native table authoring currently supports at most one header row");
-                table.FirstRow = headerRows.GetInt32() == 1;
-            }
-            if (tableStyle.TryGetProperty("bandedRows", out var bandedRows)) table.BandedRows = bandedRows.GetBoolean();
-            if (tableStyle.TryGetProperty("bandedColumns", out var bandedColumns)) table.BandedColumns = bandedColumns.GetBoolean();
-            if (tableStyle.TryGetProperty("firstColumnEmphasis", out var firstColumn)) table.FirstColumn = firstColumn.GetBoolean();
-            if (tableStyle.TryGetProperty("lastColumnEmphasis", out var lastColumn)) table.LastColumn = lastColumn.GetBoolean();
-            if (tableStyle.TryGetProperty("defaultCellFill", out var cellFill))
-            {
-                var fill = FillColor(cellFill, catalog);
-                if (fill is null) table.NoDefaultCellFill = true;
-                else
-                {
-                    if (fill.Value.Opacity != 1)
-                        throw Unsupported(element.Id, "table-cell fill opacity is not yet compiler-owned");
-                    table.DefaultCellFillRgb = fill.Value.Rgb;
-                }
-            }
-            if (tableStyle.TryGetProperty("defaultTextStyle", out var textStyle))
-                table.DefaultTextStyle = BuildTextStyle(Property(textStyle, "defaultText"), catalog);
+            if (headerRows.GetInt32() > 1)
+                throw Unsupported(element.Id, "native table authoring currently supports at most one header row");
+            table.FirstRow = headerRows.GetInt32() == 1;
         }
+        if (FirstProperty(inlineStyle, namedStyle, "bandedRows") is { } bandedRows)
+            table.BandedRows = bandedRows.GetBoolean();
+        if (FirstProperty(inlineStyle, namedStyle, "bandedColumns") is { } bandedColumns)
+            table.BandedColumns = bandedColumns.GetBoolean();
+        if (FirstProperty(inlineStyle, namedStyle, "firstColumnEmphasis") is { } firstColumn)
+            table.FirstColumn = firstColumn.GetBoolean();
+        if (FirstProperty(inlineStyle, namedStyle, "lastColumnEmphasis") is { } lastColumn)
+            table.LastColumn = lastColumn.GetBoolean();
+        if (defaultCellFill is { } fallbackFill)
+        {
+            var type = fallbackFill.GetProperty("type").GetString();
+            if (type == "none") table.NoDefaultCellFill = true;
+            else if (type == "solid")
+            {
+                var fill = FillColor(fallbackFill, catalog)!.Value;
+                table.DefaultCellFillRgb = fill.Rgb;
+            }
+        }
+        if (defaultTextStyle is { } textStyle)
+            table.DefaultTextStyle = BuildTextStyle(Property(textStyle, "defaultText"), catalog);
         ApplyAccessibility(table, element.Accessibility);
         return table;
+    }
+
+    private static PresentationTableCellFill BuildTableCellFill(
+        JsonElement fill,
+        Catalog catalog,
+        string elementId)
+    {
+        var type = fill.GetProperty("type").GetString();
+        if (type == "none") return new PresentationTableCellFill { NoFill = true };
+        if (type == "solid")
+        {
+            var resolved = FillColor(fill, catalog) ??
+                throw new InvalidOperationException("Solid PPJ table-cell fill unexpectedly resolved to none.");
+            var output = new PresentationTableCellFill { SolidRgb = resolved.Rgb };
+            if (resolved.Opacity < 1) output.OpacityThousandthPercent = Opacity(resolved.Opacity);
+            return output;
+        }
+        if (type == "gradient")
+            return new PresentationTableCellFill
+            {
+                GradientFill = BuildGradientFill(fill, color => catalog.Color(color)),
+            };
+        throw Unsupported(elementId, $"table-cell {type} fills are not compiler-owned");
+    }
+
+    private static PresentationTableCellBorders BuildTableCellBorders(JsonElement source, Catalog catalog)
+    {
+        var output = new PresentationTableCellBorders();
+        if (source.TryGetProperty("left", out var left)) output.Left = BuildTableCellBorder(left, catalog);
+        if (source.TryGetProperty("top", out var top)) output.Top = BuildTableCellBorder(top, catalog);
+        if (source.TryGetProperty("right", out var right)) output.Right = BuildTableCellBorder(right, catalog);
+        if (source.TryGetProperty("bottom", out var bottom)) output.Bottom = BuildTableCellBorder(bottom, catalog);
+        return output;
+    }
+
+    private static SpreadsheetChartLineStyleArtifact BuildTableCellBorder(JsonElement stroke, Catalog catalog)
+    {
+        var output = new SpreadsheetChartLineStyleArtifact
+        {
+            Color = new SpreadsheetColor { Rgb = catalog.Color(stroke.GetProperty("color")).Rgb },
+            WidthPoints = stroke.GetProperty("width").GetDouble(),
+            DashStyle = ChartDash(OptionalString(stroke, "dash")),
+            Cap = OptionalString(stroke, "cap") ?? string.Empty,
+            Join = OptionalString(stroke, "join") ?? string.Empty,
+        };
+        if (OptionalDouble(stroke, "opacity") is { } opacity)
+            output.OpacityThousandthPercent = Opacity(opacity);
+        return output;
     }
 
     private static PresentationConnector BuildConnector(PpjConnectorElementModel element, JsonElement raw, Catalog catalog)
@@ -470,7 +562,9 @@ internal static class PpjAuthoredPresentationCompiler
         shape.Placeholder = new PresentationPlaceholderIdentity
         {
             Type = PlaceholderType(element.PlaceholderType),
-            Index = StableIndex(element.Id),
+            Index = raw.TryGetProperty("index", out var index)
+                ? checked((uint)index.GetInt64())
+                : StableIndex(element.Id),
             InheritsGeometry = false,
         };
         shape.DirectFrame = new PresentationPlaceholderFrame
@@ -541,6 +635,23 @@ internal static class PpjAuthoredPresentationCompiler
         }
     }
 
+    private static void ApplyTextBoxFill(
+        PresentationShape target,
+        JsonElement fill,
+        Catalog catalog)
+    {
+        if (fill.GetProperty("type").GetString() == "gradient")
+        {
+            target.GradientFill = BuildGradientFill(fill, color => catalog.Color(color));
+            return;
+        }
+        var resolved = FillColor(fill, catalog);
+        if (resolved is null) return;
+        target.FillRgb = resolved.Value.Rgb;
+        if (resolved.Value.Opacity < 1)
+            target.FillOpacityThousandthPercent = Opacity(resolved.Value.Opacity);
+    }
+
     private static void ApplyLine(PresentationShape target, JsonElement stroke, Catalog catalog)
     {
         target.LineRgb = catalog.Color(stroke.GetProperty("color")).Rgb;
@@ -574,7 +685,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (text.ValueKind == JsonValueKind.String)
         {
             var paragraph = new PresentationTextParagraph();
-            paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, inlineStyle, null, catalog));
+            ApplyParagraphStyle(paragraph, FirstProperty(inlineStyle, namedStyle, "paragraph"));
+            paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, inlineStyle, null, null, catalog));
             body.Paragraphs.Add(paragraph);
             return body;
         }
@@ -583,7 +695,13 @@ internal static class PpjAuthoredPresentationCompiler
             var paragraph = new PresentationTextParagraph();
             ApplyParagraphStyle(paragraph, Property(paragraphJson, "style") ?? FirstProperty(inlineStyle, namedStyle, "paragraph"));
             foreach (var run in paragraphJson.GetProperty("runs").EnumerateArray())
-                paragraph.Runs.Add(BuildRun(run.GetProperty("text").GetString()!, namedStyle, inlineStyle, Property(run, "style"), catalog));
+                paragraph.Runs.Add(BuildRun(
+                    run.GetProperty("text").GetString()!,
+                    namedStyle,
+                    inlineStyle,
+                    Property(run, "style"),
+                    Property(run, "hyperlink"),
+                    catalog));
             body.Paragraphs.Add(paragraph);
         }
         return body;
@@ -601,6 +719,7 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement? namedBox,
         JsonElement? inlineBox,
         JsonElement? inlineRun,
+        JsonElement? hyperlink,
         Catalog catalog)
     {
         var run = new PresentationTextRun { Text = text };
@@ -619,6 +738,9 @@ internal static class PpjAuthoredPresentationCompiler
         var spacing = FirstProperty(inlineRun, inlineDefault, namedDefault, "letterSpacing");
         var baseline = FirstProperty(inlineRun, inlineDefault, namedDefault, "baseline");
         var capitalization = FirstProperty(inlineRun, inlineDefault, namedDefault, "capitalization");
+        var language = FirstProperty(inlineRun, inlineDefault, namedDefault, "language");
+        if (language is not null)
+            throw Unsupported("text", "run language is valid PPJ but not yet compiler-owned");
         if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
         if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
         if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
@@ -633,6 +755,11 @@ internal static class PpjAuthoredPresentationCompiler
         if (spacing is { } spacingValue) run.FontSpacingPoints = spacingValue.GetDouble();
         if (baseline is { } baselineValue) run.FontBaselinePercent = baselineValue.GetDouble();
         if (capitalization is { } capitalizationValue) run.FontCaps = capitalizationValue.GetString()!;
+        if (hyperlink is { } link)
+        {
+            run.RunHyperlink = new PresentationRunHyperlink { Uri = link.GetProperty("uri").GetString()! };
+            if (link.TryGetProperty("tooltip", out var tooltip)) run.RunHyperlink.Tooltip = tooltip.GetString()!;
+        }
         return run;
     }
 
@@ -640,6 +767,7 @@ internal static class PpjAuthoredPresentationCompiler
     {
         var output = new PresentationTextStyle();
         if (style is not { } value) return output;
+        RejectProperties(value, "text", "language");
         if (value.TryGetProperty("bold", out var bold)) output.Bold = bold.GetBoolean();
         if (value.TryGetProperty("italic", out var italic)) output.Italic = italic.GetBoolean();
         if (value.TryGetProperty("size", out var size)) output.FontSizePoints = size.GetDouble();
@@ -948,10 +1076,51 @@ internal static class PpjAuthoredPresentationCompiler
         }
     }
 
-    private static void ApplyChartStyle(PresentationChart chart, JsonElement? named, JsonElement? inline)
+    private static void ApplyChartStyle(
+        PresentationChart chart,
+        JsonElement? named,
+        JsonElement? inline,
+        Catalog catalog,
+        string elementId)
     {
         var legend = FirstProperty(inline, named, "legend")?.GetString();
         chart.HasLegend = legend is not null and not "none";
+        if (chart.HasLegend) chart.LegendPosition = legend!;
+        if (FirstProperty(inline, named, "stacking") is { } stacking)
+        {
+            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Line or SpreadsheetChartType.Area or SpreadsheetChartType.Combo))
+                throw Unsupported(elementId, "stacking applies only to bar, column, line, area, and combo charts");
+            chart.Grouping = stacking.GetString()!;
+        }
+        if (FirstProperty(inline, named, "gapWidth") is { } gapWidth)
+        {
+            if (chart.Type is not (SpreadsheetChartType.Bar or SpreadsheetChartType.Combo))
+                throw Unsupported(elementId, "gapWidth applies only to bar, column, and combo charts");
+            chart.GapWidth = checked((uint)gapWidth.GetInt32());
+        }
+        var axisBearing = chart.Type is not (SpreadsheetChartType.Pie or SpreadsheetChartType.Doughnut);
+        if (FirstProperty(inline, named, "showCategoryAxis") is { } showCategoryAxis)
+        {
+            if (!axisBearing) throw Unsupported(elementId, "circular charts do not have category axes");
+            chart.ShowCategoryAxis = showCategoryAxis.GetBoolean();
+        }
+        if (FirstProperty(inline, named, "showValueAxis") is { } showValueAxis)
+        {
+            if (!axisBearing) throw Unsupported(elementId, "circular charts do not have value axes");
+            chart.ShowValueAxis = showValueAxis.GetBoolean();
+        }
+        if (FirstProperty(inline, named, "showGridlines") is { } showGridlines)
+        {
+            if (!axisBearing) throw Unsupported(elementId, "circular charts do not have value-axis gridlines");
+            // DrawingML represents "no major gridlines" by omitting the node.
+            // Keep false canonical rather than inventing a presence-only wire
+            // distinction that the package cannot round-trip.
+            if (showGridlines.GetBoolean()) chart.ShowGridlines = true;
+        }
+        if (FirstProperty(inline, named, "chartAreaFill") is { } chartAreaFill)
+            chart.ChartAreaFill = BuildChartSurfaceFill(chartAreaFill, catalog, $"{elementId} chart area");
+        if (FirstProperty(inline, named, "plotAreaFill") is { } plotAreaFill)
+            chart.PlotAreaFill = BuildChartSurfaceFill(plotAreaFill, catalog, $"{elementId} plot area");
         var labels = FirstProperty(inline, named, "showDataLabels");
         if (labels is { } showLabels && showLabels.GetBoolean())
         {
@@ -963,6 +1132,19 @@ internal static class PpjAuthoredPresentationCompiler
             var position = FirstProperty(inline, named, "dataLabelPosition")?.GetString();
             if (position is not null) chart.DataLabels.Position = LabelPosition(position);
         }
+        else if (FirstProperty(inline, named, "dataLabelPosition") is not null)
+            throw Unsupported("chart", "dataLabelPosition requires showDataLabels: true");
+    }
+
+    private static SpreadsheetChartSurfaceFill BuildChartSurfaceFill(JsonElement fill, Catalog catalog, string subject)
+    {
+        var type = fill.GetProperty("type").GetString();
+        if (type == "none") return new SpreadsheetChartSurfaceFill { NoFill = true };
+        if (type != "solid") throw Unsupported(subject, "chart and plot areas currently support only none or solid fills");
+        var resolved = FillColor(fill, catalog) ?? throw new InvalidOperationException("Solid PPJ fill unexpectedly resolved to none.");
+        var output = new SpreadsheetChartSurfaceFill { SolidRgb = resolved.Rgb };
+        if (resolved.Opacity < 1) output.OpacityThousandthPercent = Opacity(resolved.Opacity);
+        return output;
     }
 
     private static void ApplyCustomGeometry(PresentationShape target, JsonElement geometry, string elementId)
@@ -1188,6 +1370,7 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static void RejectProperties(JsonElement value, string elementId, params string[] names)
     {
+        if (value.ValueKind != JsonValueKind.Object) return;
         foreach (var name in names)
             if (value.TryGetProperty(name, out _))
                 throw Unsupported(elementId, $"{name} is valid PPJ but not yet compiler-owned for this element");

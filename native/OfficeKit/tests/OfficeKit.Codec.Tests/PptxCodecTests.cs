@@ -175,6 +175,23 @@ public sealed class PptxCodecTests
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "decision-flow-link");
         authoredConnector["stroke"]!["opacity"] = 0.58;
+        var authoredTable = authoredProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "method-table-main");
+        var authoredHeaderCell = authoredTable["rows"]![0]!["cells"]![0]!.AsObject();
+        authoredHeaderCell["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA", ["opacity"] = 0.8 };
+        authoredHeaderCell["borders"] = new JsonObject
+        {
+            ["bottom"] = new JsonObject
+            {
+                ["color"] = "#0B8F8F",
+                ["width"] = 1.5,
+                ["opacity"] = 0.65,
+                ["dash"] = "solid",
+                ["cap"] = "round",
+                ["join"] = "round",
+            },
+        };
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -226,7 +243,17 @@ public sealed class PptxCodecTests
         Assert.Empty(validationOnly.PresentationProgram.OutputSha256);
         using (var stream = new MemoryStream(first.File.ToByteArray(), writable: false))
         using (var package = PresentationDocument.Open(stream, false))
+        {
             Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+            var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
+            var firstCell = nativeTable.Descendants<A.TableCell>().First();
+            Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
+            Assert.Equal("DCEFEA", firstCell.TableCellProperties!.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+            Assert.Equal(80_000, firstCell.TableCellProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var bottomBorder = firstCell.TableCellProperties.GetFirstChild<A.BottomBorderLineProperties>()!;
+            Assert.Equal("19050", bottomBorder.GetAttribute("w", string.Empty).Value);
+            Assert.Equal("0B8F8F", bottomBorder.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+        }
 
         var imported = Import(first.File.ToByteArray());
         Assert.True(imported.Ok, Diagnostics(imported));
@@ -265,6 +292,11 @@ public sealed class PptxCodecTests
         Assert.Equal(42_000U, importedCustomShape.LineOpacityThousandthPercent);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
+        Assert.Equal("bottom", importedChart.LegendPosition);
+        Assert.Equal("none", importedChart.Grouping);
+        Assert.Equal(90U, importedChart.GapWidth);
+        Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Cap);
+        Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Join);
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
         Assert.False(importedChart.DataLabels.ShowSeriesName);
         Assert.Equal("Incident hours decline from 69 to 43 while protected workload index rises from 100 to 127.", importedChart.Accessibility.Description);

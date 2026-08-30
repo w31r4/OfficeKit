@@ -487,7 +487,7 @@ internal static partial class PpjPresentationProjector
 
         var output = ElementBase(id, element.Name, ChartFrame(chart), Accessibility(chart.Accessibility), nativeRef);
         output["type"] = "chart";
-        output["chartType"] = type;
+        output["chartType"] = chart.Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar" ? "bar" : type;
         if (!string.IsNullOrEmpty(chart.Title)) output["title"] = chart.Title;
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));
@@ -505,12 +505,58 @@ internal static partial class PpjPresentationProjector
             };
             if (chart.Type == SpreadsheetChartType.Combo)
             {
-                entry["chartType"] = ChartType(chart.ComboSeries[index].Type) ?? "line";
+                entry["chartType"] = chart.ComboSeries[index].Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar"
+                    ? "bar"
+                    : ChartType(chart.ComboSeries[index].Type) ?? "line";
                 entry["axis"] = chart.ComboSeries[index].AxisGroup == PresentationChartAxisGroup.Secondary ? "secondary" : "primary";
             }
             seriesJson.Add(entry);
         }
         output["data"] = new JsonObject { ["categories"] = categories, ["series"] = seriesJson };
+        var style = new JsonObject
+        {
+            ["legend"] = chart.HasLegend
+                ? chart.LegendPosition.Length == 0 ? "right" : chart.LegendPosition
+                : "none",
+        };
+        if (chart.Grouping.Length > 0) style["stacking"] = chart.Grouping;
+        if (chart.HasGapWidth) style["gapWidth"] = chart.GapWidth;
+        if (chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
+        if (chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
+        if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
+        if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
+        if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
+        if (chart.DataLabels is not null)
+        {
+            style["showDataLabels"] = chart.DataLabels.ShowValue;
+            if (chart.DataLabels.HasPosition)
+            {
+                var position = chart.DataLabels.Position switch
+                {
+                    SpreadsheetChartDataLabelPosition.Center => "center",
+                    SpreadsheetChartDataLabelPosition.InsideEnd => "inside-end",
+                    SpreadsheetChartDataLabelPosition.OutsideEnd => "outside-end",
+                    SpreadsheetChartDataLabelPosition.Top => "above",
+                    SpreadsheetChartDataLabelPosition.Bottom => "below",
+                    _ => null,
+                };
+                if (position is not null) style["dataLabelPosition"] = position;
+            }
+        }
+        output["style"] = style;
+        return output;
+    }
+
+    private static JsonObject ProjectChartSurfaceFill(SpreadsheetChartSurfaceFill fill)
+    {
+        if (fill.FillCase == SpreadsheetChartSurfaceFill.FillOneofCase.NoFill)
+            return new JsonObject { ["type"] = "none" };
+        var output = new JsonObject
+        {
+            ["type"] = "solid",
+            ["color"] = Color(fill.SolidRgb),
+        };
+        if (fill.HasOpacityThousandthPercent) output["opacity"] = Unit(fill.OpacityThousandthPercent);
         return output;
     }
 
