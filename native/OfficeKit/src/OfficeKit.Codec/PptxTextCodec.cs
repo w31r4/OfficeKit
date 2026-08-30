@@ -141,6 +141,23 @@ internal static class PptxTextCodec
         return body;
     }
 
+    internal static A.TextBody BuildDrawingTextBody(PresentationTextBody semantic, PptxPartContext? slideContext = null)
+    {
+        var validationShape = new PresentationShape
+        {
+            Text = Flatten(semantic),
+            TextBody = semantic.Clone(),
+        };
+        Validate(validationShape);
+        var bodyProperties = new A.BodyProperties();
+        PptxBodyPropertiesCodec.Build(bodyProperties, semantic);
+        var body = new A.TextBody(bodyProperties, new A.ListStyle());
+        PptxListStyleCodec.Build(body.GetFirstChild<A.ListStyle>()!, semantic, slideContext);
+        foreach (var paragraph in semantic.Paragraphs) body.Append(BuildParagraph(paragraph, slideContext));
+        if (semantic.Paragraphs.Count == 0) body.Append(new A.Paragraph(new A.EndParagraphRunProperties { Language = "en-US" }));
+        return body;
+    }
+
     internal static void Apply(P.Shape shape, PresentationShape requested, PptxPartContext slideContext)
     {
         var semantic = CanonicalBody(requested);
@@ -288,7 +305,7 @@ internal static class PptxTextCodec
         return run;
     }
 
-    private static A.Paragraph BuildParagraph(PresentationTextParagraph source, PptxPartContext? slideContext)
+    internal static A.Paragraph BuildParagraph(PresentationTextParagraph source, PptxPartContext? slideContext)
     {
         var paragraph = new A.Paragraph();
         if (PptxParagraphPropertiesCodec.HasAuthoredProperties(source, includeLevel: true))

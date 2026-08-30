@@ -1,4 +1,5 @@
 using DocumentFormat.OpenXml;
+using System.Globalization;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -113,7 +114,7 @@ internal static class PptxTableCodec
         }
     }
 
-    internal static P.GraphicFrame Build(PresentationElement element, uint nativeId)
+    internal static P.GraphicFrame Build(PresentationElement element, uint nativeId, PptxPartContext slideContext)
     {
         var table = element.Table;
         Validate(table, element.Id);
@@ -134,7 +135,7 @@ internal static class PptxTableCodec
             for (var columnIndex = 0; columnIndex < sourceRow.Cells.Count; columnIndex++)
             {
                 var sourceCell = sourceRow.Cells[columnIndex];
-                var cell = BuildCell(sourceCell.Text, table.HasFirstRow && table.FirstRow && rowIndex == 0, table);
+                var cell = BuildCell(sourceCell, table.HasFirstRow && table.FirstRow && rowIndex == 0, table, slideContext);
                 if (mergePlan.TryGetValue((rowIndex, columnIndex), out var merge))
                 {
                     if (merge.IsOrigin)
@@ -216,8 +217,19 @@ internal static class PptxTableCodec
             (allowScaledFrame && !ScaledExtentSupported(table.HeightEmu, Sum(table.Rows.Select(row => row.HeightEmu), elementId))))
             throw Invalid(elementId, "positive row heights must fit the outer frame height and every row must match the grid width");
         foreach (var cell in table.Rows.SelectMany(row => row.Cells))
+        {
             if (cell.Text.Length > MaxCellTextLength || cell.Text.Any(character => char.IsControl(character) && character is not '\t' and not '\n' and not '\r'))
                 throw Invalid(elementId, $"cell text must contain at most {MaxCellTextLength} characters and no unsupported controls");
+            if (cell.TextBody is not null)
+            {
+                if (!cell.Text.Equals(PptxTextCodec.Flatten(cell.TextBody), StringComparison.Ordinal))
+                    throw Invalid(elementId, "cell text must equal its structured text_body content");
+                var validationShape = new PresentationShape { Text = cell.Text, TextBody = cell.TextBody.Clone() };
+                PptxTextCodec.Validate(validationShape);
+            }
+            ValidateCellFill(cell.Fill, elementId);
+            ValidateCellBorders(cell.Borders, elementId);
+        }
         PptxNonVisualAccessibilityCodec.Validate(table.Accessibility, elementId, "table");
         if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.DefaultCellFillRgb)
             PptxColor.Normalize(table.DefaultCellFillRgb);
@@ -434,8 +446,17 @@ internal static class PptxTableCodec
         return plan;
     }
 
-    private static A.TableCell BuildCell(string text, bool header, PresentationTable table)
+    private static A.TableCell BuildCell(
+        PresentationTableCell source,
+        bool header,
+        PresentationTable table,
+        PptxPartContext slideContext)
     {
+        if (source.TextBody is not null)
+            return new A.TableCell(
+                PptxTextCodec.BuildDrawingTextBody(source.TextBody, slideContext),
+                BuildCellProperties(source, header, table));
+
         var style = table.DefaultTextStyle;
         var runProperties = new A.RunProperties
         {
@@ -455,23 +476,112 @@ internal static class PptxTableCodec
             runProperties.Append(new A.LatinFont { Typeface = style.FontFamily });
             runProperties.Append(new A.EastAsianFont { Typeface = style.HasFontFamilyEastAsia ? style.FontFamilyEastAsia : style.FontFamily });
         }
-        var cellProperties = new A.TableCellProperties();
-        if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.NoDefaultCellFill)
-            cellProperties.Append(new A.NoFill());
-        else cellProperties.Append(new A.SolidFill(new A.RgbColorModelHex
-        {
-            Val = table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.DefaultCellFillRgb
-                ? table.DefaultCellFillRgb
-                : header ? "EDEDED" : "FFFFFF",
-        }));
         return new A.TableCell(
             new A.TextBody(
                 new A.BodyProperties(),
                 new A.ListStyle(),
                 new A.Paragraph(
-                    new A.Run(runProperties, new A.Text(text)),
+                    new A.Run(runProperties, new A.Text(source.Text)),
                     new A.EndParagraphRunProperties { Language = "en-US", FontSize = 1_350 })),
-            cellProperties);
+            BuildCellProperties(source, header, table));
+    }
+
+    private static A.TableCellProperties BuildCellProperties(
+        PresentationTableCell source,
+        bool header,
+        PresentationTable table)
+    {
+        var output = new A.TableCellProperties();
+        if (source.Borders is { } borders)
+        {
+            if (borders.Left is not null) output.Append(BuildBorder<A.LeftBorderLineProperties>(borders.Left));
+            if (borders.Right is not null) output.Append(BuildBorder<A.RightBorderLineProperties>(borders.Right));
+            if (borders.Top is not null) output.Append(BuildBorder<A.TopBorderLineProperties>(borders.Top));
+            if (borders.Bottom is not null) output.Append(BuildBorder<A.BottomBorderLineProperties>(borders.Bottom));
+        }
+        if (source.Fill is { } fill)
+        {
+            output.Append(fill.KindCase switch
+            {
+                PresentationTableCellFill.KindOneofCase.NoFill => new A.NoFill(),
+                PresentationTableCellFill.KindOneofCase.SolidRgb => SolidFill(fill.SolidRgb, fill.HasOpacityThousandthPercent ? fill.OpacityThousandthPercent : null),
+                PresentationTableCellFill.KindOneofCase.GradientFill => PptxGradientFillCodec.Build(fill.GradientFill, "Presentation table-cell fill"),
+                _ => throw new InvalidOperationException("Validated presentation table-cell fill changed unexpectedly."),
+            });
+        }
+        else if (table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.NoDefaultCellFill)
+            output.Append(new A.NoFill());
+        else output.Append(SolidFill(
+            table.DefaultCellFillCase == PresentationTable.DefaultCellFillOneofCase.DefaultCellFillRgb
+                ? table.DefaultCellFillRgb
+                : header ? "EDEDED" : "FFFFFF",
+            null));
+        return output;
+    }
+
+    private static A.SolidFill SolidFill(string rgb, uint? opacity)
+    {
+        var color = new A.RgbColorModelHex { Val = PptxColor.Normalize(rgb) };
+        if (opacity is { } alpha) color.Append(new A.Alpha { Val = checked((int)alpha) });
+        return new A.SolidFill(color);
+    }
+
+    private static T BuildBorder<T>(SpreadsheetChartLineStyleArtifact source)
+        where T : OpenXmlCompositeElement, new()
+    {
+        var output = new T();
+        if (source.HasWidthPoints)
+            output.SetAttribute(new OpenXmlAttribute("w", string.Empty, checked((long)Math.Round(source.WidthPoints * 12_700, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture)));
+        if (source.Cap.Length > 0)
+            output.SetAttribute(new OpenXmlAttribute("cap", string.Empty, source.Cap switch
+            {
+                "round" => "rnd",
+                "square" => "sq",
+                _ => "flat",
+            }));
+        if (source.Color is not null)
+            output.Append(SolidFill(source.Color.Rgb, source.HasOpacityThousandthPercent ? source.OpacityThousandthPercent : null));
+        if (source.DashStyle != SpreadsheetChartLineDashStyle.Unspecified)
+            output.Append(new A.PresetDash { Val = source.DashStyle switch
+            {
+                SpreadsheetChartLineDashStyle.Dashed => A.PresetLineDashValues.Dash,
+                SpreadsheetChartLineDashStyle.Dotted => A.PresetLineDashValues.Dot,
+                SpreadsheetChartLineDashStyle.DashDot => A.PresetLineDashValues.DashDot,
+                SpreadsheetChartLineDashStyle.DashDotDot => A.PresetLineDashValues.LargeDashDotDot,
+                _ => A.PresetLineDashValues.Solid,
+            }});
+        if (source.Join.Length > 0) output.Append(source.Join switch
+        {
+            "round" => new A.Round(),
+            "bevel" => new A.LineJoinBevel(),
+            _ => new A.Miter(),
+        });
+        return output;
+    }
+
+    private static void ValidateCellFill(PresentationTableCellFill? fill, string elementId)
+    {
+        if (fill is null) return;
+        if (fill.KindCase == PresentationTableCellFill.KindOneofCase.None)
+            throw Invalid(elementId, "cell fill must select none, solid, or gradient");
+        if (fill.KindCase == PresentationTableCellFill.KindOneofCase.NoFill && !fill.NoFill)
+            throw Invalid(elementId, "cell no_fill must be true when selected");
+        if (fill.KindCase == PresentationTableCellFill.KindOneofCase.SolidRgb)
+            PptxColor.Normalize(fill.SolidRgb);
+        if (fill.KindCase == PresentationTableCellFill.KindOneofCase.GradientFill)
+            PptxGradientFillCodec.Validate(fill.GradientFill, $"Presentation table {elementId} cell fill");
+        if (fill.HasOpacityThousandthPercent &&
+            (fill.KindCase != PresentationTableCellFill.KindOneofCase.SolidRgb || fill.OpacityThousandthPercent > 100_000))
+            throw Invalid(elementId, "cell fill opacity requires a solid RGB fill and must be 0 through 100000");
+    }
+
+    private static void ValidateCellBorders(PresentationTableCellBorders? borders, string elementId)
+    {
+        if (borders is null) return;
+        XlsxChartSeriesLineStyleCodec.ValidateLine(borders.Left, "presentation", elementId, "cell", "left border");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(borders.Top, "presentation", elementId, "cell", "top border");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(borders.Right, "presentation", elementId, "cell", "right border");
+        XlsxChartSeriesLineStyleCodec.ValidateLine(borders.Bottom, "presentation", elementId, "cell", "bottom border");
     }
 
     private static A.Text? SingleText(A.TableCell cell)
