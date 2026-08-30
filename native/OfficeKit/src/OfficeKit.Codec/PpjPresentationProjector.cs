@@ -1008,9 +1008,17 @@ internal static partial class PpjPresentationProjector
         if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
             bullet["fontFamily"] = paragraph.BulletFontFamily;
         if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
-            bullet["color"] = Color(paragraph.BulletColorRgb);
+            bullet["color"] = TextColor(
+                paragraph.BulletColorRgb,
+                null,
+                paragraph.HasBulletColorOpacityThousandthPercent,
+                paragraph.BulletColorOpacityThousandthPercent);
         else if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme)
-            bullet["color"] = new JsonObject { ["token"] = paragraph.BulletColorScheme };
+            bullet["color"] = TextColor(
+                null,
+                paragraph.BulletColorScheme,
+                paragraph.HasBulletColorOpacityThousandthPercent,
+                paragraph.BulletColorOpacityThousandthPercent);
         if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints)
             bullet["size"] = paragraph.BulletSizePoints;
         else if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePercent)

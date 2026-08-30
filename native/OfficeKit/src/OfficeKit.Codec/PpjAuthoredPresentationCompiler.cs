@@ -856,7 +856,8 @@ internal static class PpjAuthoredPresentationCompiler
                 paragraph,
                 Property(namedStyle, "paragraph"),
                 Property(inlineStyle, "paragraph"),
-                null);
+                null,
+                catalog);
             paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, inlineStyle, null, null, catalog));
             body.Paragraphs.Add(paragraph);
             return body;
@@ -868,7 +869,8 @@ internal static class PpjAuthoredPresentationCompiler
                 paragraph,
                 Property(namedStyle, "paragraph"),
                 Property(inlineStyle, "paragraph"),
-                Property(paragraphJson, "style"));
+                Property(paragraphJson, "style"),
+                catalog);
             foreach (var run in paragraphJson.GetProperty("runs").EnumerateArray())
                 paragraph.Runs.Add(BuildRun(
                     run.GetProperty("text").GetString()!,
@@ -1024,7 +1026,8 @@ internal static class PpjAuthoredPresentationCompiler
         PresentationTextParagraph target,
         JsonElement? named,
         JsonElement? inline,
-        JsonElement? direct)
+        JsonElement? direct,
+        Catalog catalog)
     {
         if (FirstProperty(direct, inline, named, "alignment") is { } alignment)
             target.Alignment = alignment.GetString()!;
@@ -1062,7 +1065,12 @@ internal static class PpjAuthoredPresentationCompiler
                 if (bullet.TryGetProperty("startAt", out var startAt)) target.AutoNumber.StartAt = checked((uint)startAt.GetInt32());
             }
             if (bullet.TryGetProperty("fontFamily", out var bulletFont)) target.BulletFontFamily = bulletFont.GetString()!;
-            if (bullet.TryGetProperty("color", out var bulletColor)) target.BulletColorRgb = NormalizeRgbToken(bulletColor);
+            if (bullet.TryGetProperty("color", out var bulletColor))
+            {
+                var color = catalog.Color(bulletColor);
+                target.BulletColorRgb = color.Rgb;
+                if (color.Alpha < 1) target.BulletColorOpacityThousandthPercent = Opacity(color.Alpha);
+            }
             if (bullet.TryGetProperty("size", out var bulletSize)) target.BulletSizePoints = bulletSize.GetDouble();
             if (bullet.TryGetProperty("sizePercent", out var bulletSizePercent)) target.BulletSizePercent = bulletSizePercent.GetDouble();
         }
@@ -1732,16 +1740,6 @@ internal static class PpjAuthoredPresentationCompiler
         "upper-roman" => "romanUcPeriod",
         _ => throw Unsupported("text", $"unsupported numbered bullet format {value}"),
     };
-
-    private static string NormalizeRgbToken(JsonElement color)
-    {
-        if (color.ValueKind != JsonValueKind.String)
-            throw Unsupported("text", "theme bullet colors require the theme-aware text compiler");
-        var resolved = ParseHexColor(color.GetString()!);
-        if (resolved.Alpha != 1)
-            throw Unsupported("text", "bullet color alpha is not yet compiler-owned");
-        return resolved.Rgb;
-    }
 
     private static string Flatten(PpjTextContentModel text) =>
         text.PlainText ?? string.Join('\n', text.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(run => run.Text))));

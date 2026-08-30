@@ -160,6 +160,12 @@ public sealed class PptxCodecTests
         {
             ["lineSpacingMultiplier"] = 1.1,
             ["spaceAfterMultiplier"] = 0.2,
+            ["bullet"] = new JsonObject
+            {
+                ["type"] = "character",
+                ["character"] = "•",
+                ["color"] = new JsonObject { ["token"] = "signal", ["alpha"] = 0.5 },
+            },
         };
         var authoredRunStyle = authoredParagraph["runs"]![0]!["style"]!.AsObject();
         authoredRunStyle["fontFamilyEastAsia"] = "Arial";
@@ -645,6 +651,9 @@ public sealed class PptxCodecTests
         Assert.Equal("Reduce incident hours ", importedClaim.TextBody.Paragraphs[0].Runs[0].Text);
         Assert.Equal("without weakening workload", importedClaim.TextBody.Paragraphs[0].Runs[1].Text);
         Assert.Equal("Main decision claim", importedClaim.Accessibility.Description);
+        Assert.Equal("•", importedClaim.TextBody.Paragraphs[0].BulletCharacter);
+        Assert.Equal("0B8F8F", importedClaim.TextBody.Paragraphs[0].BulletColorRgb);
+        Assert.Equal(50_000U, importedClaim.TextBody.Paragraphs[0].BulletColorOpacityThousandthPercent);
         Assert.Equal("16324F", importedClaim.TextBody.Paragraphs[0].Runs[0].ColorRgb);
         Assert.Equal(80_000U, importedClaim.TextBody.Paragraphs[0].Runs[0].ColorOpacityThousandthPercent);
         var importedCustomShape = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element =>
@@ -848,6 +857,8 @@ public sealed class PptxCodecTests
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("highlight").GetString());
             Assert.Equal("zh-CN", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
                 .GetProperty("runs")[0].GetProperty("style").GetProperty("language").GetString());
+            Assert.Equal("#0B8F8F80", projectedClaim.GetProperty("text").GetProperty("paragraphs")[0]
+                .GetProperty("style").GetProperty("bullet").GetProperty("color").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
             Assert.Equal(6, projectedChart.GetProperty("frame").GetProperty("rotation").GetDouble());

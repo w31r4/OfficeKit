@@ -337,9 +337,11 @@ internal static class PpjNativeLeafProjection
             }
             if (paragraph.BulletFontCase == PresentationTextParagraph.BulletFontOneofCase.BulletFontFamily)
                 add("paragraphBulletFontFamily", paragraph.BulletFontFamily, JsonValue.Create(paragraph.BulletFontFamily), nativeIndex, 0);
-            if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
+            if (!paragraph.HasBulletColorOpacityThousandthPercent &&
+                paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorRgb)
                 add("paragraphBulletColorRgb", paragraph.BulletColorRgb, JsonValue.Create($"#{paragraph.BulletColorRgb.ToLowerInvariant()}"), nativeIndex, 0);
-            if (paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme)
+            if (!paragraph.HasBulletColorOpacityThousandthPercent &&
+                paragraph.BulletColorCase == PresentationTextParagraph.BulletColorOneofCase.BulletColorScheme)
                 add("paragraphBulletColorScheme", paragraph.BulletColorScheme, JsonValue.Create(paragraph.BulletColorScheme), nativeIndex, 0);
             if (paragraph.BulletSizeCase == PresentationTextParagraph.BulletSizeOneofCase.BulletSizePoints)
                 AddScaled(add, "paragraphBulletSizePoints", paragraph.BulletSizePoints, 100, nativeIndex);
