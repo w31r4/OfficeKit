@@ -14,4 +14,4 @@
 - [x] 3.1 Update the capability registry, generated PPJ manual, and focused chart guidance.
 - [x] 3.2 Extend the existing integrated PPJ codec test once.
 - [x] 3.3 Run the narrow test, proto check, maintainer check, OpenSpec strict validation, and diff check.
-- [ ] 3.4 Commit atomically, push normally, and fast-forward remote main after verifying ancestry.
+- [x] 3.4 Commit atomically, push normally, and fast-forward remote main after verifying ancestry.
