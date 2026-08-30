@@ -147,10 +147,21 @@ internal static class PptxConnectorCodec
         if (geometry.ChildElements.Any(child => child is not A.AdjustValueList) || lists.Length > 1) return false;
         var guides = lists.SingleOrDefault()?.Elements<A.ShapeGuide>().ToArray() ?? [];
         if (lists.SingleOrDefault()?.ChildElements.Any(child => child is not A.ShapeGuide) == true) return false;
-        if (connectorType != "curved") return guides.Length == 0;
+        if (connectorType == "straight") return guides.Length == 0;
+        // bentConnector3 commonly carries the canonical midpoint adjustment
+        // emitted by Google/SlidesCarnival. It changes the visual bend but
+        // not the connector endpoint contract; accepting this one bounded
+        // guide lets the typed connector preserve the source geometry while
+        // editing endpoints or line leaves. Other adjustment formulas remain
+        // source-owned and therefore opaque.
+        if (connectorType == "elbow") return guides.Length == 0 || IsCanonicalBentAdjustment(guides);
         return guides.Length == 0 || guides.Length == 1 && guides[0].Name?.Value == "adj1" && guides[0].Formula?.Value == "val 50000" &&
             !guides[0].ChildElements.Any() && !guides[0].ExtendedAttributes.Any();
     }
+
+    private static bool IsCanonicalBentAdjustment(IReadOnlyList<A.ShapeGuide> guides) =>
+        guides.Count == 1 && guides[0].Name?.Value == "adj1" && guides[0].Formula?.Value == "val 50000" &&
+        !guides[0].ChildElements.Any() && !guides[0].ExtendedAttributes.Any();
 
     private static A.PresetGeometry CanonicalGeometry(string connectorType)
     {
