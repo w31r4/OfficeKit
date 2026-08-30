@@ -1163,6 +1163,18 @@ edit changes only `ppt/slides/slide12.xml` and survives a second import. Other
 connector routing formulas and style-reference graphs remain source-owned and
 are not promoted by this profile.
 
+### Imported connector colors from a style reference
+
+FROSTE's two straight-arrow connectors use a native `p:style/a:lnRef` theme
+color instead of a direct `a:solidFill`. The imported opaque connector profile
+now exposes that one proven color as a `lineScheme` native leaf alongside its
+existing end-arrow leaf. A source-bound `accent5` to `accent2` edit changes
+only `ppt/slides/slide9.xml`, survives a second import, and is visible in both
+the JavaScript inspection and PPJ `nativeRef.leaves` projection. Direct RGB
+style references use the same bounded `lineRgb` surface. Style-reference
+effects, fill/font references, and arbitrary line paint graphs remain opaque;
+the edit never rebuilds the connector or its surrounding XML.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
