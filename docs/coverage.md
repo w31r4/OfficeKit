@@ -213,7 +213,13 @@ Imported connectors and group descendants with one explicit preset
 with a supported `@type` and canonical optional `@w`/`@len` sizes, plus a
 simple solid RGB or theme-colored outline, now expose source-bound
 `lineStyle`, `lineCap`, `lineJoin`, `lineStartArrow`, or `lineEndArrow` leaves.
-Edits splice only the selected existing dash/cap/join/endpoint-type token and
+The native connector reader also recognizes these endpoint leaves when a
+third-party `p:cxnSp` remains a source-bound native shell because its target
+topology is not semantic; the six-sample corpus exposes 500 endpoint leaves
+across 250 such connectors in four samples. A targeted NASA FROSTE end-arrow
+edit changed `triangle` to `stealth`, changed only `ppt/slides/slide4.xml`, and
+survived second import. Edits splice only the selected existing
+dash/cap/join/endpoint-type token and
 survive re-import with the target SlidePart as the declared footprint; endpoint
 width/length attributes are retained, while custom dash graphs, miter limits,
 missing/ambiguous paints, malformed or absent endpoints, effects, and other
