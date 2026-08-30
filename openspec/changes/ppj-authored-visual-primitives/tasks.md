@@ -27,4 +27,4 @@
 - [x] 5.1 Regenerate `ppj.md` and focused shapes/charts/tables guidance
 - [x] 5.2 Extend the existing integrated PPJ test without creating a new matrix
 - [x] 5.3 Run narrow native, proto, generated-reference, and OpenSpec checks
-- [ ] 5.4 Commit atomically, push the feature branch, and fast-forward main
+- [x] 5.4 Commit atomically, push the feature branch, and fast-forward main
