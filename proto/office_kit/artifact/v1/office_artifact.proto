@@ -939,6 +939,9 @@ enum SpreadsheetChartType {
   // PresentationML uses this only with PresentationChart.combo_series. XLSX
   // charts do not yet own mixed plots and reject this enum value explicitly.
   SPREADSHEET_CHART_TYPE_COMBO = 8;
+  // One bounded native c:radarChart profile with radarStyle=standard. Filled,
+  // marker-only, 3D, and extension-bearing radar variants remain source owned.
+  SPREADSHEET_CHART_TYPE_RADAR = 9;
 }
 
 // One worksheet chart graphic frame and its relationship-backed ChartPart.
