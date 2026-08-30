@@ -450,6 +450,18 @@ or opaque content can be inspected and edited through its newly issued
 capabilities. One source page may have only one pending clone, and the same
 build cannot also delete/reorder pages or change section/custom-show routes.
 
+To continue an ordinary imported page without cloning it, require the page's
+\`nativeRef\` to advertise \`appendElement\` with \`elements\`. Keep every
+source-projected element unchanged and in its original order, then append new
+typed elements at the end of \`pages[].elements[]\`. This suffix is above all
+source-owned objects. The bounded profile accepts \`text\`, \`image\`, and
+\`shape\` only when the shape preset is \`rect\`, \`roundRect\`, or \`ellipse\`;
+the text type lowers to the native textbox profile. New elements have fresh
+IDs and no nativeRef. Do not interleave them with native elements, add a paired
+SVG fallback, or combine the append with another source mutation. Build and
+re-import before the next edit so the new native objects receive fresh stable
+source-bound IDs and capability evidence.
+
 OfficeKit-authored PPTX embeds canonical PPJ and a node map. Import restores
 that PPJ exactly when valid. If native software changed the PPTX but left the
 embedded program, PPJ remains authoritative; a future build writes a new output

@@ -11,7 +11,7 @@
 
 ## 3. Agent surface and lean verification
 
-- [ ] 3.1 Regenerate `ppj.md` and update import guidance and coverage.
+- [x] 3.1 Regenerate `ppj.md` and update import guidance and coverage.
 - [x] 3.2 Add one focused source overlay contract to the existing PPJ test file.
 - [ ] 3.3 Run the focused test, Skill maintainer, and strict OpenSpec check once.
 - [ ] 3.4 Commit atomically and fast-forward main without force pushing.

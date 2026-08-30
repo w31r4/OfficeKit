@@ -196,6 +196,17 @@ Slide XML, and second projection expands the result into an ordinary
 source-bound page. Pending clones cannot be edited, chained, repeated, mixed
 with page deletion/reorder or route changes, or used from source-free PPJ.
 
+Ordinary imported pages now also issue `appendElement/elements`. PPJ retains
+the complete source element array as an unchanged prefix and appends fresh
+typed text, bounded rect/roundRect/ellipse shapes, or embedded rectangular
+images as the topmost suffix. The source-bound compiler reuses the authored
+element lowerer and the existing native bounded-overlay writer; it does not
+write OOXML or duplicate source objects. One focused contract clones and
+reimports a source page, appends an editable PPJ textbox, proves only that
+clone's SlidePart changes, then projects the result as an ordinary typed text
+node with nativeRef. Interleaving, unsupported element kinds, paired SVG
+fallback creation, stale authority, and mixed source mutations fail closed.
+
 Imported PPJ canvas state now carries its own source-bound nativeRef and issues
 `setCanvas` for `canvas.width` and `canvas.height`. The compiler converts point
 dimensions to deterministic EMUs and reuses the existing canvas-only native

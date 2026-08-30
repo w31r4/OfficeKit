@@ -109,6 +109,30 @@ A source component still requires its separately issued bounded reuse path.
 New PPJ objects may be composed only after the reused native graph has crossed
 the required build/reimport boundary.
 
+## Add a typed overlay to an imported page
+
+For an ordinary imported page, the page nativeRef may issue
+`appendElement/elements`. Keep every existing element unchanged and in its
+original order, then append fresh typed objects to the end of `elements[]`:
+
+```json
+{
+  "id": "review-label",
+  "type": "text",
+  "frame": { "x": 560, "y": 440, "width": 300, "height": 48 },
+  "text": "Reviewed 31 Aug 2026"
+}
+```
+
+The new suffix is the topmost z-order and may contain only textboxes,
+`rect`/`roundRect`/`ellipse` shapes, or embedded rectangular images. New
+elements use fresh IDs and no nativeRef. Do not insert them below source-owned
+content, add a paired SVG fallback, or combine the append with a native edit,
+deletion, reorder, page metadata change, comment, section, or custom-show
+transaction. Build, render/review, and re-import before the next edit; the new
+objects then appear as ordinary typed source-bound elements with fresh
+nativeRefs.
+
 OfficeKit-authored PPTX is different: if a valid embedded program exists,
 import restores it exactly. If an external application changed the native file
 but left the program, the embedded PPJ remains authoritative. Build a new file;
