@@ -634,7 +634,8 @@ stable node catalog in `categories`; the one series carries aligned positive
       "nodeStroke": { "color": "#FFFFFF", "width": 0.5 },
       "nodeWidth": 14,
       "nodeGap": 10,
-      "nodeAlign": "justify",
+      "nodeAlign": "right",
+      "nodeColorMap": { "Paid": "#C1121F" },
       "flowOpacity": 0.42,
       "flowCurvature": 0.72,
       "flowColorMode": "source",
@@ -670,6 +671,13 @@ without it, import returns the ordinary editable group and does not infer a
 Sankey from arbitrary ribbons. Whole-object animation is supported;
 `chartBuild`, cycles, negative flows, non-conserving internal nodes, arbitrary
 graph constraints, and expression-driven paint fail closed.
+
+`nodeAlign: "left"` keeps the earliest topological placement. `"justify"`
+pushes sinks to the last column. `"right"` aligns each node by its longest
+remaining route to a sink, which is useful when short branches should end near
+the outcome rather than near the source. `nodeColorMap` overrides the palette
+by exact declared node name; undeclared names are rejected instead of silently
+creating a second category.
 
 Use radar only when every series is measured against the same small set of
 meaningful dimensions and a common scale. It is a profile comparison, not a
@@ -742,6 +750,15 @@ ordinary native first-row flag. Exact counts above one survive through the
 embedded PPJ; a third-party import without that program conservatively reports
 only the native first-row fact. Imported table topology and unmodeled native
 style graphs remain source-owned.
+
+For compact repeated styling, `cellStyle` supplies the base; `bodyStyles`
+cycles through rows between the first and last row; `firstRowStyle`,
+`lastRowStyle`, `firstColumnStyle`, and `lastColumnStyle` add structural roles.
+Each style can set `fill`, `textStyle`, and individual `borders`. Explicit cell
+properties always win. When row and column roles set the same property,
+`rowOverColumn` chooses the winner and defaults to `true`. This is bounded style
+inheritance, not a selector language: expand unusual exceptions directly on
+the affected cell.
 
 Use [the complete PPJ reference](ppj.md) for exact fields, value ranges, and
 compiler boundaries. This page explains visual choice; it is not a shortened
