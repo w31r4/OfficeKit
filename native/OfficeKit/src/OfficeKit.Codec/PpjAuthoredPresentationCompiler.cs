@@ -2728,6 +2728,14 @@ internal static class PpjAuthoredPresentationCompiler
         var inlineStyle = Property(raw, "style");
         var defaultTextStyle = FirstProperty(inlineStyle, namedStyle, "defaultTextStyle");
         var defaultCellFill = FirstProperty(inlineStyle, namedStyle, "defaultCellFill");
+        var headerTextStyle = FirstProperty(inlineStyle, namedStyle, "headerTextStyle");
+        var headerCellFill = FirstProperty(inlineStyle, namedStyle, "headerCellFill");
+        var declaredHeaderRows = FirstProperty(inlineStyle, namedStyle, "headerRows");
+        var headerRowCount = declaredHeaderRows?.GetInt32() ?? 0;
+        if (headerRowCount > element.Rows.Count)
+            throw Unsupported(element.Id, $"table headerRows {headerRowCount} exceeds the {element.Rows.Count}-row physical grid");
+        if (headerRowCount == 0 && (headerTextStyle is not null || headerCellFill is not null))
+            throw Unsupported(element.Id, "headerTextStyle and headerCellFill require headerRows greater than zero");
         table.ColumnWidthsEmu.Add(ScaledExtents(
             element.Columns.Select(column => column.Width).ToArray(),
             table.WidthEmu));
@@ -2739,6 +2747,7 @@ internal static class PpjAuthoredPresentationCompiler
         for (var rowIndex = 0; rowIndex < element.Rows.Count; rowIndex++)
         {
             var source = element.Rows[rowIndex];
+            var headerRow = rowIndex < headerRowCount;
             var row = new PresentationTableRow { HeightEmu = rowHeights[rowIndex] };
             for (var columnIndex = 0; columnIndex < element.Columns.Count; columnIndex++)
                 row.Cells.Add(new PresentationTableCell());
@@ -2754,10 +2763,11 @@ internal static class PpjAuthoredPresentationCompiler
                 targetCell.TextBody = BuildTextBody(
                     rawCell.GetProperty("text"),
                     defaultTextStyle,
+                    headerRow ? headerTextStyle : null,
                     Property(rawCell, "textStyle"),
                     catalog);
                 targetCell.Text = PptxTextCodec.Flatten(targetCell.TextBody);
-                if ((Property(rawCell, "fill") ?? defaultCellFill) is { } cellFill)
+                if ((Property(rawCell, "fill") ?? (headerRow ? headerCellFill : null) ?? defaultCellFill) is { } cellFill)
                 {
                     var cellWidthEmu = table.ColumnWidthsEmu
                         .Skip(cursor)
@@ -2795,12 +2805,7 @@ internal static class PpjAuthoredPresentationCompiler
             }
             table.Rows.Add(row);
         }
-        if (FirstProperty(inlineStyle, namedStyle, "headerRows") is { } headerRows)
-        {
-            if (headerRows.GetInt32() > 1)
-                throw Unsupported(element.Id, "native table authoring currently supports at most one header row");
-            table.FirstRow = headerRows.GetInt32() == 1;
-        }
+        if (declaredHeaderRows is not null) table.FirstRow = headerRowCount > 0;
         if (FirstProperty(inlineStyle, namedStyle, "bandedRows") is { } bandedRows)
             table.BandedRows = bandedRows.GetBoolean();
         if (FirstProperty(inlineStyle, namedStyle, "bandedColumns") is { } bandedColumns)
@@ -3478,20 +3483,28 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement text,
         JsonElement? namedStyle,
         JsonElement? inlineStyle,
+        Catalog catalog) => BuildTextBody(text, namedStyle, null, inlineStyle, catalog);
+
+    private static PresentationTextBody BuildTextBody(
+        JsonElement text,
+        JsonElement? namedStyle,
+        JsonElement? middleStyle,
+        JsonElement? inlineStyle,
         Catalog catalog)
     {
         var body = new PresentationTextBody();
-        ApplyBodyProperties(body.BodyProperties = new PresentationTextBodyProperties(), namedStyle, inlineStyle);
+        ApplyBodyProperties(body.BodyProperties = new PresentationTextBodyProperties(), namedStyle, middleStyle, inlineStyle);
         if (text.ValueKind == JsonValueKind.String)
         {
             var paragraph = new PresentationTextParagraph();
             ApplyParagraphStyle(
                 paragraph,
                 Property(namedStyle, "paragraph"),
+                Property(middleStyle, "paragraph"),
                 Property(inlineStyle, "paragraph"),
                 null,
                 catalog);
-            paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, inlineStyle, null, null, catalog));
+            paragraph.Runs.Add(BuildRun(text.GetString()!, namedStyle, middleStyle, inlineStyle, null, null, catalog));
             body.Paragraphs.Add(paragraph);
             return body;
         }
@@ -3501,6 +3514,7 @@ internal static class PpjAuthoredPresentationCompiler
             ApplyParagraphStyle(
                 paragraph,
                 Property(namedStyle, "paragraph"),
+                Property(middleStyle, "paragraph"),
                 Property(inlineStyle, "paragraph"),
                 Property(paragraphJson, "style"),
                 catalog);
@@ -3508,6 +3522,7 @@ internal static class PpjAuthoredPresentationCompiler
                 paragraph.Runs.Add(BuildRun(
                     run.GetProperty("text").GetString()!,
                     namedStyle,
+                    middleStyle,
                     inlineStyle,
                     Property(run, "style"),
                     Property(run, "hyperlink"),
@@ -3530,27 +3545,37 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement? inlineBox,
         JsonElement? inlineRun,
         JsonElement? hyperlink,
+        Catalog catalog) => BuildRun(text, namedBox, null, inlineBox, inlineRun, hyperlink, catalog);
+
+    private static PresentationTextRun BuildRun(
+        string text,
+        JsonElement? namedBox,
+        JsonElement? middleBox,
+        JsonElement? inlineBox,
+        JsonElement? inlineRun,
+        JsonElement? hyperlink,
         Catalog catalog)
     {
         var run = new PresentationTextRun { Text = text };
         var inlineDefault = FirstProperty(inlineBox, null, "defaultText");
+        var middleDefault = FirstProperty(middleBox, null, "defaultText");
         var namedDefault = FirstProperty(namedBox, null, "defaultText");
-        var bold = FirstProperty(inlineRun, inlineDefault, namedDefault, "bold");
-        var italic = FirstProperty(inlineRun, inlineDefault, namedDefault, "italic");
-        var size = FirstProperty(inlineRun, inlineDefault, namedDefault, "size");
-        var paint = FirstTextPaint(inlineRun, inlineDefault, namedDefault);
-        var shadow = FirstProperty(inlineRun, inlineDefault, namedDefault, "shadow");
-        var highlight = FirstProperty(inlineRun, inlineDefault, namedDefault, "highlight");
-        var font = FirstProperty(inlineRun, inlineDefault, namedDefault, "font");
-        var family = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamily");
-        var eastAsia = FirstProperty(inlineRun, inlineDefault, namedDefault, "fontFamilyEastAsia");
-        var underline = FirstProperty(inlineRun, inlineDefault, namedDefault, "underline");
-        var strike = FirstProperty(inlineRun, inlineDefault, namedDefault, "strike");
-        var kerning = FirstProperty(inlineRun, inlineDefault, namedDefault, "kerning");
-        var spacing = FirstProperty(inlineRun, inlineDefault, namedDefault, "letterSpacing");
-        var baseline = FirstProperty(inlineRun, inlineDefault, namedDefault, "baseline");
-        var capitalization = FirstProperty(inlineRun, inlineDefault, namedDefault, "capitalization");
-        var language = FirstProperty(inlineRun, inlineDefault, namedDefault, "language");
+        var bold = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "bold");
+        var italic = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "italic");
+        var size = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "size");
+        var paint = FirstTextPaint(inlineRun, inlineDefault, middleDefault, namedDefault);
+        var shadow = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "shadow");
+        var highlight = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "highlight");
+        var font = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "font");
+        var family = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "fontFamily");
+        var eastAsia = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "fontFamilyEastAsia");
+        var underline = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "underline");
+        var strike = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "strike");
+        var kerning = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "kerning");
+        var spacing = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "letterSpacing");
+        var baseline = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "baseline");
+        var capitalization = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "capitalization");
+        var language = FirstProperty(inlineRun, inlineDefault, middleDefault, namedDefault, "language");
         if (bold is { } boldValue) run.Bold = boldValue.GetBoolean();
         if (italic is { } italicValue) run.Italic = italicValue.GetBoolean();
         if (size is { } sizeValue) run.FontSizePoints = sizeValue.GetDouble();
@@ -3635,12 +3660,18 @@ internal static class PpjAuthoredPresentationCompiler
     private static void ApplyBodyProperties(
         PresentationTextBodyProperties target,
         JsonElement? named,
+        JsonElement? inline) => ApplyBodyProperties(target, named, null, inline);
+
+    private static void ApplyBodyProperties(
+        PresentationTextBodyProperties target,
+        JsonElement? named,
+        JsonElement? middle,
         JsonElement? inline)
     {
-        var vertical = FirstProperty(inline, named, "verticalAlignment");
+        var vertical = FirstProperty(inline, middle, named, "verticalAlignment");
         if (vertical is { } verticalValue)
             target.VerticalAnchor = verticalValue.GetString() == "middle" ? "center" : verticalValue.GetString()!;
-        var autoFit = FirstProperty(inline, named, "autoFit");
+        var autoFit = FirstProperty(inline, middle, named, "autoFit");
         if (autoFit is { } autoFitValue)
             target.AutoFitMode = autoFitValue.GetString() switch
             {
@@ -3648,9 +3679,9 @@ internal static class PpjAuthoredPresentationCompiler
                 "resize-shape" => "resizeShape",
                 _ => "none",
             };
-        var wrap = FirstProperty(inline, named, "wrap");
+        var wrap = FirstProperty(inline, middle, named, "wrap");
         if (wrap is { } wrapValue) target.Wrap = wrapValue.GetString()!;
-        var margins = FirstProperty(inline, named, "margins");
+        var margins = FirstProperty(inline, middle, named, "margins");
         if (margins is { } inset)
         {
             if (inset.TryGetProperty("left", out var left)) target.LeftInsetEmu = Emu(left.GetDouble());
@@ -3658,13 +3689,13 @@ internal static class PpjAuthoredPresentationCompiler
             if (inset.TryGetProperty("right", out var right)) target.RightInsetEmu = Emu(right.GetDouble());
             if (inset.TryGetProperty("bottom", out var bottom)) target.BottomInsetEmu = Emu(bottom.GetDouble());
         }
-        var columns = FirstProperty(inline, named, "columns");
+        var columns = FirstProperty(inline, middle, named, "columns");
         if (columns is { } columnCount) target.Columns = checked((uint)columnCount.GetInt32());
-        var gap = FirstProperty(inline, named, "columnGap");
+        var gap = FirstProperty(inline, middle, named, "columnGap");
         if (gap is { } columnGap) target.ColumnSpacingEmu = Emu(columnGap.GetDouble());
-        var columnDirection = FirstProperty(inline, named, "columnDirection");
+        var columnDirection = FirstProperty(inline, middle, named, "columnDirection");
         if (columnDirection is { } direction) target.RightToLeftColumns = direction.GetString() == "right-to-left";
-        var verticalText = FirstProperty(inline, named, "verticalText");
+        var verticalText = FirstProperty(inline, middle, named, "verticalText");
         if (verticalText is { } textMode) target.VerticalTextMode = textMode.GetString()!;
     }
 
@@ -3673,31 +3704,39 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement? named,
         JsonElement? inline,
         JsonElement? direct,
+        Catalog catalog) => ApplyParagraphStyle(target, named, null, inline, direct, catalog);
+
+    private static void ApplyParagraphStyle(
+        PresentationTextParagraph target,
+        JsonElement? named,
+        JsonElement? middle,
+        JsonElement? inline,
+        JsonElement? direct,
         Catalog catalog)
     {
-        if (FirstProperty(direct, inline, named, "alignment") is { } alignment)
+        if (FirstProperty(direct, inline, middle, named, "alignment") is { } alignment)
             target.Alignment = alignment.GetString()!;
-        if (FirstProperty(direct, inline, named, "level") is { } level)
+        if (FirstProperty(direct, inline, middle, named, "level") is { } level)
             target.Level = checked((uint)level.GetInt32());
-        if (FirstProperty(direct, inline, named, "indent") is { } indent)
+        if (FirstProperty(direct, inline, middle, named, "indent") is { } indent)
             target.MarginLeftEmu = Emu(indent.GetDouble());
-        if (FirstProperty(direct, inline, named, "hanging") is { } hanging)
+        if (FirstProperty(direct, inline, middle, named, "hanging") is { } hanging)
             target.IndentEmu = -Emu(hanging.GetDouble());
-        if (FirstProperty(direct, inline, named, "spaceBefore") is { } before)
+        if (FirstProperty(direct, inline, middle, named, "spaceBefore") is { } before)
             target.SpaceBeforePoints = before.GetDouble();
-        if (FirstProperty(direct, inline, named, "spaceBeforeMultiplier") is { } beforeMultiplier)
+        if (FirstProperty(direct, inline, middle, named, "spaceBeforeMultiplier") is { } beforeMultiplier)
             target.SpaceBeforeMultiplier = beforeMultiplier.GetDouble();
-        if (FirstProperty(direct, inline, named, "spaceAfter") is { } after)
+        if (FirstProperty(direct, inline, middle, named, "spaceAfter") is { } after)
             target.SpaceAfterPoints = after.GetDouble();
-        if (FirstProperty(direct, inline, named, "spaceAfterMultiplier") is { } afterMultiplier)
+        if (FirstProperty(direct, inline, middle, named, "spaceAfterMultiplier") is { } afterMultiplier)
             target.SpaceAfterMultiplier = afterMultiplier.GetDouble();
-        if (FirstProperty(direct, inline, named, "lineSpacing") is { } spacing)
+        if (FirstProperty(direct, inline, middle, named, "lineSpacing") is { } spacing)
             target.LineSpacingPoints = spacing.GetDouble();
-        if (FirstProperty(direct, inline, named, "lineSpacingMultiplier") is { } spacingMultiplier)
+        if (FirstProperty(direct, inline, middle, named, "lineSpacingMultiplier") is { } spacingMultiplier)
             target.LineSpacingMultiplier = spacingMultiplier.GetDouble();
-        if (FirstProperty(direct, inline, named, "defaultText") is { } defaultText && defaultText.EnumerateObject().Any())
+        if (FirstProperty(direct, inline, middle, named, "defaultText") is { } defaultText && defaultText.EnumerateObject().Any())
             target.DefaultRunProperties = BuildTextStyle(defaultText, catalog);
-        if (FirstProperty(direct, inline, named, "bullet") is { } bullet)
+        if (FirstProperty(direct, inline, middle, named, "bullet") is { } bullet)
         {
             var kind = bullet.GetProperty("type").GetString();
             if (kind == "none") target.NoBullet = true;
@@ -4461,6 +4500,14 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static JsonElement? FirstProperty(JsonElement? first, JsonElement? second, JsonElement? third, string name) =>
         Property(first, name) ?? Property(second, name) ?? Property(third, name);
+
+    private static JsonElement? FirstProperty(
+        JsonElement? first,
+        JsonElement? second,
+        JsonElement? third,
+        JsonElement? fourth,
+        string name) =>
+        Property(first, name) ?? Property(second, name) ?? Property(third, name) ?? Property(fourth, name);
 
     private static JsonElement? Property(JsonElement? value, string name) =>
         value is { ValueKind: JsonValueKind.Object } element && element.TryGetProperty(name, out var property) ? property : null;

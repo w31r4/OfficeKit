@@ -365,7 +365,26 @@ public sealed class PptxCodecTests
             .Single(element => element["id"]!.GetValue<string>() == "method-table-main");
         authoredTable["frame"]!["rotation"] = -4;
         authoredTable["frame"]!["flipV"] = true;
-        authoredProgram["design"]!["styles"]!["table"]![0]!["style"]!["defaultCellFill"] = new JsonObject
+        var authoredTableStyle = authoredProgram["design"]!["styles"]!["table"]![0]!["style"]!.AsObject();
+        authoredTableStyle["headerRows"] = 2;
+        authoredTableStyle["headerCellFill"] = new JsonObject
+        {
+            ["type"] = "solid",
+            ["color"] = "#B7DEE8",
+            ["opacity"] = 0.64,
+        };
+        authoredTableStyle["headerTextStyle"] = new JsonObject
+        {
+            ["verticalAlignment"] = "middle",
+            ["defaultText"] = new JsonObject
+            {
+                ["font"] = "sans",
+                ["size"] = 11,
+                ["bold"] = true,
+                ["color"] = new JsonObject { ["token"] = "signal", ["alpha"] = 0.88 },
+            },
+        };
+        authoredTableStyle["defaultCellFill"] = new JsonObject
         {
             ["type"] = "image",
             ["asset"] = "evidence-mark",
@@ -374,6 +393,10 @@ public sealed class PptxCodecTests
         };
         var authoredHeaderCell = authoredTable["rows"]![0]!["cells"]![0]!.AsObject();
         authoredHeaderCell["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA", ["opacity"] = 0.8 };
+        authoredHeaderCell["textStyle"] = new JsonObject
+        {
+            ["defaultText"] = new JsonObject { ["color"] = "#C1121F" },
+        };
         authoredTable["rows"]![0]!["cells"]![1]!["fill"] = new JsonObject
         {
             ["type"] = "image",
@@ -392,7 +415,7 @@ public sealed class PptxCodecTests
                 ["join"] = "round",
             },
         };
-        var authoredTableTextStyle = authoredProgram["design"]!["styles"]!["table"]![0]!["style"]!["defaultTextStyle"]!["defaultText"]!.AsObject();
+        var authoredTableTextStyle = authoredTableStyle["defaultTextStyle"]!["defaultText"]!.AsObject();
         authoredTableTextStyle["color"] = new JsonObject { ["token"] = "ink", ["alpha"] = 0.72 };
         var authoredChart = authoredProgram["pages"]![1]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -1390,18 +1413,29 @@ public sealed class PptxCodecTests
             Assert.Equal(4, nativePictureDiagram.Elements<P.Picture>().Count());
             Assert.Contains(nativePictureDiagram.Descendants<A.Text>(), text => text.Text == "Review");
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
+            Assert.True(nativeTable.TableProperties!.FirstRow!.Value);
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
             Assert.Equal(A.TextAnchoringTypeValues.Center, firstCell.TextBody!.BodyProperties!.Anchor!.Value);
             Assert.Equal("DCEFEA", firstCell.TableCellProperties!.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
             Assert.Equal(80_000, firstCell.TableCellProperties.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
-            Assert.Equal(72_000, firstCell.TextBody!.Descendants<A.RunProperties>().Single()
-                .GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var firstHeaderRun = firstCell.TextBody!.Descendants<A.RunProperties>().Single();
+            Assert.True(firstHeaderRun.Bold!.Value);
+            Assert.Equal("C1121F", firstHeaderRun.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
             var explicitImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(1);
             var explicitImageFill = explicitImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
             Assert.NotNull(explicitImageFill.GetFirstChild<A.Tile>());
             Assert.Equal(55_000, explicitImageFill.GetFirstChild<A.Blip>()!
                 .GetFirstChild<A.AlphaModulationFixed>()!.Amount!.Value);
-            var inheritedImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(2);
+            var secondHeaderCell = nativeTable.Descendants<A.TableCell>().ElementAt(2);
+            var secondHeaderFill = secondHeaderCell.TableCellProperties!.GetFirstChild<A.SolidFill>()!;
+            Assert.Equal("B7DEE8", secondHeaderFill.RgbColorModelHex!.Val!.Value);
+            Assert.Equal(64_000, secondHeaderFill.RgbColorModelHex.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var secondHeaderRun = secondHeaderCell.TextBody!.Descendants<A.RunProperties>().Single();
+            Assert.True(secondHeaderRun.Bold!.Value);
+            Assert.Equal(1_100, secondHeaderRun.FontSize!.Value);
+            Assert.Equal("0B8F8F", secondHeaderRun.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.Val!.Value);
+            Assert.Equal(88_000, secondHeaderRun.GetFirstChild<A.SolidFill>()!.RgbColorModelHex!.GetFirstChild<A.Alpha>()!.Val!.Value);
+            var inheritedImageCell = nativeTable.Descendants<A.TableCell>().ElementAt(4);
             var inheritedImageFill = inheritedImageCell.TableCellProperties!.GetFirstChild<A.BlipFill>()!;
             Assert.NotNull(inheritedImageFill.GetFirstChild<A.Stretch>());
             Assert.NotNull(inheritedImageFill.GetFirstChild<A.SourceRectangle>());

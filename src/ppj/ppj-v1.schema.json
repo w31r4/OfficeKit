@@ -3795,6 +3795,12 @@
           "minimum": 0,
           "maximum": 100
         },
+        "headerCellFill": {
+          "$ref": "#/$defs/fill"
+        },
+        "headerTextStyle": {
+          "$ref": "#/$defs/textBoxStyle"
+        },
         "bandedRows": {
           "type": "boolean"
         },
