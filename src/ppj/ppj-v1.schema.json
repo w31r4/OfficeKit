@@ -3679,6 +3679,19 @@
       },
       "minProperties": 1
     },
+    "chartAxisArrow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/arrowHead"
+        },
+        "end": {
+          "$ref": "#/$defs/arrowHead"
+        }
+      },
+      "minProperties": 1
+    },
     "chartAxis": {
       "type": "object",
       "additionalProperties": false,
@@ -3727,6 +3740,9 @@
               "$ref": "#/$defs/stroke"
             }
           ]
+        },
+        "axisLineArrow": {
+          "$ref": "#/$defs/chartAxisArrow"
         },
         "gridLine": {
           "oneOf": [

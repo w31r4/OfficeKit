@@ -2079,6 +2079,13 @@ internal static class PpjSemanticValidator
         List<PpjDiagnostic> diagnostics)
     {
         if (!chart.TryGetProperty(property, out var axis)) return;
+        if (axis.TryGetProperty("axisLineArrow", out _) &&
+            axis.TryGetProperty("axisLine", out var axisLine) &&
+            axisLine.ValueKind == JsonValueKind.False)
+            diagnostics.Add(new(
+                "ppj.chart.axisArrowHiddenLine",
+                "axisLineArrow requires a visible axis line.",
+                $"{path}.{property}.axisLineArrow"));
         if (categoryAxis)
         {
             foreach (var name in new[] { "min", "max", "majorUnit" })
