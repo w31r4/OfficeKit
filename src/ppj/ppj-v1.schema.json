@@ -3145,6 +3145,11 @@
             "maxLength": 512
           }
         },
+        "levels": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
         "chartType": {
           "enum": [
             "column",

@@ -655,6 +655,8 @@ internal static class PpjSemanticValidator
                 diagnostics.Add(new("ppj.chart.lengthMismatch", $"Series {series.Id} has {series.Values.Count} values for {chart.Data.Categories.Count} categories.", $"{seriesPath}.values"));
             if (chart.ChartType != "waterfall" && series.PointRoles.Count != 0)
                 diagnostics.Add(new("ppj.chart.pointRoleType", "pointRoles applies only to waterfall charts.", $"{seriesPath}.pointRoles"));
+            if (series.Levels is not null && chart.ChartType is not ("treemap" or "sunburst"))
+                diagnostics.Add(new("ppj.chart.levelsType", "levels applies only to treemap and sunburst charts.", $"{seriesPath}.levels"));
             if (chart.ChartType == "combo" && string.IsNullOrEmpty(series.ChartType))
                 diagnostics.Add(new("ppj.chart.comboSeriesType", "Every combo-chart series requires chartType.", $"{seriesPath}.chartType"));
             if (chart.ChartType != "combo" && series.ChartType is not null)
@@ -1491,6 +1493,11 @@ internal static class PpjSemanticValidator
 
         var series = chart.Data.Series[0];
         var seriesPath = path + ".data.series[0]";
+        if (series.Levels is < 1 or > 8)
+            diagnostics.Add(new(
+                "ppj.chart.treemapLevels",
+                "Treemap display levels must be between one and eight.",
+                seriesPath + ".levels"));
         if (series.Parents.Count != count)
             diagnostics.Add(new(
                 "ppj.chart.treemapParentLength",
@@ -1640,6 +1647,11 @@ internal static class PpjSemanticValidator
 
         var series = chart.Data.Series[0];
         var seriesPath = path + ".data.series[0]";
+        if (series.Levels is < 1 or > 6)
+            diagnostics.Add(new(
+                "ppj.chart.sunburstLevels",
+                "Sunburst display levels must be between one and six.",
+                seriesPath + ".levels"));
         if (series.Values.Count != count)
             diagnostics.Add(new(
                 "ppj.chart.sunburstValueLength",
