@@ -83,6 +83,12 @@ intact. The MMS sample exposes one 2-point direct run leaf; changing it to
 -1.5 points changes only its slide part and recovers the value after second
 import. Placeholder, inherited, malformed, effect-bearing, and non-canonical
 spacing graphs remain source-owned.
+Direct run capitalization is exposed as `fontCaps` for canonical
+`a:rPr/@cap` tokens (`none`, `small`, or `all`). The source-bound operation
+splices only that token, preserves neighboring run extensions, and recovers the
+new value after second import. Inherited, placeholder, malformed, and
+non-canonical capitalization graphs remain source-owned; the focused contract
+uses the same package-footprint oracle as the other direct typography leaves.
 Two of the six samples expose an explicit non-zero paragraph-level leaf and pass
 one bounded `a:pPr/@lvl` edit with second import. Because the current wire
 scalar cannot distinguish an omitted level from explicit `lvl="0"`, level-zero

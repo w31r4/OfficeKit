@@ -3057,14 +3057,14 @@ for (const item of HELP_CATALOG) {
 const presentationNativeLeafHelp = HELP_CATALOG.find((item) => item.name === "presentation.editNativeLeaf");
 const presentationInspectLeavesHelp = HELP_CATALOG.find((item) => item.name === "presentation.inspect");
 if (presentationNativeLeafHelp) {
-  presentationNativeLeafHelp.summary += " Character spacing is also available as a bounded direct `fontSpacingPoints` leaf for canonical signed `a:rPr/@spc` tokens, exposed in points and spliced as signed hundredths of a point; inherited, malformed, effect-bearing, and placeholder style graphs remain opaque.";
+  presentationNativeLeafHelp.summary += " Character spacing is also available as a bounded direct `fontSpacingPoints` leaf for canonical signed `a:rPr/@spc` tokens, exposed in points and spliced as signed hundredths of a point; inherited, malformed, effect-bearing, and placeholder style graphs remain opaque. Direct run capitalization is available as a bounded `fontCaps` leaf for canonical `a:rPr/@cap` tokens (`none`, `small`, or `all`); the source-bound edit splices only that token and leaves inherited, malformed, effect-bearing, and placeholder style graphs opaque.";
 }
 if (presentationInspectLeavesHelp) {
-  presentationInspectLeavesHelp.summary += " Direct run `fontSpacingPoints` leaves cover canonical signed `a:rPr/@spc` tokens in the same source-bound, revision-checked manner; missing, inherited, malformed, effect-bearing, and placeholder style graphs remain opaque.";
+  presentationInspectLeavesHelp.summary += " Direct run `fontSpacingPoints` leaves cover canonical signed `a:rPr/@spc` tokens in the same source-bound, revision-checked manner; missing, inherited, malformed, effect-bearing, and placeholder style graphs remain opaque. Direct run `fontCaps` leaves cover canonical `a:rPr/@cap` tokens (`none`, `small`, or `all`) with the same revision binding.";
 }
 const presentationNativeLeafReceipt = presentationNativeLeafHelp?.schema?.returns?.receipt;
 if (presentationNativeLeafReceipt) {
-  presentationNativeLeafReceipt.description += " A `fontSpacingPoints` leaf changes only one canonical direct `a:rPr/@spc` token, exposed in points and spliced as signed hundredths of a point; inherited, malformed, effect-bearing, and placeholder style graphs remain source-owned.";
+  presentationNativeLeafReceipt.description += " A `fontSpacingPoints` leaf changes only one canonical direct `a:rPr/@spc` token, exposed in points and spliced as signed hundredths of a point; inherited, malformed, effect-bearing, and placeholder style graphs remain source-owned. A `fontCaps` leaf changes only one canonical direct `a:rPr/@cap` token (`none`, `small`, or `all`); inherited, malformed, effect-bearing, and placeholder style graphs remain source-owned.";
 }
 
 export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) {
