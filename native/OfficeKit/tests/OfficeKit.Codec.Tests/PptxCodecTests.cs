@@ -191,6 +191,75 @@ public sealed class PptxCodecTests
                 ["join"] = "round",
             },
         };
+        var authoredChart = authoredProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "evidence-chart-main");
+        authoredChart["xAxis"] = new JsonObject
+        {
+            ["visible"] = true,
+            ["title"] = "Half-year",
+            ["tickLabelInterval"] = 1,
+            ["textStyle"] = new JsonObject { ["fontSize"] = 9 },
+        };
+        authoredChart["yAxis"] = new JsonObject
+        {
+            ["visible"] = true,
+            ["title"] = "Incident hours",
+            ["numberFormat"] = "0",
+            ["min"] = 0,
+            ["max"] = 80,
+            ["majorUnit"] = 20,
+            ["textStyle"] = new JsonObject { ["fontSize"] = 9 },
+        };
+        authoredChart["secondaryXAxis"] = new JsonObject { ["visible"] = false };
+        authoredChart["secondaryYAxis"] = new JsonObject
+        {
+            ["visible"] = true,
+            ["title"] = "Workload index",
+            ["min"] = 90,
+            ["max"] = 130,
+            ["majorUnit"] = 10,
+        };
+        var authoredChartSeries = authoredChart["data"]!["series"]![1]!.AsObject();
+        authoredChartSeries["marker"] = new JsonObject
+        {
+            ["symbol"] = "circle",
+            ["size"] = 8,
+            ["fill"] = "#F2C14E",
+            ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 1 },
+        };
+        authoredChartSeries["trendlines"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["type"] = "linear",
+                ["name"] = "Growth trend",
+                ["displayEquation"] = true,
+                ["displayRSquared"] = true,
+                ["stroke"] = new JsonObject { ["color"] = "#F2C14E", ["width"] = 1.25, ["dash"] = "dash" },
+            },
+        };
+        authoredChartSeries["errorBars"] = new JsonObject
+        {
+            ["direction"] = "y",
+            ["type"] = "both",
+            ["valueType"] = "standard-error",
+            ["noEndCap"] = true,
+            ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 0.75 },
+        };
+        var authoredChartStyle = authoredProgram["design"]!["styles"]!["chart"]!.AsArray()
+            .Select(style => style!.AsObject())
+            .Single(style => style["id"]!.GetValue<string>() == "evidence-chart")["style"]!.AsObject();
+        authoredChartStyle.Remove("showCategoryAxis");
+        authoredChartStyle.Remove("showValueAxis");
+        authoredChartStyle.Remove("showDataLabels");
+        authoredChartStyle.Remove("dataLabelPosition");
+        authoredChartStyle["dataLabels"] = new JsonObject
+        {
+            ["showValue"] = true,
+            ["showSeries"] = false,
+            ["position"] = "outside-end",
+        };
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -297,6 +366,21 @@ public sealed class PptxCodecTests
         Assert.Equal(90U, importedChart.GapWidth);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Cap);
         Assert.Equal("round", importedChart.ComboSeries[1].Series.Line.Join);
+        Assert.Equal("Half-year", importedChart.XAxis.Title);
+        Assert.Equal(1U, importedChart.XAxis.TickLabelInterval);
+        Assert.Equal(9, importedChart.XAxis.TextStyle.FontSizePoints);
+        Assert.Equal("Incident hours", importedChart.YAxis.Title);
+        Assert.Equal(0, importedChart.YAxis.Minimum);
+        Assert.Equal(80, importedChart.YAxis.Maximum);
+        Assert.Equal("Workload index", importedChart.SecondaryYAxis.Title);
+        Assert.Equal(130, importedChart.SecondaryYAxis.Maximum);
+        var importedAnalyticalSeries = importedChart.ComboSeries[1].Series;
+        Assert.Equal(SpreadsheetChartMarkerSymbol.Circle, importedAnalyticalSeries.Marker.Symbol);
+        Assert.Equal(8U, importedAnalyticalSeries.Marker.Size);
+        Assert.Equal("F2C14E", importedAnalyticalSeries.Marker.Fill.Rgb);
+        Assert.Equal(SpreadsheetChartTrendlineType.Linear, Assert.Single(importedAnalyticalSeries.Trendlines).Type);
+        Assert.Equal(SpreadsheetChartErrorBarValueType.StandardError, importedAnalyticalSeries.ErrorBars.ValueType);
+        Assert.True(importedAnalyticalSeries.ErrorBars.NoEndCap);
         Assert.True(importedChart.DataLabels.HasShowSeriesName);
         Assert.False(importedChart.DataLabels.ShowSeriesName);
         Assert.Equal("Incident hours decline from 69 to 43 while protected workload index rises from 100 to 127.", importedChart.Accessibility.Description);
@@ -412,6 +496,15 @@ public sealed class PptxCodecTests
                 item => item.GetProperty("type").GetString() == "table" &&
                     item.GetProperty("nativeRef").GetProperty("leaves").EnumerateArray().Any(leaf =>
                         leaf.GetProperty("kind").GetString() == "tableCellText"));
+            var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "chart");
+            Assert.Equal("Half-year", projectedChart.GetProperty("xAxis").GetProperty("title").GetString());
+            Assert.Equal(80, projectedChart.GetProperty("yAxis").GetProperty("max").GetDouble());
+            var projectedSeries = projectedChart.GetProperty("data").GetProperty("series")[1];
+            Assert.Equal(8, projectedSeries.GetProperty("marker").GetProperty("size").GetInt32());
+            Assert.Equal("linear", projectedSeries.GetProperty("trendlines")[0].GetProperty("type").GetString());
+            Assert.Equal("standard-error", projectedSeries.GetProperty("errorBars").GetProperty("valueType").GetString());
+            Assert.True(projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("showValue").GetBoolean());
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
@@ -466,6 +559,24 @@ public sealed class PptxCodecTests
         Assert.Equal(ByteString.CopyFrom(thirdPartySource), sourceNoOp.File);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
+        var rejectedChartStyleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var rejectedChart = rejectedChartStyleProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart");
+        rejectedChart["data"]!["series"]![1]!["marker"]!["size"] = 12;
+        var rejectedChartStyleEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(rejectedChartStyleProgram.ToJsonString()),
+            },
+        });
+        Assert.False(rejectedChartStyleEdit.Ok);
+        Assert.Contains(rejectedChartStyleEdit.Diagnostics, diagnostic => diagnostic.Code == "ppj.source.unsupportedMutation");
         var sourceValidationRequest = new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,

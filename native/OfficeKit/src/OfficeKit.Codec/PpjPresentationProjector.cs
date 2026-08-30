@@ -510,9 +510,14 @@ internal static partial class PpjPresentationProjector
                     : ChartType(chart.ComboSeries[index].Type) ?? "line";
                 entry["axis"] = chart.ComboSeries[index].AxisGroup == PresentationChartAxisGroup.Secondary ? "secondary" : "primary";
             }
+            ProjectChartSeriesStyle(entry, item);
             seriesJson.Add(entry);
         }
         output["data"] = new JsonObject { ["categories"] = categories, ["series"] = seriesJson };
+        if (chart.XAxis is not null) output["xAxis"] = ProjectChartAxis(chart.XAxis);
+        if (chart.YAxis is not null) output["yAxis"] = ProjectChartAxis(chart.YAxis);
+        if (chart.SecondaryXAxis is not null) output["secondaryXAxis"] = ProjectChartAxis(chart.SecondaryXAxis);
+        if (chart.SecondaryYAxis is not null) output["secondaryYAxis"] = ProjectChartAxis(chart.SecondaryYAxis);
         var style = new JsonObject
         {
             ["legend"] = chart.HasLegend
@@ -521,29 +526,119 @@ internal static partial class PpjPresentationProjector
         };
         if (chart.Grouping.Length > 0) style["stacking"] = chart.Grouping;
         if (chart.HasGapWidth) style["gapWidth"] = chart.GapWidth;
-        if (chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
-        if (chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
+        if (chart.XAxis is null && chart.HasShowCategoryAxis) style["showCategoryAxis"] = chart.ShowCategoryAxis;
+        if (chart.YAxis is null && chart.HasShowValueAxis) style["showValueAxis"] = chart.ShowValueAxis;
         if (chart.HasShowGridlines) style["showGridlines"] = chart.ShowGridlines;
         if (chart.ChartAreaFill is not null) style["chartAreaFill"] = ProjectChartSurfaceFill(chart.ChartAreaFill);
         if (chart.PlotAreaFill is not null) style["plotAreaFill"] = ProjectChartSurfaceFill(chart.PlotAreaFill);
         if (chart.DataLabels is not null)
         {
-            style["showDataLabels"] = chart.DataLabels.ShowValue;
-            if (chart.DataLabels.HasPosition)
+            var labels = new JsonObject
             {
-                var position = chart.DataLabels.Position switch
-                {
-                    SpreadsheetChartDataLabelPosition.Center => "center",
-                    SpreadsheetChartDataLabelPosition.InsideEnd => "inside-end",
-                    SpreadsheetChartDataLabelPosition.OutsideEnd => "outside-end",
-                    SpreadsheetChartDataLabelPosition.Top => "above",
-                    SpreadsheetChartDataLabelPosition.Bottom => "below",
-                    _ => null,
-                };
-                if (position is not null) style["dataLabelPosition"] = position;
-            }
+                ["showValue"] = chart.DataLabels.ShowValue,
+                ["showCategory"] = chart.DataLabels.ShowCategoryName,
+            };
+            if (chart.DataLabels.HasShowSeriesName) labels["showSeries"] = chart.DataLabels.ShowSeriesName;
+            if (chart.DataLabels.HasShowPercent) labels["showPercent"] = chart.DataLabels.ShowPercent;
+            if (chart.DataLabels.HasPosition && DataLabelPosition(chart.DataLabels.Position) is { } position)
+                labels["position"] = position;
+            style["dataLabels"] = labels;
         }
         output["style"] = style;
+        return output;
+    }
+
+    private static void ProjectChartSeriesStyle(JsonObject output, SpreadsheetChartSeriesArtifact series)
+    {
+        if (series.Fill is not null && !string.IsNullOrEmpty(series.Fill.Rgb))
+            output["fill"] = new JsonObject { ["type"] = "solid", ["color"] = Color(series.Fill.Rgb) };
+        if (series.Line is not null && !string.IsNullOrEmpty(series.Line.Color?.Rgb))
+            output["stroke"] = ProjectChartLine(series.Line);
+        if (series.Marker is not null && series.Marker.Symbol != SpreadsheetChartMarkerSymbol.Unspecified)
+        {
+            var symbol = Marker(series.Marker.Symbol);
+            if (symbol is not null)
+            {
+                if (!series.Marker.HasSize && series.Marker.Fill is null && series.Marker.Line is null)
+                    output["marker"] = symbol;
+                else
+                {
+                    var marker = new JsonObject { ["symbol"] = symbol };
+                    if (series.Marker.HasSize) marker["size"] = series.Marker.Size;
+                    if (series.Marker.Fill is not null && !string.IsNullOrEmpty(series.Marker.Fill.Rgb))
+                        marker["fill"] = Color(series.Marker.Fill.Rgb);
+                    if (series.Marker.Line is not null && !string.IsNullOrEmpty(series.Marker.Line.Color?.Rgb))
+                        marker["stroke"] = ProjectChartLine(series.Marker.Line);
+                    output["marker"] = marker;
+                }
+            }
+        }
+        if (series.Trendlines.Count > 0)
+        {
+            var trendlines = new JsonArray();
+            foreach (var item in series.Trendlines)
+            {
+                if (TrendlineType(item.Type) is not { } type) continue;
+                var trendline = new JsonObject { ["type"] = type };
+                if (!string.IsNullOrEmpty(item.Name)) trendline["name"] = item.Name;
+                if (item.HasPolynomialOrder) trendline["order"] = item.PolynomialOrder;
+                if (item.HasPeriod) trendline["period"] = item.Period;
+                if (item.HasForward) trendline["forward"] = item.Forward;
+                if (item.HasBackward) trendline["backward"] = item.Backward;
+                if (item.HasIntercept) trendline["intercept"] = item.Intercept;
+                if (item.DisplayEquation) trendline["displayEquation"] = true;
+                if (item.DisplayRSquared) trendline["displayRSquared"] = true;
+                if (item.Line is not null && !string.IsNullOrEmpty(item.Line.Color?.Rgb))
+                    trendline["stroke"] = ProjectChartLine(item.Line);
+                trendlines.Add(trendline);
+            }
+            if (trendlines.Count > 0) output["trendlines"] = trendlines;
+        }
+        if (series.ErrorBars is { } errorBars &&
+            ErrorBarDirection(errorBars.Direction) is { } direction &&
+            ErrorBarType(errorBars.Type) is { } barType &&
+            ErrorBarValueType(errorBars.ValueType) is { } valueType)
+        {
+            var projected = new JsonObject
+            {
+                ["direction"] = direction,
+                ["type"] = barType,
+                ["valueType"] = valueType,
+            };
+            if (errorBars.HasValue) projected["value"] = errorBars.Value;
+            if (errorBars.NoEndCap) projected["noEndCap"] = true;
+            if (errorBars.Line is not null && !string.IsNullOrEmpty(errorBars.Line.Color?.Rgb))
+                projected["stroke"] = ProjectChartLine(errorBars.Line);
+            output["errorBars"] = projected;
+        }
+    }
+
+    private static JsonObject ProjectChartAxis(SpreadsheetChartAxisArtifact axis)
+    {
+        var output = new JsonObject();
+        if (!string.IsNullOrEmpty(axis.Title)) output["title"] = axis.Title;
+        if (!string.IsNullOrEmpty(axis.NumberFormatCode)) output["numberFormat"] = axis.NumberFormatCode;
+        if (axis.HasTickLabelInterval) output["tickLabelInterval"] = axis.TickLabelInterval;
+        if (axis.HasMinimum) output["min"] = axis.Minimum;
+        if (axis.HasMaximum) output["max"] = axis.Maximum;
+        if (axis.HasMajorUnit) output["majorUnit"] = axis.MajorUnit;
+        if (axis.HasVisible) output["visible"] = axis.Visible;
+        if (axis.TextStyle?.HasFontSizePoints == true)
+            output["textStyle"] = new JsonObject { ["fontSize"] = axis.TextStyle.FontSizePoints };
+        return output;
+    }
+
+    private static JsonObject ProjectChartLine(SpreadsheetChartLineStyleArtifact line)
+    {
+        var output = new JsonObject
+        {
+            ["color"] = Color(line.Color.Rgb),
+            ["width"] = line.HasWidthPoints ? line.WidthPoints : 0.75,
+        };
+        if (ChartDash(line.DashStyle) is { } dash) output["dash"] = dash;
+        if (line.Cap is "flat" or "round" or "square") output["cap"] = line.Cap;
+        if (line.Join is "miter" or "round" or "bevel") output["join"] = line.Join;
+        if (line.HasOpacityThousandthPercent) output["opacity"] = Unit(line.OpacityThousandthPercent);
         return output;
     }
 
@@ -1308,6 +1403,79 @@ internal static partial class PpjPresentationProjector
         SpreadsheetChartType.Scatter => "scatter",
         SpreadsheetChartType.Bubble => "bubble",
         SpreadsheetChartType.Combo => "combo",
+        _ => null,
+    };
+
+    private static string? Marker(SpreadsheetChartMarkerSymbol value) => value switch
+    {
+        SpreadsheetChartMarkerSymbol.None => "none",
+        SpreadsheetChartMarkerSymbol.Dot => "dot",
+        SpreadsheetChartMarkerSymbol.Circle => "circle",
+        SpreadsheetChartMarkerSymbol.Square => "square",
+        SpreadsheetChartMarkerSymbol.Diamond => "diamond",
+        SpreadsheetChartMarkerSymbol.Triangle => "triangle",
+        SpreadsheetChartMarkerSymbol.X => "x",
+        SpreadsheetChartMarkerSymbol.Star => "star",
+        SpreadsheetChartMarkerSymbol.Plus => "plus",
+        SpreadsheetChartMarkerSymbol.Dash => "dash",
+        _ => null,
+    };
+
+    private static string? ChartDash(SpreadsheetChartLineDashStyle value) => value switch
+    {
+        SpreadsheetChartLineDashStyle.Solid => "solid",
+        SpreadsheetChartLineDashStyle.Dashed => "dash",
+        SpreadsheetChartLineDashStyle.Dotted => "dot",
+        SpreadsheetChartLineDashStyle.DashDot => "dash-dot",
+        _ => null,
+    };
+
+    private static string? DataLabelPosition(SpreadsheetChartDataLabelPosition value) => value switch
+    {
+        SpreadsheetChartDataLabelPosition.BestFit => "best-fit",
+        SpreadsheetChartDataLabelPosition.Bottom => "bottom",
+        SpreadsheetChartDataLabelPosition.Center => "center",
+        SpreadsheetChartDataLabelPosition.InsideBase => "inside-base",
+        SpreadsheetChartDataLabelPosition.InsideEnd => "inside-end",
+        SpreadsheetChartDataLabelPosition.Left => "left",
+        SpreadsheetChartDataLabelPosition.OutsideEnd => "outside-end",
+        SpreadsheetChartDataLabelPosition.Right => "right",
+        SpreadsheetChartDataLabelPosition.Top => "top",
+        _ => null,
+    };
+
+    private static string? TrendlineType(SpreadsheetChartTrendlineType value) => value switch
+    {
+        SpreadsheetChartTrendlineType.Exponential => "exponential",
+        SpreadsheetChartTrendlineType.Linear => "linear",
+        SpreadsheetChartTrendlineType.Logarithmic => "logarithmic",
+        SpreadsheetChartTrendlineType.MovingAverage => "moving-average",
+        SpreadsheetChartTrendlineType.Polynomial => "polynomial",
+        SpreadsheetChartTrendlineType.Power => "power",
+        _ => null,
+    };
+
+    private static string? ErrorBarDirection(SpreadsheetChartErrorBarDirection value) => value switch
+    {
+        SpreadsheetChartErrorBarDirection.X => "x",
+        SpreadsheetChartErrorBarDirection.Y => "y",
+        _ => null,
+    };
+
+    private static string? ErrorBarType(SpreadsheetChartErrorBarType value) => value switch
+    {
+        SpreadsheetChartErrorBarType.Both => "both",
+        SpreadsheetChartErrorBarType.Minus => "minus",
+        SpreadsheetChartErrorBarType.Plus => "plus",
+        _ => null,
+    };
+
+    private static string? ErrorBarValueType(SpreadsheetChartErrorBarValueType value) => value switch
+    {
+        SpreadsheetChartErrorBarValueType.FixedValue => "fixed-value",
+        SpreadsheetChartErrorBarValueType.Percentage => "percentage",
+        SpreadsheetChartErrorBarValueType.StandardDeviation => "standard-deviation",
+        SpreadsheetChartErrorBarValueType.StandardError => "standard-error",
         _ => null,
     };
 
