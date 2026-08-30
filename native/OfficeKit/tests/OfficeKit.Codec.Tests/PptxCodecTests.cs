@@ -288,6 +288,7 @@ public sealed class PptxCodecTests
             ["majorUnit"] = 10,
         };
         var authoredChartSeries = authoredChart["data"]!["series"]![1]!.AsObject();
+        authoredChartSeries["color"] = "#F2C14E80";
         authoredChartSeries["marker"] = new JsonObject
         {
             ["symbol"] = "circle",
@@ -841,6 +842,9 @@ public sealed class PptxCodecTests
             Assert.Equal(80, projectedChart.GetProperty("yAxis").GetProperty("max").GetDouble());
             var projectedSeries = projectedChart.GetProperty("data").GetProperty("series")[1];
             Assert.Equal(8, projectedSeries.GetProperty("marker").GetProperty("size").GetInt32());
+            Assert.Equal("solid", projectedSeries.GetProperty("fill").GetProperty("type").GetString());
+            Assert.Equal("#F2C14E", projectedSeries.GetProperty("fill").GetProperty("color").GetString());
+            Assert.Equal(128 / 255d, projectedSeries.GetProperty("fill").GetProperty("opacity").GetDouble(), 5);
             Assert.Equal("linear", projectedSeries.GetProperty("trendlines")[0].GetProperty("type").GetString());
             Assert.Equal("standard-error", projectedSeries.GetProperty("errorBars").GetProperty("valueType").GetString());
             Assert.True(projectedChart.GetProperty("style").GetProperty("dataLabels").GetProperty("showValue").GetBoolean());

@@ -390,9 +390,14 @@ internal static class PpjAuthoredPresentationCompiler
         else if (raw.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
-            if (resolved.Alpha != 1)
-                throw Unsupported(source.Id, "chart-series color opacity is not yet compiler-owned");
-            series.Fill = new SpreadsheetColor { Rgb = resolved.Rgb };
+            if (resolved.Alpha == 1)
+                series.Fill = new SpreadsheetColor { Rgb = resolved.Rgb };
+            else
+                series.SeriesFill = new SpreadsheetChartSurfaceFill
+                {
+                    SolidRgb = resolved.Rgb,
+                    OpacityThousandthPercent = Opacity(resolved.Alpha),
+                };
         }
         if (raw.TryGetProperty("stroke", out var stroke))
             series.Line = BuildChartLine(stroke, catalog);
