@@ -4382,6 +4382,46 @@ function createPresentationNativeLeafCapability(presentation, state) {
       });
     };
     registerImportedFillOpacityLeaf();
+    const registerImportedShadowOpacityLeaf = () => {
+      if (wire.content.case !== "shape") return;
+      const shadow = wire.content.value.shadow;
+      const raw = String(shadow?.opacityThousandthPercent ?? "");
+      if (!shadow || !/^[0-9]+$/u.test(raw)) return;
+      let opacity;
+      try { opacity = BigInt(raw); }
+      catch { return; }
+      if (opacity < 0n || opacity > 100_000n) return;
+      if (wire.source?.editable !== true && wire.source?.textEditable !== true) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "shadowOpacityThousandthPercent",
+        expectedValue: raw,
+        value: Number(opacity) / 100_000,
+        unit: "fraction",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadow opacity native leaf requires a finite number from 0 through 1.");
+          }
+          const token = String(Math.round(candidate * 100_000));
+          return { raw: token, publicValue: Number(token) / 100_000 };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) {
+          if (!model.shadow || typeof model.shadow !== "object") {
+            throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadow opacity native leaf no longer resolves to the imported shadow.");
+          }
+          model.shadow = { ...model.shadow, opacity: Number(next) / 100_000 };
+        },
+      });
+    };
+    registerImportedShadowOpacityLeaf();
     const registerImportedShadowGeometryLeaves = () => {
       if (wire.content.case !== "shape") return;
       const shadow = wire.content.value.shadow;
