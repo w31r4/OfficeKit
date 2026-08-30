@@ -65,6 +65,44 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void PpjOpaqueConnectorProjectionIssuesStyleReferencedLineColor()
+    {
+        var element = new PresentationElement
+        {
+            Opaque = new PresentationOpaqueElement
+            {
+                NativeKind = "connector",
+                RawXml = """
+                    <p:cxnSp xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                      <p:spPr>
+                        <a:ln><a:tailEnd type="triangle"/></a:ln>
+                      </p:spPr>
+                      <p:style>
+                        <a:lnRef idx="3"><a:schemeClr val="accent5"/></a:lnRef>
+                        <a:fillRef idx="0"><a:schemeClr val="accent5"/></a:fillRef>
+                        <a:effectRef idx="2"><a:schemeClr val="accent5"/></a:effectRef>
+                        <a:fontRef idx="minor"><a:schemeClr val="tx1"/></a:fontRef>
+                      </p:style>
+                    </p:cxnSp>
+                    """,
+            },
+            Source = new PresentationElementSourceBinding { ElementSha256 = "source" },
+        };
+
+        var leaves = PpjNativeLeafProjection.Describe(
+            "source-sha",
+            "page-1",
+            "element-1",
+            element,
+            new uint[] { 0 },
+            _ => { });
+
+        Assert.Equal(new[] { "lineScheme", "lineEndArrow" },
+            leaves.Select(leaf => leaf!["kind"]!.GetValue<string>()).ToArray());
+        Assert.Equal("accent5", leaves[0]!["value"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void UnsupportedGradientPercentageCoordinatesRemainOpaque()
     {
         var rectangle = new A.FillToRectangle();
