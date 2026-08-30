@@ -1319,6 +1319,27 @@ internal static class PpjAuthoredPresentationCompiler
             chart.ChartAreaFill = BuildChartSurfaceFill(chartAreaFill, catalog, $"{elementId} chart area");
         if (FirstProperty(inline, named, "plotAreaFill") is { } plotAreaFill)
             chart.PlotAreaFill = BuildChartSurfaceFill(plotAreaFill, catalog, $"{elementId} plot area");
+        if (FirstProperty(inline, named, "titleTextStyle") is { } titleTextStyle)
+        {
+            if (chart.Title.Length == 0)
+                throw Unsupported(elementId, "titleTextStyle requires a non-empty chart title");
+            chart.TitleTextStyle = new SpreadsheetChartTextStyleArtifact();
+            if (titleTextStyle.TryGetProperty("fontSize", out var fontSize))
+                chart.TitleTextStyle.FontSizePoints = fontSize.GetDouble();
+        }
+        var smooth = FirstProperty(inline, named, "smooth");
+        var varyColors = FirstProperty(inline, named, "varyColors");
+        if (smooth is not null || varyColors is not null)
+        {
+            if (chart.Type != SpreadsheetChartType.Line)
+                throw Unsupported(elementId, "smooth and varyColors apply only to line charts");
+            if (smooth is not null || varyColors?.GetBoolean() == true)
+            {
+                chart.LineOptions = new SpreadsheetChartLineOptionsArtifact();
+                if (smooth is { } explicitSmooth) chart.LineOptions.Smooth = explicitSmooth.GetBoolean();
+                if (varyColors?.GetBoolean() == true) chart.LineOptions.VaryColors = true;
+            }
+        }
         var structuredLabels = FirstProperty(inline, named, "dataLabels");
         var labels = FirstProperty(inline, named, "showDataLabels");
         var legacyPosition = FirstProperty(inline, named, "dataLabelPosition");
