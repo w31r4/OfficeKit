@@ -2,6 +2,7 @@ import { lstat, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
+import { openTask, resumeTaskPpjRevision } from "../cli/task-store.mjs";
 import { projectPptxToPpj } from "./native.mjs";
 import { renderPpj, reviewPpj } from "./render-review.mjs";
 import { recordPpjTask } from "./task.mjs";
@@ -18,6 +19,7 @@ import {
 } from "./workspace.mjs";
 
 export const PPJ_USAGE = `Usage:
+  officekit ppj resume <task-id> -o <deck.ppj> [--json]
   officekit ppj import <input.pptx> -o <deck.ppj> [--task <id>] [--json]
   officekit ppj inspect <deck.ppj> [--query <text>] [--page <id>] [--json]
   officekit ppj check <deck.ppj> [--fix] [--task <id>] [--json]
@@ -35,6 +37,7 @@ export async function runPpjCommand(args, {
     return;
   }
   const parser = {
+    resume: parseResumeArguments,
     import: parseImportArguments,
     inspect: parseInspectArguments,
     check: parseCheckArguments,
@@ -49,6 +52,7 @@ export async function runPpjCommand(args, {
     return;
   }
   const handler = {
+    resume: resumePpjTask,
     import: importPptxAsPpj,
     inspect: inspectPpj,
     check: checkPpj,
@@ -58,6 +62,25 @@ export async function runPpjCommand(args, {
   }[subcommand];
   const result = await handler(request, { cwd });
   output.write(request.json ? `${JSON.stringify(result)}\n` : `${formatResult(result)}\n`);
+}
+
+function parseResumeArguments(args) {
+  const positional = [];
+  let outputPath;
+  let json = false;
+  let help = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--json") json = true;
+    else if (argument === "--help" || argument === "-h") help = true;
+    else if (argument === "-o" || argument === "--output") outputPath = requiredValue(args, ++index, argument);
+    else if (argument.startsWith("--output=")) outputPath = argument.slice("--output=".length);
+    else if (argument.startsWith("-")) throw new Error(`Unknown PPJ resume option "${argument}".`);
+    else positional.push(argument);
+  }
+  if (help) return { help, json };
+  if (positional.length !== 1 || !outputPath) throw new Error("PPJ resume requires one task ID and -o <deck.ppj>.");
+  return { taskId: positional[0], outputPath, json, help };
 }
 
 function parseImportArguments(args) {
@@ -196,6 +219,79 @@ function requiredValue(args, index, option) {
   const value = args[index];
   if (!value || value.startsWith("-")) throw new Error(`${option} requires a value.`);
   return value;
+}
+
+export async function resumePpjTask(
+  { taskId, outputPath },
+  { cwd = process.cwd(), open = openTask, resume = resumeTaskPpjRevision, load = loadPpjWorkspace } = {},
+) {
+  const task = await open({ workspaceRoot: cwd, taskId });
+  const revision = await resume(task);
+  if (revision == null) throw new Error(`OfficeKit task ${taskId} has no PPJ revision to resume.`);
+  if (revision.status === "unsupported") throw new Error(revision.message);
+
+  const workspace = await load(revision.path, { cwd: path.dirname(revision.path) });
+  const destination = path.resolve(cwd, outputPath);
+  if (path.extname(destination).toLowerCase() !== ".ppj") throw new Error(`PPJ resume output must be a .ppj file: ${destination}`);
+  if (await pathExists(destination)) throw new Error(`PPJ resume output already exists: ${destination}`);
+  const managedRelative = path.relative(task.taskRoot, destination);
+  if (managedRelative === "" || !managedRelative.startsWith(`..${path.sep}`) && !path.isAbsolute(managedRelative)) {
+    throw new Error("PPJ resume output must stay outside the immutable OfficeKit task store.");
+  }
+
+  const root = path.dirname(destination);
+  await mkdir(root, { recursive: true });
+  const materializedAssets = [];
+  for (const asset of workspace.assets) {
+    if (!/^[a-f0-9]{64}$/u.test(asset.sha256) || sha256(asset.data) !== asset.sha256) {
+      throw new Error(`PPJ task asset ${asset.id} failed its content hash.`);
+    }
+    const target = materializedPpjPath(root, asset.uri, `PPJ asset ${asset.id}`);
+    if (target === destination) throw new Error(`PPJ asset ${asset.id} conflicts with the resume output.`);
+    await writeImmutableContent(target, asset.data, asset.sha256);
+    materializedAssets.push(Object.freeze({
+      id: asset.id,
+      path: target,
+      uri: asset.uri,
+      mimeType: asset.mimeType,
+      sha256: asset.sha256,
+    }));
+  }
+
+  let source = null;
+  if (workspace.sourcePath) {
+    const sourceUri = workspace.root?.source?.uri;
+    const sourceSha256 = workspace.root?.source?.sha256;
+    if (!/^[a-f0-9]{64}$/u.test(sourceSha256) || sha256(workspace.source) !== sourceSha256) {
+      throw new Error("PPJ task source package failed its content hash.");
+    }
+    const target = materializedPpjPath(root, sourceUri, "PPJ source package");
+    if (target === destination) throw new Error("PPJ source package conflicts with the resume output.");
+    await writeImmutableContent(target, workspace.source, sourceSha256);
+    source = Object.freeze({ path: target, uri: sourceUri, sha256: sourceSha256 });
+  }
+
+  try {
+    await writeExclusiveFile(destination, workspace.program, 0o644);
+  } catch (error) {
+    if (error?.code === "EEXIST") throw new Error(`PPJ resume output already exists: ${destination}`);
+    throw error;
+  }
+
+  return Object.freeze({
+    ok: true,
+    command: "resume",
+    taskId,
+    output: destination,
+    programSha256: revision.sha256,
+    status: revision.status,
+    resumedFromFallback: Boolean(revision.resumedFromFallback),
+    sourceBound: revision.mode === "source-bound",
+    source,
+    assets: Object.freeze(materializedAssets),
+    candidate: revision.candidate,
+    review: revision.review,
+  });
 }
 
 export async function importPptxAsPpj(

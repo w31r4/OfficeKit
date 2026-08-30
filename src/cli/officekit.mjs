@@ -727,7 +727,7 @@ Usage:
   officekit repl --new <goal> [--workspace <path>]
   officekit repl <task-id> [--workspace <path>]
   officekit template search [search options] [--json]
-  officekit ppj <import|inspect|check|build|render|review> [options]
+  officekit ppj <resume|import|inspect|check|build|render|review> [options]
   officekit excel <command> [options]
   officekit live <command> --app <excel|powerpoint> [options]
   officekit --version
