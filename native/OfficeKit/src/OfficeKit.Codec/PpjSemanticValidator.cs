@@ -740,6 +740,14 @@ internal static class PpjSemanticValidator
         if (chart.ChartType == "sankey") ValidateSankey(chart, path, diagnostics);
         else if (chart.Raw.TryGetProperty("style", out var sankeyStyle) && sankeyStyle.TryGetProperty("sankey", out _))
             diagnostics.Add(new("ppj.chart.sankeyStyleType", "style.sankey applies only to sankey charts.", path + ".style.sankey"));
+        if (chart.Data.Series.Any(series => series.Raw.TryGetProperty("symbol", out _)))
+        {
+            if (chart.ChartType is "bar" or "column") ValidatePictographicChart(chart, path, diagnostics);
+            else diagnostics.Add(new(
+                "ppj.chart.pictographType",
+                "Series symbol applies only to bounded bar and column pictographic charts.",
+                path + ".data.series"));
+        }
         if (chart.ChartType == "combo") ValidateCombo(chart, path, diagnostics);
 
         if (chart.Raw.TryGetProperty("style", out var style) &&
@@ -795,6 +803,126 @@ internal static class PpjSemanticValidator
         ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
         ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
+    }
+
+    private static void ValidatePictographicChart(
+        PpjChartElementModel chart,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        if (chart.Data.Series.Count != 1 || !chart.Data.Series[0].Raw.TryGetProperty("symbol", out var symbol))
+        {
+            diagnostics.Add(new(
+                "ppj.chart.pictographSeriesCount",
+                "Pictographic bars require exactly one series with a symbol.",
+                path + ".data.series"));
+            return;
+        }
+        if (chart.Data.Categories.Count is < 2 or > 12)
+            diagnostics.Add(new(
+                "ppj.chart.pictographCategories",
+                "Pictographic bars require 2..12 categories.",
+                path + ".data.categories"));
+        if (chart.Data.Categories.Any(category => category.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(category.GetString())) ||
+            chart.Data.Categories.Select(category => category.GetString()).Distinct(StringComparer.Ordinal).Count() != chart.Data.Categories.Count)
+            diagnostics.Add(new(
+                "ppj.chart.pictographCategoryLabel",
+                "Pictographic bar categories must be unique non-empty strings.",
+                path + ".data.categories"));
+
+        var kind = symbol.GetProperty("kind").GetString();
+        if (kind == "icon")
+        {
+            var iconName = symbol.GetProperty("iconName").GetString()!;
+            if (!PpjIconCatalog.Contains(iconName))
+                diagnostics.Add(new(
+                    "ppj.icon.unknown",
+                    $"PPJ iconName {iconName} is not present in the pinned Font Awesome Free catalog.",
+                    path + ".data.series[0].symbol.iconName"));
+        }
+        else
+        {
+            var preset = symbol.GetProperty("preset").GetString()!;
+            if (preset is "textbox" or "line" || !PptxPresetGeometryAdjustmentCodec.HasProfile(preset))
+                diagnostics.Add(new(
+                    "ppj.chart.pictographPreset",
+                    $"Pictographic symbol preset {preset} is not an authored closed-shape preset.",
+                    path + ".data.series[0].symbol.preset"));
+        }
+        if (symbol.TryGetProperty("unitLabel", out var unitLabel) && string.IsNullOrWhiteSpace(unitLabel.GetString()))
+            diagnostics.Add(new(
+                "ppj.chart.pictographUnitLabel",
+                "Pictographic unitLabel must be non-empty when present.",
+                path + ".data.series[0].symbol.unitLabel"));
+
+        var unit = symbol.GetProperty("unit").GetDouble();
+        var symbolTotal = 0d;
+        for (var index = 0; index < chart.Data.Series[0].Values.Count; index++)
+        {
+            var value = chart.Data.Series[0].Values[index];
+            if (value is null || !double.IsFinite(value.Value) || value.Value < 0)
+            {
+                diagnostics.Add(new(
+                    "ppj.chart.pictographValue",
+                    "Pictographic values must be finite, complete and non-negative.",
+                    $"{path}.data.series[0].values[{index}]"));
+                continue;
+            }
+            var count = value.Value / unit;
+            var rounded = Math.Round(count);
+            if (Math.Abs(count - rounded) > 1e-9 * Math.Max(1, Math.Abs(count)))
+                diagnostics.Add(new(
+                    "ppj.chart.pictographUnit",
+                    $"Pictographic value {value.Value} is not an exact multiple of unit {unit}.",
+                    $"{path}.data.series[0].values[{index}]"));
+            if (rounded > 32)
+                diagnostics.Add(new(
+                    "ppj.chart.pictographCategoryBudget",
+                    "A pictographic category may expand to at most 32 symbols.",
+                    $"{path}.data.series[0].values[{index}]"));
+            if (rounded > 0) symbolTotal += rounded;
+        }
+        if (symbolTotal > 192)
+            diagnostics.Add(new(
+                "ppj.chart.pictographTotalBudget",
+                "A pictographic chart may expand to at most 192 symbols.",
+                path + ".data.series[0].values"));
+        if (symbolTotal == 0)
+            diagnostics.Add(new(
+                "ppj.chart.pictographEmpty",
+                "A pictographic chart requires at least one visible symbol.",
+                path + ".data.series[0].values"));
+
+        foreach (var property in chart.Data.Series[0].Raw.EnumerateObject())
+            if (property.Name is not ("id" or "name" or "values" or "color" or "fill" or "stroke" or "symbol"))
+                diagnostics.Add(new(
+                    "ppj.chart.pictographSeriesField",
+                    $"{property.Name} is not part of the bounded pictographic series profile.",
+                    path + ".data.series[0]." + property.Name));
+        var series = chart.Data.Series[0].Raw;
+        if (series.TryGetProperty("color", out _) && series.TryGetProperty("fill", out _))
+            diagnostics.Add(new(
+                "ppj.chart.pictographPaint",
+                "Pictographic series color and fill are aliases and cannot both be present.",
+                path + ".data.series[0]"));
+        if (series.TryGetProperty("fill", out var fill) && fill.GetProperty("type").GetString() is not ("solid" or "gradient"))
+            diagnostics.Add(new(
+                "ppj.chart.pictographPaint",
+                "Pictographic symbols support solid or gradient fill.",
+                path + ".data.series[0].fill"));
+        foreach (var property in new[] { "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis" })
+            if (chart.Raw.TryGetProperty(property, out _))
+                diagnostics.Add(new(
+                    "ppj.chart.pictographAxis",
+                    "Pictographic bars generate their own categorical layout and do not accept chart axes.",
+                    path + "." + property));
+        if (chart.Raw.TryGetProperty("style", out var style))
+            foreach (var property in style.EnumerateObject())
+                if (property.Name != "titleTextStyle")
+                    diagnostics.Add(new(
+                        "ppj.chart.pictographStyleField",
+                        $"{property.Name} is not part of the bounded pictographic chart style.",
+                        path + ".style." + property.Name));
     }
 
     private static void ValidateStreamgraph(
@@ -2021,6 +2149,11 @@ internal static class PpjSemanticValidator
                     "ppj.animation.vectorChartBuild",
                     "Vector-lowered streamgraphs support whole-object animation, not ChartPart build modes.",
                     $"{path}.chartBuild"));
+            if (animation.ChartBuild is not null && target is PpjChartElementModel pictographChart && IsInlinePictographicChart(pictographChart))
+                diagnostics.Add(new(
+                    "ppj.animation.vectorChartBuild",
+                    "Vector-lowered pictographic bars support whole-object animation, not ChartPart build modes.",
+                    $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));
 
@@ -2035,6 +2168,10 @@ internal static class PpjSemanticValidator
         chart.Raw.TryGetProperty("style", out var style) &&
         style.TryGetProperty("stacking", out var stacking) &&
         stacking.GetString() == "stream";
+
+    private static bool IsInlinePictographicChart(PpjChartElementModel chart) =>
+        chart.ChartType is "bar" or "column" &&
+        chart.Data.Series.Any(series => series.Raw.TryGetProperty("symbol", out _));
 
     private static int EstimateTimingNodes(PpjAnimationModel animation, PpjElementModel target)
     {

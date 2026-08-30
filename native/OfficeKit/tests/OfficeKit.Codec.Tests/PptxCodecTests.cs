@@ -1646,6 +1646,103 @@ public sealed class PptxCodecTests
         var invalidStream = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidStreamProgram.ToJsonString()));
         Assert.False(invalidStream.IsValid);
         Assert.Contains(invalidStream.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.streamType");
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "participants-pictograph-main",
+            ["type"] = "chart",
+            ["role"] = "participant pictograph bar",
+            ["frame"] = new JsonObject { ["x"] = 48, ["y"] = 272, ["width"] = 560, ["height"] = 190 },
+            ["chartType"] = "bar",
+            ["title"] = "Verified participants by cohort",
+            ["style"] = new JsonObject
+            {
+                ["titleTextStyle"] = new JsonObject { ["fontSize"] = 13, ["bold"] = true, ["color"] = "#16324F" },
+            },
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Control", "Pilot", "Follow-up"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "verified-participants",
+                        ["name"] = "Participants",
+                        ["values"] = new JsonArray(30, 50, 20),
+                        ["fill"] = new JsonObject
+                        {
+                            ["type"] = "gradient",
+                            ["kind"] = "linear",
+                            ["angle"] = 0,
+                            ["stops"] = new JsonArray
+                            {
+                                new JsonObject { ["offset"] = 0, ["color"] = "#0B8F8F" },
+                                new JsonObject { ["offset"] = 1, ["color"] = "#74C7C7" },
+                            },
+                        },
+                        ["symbol"] = new JsonObject
+                        {
+                            ["kind"] = "icon",
+                            ["iconName"] = "fas:user",
+                            ["unit"] = 10,
+                            ["gap"] = 2,
+                            ["showValue"] = true,
+                            ["unitLabel"] = "participants",
+                        },
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "Each person symbol represents ten verified participants across three cohorts.",
+            },
+        });
+        authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
+        {
+            ["id"] = "milestones-pictograph-main",
+            ["type"] = "chart",
+            ["role"] = "milestone pictograph column",
+            ["frame"] = new JsonObject { ["x"] = 620, ["y"] = 272, ["width"] = 290, ["height"] = 190 },
+            ["chartType"] = "column",
+            ["title"] = "Milestones cleared",
+            ["data"] = new JsonObject
+            {
+                ["categories"] = new JsonArray("Q1", "Q2", "Q3"),
+                ["series"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["id"] = "cleared-milestones",
+                        ["name"] = "Milestones",
+                        ["values"] = new JsonArray(2, 4, 3),
+                        ["color"] = "#F2C14E",
+                        ["stroke"] = new JsonObject { ["color"] = "#9B6A00", ["width"] = 0.5 },
+                        ["symbol"] = new JsonObject
+                        {
+                            ["kind"] = "preset",
+                            ["preset"] = "star5",
+                            ["unit"] = 1,
+                            ["gap"] = 2,
+                            ["showValue"] = true,
+                            ["unitLabel"] = "gates",
+                        },
+                    },
+                },
+            },
+            ["accessibility"] = new JsonObject
+            {
+                ["decorative"] = false,
+                ["description"] = "One star represents one cleared milestone in each quarter.",
+            },
+        });
+        var invalidPictographProgram = authoredProgram.DeepClone().AsObject();
+        invalidPictographProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "participants-pictograph-main")
+            ["data"]!["series"]![0]!["values"]![1] = 55;
+        var invalidPictograph = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidPictographProgram.ToJsonString()));
+        Assert.False(invalidPictograph.IsValid);
+        Assert.Contains(invalidPictograph.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.pictographUnit");
         var invalidHeatmapProgram = authoredProgram.DeepClone().AsObject();
         invalidHeatmapProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -1999,7 +2096,7 @@ public sealed class PptxCodecTests
 
         var first = Invoke(request);
         Assert.True(first.Ok, Diagnostics(first));
-        Assert.Equal(41U, first.PresentationProgram.ExpandedElementCount);
+        Assert.Equal(43U, first.PresentationProgram.ExpandedElementCount);
         Assert.NotEmpty(first.PresentationProgram.NodeMapJson);
         var authoredParts = ZipPartPaths(first.File.ToByteArray());
         Assert.Contains("officeKit/program.ppj", authoredParts);
@@ -2293,6 +2390,26 @@ public sealed class PptxCodecTests
             Assert.Contains(nativeStream.Descendants<A.Text>(), text => text.Text == "Audience composition changed without losing reach");
             Assert.Contains(nativeStream.Descendants<A.Text>(), text => text.Text == "Enterprise");
             Assert.NotEmpty(nativeStream.Descendants<A.GradientFill>());
+            var nativeParticipantPictograph = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "participant pictograph bar");
+            Assert.Equal(10, nativeParticipantPictograph.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("pictographic symbol ", StringComparison.Ordinal) == true));
+            Assert.All(nativeParticipantPictograph.Elements<P.Shape>().Where(shape =>
+                    shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("pictographic symbol ", StringComparison.Ordinal) == true),
+                shape => Assert.NotNull(shape.ShapeProperties!.GetFirstChild<A.CustomGeometry>()));
+            Assert.Contains(nativeParticipantPictograph.Descendants<A.Text>(), text => text.Text == "1 symbol = 10 participants");
+            Assert.Contains(nativeParticipantPictograph.Descendants<A.Text>(), text => text.Text == "50 participants");
+            Assert.NotEmpty(nativeParticipantPictograph.Descendants<A.GradientFill>());
+            var nativeMilestonePictograph = package.PresentationPart.SlideParts.First().Slide!
+                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
+                .Single(group => group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "milestone pictograph column");
+            Assert.Equal(9, nativeMilestonePictograph.Elements<P.Shape>().Count(shape =>
+                shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("pictographic symbol ", StringComparison.Ordinal) == true));
+            Assert.All(nativeMilestonePictograph.Elements<P.Shape>().Where(shape =>
+                    shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("pictographic symbol ", StringComparison.Ordinal) == true),
+                shape => Assert.Equal(A.ShapeTypeValues.Star5, shape.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!.Preset!.Value));
+            Assert.Contains(nativeMilestonePictograph.Descendants<A.Text>(), text => text.Text == "4 gates");
             var diagramGroups = package.PresentationPart.SlideParts.ElementAt(2).Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>().ToArray();
             Assert.Equal(8, diagramGroups.Length);
@@ -2900,6 +3017,29 @@ public sealed class PptxCodecTests
                     item.GetProperty("geometry").GetProperty("kind").GetString() == "custom");
             Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
                 item.GetProperty("name").GetString() == "audience composition stream" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedParticipantPictograph = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "participant pictograph bar");
+            Assert.Equal(10, projectedParticipantPictograph.GetProperty("elements").EnumerateArray().Count(item =>
+                item.GetProperty("name").GetString()!.StartsWith("pictographic symbol ", StringComparison.Ordinal)));
+            Assert.Contains(projectedParticipantPictograph.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "pictographic unit" &&
+                    item.GetProperty("text").GetProperty("paragraphs")[0].GetProperty("runs")[0]
+                        .GetProperty("text").GetString() == "1 symbol = 10 participants");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "participant pictograph bar" &&
+                    item.GetProperty("type").GetString() is "chart" or "image");
+            var projectedMilestonePictograph = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group" &&
+                    item.GetProperty("name").GetString() == "milestone pictograph column");
+            Assert.Equal(9, projectedMilestonePictograph.GetProperty("elements").EnumerateArray().Count(item =>
+                item.GetProperty("name").GetString()!.StartsWith("pictographic symbol ", StringComparison.Ordinal)));
+            Assert.Contains(projectedMilestonePictograph.GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "pictographic symbol 2.1" &&
+                    item.GetProperty("geometry").GetProperty("preset").GetString() == "star5");
+            Assert.DoesNotContain(projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray(), item =>
+                item.GetProperty("name").GetString() == "milestone pictograph column" &&
                     item.GetProperty("type").GetString() is "chart" or "image");
             var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "group" &&

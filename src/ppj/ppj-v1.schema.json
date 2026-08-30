@@ -2968,6 +2968,80 @@
         }
       ]
     },
+    "chartPictographSymbol": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "iconName",
+            "unit"
+          ],
+          "properties": {
+            "kind": {
+              "const": "icon"
+            },
+            "iconName": {
+              "type": "string",
+              "pattern": "^(fas|far|fab):[a-z0-9]+(?:-[a-z0-9]+)*$",
+              "maxLength": 128
+            },
+            "unit": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 12
+            },
+            "showValue": {
+              "type": "boolean"
+            },
+            "unitLabel": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "preset",
+            "unit"
+          ],
+          "properties": {
+            "kind": {
+              "const": "preset"
+            },
+            "preset": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "unit": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "gap": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 12
+            },
+            "showValue": {
+              "type": "boolean"
+            },
+            "unitLabel": {
+              "type": "string",
+              "maxLength": 64
+            }
+          }
+        }
+      ]
+    },
     "chartSeries": {
       "type": "object",
       "additionalProperties": false,
@@ -3099,6 +3173,9 @@
         },
         "stroke": {
           "$ref": "#/$defs/stroke"
+        },
+        "symbol": {
+          "$ref": "#/$defs/chartPictographSymbol"
         },
         "marker": {
           "oneOf": [
