@@ -1141,7 +1141,7 @@ internal static class PpjSourceBoundPresentationCompiler
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "hidden", "locked", "frame", "title", "data", "style",
-            "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis");
+            "xAxis", "yAxis", "secondaryXAxis", "secondaryYAxis", "spokeAxis");
         var changed = ApplyFrame(before, after, target, path);
         if (PropertyChanged(before.Raw, after.Raw, "title"))
         {
@@ -1191,6 +1191,7 @@ internal static class PpjSourceBoundPresentationCompiler
         changed |= ApplyChartAxisStyle(before, after, target.YAxis, "yAxis", path);
         changed |= ApplyChartAxisStyle(before, after, target.SecondaryXAxis, "secondaryXAxis", path);
         changed |= ApplyChartAxisStyle(before, after, target.SecondaryYAxis, "secondaryYAxis", path);
+        changed |= ApplyRadarSpokeAxis(before, after, target, path);
         return changed;
     }
 
@@ -1332,7 +1333,9 @@ internal static class PpjSourceBoundPresentationCompiler
         if (JsonEqual(oldAxis, newAxis)) return false;
         if (oldAxis is null || newAxis is null || target is null)
             throw Unsupported(path + "." + axisName, "source-bound chart-axis topology change");
-        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName, "textStyle", "titleTextStyle", "reverse", "axisLine", "gridLine");
+        RequireEqualExcept(oldAxis.Value, newAxis.Value, path + "." + axisName,
+            "textStyle", "titleTextStyle", "visible", "numberFormat", "tickLabelInterval",
+            "min", "max", "majorUnit", "tickLabelsVisible", "reverse", "axisLine", "gridLine");
         var changed = false;
         if (PropertyChanged(oldAxis, newAxis, "textStyle"))
         {
@@ -1357,6 +1360,60 @@ internal static class PpjSourceBoundPresentationCompiler
             RequireCapability(after, "setChartAxis", path + "." + axisName + ".reverse");
             if (newAxis.Value.TryGetProperty("reverse", out var reverse)) target.Reverse = reverse.GetBoolean();
             else target.ClearReverse();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "visible"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".visible");
+            if (newAxis.Value.TryGetProperty("visible", out var visible)) target.Visible = visible.GetBoolean();
+            else target.ClearVisible();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "numberFormat"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".numberFormat");
+            target.NumberFormatCode = newAxis.Value.TryGetProperty("numberFormat", out var format)
+                ? format.GetString()!
+                : string.Empty;
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "tickLabelInterval"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".tickLabelInterval");
+            if (newAxis.Value.TryGetProperty("tickLabelInterval", out var interval))
+                target.TickLabelInterval = checked((uint)interval.GetInt32());
+            else
+                target.ClearTickLabelInterval();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "min"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".min");
+            if (newAxis.Value.TryGetProperty("min", out var minimum)) target.Minimum = minimum.GetDouble();
+            else target.ClearMinimum();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "max"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".max");
+            if (newAxis.Value.TryGetProperty("max", out var maximum)) target.Maximum = maximum.GetDouble();
+            else target.ClearMaximum();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "majorUnit"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".majorUnit");
+            if (newAxis.Value.TryGetProperty("majorUnit", out var unit)) target.MajorUnit = unit.GetDouble();
+            else target.ClearMajorUnit();
+            changed = true;
+        }
+        if (PropertyChanged(oldAxis, newAxis, "tickLabelsVisible"))
+        {
+            RequireCapability(after, "setChartAxis", path + "." + axisName + ".tickLabelsVisible");
+            if (newAxis.Value.TryGetProperty("tickLabelsVisible", out var visible))
+                target.TickLabelsVisible = visible.GetBoolean();
+            else
+                target.ClearTickLabelsVisible();
             changed = true;
         }
         if (PropertyChanged(oldAxis, newAxis, "axisLine"))
@@ -1397,6 +1454,115 @@ internal static class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
+    private static bool ApplyRadarSpokeAxis(
+        PpjChartElementModel before,
+        PpjChartElementModel after,
+        PresentationChart target,
+        string path)
+    {
+        var oldSpoke = OptionalProperty(before.Raw, "spokeAxis");
+        var newSpoke = OptionalProperty(after.Raw, "spokeAxis");
+        if (JsonEqual(oldSpoke, newSpoke)) return false;
+        if (oldSpoke is null || newSpoke is null || target.Type != SpreadsheetChartType.Radar ||
+            target.XAxis is null || target.YAxis is null)
+            throw Unsupported(path + ".spokeAxis", "source-bound radar spoke-axis topology change");
+
+        RequireCapability(after, "setChartAxis", path + ".spokeAxis");
+        var changed = false;
+        if (PropertyChanged(oldSpoke, newSpoke, "show"))
+        {
+            var show = !newSpoke.Value.TryGetProperty("show", out var value) || value.GetBoolean();
+            target.XAxis.Visible = show;
+            target.YAxis.Visible = show;
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "min"))
+        {
+            if (newSpoke.Value.TryGetProperty("min", out var minimum)) target.YAxis.Minimum = minimum.GetDouble();
+            else target.YAxis.ClearMinimum();
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "max"))
+        {
+            if (newSpoke.Value.TryGetProperty("max", out var maximum)) target.YAxis.Maximum = maximum.GetDouble();
+            else target.YAxis.ClearMaximum();
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "majorUnit"))
+        {
+            if (newSpoke.Value.TryGetProperty("majorUnit", out var majorUnit)) target.YAxis.MajorUnit = majorUnit.GetDouble();
+            else target.YAxis.ClearMajorUnit();
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "axisLine"))
+        {
+            ApplySourceBoundRadarGuideLine(target.XAxis, newSpoke.Value, "axisLine", path + ".spokeAxis.axisLine");
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "gridLine"))
+        {
+            ApplySourceBoundRadarGuideLine(target.YAxis, newSpoke.Value, "gridLine", path + ".spokeAxis.gridLine");
+            changed = true;
+        }
+        if (PropertyChanged(oldSpoke, newSpoke, "label"))
+        {
+            var oldLabel = oldSpoke.Value.TryGetProperty("label", out var oldLabelValue) ? oldLabelValue : (JsonElement?)null;
+            var newLabel = newSpoke.Value.TryGetProperty("label", out var newLabelValue) ? newLabelValue : (JsonElement?)null;
+            if (HasRadarLabelTextStyle(oldLabel) || HasRadarLabelTextStyle(newLabel))
+                RequireCapability(after, "setChartTextStyle", path + ".spokeAxis.label");
+            ApplySourceBoundRadarLabel(target.YAxis, newSpoke.Value, path + ".spokeAxis.label");
+            changed = true;
+        }
+        return changed;
+    }
+
+    private static void ApplySourceBoundRadarGuideLine(
+        SpreadsheetChartAxisArtifact target,
+        JsonElement owner,
+        string propertyName,
+        string path)
+    {
+        target.ShowMajorGridlines = true;
+        target.MajorGridlineStyle = null;
+        if (!owner.TryGetProperty(propertyName, out var line))
+        {
+            target.ClearMajorGridlineVisible();
+            return;
+        }
+        if (line.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            target.MajorGridlineVisible = line.GetBoolean();
+            return;
+        }
+        target.MajorGridlineVisible = true;
+        target.MajorGridlineStyle = SourceBoundChartLine(line, path);
+    }
+
+    private static void ApplySourceBoundRadarLabel(
+        SpreadsheetChartAxisArtifact target,
+        JsonElement owner,
+        string path)
+    {
+        target.NumberFormatCode = string.Empty;
+        target.TextStyle = null;
+        if (!owner.TryGetProperty("label", out var label))
+        {
+            target.TickLabelsVisible = true;
+            return;
+        }
+        if (label.ValueKind is JsonValueKind.True or JsonValueKind.False)
+        {
+            target.TickLabelsVisible = label.GetBoolean();
+            return;
+        }
+        target.TickLabelsVisible = true;
+        target.NumberFormatCode = label.TryGetProperty("numberFormat", out var format) ? format.GetString()! : string.Empty;
+        target.TextStyle = HasRadarLabelTextStyle(label) ? SourceBoundChartTextStyle(label, path) : null;
+    }
+
+    private static bool HasRadarLabelTextStyle(JsonElement? label) =>
+        label is { ValueKind: JsonValueKind.Object } value && value.EnumerateObject().Any(property => property.Name != "numberFormat");
+
     private static void RequireOnlyBoundedProperties(
         JsonElement? before,
         JsonElement? after,
@@ -1420,6 +1586,13 @@ internal static class PpjSourceBoundPresentationCompiler
         string path)
     {
         if (owner is null || !owner.Value.TryGetProperty(property, out var source)) return null;
+        return SourceBoundChartTextStyle(source, path);
+    }
+
+    private static SpreadsheetChartTextStyleArtifact SourceBoundChartTextStyle(
+        JsonElement source,
+        string path)
+    {
         var output = new SpreadsheetChartTextStyleArtifact();
         if (source.TryGetProperty("fontSize", out var fontSize)) output.FontSizePoints = fontSize.GetDouble();
         if (source.TryGetProperty("fontFamily", out var fontFamily)) output.FontFamily = fontFamily.GetString()!;

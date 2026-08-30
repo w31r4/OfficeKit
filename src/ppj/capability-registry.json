@@ -151,6 +151,13 @@
       "reason": "PPJ owns one chart-level native number format, bubble scale from 0 through 300, native area/width size semantics, presence-aware axis reversal, and direct RGB/no-fill axis and major-grid lines. Per-point labels, pixel-radius ranges, logarithmic transforms, arrowed axes, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
     },
     {
+      "feature": "native radar spoke coordinate system",
+      "ppjPath": "pages[].elements[] where chartType is radar and spokeAxis declares show/min/max/majorUnit/label/axisLine/gridLine",
+      "behavior": "partial",
+      "sourceBound": "Canonical imported standard-radar ChartParts project one semantic spokeAxis and issue setChartAxis, plus setChartTextStyle when label typography is editable. A bounded edit patches only the existing category/value axis pair and preserves the chart topology and unrelated native content.",
+      "reason": "PPJ maps axisLine to radial spokes, gridLine to concentric rings, and the numeric scale plus label visibility/format/typography to the native value axis. Custom label positions, reverse radar direction, logarithmic scales, axis arrows, theme/effect line graphs, filled or 3D radar variants, extensions and irregular axis topology remain source-owned and fail closed."
+    },
+    {
       "feature": "circular chart geometry",
       "ppjPath": "pages[].elements[].style.startAngle and pages[].elements[].style.holeSize",
       "behavior": "partial",

@@ -1119,6 +1119,16 @@ public sealed class PptxCodecTests
             ["chartType"] = "radar",
             ["title"] = "Risk profile",
             ["style"] = new JsonObject { ["legend"] = "right" },
+            ["spokeAxis"] = new JsonObject
+            {
+                ["show"] = true,
+                ["min"] = 0,
+                ["max"] = 100,
+                ["majorUnit"] = 20,
+                ["label"] = false,
+                ["axisLine"] = new JsonObject { ["color"] = "#CBD5E1", ["width"] = 0.75 },
+                ["gridLine"] = new JsonObject { ["color"] = "#E2E8F0", ["width"] = 0.5, ["dash"] = "dot" },
+            },
             ["data"] = new JsonObject
             {
                 ["categories"] = new JsonArray("Liquidity", "Growth", "Margin", "Resilience"),
@@ -1135,6 +1145,13 @@ public sealed class PptxCodecTests
                 },
             },
         });
+        var invalidRadarAxisProgram = authoredProgram.DeepClone().AsObject();
+        invalidRadarAxisProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "risk-radar-main")["xAxis"] = new JsonObject();
+        var invalidRadarAxis = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidRadarAxisProgram.ToJsonString()));
+        Assert.False(invalidRadarAxis.IsValid);
+        Assert.Contains(invalidRadarAxis.Diagnostics, diagnostic => diagnostic.Code == "ppj.chart.spokeAxisConflict");
         authoredProgram["pages"]![0]!["elements"]!.AsArray().Add(new JsonObject
         {
             ["id"] = "allocation-doughnut-main",
@@ -2412,6 +2429,27 @@ public sealed class PptxCodecTests
             var bubbleChartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), bubbleChartPath)));
             Assert.Equal("145", bubbleChartXml.Descendants(chartNamespace + "bubbleScale").Single().Attribute("val")!.Value);
             Assert.Equal("w", bubbleChartXml.Descendants(chartNamespace + "sizeRepresents").Single().Attribute("val")!.Value);
+            var radarChartPath = package.PresentationPart.SlideParts.First().ChartParts
+                .Single(part => part.ChartSpace!.Descendants<C.RadarChart>().Any())
+                .Uri.OriginalString.TrimStart('/');
+            var radarChartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), radarChartPath)));
+            var radarCategoryAxis = radarChartXml.Descendants(chartNamespace + "catAx").Single();
+            var radarValueAxis = radarChartXml.Descendants(chartNamespace + "valAx").Single();
+            Assert.Equal("0", radarCategoryAxis.Element(chartNamespace + "delete")!.Attribute("val")!.Value);
+            Assert.Equal("CBD5E1", radarCategoryAxis.Element(chartNamespace + "majorGridlines")!
+                .Element(chartNamespace + "spPr")!.Element(richDrawingNamespace + "ln")!
+                .Element(richDrawingNamespace + "solidFill")!.Element(richDrawingNamespace + "srgbClr")!
+                .Attribute("val")!.Value);
+            Assert.Equal("0", radarValueAxis.Element(chartNamespace + "scaling")!
+                .Element(chartNamespace + "min")!.Attribute("val")!.Value);
+            Assert.Equal("100", radarValueAxis.Element(chartNamespace + "scaling")!
+                .Element(chartNamespace + "max")!.Attribute("val")!.Value);
+            Assert.Equal("20", radarValueAxis.Element(chartNamespace + "majorUnit")!.Attribute("val")!.Value);
+            Assert.Equal("none", radarValueAxis.Element(chartNamespace + "tickLblPos")!.Attribute("val")!.Value);
+            Assert.Equal("E2E8F0", radarValueAxis.Element(chartNamespace + "majorGridlines")!
+                .Element(chartNamespace + "spPr")!.Element(richDrawingNamespace + "ln")!
+                .Element(richDrawingNamespace + "solidFill")!.Element(richDrawingNamespace + "srgbClr")!
+                .Attribute("val")!.Value);
             Assert.Equal(6, package.PresentationPart.SlideParts.SelectMany(slide => slide.ChartParts).Count());
             var nativeHeatmap = package.PresentationPart.SlideParts.First().Slide!
                 .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>()
@@ -3078,6 +3116,16 @@ public sealed class PptxCodecTests
                 .GetProperty("values")[3].GetDouble());
             Assert.Equal("circle", projectedRadar.GetProperty("data").GetProperty("series")[0]
                 .GetProperty("marker").GetProperty("symbol").GetString());
+            var projectedSpokeAxis = projectedRadar.GetProperty("spokeAxis");
+            Assert.True(projectedSpokeAxis.GetProperty("show").GetBoolean());
+            Assert.Equal(0, projectedSpokeAxis.GetProperty("min").GetDouble());
+            Assert.Equal(100, projectedSpokeAxis.GetProperty("max").GetDouble());
+            Assert.Equal(20, projectedSpokeAxis.GetProperty("majorUnit").GetDouble());
+            Assert.False(projectedSpokeAxis.GetProperty("label").GetBoolean());
+            Assert.Equal("#CBD5E1", projectedSpokeAxis.GetProperty("axisLine").GetProperty("color").GetString());
+            Assert.Equal("#E2E8F0", projectedSpokeAxis.GetProperty("gridLine").GetProperty("color").GetString());
+            Assert.Contains(projectedRadar.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setChartAxis");
             var projectedCircular = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart" &&
                     item.GetProperty("chartType").GetString() == "doughnut");
@@ -3933,8 +3981,26 @@ public sealed class PptxCodecTests
         };
         chartHierarchyChart["style"]!["plotAreaFill"] = new JsonObject { ["type"] = "none" };
         chartHierarchyChart["data"]!["series"]![0]!["fill"] = new JsonObject { ["type"] = "none" };
+        var chartRadar = chartTextStyleProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart" &&
+                element["chartType"]!.GetValue<string>() == "radar");
+        chartRadar["spokeAxis"]!["max"] = 120;
+        chartRadar["spokeAxis"]!["label"] = new JsonObject
+        {
+            ["numberFormat"] = "0.0",
+            ["fontSize"] = 8.5,
+            ["color"] = "#475569",
+        };
+        chartRadar["spokeAxis"]!["gridLine"] = new JsonObject
+        {
+            ["color"] = "#94A3B8",
+            ["width"] = 0.75,
+            ["dash"] = "dash",
+        };
         var chartTextStyleId = chartTextStyleChart["id"]!.GetValue<string>();
         var chartHierarchyId = chartHierarchyChart["id"]!.GetValue<string>();
+        var chartRadarId = chartRadar["id"]!.GetValue<string>();
         var chartTextStyleEdit = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -3948,11 +4014,12 @@ public sealed class PptxCodecTests
             },
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
-        Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart6.xml"],
-            chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
+        Assert.Equal(3, chartTextStyleEdit.PresentationProgram.ChangedParts.Count);
+        Assert.Contains("ppt/slides/charts/chart2.xml", chartTextStyleEdit.PresentationProgram.ChangedParts);
+        Assert.Contains("ppt/slides/charts/chart6.xml", chartTextStyleEdit.PresentationProgram.ChangedParts);
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
+        Assert.Contains(chartRadarId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         var chartTextStyleReprojection = Invoke(new CodecRequest
         {
             ProtocolVersion = CodecProtocol.ProtocolVersion,
@@ -3991,6 +4058,15 @@ public sealed class PptxCodecTests
             Assert.Equal(30, hierarchy.GetProperty("style").GetProperty("chartAreaFill").GetProperty("angle").GetDouble());
             Assert.Equal("none", hierarchy.GetProperty("style").GetProperty("plotAreaFill").GetProperty("type").GetString());
             Assert.Equal("none", hierarchy.GetProperty("data").GetProperty("series")[0].GetProperty("fill").GetProperty("type").GetString());
+
+            var radar = chartTextStyleJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == chartRadarId)
+                .GetProperty("spokeAxis");
+            Assert.Equal(120, radar.GetProperty("max").GetDouble());
+            Assert.Equal("0.0", radar.GetProperty("label").GetProperty("numberFormat").GetString());
+            Assert.Equal(8.5, radar.GetProperty("label").GetProperty("fontSize").GetDouble());
+            Assert.Equal("#475569", radar.GetProperty("label").GetProperty("color").GetString());
+            Assert.Equal("#94A3B8", radar.GetProperty("gridLine").GetProperty("color").GetString());
         }
 
         var imagePaintProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
