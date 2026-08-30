@@ -983,6 +983,25 @@ the owning shape as unsupported. The source preset and adjustment list are
 reimported after the edit; unknown geometry and invalid adjustment topology
 remain fail-closed.
 
+### Imported custom geometry without adjustment lists
+
+Status: **done for the observed bounded profile**. DrawingML permits the
+`a:avLst` adjustment list to be omitted when a custom path uses only built-in
+references or literals. The importer now accepts that legal child order,
+projects the bounded path graph, and preserves the omission when a source-bound
+frame edit rewrites the shape. Source-bound scheme fills are accepted through
+the same strict single-color profile; effect-bearing or otherwise unsupported
+fills remain opaque.
+
+The six-sample probe now exposes all observed custom path graphs in the
+SlidesCarnival Business Infographic (238), Data Particles (614), Minimal
+Business (797), and Professional Minimalist (48) samples. A real Data
+Particles `Google Shape;100;p18` move changes only `ppt/slides/slide7.xml`,
+keeps the 3,952-byte `a:custGeom` token sequence byte-identical, and survives
+second import with the updated frame. A focused codec regression covers
+import, byte-identical no-op, edit, and reimport. This does not claim arbitrary
+custom-geometry formulas, effects, or vendor extensions are editable.
+
 ## Reference Skills
 
 The source and npm layouts contain nine native plugin bundles and 31 Skills.
