@@ -13,9 +13,11 @@ const registryPath = path.join(repo, "src/ppj/capability-registry.json");
 const schemaPath = path.join(repo, "src/ppj/ppj-v1.schema.json");
 const registry = readJson(registryPath);
 const schema = readJson(schemaPath);
+const presetProfilesPath = path.join(repo, registry.presetGeometryProfiles);
+const presetProfiles = readJson(presetProfilesPath);
 const target = path.join(repo, registry.generatedReference);
-const errors = validateRegistry(registry, schema);
-const generated = renderManual(schema, registry);
+const errors = validateRegistry(registry, schema, presetProfiles);
+const generated = renderManual(schema, registry, presetProfiles);
 
 if (command === "sync") {
   if (errors.length) fail(errors);
@@ -31,7 +33,7 @@ if (command === "sync") {
   );
 }
 
-function validateRegistry(value, language) {
+function validateRegistry(value, language, geometryProfiles) {
   const errors = [];
   if (value.schema !== "office-kit/presentation-capability-registry/v1") errors.push("Unexpected capability registry schema.");
   if (language.properties?.schema?.const !== "office-kit/ppj/v1") errors.push("Unexpected PPJ language schema.");
@@ -52,6 +54,29 @@ function validateRegistry(value, language) {
   for (const [field, details] of Object.entries(value.ppjPathOwners ?? {})) {
     if (!details || typeof details.owner !== "string" || typeof details.surface !== "string" || typeof details.meaning !== "string")
       errors.push(`PPJ field owner ${field} is incomplete.`);
+  }
+  if (geometryProfiles.schema !== "office-kit/ppj-preset-geometry-profiles/v1")
+    errors.push("Unexpected preset geometry profile schema.");
+  const geometrySchema = language.$defs.geometry.oneOf.find((entry) => entry.properties?.kind?.const === "preset");
+  const presetNames = [...(geometrySchema?.properties?.preset?.enum ?? [])].sort();
+  const profileNames = Object.keys(geometryProfiles.profiles ?? {}).sort();
+  if (JSON.stringify(presetNames) !== JSON.stringify(profileNames))
+    errors.push("PPJ preset geometry enum and canonical profile registry differ.");
+  const adjustmentItems = geometrySchema?.properties?.adjustments?.items;
+  if (adjustmentItems?.minimum !== geometryProfiles.minimumValue || adjustmentItems?.maximum !== geometryProfiles.maximumValue)
+    errors.push("PPJ adjustment bounds and canonical profile registry differ.");
+  for (const [name, profile] of Object.entries(geometryProfiles.profiles ?? {})) {
+    const guides = profile?.guides;
+    const defaults = profile?.defaults;
+    const parameters = profile?.parameters;
+    if (!Array.isArray(guides) || !Array.isArray(defaults) || !Array.isArray(parameters) ||
+        guides.length !== defaults.length || guides.length !== parameters.length)
+      errors.push(`Preset geometry profile ${name} has inconsistent guide/default/parameter arrays.`);
+    if (new Set(guides ?? []).size !== (guides ?? []).length)
+      errors.push(`Preset geometry profile ${name} has duplicate guide names.`);
+    for (const value of defaults ?? [])
+      if (!Number.isInteger(value) || value < geometryProfiles.minimumValue || value > geometryProfiles.maximumValue)
+        errors.push(`Preset geometry profile ${name} has an out-of-range default.`);
   }
   const boundaryBehaviors = new Set(["fail-closed", "source-bound-only", "partial"]);
   for (const [index, boundary] of (value.authoredCompilerBoundaries ?? []).entries()) {
@@ -137,7 +162,7 @@ function validateSkillTree(errors) {
   }
 }
 
-function renderManual(schema, registry) {
+function renderManual(schema, registry, presetProfiles) {
   const schemaBytes = readFileSync(schemaPath);
   const registryBytes = readFileSync(registryPath);
   const minimumProgram = readFileSync(
@@ -183,6 +208,8 @@ function renderManual(schema, registry) {
     `| \`${name}\` | \`${details.valueType}\` | \`${details.unit}\` | \`${details.ppjLocation}\` | \`${details.surface}\` | ${details.boundary} |`).join("\n");
   const authoredBoundaryRows = registry.authoredCompilerBoundaries.map((details) =>
     `| ${details.feature} | \`${details.ppjPath}\` | \`${details.behavior}\` | ${details.sourceBound} | ${details.reason} |`).join("\n");
+  const presetGeometryRows = Object.entries(presetProfiles.profiles).map(([name, profile]) =>
+    `| \`${name}\` | ${profile.parameters.length ? profile.parameters.map(code).join(", ") : "none"} | ${profile.defaults.length ? `\`[${profile.defaults.join(", ")}]\`` : "native fixed geometry"} |`).join("\n");
   const definitionSections = Object.entries(schema.$defs).map(([name, definition]) => renderDefinition(name, definition, schema)).join("\n\n");
   const fieldCount = Object.values(schema.$defs).reduce((sum, definition) => sum + definitionProperties(definition, schema).properties.size, 0) + Object.keys(schema.properties).length;
   const budgets = schema["x-officekit-budgets"];
@@ -241,6 +268,22 @@ Simple text uses a string. Mixed formatting uses \`paragraphs[]\` and
 explicit typed color objects. Assets use relative URIs, exact MIME and SHA-256;
 remote URLs and data-fetch instructions are invalid. Accessibility and rights
 metadata travel with the asset or element.
+
+## Preset geometry adjustments
+
+\`shape.geometry.adjustments\` is one complete ordered integer array. Omit it
+or use \`[]\` for the native preset defaults. Percentage-like values use
+100000 as 100%; angle values use 60000 units per degree. PPJ derives native
+guide names from the preset and never exposes formula strings.
+
+| Preset | Ordered parameter meaning | Native defaults |
+| --- | --- | --- |
+${presetGeometryRows}
+
+Imported shapes receive \`setGeometry\` only when their native adjustment list
+is empty/default or contains the complete canonical guide order with literal
+\`val N\` formulas. Formula-valued, partial, reordered, duplicated, or unknown
+guides remain source-owned and reject geometry edits.
 
 ## Authored compiler availability
 
@@ -405,6 +448,7 @@ function schemaSummary(value) {
 function schemaConstraints(value) {
   if (!value || typeof value !== "object") return "none";
   const constraints = [];
+  if (value.description) constraints.push(value.description);
   for (const [field, label] of [["minLength", "min chars"], ["maxLength", "max chars"], ["minItems", "min items"], ["maxItems", "max items"], ["minimum", "min"], ["exclusiveMinimum", ">"], ["maximum", "max"], ["exclusiveMaximum", "<"]])
     if (Object.hasOwn(value, field)) constraints.push(`${label} ${value[field]}`);
   if (value.pattern) constraints.push(`pattern ${code(value.pattern)}`);

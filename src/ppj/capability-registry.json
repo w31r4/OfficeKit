@@ -2,6 +2,7 @@
   "schema": "office-kit/presentation-capability-registry/v1",
   "helpSource": "src/help/index.mjs",
   "languageSchema": "src/ppj/ppj-v1.schema.json",
+  "presetGeometryProfiles": "src/ppj/preset-geometry-profiles.json",
   "generatedReference": "skills/presentations/skills/presentations/references/ppj.md",
   "classes": {
     "ppj-state": {
@@ -59,13 +60,6 @@
       "behavior": "fail-closed",
       "sourceBound": "Existing chart paint graphs and unsupported table-cell image fills remain source-preserved.",
       "reason": "Shape, slide-background, and table-cell gradients are compiler-owned. Chart-series paint currently owns direct opaque RGB only; chart and plot areas own none or solid RGB with opacity."
-    },
-    {
-      "feature": "adjusted preset geometry",
-      "ppjPath": "shape.geometry.adjustments",
-      "behavior": "fail-closed",
-      "sourceBound": "Unknown adjusted geometry remains opaque and unrelated edits preserve it.",
-      "reason": "Authored literal custom paths are compiler-owned; preset adjustment formulas are not yet lowered."
     },
     {
       "feature": "custom or adjusted image masks",

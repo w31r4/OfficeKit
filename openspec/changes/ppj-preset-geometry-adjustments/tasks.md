@@ -11,7 +11,7 @@
 
 ## 3. Agent discoverability
 
-- [ ] 3.1 Remove the stale authored boundary and regenerate the PPJ language reference
+- [x] 3.1 Remove the stale authored boundary and regenerate the PPJ language reference
 - [ ] 3.2 Add focused shape guidance and a runnable rounded-rectangle/arrow example
 
 ## 4. Lean verification and delivery
