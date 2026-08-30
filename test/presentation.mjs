@@ -621,6 +621,37 @@ const imageFilledCustomGeometryRoundTripShape = itemByName(imageFilledCustomGeom
 assert.equal(imageFilledCustomGeometryRoundTripShape.imageFill?.assetId, imageFilledCustomGeometryShape.imageFill?.assetId);
 assert.equal(imageFilledCustomGeometryRoundTripShape.position.left, imageFilledCustomGeometryOldPosition.left + 7);
 
+// A source-bound image fill may also carry a valid DrawingML path command that
+// is outside the semantic custom-geometry profile.  Frame edits must still
+// preserve that native path graph instead of failing validation because the
+// projected custom-path list is intentionally empty.
+const unsupportedImageFilledCustomGeometryXml = imageFilledCustomGeometryXml.replace(
+  "<a:close/></a:path>",
+  '<a:arcTo wR="3429000" hR="838200" stAng="0" swAng="0"/><a:close/></a:path>',
+);
+assert.notEqual(unsupportedImageFilledCustomGeometryXml, imageFilledCustomGeometryXml);
+const unsupportedImageFilledCustomGeometryZip = await JSZip.loadAsync(imageFilledCustomGeometryFile.bytes);
+unsupportedImageFilledCustomGeometryZip.file("ppt/slides/slide1.xml", unsupportedImageFilledCustomGeometryXml);
+const unsupportedImageFilledCustomGeometryImported = await PresentationFile.importPptx(new FileBlob(
+  await unsupportedImageFilledCustomGeometryZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+));
+const unsupportedImageFilledCustomGeometryShape = itemByName(
+  unsupportedImageFilledCustomGeometryImported.slides.getItem(0).shapes.items,
+  "decision-status",
+);
+assert.equal(unsupportedImageFilledCustomGeometryShape.customPaths.length, 0);
+unsupportedImageFilledCustomGeometryShape.position = {
+  ...unsupportedImageFilledCustomGeometryShape.position,
+  left: unsupportedImageFilledCustomGeometryShape.position.left + 3,
+};
+const unsupportedImageFilledCustomGeometryOutput = await PresentationFile.exportPptx(unsupportedImageFilledCustomGeometryImported);
+assert.deepEqual(
+  unsupportedImageFilledCustomGeometryOutput.metadata.editPlan.changedParts,
+  ["ppt/slides/slide1.xml"],
+  "unsupported image-filled custom geometry must still allow a bounded frame edit",
+);
+
 const blobImageEdit = await PresentationFile.importPptx(shapeAccessibilitySource);
 const blobImage = itemByName(blobImageEdit.slides.getItem(0).images.items, "decision-evidence");
 blobImage.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }) });
