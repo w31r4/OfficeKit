@@ -318,7 +318,12 @@ public sealed class PptxCodecTests
                     ["type"] = "shape",
                     ["frame"] = new JsonObject { ["x"] = 780, ["y"] = 360, ["width"] = 96, ["height"] = 48 },
                     ["accessibility"] = new JsonObject { ["decorative"] = true },
-                    ["geometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "rect" },
+                    ["geometry"] = new JsonObject
+                    {
+                        ["kind"] = "preset",
+                        ["preset"] = "roundRect",
+                        ["adjustments"] = new JsonArray(24000),
+                    },
                     ["style"] = new JsonObject
                     {
                         ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#DCEFEA" },
@@ -355,6 +360,14 @@ public sealed class PptxCodecTests
                 },
             },
         });
+        var invalidAdjustmentProgram = authoredProgram.DeepClone().AsObject();
+        invalidAdjustmentProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["id"]!.GetValue<string>() == "transform-group-main")["elements"]![0]!["geometry"]!["adjustments"]!.AsArray()
+            .Add(32000);
+        var invalidAdjustments = PpjProgramValidator.Validate(Encoding.UTF8.GetBytes(invalidAdjustmentProgram.ToJsonString()));
+        Assert.False(invalidAdjustments.IsValid);
+        Assert.Contains(invalidAdjustments.Diagnostics, diagnostic => diagnostic.Code == "ppj.geometry.adjustmentCount");
         var programBytes = Encoding.UTF8.GetBytes(authoredProgram.ToJsonString());
         var assetBytes = File.ReadAllBytes(Path.Combine(fixtureDirectory, "ppj-assets", "evidence-mark.svg"));
         var request = new CodecRequest
@@ -509,6 +522,7 @@ public sealed class PptxCodecTests
             element.ContentCase == PresentationElement.ContentOneofCase.Group).Group;
         Assert.Equal(720_000, importedGroup.FrameTransform.RotationAngle60000);
         Assert.True(importedGroup.FrameTransform.FlipHorizontal);
+        Assert.Equal([24000], Assert.Single(importedGroup.Children).Shape.PresetAdjustments);
         var importedConnector = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Connector).Connector;
         Assert.True(importedConnector.HasLineOpacityThousandthPercent);
@@ -648,6 +662,13 @@ public sealed class PptxCodecTests
             Assert.Equal(17, projectedLine.GetProperty("style").GetProperty("titleTextStyle").GetProperty("fontSize").GetDouble());
             Assert.False(projectedLine.GetProperty("style").GetProperty("smooth").GetBoolean());
             Assert.True(projectedLine.GetProperty("style").GetProperty("varyColors").GetBoolean());
+            var projectedAdjustedShape = projectedRoot.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(item => item.GetProperty("type").GetString() == "group")
+                .GetProperty("elements")[0];
+            Assert.Equal(24000, projectedAdjustedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
+            Assert.Contains(projectedAdjustedShape.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setGeometry" &&
+                capability.GetProperty("fields").EnumerateArray().Any(field => field.GetString() == "geometry.adjustments"));
             Assert.DoesNotContain("part_path", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("relationship_id", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
             Assert.DoesNotContain("raw_xml", projected.PresentationProgram.ProgramJson.ToStringUtf8(), StringComparison.Ordinal);
@@ -820,6 +841,48 @@ public sealed class PptxCodecTests
             var reprojectedFrame = reprojectedChart.GetProperty("frame");
             Assert.Equal(9, reprojectedFrame.GetProperty("rotation").GetDouble());
             Assert.False(reprojectedFrame.TryGetProperty("flipH", out var flipHorizontal) && flipHorizontal.GetBoolean());
+        }
+
+        var adjustedGeometryProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var adjustedGeometryShape = adjustedGeometryProgram["pages"]![0]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "group")["elements"]![0]!.AsObject();
+        adjustedGeometryShape["geometry"]!["adjustments"]![0] = 32000;
+        var adjustedGeometryId = adjustedGeometryShape["id"]!.GetValue<string>();
+        var sourceGeometryEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(adjustedGeometryProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(sourceGeometryEdit.Ok, Diagnostics(sourceGeometryEdit));
+        Assert.Single(sourceGeometryEdit.PresentationProgram.ChangedParts);
+        Assert.Contains(adjustedGeometryId, sourceGeometryEdit.PresentationProgram.ChangedNodeIds);
+        var geometryReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = sourceGeometryEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/adjusted-geometry.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(geometryReprojection.Ok, Diagnostics(geometryReprojection));
+        using (var geometryJson = JsonDocument.Parse(geometryReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedShape = geometryJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("type").GetString() == "group")
+                .GetProperty("elements")[0];
+            Assert.Equal(32000, reprojectedShape.GetProperty("geometry").GetProperty("adjustments")[0].GetInt32());
         }
 
         var editedProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
