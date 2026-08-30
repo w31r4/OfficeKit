@@ -895,9 +895,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (color is { } colorValue)
         {
             var resolved = catalog.Color(colorValue);
-            if (resolved.Alpha != 1)
-                throw Unsupported("text", "run color alpha is not yet compiler-owned");
             run.ColorRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) run.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
         }
         if (family is { } familyValue) run.FontFamily = familyValue.GetString()!;
         else if (font is { } fontValue) run.FontFamily = catalog.Font(fontValue.GetString()!);
@@ -928,9 +927,8 @@ internal static class PpjAuthoredPresentationCompiler
         if (value.TryGetProperty("color", out var color))
         {
             var resolved = catalog.Color(color);
-            if (resolved.Alpha != 1)
-                throw Unsupported("text", "text-style color alpha is not yet compiler-owned");
             output.ColorRgb = resolved.Rgb;
+            if (resolved.Alpha < 1) output.ColorOpacityThousandthPercent = Opacity(resolved.Alpha);
         }
         if (value.TryGetProperty("fontFamily", out var family)) output.FontFamily = family.GetString()!;
         else if (value.TryGetProperty("font", out var font)) output.FontFamily = catalog.Font(font.GetString()!);

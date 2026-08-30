@@ -927,8 +927,10 @@ internal static partial class PpjPresentationProjector
         if (run.HasFontSizePoints && run.FontSizePoints > 0) style["size"] = run.FontSizePoints;
         if (run.HasBold) style["bold"] = run.Bold;
         if (run.HasItalic) style["italic"] = run.Italic;
-        if (run.HasColorRgb && !string.IsNullOrEmpty(run.ColorRgb)) style["color"] = Color(run.ColorRgb);
-        else if (run.HasColorScheme && !string.IsNullOrEmpty(run.ColorScheme)) style["color"] = new JsonObject { ["token"] = run.ColorScheme };
+        if (run.HasColorRgb && !string.IsNullOrEmpty(run.ColorRgb))
+            style["color"] = TextColor(run.ColorRgb, null, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
+        else if (run.HasColorScheme && !string.IsNullOrEmpty(run.ColorScheme))
+            style["color"] = TextColor(null, run.ColorScheme, run.HasColorOpacityThousandthPercent, run.ColorOpacityThousandthPercent);
         if (run.HasUnderline) style["underline"] = run.Underline switch { "sng" => "single", "dbl" => "double", _ => run.Underline };
         if (run.HasStrike) style["strike"] = run.Strike;
         if (run.HasFontKerningPoints) style["kerning"] = run.FontKerningPoints;
@@ -1519,6 +1521,20 @@ internal static partial class PpjPresentationProjector
     };
 
     private static string Color(string rgb) => $"#{rgb.TrimStart('#').ToUpperInvariant()}";
+
+    private static JsonNode TextColor(string? rgb, string? scheme, bool hasOpacity, uint opacity)
+    {
+        if (!string.IsNullOrEmpty(rgb))
+        {
+            var value = Color(rgb);
+            if (!hasOpacity) return value;
+            var alpha = Math.Clamp((int)Math.Round(Unit(opacity) * 255), 0, 255);
+            return $"{value}{alpha:X2}";
+        }
+        var output = new JsonObject { ["token"] = scheme };
+        if (hasOpacity) output["alpha"] = Unit(opacity);
+        return output;
+    }
     private static double Crop(int value) => Math.Clamp(value / 100_000d, 0, 1);
     private static double Unit(uint value) => Math.Clamp(value / 100_000d, 0, 1);
     private static double Points(long emu) => Math.Round(emu / EmuPerPoint, 6, MidpointRounding.AwayFromZero);
