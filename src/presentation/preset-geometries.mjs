@@ -33,7 +33,3 @@ export function normalizePresentationPresetAdjustments(value, geometry, label = 
     return number;
   });
 }
-
-export function presentationPresetGeometryNames() {
-  return Object.keys(PRESET_GEOMETRY_PROFILES);
-}
