@@ -1,56 +1,2275 @@
 {
   "schema": "office-kit/ppj-preset-geometry-profiles/v1",
+  "source": {
+    "kind": "public-ecma-derived-preset-definitions",
+    "url": "https://github.com/plutext/docx4j/blob/0eec2587ab38db5265ce66c12423849c1bea2c60/docx4j-core/src/main/resources/org/docx4j/model/shapes/presetShapeDefinitions.xml",
+    "sha256": "6fc9592cb55db6e572051f41d15a079ae4164635af902db6f13a8a61d0c949d3"
+  },
   "minimumValue": -21600000,
   "maximumValue": 21600000,
   "profiles": {
-    "rect": { "guides": [], "defaults": [], "parameters": [] },
-    "roundRect": { "guides": ["adj"], "defaults": [16667], "parameters": ["corner radius"] },
-    "ellipse": { "guides": [], "defaults": [], "parameters": [] },
-    "triangle": { "guides": ["adj"], "defaults": [50000], "parameters": ["apex horizontal position"] },
-    "rightTriangle": { "guides": [], "defaults": [], "parameters": [] },
-    "diamond": { "guides": [], "defaults": [], "parameters": [] },
-    "parallelogram": { "guides": ["adj"], "defaults": [25000], "parameters": ["slant offset"] },
-    "trapezoid": { "guides": ["adj"], "defaults": [25000], "parameters": ["top-edge inset"] },
-    "pentagon": { "guides": ["hf", "vf"], "defaults": [105146, 110557], "parameters": ["horizontal scale", "vertical scale"] },
-    "hexagon": { "guides": ["adj", "vf"], "defaults": [25000, 115470], "parameters": ["side inset", "vertical scale"] },
-    "heptagon": { "guides": ["hf", "vf"], "defaults": [102572, 105210], "parameters": ["horizontal scale", "vertical scale"] },
-    "octagon": { "guides": ["adj"], "defaults": [29289], "parameters": ["corner cut"] },
-    "chevron": { "guides": ["adj"], "defaults": [50000], "parameters": ["notch and tip offset"] },
-    "homePlate": { "guides": ["adj"], "defaults": [50000], "parameters": ["point offset"] },
-    "pie": { "guides": ["adj1", "adj2"], "defaults": [0, 16200000], "parameters": ["start angle", "end angle"] },
-    "arc": { "guides": ["adj1", "adj2"], "defaults": [16200000, 0], "parameters": ["start angle", "end angle"] },
-    "donut": { "guides": ["adj"], "defaults": [25000], "parameters": ["inner-radius ratio"] },
-    "blockArc": { "guides": ["adj1", "adj2", "adj3"], "defaults": [10800000, 0, 25000], "parameters": ["start angle", "end angle", "band thickness"] },
-    "heart": { "guides": [], "defaults": [], "parameters": [] },
-    "lightningBolt": { "guides": [], "defaults": [], "parameters": [] },
-    "sun": { "guides": ["adj"], "defaults": [25000], "parameters": ["ray inner radius"] },
-    "moon": { "guides": ["adj"], "defaults": [50000], "parameters": ["crescent width"] },
-    "cloud": { "guides": [], "defaults": [], "parameters": [] },
-    "star4": { "guides": ["adj"], "defaults": [12500], "parameters": ["inner radius"] },
-    "star5": { "guides": ["adj", "hf", "vf"], "defaults": [19098, 105146, 110557], "parameters": ["inner radius", "horizontal scale", "vertical scale"] },
-    "star6": { "guides": ["adj", "hf"], "defaults": [28868, 115470], "parameters": ["inner radius", "horizontal scale"] },
-    "star8": { "guides": ["adj"], "defaults": [37500], "parameters": ["inner radius"] },
-    "star10": { "guides": ["adj", "hf"], "defaults": [42533, 105146], "parameters": ["inner radius", "horizontal scale"] },
-    "star12": { "guides": ["adj"], "defaults": [37500], "parameters": ["inner radius"] },
-    "leftArrow": { "guides": ["adj1", "adj2"], "defaults": [50000, 50000], "parameters": ["shaft width", "arrowhead length"] },
-    "rightArrow": { "guides": ["adj1", "adj2"], "defaults": [50000, 50000], "parameters": ["shaft width", "arrowhead length"] },
-    "upArrow": { "guides": ["adj1", "adj2"], "defaults": [50000, 50000], "parameters": ["shaft width", "arrowhead length"] },
-    "downArrow": { "guides": ["adj1", "adj2"], "defaults": [50000, 50000], "parameters": ["shaft width", "arrowhead length"] },
-    "leftRightArrow": { "guides": ["adj1", "adj2"], "defaults": [50000, 50000], "parameters": ["shaft width", "arrowhead length"] },
-    "upDownArrow": { "guides": ["adj1", "adj2"], "defaults": [50000, 50000], "parameters": ["shaft width", "arrowhead length"] },
-    "quadArrow": { "guides": ["adj1", "adj2", "adj3"], "defaults": [22500, 22500, 22500], "parameters": ["shaft width", "arrowhead width", "arrowhead length"] },
-    "bentArrow": { "guides": ["adj1", "adj2", "adj3", "adj4"], "defaults": [25000, 25000, 25000, 43750], "parameters": ["shaft width", "arrowhead width", "arrowhead length", "bend position"] },
-    "uturnArrow": { "guides": ["adj1", "adj2", "adj3", "adj4", "adj5"], "defaults": [25000, 25000, 25000, 43750, 75000], "parameters": ["shaft width", "arrowhead width", "arrowhead length", "bend radius", "shaft length"] },
-    "circularArrow": { "guides": ["adj1", "adj2", "adj3", "adj4", "adj5"], "defaults": [12500, 1142319, 20457681, 10800000, 12500], "parameters": ["arrowhead width", "start angle", "end angle", "arc span", "arrow-tip width"] },
-    "wedgeRoundRectCallout": { "guides": ["adj1", "adj2", "adj3"], "defaults": [-20833, 62500, 16667], "parameters": ["tip horizontal offset", "tip vertical offset", "corner radius"] },
-    "wedgeEllipseCallout": { "guides": ["adj1", "adj2"], "defaults": [-20833, 62500], "parameters": ["tip horizontal offset", "tip vertical offset"] },
-    "bracePair": { "guides": ["adj"], "defaults": [8333], "parameters": ["curvature"] },
-    "bracketPair": { "guides": ["adj"], "defaults": [16667], "parameters": ["curvature"] },
-    "flowChartProcess": { "guides": [], "defaults": [], "parameters": [] },
-    "flowChartDecision": { "guides": [], "defaults": [], "parameters": [] },
-    "flowChartData": { "guides": [], "defaults": [], "parameters": [] },
-    "flowChartTerminator": { "guides": [], "defaults": [], "parameters": [] },
-    "flowChartDocument": { "guides": [], "defaults": [], "parameters": [] },
-    "flowChartPreparation": { "guides": [], "defaults": [], "parameters": [] }
+    "accentBorderCallout1": {
+      "nativeToken": "accentBorderCallout1",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        112500,
+        -38333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "accentBorderCallout2": {
+      "nativeToken": "accentBorderCallout2",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        112500,
+        -46667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)"
+      ]
+    },
+    "accentBorderCallout3": {
+      "nativeToken": "accentBorderCallout3",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6",
+        "adj7",
+        "adj8"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        100000,
+        -16667,
+        112963,
+        -8333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)",
+        "native adjustment 7 (adj7)",
+        "native adjustment 8 (adj8)"
+      ]
+    },
+    "accentCallout1": {
+      "nativeToken": "accentCallout1",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        112500,
+        -38333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "accentCallout2": {
+      "nativeToken": "accentCallout2",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        112500,
+        -46667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)"
+      ]
+    },
+    "accentCallout3": {
+      "nativeToken": "accentCallout3",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6",
+        "adj7",
+        "adj8"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        100000,
+        -16667,
+        112963,
+        -8333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)",
+        "native adjustment 7 (adj7)",
+        "native adjustment 8 (adj8)"
+      ]
+    },
+    "actionButtonBackPrevious": {
+      "nativeToken": "actionButtonBackPrevious",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonBeginning": {
+      "nativeToken": "actionButtonBeginning",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonBlank": {
+      "nativeToken": "actionButtonBlank",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonDocument": {
+      "nativeToken": "actionButtonDocument",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonEnd": {
+      "nativeToken": "actionButtonEnd",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonForwardNext": {
+      "nativeToken": "actionButtonForwardNext",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonHelp": {
+      "nativeToken": "actionButtonHelp",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonHome": {
+      "nativeToken": "actionButtonHome",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonInformation": {
+      "nativeToken": "actionButtonInformation",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonMovie": {
+      "nativeToken": "actionButtonMovie",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonReturn": {
+      "nativeToken": "actionButtonReturn",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "actionButtonSound": {
+      "nativeToken": "actionButtonSound",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "arc": {
+      "nativeToken": "arc",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16200000,
+        0
+      ],
+      "parameters": [
+        "start angle",
+        "end angle"
+      ]
+    },
+    "bentArrow": {
+      "nativeToken": "bentArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        43750
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead width",
+        "arrowhead length",
+        "bend position"
+      ]
+    },
+    "bentUpArrow": {
+      "nativeToken": "bentUpArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "bevel": {
+      "nativeToken": "bevel",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "blockArc": {
+      "nativeToken": "blockArc",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        10800000,
+        0,
+        25000
+      ],
+      "parameters": [
+        "start angle",
+        "end angle",
+        "band thickness"
+      ]
+    },
+    "borderCallout1": {
+      "nativeToken": "borderCallout1",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        112500,
+        -38333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "borderCallout2": {
+      "nativeToken": "borderCallout2",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        112500,
+        -46667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)"
+      ]
+    },
+    "borderCallout3": {
+      "nativeToken": "borderCallout3",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6",
+        "adj7",
+        "adj8"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        100000,
+        -16667,
+        112963,
+        -8333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)",
+        "native adjustment 7 (adj7)",
+        "native adjustment 8 (adj8)"
+      ]
+    },
+    "bracePair": {
+      "nativeToken": "bracePair",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        8333
+      ],
+      "parameters": [
+        "curvature"
+      ]
+    },
+    "bracketPair": {
+      "nativeToken": "bracketPair",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        16667
+      ],
+      "parameters": [
+        "curvature"
+      ]
+    },
+    "callout1": {
+      "nativeToken": "callout1",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        112500,
+        -38333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "callout2": {
+      "nativeToken": "callout2",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        112500,
+        -46667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)"
+      ]
+    },
+    "callout3": {
+      "nativeToken": "callout3",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5",
+        "adj6",
+        "adj7",
+        "adj8"
+      ],
+      "defaults": [
+        18750,
+        -8333,
+        18750,
+        -16667,
+        100000,
+        -16667,
+        112963,
+        -8333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)",
+        "native adjustment 6 (adj6)",
+        "native adjustment 7 (adj7)",
+        "native adjustment 8 (adj8)"
+      ]
+    },
+    "can": {
+      "nativeToken": "can",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "chartPlus": {
+      "nativeToken": "chartPlus",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "chartStar": {
+      "nativeToken": "chartStar",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "chartX": {
+      "nativeToken": "chartX",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "chevron": {
+      "nativeToken": "chevron",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        50000
+      ],
+      "parameters": [
+        "notch and tip offset"
+      ]
+    },
+    "chord": {
+      "nativeToken": "chord",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        2700000,
+        16200000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "circularArrow": {
+      "nativeToken": "circularArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5"
+      ],
+      "defaults": [
+        12500,
+        1142319,
+        20457681,
+        10800000,
+        12500
+      ],
+      "parameters": [
+        "arrowhead width",
+        "start angle",
+        "end angle",
+        "arc span",
+        "arrow-tip width"
+      ]
+    },
+    "cloud": {
+      "nativeToken": "cloud",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "cloudCallout": {
+      "nativeToken": "cloudCallout",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        -20833,
+        62500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "corner": {
+      "nativeToken": "corner",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "cornerTabs": {
+      "nativeToken": "cornerTabs",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "cube": {
+      "nativeToken": "cube",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "curvedDownArrow": {
+      "nativeToken": "curvedDownArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        50000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "curvedLeftArrow": {
+      "nativeToken": "curvedLeftArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        50000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "curvedRightArrow": {
+      "nativeToken": "curvedRightArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        50000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "curvedUpArrow": {
+      "nativeToken": "curvedUpArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        50000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "decagon": {
+      "nativeToken": "decagon",
+      "guides": [
+        "vf"
+      ],
+      "defaults": [
+        105146
+      ],
+      "parameters": [
+        "native adjustment 1 (vf)"
+      ]
+    },
+    "diagStripe": {
+      "nativeToken": "diagStripe",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "diamond": {
+      "nativeToken": "diamond",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "dodecagon": {
+      "nativeToken": "dodecagon",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "donut": {
+      "nativeToken": "donut",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "inner-radius ratio"
+      ]
+    },
+    "doubleWave": {
+      "nativeToken": "doubleWave",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        6250,
+        0
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "downArrow": {
+      "nativeToken": "downArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead length"
+      ]
+    },
+    "downArrowCallout": {
+      "nativeToken": "downArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        64977
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "ellipse": {
+      "nativeToken": "ellipse",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "ellipseRibbon": {
+      "nativeToken": "ellipseRibbon",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        50000,
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "ellipseRibbon2": {
+      "nativeToken": "ellipseRibbon2",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        50000,
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "flowChartAlternateProcess": {
+      "nativeToken": "flowChartAlternateProcess",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartCollate": {
+      "nativeToken": "flowChartCollate",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartConnector": {
+      "nativeToken": "flowChartConnector",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartData": {
+      "nativeToken": "flowChartInputOutput",
+      "guides": [],
+      "defaults": [],
+      "parameters": [],
+      "alias": true
+    },
+    "flowChartDecision": {
+      "nativeToken": "flowChartDecision",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartDelay": {
+      "nativeToken": "flowChartDelay",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartDisplay": {
+      "nativeToken": "flowChartDisplay",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartDocument": {
+      "nativeToken": "flowChartDocument",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartExtract": {
+      "nativeToken": "flowChartExtract",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartInputOutput": {
+      "nativeToken": "flowChartInputOutput",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartInternalStorage": {
+      "nativeToken": "flowChartInternalStorage",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartMagneticDisk": {
+      "nativeToken": "flowChartMagneticDisk",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartMagneticDrum": {
+      "nativeToken": "flowChartMagneticDrum",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartMagneticTape": {
+      "nativeToken": "flowChartMagneticTape",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartManualInput": {
+      "nativeToken": "flowChartManualInput",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartManualOperation": {
+      "nativeToken": "flowChartManualOperation",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartMerge": {
+      "nativeToken": "flowChartMerge",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartMultidocument": {
+      "nativeToken": "flowChartMultidocument",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartOfflineStorage": {
+      "nativeToken": "flowChartOfflineStorage",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartOffpageConnector": {
+      "nativeToken": "flowChartOffpageConnector",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartOnlineStorage": {
+      "nativeToken": "flowChartOnlineStorage",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartOr": {
+      "nativeToken": "flowChartOr",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartPredefinedProcess": {
+      "nativeToken": "flowChartPredefinedProcess",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartPreparation": {
+      "nativeToken": "flowChartPreparation",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartProcess": {
+      "nativeToken": "flowChartProcess",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartPunchedCard": {
+      "nativeToken": "flowChartPunchedCard",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartPunchedTape": {
+      "nativeToken": "flowChartPunchedTape",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartSort": {
+      "nativeToken": "flowChartSort",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartSummingJunction": {
+      "nativeToken": "flowChartSummingJunction",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "flowChartTerminator": {
+      "nativeToken": "flowChartTerminator",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "foldedCorner": {
+      "nativeToken": "foldedCorner",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "frame": {
+      "nativeToken": "frame",
+      "guides": [
+        "adj1"
+      ],
+      "defaults": [
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)"
+      ]
+    },
+    "funnel": {
+      "nativeToken": "funnel",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "gear6": {
+      "nativeToken": "gear6",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        15000,
+        3526
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "gear9": {
+      "nativeToken": "gear9",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        10000,
+        1763
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "halfFrame": {
+      "nativeToken": "halfFrame",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        33333,
+        33333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "heart": {
+      "nativeToken": "heart",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "heptagon": {
+      "nativeToken": "heptagon",
+      "guides": [
+        "hf",
+        "vf"
+      ],
+      "defaults": [
+        102572,
+        105210
+      ],
+      "parameters": [
+        "horizontal scale",
+        "vertical scale"
+      ]
+    },
+    "hexagon": {
+      "nativeToken": "hexagon",
+      "guides": [
+        "adj",
+        "vf"
+      ],
+      "defaults": [
+        25000,
+        115470
+      ],
+      "parameters": [
+        "side inset",
+        "vertical scale"
+      ]
+    },
+    "homePlate": {
+      "nativeToken": "homePlate",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        50000
+      ],
+      "parameters": [
+        "point offset"
+      ]
+    },
+    "horizontalScroll": {
+      "nativeToken": "horizontalScroll",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "irregularSeal1": {
+      "nativeToken": "irregularSeal1",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "irregularSeal2": {
+      "nativeToken": "irregularSeal2",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "leftArrow": {
+      "nativeToken": "leftArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead length"
+      ]
+    },
+    "leftArrowCallout": {
+      "nativeToken": "leftArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        64977
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "leftBrace": {
+      "nativeToken": "leftBrace",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        8333,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "leftBracket": {
+      "nativeToken": "leftBracket",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        8333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "leftCircularArrow": {
+      "nativeToken": "leftCircularArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5"
+      ],
+      "defaults": [
+        12500,
+        -1142319,
+        1142319,
+        10800000,
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)"
+      ]
+    },
+    "leftRightArrow": {
+      "nativeToken": "leftRightArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead length"
+      ]
+    },
+    "leftRightArrowCallout": {
+      "nativeToken": "leftRightArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        48123
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "leftRightCircularArrow": {
+      "nativeToken": "leftRightCircularArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5"
+      ],
+      "defaults": [
+        12500,
+        1142319,
+        20457681,
+        11942319,
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)",
+        "native adjustment 5 (adj5)"
+      ]
+    },
+    "leftRightRibbon": {
+      "nativeToken": "leftRightRibbon",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        50000,
+        50000,
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "leftRightUpArrow": {
+      "nativeToken": "leftRightUpArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "leftUpArrow": {
+      "nativeToken": "leftUpArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "lightningBolt": {
+      "nativeToken": "lightningBolt",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "mathDivide": {
+      "nativeToken": "mathDivide",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        23520,
+        5880,
+        11760
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "mathEqual": {
+      "nativeToken": "mathEqual",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        23520,
+        11760
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "mathMinus": {
+      "nativeToken": "mathMinus",
+      "guides": [
+        "adj1"
+      ],
+      "defaults": [
+        23520
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)"
+      ]
+    },
+    "mathMultiply": {
+      "nativeToken": "mathMultiply",
+      "guides": [
+        "adj1"
+      ],
+      "defaults": [
+        23520
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)"
+      ]
+    },
+    "mathNotEqual": {
+      "nativeToken": "mathNotEqual",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        23520,
+        6600000,
+        11760
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)"
+      ]
+    },
+    "mathPlus": {
+      "nativeToken": "mathPlus",
+      "guides": [
+        "adj1"
+      ],
+      "defaults": [
+        23520
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)"
+      ]
+    },
+    "moon": {
+      "nativeToken": "moon",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        50000
+      ],
+      "parameters": [
+        "crescent width"
+      ]
+    },
+    "nonIsoscelesTrapezoid": {
+      "nativeToken": "nonIsoscelesTrapezoid",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        25000,
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "noSmoking": {
+      "nativeToken": "noSmoking",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        18750
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "notchedRightArrow": {
+      "nativeToken": "notchedRightArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "octagon": {
+      "nativeToken": "octagon",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        29289
+      ],
+      "parameters": [
+        "corner cut"
+      ]
+    },
+    "parallelogram": {
+      "nativeToken": "parallelogram",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "slant offset"
+      ]
+    },
+    "pentagon": {
+      "nativeToken": "pentagon",
+      "guides": [
+        "hf",
+        "vf"
+      ],
+      "defaults": [
+        105146,
+        110557
+      ],
+      "parameters": [
+        "horizontal scale",
+        "vertical scale"
+      ]
+    },
+    "pie": {
+      "nativeToken": "pie",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        0,
+        16200000
+      ],
+      "parameters": [
+        "start angle",
+        "end angle"
+      ]
+    },
+    "pieWedge": {
+      "nativeToken": "pieWedge",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "plaque": {
+      "nativeToken": "plaque",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "plaqueTabs": {
+      "nativeToken": "plaqueTabs",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "plus": {
+      "nativeToken": "plus",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "quadArrow": {
+      "nativeToken": "quadArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        22500,
+        22500,
+        22500
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead width",
+        "arrowhead length"
+      ]
+    },
+    "quadArrowCallout": {
+      "nativeToken": "quadArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        18515,
+        18515,
+        18515,
+        48123
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "rect": {
+      "nativeToken": "rect",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "ribbon": {
+      "nativeToken": "ribbon",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16667,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "ribbon2": {
+      "nativeToken": "ribbon2",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16667,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "rightArrow": {
+      "nativeToken": "rightArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead length"
+      ]
+    },
+    "rightArrowCallout": {
+      "nativeToken": "rightArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        64977
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "rightBrace": {
+      "nativeToken": "rightBrace",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        8333,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "rightBracket": {
+      "nativeToken": "rightBracket",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        8333
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "round1Rect": {
+      "nativeToken": "round1Rect",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "round2DiagRect": {
+      "nativeToken": "round2DiagRect",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16667,
+        0
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "round2SameRect": {
+      "nativeToken": "round2SameRect",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16667,
+        0
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "roundRect": {
+      "nativeToken": "roundRect",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        16667
+      ],
+      "parameters": [
+        "corner radius"
+      ]
+    },
+    "rtTriangle": {
+      "nativeToken": "rtTriangle",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "smileyFace": {
+      "nativeToken": "smileyFace",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        4653
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "snip1Rect": {
+      "nativeToken": "snip1Rect",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "snip2DiagRect": {
+      "nativeToken": "snip2DiagRect",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        0,
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "snip2SameRect": {
+      "nativeToken": "snip2SameRect",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16667,
+        0
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "snipRoundRect": {
+      "nativeToken": "snipRoundRect",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        16667,
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "squareTabs": {
+      "nativeToken": "squareTabs",
+      "guides": [],
+      "defaults": [],
+      "parameters": []
+    },
+    "star10": {
+      "nativeToken": "star10",
+      "guides": [
+        "adj",
+        "hf"
+      ],
+      "defaults": [
+        42533,
+        105146
+      ],
+      "parameters": [
+        "inner radius",
+        "horizontal scale"
+      ]
+    },
+    "star12": {
+      "nativeToken": "star12",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        37500
+      ],
+      "parameters": [
+        "inner radius"
+      ]
+    },
+    "star16": {
+      "nativeToken": "star16",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        37500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "star24": {
+      "nativeToken": "star24",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        37500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "star32": {
+      "nativeToken": "star32",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        37500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "star4": {
+      "nativeToken": "star4",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        12500
+      ],
+      "parameters": [
+        "inner radius"
+      ]
+    },
+    "star5": {
+      "nativeToken": "star5",
+      "guides": [
+        "adj",
+        "hf",
+        "vf"
+      ],
+      "defaults": [
+        19098,
+        105146,
+        110557
+      ],
+      "parameters": [
+        "inner radius",
+        "horizontal scale",
+        "vertical scale"
+      ]
+    },
+    "star6": {
+      "nativeToken": "star6",
+      "guides": [
+        "adj",
+        "hf"
+      ],
+      "defaults": [
+        28868,
+        115470
+      ],
+      "parameters": [
+        "inner radius",
+        "horizontal scale"
+      ]
+    },
+    "star7": {
+      "nativeToken": "star7",
+      "guides": [
+        "adj",
+        "hf",
+        "vf"
+      ],
+      "defaults": [
+        34601,
+        102572,
+        105210
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)",
+        "native adjustment 2 (hf)",
+        "native adjustment 3 (vf)"
+      ]
+    },
+    "star8": {
+      "nativeToken": "star8",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        37500
+      ],
+      "parameters": [
+        "inner radius"
+      ]
+    },
+    "stripedRightArrow": {
+      "nativeToken": "stripedRightArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "sun": {
+      "nativeToken": "sun",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "ray inner radius"
+      ]
+    },
+    "swooshArrow": {
+      "nativeToken": "swooshArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        25000,
+        16667
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "teardrop": {
+      "nativeToken": "teardrop",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        100000
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "trapezoid": {
+      "nativeToken": "trapezoid",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        25000
+      ],
+      "parameters": [
+        "top-edge inset"
+      ]
+    },
+    "triangle": {
+      "nativeToken": "triangle",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        50000
+      ],
+      "parameters": [
+        "apex horizontal position"
+      ]
+    },
+    "upArrowCallout": {
+      "nativeToken": "upArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        64977
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "upDownArrow": {
+      "nativeToken": "upDownArrow",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        50000,
+        50000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead length"
+      ]
+    },
+    "upDownArrowCallout": {
+      "nativeToken": "upDownArrowCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        48123
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)",
+        "native adjustment 3 (adj3)",
+        "native adjustment 4 (adj4)"
+      ]
+    },
+    "uturnArrow": {
+      "nativeToken": "uturnArrow",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3",
+        "adj4",
+        "adj5"
+      ],
+      "defaults": [
+        25000,
+        25000,
+        25000,
+        43750,
+        75000
+      ],
+      "parameters": [
+        "shaft width",
+        "arrowhead width",
+        "arrowhead length",
+        "bend radius",
+        "shaft length"
+      ]
+    },
+    "verticalScroll": {
+      "nativeToken": "verticalScroll",
+      "guides": [
+        "adj"
+      ],
+      "defaults": [
+        12500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj)"
+      ]
+    },
+    "wave": {
+      "nativeToken": "wave",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        12500,
+        0
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "wedgeEllipseCallout": {
+      "nativeToken": "wedgeEllipseCallout",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        -20833,
+        62500
+      ],
+      "parameters": [
+        "tip horizontal offset",
+        "tip vertical offset"
+      ]
+    },
+    "wedgeRectCallout": {
+      "nativeToken": "wedgeRectCallout",
+      "guides": [
+        "adj1",
+        "adj2"
+      ],
+      "defaults": [
+        -20833,
+        62500
+      ],
+      "parameters": [
+        "native adjustment 1 (adj1)",
+        "native adjustment 2 (adj2)"
+      ]
+    },
+    "wedgeRoundRectCallout": {
+      "nativeToken": "wedgeRoundRectCallout",
+      "guides": [
+        "adj1",
+        "adj2",
+        "adj3"
+      ],
+      "defaults": [
+        -20833,
+        62500,
+        16667
+      ],
+      "parameters": [
+        "tip horizontal offset",
+        "tip vertical offset",
+        "corner radius"
+      ]
+    }
   }
 }

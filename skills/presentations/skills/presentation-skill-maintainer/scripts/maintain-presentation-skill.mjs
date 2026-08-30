@@ -69,6 +69,10 @@ function validateRegistry(value, language, geometryProfiles) {
     const guides = profile?.guides;
     const defaults = profile?.defaults;
     const parameters = profile?.parameters;
+    if (typeof profile?.nativeToken !== "string" || profile.nativeToken.length === 0)
+      errors.push(`Preset geometry profile ${name} has no native token.`);
+    if (profile?.alias !== undefined && typeof profile.alias !== "boolean")
+      errors.push(`Preset geometry profile ${name} has an invalid alias marker.`);
     if (!Array.isArray(guides) || !Array.isArray(defaults) || !Array.isArray(parameters) ||
         guides.length !== defaults.length || guides.length !== parameters.length)
       errors.push(`Preset geometry profile ${name} has inconsistent guide/default/parameter arrays.`);
@@ -78,6 +82,16 @@ function validateRegistry(value, language, geometryProfiles) {
       if (!Number.isInteger(value) || value < geometryProfiles.minimumValue || value > geometryProfiles.maximumValue)
         errors.push(`Preset geometry profile ${name} has an out-of-range default.`);
   }
+  const preferredTokens = new Map();
+  for (const [name, profile] of Object.entries(geometryProfiles.profiles ?? {})) {
+    if (profile.alias) continue;
+    if (preferredTokens.has(profile.nativeToken))
+      errors.push(`Preset geometry profiles ${preferredTokens.get(profile.nativeToken)} and ${name} share native token ${profile.nativeToken}.`);
+    else preferredTokens.set(profile.nativeToken, name);
+  }
+  for (const [name, profile] of Object.entries(geometryProfiles.profiles ?? {}))
+    if (profile.alias && !preferredTokens.has(profile.nativeToken))
+      errors.push(`Preset geometry alias ${name} has no preferred profile for native token ${profile.nativeToken}.`);
   const boundaryBehaviors = new Set(["fail-closed", "source-bound-only", "partial"]);
   for (const [index, boundary] of (value.authoredCompilerBoundaries ?? []).entries()) {
     if (!boundary || !boundaryBehaviors.has(boundary.behavior))
@@ -209,7 +223,7 @@ function renderManual(schema, registry, presetProfiles) {
   const authoredBoundaryRows = registry.authoredCompilerBoundaries.map((details) =>
     `| ${details.feature} | \`${details.ppjPath}\` | \`${details.behavior}\` | ${details.sourceBound} | ${details.reason} |`).join("\n");
   const presetGeometryRows = Object.entries(presetProfiles.profiles).map(([name, profile]) =>
-    `| \`${name}\` | ${profile.parameters.length ? profile.parameters.map(code).join(", ") : "none"} | ${profile.defaults.length ? `\`[${profile.defaults.join(", ")}]\`` : "native fixed geometry"} |`).join("\n");
+    `| \`${name}\` | \`${profile.nativeToken}\`${profile.alias ? " (alias)" : ""} | ${profile.parameters.length ? profile.parameters.map(code).join(", ") : "none"} | ${profile.defaults.length ? `\`[${profile.defaults.join(", ")}]\`` : "native fixed geometry"} |`).join("\n");
   const definitionSections = Object.entries(schema.$defs).map(([name, definition]) => renderDefinition(name, definition, schema)).join("\n\n");
   const fieldCount = Object.values(schema.$defs).reduce((sum, definition) => sum + definitionProperties(definition, schema).properties.size, 0) + Object.keys(schema.properties).length;
   const budgets = schema["x-officekit-budgets"];
@@ -276,8 +290,8 @@ or use \`[]\` for the native preset defaults. Percentage-like values use
 100000 as 100%; angle values use 60000 units per degree. PPJ derives native
 guide names from the preset and never exposes formula strings.
 
-| Preset | Ordered parameter meaning | Native defaults |
-| --- | --- | --- |
+| Preset | Native token | Ordered parameter meaning | Native defaults |
+| --- | --- | --- | --- |
 ${presetGeometryRows}
 
 Imported shapes receive \`setGeometry\` only when their native adjustment list

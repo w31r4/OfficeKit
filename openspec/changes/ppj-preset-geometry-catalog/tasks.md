@@ -1,6 +1,6 @@
 ## 1. Contract and registry
 
-- [ ] 1.1 Expand the checked-in preset registry and PPJ schema from one fact source
+- [x] 1.1 Expand the checked-in preset registry and PPJ schema from one fact source
 - [ ] 1.2 Add ordered picture-mask adjustment state to additive wire v2
 
 ## 2. Native and PPJ compilation
