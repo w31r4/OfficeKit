@@ -13,15 +13,23 @@ internal static partial class PptxChartCodec
 {
     private sealed record ComboNativeSeries(SpreadsheetChartType Type, PresentationChartAxisGroup AxisGroup, XElement Element, uint Order);
 
-    private static XDocument BuildPresentationChartDocument(PresentationChart chart, string id, string name) =>
-        chart.Type == SpreadsheetChartType.Combo
+    private static XDocument BuildPresentationChartDocument(PresentationChart chart, string id, string name)
+    {
+        var document = chart.Type == SpreadsheetChartType.Combo
             ? BuildComboChartDocument(chart, id, name)
             : BuildChartDocument(ToSpreadsheet(chart, id, name));
+        PptxChartTitleTextCodec.Apply(document, chart);
+        return document;
+    }
 
     private static void PatchPresentationChart(XDocument document, PresentationChart chart, string id, string name)
     {
-        if (chart.Type == SpreadsheetChartType.Combo) PatchComboChart(document, chart, id, name);
-        else PatchChart(document, ToSpreadsheet(chart, id, name));
+        var rewritePlainTitle = chart.TitleBody is null && PptxChartTitleTextCodec.RequiresPlainRewrite(document);
+        var patchTitle = chart.TitleBody is null && !rewritePlainTitle;
+        if (chart.Type == SpreadsheetChartType.Combo) PatchComboChart(document, chart, id, name, patchTitle);
+        else PatchChart(document, ToSpreadsheet(chart, id, name), patchTitle);
+        if (rewritePlainTitle) PptxChartTitleTextCodec.ApplyPlain(document, chart);
+        PptxChartTitleTextCodec.Apply(document, chart);
     }
 
     private static bool PresentationChartTopologyMatches(PresentationChart requested, PresentationChart original)
@@ -221,7 +229,7 @@ internal static partial class PptxChartCodec
             chart.Title = richText.Length > 0 ? string.Concat(richText.Select(item => item.Value)) : directValue?.Value ?? string.Empty;
             if (richText.Length == 0) editable = false;
             var titleProbe = new SpreadsheetChartArtifact();
-            editable &= XlsxChartTextStyleCodec.TryReadTitle(title, titleProbe);
+            _ = XlsxChartTextStyleCodec.TryReadTitle(title, titleProbe);
             if (titleProbe.TitleTextStyle is not null) chart.TitleTextStyle = titleProbe.TitleTextStyle.Clone();
         }
         chart.Type = SpreadsheetChartType.Combo;
@@ -472,10 +480,11 @@ internal static partial class PptxChartCodec
         return plot;
     }
 
-    private static void PatchComboChart(XDocument document, PresentationChart target, string id, string name)
+    private static void PatchComboChart(XDocument document, PresentationChart target, string id, string name, bool patchTitle)
     {
         var nativeChart = document.Root!.Element(ChartNs + "chart")!;
-        OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
+        if (patchTitle)
+            OpenXmlChartSpaceCodec.PatchTitle(nativeChart, target.Title, target.TitleTextStyle, "unsupported_presentation_edit", "Presentation combo chart");
         OpenXmlChartSpaceCodec.PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle);
         var plotArea = nativeChart.Element(ChartNs + "plotArea")!;
         var plots = plotArea.Elements().Where(item => item.Name.LocalName.EndsWith("Chart", StringComparison.Ordinal)).ToArray();

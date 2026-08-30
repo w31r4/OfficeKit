@@ -410,9 +410,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationChart BuildChart(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
-            throw Unsupported(element.Id, "rich chart-title formatting is not yet compiler-owned");
-
         var isWaterfall = element.ChartType == "waterfall";
         var chart = new PresentationChart
         {
@@ -430,6 +427,11 @@ internal static class PpjAuthoredPresentationCompiler
         var inlineStyle = Property(raw, "style");
         if (isWaterfall) ValidateWaterfallCompileProfile(element, raw, namedStyle, inlineStyle);
         ApplyChartStyle(chart, namedStyle, inlineStyle, catalog, element.Id);
+        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
+        {
+            chart.TitleBody = BuildTextBody(title, null, null, catalog);
+            ApplyChartTitleDefaults(chart.TitleBody, chart.TitleTextStyle);
+        }
 
         var rawXAxis = Property(raw, "xAxis");
         var rawYAxis = Property(raw, "yAxis");
@@ -494,11 +496,23 @@ internal static class PpjAuthoredPresentationCompiler
         return chart;
     }
 
+    internal static PresentationTextBody BuildChartTitleBody(
+        PpjProgramModel program,
+        PpjChartElementModel element)
+    {
+        if (!element.Raw.TryGetProperty("title", out var title))
+            throw Unsupported(element.Id, "structured chart title is missing");
+        var catalog = new Catalog(program.Root);
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(element.Raw, "style");
+        var body = BuildTextBody(title, null, null, catalog);
+        if (FirstProperty(inlineStyle, namedStyle, "titleTextStyle") is { } titleStyle)
+            ApplyChartTitleDefaults(body, BuildChartTextStyle(titleStyle, catalog));
+        return body;
+    }
+
     private static PresentationGroup BuildHeatmap(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
-            throw Unsupported(element.Id, "vector heatmap titles must use the bounded string form");
-
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         ValidateHeatmapCompileProfile(element, raw, namedStyle, inlineStyle);
@@ -583,14 +597,14 @@ internal static class PpjAuthoredPresentationCompiler
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
 
         if (titleText.Length > 0)
-            group.Children.Add(VectorChartTextElement(
+            group.Children.Add(VectorChartTitleElement(
                 HeatmapNativeId(element.Id, "title"),
                 "heatmap title",
                 x,
                 y,
                 width,
                 titleHeight,
-                titleText,
+                raw.GetProperty("title"),
                 titleStyle,
                 catalog,
                 Math.Clamp(titleHeight * 0.48, 11, 18),
@@ -764,6 +778,71 @@ internal static class PpjAuthoredPresentationCompiler
         return new PresentationElement { Id = id, Name = name, Shape = shape };
     }
 
+    private static PresentationElement VectorChartTitleElement(
+        string id,
+        string name,
+        double x,
+        double y,
+        double width,
+        double height,
+        JsonElement title,
+        JsonElement? style,
+        Catalog catalog,
+        double defaultFontSize,
+        string alignment,
+        string? fallbackColor = null)
+    {
+        var body = BuildTextBody(title, null, null, catalog);
+        var defaults = style is { } value ? BuildChartTextStyle(value, catalog) : null;
+        ApplyChartTitleDefaults(body, defaults);
+        foreach (var paragraph in body.Paragraphs)
+        {
+            if (!paragraph.HasAlignment) paragraph.Alignment = alignment;
+            foreach (var run in paragraph.Runs)
+            {
+                if (!run.HasFontSizePoints) run.FontSizePoints = defaultFontSize;
+                if (!run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null && fallbackColor is not null)
+                    run.ColorRgb = fallbackColor;
+            }
+        }
+        body.BodyProperties = new PresentationTextBodyProperties
+        {
+            NoLeftInset = true,
+            NoTopInset = true,
+            NoRightInset = true,
+            NoBottomInset = true,
+            VerticalAnchor = "center",
+            Wrap = "none",
+            AutoFitMode = "shrinkText",
+        };
+        var shape = ShapeFrame(new PpjFrameModel(x, y, width, height, 0, false, false), "textbox");
+        shape.LineStyle = "none";
+        shape.TextBody = body;
+        shape.Text = Flatten(body);
+        return new PresentationElement { Id = id, Name = name, Shape = shape };
+    }
+
+    private static void ApplyChartTitleDefaults(
+        PresentationTextBody body,
+        SpreadsheetChartTextStyleArtifact? defaults)
+    {
+        if (defaults is null) return;
+        foreach (var run in body.Paragraphs.SelectMany(paragraph => paragraph.Runs))
+        {
+            if (!run.HasFontSizePoints && defaults.HasFontSizePoints) run.FontSizePoints = defaults.FontSizePoints;
+            if (!run.HasFontFamily && defaults.FontFamily.Length > 0) run.FontFamily = defaults.FontFamily;
+            if (!run.HasFontFamilyEastAsia && defaults.FontFamilyEastAsia.Length > 0) run.FontFamilyEastAsia = defaults.FontFamilyEastAsia;
+            if (!run.HasBold && defaults.HasBold) run.Bold = defaults.Bold;
+            if (!run.HasItalic && defaults.HasItalic) run.Italic = defaults.Italic;
+            if (!run.HasColorRgb && !run.HasColorScheme && run.GradientFill is null && defaults.ColorRgb.Length > 0)
+            {
+                run.ColorRgb = defaults.ColorRgb;
+                if (defaults.HasOpacityThousandthPercent)
+                    run.ColorOpacityThousandthPercent = defaults.OpacityThousandthPercent;
+            }
+        }
+    }
+
     private static PresentationTextRun BuildVectorChartRun(
         string text,
         JsonElement? style,
@@ -919,9 +998,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationGroup BuildCandlestick(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
-            throw Unsupported(element.Id, "vector candlestick titles must use the bounded string form");
-
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         ValidateCandlestickCompileProfile(element, raw, namedStyle, inlineStyle);
@@ -1015,14 +1091,14 @@ internal static class PpjAuthoredPresentationCompiler
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
 
         if (titleText.Length > 0)
-            group.Children.Add(VectorChartTextElement(
+            group.Children.Add(VectorChartTitleElement(
                 CandlestickNativeId(element.Id, "title"),
                 "candlestick title",
                 x,
                 yPosition,
                 width,
                 titleHeight,
-                titleText,
+                raw.GetProperty("title"),
                 titleStyle,
                 catalog,
                 Math.Clamp(titleHeight * 0.48, 11, 18),
@@ -1267,9 +1343,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationGroup BuildTreemap(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
-            throw Unsupported(element.Id, "vector treemap titles must use the bounded string form");
-
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         ValidateTreemapCompileProfile(element, raw, namedStyle, inlineStyle);
@@ -1323,14 +1396,14 @@ internal static class PpjAuthoredPresentationCompiler
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
         if (titleText.Length > 0)
-            group.Children.Add(VectorChartTextElement(
+            group.Children.Add(VectorChartTitleElement(
                 TreemapNativeId(element.Id, "title"),
                 "treemap title",
                 x,
                 y,
                 width,
                 titleHeight,
-                titleText,
+                raw.GetProperty("title"),
                 titleStyle,
                 catalog,
                 Math.Clamp(titleHeight * 0.48, 11, 18),
@@ -1678,9 +1751,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationGroup BuildSunburst(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
-            throw Unsupported(element.Id, "vector sunburst titles must use the bounded string form");
-
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         ValidateSunburstCompileProfile(element, raw, namedStyle, inlineStyle);
@@ -1746,14 +1816,14 @@ internal static class PpjAuthoredPresentationCompiler
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
         if (titleText.Length > 0)
-            group.Children.Add(VectorChartTextElement(
+            group.Children.Add(VectorChartTitleElement(
                 SunburstNativeId(element.Id, "title"),
                 "sunburst title",
                 x,
                 y,
                 width,
                 titleHeight,
-                titleText,
+                raw.GetProperty("title"),
                 titleStyle,
                 catalog,
                 Math.Clamp(titleHeight * 0.48, 11, 18),
@@ -2104,9 +2174,6 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static PresentationGroup BuildSankey(PpjChartElementModel element, JsonElement raw, Catalog catalog)
     {
-        if (raw.TryGetProperty("title", out var title) && title.ValueKind != JsonValueKind.String)
-            throw Unsupported(element.Id, "vector sankey titles must use the bounded string form");
-
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
         ValidateSankeyCompileProfile(element, raw, namedStyle, inlineStyle);
@@ -2211,14 +2278,14 @@ internal static class PpjAuthoredPresentationCompiler
         };
         if (BuildFrameTransform(element.Frame) is { } frameTransform) group.FrameTransform = frameTransform;
         if (titleText.Length > 0)
-            group.Children.Add(VectorChartTextElement(
+            group.Children.Add(VectorChartTitleElement(
                 SankeyNativeId(element.Id, "title"),
                 "sankey title",
                 x,
                 y,
                 width,
                 titleHeight,
-                titleText,
+                raw.GetProperty("title"),
                 titleStyle,
                 catalog,
                 Math.Clamp(titleHeight * 0.48, 11, 18),

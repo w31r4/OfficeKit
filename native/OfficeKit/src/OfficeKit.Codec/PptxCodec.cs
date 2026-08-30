@@ -1071,7 +1071,7 @@ internal static class PptxCodec
                         var replacement = PptxChartCodec.Apply(sourceChart, requested, slideContext);
                         changedParts.Add(replacement.PartPath);
                         replacedOpaquePartHashes.Add(replacement.PartPath, replacement.Sha256);
-                        changed = true;
+                        changed |= replacement.SlideChanged;
                     }
                     else if (sourceElement is P.GroupShape sourceGroup &&
                              requested.ContentCase == PresentationElement.ContentOneofCase.Group &&
@@ -2698,7 +2698,20 @@ internal static class PptxCodec
             return;
         }
         if (element.ContentCase == PresentationElement.ContentOneofCase.Group)
+        {
             foreach (var child in element.Group.Children) NormalizeSemanticForHash(child);
+            return;
+        }
+        if (element.ContentCase == PresentationElement.ContentOneofCase.Chart && element.Chart.TitleBody is not null)
+        {
+            var title = new PresentationShape
+            {
+                Text = element.Chart.Title,
+                TextBody = element.Chart.TitleBody.Clone(),
+            };
+            PptxTextCodec.NormalizeSemantics(title);
+            element.Chart.TitleBody = title.TextBody;
+        }
     }
 
     private static void ClearElementIdentity(PresentationElement element)

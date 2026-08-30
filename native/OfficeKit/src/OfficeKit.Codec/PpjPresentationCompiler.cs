@@ -400,7 +400,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 var beforeElement = sourceElements[after.Elements[elementIndex].Id];
                 var wireElement = beforeElement.Wire;
                 var shapeTreePath = new[] { wireElement.Source?.ShapeTreeIndex ?? checked((uint)elementIndex) };
-                if (ApplyElement(beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, elementPath))
+                if (ApplyElement(requested, beforeElement.Program, after.Elements[elementIndex], wireElement, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, elementPath))
                 {
                     changed = true;
                     changedNodeIds.Add(after.Id);
@@ -459,6 +459,7 @@ internal static class PpjSourceBoundPresentationCompiler
     }
 
     private static bool ApplyElement(
+        PpjProgramModel program,
         PpjElementModel before,
         PpjElementModel after,
         PresentationElement target,
@@ -502,7 +503,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjChartElementModel beforeChart when after is PpjChartElementModel afterChart && target.ContentCase == PresentationElement.ContentOneofCase.Chart:
-                changed = ApplyChartElement(beforeChart, afterChart, target.Chart, path);
+                changed = ApplyChartElement(program, beforeChart, afterChart, target.Chart, path);
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjTableElementModel beforeTable when after is PpjTableElementModel afterTable && target.ContentCase == PresentationElement.ContentOneofCase.Table:
@@ -514,7 +515,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 if (changed) mutations.SemanticChanges = true;
                 break;
             case PpjGroupElementModel beforeGroup when after is PpjGroupElementModel afterGroup && target.ContentCase == PresentationElement.ContentOneofCase.Group:
-                changed = ApplyGroupElement(beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, path);
+                changed = ApplyGroupElement(program, beforeGroup, afterGroup, target.Group, slide, shapeTreePath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, path);
                 break;
             case PpjOpaqueElementModel beforeOpaque when after is PpjOpaqueElementModel afterOpaque:
                 changed = ApplyOpaqueElement(beforeOpaque, afterOpaque, target, slide, shapeTreePath, mutations, path);
@@ -672,7 +673,12 @@ internal static class PpjSourceBoundPresentationCompiler
         return changed;
     }
 
-    private static bool ApplyChartElement(PpjChartElementModel before, PpjChartElementModel after, PresentationChart target, string path)
+    private static bool ApplyChartElement(
+        PpjProgramModel program,
+        PpjChartElementModel before,
+        PpjChartElementModel after,
+        PresentationChart target,
+        string path)
     {
         RequireEqualExcept(before.Raw, after.Raw, path,
             "role", "tags", "frame", "title", "data", "style",
@@ -681,9 +687,21 @@ internal static class PpjSourceBoundPresentationCompiler
         if (PropertyChanged(before.Raw, after.Raw, "title"))
         {
             RequireCapability(after, "setChartTitle", path + ".title");
-            if (after.Title is not { PlainText: not null })
-                throw Unsupported(path + ".title", "rich source chart-title authoring");
-            target.Title = after.Title.PlainText;
+            if (!after.Raw.TryGetProperty("title", out var title))
+            {
+                target.Title = string.Empty;
+                target.TitleBody = null;
+            }
+            else if (title.ValueKind == JsonValueKind.String)
+            {
+                target.Title = title.GetString()!;
+                target.TitleBody = null;
+            }
+            else
+            {
+                target.TitleBody = PpjAuthoredPresentationCompiler.BuildChartTitleBody(program, after);
+                target.Title = PptxTextCodec.Flatten(target.TitleBody);
+            }
             changed = true;
         }
         if (PropertyChanged(before.Raw, after.Raw, "data"))
@@ -692,6 +710,14 @@ internal static class PpjSourceBoundPresentationCompiler
             changed = true;
         }
         changed |= ApplyChartStyles(before, after, target, path);
+        if (PropertyChanged(OptionalProperty(before.Raw, "style"), OptionalProperty(after.Raw, "style"), "titleTextStyle") &&
+            after.Raw.TryGetProperty("title", out var currentTitle) &&
+            currentTitle.ValueKind != JsonValueKind.String)
+        {
+            target.TitleBody = PpjAuthoredPresentationCompiler.BuildChartTitleBody(program, after);
+            target.Title = PptxTextCodec.Flatten(target.TitleBody);
+            changed = true;
+        }
         return changed;
     }
 
@@ -928,6 +954,7 @@ internal static class PpjSourceBoundPresentationCompiler
     }
 
     private static bool ApplyGroupElement(
+        PpjProgramModel program,
         PpjGroupElementModel before,
         PpjGroupElementModel after,
         PresentationGroup target,
@@ -960,7 +987,7 @@ internal static class PpjSourceBoundPresentationCompiler
             var sourceChild = sourceChildren[after.Elements[index].Id];
             var child = sourceChild.Wire;
             var childPath = shapeTreePath.Concat([child.Source?.ShapeTreeIndex ?? checked((uint)index)]).ToArray();
-            changed |= ApplyElement(sourceChild.Program, after.Elements[index], child, slide, childPath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, $"{path}.elements[{index}]");
+            changed |= ApplyElement(program, sourceChild.Program, after.Elements[index], child, slide, childPath, assets, assetDimensions, nativeLeafBindings, changedNodeIds, mutations, $"{path}.elements[{index}]");
             requestedChildren.Add(child);
         }
         var sourceOrder = before.Elements.Select(element => element.Id).ToArray();

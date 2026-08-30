@@ -2433,6 +2433,10 @@ message PresentationChart {
   PresentationFrameTransform frame_transform = 28;
   // Canonical c:legend/c:txPr typography.
   SpreadsheetChartTextStyleArtifact legend_text_style = 29;
+  // Structured c:title/c:tx/c:rich content for Presentation charts. `title`
+  // remains the flattened compatibility value and must match this body. The
+  // field is absent for the historical single-run title profile.
+  PresentationTextBody title_body = 30;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from

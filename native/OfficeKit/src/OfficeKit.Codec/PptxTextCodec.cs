@@ -41,6 +41,12 @@ internal static class PptxTextCodec
         return body;
     }
 
+    internal static PresentationTextBody ReadDrawingTextBody(A.TextBody source)
+    {
+        var presentationBody = new P.TextBody { InnerXml = source.InnerXml };
+        return Read(presentationBody);
+    }
+
     internal static string Flatten(PresentationTextBody? body) =>
         body is null ? string.Empty : string.Join("\n", body.Paragraphs.Select(paragraph => string.Concat(paragraph.Runs.Select(InlineText))));
 
@@ -90,6 +96,12 @@ internal static class PptxTextCodec
             }
         }
         return true;
+    }
+
+    internal static bool SupportsEditing(A.TextBody body)
+    {
+        var presentationBody = new P.TextBody { InnerXml = body.InnerXml };
+        return SupportsEditing(presentationBody);
     }
 
     internal static void Validate(PresentationShape shape)

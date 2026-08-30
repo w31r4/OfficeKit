@@ -22,7 +22,7 @@ internal static partial class PptxChartCodec
     private static readonly XNamespace ChartNs = ChartGraphicDataUri;
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-    internal sealed record Replacement(string PartPath, string Sha256);
+    internal sealed record Replacement(string PartPath, string Sha256, bool SlideChanged);
 
     internal static bool TryRead(P.GraphicFrame source, PptxPartContext context, out PresentationChart chart, out bool editable)
     {
@@ -47,8 +47,9 @@ internal static partial class PptxChartCodec
                 return false;
             }
             var xml = ReadXml(part);
-            if (TryReadComboChart(xml, out chart, out _, out editable))
+            if (TryReadComboChart(xml, out chart, out var comboDocument, out editable))
             {
+                editable &= PptxChartTitleTextCodec.TryRead(comboDocument, chart);
                 chart.LeftEmu = left;
                 chart.TopEmu = top;
                 chart.WidthEmu = width;
@@ -57,8 +58,9 @@ internal static partial class PptxChartCodec
                 chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
                 return true;
             }
-            if (!TryReadChart(xml, out var semantic, out _, out editable)) return false;
+            if (!TryReadChart(xml, out var semantic, out var document, out editable)) return false;
             chart = FromSpreadsheet(semantic, left, top, width, height);
+            editable &= PptxChartTitleTextCodec.TryRead(document, chart);
             chart.FrameTransform = frameTransform;
             chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
             return true;
@@ -105,14 +107,26 @@ internal static partial class PptxChartCodec
         var document = XDocument.Parse(ReadXml(part), LoadOptions.PreserveWhitespace);
         PatchPresentationChart(document, requested.Chart, requested.Id, requested.Name);
         WriteXml(part, document);
-        PptxNonVisualAccessibilityCodec.ApplyBound(
-            source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
-            requested.Chart.Accessibility,
-            "chart");
-        source.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name = requested.Name;
-        SetFrame(source.Transform!, requested.Chart);
+        var accessibilityChanged = !object.Equals(requested.Chart.Accessibility, original.Accessibility);
+        if (accessibilityChanged)
+            PptxNonVisualAccessibilityCodec.ApplyBound(
+                source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
+                requested.Chart.Accessibility,
+                "chart");
+        var nonVisual = source.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!;
+        var nameChanged = !string.Equals(nonVisual.Name?.Value ?? string.Empty, requested.Name, StringComparison.Ordinal);
+        if (nameChanged)
+            nonVisual.Name = requested.Name;
+        var frameChanged = requested.Chart.LeftEmu != original.LeftEmu || requested.Chart.TopEmu != original.TopEmu ||
+            requested.Chart.WidthEmu != original.WidthEmu || requested.Chart.HeightEmu != original.HeightEmu ||
+            !object.Equals(requested.Chart.FrameTransform, original.FrameTransform);
+        if (frameChanged)
+            SetFrame(source.Transform!, requested.Chart);
         var bytes = ReadBytes(part);
-        return new Replacement(Path(part), Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
+        return new Replacement(
+            Path(part),
+            Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant(),
+            accessibilityChanged || nameChanged || frameChanged);
     }
 
     internal static void Validate(PresentationChart? chart, string elementId, string name)
@@ -123,6 +137,7 @@ internal static partial class PptxChartCodec
             throw Invalid(elementId, "frame must have non-negative coordinates and positive dimensions");
         PptxFrameTransformCodec.Validate(chart.FrameTransform, elementId, "chart");
         PptxNonVisualAccessibilityCodec.Validate(chart.Accessibility, elementId, "chart");
+        PptxChartTitleTextCodec.Validate(chart, elementId);
         if (chart.Type == SpreadsheetChartType.Combo)
         {
             ValidateComboChart(chart, elementId, name);
@@ -246,7 +261,7 @@ internal static partial class PptxChartCodec
 
     private static bool TryReadChart(string xml, out SpreadsheetChartArtifact chart, out XDocument document, out bool editable)
     {
-        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable)) return false;
+        if (!OpenXmlChartSpaceCodec.TryRead(xml, out chart, out document, out editable, allowRichTitle: true)) return false;
         return chart.Series.All(series =>
             string.IsNullOrWhiteSpace(series.CategoryFormula) &&
             string.IsNullOrWhiteSpace(series.XValueFormula) &&
@@ -259,9 +274,14 @@ internal static partial class PptxChartCodec
         return OpenXmlChartSpaceCodec.Build(chart);
     }
 
-    private static void PatchChart(XDocument document, SpreadsheetChartArtifact target)
+    private static void PatchChart(XDocument document, SpreadsheetChartArtifact target, bool patchTitle)
     {
-        OpenXmlChartSpaceCodec.Patch(document, target, "presentation_chart_topology_changed", "Presentation chart");
+        OpenXmlChartSpaceCodec.Patch(
+            document,
+            target,
+            "presentation_chart_topology_changed",
+            "Presentation chart",
+            patchTitle);
     }
 
     private static bool TryReadFrame(

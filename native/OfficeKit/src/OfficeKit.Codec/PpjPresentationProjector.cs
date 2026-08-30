@@ -567,7 +567,10 @@ internal static partial class PpjPresentationProjector
         var output = ElementBase(id, element.Name, ChartFrame(chart), Accessibility(chart.Accessibility), nativeRef);
         output["type"] = "chart";
         output["chartType"] = chart.Type == SpreadsheetChartType.Bar && chart.BarDirection == "bar" ? "bar" : type;
-        if (!string.IsNullOrEmpty(chart.Title)) output["title"] = chart.Title;
+        if (!string.IsNullOrEmpty(chart.Title))
+            output["title"] = chart.TitleBody is null
+                ? StringNode(chart.Title)
+                : TextContent(chart.TitleBody, chart.Title);
         var categories = new JsonArray();
         foreach (var value in chart.Categories) categories.Add(StringNode(value));
         var seriesJson = new JsonArray();

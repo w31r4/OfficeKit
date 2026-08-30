@@ -15,7 +15,12 @@ internal static class OpenXmlChartSpaceCodec
     private static readonly XNamespace ChartNs = "http://schemas.openxmlformats.org/drawingml/2006/chart";
     private static readonly XNamespace DrawingNs = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-    internal static bool TryRead(string xml, out SpreadsheetChartArtifact chart, out XDocument document, out bool editable)
+    internal static bool TryRead(
+        string xml,
+        out SpreadsheetChartArtifact chart,
+        out XDocument document,
+        out bool editable,
+        bool allowRichTitle = false)
     {
         chart = new SpreadsheetChartArtifact();
         editable = true;
@@ -50,7 +55,7 @@ internal static class OpenXmlChartSpaceCodec
             var directValue = title.Descendants(ChartNs + "v").FirstOrDefault();
             chart.Title = richText.Length > 0 ? string.Concat(richText.Select(item => item.Value)) : directValue?.Value ?? string.Empty;
             if (richText.Length == 0) editable = false;
-            editable &= XlsxChartTextStyleCodec.TryReadTitle(title, chart);
+            if (!XlsxChartTextStyleCodec.TryReadTitle(title, chart) && !allowRichTitle) editable = false;
         }
         var legend = nativeChart.Element(ChartNs + "legend");
         chart.HasLegend = legend is not null;
@@ -112,10 +117,15 @@ internal static class OpenXmlChartSpaceCodec
         return new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), chartSpace);
     }
 
-    internal static void Patch(XDocument document, SpreadsheetChartArtifact target, string errorCode, string subject)
+    internal static void Patch(
+        XDocument document,
+        SpreadsheetChartArtifact target,
+        string errorCode,
+        string subject,
+        bool patchTitle = true)
     {
         var nativeChart = document.Root?.Element(ChartNs + "chart") ?? throw Topology(errorCode, subject, "is missing c:chart");
-        PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
+        if (patchTitle) PatchTitle(nativeChart, target.Title, target.TitleTextStyle, errorCode, subject);
         PatchLegend(nativeChart, target.HasLegend, target.LegendPosition, target.LegendTextStyle);
         var plotArea = nativeChart.Element(ChartNs + "plotArea") ?? throw Topology(errorCode, subject, "is missing c:plotArea");
         var plotName = target.Type switch

@@ -436,6 +436,31 @@ public sealed class PptxCodecTests
         var authoredChart = authoredProgram["pages"]![1]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
             .Single(element => element["id"]!.GetValue<string>() == "evidence-chart-main");
+        authoredChart["title"] = new JsonObject
+        {
+            ["paragraphs"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["id"] = "chart-title",
+                    ["runs"] = new JsonArray
+                    {
+                        new JsonObject { ["id"] = "chart-title-label", ["text"] = "Measured profile: " },
+                        new JsonObject
+                        {
+                            ["id"] = "chart-title-delta",
+                            ["text"] = "−38% incidents",
+                            ["style"] = new JsonObject
+                            {
+                                ["bold"] = true,
+                                ["color"] = "#C1121F",
+                                ["fontFamilyEastAsia"] = "Noto Serif CJK SC",
+                            },
+                        },
+                    },
+                },
+            },
+        };
         authoredChart["frame"]!["rotation"] = 6;
         authoredChart["frame"]!["flipH"] = true;
         authoredChart["xAxis"] = new JsonObject
@@ -530,6 +555,14 @@ public sealed class PptxCodecTests
         {
             ["fontSize"] = 10,
             ["fontFamily"] = "Aptos",
+            ["color"] = "#16324F",
+        };
+        authoredChartStyle["titleTextStyle"] = new JsonObject
+        {
+            ["fontSize"] = 14,
+            ["fontFamily"] = "Aptos",
+            ["fontFamilyEastAsia"] = "Noto Sans CJK SC",
+            ["bold"] = false,
             ["color"] = "#16324F",
         };
         authoredChartStyle["chartAreaFill"] = new JsonObject { ["type"] = "none" };
@@ -1420,6 +1453,23 @@ public sealed class PptxCodecTests
                 .GetFirstChild<A.PathGradientFill>()!.Path!.Value);
             Assert.Equal(2 * 12_700, nativeDefaultText.GetFirstChild<A.EffectList>()!
                 .GetFirstChild<A.OuterShadow>()!.BlurRadius!.Value);
+            var comboChartPath = package.PresentationPart.SlideParts.ElementAt(1).ChartParts.Single()
+                .Uri.OriginalString.TrimStart('/');
+            var comboChartXml = XDocument.Parse(Encoding.UTF8.GetString(ZipBytes(first.File.ToByteArray(), comboChartPath)));
+            XNamespace richChartNamespace = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+            XNamespace richDrawingNamespace = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            var richTitleRuns = comboChartXml.Root!.Element(richChartNamespace + "chart")!
+                .Element(richChartNamespace + "title")!
+                .Descendants(richDrawingNamespace + "r").ToArray();
+            Assert.Equal(2, richTitleRuns.Length);
+            Assert.Equal(["Measured profile: ", "−38% incidents"],
+                richTitleRuns.Select(run => run.Element(richDrawingNamespace + "t")!.Value));
+            Assert.Equal("16324F", richTitleRuns[0].Element(richDrawingNamespace + "rPr")!
+                .Element(richDrawingNamespace + "solidFill")!.Element(richDrawingNamespace + "srgbClr")!
+                .Attribute("val")!.Value);
+            Assert.Equal("C1121F", richTitleRuns[1].Element(richDrawingNamespace + "rPr")!
+                .Element(richDrawingNamespace + "solidFill")!.Element(richDrawingNamespace + "srgbClr")!
+                .Attribute("val")!.Value);
             var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
                 .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
                 .Uri.OriginalString.TrimStart('/');
@@ -1649,6 +1699,16 @@ public sealed class PptxCodecTests
         Assert.Equal(21_000U, importedCustomShape.LineOpacityThousandthPercent);
         var importedChart = Assert.Single(imported.Artifact.Presentation.Slides[1].Elements, element =>
             element.ContentCase == PresentationElement.ContentOneofCase.Chart).Chart;
+        Assert.Equal("Measured profile: −38% incidents", importedChart.Title);
+        Assert.NotNull(importedChart.TitleBody);
+        var importedTitleRuns = Assert.Single(importedChart.TitleBody.Paragraphs).Runs;
+        Assert.Equal(2, importedTitleRuns.Count);
+        Assert.Equal("Measured profile: ", importedTitleRuns[0].Text);
+        Assert.Equal("16324F", importedTitleRuns[0].ColorRgb);
+        Assert.Equal("−38% incidents", importedTitleRuns[1].Text);
+        Assert.True(importedTitleRuns[1].Bold);
+        Assert.Equal("C1121F", importedTitleRuns[1].ColorRgb);
+        Assert.Equal("Noto Serif CJK SC", importedTitleRuns[1].FontFamilyEastAsia);
         Assert.Equal(360_000, importedChart.FrameTransform.RotationAngle60000);
         Assert.True(importedChart.FrameTransform.FlipHorizontal);
         Assert.Equal("bottom", importedChart.LegendPosition);
@@ -1874,6 +1934,13 @@ public sealed class PptxCodecTests
                 .GetProperty("style").GetProperty("bullet").GetProperty("color").GetString());
             var projectedChart = projectedRoot.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
                 .Single(item => item.GetProperty("type").GetString() == "chart");
+            var projectedTitleRuns = projectedChart.GetProperty("title").GetProperty("paragraphs")[0]
+                .GetProperty("runs");
+            Assert.Equal(2, projectedTitleRuns.GetArrayLength());
+            Assert.Equal("Measured profile: ", projectedTitleRuns[0].GetProperty("text").GetString());
+            Assert.Equal("−38% incidents", projectedTitleRuns[1].GetProperty("text").GetString());
+            Assert.Contains(projectedChart.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
+                capability.GetProperty("operation").GetString() == "setChartTitle");
             Assert.Equal(6, projectedChart.GetProperty("frame").GetProperty("rotation").GetDouble());
             Assert.True(projectedChart.GetProperty("frame").GetProperty("flipH").GetBoolean());
             Assert.Contains(projectedChart.GetProperty("nativeRef").GetProperty("capabilities").EnumerateArray(), capability =>
@@ -2036,6 +2103,51 @@ public sealed class PptxCodecTests
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedParts);
         Assert.Empty(sourceNoOp.PresentationProgram.ChangedNodeIds);
 
+        var richTitleProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var richTitleChart = richTitleProgram["pages"]![1]!["elements"]!.AsArray()
+            .Select(element => element!.AsObject())
+            .Single(element => element["type"]!.GetValue<string>() == "chart");
+        richTitleChart["title"]!["paragraphs"]![0]!["runs"]![1]!["text"] = "−42% incidents";
+        richTitleChart["title"]!["paragraphs"]![0]!["runs"]![1]!["style"]!["color"] = "#A83232";
+        var richTitleChartId = richTitleChart["id"]!.GetValue<string>();
+        var richTitleEdit = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(thirdPartySource),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(richTitleProgram.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(richTitleEdit.Ok, Diagnostics(richTitleEdit));
+        var richTitlePart = Assert.Single(richTitleEdit.PresentationProgram.ChangedParts);
+        Assert.StartsWith("ppt/slides/charts/chart", richTitlePart, StringComparison.Ordinal);
+        Assert.Contains(richTitleChartId, richTitleEdit.PresentationProgram.ChangedNodeIds);
+        var richTitleReprojection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = richTitleEdit.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/rich-title-output.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(richTitleReprojection.Ok, Diagnostics(richTitleReprojection));
+        using (var richTitleJson = JsonDocument.Parse(richTitleReprojection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var reprojectedTitle = richTitleJson.RootElement.GetProperty("pages")[1].GetProperty("elements").EnumerateArray()
+                .Single(element => element.GetProperty("id").GetString() == richTitleChartId)
+                .GetProperty("title").GetProperty("paragraphs")[0].GetProperty("runs");
+            Assert.Equal("−42% incidents", reprojectedTitle[1].GetProperty("text").GetString());
+            Assert.Equal("#A83232", reprojectedTitle[1].GetProperty("style").GetProperty("color").GetString());
+        }
+
         var changedSourceLayoutProgram = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         changedSourceLayoutProgram["pages"]![0]!["layout"] = "layout-invented";
         var changedSourceLayout = Invoke(new CodecRequest
@@ -2180,7 +2292,7 @@ public sealed class PptxCodecTests
         });
         Assert.True(chartTextStyleEdit.Ok, Diagnostics(chartTextStyleEdit));
         Assert.Equal(
-            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart5.xml", "ppt/slides/slide1.xml", "ppt/slides/slide2.xml"],
+            ["ppt/slides/charts/chart2.xml", "ppt/slides/charts/chart5.xml"],
             chartTextStyleEdit.PresentationProgram.ChangedParts.OrderBy(part => part, StringComparer.Ordinal));
         Assert.Contains(chartTextStyleId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
         Assert.Contains(chartHierarchyId, chartTextStyleEdit.PresentationProgram.ChangedNodeIds);
