@@ -2256,6 +2256,17 @@ function presentationImage(image, original, assetCatalog) {
         topEmu: sourceBoundFrameEmuFromPixels(position.top, `${image.id}.position.top`, original),
         widthEmu: emuFromPixels(position.width, `${image.id}.position.width`),
         heightEmu: emuFromPixels(position.height, `${image.id}.position.height`),
+        // Preserve a source picture's explicit DrawingML alpha token even
+        // though ImageElement currently exposes no public opacity setter.
+        // Dropping this presence-only field makes an otherwise untouched
+        // imported package look changed and prevents the source-bound edit
+        // compiler from isolating a later leaf edit.
+        ...(original?.content?.case === "image" && original.content.value.opacityThousandthPercent !== undefined
+          ? { opacityThousandthPercent: original.content.value.opacityThousandthPercent }
+          : {}),
+        ...(original?.content?.case === "image" && original.content.value.maskPreset
+          ? { maskPreset: original.content.value.maskPreset }
+          : {}),
         ...(crop ? { crop: presentationImageCropToWire(crop) } : {}),
         ...(image.transform == null ? {} : { transform: wirePresentationTransform(image.transform, `image ${image.id}`) }),
         ...(accessibility?.title ? { accessibilityTitle: accessibility.title } : {}),

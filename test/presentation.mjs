@@ -1118,7 +1118,7 @@ const fontHighlightAccessibilityXml = irregularShapeAccessibilityXml.replace(
   /(<a:rPr\b[^>]*)(\/>)\s*(?=<a:t>Decision)/u,
   '$1><a:highlight><a:srgbClr val="FFFF00"/></a:highlight></a:rPr>',
 );
-assert.match(fontHighlightAccessibilityXml, /<a:highlight><a:srgbClr val="FFFF00"\s*\/\><\/a:highlight>/);
+assert.match(fontHighlightAccessibilityXml, /<a:highlight><a:srgbClr val="FFFF00"\s*\/><\/a:highlight>/);
 fontHighlightAccessibilityZip.file("ppt/slides/slide1.xml", fontHighlightAccessibilityXml);
 const fontHighlightAccessibilityFile = new FileBlob(
   await fontHighlightAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
@@ -1141,7 +1141,7 @@ const fontHighlightOutput = await PresentationFile.exportPptx(fontHighlightImpor
 assert.equal(fontHighlightOutput.metadata.editPlan.operations[0].leafKind, "fontHighlightRgb");
 await assertOnlyDeclaredPptxFootprintChanged(fontHighlightAccessibilityFile, fontHighlightOutput, fontHighlightOutput.metadata.editPlan.operations);
 const fontHighlightXml = await (await JSZip.loadAsync(fontHighlightOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
-assert.match(fontHighlightXml, /<a:highlight><a:srgbClr val="00FF00"\s*\/\><\/a:highlight>/);
+assert.match(fontHighlightXml, /<a:highlight><a:srgbClr val="00FF00"\s*\/><\/a:highlight>/);
 assert.match(fontHighlightXml, /fixture:opaque="kept"/);
 const fontHighlightRoundTrip = await PresentationFile.importPptx(fontHighlightOutput);
 const fontHighlightRoundTripLeaf = fontHighlightRoundTrip.inspect({ includeNativeLeaves: true, target: fontHighlightShape.id }).ndjson
