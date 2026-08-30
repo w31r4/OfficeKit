@@ -203,6 +203,16 @@ fields and keep its expected revision/hash; unsupported topology stays opaque.
 No-op build returns the source bytes exactly. A stale, ambiguous or undeclared
 mutation fails instead of rebuilding or flattening the source.
 
+Direct source-bound leaf ownership remains explicit. The Presentation facade
+may issue \`fontHighlightRgb\` and \`fontHighlightScheme\` leaves for a canonical
+single-child \`a:highlight\` color, and \`imageOpacityThousandthPercent\` for a
+canonical direct \`a:alphaModFix/@amt\` picture token; each splice changes only
+that token. These leaf kinds are recorded in the capability registry but are
+intentionally deferred from the PPJ \`nativeCapability\` operation enum until
+PPJ can express and validate the same revision-bound proof. PPJ must preserve
+such imported runs and pictures as opaque/native references rather than
+approximate their source state.
+
 OfficeKit-authored PPTX embeds canonical PPJ and a node map. Import restores
 that PPJ exactly when valid. If native software changed the PPTX but left the
 embedded program, PPJ remains authoritative; a future build writes a new output

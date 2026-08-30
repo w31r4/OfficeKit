@@ -190,6 +190,12 @@
       "sourceToken": "a:highlight/a:schemeClr/@val",
       "ppj": "deferred",
       "reason": "Presentation facade exposes a revision-bound direct leaf; PPJ nativeCapability remains high-level until leaf parity is implemented."
+    },
+    "imageOpacityThousandthPercent": {
+      "owner": "presentation.editNativeLeaf",
+      "sourceToken": "a:blip/a:alphaModFix/@amt",
+      "ppj": "deferred",
+      "reason": "Presentation facade exposes a revision-bound direct picture leaf; PPJ nativeCapability remains high-level until leaf parity is implemented."
     }
   },
   "hostOnly": [
