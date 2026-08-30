@@ -2343,6 +2343,12 @@ message PresentationChart {
   SpreadsheetChartSurfaceFill chart_area_fill = 23;
   SpreadsheetChartSurfaceFill plot_area_fill = 24;
   string bar_direction = 25;
+  // Explicit chart-title text styling. The bounded profile initially owns
+  // only DrawingML font size and shares the worksheet-chart value contract.
+  SpreadsheetChartTextStyleArtifact title_text_style = 26;
+  // Canonical line-plot behavior for ordinary line charts. Combo charts keep
+  // mixed-plot behavior separate and leave this message unset.
+  SpreadsheetChartLineOptionsArtifact line_options = 27;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from

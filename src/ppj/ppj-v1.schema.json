@@ -2554,6 +2554,15 @@
         },
         "plotAreaFill": {
           "$ref": "#/$defs/fill"
+        },
+        "titleTextStyle": {
+          "$ref": "#/$defs/chartTextStyle"
+        },
+        "smooth": {
+          "type": "boolean"
+        },
+        "varyColors": {
+          "type": "boolean"
         }
       }
     },
