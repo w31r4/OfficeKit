@@ -509,26 +509,44 @@ internal static class PptxPictureCodec
     {
         border = null;
         if (outline is null) return true;
-        if (outline.CompoundLineType is not null || outline.Alignment is not null ||
-            !HasOnlyAttributes(outline, "w", "cap") || outline.Width?.Value is < 0 or > int.MaxValue)
+        // PowerPoint and Google Slides commonly serialize a picture frame's
+        // default single/centered line attributes even when the frame is
+        // explicitly invisible.  These attributes do not change the rendered
+        // picture, so accept only the canonical defaults while retaining the
+        // existing source XML until a caller explicitly edits the border.
+        if (outline.CompoundLineType?.Value is { } compound &&
+            !compound.Equals(A.CompoundLineValues.Single) ||
+            outline.Alignment?.Value is { } alignment &&
+            !alignment.Equals(A.PenAlignmentValues.Center) ||
+            !HasOnlyAttributes(outline, "w", "cap", "cmpd", "algn") ||
+            outline.Width?.Value is < 0 or > int.MaxValue)
             return false;
         var noFill = outline.Elements<A.NoFill>().ToArray();
         var solidFill = outline.Elements<A.SolidFill>().ToArray();
         if (noFill.Length + solidFill.Length != 1) return false;
-        if (noFill.Length == 1)
-            return outline.ChildElements.Count == 1 && !noFill[0].HasAttributes && !noFill[0].HasChildren;
+        var noLine = noFill.Length == 1;
+        if (noLine && (noFill[0].HasAttributes || noFill[0].HasChildren)) return false;
 
-        var solid = solidFill[0];
-        if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color ||
-            !HasOnlyAttributes(solid) || !HasOnlyAttributes(color, "val") ||
-            color.Val?.Value is not { Length: 6 } rgb || !rgb.All(Uri.IsHexDigit)) return false;
-        var alphas = color.Elements<A.Alpha>().ToArray();
-        if (color.ChildElements.Count != alphas.Length || alphas.Length > 1 ||
-            alphas.Length == 1 && (alphas[0].Val?.Value is not (>= 0 and <= 100_000) || !HasOnlyAttributes(alphas[0], "val")))
-            return false;
+        string rgb = string.Empty;
+        uint? opacity = null;
+        if (!noLine)
+        {
+            var solid = solidFill[0];
+            if (solid.ChildElements.Count != 1 || solid.FirstChild is not A.RgbColorModelHex color ||
+                !HasOnlyAttributes(solid) || !HasOnlyAttributes(color, "val") ||
+                color.Val?.Value is not { Length: 6 } directRgb || !directRgb.All(Uri.IsHexDigit)) return false;
+            var alphas = color.Elements<A.Alpha>().ToArray();
+            if (color.ChildElements.Count != alphas.Length || alphas.Length > 1 ||
+                alphas.Length == 1 && (alphas[0].Val?.Value is not (>= 0 and <= 100_000) || !HasOnlyAttributes(alphas[0], "val")))
+                return false;
+            rgb = directRgb;
+            if (alphas.SingleOrDefault()?.Val?.Value is { } alphaValue)
+                opacity = checked((uint)alphaValue);
+        }
         var dashes = outline.Elements<A.PresetDash>().ToArray();
         if (dashes.Length > 1 || dashes.SingleOrDefault() is { } dash &&
             (dash.ChildElements.Any() || !HasOnlyAttributes(dash, "val"))) return false;
+        if (noLine && dashes.Length > 0) return false;
         var style = dashes.SingleOrDefault()?.Val?.Value switch
         {
             null => "solid",
@@ -539,9 +557,12 @@ internal static class PptxPictureCodec
             var value when value.Equals(A.PresetLineDashValues.LargeDashDotDot) => "dash-dot-dot",
             _ => string.Empty,
         };
+        if (noLine) style = "none";
         if (style.Length == 0 || !TryCap(outline.CapType?.Value, out var cap) || !TryJoin(outline, out var join) ||
-            outline.ChildElements.Any(child => child is not A.SolidFill and not A.PresetDash and not A.Round and not A.LineJoinBevel and not A.Miter))
+            !TryReadInertLineEnds(outline) ||
+            outline.ChildElements.Any(child => child is not A.NoFill and not A.SolidFill and not A.PresetDash and not A.Round and not A.LineJoinBevel and not A.Miter and not A.HeadEnd and not A.TailEnd))
             return false;
+        if (noLine) return true;
         border = new PresentationImageBorder
         {
             ColorRgb = PptxColor.Normalize(rgb),
@@ -550,8 +571,8 @@ internal static class PptxPictureCodec
             Cap = cap,
             Join = join,
         };
-        if (alphas.SingleOrDefault()?.Val?.Value is { } opacity)
-            border.OpacityThousandthPercent = checked((uint)opacity);
+        if (opacity is { } alpha)
+            border.OpacityThousandthPercent = alpha;
         return true;
     }
 
@@ -706,10 +727,35 @@ internal static class PptxPictureCodec
         }
         else if (joins.SingleOrDefault() is A.Miter miter)
         {
-            if (miter.HasAttributes || miter.HasChildren || miter.Limit is not null) return false;
+            // 800000 is the DrawingML default miter limit.  It is inert for
+            // the picture frame profile, but is emitted explicitly by several
+            // native exporters alongside noFill.
+            if (miter.HasChildren || miter.GetAttributes().Any(attribute =>
+                    attribute.NamespaceUri.Length != 0 || attribute.LocalName != "lim" || attribute.Value != "800000")) return false;
             join = "miter";
         }
         return true;
+    }
+
+    private static bool TryReadInertLineEnds(A.Outline outline)
+    {
+        var heads = outline.Elements<A.HeadEnd>().ToArray();
+        var tails = outline.Elements<A.TailEnd>().ToArray();
+        if (heads.Length > 1 || tails.Length > 1) return false;
+        return InertLineEnd(heads.SingleOrDefault()) && InertLineEnd(tails.SingleOrDefault());
+    }
+
+    private static bool InertLineEnd(OpenXmlElement? source)
+    {
+        if (source is null) return true;
+        if (source.ChildElements.Any() || !HasOnlyAttributes(source, "type", "w", "len")) return false;
+        var type = source switch
+        {
+            A.HeadEnd head => head.Type?.Value,
+            A.TailEnd tail => tail.Type?.Value,
+            _ => null,
+        };
+        return type is null || type.Value.Equals(A.LineEndValues.None);
     }
 
     private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)
