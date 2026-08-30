@@ -11,4 +11,4 @@
 - [x] 2.1 Extend the existing integrated PPJ contract once.
 - [x] 2.2 Update the generated PPJ manual, text guidance and coverage.
 - [x] 2.3 Run the narrow contract, maintainer and strict OpenSpec checks.
-- [ ] 2.4 Commit atomically and fast-forward remote main.
+- [x] 2.4 Commit atomically and fast-forward remote main.
