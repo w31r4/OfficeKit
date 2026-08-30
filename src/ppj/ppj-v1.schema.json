@@ -2428,6 +2428,21 @@
             ]
           }
         },
+        "xValues": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "number"
+          }
+        },
+        "bubbleSizes": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
         "chartType": {
           "enum": [
             "bar",

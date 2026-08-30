@@ -1,7 +1,7 @@
 ## 1. Language
 
-- [ ] 1.1 Add typed x-value and bubble-size series vectors
-- [ ] 1.2 Validate chart-family applicability and vector topology
+- [x] 1.1 Add typed x-value and bubble-size series vectors
+- [x] 1.2 Validate chart-family applicability and vector topology
 
 ## 2. Compiler and projection
 

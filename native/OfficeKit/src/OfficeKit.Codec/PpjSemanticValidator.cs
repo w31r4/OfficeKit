@@ -219,14 +219,33 @@ internal static class PpjSemanticValidator
         {
             var series = chart.Data.Series[index];
             var seriesPath = $"{path}.data.series[{index}]";
+            var seriesType = chart.ChartType == "combo" ? series.ChartType : chart.ChartType;
             if (!seriesIds.Add(series.Id))
                 diagnostics.Add(new("ppj.id.duplicate", $"Chart series ID {series.Id} is duplicated.", $"{seriesPath}.id"));
-            if (series.Values.Count != chart.Data.Categories.Count)
+            if (seriesType is not ("scatter" or "bubble") && series.Values.Count != chart.Data.Categories.Count)
                 diagnostics.Add(new("ppj.chart.lengthMismatch", $"Series {series.Id} has {series.Values.Count} values for {chart.Data.Categories.Count} categories.", $"{seriesPath}.values"));
             if (chart.ChartType == "combo" && string.IsNullOrEmpty(series.ChartType))
                 diagnostics.Add(new("ppj.chart.comboSeriesType", "Every combo-chart series requires chartType.", $"{seriesPath}.chartType"));
             if (chart.ChartType != "combo" && series.ChartType is not null && !string.Equals(series.ChartType, chart.ChartType, StringComparison.Ordinal))
                 diagnostics.Add(new("ppj.chart.seriesType", "A non-combo chart series cannot override the deck chart type.", $"{seriesPath}.chartType"));
+            if (seriesType is "scatter" or "bubble")
+            {
+                if (chart.Data.Categories.Count != 0)
+                    diagnostics.Add(new("ppj.chart.numericCategories", "Scatter and bubble charts require an empty shared categories array.", path + ".data.categories"));
+                if (series.XValues.Count != series.Values.Count)
+                    diagnostics.Add(new("ppj.chart.xValueLength", $"Series {series.Id} requires one xValue per value.", seriesPath + ".xValues"));
+                if (seriesType == "bubble" && series.BubbleSizes.Count != series.Values.Count)
+                    diagnostics.Add(new("ppj.chart.bubbleSizeLength", $"Bubble series {series.Id} requires one positive bubbleSize per value.", seriesPath + ".bubbleSizes"));
+                if (seriesType == "scatter" && series.BubbleSizes.Count != 0)
+                    diagnostics.Add(new("ppj.chart.bubbleSizeType", "bubbleSizes applies only to bubble charts.", seriesPath + ".bubbleSizes"));
+            }
+            else
+            {
+                if (series.XValues.Count != 0)
+                    diagnostics.Add(new("ppj.chart.xValueType", "xValues applies only to scatter and bubble charts.", seriesPath + ".xValues"));
+                if (series.BubbleSizes.Count != 0)
+                    diagnostics.Add(new("ppj.chart.bubbleSizeType", "bubbleSizes applies only to bubble charts.", seriesPath + ".bubbleSizes"));
+            }
             if (series.Raw.TryGetProperty("trendlines", out var trendlines))
             {
                 var trendlineIndex = 0;
@@ -274,20 +293,20 @@ internal static class PpjSemanticValidator
         ValidateAxisBounds(chart.Raw, "yAxis", path, diagnostics);
         ValidateAxisBounds(chart.Raw, "secondaryXAxis", path, diagnostics);
         ValidateAxisBounds(chart.Raw, "secondaryYAxis", path, diagnostics);
-        ValidateAxisKinds(chart.Raw, "xAxis", path, diagnostics);
-        ValidateAxisKinds(chart.Raw, "yAxis", path, diagnostics);
-        ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, diagnostics);
-        ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, diagnostics);
+        ValidateAxisKinds(chart.Raw, "xAxis", path, chart.ChartType is not ("scatter" or "bubble"), diagnostics);
+        ValidateAxisKinds(chart.Raw, "yAxis", path, categoryAxis: false, diagnostics);
+        ValidateAxisKinds(chart.Raw, "secondaryXAxis", path, categoryAxis: true, diagnostics);
+        ValidateAxisKinds(chart.Raw, "secondaryYAxis", path, categoryAxis: false, diagnostics);
     }
 
     private static void ValidateAxisKinds(
         JsonElement chart,
         string property,
         string path,
+        bool categoryAxis,
         List<PpjDiagnostic> diagnostics)
     {
         if (!chart.TryGetProperty(property, out var axis)) return;
-        var categoryAxis = property.EndsWith("XAxis", StringComparison.Ordinal) || property == "xAxis";
         if (categoryAxis)
         {
             foreach (var name in new[] { "min", "max", "majorUnit" })
