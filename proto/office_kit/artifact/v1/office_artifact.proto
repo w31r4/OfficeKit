@@ -973,6 +973,18 @@ message SpreadsheetChartArtifact {
   string accessibility_title = 17;
   string accessibility_description = 18;
   optional bool accessibility_decorative = 19;
+  // Canonical legend placement: top, bottom, left, or right. Empty retains
+  // the historical right-side default when has_legend is true.
+  string legend_position = 20;
+  // Semantic plot grouping: none, stacked, or percent-stacked. Empty retains
+  // the chart-type default.
+  string grouping = 21;
+  optional uint32 gap_width = 22;
+  SpreadsheetChartSurfaceFill chart_area_fill = 23;
+  SpreadsheetChartSurfaceFill plot_area_fill = 24;
+  // bar means horizontal bars; column means vertical bars. Empty retains the
+  // historical column default.
+  string bar_direction = 25;
 }
 
 message SpreadsheetChartSeriesArtifact {
@@ -1027,6 +1039,16 @@ message SpreadsheetChartAxisArtifact {
   // Tick-label style, not the axis-title style. The initial bounded profile
   // owns only font_size_points; complex native txPr graphs remain opaque.
   SpreadsheetChartTextStyleArtifact text_style = 7;
+  optional bool visible = 8;
+  optional bool show_major_gridlines = 9;
+}
+
+message SpreadsheetChartSurfaceFill {
+  oneof fill {
+    bool no_fill = 1;
+    string solid_rgb = 2;
+  }
+  optional uint32 opacity_thousandth_percent = 3;
 }
 
 // Drawing and chart hashes bind editable semantics to one imported package.
@@ -2310,6 +2332,17 @@ message PresentationChart {
   // Non-visible alternative text stored on p:nvGraphicFramePr/p:cNvPr. The
   // visible chart title remains field 6 and has independent semantics.
   PresentationNonVisualAccessibility accessibility = 16;
+  // Canonical legend placement: top, bottom, left, or right. Empty retains
+  // the historical right-side default when has_legend is true.
+  string legend_position = 17;
+  string grouping = 18;
+  optional uint32 gap_width = 19;
+  optional bool show_category_axis = 20;
+  optional bool show_value_axis = 21;
+  optional bool show_gridlines = 22;
+  SpreadsheetChartSurfaceFill chart_area_fill = 23;
+  SpreadsheetChartSurfaceFill plot_area_fill = 24;
+  string bar_direction = 25;
 }
 
 // PresentationML plot/axis ownership is intentionally separate from
@@ -2405,12 +2438,14 @@ message PresentationImageCrop {
 // Bounded top-level DrawingML table projection. Column widths and row heights
 // make the fixed grid explicit instead of deriving native geometry from cell
 // text. The bounded codec owns one rectangular p:graphicFrame, a complete
-// physical grid, non-overlapping rectangular merge ranges, and exactly one
-// plain-text run per visible origin cell. Covered cells remain present with an
-// empty run so the canonical a:tc gridSpan/rowSpan/hMerge/vMerge topology can
-// round-trip without inventing a second sparse table model. Rich cell text,
-// table styles, transformed frames, and topology changes after import remain
-// source-bound opaque content.
+// physical grid and non-overlapping rectangular merge ranges. Source-free
+// authored cells may carry bounded rich DrawingML text, direct paint, and
+// direct borders. The imported editable profile remains deliberately narrower:
+// exactly one plain-text run per visible origin cell, with native styling kept
+// source-owned. Covered cells remain present with an empty run so the canonical
+// a:tc gridSpan/rowSpan/hMerge/vMerge topology can round-trip without inventing
+// a second sparse table model. Transformed frames and topology changes after
+// import remain source-bound opaque content.
 message PresentationTable {
   int64 left_emu = 1;
   int64 top_emu = 2;
@@ -2443,6 +2478,32 @@ message PresentationTableRow {
 
 message PresentationTableCell {
   string text = 1;
+  // Source-free authored cells carry the complete bounded DrawingML text
+  // body so PPJ rich text, body layout, paragraph styling and hyperlinks do
+  // not collapse into the legacy single-run compatibility field above.
+  PresentationTextBody text_body = 2;
+  // Direct cell paint. Imported table formatting remains source-owned; these
+  // fields are used only by the canonical source-free table writer.
+  PresentationTableCellFill fill = 3;
+  PresentationTableCellBorders borders = 4;
+}
+
+message PresentationTableCellFill {
+  oneof kind {
+    bool no_fill = 1;
+    string solid_rgb = 2;
+    PresentationGradientFill gradient_fill = 3;
+  }
+  // Presence-aware alpha for a direct solid RGB fill, in DrawingML
+  // thousandths of one percent. Gradient stops own their alpha individually.
+  optional uint32 opacity_thousandth_percent = 4;
+}
+
+message PresentationTableCellBorders {
+  SpreadsheetChartLineStyleArtifact left = 1;
+  SpreadsheetChartLineStyleArtifact top = 2;
+  SpreadsheetChartLineStyleArtifact right = 3;
+  SpreadsheetChartLineStyleArtifact bottom = 4;
 }
 
 // Inclusive zero-based rectangle. A range must cover at least two physical
@@ -3703,6 +3764,9 @@ message SpreadsheetChartLineStyleArtifact {
   SpreadsheetColor color = 1;
   SpreadsheetChartLineDashStyle dash_style = 2;
   optional double width_points = 3;
+  optional uint32 opacity_thousandth_percent = 4;
+  string cap = 5;
+  string join = 6;
 }
 
 enum SpreadsheetChartMarkerSymbol {
