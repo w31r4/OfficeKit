@@ -17,11 +17,32 @@ OOXML remains in the source package and does not enter the model context.
 
 ## Edit boundary
 
-- Edit ordinary PPJ fields for fully modelled objects.
-- For an opaque or partially modelled object, edit only fields explicitly
-  listed by its `nativeRef` capability.
+- Edit ordinary PPJ fields only when the typed object has the corresponding
+  issued capability, such as `replaceText`, `setFrame`, `replaceImage`,
+  `setChartTitle`, or `setChartData`.
+- For a precise imported scalar, use an issued `nativeRef.leaves[]` entry. It
+  contains an opaque leaf ID, closed `kind`, source-value `expectedHash`, and
+  human-facing `value`. Change only `value`.
+- Never invent a leaf, copy one to another object, alter its ID/kind/hash, or
+  convert a typed operation such as image replacement into a scalar leaf.
 - Keep source revision, target hash, object identity, and page identity intact.
 - Re-import after build and locate the same stable IDs again.
+
+Example imported run-size edit:
+
+```json
+{
+  "id": "nl_8b1f…",
+  "kind": "fontSizePoints",
+  "expectedHash": "<sha256 of the exact native old value>",
+  "value": 20
+}
+```
+
+The value uses a human unit where PPJ defines one: points for font size,
+degrees for rotation, booleans for flips, and `#RRGGBB` for direct RGB. EMU
+leaves remain explicitly named `*Emu`; they exist for exact source surgery,
+not for ordinary authored layout.
 
 No-op build must return the source bytes exactly. A supported edit may change
 only the target part and necessary dependencies. Unrelated parts,

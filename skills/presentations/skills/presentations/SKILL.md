@@ -53,9 +53,12 @@ officekit ppj import input.pptx -o deck.ppj
 officekit ppj inspect deck.ppj --query "target"
 ```
 
-Edit typed fields or fields explicitly issued by `nativeRef`. Keep the copied
-source asset and its SHA-256 unchanged. Unsupported mutations fail closed; do
-not rebuild, flatten, rasterize, or patch the package to force success.
+Edit typed fields only when the matching capability is issued. For exact
+imported text, style, or geometry scalars, change only `value` on an existing
+`nativeRef.leaves[]` entry; never invent or move its ID, kind, or expected
+hash. Keep the copied source asset and its SHA-256 unchanged. Unsupported
+mutations fail closed; do not rebuild, flatten, rasterize, or patch the package
+to force success.
 
 ### Recover an OfficeKit-authored deck
 
