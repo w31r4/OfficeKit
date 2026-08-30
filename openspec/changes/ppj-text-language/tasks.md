@@ -12,4 +12,4 @@
 - [x] 2.2 Extend the existing integrated PPJ contract once.
 - [x] 2.3 Update capability metadata, generated PPJ manual, text guidance and coverage.
 - [x] 2.4 Run narrow test, proto, maintainer and strict OpenSpec checks.
-- [ ] 2.5 Commit atomically and fast-forward remote main.
+- [x] 2.5 Commit atomically and fast-forward remote main.
