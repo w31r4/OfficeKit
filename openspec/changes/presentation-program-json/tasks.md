@@ -86,4 +86,4 @@
 - [x] 11.1 Update Help, generated API docs, architecture, coverage, package inventory, licenses, and release notes for PPJ and the 2.0 break.
 - [x] 11.2 Set package and plugin versions to `2.0.0` and regenerate NativeAOT/proto/package evidence required by the repository.
 - [x] 11.3 Run the final complete npm suite, proto check, NativeAOT build/reproducibility, Skill portability/reference sync, package contents, and release gate once.
-- [ ] 11.4 Publish the atomic branch normally, integrate through the current main coordination window without force push, and verify remote main identity.
+- [x] 11.4 Publish the atomic branch normally, integrate through the current main coordination window without force push, and verify remote main identity.
