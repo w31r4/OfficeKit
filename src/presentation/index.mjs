@@ -2295,10 +2295,12 @@ function normalizeChartAxes(config = {}, hasSecondary = false) {
 }
 
 function normalizeChartLegend(config = {}, seriesLength = 0) {
+  const normalizePosition = (value) => ({ t: "top", b: "bottom", l: "left", r: "right" }[String(value || "r")] || String(value || "r"));
   const raw = config.legend;
-  if (raw === false || config.hasLegend === false) return { visible: false, position: "r" };
-  if (typeof raw === "string") return { visible: true, position: raw };
-  return { visible: raw?.visible ?? config.hasLegend ?? seriesLength > 1, position: raw?.position || config.legendPosition || "r" };
+  if (raw === false || config.hasLegend === false) return { visible: false, position: "" };
+  if (typeof raw === "string") return { visible: true, position: normalizePosition(raw) };
+  const visible = raw?.visible ?? config.hasLegend ?? seriesLength > 1;
+  return { visible, position: visible ? normalizePosition(raw?.position || config.legendPosition || "r") : "" };
 }
 
 function normalizeChartDataLabels(config = {}) {
