@@ -43,7 +43,7 @@ internal static class PptxTableCodec
             if (source.ChildElements.Count != 3 ||
                 source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is not { Id.HasValue: true, Name: not null } ||
                 source.Transform is not { } transform ||
-                !TryReadFrame(transform, out var left, out var top, out var width, out var height) ||
+                !TryReadFrame(transform, out var left, out var top, out var width, out var height, out var frameTransform) ||
                 source.Graphic is not { ChildElements.Count: 1 } graphic ||
                 graphic.GraphicData is not { ChildElements.Count: 1 } graphicData ||
                 !string.Equals(graphicData.Uri?.Value, TableGraphicDataUri, StringComparison.Ordinal) ||
@@ -75,6 +75,7 @@ internal static class PptxTableCodec
                 TopEmu = top,
                 WidthEmu = width,
                 HeightEmu = height,
+                FrameTransform = frameTransform,
                 Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties),
             };
             result.ColumnWidthsEmu.Add(columns.Select(column => column.Width!.Value));
@@ -155,14 +156,16 @@ internal static class PptxTableCodec
         }
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, table.Accessibility);
+        var transform = new P.Transform(
+            new A.Offset { X = table.LeftEmu, Y = table.TopEmu },
+            new A.Extents { Cx = table.WidthEmu, Cy = table.HeightEmu });
+        PptxFrameTransformCodec.Apply(transform, table.FrameTransform);
         return new P.GraphicFrame(
             new P.NonVisualGraphicFrameProperties(
                 nonVisual,
                 new P.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoGrouping = true }),
                 new P.ApplicationNonVisualDrawingProperties()),
-            new P.Transform(
-                new A.Offset { X = table.LeftEmu, Y = table.TopEmu },
-                new A.Extents { Cx = table.WidthEmu, Cy = table.HeightEmu }),
+            transform,
             new A.Graphic(new A.GraphicData(nativeTable) { Uri = TableGraphicDataUri }));
     }
 
@@ -206,6 +209,7 @@ internal static class PptxTableCodec
         if (table is null) throw Invalid(elementId, "payload is missing");
         if (table.LeftEmu < 0 || table.TopEmu < 0 || table.WidthEmu <= 0 || table.HeightEmu <= 0)
             throw Invalid(elementId, "frame must have non-negative coordinates and positive dimensions");
+        PptxFrameTransformCodec.Validate(table.FrameTransform, elementId, "table");
         if (table.ColumnWidthsEmu.Count is < 1 or > MaxColumns || table.Rows.Count is < 1 or > MaxRows)
             throw Invalid(elementId, $"grid must contain 1-{MaxColumns} columns and 1-{MaxRows} rows");
         if (table.ColumnWidthsEmu.Any(width => width <= 0) ||
@@ -263,6 +267,7 @@ internal static class PptxTableCodec
             transform.Offset.Y = 0L;
             transform.Extents!.Cx = 1L;
             transform.Extents.Cy = 1L;
+            PptxFrameTransformCodec.Scrub(transform);
         }
         var table = source.Graphic?.GraphicData?.GetFirstChild<A.Table>();
         if (table is null) return;
@@ -286,6 +291,7 @@ internal static class PptxTableCodec
         allowed.TopEmu = requested.Table.TopEmu;
         allowed.WidthEmu = requested.Table.WidthEmu;
         allowed.HeightEmu = requested.Table.HeightEmu;
+        allowed.FrameTransform = requested.Table.FrameTransform?.Clone();
         allowed.ColumnWidthsEmu.Clear();
         allowed.ColumnWidthsEmu.Add(requested.Table.ColumnWidthsEmu);
         allowed.Accessibility = requested.Table.Accessibility?.Clone();
@@ -296,16 +302,24 @@ internal static class PptxTableCodec
                 allowed.Rows[rowIndex].Cells[columnIndex].Text = requested.Table.Rows[rowIndex].Cells[columnIndex].Text;
         }
         if (!allowed.Equals(requested.Table))
-            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame, alternative text, and fixed-topology plain cell text.");
+            throw new CodecException("unsupported_presentation_edit", $"Presentation table {requested.Id} may edit only its name, complete frame transform, alternative text, and fixed-topology plain cell text.");
     }
 
-    private static bool TryReadFrame(P.Transform transform, out long left, out long top, out long width, out long height)
+    private static bool TryReadFrame(
+        P.Transform transform,
+        out long left,
+        out long top,
+        out long width,
+        out long height,
+        out PresentationFrameTransform? frameTransform)
     {
         left = top = width = height = 0;
+        frameTransform = null;
         if (transform.ChildElements.Count != 2 || transform.Offset is not { } offset || transform.Extents is not { } extents ||
             !HasOnlyAttributes(offset, "x", "y") || !HasOnlyAttributes(extents, "cx", "cy") ||
             offset.X?.Value is null || offset.Y?.Value is null || extents.Cx?.Value is null or <= 0 || extents.Cy?.Value is null or <= 0 ||
-            offset.X.Value < 0 || offset.Y.Value < 0)
+            offset.X.Value < 0 || offset.Y.Value < 0 ||
+            !PptxFrameTransformCodec.TryRead(transform, out frameTransform))
             return false;
         left = offset.X.Value;
         top = offset.Y.Value;
@@ -643,6 +657,7 @@ internal static class PptxTableCodec
         transform.Offset.Y = table.TopEmu;
         transform.Extents!.Cx = table.WidthEmu;
         transform.Extents.Cy = table.HeightEmu;
+        PptxFrameTransformCodec.Apply(transform, table.FrameTransform);
     }
 
     private static bool HasOnlyAttributes(OpenXmlElement element, params string[] names)

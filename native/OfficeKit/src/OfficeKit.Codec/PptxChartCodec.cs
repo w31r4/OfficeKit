@@ -31,7 +31,7 @@ internal static partial class PptxChartCodec
         try
         {
             if (source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties is not { Id.HasValue: true } ||
-                source.Transform is not { } transform || !TryReadFrame(transform, out var left, out var top, out var width, out var height) ||
+                source.Transform is not { } transform || !TryReadFrame(transform, out var left, out var top, out var width, out var height, out var frameTransform) ||
                 source.Graphic?.GraphicData is not { } graphicData ||
                 !string.Equals(graphicData.Uri?.Value, ChartGraphicDataUri, StringComparison.Ordinal) ||
                 graphicData.Elements<C.ChartReference>().SingleOrDefault()?.Id?.Value is not { Length: > 0 } relationshipId)
@@ -53,11 +53,13 @@ internal static partial class PptxChartCodec
                 chart.TopEmu = top;
                 chart.WidthEmu = width;
                 chart.HeightEmu = height;
+                chart.FrameTransform = frameTransform;
                 chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
                 return true;
             }
             if (!TryReadChart(xml, out var semantic, out _, out editable)) return false;
             chart = FromSpreadsheet(semantic, left, top, width, height);
+            chart.FrameTransform = frameTransform;
             chart.Accessibility = PptxNonVisualAccessibilityCodec.Read(source.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties);
             return true;
         }
@@ -77,14 +79,16 @@ internal static partial class PptxChartCodec
         WriteXml(chartPart, BuildPresentationChartDocument(element.Chart, element.Id, element.Name));
         var nonVisual = new P.NonVisualDrawingProperties { Id = nativeId, Name = element.Name };
         PptxNonVisualAccessibilityCodec.ApplyAuthored(nonVisual, element.Chart.Accessibility);
+        var transform = new P.Transform(
+            new A.Offset { X = element.Chart.LeftEmu, Y = element.Chart.TopEmu },
+            new A.Extents { Cx = element.Chart.WidthEmu, Cy = element.Chart.HeightEmu });
+        PptxFrameTransformCodec.Apply(transform, element.Chart.FrameTransform);
         return new P.GraphicFrame(
             new P.NonVisualGraphicFrameProperties(
                 nonVisual,
                 new P.NonVisualGraphicFrameDrawingProperties(new A.GraphicFrameLocks { NoGrouping = true }),
                 new P.ApplicationNonVisualDrawingProperties()),
-            new P.Transform(
-                new A.Offset { X = element.Chart.LeftEmu, Y = element.Chart.TopEmu },
-                new A.Extents { Cx = element.Chart.WidthEmu, Cy = element.Chart.HeightEmu }),
+            transform,
             new A.Graphic(new A.GraphicData(new C.ChartReference { Id = relationshipId }) { Uri = ChartGraphicDataUri }));
     }
 
@@ -117,6 +121,7 @@ internal static partial class PptxChartCodec
         if (string.IsNullOrWhiteSpace(name) || name.Length > 255 || HasControls(name)) throw Invalid(elementId, "name must contain 1 through 255 characters without controls");
         if (chart.LeftEmu < 0 || chart.TopEmu < 0 || chart.WidthEmu <= 0 || chart.HeightEmu <= 0)
             throw Invalid(elementId, "frame must have non-negative coordinates and positive dimensions");
+        PptxFrameTransformCodec.Validate(chart.FrameTransform, elementId, "chart");
         PptxNonVisualAccessibilityCodec.Validate(chart.Accessibility, elementId, "chart");
         if (chart.Type == SpreadsheetChartType.Combo)
         {
@@ -154,6 +159,7 @@ internal static partial class PptxChartCodec
             transform.Offset.Y = 0L;
             transform.Extents!.Cx = 1L;
             transform.Extents.Cy = 1L;
+            PptxFrameTransformCodec.Scrub(transform);
         }
     }
 
@@ -256,10 +262,21 @@ internal static partial class PptxChartCodec
         OpenXmlChartSpaceCodec.Patch(document, target, "presentation_chart_topology_changed", "Presentation chart");
     }
 
-    private static bool TryReadFrame(P.Transform transform, out long left, out long top, out long width, out long height)
+    private static bool TryReadFrame(
+        P.Transform transform,
+        out long left,
+        out long top,
+        out long width,
+        out long height,
+        out PresentationFrameTransform? frameTransform)
     {
         left = top = width = height = 0;
-        if (transform.Offset?.X?.Value is null || transform.Offset.Y?.Value is null || transform.Extents?.Cx?.Value is null or <= 0 || transform.Extents.Cy?.Value is null or <= 0 || transform.Offset.X.Value < 0 || transform.Offset.Y.Value < 0) return false;
+        frameTransform = null;
+        if (transform.ChildElements.Count != 2 ||
+            transform.Offset?.X?.Value is null || transform.Offset.Y?.Value is null ||
+            transform.Extents?.Cx?.Value is null or <= 0 || transform.Extents.Cy?.Value is null or <= 0 ||
+            transform.Offset.X.Value < 0 || transform.Offset.Y.Value < 0 ||
+            !PptxFrameTransformCodec.TryRead(transform, out frameTransform)) return false;
         left = transform.Offset.X.Value; top = transform.Offset.Y.Value; width = transform.Extents.Cx.Value; height = transform.Extents.Cy.Value;
         return true;
     }
@@ -268,6 +285,7 @@ internal static partial class PptxChartCodec
     {
         transform.Offset!.X = chart.LeftEmu; transform.Offset.Y = chart.TopEmu;
         transform.Extents!.Cx = chart.WidthEmu; transform.Extents.Cy = chart.HeightEmu;
+        PptxFrameTransformCodec.Apply(transform, chart.FrameTransform);
     }
 
     private static string ReadXml(OpenXmlPart part) => Encoding.UTF8.GetString(ReadBytes(part));
