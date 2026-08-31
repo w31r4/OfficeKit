@@ -8,12 +8,12 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "8c97a3dd01e67a9ef21d087b9d295577e04b24f28cfc1387d615d4d079034378"
+      "sha256": "96ce46c82b2975b31c7bb070531bdedfc40f2a0989b67fc28075132213a3795c"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "d4e5f03ff7a5e8de1fd9e6cb9af1a6d250ed1c5bec8ed2a03ee893c1d3e4669a"
+      "sha256": "b17e1725a09758a470b492d0e6b8bb5e75889813b6ce30b57abf1040f6ba5a22"
     },
     {
       "path": "assets/examples/03-data.png",
@@ -58,16 +58,22 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "2069a733187652ae89d9fb1adaf8b6510ef28c328383e0220961be7335e77107",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "fa2fe4bd508e470cfe49c7f35d42b16b9b51b1a4a7d8de92b28d05e37def1bb6",
-    "previewSha256": "bb9379f78008583364a6ea19e2a308aa0bf4a4deffdfbb72da4de576cc006ad7"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound."
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "30b53a96aab06fcf0dd28e10cac0f1e9df135e0e4898c78b15a168833d6c2f5b",
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "fa2fe4bd508e470cfe49c7f35d42b16b9b51b1a4a7d8de92b28d05e37def1bb6",
+    "previewSha256": "76f653ce9bf61c98e2f1148acd9378f1b134dfa5282d317c765cbf09c122aec8"
   }
 }
