@@ -40,7 +40,9 @@ assert.deepEqual(RETIRED_REFERENCE_SKILL_PATH_PREFIXES, [
 
 const referenceChecklist = await fs.readFile(path.join(
   repoRoot,
-  "reference",
+  "legacy",
+  "presentations",
+  "mjs",
   "office-artifact-tool",
   "skills",
   "documents",

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const referenceRepoRoot = path.join(repoRoot, "reference", "office-artifact-tool");
+const referenceRepoRoot = path.join(repoRoot, "legacy", "presentations", "mjs", "office-artifact-tool");
 export const REFERENCE_SKILLS_ROOT = path.join(referenceRepoRoot, "skills");
 const projectSkillsRoot = path.join(repoRoot, "skills");
 const snapshotPath = path.join(projectSkillsRoot, "reference-sync.json");
@@ -114,7 +114,7 @@ async function scanReferenceSkillSource() {
       schemaVersion: 1,
       source: {
         commit: sourceCommit(),
-        root: "reference/office-artifact-tool/skills",
+        root: "legacy/presentations/mjs/office-artifact-tool/skills",
       },
       totalFiles,
       totalBytes,

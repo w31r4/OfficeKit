@@ -63,6 +63,7 @@
     "src/**",
     "docs/template-library-provenance.md",
     "examples/**",
+    "!examples/presentation-template-references/**",
     "skills/documents/**",
     "skills/spreadsheets/**",
     "skills/presentations/**",

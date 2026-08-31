@@ -1,3 +1,4 @@
 test/fixtures/pdf/*.pdf binary
 evals/assets/**/*.pdf binary
 scripts/pdf-provider-*.json text eol=lf
+examples/presentation-template-references/kimi/**/design.md whitespace=-trailing-space

@@ -5,7 +5,7 @@
 `skills/default-template-library/` retains 13 templates from
 [`office-artifact-tool` `256cb31bfe0a07b3cef0051b6b159342be381378`](https://github.com/w31r4/office-artifact-tool/commit/256cb31bfe0a07b3cef0051b6b159342be381378):
 seven DOCX and six XLSX. The pinned
-[`reference/office-artifact-tool`](../reference/office-artifact-tool) submodule
+[`legacy/presentations/mjs/office-artifact-tool`](../legacy/presentations/mjs/office-artifact-tool) submodule
 contains the authoritative source tree used by the byte-comparison gate.
 
 The source repository declares MIT, Copyright (c) 2026 w31r4. The retained

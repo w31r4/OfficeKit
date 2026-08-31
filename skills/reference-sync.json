@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "source": {
     "commit": "73c99c67ca7bbaa82cec0b158c647db583dcd970",
-    "root": "reference/office-artifact-tool/skills"
+    "root": "legacy/presentations/mjs/office-artifact-tool/skills"
   },
   "totalFiles": 333,
   "totalBytes": 32994912,
