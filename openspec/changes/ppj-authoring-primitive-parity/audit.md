@@ -27,7 +27,7 @@
 | scatter/bubble/candlestick families | already covered individually | retain current bounded profiles |
 | broader Cartesian/candlestick mixing | implemented, bounded | numeric Cartesian and OHLC overlay profiles |
 | stream area and pictographic bars | implemented, bounded | editable vector compilers |
-| bubble scale/range | partial | native scale/mode implemented; pixel-radius range remains unsupported |
+| bubble scale/range | implemented, bounded | native scale/mode stays ChartPart-native; explicit sqrt/linear/log mapping into a 2–72 point radius range lowers to editable DrawingML with embedded-PPJ recovery |
 | arbitrary pie angle/hole | implemented, bounded | native legal angle and hole-size ranges |
 | axis reverse/arrows/line/grid styling | implemented, bounded | native direction, direct line/grid style and finite axis endpoints |
 | radar spoke styling | implemented, bounded | semantic native spoke/ring coordinate system |
