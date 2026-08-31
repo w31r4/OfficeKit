@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-team-alignment",
+  "displayName": "Team Alignment",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "2319fc3b5b4348085f691c3c34c62e23eb541b981cef94f78332f88817aa527f"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "aebb2ea9f3e412c1514bcbc6246444df952f1dfe2f7b2350f3d2bf5a5d86473d"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "6df5f2d8c4e1b4b76a2c7857b95007c33c1e54b4618a8e3e48569fc95dba8e7a"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "20b3465f19244ab535136509d079ef1f2fa629227b04cc2426a9b2c906d73b12"
+    }
+  ],
+  "useWhen": [
+    "team onsite",
+    "planning session",
+    "operating-model reset"
+  ],
+  "avoidWhen": [
+    "formal financial report",
+    "product launch campaign",
+    "solo research paper"
+  ],
+  "audiences": [
+    "team leads",
+    "cross-functional groups",
+    "workshop participants"
+  ],
+  "contentShapes": [
+    "place and purpose",
+    "shared context",
+    "priority field",
+    "working agreement",
+    "commitment close"
+  ],
+  "visualTraits": {
+    "tone": [
+      "human",
+      "grounded",
+      "collaborative"
+    ],
+    "density": "mixed",
+    "colorMode": "light",
+    "structure": [
+      "wide image band",
+      "blue type",
+      "commitment ledger"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "c7319a8e8c41c77b66c077f9a1f79ecf4580cb20bca9928a5f32f9915b3f0a3f",
+    "license": "MIT",
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Team Alignment reference; the immutable source hash and unsupported native subgraphs remain explicit."
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "2429c3b2281c116f41185d27b3621615ee86eef2688977544d304de76b80883b",
+    "license": "MIT",
+    "source": "Historical Codex Team Alignment reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit template guide and calibration preview are newly authored migration material. The declared MIT reference PPJ/PPTX is source-bound for native inspection and is not presented as a clean-room redraw.",
+    "guideSha256": "8b81e1af8caa8c3e27b683c10564c95c43c040b2396e891771ba520486cf72ce",
+    "previewSha256": "fcc400487c6e2c059a6c1525b0856c592dceec86515ddb027b139541f76abc38"
+  }
+}
