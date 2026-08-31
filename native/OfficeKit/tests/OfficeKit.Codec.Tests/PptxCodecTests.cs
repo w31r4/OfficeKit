@@ -1007,6 +1007,15 @@ public sealed class PptxCodecTests
                 new JsonObject { ["offset"] = 1, ["color"] = "#F2C14E", ["opacity"] = 0.7 },
             },
         };
+        authoredChart["data"]!["series"]![0]!["pointStyles"] = new JsonArray
+        {
+            new JsonObject
+            {
+                ["index"] = 7,
+                ["fill"] = new JsonObject { ["type"] = "solid", ["color"] = "#F2C14E" },
+                ["stroke"] = new JsonObject { ["color"] = "#16324F", ["width"] = 1.25 },
+            },
+        };
         authoredChart["data"]!["series"]!.AsArray().Add(new JsonObject
         {
             ["id"] = "confidence-band",
@@ -2423,6 +2432,12 @@ public sealed class PptxCodecTests
                 .Select(label => label.Element(richChartNamespace + "idx")!.Attribute("val")!.Value));
             Assert.Equal("0.0x", analyticalLabelContainer.Elements(richChartNamespace + "dLbl").Last()
                 .Element(richChartNamespace + "numFmt")!.Attribute("formatCode")!.Value);
+            var highlightedIncidentPoint = comboChartXml.Descendants(richChartNamespace + "ser")
+                .Single(series => series.Element(richChartNamespace + "tx")?.Element(richChartNamespace + "v")?.Value == "P1 incident hours")
+                .Elements(richChartNamespace + "dPt").Single();
+            Assert.Equal("7", highlightedIncidentPoint.Element(richChartNamespace + "idx")!.Attribute("val")!.Value);
+            Assert.Equal("F2C14E", highlightedIncidentPoint.Element(richChartNamespace + "spPr")!
+                .Element(richDrawingNamespace + "solidFill")!.Element(richDrawingNamespace + "srgbClr")!.Attribute("val")!.Value);
             var lineChartPath = package.PresentationPart.SlideParts.First().ChartParts
                 .Single(part => part.ChartSpace!.Descendants<C.LineChart>().Any())
                 .Uri.OriginalString.TrimStart('/');
@@ -3124,6 +3139,10 @@ public sealed class PptxCodecTests
             Assert.Equal("none", projectedChart.GetProperty("style").GetProperty("chartAreaFill").GetProperty("type").GetString());
             Assert.Equal("radial", projectedChart.GetProperty("style").GetProperty("plotAreaFill").GetProperty("kind").GetString());
             Assert.Equal("linear", projectedChart.GetProperty("data").GetProperty("series")[0].GetProperty("fill").GetProperty("kind").GetString());
+            var projectedPointStyle = projectedChart.GetProperty("data").GetProperty("series")[0].GetProperty("pointStyles")[0];
+            Assert.Equal(7, projectedPointStyle.GetProperty("index").GetInt32());
+            Assert.Equal("#F2C14E", projectedPointStyle.GetProperty("fill").GetProperty("color").GetString());
+            Assert.Equal(1.25, projectedPointStyle.GetProperty("stroke").GetProperty("width").GetDouble());
             Assert.Equal("area", projectedChart.GetProperty("data").GetProperty("series")[2].GetProperty("chartType").GetString());
             Assert.Equal("primary", projectedChart.GetProperty("data").GetProperty("series")[2].GetProperty("axis").GetString());
             Assert.Equal(40, projectedChart.GetProperty("data").GetProperty("series")[2].GetProperty("values")[7].GetDouble());
@@ -3337,6 +3356,8 @@ public sealed class PptxCodecTests
         formattingChart["yAxis"]!["gridLine"] = false;
         formattingChart["data"]!["series"]![1]!["dataLabels"]!["numberFormat"] = "0.00";
         formattingChart["data"]!["series"]![1]!["dataLabels"]!["points"]![1]!["numberFormat"] = "$0.0";
+        formattingChart["data"]!["series"]![0]!["pointStyles"]![0]!["fill"]!["color"] = "#C1121F";
+        formattingChart["data"]!["series"]![0]!["pointStyles"]![0]!["stroke"]!["width"] = 2;
         var formattingChartId = formattingChart["id"]!.GetValue<string>();
         var formattingBubble = formattingProgram["pages"]![0]!["elements"]!.AsArray()
             .Select(element => element!.AsObject())
@@ -3388,6 +3409,9 @@ public sealed class PptxCodecTests
             var reprojectedLabels = reprojectedFormattingChart.GetProperty("data").GetProperty("series")[1].GetProperty("dataLabels");
             Assert.Equal("0.00", reprojectedLabels.GetProperty("numberFormat").GetString());
             Assert.Equal("$0.0", reprojectedLabels.GetProperty("points")[1].GetProperty("numberFormat").GetString());
+            var reprojectedPointStyle = reprojectedFormattingChart.GetProperty("data").GetProperty("series")[0].GetProperty("pointStyles")[0];
+            Assert.Equal("#C1121F", reprojectedPointStyle.GetProperty("fill").GetProperty("color").GetString());
+            Assert.Equal(2, reprojectedPointStyle.GetProperty("stroke").GetProperty("width").GetDouble());
             var reprojectedFormattingBubble = formattingJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray()
                 .Single(element => element.GetProperty("id").GetString() == formattingBubbleId);
             Assert.Equal(180, reprojectedFormattingBubble.GetProperty("style").GetProperty("bubbleScale").GetInt32());
