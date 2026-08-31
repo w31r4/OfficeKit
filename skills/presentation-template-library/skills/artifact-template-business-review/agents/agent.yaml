@@ -1,0 +1,5 @@
+interface:
+  display_name: "Business Review"
+  short_description: "Use the Business Review presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-business-review as the visual style for this presentation."
