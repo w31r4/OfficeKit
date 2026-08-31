@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace OfficeKit.Codec;
@@ -62,9 +63,9 @@ internal static class PpjSemanticValidator
 
         var assetIds = assets.Keys.ToHashSet(StringComparer.Ordinal);
         var pageIds = pages.Keys.ToHashSet(StringComparer.Ordinal);
-        ValidateResourceReferences(program.Root, "$", assetIds, program.Design.ColorIds, program.Design.FontIds, diagnostics);
-        ValidateTextEffects(program.Root, "$", diagnostics);
-        ValidateFormulaRuns(program.Root, "$", diagnostics);
+        ValidateResourceReferences(program.Root, new StringBuilder("$"), assetIds, program.Design.ColorIds, program.Design.FontIds, diagnostics);
+        ValidateTextEffects(program.Root, new StringBuilder("$"), diagnostics);
+        ValidateFormulaRuns(program.Root, new StringBuilder("$"), diagnostics);
         ValidateMasterLayoutState(program, masters, layouts, diagnostics);
         ValidateComponentDefinitions(program, components, assetIds, diagnostics);
         ValidateNativeRef(program.Design.CanvasNativeRef, program.Source, "$.design.canvas.nativeRef", diagnostics);
@@ -306,13 +307,17 @@ internal static class PpjSemanticValidator
         _ => value,
     };
 
-    private static void ValidateTextEffects(JsonElement value, string path, List<PpjDiagnostic> diagnostics)
+    private static void ValidateTextEffects(JsonElement value, StringBuilder path, List<PpjDiagnostic> diagnostics)
     {
         if (value.ValueKind == JsonValueKind.Array)
         {
             var index = 0;
             foreach (var item in value.EnumerateArray())
-                ValidateTextEffects(item, $"{path}[{index++}]", diagnostics);
+            {
+                var length = AppendIndex(path, index++);
+                ValidateTextEffects(item, path, diagnostics);
+                path.Length = length;
+            }
             return;
         }
         if (value.ValueKind != JsonValueKind.Object) return;
@@ -321,9 +326,9 @@ internal static class PpjSemanticValidator
         if (value.TryGetProperty("gradient", out var gradient))
         {
             if (hasColor)
-                diagnostics.Add(new("ppj.text.paintConflict", "Text style cannot declare both color and gradient.", path));
+                diagnostics.Add(new("ppj.text.paintConflict", "Text style cannot declare both color and gradient.", path.ToString()));
             if (gradient.TryGetProperty("kind", out var kind) && kind.GetString() == "radial" && gradient.TryGetProperty("angle", out _))
-                diagnostics.Add(new("ppj.text.radialAngle", "Radial text gradients cannot declare a linear angle.", path + ".gradient.angle"));
+                diagnostics.Add(new("ppj.text.radialAngle", "Radial text gradients cannot declare a linear angle.", PathWithProperties(path, "gradient", "angle")));
             if (gradient.TryGetProperty("stops", out var stops))
             {
                 var previous = double.NegativeInfinity;
@@ -332,7 +337,7 @@ internal static class PpjSemanticValidator
                 {
                     var offset = stop.GetProperty("offset").GetDouble();
                     if (offset < previous)
-                        diagnostics.Add(new("ppj.text.gradientOrder", "Text gradient stop offsets must be ordered.", $"{path}.gradient.stops[{stopIndex}].offset"));
+                        diagnostics.Add(new("ppj.text.gradientOrder", "Text gradient stop offsets must be ordered.", PathWithGradientStopOffset(path, stopIndex)));
                     previous = offset;
                     stopIndex++;
                 }
@@ -340,23 +345,31 @@ internal static class PpjSemanticValidator
         }
 
         foreach (var property in value.EnumerateObject())
-            ValidateTextEffects(property.Value, PpjJsonPath.Property(path, property.Name), diagnostics);
+        {
+            var length = AppendProperty(path, property.Name);
+            ValidateTextEffects(property.Value, path, diagnostics);
+            path.Length = length;
+        }
     }
 
-    private static void ValidateFormulaRuns(JsonElement value, string path, List<PpjDiagnostic> diagnostics)
+    private static void ValidateFormulaRuns(JsonElement value, StringBuilder path, List<PpjDiagnostic> diagnostics)
     {
         if (value.ValueKind == JsonValueKind.Array)
         {
             var index = 0;
             foreach (var item in value.EnumerateArray())
-                ValidateFormulaRuns(item, $"{path}[{index++}]", diagnostics);
+            {
+                var length = AppendIndex(path, index++);
+                ValidateFormulaRuns(item, path, diagnostics);
+                path.Length = length;
+            }
             return;
         }
         if (value.ValueKind != JsonValueKind.Object) return;
 
         if (value.TryGetProperty("formula", out var formula))
         {
-            var sourcePath = PpjJsonPath.Property(PpjJsonPath.Property(path, "formula"), "source");
+            var sourcePath = PathWithProperties(path, "formula", "source");
             try
             {
                 _ = PpjLatexCompiler.Compile(formula.GetProperty("source").GetString()!, sourcePath);
@@ -367,7 +380,7 @@ internal static class PpjSemanticValidator
             }
 
             if (value.TryGetProperty("hyperlink", out _))
-                diagnostics.Add(new("ppj.formula.hyperlink", "Formula runs cannot carry hyperlinks.", PpjJsonPath.Property(path, "hyperlink")));
+                diagnostics.Add(new("ppj.formula.hyperlink", "Formula runs cannot carry hyperlinks.", PathWithProperty(path, "hyperlink")));
             if (value.TryGetProperty("style", out var style))
             {
                 foreach (var property in style.EnumerateObject())
@@ -376,13 +389,17 @@ internal static class PpjSemanticValidator
                     diagnostics.Add(new(
                         "ppj.formula.style",
                         $"Formula runs support only direct size and color; {property.Name} is not supported.",
-                        PpjJsonPath.Property(PpjJsonPath.Property(path, "style"), property.Name)));
+                        PathWithProperties(path, "style", property.Name)));
                 }
             }
         }
 
         foreach (var property in value.EnumerateObject())
-            ValidateFormulaRuns(property.Value, PpjJsonPath.Property(path, property.Name), diagnostics);
+        {
+            var length = AppendProperty(path, property.Name);
+            ValidateFormulaRuns(property.Value, path, diagnostics);
+            path.Length = length;
+        }
     }
 
     private static void ValidateComponentDefinitions(
@@ -2923,7 +2940,7 @@ internal static class PpjSemanticValidator
 
     private static void ValidateResourceReferences(
         JsonElement value,
-        string path,
+        StringBuilder path,
         IReadOnlySet<string> assetIds,
         IReadOnlySet<string> colorIds,
         IReadOnlySet<string> fontIds,
@@ -2932,26 +2949,76 @@ internal static class PpjSemanticValidator
         if (value.ValueKind == JsonValueKind.Object)
         {
             if (value.TryGetProperty("token", out var token) && token.ValueKind == JsonValueKind.String && !colorIds.Contains(token.GetString()!))
-                diagnostics.Add(new("ppj.colorRef", $"Color token {token.GetString()} does not exist.", $"{path}.token"));
+                diagnostics.Add(new("ppj.colorRef", $"Color token {token.GetString()} does not exist.", PathWithProperty(path, "token")));
             if (value.TryGetProperty("font", out var font) && font.ValueKind == JsonValueKind.String && !fontIds.Contains(font.GetString()!))
-                diagnostics.Add(new("ppj.fontRef", $"Font {font.GetString()} does not exist.", $"{path}.font"));
+                diagnostics.Add(new("ppj.fontRef", $"Font {font.GetString()} does not exist.", PathWithProperty(path, "font")));
             foreach (var property in value.EnumerateObject())
             {
-                var propertyPath = PpjJsonPath.Property(path, property.Name);
+                var length = AppendProperty(path, property.Name);
                 if (property.Name is "asset" or "posterAsset" or "payloadAsset" or "previewAsset" &&
                     property.Value.ValueKind == JsonValueKind.String && !assetIds.Contains(property.Value.GetString()!))
                 {
-                    diagnostics.Add(new("ppj.assetRef", $"Asset {property.Value.GetString()} does not exist.", propertyPath));
+                    diagnostics.Add(new("ppj.assetRef", $"Asset {property.Value.GetString()} does not exist.", path.ToString()));
                 }
-                ValidateResourceReferences(property.Value, propertyPath, assetIds, colorIds, fontIds, diagnostics);
+                ValidateResourceReferences(property.Value, path, assetIds, colorIds, fontIds, diagnostics);
+                path.Length = length;
             }
         }
         else if (value.ValueKind == JsonValueKind.Array)
         {
             var index = 0;
             foreach (var item in value.EnumerateArray())
-                ValidateResourceReferences(item, $"{path}[{index++}]", assetIds, colorIds, fontIds, diagnostics);
+            {
+                var length = AppendIndex(path, index++);
+                ValidateResourceReferences(item, path, assetIds, colorIds, fontIds, diagnostics);
+                path.Length = length;
+            }
         }
+    }
+
+    private static int AppendProperty(StringBuilder path, string property)
+    {
+        var length = path.Length;
+        if (property.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-'))
+            path.Append('.').Append(property);
+        else
+            path.Append("['").Append(property.Replace("'", "\\'", StringComparison.Ordinal)).Append("']");
+        return length;
+    }
+
+    private static int AppendIndex(StringBuilder path, int index)
+    {
+        var length = path.Length;
+        path.Append('[').Append(index).Append(']');
+        return length;
+    }
+
+    private static string PathWithProperty(StringBuilder path, string property)
+    {
+        var length = AppendProperty(path, property);
+        var result = path.ToString();
+        path.Length = length;
+        return result;
+    }
+
+    private static string PathWithProperties(StringBuilder path, string first, string second)
+    {
+        var length = AppendProperty(path, first);
+        AppendProperty(path, second);
+        var result = path.ToString();
+        path.Length = length;
+        return result;
+    }
+
+    private static string PathWithGradientStopOffset(StringBuilder path, int stopIndex)
+    {
+        var length = AppendProperty(path, "gradient");
+        AppendProperty(path, "stops");
+        AppendIndex(path, stopIndex);
+        AppendProperty(path, "offset");
+        var result = path.ToString();
+        path.Length = length;
+        return result;
     }
 
     private static void ValidateStyleRef(string? id, IReadOnlySet<string> ids, string path, List<PpjDiagnostic> diagnostics)
