@@ -1183,7 +1183,7 @@ custom-geometry formulas, effects, or vendor extensions are editable.
 
 ## Reference Skills
 
-The source and npm layouts contain nine native plugin bundles and 38 Skills.
+The source and npm layouts contain nine native plugin bundles and 39 Skills.
 Seven plugins provide ten workflow Skills installed into projects; the two
 catalog plugins retain 13 source-backed DOCX/XLSX templates and thirty-nine
 presentation style Skills in the installed runtime for in-place discovery.

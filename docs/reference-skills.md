@@ -23,7 +23,7 @@ skills/
   default-template-library/{.codex-plugin,LICENSE.md,manifest.json,README.md,integrity.json,assets,scripts,skills/...}
 ```
 
-There are nine plugin packages and 38 workflow/catalog Skills in the source tree
+There are nine plugin packages and 39 workflow/catalog Skills in the source tree
 and npm package.
 `officekit init` installs ten workflow Skills from seven plugins into the
 selected project roots. The two library plugins retain 13 source-backed
