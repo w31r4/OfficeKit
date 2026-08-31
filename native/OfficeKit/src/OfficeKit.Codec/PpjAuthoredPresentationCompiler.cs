@@ -4384,6 +4384,23 @@ internal static class PpjAuthoredPresentationCompiler
         }
         if (raw.TryGetProperty("stroke", out var stroke))
             series.Line = BuildChartLine(stroke, catalog);
+        if (raw.TryGetProperty("pointStyles", out var pointStyles))
+        {
+            foreach (var point in pointStyles.EnumerateArray())
+            {
+                var output = new SpreadsheetChartPointStyleArtifact
+                {
+                    Index = checked((uint)point.GetProperty("index").GetInt32()),
+                };
+                if (point.TryGetProperty("fill", out var pointFill))
+                    output.Fill = BuildChartFill(pointFill, catalog, $"{source.Id} point {output.Index} fill");
+                if (point.TryGetProperty("stroke", out var pointStroke))
+                    output.Line = BuildChartLine(pointStroke, catalog);
+                if (point.TryGetProperty("explosion", out var explosion))
+                    output.Explosion = checked((uint)explosion.GetInt32());
+                series.PointStyles.Add(output);
+            }
+        }
         if (raw.TryGetProperty("marker", out var marker))
             series.Marker = BuildChartMarker(marker, catalog);
         if (raw.TryGetProperty("trendlines", out var trendlines))

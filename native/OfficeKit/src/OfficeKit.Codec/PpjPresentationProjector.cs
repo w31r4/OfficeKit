@@ -713,6 +713,20 @@ internal static partial class PpjPresentationProjector
             output["fill"] = new JsonObject { ["type"] = "solid", ["color"] = Color(series.Fill.Rgb) };
         if (series.Line is not null && !string.IsNullOrEmpty(series.Line.Color?.Rgb))
             output["stroke"] = ProjectChartLine(series.Line);
+        if (series.PointStyles.Count > 0)
+        {
+            var points = new JsonArray();
+            foreach (var point in series.PointStyles.OrderBy(point => point.Index))
+            {
+                var item = new JsonObject { ["index"] = point.Index };
+                if (point.Fill is not null) item["fill"] = ProjectChartSurfaceFill(point.Fill);
+                if (point.Line is not null && !string.IsNullOrEmpty(point.Line.Color?.Rgb))
+                    item["stroke"] = ProjectChartLine(point.Line);
+                if (point.HasExplosion) item["explosion"] = point.Explosion;
+                points.Add(item);
+            }
+            output["pointStyles"] = points;
+        }
         if (series.Marker is not null && series.Marker.Symbol != SpreadsheetChartMarkerSymbol.Unspecified)
         {
             var symbol = Marker(series.Marker.Symbol);

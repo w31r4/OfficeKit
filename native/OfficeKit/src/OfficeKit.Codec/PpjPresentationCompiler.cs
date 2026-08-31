@@ -2386,11 +2386,12 @@ internal static class PpjSourceBoundPresentationCompiler
                 !pair.First.Name.Equals(pair.Second.Name, StringComparison.Ordinal) ||
                 !pair.First.Values.SequenceEqual(pair.Second.Values));
         var fillChanged = before.Data.Series.Zip(after.Data.Series)
-            .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "fill"));
+            .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "fill") ||
+                PropertyChanged(pair.First.Raw, pair.Second.Raw, "pointStyles"));
         var labelsChanged = before.Data.Series.Zip(after.Data.Series)
             .Any(pair => PropertyChanged(pair.First.Raw, pair.Second.Raw, "dataLabels"));
         if (valueChanged) RequireCapability(after, "setChartData", path);
-        if (fillChanged) RequireCapability(after, "setChartFill", path + ".series[].fill");
+        if (fillChanged) RequireCapability(after, "setChartFill", path + ".series[].fill-or-pointStyles");
         if (labelsChanged) RequireCapability(after, "setChartLabels", path + ".series[].dataLabels");
         var categories = after.Data.Categories.Select((item, index) => item.ValueKind == JsonValueKind.String
             ? item.GetString()!
@@ -2416,7 +2417,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
     private static void ApplyChartSeries(PpjChartSeriesModel before, PpjChartSeriesModel after, SpreadsheetChartSeriesArtifact target, string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "fill", "dataLabels");
+        RequireEqualExcept(before.Raw, after.Raw, path, "name", "values", "fill", "pointStyles", "dataLabels");
         if (before.Id != after.Id || before.ChartType != after.ChartType || before.Axis != after.Axis || before.Values.Count != after.Values.Count)
             throw Unsupported(path, "chart-series identity or topology change");
         if (!before.Values.Select(value => value is null).SequenceEqual(after.Values.Select(value => value is null)))
@@ -2441,12 +2442,40 @@ internal static class PpjSourceBoundPresentationCompiler
                 ? SourceBoundChartFill(fill, path + ".fill")
                 : null;
         }
+        if (PropertyChanged(before.Raw, after.Raw, "pointStyles"))
+        {
+            target.PointStyles.Clear();
+            if (after.Raw.TryGetProperty("pointStyles", out var points))
+            {
+                var index = 0;
+                foreach (var point in points.EnumerateArray())
+                {
+                    target.PointStyles.Add(SourceBoundChartPointStyle(point, $"{path}.pointStyles[{index}]"));
+                    index++;
+                }
+            }
+        }
         if (PropertyChanged(before.Raw, after.Raw, "dataLabels"))
         {
             target.DataLabels = after.Raw.TryGetProperty("dataLabels", out var labels)
                 ? SourceBoundSeriesDataLabels(labels, path + ".dataLabels")
                 : null;
         }
+    }
+
+    private static SpreadsheetChartPointStyleArtifact SourceBoundChartPointStyle(JsonElement source, string path)
+    {
+        var output = new SpreadsheetChartPointStyleArtifact
+        {
+            Index = checked((uint)source.GetProperty("index").GetInt32()),
+        };
+        if (source.TryGetProperty("fill", out var fill))
+            output.Fill = SourceBoundChartFill(fill, path + ".fill");
+        if (source.TryGetProperty("stroke", out var stroke))
+            output.Line = SourceBoundChartLine(stroke, path + ".stroke");
+        if (source.TryGetProperty("explosion", out var explosion))
+            output.Explosion = checked((uint)explosion.GetInt32());
+        return output;
     }
 
     private static SpreadsheetChartSeriesDataLabelsArtifact SourceBoundSeriesDataLabels(JsonElement source, string path)

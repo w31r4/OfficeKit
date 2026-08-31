@@ -6,7 +6,7 @@ Native bar, column, pie and doughnut series may declare:
 
 ```json
 "pointStyles": [
-  { "index": 2, "fill": "#D9A21B" },
+  { "index": 2, "fill": { "type": "solid", "color": "#D9A21B" } },
   {
     "index": 5,
     "fill": { "type": "solid", "color": "#16324F", "opacity": 0.82 },
