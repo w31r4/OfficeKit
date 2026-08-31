@@ -41,12 +41,17 @@ The final clean-install smoke built and recovered PPJ using only those packaged
 surfaces. Windows PowerPoint playback remains unverified and is not a 2.0
 completion condition.
 
+The immutable Git code release is `v2.0.0`, pointing to the final PPJ main
+integration commit `57ec631f`. The npm-compatible tarball above is verified
+offline release evidence; public npm registry publication is a separate manual
+operation and is not claimed by this document.
+
 The npm and self-contained GitHub distributions are independent release
 channels. The verified standalone catalog remains pinned to 1.0.0 until fresh
 macOS, Linux, and Windows archives are built and their exact identities are
 committed; it is released manually and does not borrow or fabricate 2.0.0
-hashes. This does not affect the npm 2.0.0 package or its three NativeAOT
-optional packages.
+hashes. This does not affect the verified 2.0.0 npm-style package candidate or
+its three NativeAOT optional-package candidates.
 
 ## Unreleased: PPJ durable resume
 
