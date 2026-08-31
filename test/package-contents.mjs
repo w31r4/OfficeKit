@@ -228,6 +228,7 @@ for (const required of [
   "src/pdf/mupdf.mjs",
   "src/pdf/mupdf-outlines.mjs",
   "src/review/index.mjs",
+  "src/ppj/native-build-dispatch.mjs",
   "src/ppj/review.mjs",
   "skills/office-kit/skills/office-kit/references/review.md",
   "src/pdf/providers/catalog.mjs",

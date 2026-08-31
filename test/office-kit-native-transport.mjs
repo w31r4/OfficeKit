@@ -9,6 +9,42 @@ import {
   officeKitNativeTarget,
   startOfficeKitNativeClient,
 } from "../src/codecs/office-kit-native-client.mjs";
+import { execNativePpjBuild } from "../src/ppj/native-build-dispatch.mjs";
+
+let execveCall;
+await assert.rejects(
+  execNativePpjBuild(["ppj", "build", "deck.ppj", "-o", "deck.pptx", "--json"], {
+    cwd: "/workspace",
+    platform: "darwin",
+    env: { OFFICEKIT_TEST: "1" },
+    loadDescriptor: async (options) => {
+      assert.deepEqual(options, { profile: "ppj", requiredCapability: "directBuild" });
+      return {
+        executablePath: "/codec",
+        manifest: { profiles: { ppj: { directBuild: true } } },
+      };
+    },
+    execve: (...args) => {
+      execveCall = args;
+      throw new Error("execve sentinel");
+    },
+  }),
+  /execve sentinel/u,
+);
+assert.deepEqual(execveCall[1], [
+  "/codec", "--build", "deck.ppj", "-o", "deck.pptx", "--json", "--cwd", "/workspace",
+]);
+assert.equal(execveCall[2].DOTNET_GCConserveMemory, "9");
+assert.equal(await execNativePpjBuild(["ppj", "build", "deck.ppj", "-o", "deck.pptx"], {
+  platform: "darwin",
+  execve() { throw new Error("must not exec"); },
+  loadDescriptor: async () => null,
+}), false);
+assert.equal(await execNativePpjBuild(["ppj", "build", "deck.ppj", "-o", "deck.pptx", "--task", "task-1"], {
+  platform: "darwin",
+  execve() { throw new Error("must not exec"); },
+  loadDescriptor() { throw new Error("must not load"); },
+}), false);
 
 const target = officeKitNativeTarget();
 assert.equal(target, `${process.platform}-${process.arch}`);

@@ -60,6 +60,7 @@ export async function loadOfficeKitNativeDescriptor({
   arch = process.arch,
   packageJsonPath: suppliedPackageJsonPath,
   profile = "office",
+  requiredCapability,
 } = {}) {
   const target = officeKitNativeTarget(platform, arch);
   const expected = PLATFORM_PACKAGES[target];
@@ -91,6 +92,7 @@ export async function loadOfficeKitNativeDescriptor({
   if (profileManifest?.assemblyName !== expectedProfile.assemblyName || profileManifest?.executable !== relativeExecutable) {
     throw nativeError("runtime_identity_mismatch", `Native codec manifest does not contain the expected ${profile} profile for ${target}.`);
   }
+  if (requiredCapability && profileManifest?.[requiredCapability] !== true) return null;
   const executablePath = path.join(packageRoot, relativeExecutable);
   const executableRecord = manifest.files?.find((item) => item.path === relativeExecutable);
   if (!executableRecord || !Number.isSafeInteger(executableRecord.bytes) || executableRecord.bytes <= 0 ||

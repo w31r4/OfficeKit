@@ -1,9 +1,12 @@
 #!/usr/bin/env -S node --max-semi-space-size=1
 
-import { runOfficeKitCli } from "../src/cli/officekit.mjs";
-
 try {
-  await runOfficeKitCli(process.argv.slice(2));
+  const argv = process.argv.slice(2);
+  const { execNativePpjBuild } = await import("../src/ppj/native-build-dispatch.mjs");
+  if (!await execNativePpjBuild(argv)) {
+    const { runOfficeKitCli } = await import("../src/cli/officekit.mjs");
+    await runOfficeKitCli(argv);
+  }
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   if (process.argv.includes("--json")) {

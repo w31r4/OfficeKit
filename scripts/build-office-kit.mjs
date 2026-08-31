@@ -14,6 +14,7 @@ const profiles = Object.freeze({
   ppj: Object.freeze({
     assemblyName: "officekit-ppj-codec",
     project: path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.PpjNativeHost", "OfficeKit.PpjNativeHost.csproj"),
+    directBuild: true,
   }),
 });
 const packageMetadata = readJson(path.join(repoRoot, "package.json"));
@@ -78,6 +79,7 @@ try {
     profiles: Object.fromEntries(Object.entries(profiles).map(([name, profile]) => [name, {
       assemblyName: profile.assemblyName,
       executable: `bin/${target === "win32-x64" ? `${profile.assemblyName}.exe` : profile.assemblyName}`,
+      ...(profile.directBuild && target !== "win32-x64" ? { directBuild: true } : {}),
     }])),
     sdkVersion: runText("dotnet", ["--version"]),
     sourceProjects: Object.fromEntries(Object.entries(profiles).map(([name, profile]) => [

@@ -27,6 +27,18 @@ internal static class PpjPresentationCompiler
             throw new CodecException(first.Code, first.Message, first.Path);
         }
 
+        return CompileValidated(request, sourceBytes, limits, validation);
+    }
+
+    internal static PpjCompileResult CompileValidated(
+        PresentationProgramRequest request,
+        byte[] sourceBytes,
+        EffectiveCodecLimits limits,
+        PpjValidationResult validation)
+    {
+        if (!validation.IsValid)
+            throw new InvalidOperationException("PPJ compilation requires a successful validation result.");
+
         if (validation.Program!.Source is null)
         {
             if (sourceBytes.Length != 0)
