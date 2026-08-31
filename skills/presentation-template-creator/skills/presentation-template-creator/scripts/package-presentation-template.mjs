@@ -22,6 +22,8 @@ const MAX_TOTAL_IMAGE_BYTES = 60 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_REFERENCE_PROGRAM_BYTES = 16 * 1024 * 1024;
 const MAX_REFERENCE_PPTX_BYTES = 256 * 1024 * 1024;
+const MAX_REFERENCE_ASSET_BYTES = 64 * 1024 * 1024;
+const MAX_TOTAL_REFERENCE_ASSET_BYTES = 256 * 1024 * 1024;
 const LOCK_NAME = ".presentation-template-write-lock";
 
 let args = null;
@@ -48,6 +50,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     maxBytes: MAX_REFERENCE_PROGRAM_BYTES,
     extension: ".ppj",
   });
+  let referenceProgramAssets = [];
   if (referenceProgram != null) {
     let parsed;
     try {
@@ -58,6 +61,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     if (parsed?.schema !== "office-kit/ppj/v1") {
       throw new Error("referenceProgram must use schema office-kit/ppj/v1");
     }
+    referenceProgramAssets = await readReferenceProgramAssets(parsed, spec.referenceProgram.path);
   }
   const referencePptx = await readReference(spec.referencePptx, {
     label: "referencePptx",
@@ -151,6 +155,11 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
         writeImmutable(path.join(stagedPath, "assets", "references", "reference.pptx"), referencePptx.bytes),
       ]),
     ]);
+    for (const asset of referenceProgramAssets) {
+      const assetPath = path.join(stagedPath, "assets", "references", asset.relativePath);
+      await fs.mkdir(path.dirname(assetPath), { recursive: true, mode: 0o755 });
+      await writeImmutable(assetPath, asset.bytes);
+    }
 
     const sidecar = {
       schemaVersion: 3,
@@ -180,7 +189,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     };
     const sidecarBytes = Buffer.from(`${JSON.stringify(sidecar, null, 2)}\n`);
     await writeImmutable(path.join(stagedPath, "artifact-template.json"), sidecarBytes);
-    await validateStagedSurface(stagedPath, sidecar);
+    await validateStagedSurface(stagedPath, sidecar, referenceProgramAssets);
     await publishAtomically({ targetPath, stagedPath, current });
     stagedExists = false;
     return {
@@ -251,7 +260,7 @@ function validateSpec(spec) {
   assertLine(spec.provenance.source, "provenance.source", 500);
 }
 
-async function validateStagedSurface(root, sidecar) {
+async function validateStagedSurface(root, sidecar, referenceProgramAssets = []) {
   const rootNames = (await fs.readdir(root)).sort();
   if (JSON.stringify(rootNames) !== JSON.stringify(["SKILL.md", "agents", "artifact-template.json", "assets"].sort())) {
     throw new Error("generated template root does not match the fixed surface");
@@ -266,15 +275,63 @@ async function validateStagedSurface(root, sidecar) {
     throw new Error("generated example surface is invalid");
   }
   if (expectedAssets.includes("references")) {
-    const referenceNames = (await fs.readdir(path.join(root, "assets", "references"))).sort();
+    const referenceNames = (await listRelativeFiles(path.join(root, "assets", "references"))).sort();
     const expectedReferences = [
       ...(sidecar.referenceProgram == null ? [] : ["reference.ppj"]),
       ...(sidecar.referencePptx == null ? [] : ["reference.pptx"]),
+      ...referenceProgramAssets.map((asset) => asset.relativePath),
     ].sort();
     if (JSON.stringify(referenceNames) !== JSON.stringify(expectedReferences)) {
       throw new Error("generated reference surface is invalid");
     }
   }
+}
+
+async function readReferenceProgramAssets(program, programPath) {
+  if (program.assets == null) return [];
+  if (!Array.isArray(program.assets)) throw new Error("referenceProgram assets must be an array");
+  const programRoot = path.dirname(path.resolve(programPath));
+  const seen = new Set();
+  const assets = [];
+  let totalBytes = 0;
+  for (const [index, asset] of program.assets.entries()) {
+    const uri = asset?.uri;
+    if (typeof uri !== "string" || uri.length === 0 || uri.includes("\\") || path.posix.isAbsolute(uri)) {
+      throw new Error(`referenceProgram assets[${index}].uri must be a safe relative path`);
+    }
+    const segments = uri.split("/");
+    if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
+      throw new Error(`referenceProgram assets[${index}].uri must not contain empty or traversal segments`);
+    }
+    if (seen.has(uri)) throw new Error(`referenceProgram asset URI is duplicated: ${uri}`);
+    seen.add(uri);
+    if (!HASH.test(asset?.sha256 ?? "")) {
+      throw new Error(`referenceProgram assets[${index}].sha256 must be a lowercase SHA-256 value`);
+    }
+    const bytes = await readRegularFile(path.join(programRoot, ...segments), MAX_REFERENCE_ASSET_BYTES, `referenceProgram assets[${index}]`);
+    if (sha256(bytes) !== asset.sha256) throw new Error(`referenceProgram asset hash does not match: ${uri}`);
+    totalBytes += bytes.byteLength;
+    if (totalBytes > MAX_TOTAL_REFERENCE_ASSET_BYTES) {
+      throw new Error(`referenceProgram assets exceed the ${MAX_TOTAL_REFERENCE_ASSET_BYTES}-byte total budget`);
+    }
+    assets.push({ relativePath: uri, bytes });
+  }
+  return assets;
+}
+
+async function listRelativeFiles(root, prefix = "") {
+  const names = (await fs.readdir(root)).sort();
+  const files = [];
+  for (const name of names) {
+    const absolutePath = path.join(root, name);
+    const relativePath = prefix === "" ? name : `${prefix}/${name}`;
+    const stat = await fs.lstat(absolutePath);
+    if (stat.isSymbolicLink()) throw new Error("generated reference surface must not contain symlinks");
+    if (stat.isDirectory()) files.push(...await listRelativeFiles(absolutePath, relativePath));
+    else if (stat.isFile()) files.push(relativePath);
+    else throw new Error("generated reference surface contains an unsupported entry");
+  }
+  return files;
 }
 
 function validateReferenceSpec(value, label, extension) {

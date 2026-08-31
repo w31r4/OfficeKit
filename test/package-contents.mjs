@@ -589,6 +589,13 @@ for (const sidecarPath of packagedPresentationSidecars) {
   for (const reference of [sidecar.referenceProgram, sidecar.referencePptx]) {
     if (reference?.path) permittedPresentationReferences.add(path.posix.join(path.posix.dirname(sidecarPath), reference.path));
   }
+  if (sidecar.referenceProgram?.path) {
+    const programPath = path.join(repoRoot, path.posix.dirname(sidecarPath), sidecar.referenceProgram.path);
+    const program = JSON.parse(await fs.readFile(programPath, "utf8"));
+    for (const asset of program.assets ?? []) {
+      permittedPresentationReferences.add(path.posix.join(path.posix.dirname(sidecarPath), path.posix.dirname(sidecar.referenceProgram.path), asset.uri));
+    }
+  }
 }
 assert.ok(
   files.every((file) => !/^skills\/presentation-template-library\/.*\.(?:pptx|ppj|mjs|js|svg)$/u.test(file)
