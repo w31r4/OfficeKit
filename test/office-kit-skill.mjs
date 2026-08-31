@@ -140,64 +140,29 @@ for (const candidate of presentationCatalog.candidates) {
 const ranked = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
-  tags: ["executive", "quarterly"],
+  tags: ["investment", "committee"],
   maxCandidates: 3,
 });
-assert.equal(ranked.candidates[0].id, "artifact-template-business-review");
-assert.deepEqual(ranked.candidates[0].matchedTags, ["executive", "quarterly"]);
+assert.equal(ranked.candidates[0].id, "artifact-template-amber-committee-memo");
+assert.deepEqual(ranked.candidates[0].matchedTags, ["investment", "committee"]);
 assert.ok(ranked.candidates.length >= 1);
 assert.equal(ranked.ranking.algorithm, "bm25f");
 if (ranked.candidates.length > 1) {
   assert.ok(ranked.candidates[0].match.bm25 > ranked.candidates[1].match.bm25);
 }
 
-const gridById = await queryTemplates({
-  kind: "presentation",
-  roots: [presentationTemplateRoot],
-  id: "artifact-template-grid-layout-library",
-});
-assert.equal(gridById.candidates[0].templateSchemaVersion, 3);
-assert.equal(gridById.candidates[0].examples.length, 4);
-
-const gridByIntent = await queryTemplates({
-  kind: "presentation",
-  roots: [presentationTemplateRoot],
-  intent: {
-    purposes: ["explicit editorial grid presentation"],
-    visualTraits: { colorMode: "light", structure: ["grid aligned"] },
-  },
-});
-assert.equal(gridByIntent.candidates[0].id, "artifact-template-grid-layout-library");
-
-for (const conflictingPurpose of [
-  "dark immersive stage",
-  "organic playful brand language",
-  "image led cinematic storytelling",
-]) {
-  const conflict = await queryTemplates({
-    kind: "presentation",
-    roots: [presentationTemplateRoot],
-    intent: { purposes: [conflictingPurpose] },
-  });
-  assert.ok(
-    conflict.rejected.find((entry) =>
-      entry.id === "artifact-template-grid-layout-library" && entry.reasons.includes("avoid-when-conflict")),
-    `Grid must reject ${conflictingPurpose}`,
-  );
-}
-
 const structuredRanked = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
   intent: {
-    purposes: ["quarterly business review"],
-    audiences: ["executives"],
-    contentShapes: ["decision brief"],
+    purposes: ["investment committee"],
+    audiences: ["investors"],
+    contentShapes: ["risk"],
     visualTraits: {
-      tone: ["executive"],
-      density: "medium",
+      tone: ["finance"],
+      density: "dense",
       colorMode: "light",
-      structure: ["claim led"],
+      structure: ["diagonal"],
     },
     brandSensitive: false,
   },
@@ -205,7 +170,7 @@ const structuredRanked = await queryTemplates({
 });
 assert.equal(
   structuredRanked.candidates[0].id,
-  "artifact-template-business-review",
+  "artifact-template-amber-committee-memo",
 );
 assert.equal(structuredRanked.candidates[0].match.score, 100);
 assert.equal(structuredRanked.candidates[0].match.queryCoverage, 100);
@@ -234,9 +199,9 @@ assert.ok(
 const brandSensitive = await queryTemplates({
   kind: "presentation",
   roots: [presentationTemplateRoot],
-  id: "artifact-template-business-review",
+  id: "artifact-template-amber-committee-memo",
   intent: {
-    purposes: ["quarterly business review"],
+    purposes: ["investment committee"],
     brandSensitive: true,
   },
 });
@@ -291,11 +256,11 @@ const structuredCli = spawnSync(
     "--root",
     presentationTemplateRoot,
     "--purpose",
-    "quarterly business review",
+    "investment committee",
     "--audience",
-    "executive",
+    "investors",
     "--content-shape",
-    "KPIs",
+    "risk decision",
     "--brand-sensitive",
     "--json",
   ],
@@ -306,7 +271,7 @@ const structuredCliResult = JSON.parse(structuredCli.stdout);
 assert.equal(structuredCliResult.ranking.algorithm, "bm25f");
 assert.equal(
   structuredCliResult.candidates[0].id,
-  "artifact-template-business-review",
+  "artifact-template-amber-committee-memo",
 );
 assert.equal(structuredCliResult.queryIntent.brandSensitive, true);
 assert.ok(

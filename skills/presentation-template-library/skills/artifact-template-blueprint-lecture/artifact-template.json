@@ -8,30 +8,32 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "c1c1350011646f440ea202451f663a25ea304bb106d520ac060e37a7a3af8ae1"
+      "sha256": "5eee99948b48dd60151c90908697d6e68422659a31f778fed82a3e0587af6b51"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "da6042759f9aa735e5af579cb85ed3443a0ac67888860982ece1cb7f17fe04ee"
+      "sha256": "43e92b1c4c4aefa8c77c6af41a42d0886012f08ae38dde55b1855d43e683c3ef"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "e68d264240fc011da68c3f95e9b88ccb889c8543fb3a193d014bf62da692b9a9"
+      "sha256": "87a05ced9b5705923044f30b5f7662c186e8d482ed882a4cdbbfb3190a06645e"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "a07af4e1bc506957a23685e3a0630cc14daf0d5f89c116e726678344f1535fc8"
+      "sha256": "5e1aeba849c389521512b5854887c3a31ed33222169ee074624fc8fb2407b7e7"
     }
   ],
   "useWhen": [
     "technical courseware",
-    "academic presentation"
+    "academic presentation",
+    "research defense"
   ],
   "avoidWhen": [
-    "luxury launch"
+    "luxury launch",
+    "festival campaign"
   ],
   "audiences": [
     "researchers",
@@ -39,29 +41,36 @@
     "technical reviewers"
   ],
   "contentShapes": [
-    "claim",
+    "research question",
     "method",
-    "evidence"
+    "evidence",
+    "limitation"
   ],
   "visualTraits": {
     "tone": [
       "academic",
-      "Blue rules make each step of the lesson traceable.",
-      "axis"
+      "precise",
+      "blue-line"
     ],
     "density": "medium",
     "colorMode": "light",
     "structure": [
-      "axis",
-      "variable page silhouettes",
-      "native data graphics"
+      "argument spine",
+      "evidence unit",
+      "top rule"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "e07ea84732ad39b19a7c46eb4b90dcad632a8bdcf3d19aaaed6941b55b8f13c0",
-    "previewSha256": "83e24e4f5c1d5b38f79177c5b81c3cdd469b72921617b627762f60413257fb5c"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "f002a92a47fcc1847965604b04405c553a4c08c9cfca14a38a22540b848e8dd0",
+    "previewSha256": "f6ae165819b85176a50cd3c2fdcd5b352cabedba57d7374fc725424876ac7b9e"
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "f1cc934926e34872193bba6820831855b6228a1b45a02f31ba334f2fa9c4511d",
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
   }
 }

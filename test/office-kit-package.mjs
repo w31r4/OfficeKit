@@ -568,7 +568,7 @@ try {
       !fs.existsSync(packagedPresentationTemplateRoot) ||
       fs.readdirSync(packagedPresentationTemplateRoot).filter((name) =>
         name.startsWith("artifact-template-")
-      ).length !== 39
+      ).length !== 31
     ) process.exit(55);
     if (
       fs.existsSync(path.join(

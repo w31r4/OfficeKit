@@ -5,8 +5,11 @@ description: Create or update a reusable PowerPoint style template from a refere
 
 # Presentation Template Creator
 
-Create OfficeKit's single PowerPoint template form: a concise style Skill plus
-original visual examples, with an optional clean-room reference PPJ/PPTX.
+Create OfficeKit's single PowerPoint template form: a complete, self-contained
+style Skill plus original visual examples, with an optional clean-room
+reference PPJ/PPTX. The guide must preserve the design decisions an Agent needs
+without reopening the source; do not compress it into palette names and a few
+adjectives.
 Never publish the user's source deck, a copied layout, an executable authoring
 script, or a reference whose rights and provenance are unclear.
 
@@ -31,8 +34,15 @@ reference PPJ/PPTX.
    When full-page imagery, scrims, crossing diagrams, foreground labels, or
    other overlaps define the style, also inspect the bottom-to-top scene stack.
    A screenshot proves appearance, not independent editability.
-3. Write the style guide independently. Do not copy reference wording or claim
-   uncertain design intent as fact.
+   When imagery is part of the grammar, classify each image by job: identity,
+   evidence, context, section transition, or atmosphere. Use distinct original
+   calibration assets for distinct recurring roles; do not repeat one image
+   across the deck merely to satisfy an image count.
+3. Write the style guide independently. Cover communication territory, visual
+   grammar, page archetypes, typography and palette roles, image/chart/table/
+   diagram treatment, density and rhythm, layer order, signatures, variation
+   limits, prohibitions, review checks, and a calibration map. Do not copy
+   reference wording or claim uncertain design intent as fact.
 4. Create an unrelated four-to-six-page clean-room calibration deck as PPJ and
    compile it to PPTX. Use
    new content and geometry, cover at least three page roles, render every page,
@@ -42,6 +52,9 @@ reference PPJ/PPTX.
    a page background for a true native backdrop, or an image element in the
    ordered `pages[].elements[]` stack when it must be movable, cropped, or
    animated. Do not simulate layer order by rebuilding the whole slide.
+   Score the result against the declared visual and functional fidelity rubric.
+   Both scores must reach 95/100 before calling the style restored; otherwise
+   label it a candidate and record the missing evidence instead of rounding up.
 5. Check, build, render, review, and re-import the clean-room PPJ/PPTX. Keep the
    original source files, extracted media, and analysis evidence private. Add
    the clean-room `referenceProgram` and `referencePptx` to the packaging spec
@@ -57,9 +70,11 @@ reference PPJ/PPTX.
    For an explicit update, also pass the current sidecar SHA-256 as
    `--expected-sha256`.
 7. Read the JSON result, query the generated template by exact ID, view its
-   preview and examples, and create a short unrelated deck from the style. Stop
-   if the result depends on copied layouts, covers an evidence-bearing line,
-   marker, label, connector, or image region, or cannot guide free composition.
+   preview and examples, and create a short unrelated deck from the style. If a
+   reference PPJ/PPTX ships, also import it, perform one bounded local edit,
+   re-import, and render it. Stop if the result depends on copied layouts,
+   covers an evidence-bearing line, marker, label, connector, or image region,
+   or cannot guide free composition.
 
 ## Boundaries
 

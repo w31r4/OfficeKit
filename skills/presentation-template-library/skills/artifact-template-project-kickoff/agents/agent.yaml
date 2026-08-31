@@ -1,5 +1,0 @@
-interface:
-  display_name: "Project Kickoff"
-  short_description: "Use the Project Kickoff presentation style"
-  icon_large: "./assets/preview.png"
-  default_prompt: "Use $artifact-template-project-kickoff as the visual style for this presentation."

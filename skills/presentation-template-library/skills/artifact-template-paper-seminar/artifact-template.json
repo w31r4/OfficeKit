@@ -8,22 +8,22 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "2f7215be0062802822b560a986963d312fedfc3cee99dc8651e763e769ebebfa"
+      "sha256": "62c0afc1b60dd1b5fc3509cf4ef10e7d7310877b9675b1b5888f7b292af7418f"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "6349c270a6beb0276ee9fe78ea9e809b0b9c0b998353f07da852e4fb846caa6d"
+      "sha256": "6e113a7ba2592bd6c84c3a68ab895d7212de6b470a2bdb02bb20b83a5136cf2a"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "eef0b1c94b10b42413baa75e14fe9752406a8edba8fc98a2d75186fd439d1ff5"
+      "sha256": "27a5888d3f89f3ae3b51fd25eb514972fa8d537955468ab38c5c7f317e357ff1"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "7d0cf682a6de9e8c52498bc9fb80ec3c6e1b33f6b25e4181b0732ec6596fc9bd"
+      "sha256": "1dc1c2bce32cde175a80a8db1b4d236645cae8e4947ba45ec05cd298a497cd73"
     }
   ],
   "useWhen": [
@@ -60,8 +60,14 @@
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "d398e439fb7363b8500247f1eef419a4447076a4a0b26dc1cd3914ffe1ecba85",
-    "previewSha256": "ec6535bd587e82941c0efa9cf150eb951bb500d75c894b464ccc7841ed41173d"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "38ed429bc84233c63f5c1e5f06f54bb4a763a4eee52f833fd83f9deb47e1c94f",
+    "previewSha256": "17d53ae208bffc69ed4c27cab42fcfe12621a9db0389a02d7047fb112fe98d32"
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "872595a42e85728e0c2005c819cc6f957d38aad5eedeac1c27f7afc766d1b71a",
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
   }
 }

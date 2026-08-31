@@ -8,27 +8,28 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "a7a280890d177417f1f4ac83a9b96ea5769d75c2aad49576d31faf3d746efc8b"
+      "sha256": "e95ea43a2bad23a89dc3bf2de97cfc3aec29b7c69bfa027c7ed0f9cc5d814233"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "cc75f00f1a858d4127674554e3fc58b93bc1b2539b29d5ada5b0b1245be00865"
+      "sha256": "ba060d5dab2cfc848b7564a9c6690ec402a6226961ea5a1bdb29d4ea032ff2b4"
     },
     {
       "path": "assets/examples/03-data.png",
       "role": "data",
-      "sha256": "8f5ad6c7703729105357e67f8b55cbd9acbd66316504886886df6bfb9c76e95a"
+      "sha256": "42bd2ed6ce63e5887535fa9e23706554f20264b95716d3c2bec6dff2aa83e528"
     },
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "d4f85e1c67f6a0625c15292818129ded0559f9649d7867a2313f7621f1200fc8"
+      "sha256": "3fe248e2222a4e34c3c25309296400973745ec532266213b08bff48faaabe2b0"
     }
   ],
   "useWhen": [
     "capital markets report",
-    "finance presentation"
+    "finance presentation",
+    "investment committee memo"
   ],
   "avoidWhen": [
     "children training"
@@ -46,22 +47,28 @@
   "visualTraits": {
     "tone": [
       "finance",
-      "A black-and-white ledger reserves gilt for the current value or threshold.",
-      "rule"
+      "rule-led",
+      "evidence-heavy"
     ],
     "density": "dense",
     "colorMode": "mixed",
     "structure": [
-      "rule",
       "variable page silhouettes",
-      "native data graphics"
+      "native data graphics",
+      "direct labels"
     ]
   },
   "visualCommitment": "opinionated",
   "provenance": {
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied visual observations; source files excluded.",
-    "guideSha256": "3c7ad56907c48f2f22062edb8bda63ffeb457499558f12dd45e4e134d7baff1a",
-    "previewSha256": "3786852c32c72d20f5f5f92e5af13f1bcaa061ec7a9d9ddbb33d54a6e9d75335"
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "b15ea2744fdd8021cdc49a46141dcd7d1e9cf6027972018c19ebe68c07787687",
+    "previewSha256": "c1e58eaee68701a05d26637e8e05958757c430110c31e2bc8152e778f569241c"
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "973b162e13d764a123235f342561cce6c048849bbcb5f87808f32928fc8ecfd4",
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
   }
 }

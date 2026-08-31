@@ -206,7 +206,7 @@ try {
         "--kind",
         "presentation",
         "--purpose",
-        "quarterly business review",
+        "investment committee",
         "--max",
         "20",
         "--json",
@@ -215,7 +215,7 @@ try {
     ).stdout,
   );
   assert.equal(catalog.selectionMade, false);
-  assert.equal(catalog.candidates[0].id, "artifact-template-business-review");
+  assert.equal(catalog.candidates[0].id, "artifact-template-amber-committee-memo");
   assert.ok(catalog.searchedRoots.some((root) => root.source === "project"));
   assert.ok(catalog.searchedRoots.some((root) => root.source === "package-default"));
   const catalogTable = run(
@@ -225,12 +225,12 @@ try {
       "--kind",
       "presentation",
       "--purpose",
-      "quarterly business review",
+      "investment committee",
     ],
     { cwd: explicitProject },
   ).stdout;
   assert.match(catalogTable, /Rank\s+Template\s+Score\s+Coverage\s+Review/);
-  assert.match(catalogTable, /artifact-template-business-review/);
+  assert.match(catalogTable, /artifact-template-amber-committee-memo/);
   assert.match(catalogTable, /Selection remains with the Agent/);
 
   const noCatalogMatch = parseJson(
