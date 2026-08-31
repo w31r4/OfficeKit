@@ -74,7 +74,7 @@ internal static class PpjEmbeddedProgramCodec
                     requireSingle: true))
                 return null;
 
-            var validation = PpjProgramValidator.Validate(programBytes);
+            using var validation = PpjProgramValidator.Validate(programBytes);
             if (!validation.IsValid || validation.Program is null || validation.Program.Source is not null || validation.Expansion is null)
                 return null;
 

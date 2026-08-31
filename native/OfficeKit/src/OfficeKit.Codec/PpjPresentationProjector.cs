@@ -111,7 +111,7 @@ internal static partial class PpjPresentationProjector
         if (comments.Count > 0) root["comments"] = comments;
 
         var candidateBytes = CanonicalBytes(root);
-        var validation = PpjProgramValidator.Validate(candidateBytes);
+        using var validation = PpjProgramValidator.Validate(candidateBytes);
         if (!validation.IsValid)
         {
             var first = validation.Diagnostics[0];

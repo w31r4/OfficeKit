@@ -15,9 +15,11 @@ internal sealed record PpjValidationResult(
     IReadOnlyList<PpjDiagnostic> Diagnostics,
     byte[] CanonicalJson,
     string ProgramSha256,
-    PpjExpansionResult? Expansion)
+    PpjExpansionResult? Expansion) : IDisposable
 {
+    internal JsonDocument? Document { get; init; }
     internal bool IsValid => Program is not null && Diagnostics.Count == 0;
+    public void Dispose() => Document?.Dispose();
 }
 
 internal static class PpjProgramValidator
@@ -52,16 +54,15 @@ internal static class PpjProgramValidator
             return Invalid(diagnostics);
         }
 
-        JsonElement root;
+        JsonDocument document;
         try
         {
-            using var document = JsonDocument.Parse(json, new JsonDocumentOptions
+            document = JsonDocument.Parse(json, new JsonDocumentOptions
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,
                 MaxDepth = MaxJsonDepth,
             });
-            root = document.RootElement.Clone();
         }
         catch (JsonException exception)
         {
@@ -71,12 +72,13 @@ internal static class PpjProgramValidator
                 exception.Path ?? "$"));
             return Invalid(diagnostics);
         }
+        var root = document.RootElement;
 
         FindDuplicateProperties(root, "$", diagnostics);
         if (diagnostics.Count == 0)
             PpjJsonSchemaValidator.Validate(root, diagnostics);
         if (diagnostics.Count != 0)
-            return Invalid(diagnostics);
+            return Invalid(diagnostics, document);
 
         PpjProgramModel program;
         try
@@ -86,23 +88,26 @@ internal static class PpjProgramValidator
         catch (Exception exception) when (exception is KeyNotFoundException or InvalidOperationException or FormatException)
         {
             diagnostics.Add(new("ppj.modelProjection", "Validated PPJ could not be projected into the native typed model.", "$"));
-            return Invalid(diagnostics);
+            return Invalid(diagnostics, document);
         }
 
         PpjSemanticValidator.Validate(program, diagnostics);
         if (diagnostics.Count != 0)
-            return Invalid(diagnostics);
+            return Invalid(diagnostics, document);
 
         var canonical = PpjCanonicalJson.Write(root);
         var hash = Convert.ToHexString(SHA256.HashData(canonical)).ToLowerInvariant();
         var expansion = PpjComponentExpander.Expand(program, hash, diagnostics);
         if (diagnostics.Count != 0 || expansion is null)
-            return Invalid(diagnostics);
-        return new PpjValidationResult(program, diagnostics, canonical, hash, expansion);
+            return Invalid(diagnostics, document);
+        return new PpjValidationResult(program, diagnostics, canonical, hash, expansion) { Document = document };
     }
 
-    private static PpjValidationResult Invalid(IReadOnlyList<PpjDiagnostic> diagnostics) =>
-        new(null, diagnostics, [], string.Empty, null);
+    private static PpjValidationResult Invalid(IReadOnlyList<PpjDiagnostic> diagnostics, JsonDocument? document = null)
+    {
+        document?.Dispose();
+        return new(null, diagnostics, [], string.Empty, null);
+    }
 
     private static void FindDuplicateProperties(JsonElement value, string path, List<PpjDiagnostic> diagnostics)
     {
