@@ -15,7 +15,8 @@ import {
   resumeTaskPpjRevision,
   taskDetail,
 } from "../src/cli/task-store.mjs";
-import { formatTaskList } from "../src/cli/tasks.mjs";
+import { formatTaskList, runTasksCommand } from "../src/cli/tasks.mjs";
+import { resumePpjTask } from "../src/ppj/cli.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "officekit-tasks-"));
 const workspace = path.join(root, "workspace");
@@ -32,6 +33,19 @@ for (let index = 0; index < 8; index += 1) {
   }));
 }
 const foreign = await createTask({ workspaceRoot: otherWorkspace, goal: "Foreign task" });
+
+let createdByCli = "";
+await runTasksCommand([
+  "--new",
+  "PPJ import continuation",
+  "--workspace",
+  otherWorkspace,
+  "--json",
+], { output: { write(value) { createdByCli += value; } } });
+const createdByCliReceipt = JSON.parse(createdByCli);
+assert.equal(createdByCliReceipt.task.goal, "PPJ import continuation");
+assert.equal(createdByCliReceipt.task.state, "new");
+assert.match(createdByCliReceipt.task.id, /^t_[a-f0-9]{12}$/u);
 
 assert.equal(
   await resolveTaskWorkspace({ cwd: path.join(workspace, "nested", "deep") }),
@@ -113,6 +127,51 @@ assert.equal(resumedProgram.status, "reviewed");
 assert.equal(resumedProgram.sha256, programSha256);
 assert.equal(path.isAbsolute(resumedProgram.path), true);
 assert.deepEqual(await readFile(resumedProgram.path), ppjProgram);
+const materializedProgramPath = path.join(workspace, "resumed", "task-program.ppj");
+const materializedProgram = await resumePpjTask({
+  taskId: selectedId,
+  outputPath: materializedProgramPath,
+}, { cwd: workspace });
+assert.equal(materializedProgram.status, "reviewed");
+assert.equal(materializedProgram.programSha256, programSha256);
+assert.equal(materializedProgram.output, materializedProgramPath);
+assert.deepEqual(await readFile(materializedProgramPath), ppjProgram);
+
+const sourceBytes = Buffer.from("immutable imported PPTX bytes");
+const imageBytes = Buffer.from("immutable image bytes");
+const sourceProgram = Buffer.from(`${JSON.stringify({
+  schema: "office-kit/ppj/v1",
+  meta: { id: "source-task", title: "Source task", language: "en-US", version: 1 },
+  intent: {},
+  design: {},
+  source: { uri: "source-assets/source.pptx", sha256: digest(sourceBytes), revision: digest(sourceBytes) },
+  assets: [{ id: "asset-image", uri: "source-assets/image.png", mimeType: "image/png", sha256: digest(imageBytes) }],
+  components: [],
+  pages: [{ id: "page-1", elements: [] }],
+})}\n`);
+const sourceProgramSha256 = digest(sourceProgram);
+const sourceTaskId = created[4].manifest.id;
+const sourceTask = await openTask({ workspaceRoot: workspace, taskId: sourceTaskId });
+await recordTaskPpjRevision(sourceTask, {
+  program: sourceProgram,
+  source: sourceBytes,
+  assets: [{ id: "asset-image", mimeType: "image/png", data: imageBytes }],
+}, {
+  stage: "checked",
+  receipt: {
+    ...baseReceipt,
+    programJson: sourceProgram,
+    programSha256: sourceProgramSha256,
+    sourceBound: true,
+    sourceSha256: digest(sourceBytes),
+  },
+});
+const sourceResumePath = path.join(workspace, "resumed-source", "deck.ppj");
+const sourceResume = await resumePpjTask({ taskId: sourceTaskId, outputPath: sourceResumePath }, { cwd: workspace });
+assert.equal(sourceResume.sourceBound, true);
+assert.deepEqual(await readFile(sourceResumePath), sourceProgram);
+assert.deepEqual(await readFile(path.join(workspace, "resumed-source", "source-assets", "source.pptx")), sourceBytes);
+assert.deepEqual(await readFile(path.join(workspace, "resumed-source", "source-assets", "image.png")), imageBytes);
 const ppjDetail = await taskDetail({ workspaceRoot: workspace, taskId: selectedId });
 assert.equal(ppjDetail.task.state, "stable");
 assert.equal(ppjDetail.task.program.path, resumedProgram.path);

@@ -190,6 +190,17 @@ function chartErrorBars(value, valueCount, effectiveType, chart, field, rgb) {
 function chartAxis(axis, chart, field, original) {
   const title = typeof axis?.title === "object" ? axis.title.text : axis?.title;
   const result = {
+    // Several axis leaves are currently owned by PPJ/native capabilities but
+    // are not exposed as mutable ChartElement properties.  A source-bound
+    // chart edit must carry those proven leaves forward instead of silently
+    // turning an unrelated title/data edit into an axis rewrite.
+    ...(original?.textStyle ? { textStyle: original.textStyle } : {}),
+    ...(original?.titleTextStyle ? { titleTextStyle: original.titleTextStyle } : {}),
+    ...(original?.reverse === undefined ? {} : { reverse: original.reverse }),
+    ...(original?.axisLineVisible === undefined ? {} : { axisLineVisible: original.axisLineVisible }),
+    ...(original?.axisLine ? { axisLine: original.axisLine } : {}),
+    ...(original?.majorGridlineStyle ? { majorGridlineStyle: original.majorGridlineStyle } : {}),
+    ...(original?.majorGridlineVisible === undefined ? {} : { majorGridlineVisible: original.majorGridlineVisible }),
     title: String(title || ""),
     numberFormatCode: String(axis?.numberFormatCode || axis?.numberFormat || ""),
     ...(axis?.tickLabelInterval == null ? {} : { tickLabelInterval: Number(axis.tickLabelInterval) }),
@@ -249,6 +260,8 @@ function chartDataLabels(labels, chart, original) {
   const hasSemantics = Boolean(source.showValue || source.showCategoryName || source.showSeriesName || source.showPercent) || (source.position && source.position !== "bestFit");
   if (!hasSemantics && !original) return undefined;
   return {
+    ...(original?.textStyle ? { textStyle: original.textStyle } : {}),
+    ...(original?.numberFormatCode ? { numberFormatCode: original.numberFormatCode } : {}),
     showValue: Boolean(source.showValue),
     showCategoryName: Boolean(source.showCategoryName),
     ...(source.showSeriesName == null ? {} : { showSeriesName: Boolean(source.showSeriesName) }),
@@ -328,6 +341,7 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
     const errorBars = chartErrorBars(item.errorBars, values.length, effectiveType, chart, `series[${index}].errorBars`, rgb);
     if (item.marker && !["line", "scatter"].includes(effectiveType)) throw new OfficeKitCodecError(`Presentation ${effectiveType} chart ${chart.id} series ${index + 1} cannot carry a marker.`, [], { code: "unsupported_presentation_features" });
     if (type === SpreadsheetChartType.SCATTER && (item.line || item.stroke)) throw new OfficeKitCodecError(`Presentation marker-scatter chart ${chart.id} series ${index + 1} cannot carry a series line; use marker.line for marker borders.`, [], { code: "unsupported_presentation_features" });
+    const originalPayload = combo ? originalSeries[index]?.series : originalSeries[index];
     return {
       name: String(item.name || `Series ${index + 1}`),
       values,
@@ -338,6 +352,9 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
       ...(item.marker ? { marker: chartMarker(item.marker, chart, `series[${index}].marker`, rgb) } : {}),
       ...(trendlines.length ? { trendlines } : {}),
       ...(errorBars ? { errorBars } : {}),
+      ...((originalPayload?.missingValueIndexes || []).length
+        ? { missingValueIndexes: [...originalPayload.missingValueIndexes] }
+        : {}),
       ...(seriesType == null ? {} : { _comboType: seriesType, _comboAxisGroup: PRESENTATION_CHART_AXIS_GROUPS_TO_WIRE.get(axisGroup) }),
     };
   });
@@ -412,6 +429,14 @@ export function presentationChartToWire(chart, original, { emuFromPixels, rgb, s
         ...(secondaryYAxis ? { secondaryYAxis } : {}),
         ...(dataLabels ? { dataLabels } : {}),
         ...(lineOptions ? { lineOptions } : {}),
+        ...(originalChart?.titleTextStyle ? { titleTextStyle: originalChart.titleTextStyle } : {}),
+        ...(originalChart?.legendTextStyle ? { legendTextStyle: originalChart.legendTextStyle } : {}),
+        ...(originalChart?.frameTransform ? { frameTransform: originalChart.frameTransform } : {}),
+        ...(originalChart?.titleBody && chart.title === originalChart.title ? { titleBody: originalChart.titleBody } : {}),
+        ...(originalChart?.firstSliceAngle === undefined ? {} : { firstSliceAngle: originalChart.firstSliceAngle }),
+        ...(originalChart?.doughnutHoleSize === undefined ? {} : { doughnutHoleSize: originalChart.doughnutHoleSize }),
+        ...(originalChart?.bubbleScale === undefined ? {} : { bubbleScale: originalChart.bubbleScale }),
+        ...(originalChart?.bubbleSizeMode ? { bubbleSizeMode: originalChart.bubbleSizeMode } : {}),
       },
     },
   };

@@ -2295,9 +2295,9 @@ message PresentationShape {
   // independent of visible text, geometry, object name, and drawing order.
   // Imported values are editable only for the bounded cNvPr profile.
   PresentationNonVisualAccessibility accessibility = 31;
-  // Presence-aware alpha for a direct solid RGB fill, expressed in DrawingML
-  // thousandths of one percent. Absence means the native a:alpha child is
-  // omitted; the value is valid only when fill_rgb is present.
+  // Presence-aware alpha for a direct solid RGB or theme fill, expressed in
+  // DrawingML thousandths of one percent. Absence means the native a:alpha
+  // child is omitted; the value is valid when fill_rgb or fill_scheme is set.
   optional uint32 fill_opacity_thousandth_percent = 32;
   // Bounded direct theme color for a source-bound solid fill. This is exposed
   // only when the native a:solidFill contains exactly one bare a:schemeClr;
@@ -2331,6 +2331,12 @@ message PresentationShape {
   // it only lets the source-preserving writer admit the exact bounded native
   // custom path as an authored overlay without opening arbitrary geometry.
   string catalog_icon_name = 40;
+  // Source-projection presence bit for an explicit direct a:prstDash child.
+  // The semantic line_style value alone cannot distinguish an omitted solid
+  // default from an explicit solid token, so PPJ issues a source-bound
+  // lineStyle leaf only when this bit is present and true. It is not an
+  // authored styling control and is never required for source-free shapes.
+  optional bool line_style_explicit = 41;
 }
 
 message PresentationCustomGeometryPath {
@@ -2601,6 +2607,10 @@ message PresentationImageBorder {
   string cap = 4;
   string join = 5;
   optional uint32 opacity_thousandth_percent = 6;
+  // Direct DrawingML theme color for an imported picture outline. RGB and
+  // scheme colors are mutually exclusive at the codec boundary; transforms
+  // and effect children remain source-owned.
+  string color_scheme = 7;
 }
 
 message PresentationImageTransform {

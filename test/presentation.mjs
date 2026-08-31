@@ -607,6 +607,41 @@ assert.equal(shapeAccessibilityImported.slides.getItem(0).shapes.items[1].access
 const shapeAccessibilityNoOp = await PresentationFile.exportPptx(shapeAccessibilityImported);
 assert.deepEqual(shapeAccessibilityNoOp.bytes, shapeAccessibilitySource.bytes, "unchanged imported accessibility metadata must return the exact source package");
 
+// Imported line theme/alpha values are part of the visual contract even when
+// the shape is otherwise left untouched.  Keep the source-bound projection
+// lossless so a later text, image, or geometry edit cannot silently flatten a
+// theme line into a transparent/default stroke.
+const themedLineZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+const themedLineSourceXml = await themedLineZip.file("ppt/slides/slide1.xml").async("text");
+const replaceNamedLineFill = (xml, elementTag, name, replacement) => {
+  const nameOffset = xml.indexOf(`name="${name}"`);
+  assert.notEqual(nameOffset, -1, `missing ${name} in themed-line fixture`);
+  const elementStart = xml.lastIndexOf(`<${elementTag}>`, nameOffset);
+  const elementEnd = xml.indexOf(`</${elementTag}>`, nameOffset) + `</${elementTag}>`.length;
+  assert.ok(elementStart >= 0 && elementEnd > elementStart, `missing ${elementTag} boundary for ${name}`);
+  const element = xml.slice(elementStart, elementEnd);
+  const replaced = element.replace(/<a:ln\b[^>]*>[\s\S]*?<\/a:ln>/u, replacement);
+  assert.notEqual(replaced, element, `missing line in ${name} fixture`);
+  return xml.slice(0, elementStart) + replaced + xml.slice(elementEnd);
+};
+const themedShapeLine = '<a:ln w="12700" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:solidFill><a:schemeClr val="dk1"><a:alpha val="42000" /></a:schemeClr></a:solidFill><a:prstDash val="solid" /></a:ln>';
+const themedConnectorLine = '<a:ln w="25400" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:solidFill><a:schemeClr val="dk1"><a:alpha val="42000" /></a:schemeClr></a:solidFill></a:ln>';
+const themedShapeLineXml = replaceNamedLineFill(themedLineSourceXml, "p:sp", "decision-status", themedShapeLine);
+const themedLineXml = replaceNamedLineFill(themedShapeLineXml, "p:cxnSp", "decision-flow", themedConnectorLine);
+const themedLineFile = new FileBlob(
+  await themedLineZip.file("ppt/slides/slide1.xml", themedLineXml).generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const themedLineImported = await PresentationFile.importPptx(themedLineFile);
+const importedThemedLine = itemByName(themedLineImported.slides.getItem(0).shapes.items, "decision-status");
+const importedThemedConnector = itemByName(themedLineImported.slides.getItem(0).connectors.items, "decision-flow");
+assert.equal(importedThemedLine.line.fill, "dk1");
+assert.equal(importedThemedLine.line.opacity, 0.42);
+assert.equal(importedThemedConnector.line.fill, "dk1");
+assert.equal(importedThemedConnector.line.opacity, 0.42);
+const themedLineNoOp = await PresentationFile.exportPptx(themedLineImported);
+assert.deepEqual(themedLineNoOp.bytes, themedLineFile.bytes, "imported theme line and alpha must survive an exact no-op");
+
 // An imported shape can have a safe text graph while its visual fill is a
 // native gradient outside the typed style profile.  A plain text edit must
 // keep that gradient instead of rejecting the whole shape or replacing it
@@ -684,7 +719,7 @@ const imageFilledCustomGeometryShape = itemByName(imageFilledCustomGeometryImpor
 assert.match(imageFilledCustomGeometryShape.imageFill?.assetId || "", /^asset\/presentation\/picture(?:-bullet)?\//u);
 assert.equal(imageFilledCustomGeometryShape.imageFill?.contentType, "image/png");
 assert.deepEqual(imageFilledCustomGeometryShape.accessibilityCapability, { sourceBound: true, editable: true, addable: true });
-assert.equal(imageFilledCustomGeometryShape.customPaths.length, 0, "unsupported source geometry remains opaque inside the image-filled shape");
+assert.equal(imageFilledCustomGeometryShape.customPaths.length, 1, "supported image-filled custom geometry remains modeled");
 const imageFilledCustomGeometryRecord = imageFilledCustomGeometryShape.inspectRecord();
 assert.equal(imageFilledCustomGeometryRecord.imageFill?.contentType, "image/png");
 const imageFilledCustomGeometryOldPosition = { ...imageFilledCustomGeometryShape.position };
@@ -760,6 +795,30 @@ blobImage.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base6
 const blobImageOutput = await PresentationFile.exportPptx(blobImageEdit);
 const blobImageRoundTrip = await PresentationFile.importPptx(blobImageOutput);
 assert.equal(itemByName(blobImageRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT, "imported image replacement must accept a same-format FileBlob");
+
+// Imported picture frames may use a theme color rather than an RGB literal.
+// Replacing the payload must keep that source-owned border while still
+// producing a bounded imageAsset operation.
+const themedImageBorderXml = shapeAccessibilitySourceXml.replace(
+  /(<p:pic>[\s\S]*?<p:cNvPr\b[^>]*\bname="decision-evidence"[^>]*\/>[\s\S]*?<p:spPr>[\s\S]*?<a:prstGeom\b[^>]*>[\s\S]*?<\/a:prstGeom>)(<\/p:spPr>)/u,
+  '$1<a:ln xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:solidFill><a:schemeClr val="dk1"/></a:solidFill></a:ln>$2',
+);
+assert.notEqual(themedImageBorderXml, shapeAccessibilitySourceXml, "theme-colored picture border fixture must target decision-evidence");
+const themedImageBorderZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+themedImageBorderZip.file("ppt/slides/slide1.xml", themedImageBorderXml);
+const themedImageBorderFile = new FileBlob(
+  await themedImageBorderZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const themedImageBorderImported = await PresentationFile.importPptx(themedImageBorderFile);
+const themedImageBorderTarget = itemByName(themedImageBorderImported.slides.getItem(0).images.items, "decision-evidence");
+assert.equal(themedImageBorderTarget.border.colorScheme, "dk1");
+themedImageBorderTarget.replace({ blob: new FileBlob(Buffer.from(PNG_ALT.split(",")[1], "base64"), { type: "image/png" }) });
+const themedImageBorderOutput = await PresentationFile.exportPptx(themedImageBorderImported);
+assert.equal(themedImageBorderOutput.metadata.editPlan.operations[0].leafKind, "imageAsset");
+const themedImageBorderRoundTrip = await PresentationFile.importPptx(themedImageBorderOutput);
+assert.equal(itemByName(themedImageBorderRoundTrip.slides.getItem(0).images.items, "decision-evidence").border.colorScheme, "dk1");
+assert.equal(itemByName(themedImageBorderRoundTrip.slides.getItem(0).images.items, "decision-evidence").dataUrl, PNG_ALT);
 
 // A direct picture alpha token is a source-bound image leaf: changing only
 // the opacity must splice the existing a:alphaModFix attribute and leave the
@@ -1995,6 +2054,45 @@ await assertOnlyDeclaredPptxFootprintChanged(
 const alphaShapeRoundTrip = await PresentationFile.importPptx(alphaShapeOutput);
 const alphaShapeRoundTripModel = itemByName(alphaShapeRoundTrip.slides.getItem(0).shapes.items, "decision-status");
 assert.equal(alphaShapeRoundTripModel.fill.opacity, 0.65);
+
+// Imported theme fills may carry bounded luminance transforms alongside the
+// alpha child. The native opacity leaf must change only that alpha token and
+// leave the source-owned lumMod/lumOff paint intact.
+const schemeOpacityShapeAccessibilityXml = alphaShapeAccessibilityXml.replace(
+  /<a:srgbClr val="DBEAFE"><a:alpha val="50000"\s*\/><\/a:srgbClr>/u,
+  '<a:schemeClr val="accent6"><a:lumMod val="40000"/><a:lumOff val="60000"/><a:alpha val="29000"/></a:schemeClr>',
+);
+assert.match(schemeOpacityShapeAccessibilityXml, /<a:schemeClr val="accent6"><a:lumMod val="40000"\/><a:lumOff val="60000"\/><a:alpha val="29000"\/><\/a:schemeClr>/);
+const schemeOpacityShapeAccessibilityZip = await JSZip.loadAsync(shapeAccessibilitySource.bytes);
+schemeOpacityShapeAccessibilityZip.file("ppt/slides/slide1.xml", schemeOpacityShapeAccessibilityXml);
+const schemeOpacityShapeAccessibilityFile = new FileBlob(
+  await schemeOpacityShapeAccessibilityZip.generateAsync({ type: "uint8array", compression: "DEFLATE" }),
+  { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+);
+const schemeOpacityShapeAccessibilityImported = await PresentationFile.importPptx(schemeOpacityShapeAccessibilityFile);
+const schemeOpacityShape = itemByName(schemeOpacityShapeAccessibilityImported.slides.getItem(0).shapes.items, "decision-status");
+assert.equal(schemeOpacityShape.fill.color, "accent6");
+assert.equal(schemeOpacityShape.fill.opacity, 0.29);
+const schemeOpacityLeaves = schemeOpacityShapeAccessibilityImported.inspect({ includeNativeLeaves: true, target: schemeOpacityShape.id }).ndjson
+  .split("\n")
+  .filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .filter((record) => record.kind === "nativeLeaf");
+const schemeOpacityLeaf = schemeOpacityLeaves.find((record) => record.leafKind === "fillOpacityThousandthPercent");
+assert.ok(schemeOpacityLeaf, "theme fills with bounded luminance transforms should expose an opacity leaf");
+assert.equal(schemeOpacityLeaf.value, 0.29);
+schemeOpacityShapeAccessibilityImported.editNativeLeaf(schemeOpacityLeaf.targetId, schemeOpacityLeaf.leafId, {
+  expectedHash: schemeOpacityLeaf.expectedHash,
+  value: 0.4,
+});
+const schemeOpacityShapeOutput = await PresentationFile.exportPptx(schemeOpacityShapeAccessibilityImported);
+const schemeOpacityOperation = schemeOpacityShapeOutput.metadata.editPlan.operations[0];
+assert.equal(schemeOpacityOperation.leafKind, "fillOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(schemeOpacityShapeAccessibilityFile, schemeOpacityShapeOutput, schemeOpacityOperation);
+const schemeOpacityShapeOutputXml = await (await JSZip.loadAsync(schemeOpacityShapeOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(schemeOpacityShapeOutputXml, /<a:schemeClr val="accent6"><a:lumMod val="40000"\/><a:lumOff val="60000"\/><a:alpha val="40000"\/><\/a:schemeClr>/);
+const schemeOpacityShapeRoundTrip = await PresentationFile.importPptx(schemeOpacityShapeOutput);
+assert.deepEqual(schemeOpacityShapeRoundTrip.resolve(schemeOpacityShape.id).fill, { color: "accent6", opacity: 0.4 });
 
 const nativeImageGeometryImported = await PresentationFile.importPptx(irregularShapeAccessibilityFile);
 const nativeImageGeometry = itemByName(nativeImageGeometryImported.slides.getItem(0).images.items, "decision-evidence");
@@ -7539,6 +7637,69 @@ assert.deepEqual(imported.slides.getItem(1).speakerNotes.capability, {
 imported.slides.getItem(0).addNotes("Lead with evidence.\nClose with the decision.");
 imported.slides.getItem(1).addNotes("Explain the chart assumptions.\nInvite questions on the forecast.");
 const importedCore = imported.slides.getItem(0);
+// Imported canonical outer-shadow geometry is exposed as bounded native leaves.
+// The edit is deliberately a single token splice so the source shadow graph and
+// all other package parts remain untouched.
+const shadowGeometryImported = await PresentationFile.importPptx(sourceBound);
+const shadowGeometryTarget = itemByName(shadowGeometryImported.slides.getItem(0).shapes.items, "rounded-card");
+const shadowGeometryRecords = shadowGeometryImported.inspect({ includeNativeLeaves: true, targetId: shadowGeometryTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+const shadowBlurLeaf = shadowGeometryRecords.find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowBlurRadiusEmu");
+assert.ok(shadowBlurLeaf, "canonical imported shadows should expose blur geometry");
+assert.ok(shadowGeometryRecords.some((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowDistanceEmu"));
+assert.ok(shadowGeometryRecords.some((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowDirectionDegrees"));
+shadowGeometryImported.editNativeLeaf(shadowBlurLeaf.targetId, shadowBlurLeaf.leafId, {
+  expectedHash: shadowBlurLeaf.expectedHash,
+  value: shadowBlurLeaf.value + 9525,
+});
+const shadowGeometryOutput = await PresentationFile.exportPptx(shadowGeometryImported);
+assert.deepEqual(shadowGeometryOutput.metadata.editPlan.changedParts, ["ppt/slides/slide1.xml"]);
+const shadowGeometryOutputXml = await (await JSZip.loadAsync(shadowGeometryOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowGeometryOutputXml, /<a:outerShdw\b[^>]*blurRad="85725"/u);
+const shadowGeometryRoundTrip = await PresentationFile.importPptx(shadowGeometryOutput);
+assert.equal(itemByName(shadowGeometryRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.blurRadius, 9);
+
+// The bounded outer-shadow graph also exposes its direct RGB color. Keep this
+// as a source-bound token splice so imported effect details remain intact.
+const shadowColorImported = await PresentationFile.importPptx(sourceBound);
+const shadowColorTarget = itemByName(shadowColorImported.slides.getItem(0).shapes.items, "rounded-card");
+const shadowColorRecords = shadowColorImported.inspect({ includeNativeLeaves: true, targetId: shadowColorTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+const shadowColorLeaf = shadowColorRecords.find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowColorRgb");
+assert.ok(shadowColorLeaf, "canonical imported shadows should expose a direct RGB color leaf");
+assert.equal(shadowColorLeaf.value, "#000000");
+shadowColorImported.editNativeLeaf(shadowColorLeaf.targetId, shadowColorLeaf.leafId, {
+  expectedHash: shadowColorLeaf.expectedHash,
+  value: "#112233",
+});
+const shadowColorOutput = await PresentationFile.exportPptx(shadowColorImported);
+assert.equal(shadowColorOutput.metadata.editPlan.operations[0].leafKind, "shadowColorRgb");
+await assertOnlyDeclaredPptxFootprintChanged(sourceBound, shadowColorOutput, shadowColorOutput.metadata.editPlan.operations);
+const shadowColorOutputXml = await (await JSZip.loadAsync(shadowColorOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowColorOutputXml, /<a:srgbClr\s+val="112233"><a:alpha\s+val="25000"\s*\/>/u);
+const shadowColorRoundTrip = await PresentationFile.importPptx(shadowColorOutput);
+assert.equal(itemByName(shadowColorRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.color, "#112233");
+
+// Shadow alpha is a separate source-bound token. Keep the edit narrow so the
+// color, geometry, vendor attributes, and all unrelated package parts survive.
+const shadowOpacityImported = await PresentationFile.importPptx(sourceBound);
+const shadowOpacityTarget = itemByName(shadowOpacityImported.slides.getItem(0).shapes.items, "rounded-card");
+const shadowOpacityLeaf = shadowOpacityImported.inspect({ includeNativeLeaves: true, targetId: shadowOpacityTarget.id }).ndjson
+  .trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  .find((record) => record.kind === "nativeLeaf" && record.leafKind === "shadowOpacityThousandthPercent");
+assert.ok(shadowOpacityLeaf, "canonical imported shadows should expose a direct opacity leaf");
+assert.equal(shadowOpacityLeaf.value, 0.25);
+shadowOpacityImported.editNativeLeaf(shadowOpacityLeaf.targetId, shadowOpacityLeaf.leafId, {
+  expectedHash: shadowOpacityLeaf.expectedHash,
+  value: 0.4,
+});
+const shadowOpacityOutput = await PresentationFile.exportPptx(shadowOpacityImported);
+assert.equal(shadowOpacityOutput.metadata.editPlan.operations[0].leafKind, "shadowOpacityThousandthPercent");
+await assertOnlyDeclaredPptxFootprintChanged(sourceBound, shadowOpacityOutput, shadowOpacityOutput.metadata.editPlan.operations);
+const shadowOpacityOutputXml = await (await JSZip.loadAsync(shadowOpacityOutput.bytes)).file("ppt/slides/slide1.xml").async("text");
+assert.match(shadowOpacityOutputXml, /<a:srgbClr\s+val="000000"><a:alpha\s+val="40000"\s*\/>/u);
+const shadowOpacityRoundTrip = await PresentationFile.importPptx(shadowOpacityOutput);
+assert.equal(itemByName(shadowOpacityRoundTrip.slides.getItem(0).shapes.items, "rounded-card").shadow.opacity, 0.4);
 assert.deepEqual(importedCore.background, { fill: "#f1f5f9", mode: "solid" });
 assert.equal(itemByName(importedCore.shapes.items, "rounded-card").geometry, "roundRect");
 assert.equal(itemByName(importedCore.shapes.items, "target-textbox").geometry, "textbox");

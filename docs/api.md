@@ -1828,6 +1828,7 @@ Resolve one explicit PDF task and selected/default provider against the immutabl
 | `officekit ppj import` | cli | Project a PPTX into one strict JSON .ppj program. OfficeKit-authored PPTX files recover their embedded program when its map still matches; third-party files produce typed elements plus source-bound opaque nativeRef records without putting unknown OOXML into the program. |
 | `officekit ppj inspect` | cli | Search or inspect a .ppj program by stable page and element IDs without evaluating code or changing the file. |
 | `officekit ppj render` | cli | Compile and render selected PPJ pages for visual review without treating a successful render as design approval. |
+| `officekit ppj resume` | cli | Materialize the latest valid immutable PPJ revision and all bound local resources from a durable OfficeKit task into a new editable workspace without restoring a JavaScript heap or modifying the task store. |
 | `officekit ppj review` | cli | Review PPJ structure, layout, source fidelity, communication intent, motion, delivery evidence, and rendered pages. It reports visual capability honestly and never invents fact verification. |
 
 ### presentation details
@@ -2076,6 +2077,54 @@ Compile and render selected PPJ pages for visual review without treating a succe
 **Schema returns:**
 
 - `receipt` (object) — Rendered page paths, renderer identity, hashes, and unavailable boundaries.
+
+#### `officekit ppj resume`
+
+Materialize the latest valid immutable PPJ revision and all bound local resources from a durable OfficeKit task into a new editable workspace without restoring a JavaScript heap or modifying the task store.
+
+**Adoption tier:** `golden`
+
+**Use when:**
+
+- The agent needs to create, inspect, validate, compile, render, or review the durable Presentation program.
+- The operation must remain deterministic and resumable without a JavaScript heap.
+
+**Avoid when:**
+
+- Do not use raw OOXML, XPath, relationship IDs, or the internal Presentation object model as a substitute.
+- Do not claim visual, playback, or factual review beyond the evidence returned by the command.
+
+**Requires:**
+
+- UTF-8 strict JSON using office-kit/ppj/v1
+- local content-addressed assets and exact source hashes when referenced
+
+**Review:**
+
+- Run officekit ppj check before delivery.
+- Render and review the pages affected by the current change; re-import the built PPTX when source fidelity matters.
+
+**Recipes:**
+
+- skills/presentations/skills/presentations/SKILL.md#routes
+
+**Example paths:**
+
+- skills/presentations/skills/presentations/references/ppj.md
+
+**Examples:**
+
+- officekit ppj resume t_0123456789ab -o resumed/deck.ppj --json
+
+**Schema parameters:**
+
+- `task` (string) required — Existing OfficeKit task id containing a valid PPJ revision.
+- `output` (path) required — New editable .ppj path outside the immutable task store.
+- `json` (boolean) — Emit the program, source, candidate, and review descriptor.
+
+**Schema returns:**
+
+- `receipt` (object) — Materialized PPJ path, program/source hashes, revision status, copied resources, candidate hash, and review status.
 
 #### `officekit ppj review`
 

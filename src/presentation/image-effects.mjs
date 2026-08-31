@@ -11,7 +11,11 @@ const BORDER_STYLES = new Map([
 ]);
 const BORDER_CAPS = new Set(["flat", "round", "square"]);
 const BORDER_JOINS = new Set(["miter", "round", "bevel"]);
-const BORDER_KEYS = new Set(["color", "fill", "width", "style", "dash", "cap", "join", "opacity"]);
+const BORDER_KEYS = new Set(["color", "fill", "colorScheme", "scheme", "width", "style", "dash", "cap", "join", "opacity"]);
+const BORDER_SCHEME_COLORS = new Set([
+  "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
+  "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folhlink",
+]);
 const SHADOW_KEYS = new Set(["color", "fill", "colorScheme", "scheme", "blurRadius", "blur", "distance", "direction", "angle", "opacity", "alignment", "rotateWithShape"]);
 const SHADOW_SCHEME_COLORS = new Set([
   "dk1", "lt1", "dk2", "lt2", "tx1", "bg1", "tx2", "bg2",
@@ -68,8 +72,12 @@ export function normalizePresentationImageBorder(value, label = "Presentation im
   const source = assertObject(value, label);
   const unsupported = Object.keys(source).filter((key) => !BORDER_KEYS.has(key));
   if (unsupported.length) throw new RangeError(`${label} uses unsupported properties: ${unsupported.sort().join(", ")}.`);
-  const color = source.color ?? source.fill ?? "#000000";
-  const normalizedColor = normalizeColor(color, label);
+  const rawScheme = source.colorScheme ?? source.scheme;
+  const color = source.color ?? source.fill;
+  if (rawScheme != null && color != null && String(color).trim()) throw new RangeError(`${label} cannot combine color with colorScheme.`);
+  const colorScheme = rawScheme == null ? undefined : String(rawScheme).trim().toLowerCase();
+  if (colorScheme !== undefined && !BORDER_SCHEME_COLORS.has(colorScheme)) throw new RangeError(`${label}.colorScheme must be a supported theme color token.`);
+  const normalizedColor = colorScheme === undefined ? normalizeColor(color ?? "#000000", label) : undefined;
   const requestedStyle = source.style ?? source.dash ?? "solid";
   const style = BORDER_STYLES.get(String(requestedStyle));
   if (!style) throw new RangeError(`${label}.style must be solid, dashed, dotted, dash-dot, or dash-dot-dot.`);
@@ -80,7 +88,7 @@ export function normalizePresentationImageBorder(value, label = "Presentation im
   if (join !== undefined && !BORDER_JOINS.has(join)) throw new RangeError(`${label}.join must be miter, round, or bevel.`);
   const opacity = source.opacity == null ? undefined : boundedNumber(source.opacity, `${label}.opacity`, { max: 1 });
   return {
-    color: normalizedColor,
+    ...(colorScheme === undefined ? { color: normalizedColor } : { colorScheme }),
     width,
     style,
     ...(cap ? { cap } : {}),

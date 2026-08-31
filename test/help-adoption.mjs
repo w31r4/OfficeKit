@@ -8,6 +8,7 @@ import { PUBLIC_HELP_CATALOG, queryHelpRecords } from "../src/help/index.mjs";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const presentation = PUBLIC_HELP_CATALOG.filter((item) => item.artifactKind === "presentation");
 const expected = [
+  "officekit ppj resume",
   "officekit ppj import",
   "officekit ppj inspect",
   "officekit ppj check",

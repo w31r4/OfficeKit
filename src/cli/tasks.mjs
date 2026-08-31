@@ -1,10 +1,11 @@
 import path from "node:path";
 
-import { deleteTask, listTasks, taskDetail } from "./task-store.mjs";
+import { createTask, deleteTask, listTasks, taskDetail } from "./task-store.mjs";
 
 export const TASKS_USAGE = [
   "Usage:",
   "  officekit tasks [--all] [--json] [--workspace <path>]",
+  "  officekit tasks --new <goal> [--json] [--workspace <path>]",
   "  officekit tasks <task-id> [--json] [--workspace <path>]",
   "  officekit tasks --delete <task-id> --yes [--json] [--workspace <path>]",
 ].join("\n");
@@ -13,6 +14,14 @@ export async function runTasksCommand(args, { output = process.stdout } = {}) {
   const options = parseTasksArguments(args);
   if (options.help) {
     output.write(`${TASKS_USAGE}\n`);
+    return;
+  }
+  if (options.newTaskGoal != null) {
+    const created = await createTask({ workspaceRoot: options.workspaceRoot, goal: options.newTaskGoal });
+    const result = await taskDetail({ workspaceRoot: created.workspaceRoot, taskId: created.manifest.id });
+    output.write(options.json
+      ? `${JSON.stringify(result)}\n`
+      : `Created OfficeKit task ${result.task.id}\nWorkspace: ${result.workspace}\nGoal: ${result.task.goal}\n`);
     return;
   }
   if (options.deleteTaskId) {
@@ -34,7 +43,7 @@ export async function runTasksCommand(args, { output = process.stdout } = {}) {
 
 export function parseTasksArguments(args) {
   const values = [...args];
-  const options = { all: false, json: false, yes: false, help: false, workspaceRoot: undefined, taskId: undefined, deleteTaskId: undefined };
+  const options = { all: false, json: false, yes: false, help: false, workspaceRoot: undefined, taskId: undefined, deleteTaskId: undefined, newTaskGoal: undefined };
   while (values.length > 0) {
     const value = values.shift();
     if (value === "--all") options.all = true;
@@ -43,14 +52,20 @@ export function parseTasksArguments(args) {
     else if (value === "--help" || value === "-h") options.help = true;
     else if (value === "--workspace") options.workspaceRoot = required(values, value);
     else if (value.startsWith("--workspace=")) options.workspaceRoot = value.slice(12);
+    else if (value === "--new") options.newTaskGoal = required(values, value);
+    else if (value.startsWith("--new=")) options.newTaskGoal = value.slice(6);
     else if (value === "--delete") options.deleteTaskId = required(values, value);
     else if (value.startsWith("--delete=")) options.deleteTaskId = value.slice(9);
     else if (value.startsWith("-")) throw new Error(`Unknown tasks option: ${value}.`);
     else if (options.taskId == null) options.taskId = value;
     else throw new Error(`Unexpected tasks argument: ${value}.`);
   }
-  if (options.taskId && options.deleteTaskId) throw new Error("Choose task detail or --delete, not both.");
+  if ([options.taskId != null, options.deleteTaskId != null, options.newTaskGoal != null].filter(Boolean).length > 1) {
+    throw new Error("Choose task detail, --new, or --delete, not more than one.");
+  }
   if (options.taskId && options.all) throw new Error("--all cannot be combined with one task ID.");
+  if (options.newTaskGoal != null && options.all) throw new Error("--all cannot be combined with --new.");
+  if (options.newTaskGoal != null && options.yes) throw new Error("--yes is only valid with --delete.");
   return options;
 }
 

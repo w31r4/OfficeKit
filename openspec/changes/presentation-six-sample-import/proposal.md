@@ -23,4 +23,4 @@ evidence set without distributing the source artifacts.
 This change does not claim arbitrary OOXML coverage, edit OLE internals, rebuild
 unsupported topology, or provide Windows PowerPoint playback evidence.  It does
 not change the Office wire protocol, PDF/Spreadsheet/Document codecs, template
-assets, or shared Skill/help files.
+assets, or presentation template format.

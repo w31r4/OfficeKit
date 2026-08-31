@@ -279,6 +279,10 @@ internal static class PptxLineStyleCodec
         if (TryRead(outline, out var profile))
         {
             CopyTo(profile, target);
+            if (outline?.GetFirstChild<A.PresetDash>() is not null)
+                target.LineStyleExplicit = true;
+            else
+                target.ClearLineStyleExplicit();
             return;
         }
 
@@ -289,6 +293,7 @@ internal static class PptxLineStyleCodec
         var width = outline?.Width?.Value ?? 0;
         target.LineWidthEmu = width is >= 0 and <= int.MaxValue ? width : 0;
         target.LineStyle = target.LineRgb.Length > 0 || target.LineScheme.Length > 0 ? "solid" : "none";
+        target.ClearLineStyleExplicit();
         target.StartArrow = target.EndArrow = target.StartArrowWidth = target.StartArrowLength =
             target.EndArrowWidth = target.EndArrowLength = target.LineCap = target.LineJoin = string.Empty;
     }
@@ -316,6 +321,10 @@ internal static class PptxLineStyleCodec
         source.LineStyle = NormalizeStyle(source.LineStyle, source.LineRgb, source.LineScheme);
         source.LineRgb = string.IsNullOrWhiteSpace(source.LineRgb) ? string.Empty : PptxColor.Normalize(source.LineRgb);
         source.LineScheme = string.IsNullOrWhiteSpace(source.LineScheme) ? string.Empty : PptxColor.NormalizeScheme(source.LineScheme);
+        // This presence bit only proves that an imported preset-dash leaf can
+        // be capability-issued. Authored solid lines materialize the same
+        // native node on write, so it is not part of visual semantics.
+        source.ClearLineStyleExplicit();
     }
 
     internal static void Validate(PresentationShape source, string shapeId)

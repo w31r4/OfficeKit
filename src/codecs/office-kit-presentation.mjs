@@ -99,6 +99,8 @@ const NATIVE_LINE_ARROW_CANONICAL = Object.freeze({
 });
 const PRESENTATION_PARAGRAPH_ALIGNMENTS = new Set(["left", "center", "right", "justify"]);
 const PRESENTATION_VERTICAL_ANCHORS = new Set(["top", "center", "bottom"]);
+const PRESENTATION_SHADOW_ALIGNMENTS = new Set(["tl", "t", "tr", "l", "ctr", "r", "bl", "b", "br"]);
+const MAX_NATIVE_SHADOW_COORDINATE_EMU = 2_147_483_647;
 const PRESENTATION_TEXT_BODY_INSETS = Object.freeze([
   Object.freeze(["left", "textBodyInsetLeftEmu", "leftInset"]),
   Object.freeze(["top", "textBodyInsetTopEmu", "topInset"]),
@@ -882,14 +884,20 @@ function presentationScheme(value, name) {
   return token;
 }
 
-function presentationFillOpacityThousandthPercent(value, name, fillRgb) {
+function presentationFillOpacityThousandthPercent(value, name, fillColor) {
   if (typeof value === "string" || value?.opacity == null) return undefined;
   const opacity = Number(value.opacity);
   if (!Number.isFinite(opacity) || opacity < 0 || opacity > 1) {
     throw new OfficeKitCodecError(`${name}.opacity must be a finite number from 0 through 1.`, [], { code: "invalid_presentation_fill" });
   }
-  if (!fillRgb) {
-    throw new OfficeKitCodecError(`${name}.opacity requires a solid RGB fill.`, [], { code: "invalid_presentation_fill" });
+  const color = typeof fillColor === "object" && fillColor !== null
+    ? fillColor.color ?? fillColor.fill
+    : fillColor;
+  const resolved = resolveColorToken(color, color);
+  const hasRgb = /^#[0-9a-f]{6}$/iu.test(String(resolved ?? ""));
+  const hasScheme = Boolean(NATIVE_SCHEME_COLOR_CANONICAL[String(color ?? "").trim().toLowerCase()]);
+  if (!hasRgb && !hasScheme) {
+    throw new OfficeKitCodecError(`${name}.opacity requires a solid RGB or theme fill.`, [], { code: "invalid_presentation_fill" });
   }
   return Math.round(opacity * 100_000);
 }
@@ -1946,12 +1954,10 @@ function presentationShadow(shadow, shapeId) {
 function presentationImageBorder(border, imageId) {
   const normalized = normalizePresentationImageBorder(border, `Presentation image ${imageId} border`);
   if (!normalized) return undefined;
-  const colorRgb = presentationRgb(normalized.color, `${imageId}.border.color`);
-  if (!colorRgb) {
-    throw new OfficeKitCodecError(`Presentation image ${imageId} border must use an RGB color.`, [], { code: "unsupported_presentation_features" });
-  }
+  const colorScheme = normalized.colorScheme == null ? undefined : presentationScheme(normalized.colorScheme, `${imageId}.border.colorScheme`);
+  const colorRgb = colorScheme === undefined ? presentationRgb(normalized.color, `${imageId}.border.color`) : undefined;
   return {
-    colorRgb,
+    ...(colorScheme === undefined ? { colorRgb } : { colorScheme }),
     widthEmu: BigInt(Math.round(normalized.width * EMU_PER_POINT)),
     style: normalized.style,
     ...(normalized.cap ? { cap: normalized.cap } : {}),
@@ -1976,7 +1982,7 @@ function modelPresentationShadow(shadow) {
 function modelPresentationImageBorder(border) {
   if (!border) return undefined;
   return {
-    color: border.colorRgb ? `#${border.colorRgb}` : "#000000",
+    ...(border.colorScheme ? { colorScheme: border.colorScheme } : { color: border.colorRgb ? `#${border.colorRgb}` : "#000000" }),
     width: Number(border.widthEmu) / EMU_PER_POINT,
     style: border.style || "solid",
     ...(border.cap ? { cap: border.cap } : {}),
@@ -2045,9 +2051,14 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
   if ((!startTargetId && startSiteIndex !== 0) || (!endTargetId && endSiteIndex !== 0)) {
     throw new OfficeKitCodecError(`Presentation connector ${connector.id} cannot define a connection-site index without its target.`, [], { code: "invalid_presentation_connector" });
   }
-  const lineRgb = line.style === "none"
+  const sourceWireLine = original?.content?.case === "connector" ? original.content.value : original?.content?.value;
+  const sourceLineScheme = String(sourceWireLine?.lineScheme || "");
+  const lineColor = presentationLineColor(line, width > 0 ? "#334155" : "transparent");
+  const preserveSourceLineScheme = sourceLineScheme && typeof lineColor === "string" && lineColor.toLowerCase() === sourceLineScheme.toLowerCase();
+  const lineRgb = line.style === "none" || preserveSourceLineScheme
     ? ""
-    : presentationRgb(presentationLineColor(line, width > 0 ? "#334155" : "transparent"), `${connector.id}.line.fill`);
+    : presentationRgb(lineColor, `${connector.id}.line.fill`);
+  const lineScheme = preserveSourceLineScheme ? sourceLineScheme : "";
   const accessibility = normalizePresentationAccessibility(connector.accessibility, `Presentation connector ${connector.id}`);
   return {
     id: original?.id || connector.id,
@@ -2062,6 +2073,8 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         endXEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.x, `${connector.id}.end.x`, original),
         endYEmu: sourceBoundFrameEmuFromPixels(endpoints.end?.y, `${connector.id}.end.y`, original),
         lineRgb,
+        ...(lineScheme ? { lineScheme } : {}),
+        ...(line.opacity === undefined ? {} : { lineOpacityThousandthPercent: Math.round(line.opacity * 100_000) }),
         lineWidthEmu: BigInt(Math.round(width * EMU_PER_POINT)),
         startArrow: head.type || "",
         endArrow: tail.type || "",
@@ -2069,7 +2082,7 @@ function presentationConnector(connector, original, sourceIdByCloneId) {
         endTargetId,
         startConnectionSiteIndex: startSiteIndex,
         endConnectionSiteIndex: endSiteIndex,
-        lineStyle: lineRgb ? line.style : "none",
+        lineStyle: lineRgb || lineScheme ? line.style : "none",
         startArrowWidth: head.width || "",
         startArrowLength: head.length || "",
         endArrowWidth: tail.width || "",
@@ -2302,10 +2315,15 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   if (shape.geometry === "line" && shape.placeholder) {
     throw new OfficeKitCodecError(`Presentation free line ${shape.id} cannot be a placeholder.`, [], { code: "unsupported_presentation_features" });
   }
-  const requestedLineRgb = line.style === "none"
+  const sourceLineScheme = String(originalShape?.lineScheme || "");
+  const lineColor = presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent");
+  const preserveSourceLineScheme = sourceLineScheme && typeof lineColor === "string" &&
+    lineColor.toLowerCase() === sourceLineScheme.toLowerCase();
+  const requestedLineRgb = line.style === "none" || preserveSourceLineScheme
     ? ""
-    : presentationRgb(presentationLineColor(line, lineWidth > 0 ? "#334155" : "transparent"), `${shape.id}.line.fill`);
-  const lineStyle = requestedLineRgb ? line.style : "none";
+    : presentationRgb(lineColor, `${shape.id}.line.fill`);
+  const lineScheme = preserveSourceLineScheme ? sourceLineScheme : "";
+  const lineStyle = requestedLineRgb || lineScheme ? line.style : "none";
   const placeholder = !original && shape.placeholder ? sourceFreeSlidePlaceholder(shape) : undefined;
   const textBody = original?.source?.editable === false && original?.source?.textEditable === true && isPlainPresentationTextRequest(shape)
     ? sourceBoundShapeTextBody(shape, originalShape) || presentationTextBody(shape, originalShape, assetCatalog, customShowLinks)
@@ -2321,8 +2339,11 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
     );
   }
   const sourceFillScheme = String(originalShape?.fillScheme || "");
-  const preserveSourceFillScheme = sourceFillScheme && typeof shape.fill === "string" &&
-    shape.fill.toLowerCase() === sourceFillScheme.toLowerCase();
+  const requestedFillColor = typeof shape.fill === "object" && shape.fill !== null
+    ? shape.fill.color ?? shape.fill.fill
+    : shape.fill;
+  const preserveSourceFillScheme = sourceFillScheme && typeof requestedFillColor === "string" &&
+    requestedFillColor.toLowerCase() === sourceFillScheme.toLowerCase();
   // Imported theme fills such as dk1/dk2 are valid DrawingML but are not
   // authoring color tokens. Keep an unchanged source-bound scheme token in the
   // wire instead of forcing presentationRgb() to interpret it as RGB. This is
@@ -2334,7 +2355,7 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
   const fillRgb = gradientFill || preserveSourceFillScheme ? "" : presentationRgb(shape.fill, `${shape.id}.fill`);
   const fillOpacityThousandthPercent = gradientFill
     ? undefined
-    : presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, fillRgb);
+    : presentationFillOpacityThousandthPercent(shape.fill, `${shape.id}.fill`, shape.fill);
   return {
     id: original?.id || shape.id,
     name: shape.name || original?.name || "",
@@ -2355,8 +2376,11 @@ function presentationShape(shape, original, assetCatalog, customShowLinks) {
         ...(gradientFill ? { gradientFill } : {}),
         ...(fillOpacityThousandthPercent === undefined ? {} : { fillOpacityThousandthPercent }),
         lineRgb: requestedLineRgb,
+        ...(lineScheme ? { lineScheme } : {}),
+        ...(line.opacity === undefined ? {} : { lineOpacityThousandthPercent: Math.round(line.opacity * 100_000) }),
         lineWidthEmu: BigInt(Math.round(lineWidth * EMU_PER_POINT)),
         lineStyle,
+        ...(originalShape?.lineStyleExplicit === true ? { lineStyleExplicit: true } : {}),
         startArrow: line.head?.type || "",
         endArrow: line.tail?.type || "",
         startArrowWidth: line.head?.width || "",
@@ -2470,6 +2494,48 @@ function presentationImageReadOnlySnapshot(image) {
   });
 }
 
+function presentationImportedImageAssetsUnchanged(image) {
+  const dataUrlSource = image?.[PRESENTATION_IMAGE_DATA_URL_SOURCE];
+  const dataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "dataUrl");
+  const primaryUnchanged = dataUrlSource
+    ? dataUrlSource.modified !== true &&
+      dataUrlDescriptor?.get === dataUrlSource.get &&
+      dataUrlDescriptor?.set === dataUrlSource.set
+    : image?.dataUrl == null;
+  const svgDataUrlSource = image?.[PRESENTATION_IMAGE_SVG_DATA_URL_SOURCE];
+  const svgDataUrlDescriptor = Object.getOwnPropertyDescriptor(image, "svgDataUrl");
+  const fallbackUnchanged = svgDataUrlSource
+    ? svgDataUrlSource.modified !== true &&
+      svgDataUrlDescriptor?.get === svgDataUrlSource.get &&
+      svgDataUrlDescriptor?.set === svgDataUrlSource.set
+    : image?.svgDataUrl == null;
+  return primaryUnchanged && fallbackUnchanged;
+}
+
+function presentationImportedImageSnapshot(image) {
+  return JSON.stringify({
+    id: image.id,
+    nativeId: image.nativeId,
+    creationId: image.creationId,
+    name: image.name,
+    position: image.position,
+    accessibility: image.accessibility,
+    prompt: image.prompt,
+    uri: image.uri,
+    contentType: image.contentType,
+    fit: image.fit,
+    crop: image.crop,
+    opacity: image.opacity,
+    border: image.border,
+    shadow: image.shadow,
+    maskPreset: image.maskPreset,
+    geometry: image.geometry,
+    borderRadius: image.borderRadius,
+    transform: image.transform,
+    assetsUnchanged: presentationImportedImageAssetsUnchanged(image),
+  });
+}
+
 function distributePresentationTableSize(total, count, ownerLabel) {
   const slots = Number(count);
   if (!Number.isInteger(slots) || slots < 1) {
@@ -2574,6 +2640,14 @@ function presentationTableReadOnlySnapshot(table) {
   });
 }
 
+function presentationImportedTableSnapshot(table) {
+  return JSON.stringify({
+    nativeId: table.nativeId,
+    creationId: table.creationId,
+    layout: table.layoutJson(),
+  });
+}
+
 // Imported source-bound shapes keep their original wire projection until the
 // public model actually changes. This is more than an optimization: rebuilding
 // every imported shape forces unrelated native geometry through the authored
@@ -2646,14 +2720,30 @@ function presentationImportedSlideShellWithoutElementsSnapshot(value) {
 }
 
 function presentationElement(element, original, assetCatalog, sourceIdByCloneId, customShowLinks) {
-  if (element instanceof GroupShape) return presentationGroup(element, original, assetCatalog, sourceIdByCloneId, customShowLinks);
-  if (element instanceof ImageElement) return presentationImage(element, original, assetCatalog);
-  if (element instanceof TableElement) return presentationTable(element, original);
-  if (element instanceof ChartElement) return presentationChart(element, original);
-  if (element?.kind === "connector") return presentationConnector(element, original, sourceIdByCloneId);
-  if (element instanceof Shape) return presentationShape(element, original, assetCatalog, customShowLinks);
-  if (element?.kind === "nativeObject") return presentationNestedOpaque(element, original);
-  throw new OfficeKitCodecError(`Presentation element ${element?.id || "<unknown>"} has no supported OfficeKit wire projection.`, [], { code: "unsupported_presentation_element" });
+  let projected;
+  if (element instanceof GroupShape) projected = presentationGroup(element, original, assetCatalog, sourceIdByCloneId, customShowLinks);
+  else if (element instanceof ImageElement) projected = presentationImage(element, original, assetCatalog);
+  else if (element instanceof TableElement) projected = presentationTable(element, original);
+  else if (element instanceof ChartElement) projected = presentationChart(element, original);
+  else if (element?.kind === "connector") projected = presentationConnector(element, original, sourceIdByCloneId);
+  else if (element instanceof Shape) projected = presentationShape(element, original, assetCatalog, customShowLinks);
+  else if (element?.kind === "nativeObject") projected = presentationNestedOpaque(element, original);
+  else throw new OfficeKitCodecError(`Presentation element ${element?.id || "<unknown>"} has no supported OfficeKit wire projection.`, [], { code: "unsupported_presentation_element" });
+
+  // Optional element-state fields are presence-sensitive in the source-bound
+  // artifact. Keep an explicitly imported false distinct from omission while
+  // projecting a sibling whose content is being edited; otherwise the final
+  // whole-artifact source proof rejects an otherwise local native-leaf edit.
+  return preservePresentationElementState(projected, original);
+}
+
+function preservePresentationElementState(projected, original) {
+  if (!original) return projected;
+  return {
+    ...projected,
+    ...(Object.hasOwn(original, "hidden") ? { hidden: original.hidden } : {}),
+    ...(Object.hasOwn(original, "locked") ? { locked: original.locked } : {}),
+  };
 }
 
 function markPresentationImportedGroupSnapshots(group, source, sourceRevisionSha256) {
@@ -3504,27 +3594,55 @@ export function presentationEnvelope(presentation, protocolVersion) {
               return entry.wire;
             }
             if (entry.wire.content.value.placeholder) {
-              return presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks);
+              return preservePresentationElementState(
+                presentationSlidePlaceholder(entry.model, entry.wire, entry.placeholderSnapshot, assetCatalog, customShowLinks),
+                entry.wire,
+              );
             }
-            return presentationShape(entry.model, entry.wire, assetCatalog, customShowLinks);
+            return preservePresentationElementState(
+              presentationShape(entry.model, entry.wire, assetCatalog, customShowLinks),
+              entry.wire,
+            );
           }
           if (entry.wire.content.case === "image") {
             if (presentationImageReadOnlySnapshot(entry.model) !== entry.snapshot) {
               throw new OfficeKitCodecError(`Presentation image ${entry.model.id} changed outside its embedded rectangular image boundary.`, [], { code: "unsupported_presentation_edit" });
             }
-            return presentationImage(entry.model, entry.wire, assetCatalog);
+            const projectedImage = preservePresentationElementState(
+              presentationImage(entry.model, entry.wire, assetCatalog),
+              entry.wire,
+            );
+            // The imported wire may carry explicit protobuf defaults (for
+            // example tiled=false or an empty accessibility title) that the
+            // semantic serializer intentionally omits. Treat those as an
+            // unchanged image and retain the exact source wire; otherwise an
+            // unrelated source-bound edit would reserialize every picture
+            // and make the bounded Edit Plan appear to touch it.
+            return samePresentationWireIgnoringDefaults(projectedImage, entry.wire) ? entry.wire : projectedImage;
           }
           if (entry.wire.content.case === "table") {
             if (presentationTableReadOnlySnapshot(entry.model) !== entry.snapshot) {
               throw new OfficeKitCodecError(`Presentation table ${entry.model.id} changed outside its name/frame/plain-text boundary.`, [], { code: "unsupported_presentation_edit" });
             }
-            return presentationTable(entry.model, entry.wire);
+            const projectedTable = preservePresentationElementState(
+              presentationTable(entry.model, entry.wire),
+              entry.wire,
+            );
+            return samePresentationWireIgnoringDefaults(projectedTable, entry.wire) ? entry.wire : projectedTable;
           }
           if (entry.wire.content.case === "connector") {
             if (presentationImportedConnectorSnapshot(entry.model) === entry.snapshot) return entry.wire;
-            return presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId);
+            return preservePresentationElementState(
+              presentationConnector(entry.model, entry.wire, cloneState?.sourceIdByCloneId),
+              entry.wire,
+            );
           }
-          if (entry.wire.content.case === "chart") return presentationChart(entry.model, entry.wire);
+          if (entry.wire.content.case === "chart") {
+            return preservePresentationElementState(
+              presentationChart(entry.model, entry.wire),
+              entry.wire,
+            );
+          }
           if (entry.wire.content.case === "group") {
             // The native validator still checks an unchanged, source-bound
             // group's recursively projected children whenever another object
@@ -3538,9 +3656,15 @@ export function presentationEnvelope(presentation, protocolVersion) {
             if (presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot) {
               return entry.wire;
             }
-            return presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks);
+            return preservePresentationElementState(
+              presentationGroup(entry.model, entry.wire, assetCatalog, cloneState?.sourceIdByCloneId, customShowLinks),
+              entry.wire,
+            );
           }
-          return presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog);
+          return preservePresentationElementState(
+            presentationOpaque(entry.model, entry.wire, entry.snapshot, assetCatalog),
+            entry.wire,
+          );
         }),
         ...authoredElements.map((element) => presentationElement(element, undefined, assetCatalog, undefined, customShowLinks)),
       ]
@@ -3621,6 +3745,30 @@ function samePresentationWire(schema, left, right) {
   const leftBytes = presentationWireBytes(schema, left);
   const rightBytes = presentationWireBytes(schema, right);
   return leftBytes.length === rightBytes.length && leftBytes.every((value, index) => value === rightBytes[index]);
+}
+
+function canonicalPresentationWireDefaults(value) {
+  if (Array.isArray(value)) {
+    const items = value.map(canonicalPresentationWireDefaults).filter((item) => item !== undefined);
+    return items.length ? items : undefined;
+  }
+  if (!value || typeof value !== "object") {
+    if (value === "" || value === false || value === 0 || value === 0n || value === undefined || value === null) return undefined;
+    if (typeof value === "bigint") return `bigint:${value}`;
+    return value;
+  }
+  const normalized = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key === "$typeName") continue;
+    const canonical = canonicalPresentationWireDefaults(child);
+    if (canonical !== undefined) normalized[key] = canonical;
+  }
+  if (!Object.keys(normalized).length) return undefined;
+  return Object.fromEntries(Object.keys(normalized).sort().map((key) => [key, normalized[key]]));
+}
+
+function samePresentationWireIgnoringDefaults(left, right) {
+  return JSON.stringify(canonicalPresentationWireDefaults(left)) === JSON.stringify(canonicalPresentationWireDefaults(right));
 }
 
 function clonePresentationWire(schema, value) {
@@ -4313,8 +4461,9 @@ function createPresentationNativeLeafCapability(presentation, state) {
     const registerImportedFillOpacityLeaf = () => {
       if (wire.content.case !== "shape") return;
       const fillRgb = String(wire.content.value.fillRgb ?? "");
+      const fillScheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme ?? "").trim().toLowerCase()];
       const raw = String(wire.content.value.fillOpacityThousandthPercent ?? "");
-      if (!/^[0-9A-F]{6}$/u.test(fillRgb) || !/^[0-9]+$/u.test(raw)) return;
+      if ((!/^[0-9A-F]{6}$/u.test(fillRgb) && !fillScheme) || !/^[0-9]+$/u.test(raw)) return;
       let opacity;
       try { opacity = BigInt(raw); }
       catch { return; }
@@ -4344,12 +4493,230 @@ function createPresentationNativeLeafCapability(presentation, state) {
         apply(next) {
           const color = typeof model.fill === "object" && model.fill !== null
             ? model.fill.color
-            : (model.fill || `#${fillRgb.toLowerCase()}`);
+            : (model.fill || fillScheme || `#${fillRgb.toLowerCase()}`);
           model.fill = { color, opacity: Number(next) / 100_000 };
         },
       });
     };
     registerImportedFillOpacityLeaf();
+    const registerImportedShadowOpacityLeaf = () => {
+      if (wire.content.case !== "shape") return;
+      const shadow = wire.content.value.shadow;
+      const raw = String(shadow?.opacityThousandthPercent ?? "");
+      if (!shadow || !/^[0-9]+$/u.test(raw)) return;
+      let opacity;
+      try { opacity = BigInt(raw); }
+      catch { return; }
+      if (opacity < 0n || opacity > 100_000n) return;
+      if (wire.source?.editable !== true && wire.source?.textEditable !== true) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "shadowOpacityThousandthPercent",
+        expectedValue: raw,
+        value: Number(opacity) / 100_000,
+        unit: "fraction",
+        details: { nativeLeafIndex: 0 },
+        normalize(next) {
+          const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+          if (!Number.isFinite(candidate) || candidate < 0 || candidate > 1) {
+            throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadow opacity native leaf requires a finite number from 0 through 1.");
+          }
+          const token = String(Math.round(candidate * 100_000));
+          return { raw: token, publicValue: Number(token) / 100_000 };
+        },
+        isNoop(next) { return next === raw; },
+        apply(next) {
+          if (!model.shadow || typeof model.shadow !== "object") {
+            throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadow opacity native leaf no longer resolves to the imported shadow.");
+          }
+          model.shadow = { ...model.shadow, opacity: Number(next) / 100_000 };
+        },
+      });
+    };
+    registerImportedShadowOpacityLeaf();
+    const registerImportedShadowGeometryLeaves = () => {
+      if (wire.content.case !== "shape") return;
+      const shadow = wire.content.value.shadow;
+      if (!shadow || (wire.source?.editable !== true && wire.source?.textEditable !== true)) return;
+      const registerIntegerLeaf = (field, leafKind, unit, applyValue) => {
+        const raw = String(shadow[field] ?? "");
+        if (!/^[0-9]+$/u.test(raw)) return;
+        const value = Number(raw);
+        if (!Number.isSafeInteger(value) || value < 0 || value > MAX_NATIVE_SHADOW_COORDINATE_EMU) return;
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind,
+          expectedValue: raw,
+          value,
+          unit,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const candidate = typeof next === "bigint" ? Number(next) : Number(String(next ?? "").trim());
+            if (!Number.isSafeInteger(candidate) || candidate < 0 || candidate > MAX_NATIVE_SHADOW_COORDINATE_EMU) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", `Presentation ${leafKind} native leaf requires a non-negative integer from 0 through ${MAX_NATIVE_SHADOW_COORDINATE_EMU}.`);
+            }
+            const token = String(candidate);
+            return { raw: token, publicValue: candidate };
+          },
+          isNoop(next) { return next === raw; },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", `Presentation ${leafKind} native leaf no longer resolves to the imported shadow.`);
+            }
+            model.shadow = { ...model.shadow, [applyValue]: Number(next) / EMU_PER_PIXEL };
+          },
+        });
+      };
+      registerIntegerLeaf("blurRadiusEmu", "shadowBlurRadiusEmu", "emu", "blurRadius");
+      registerIntegerLeaf("distanceEmu", "shadowDistanceEmu", "emu", "distance");
+
+      const rawDirection = String(shadow.directionAngle60000 ?? "");
+      if (/^[0-9]+$/u.test(rawDirection)) {
+        const direction = Number(rawDirection);
+        if (Number.isSafeInteger(direction) && direction >= 0 && direction < 21_600_000) {
+          registerLeaf({
+            wire,
+            model,
+            slideState,
+            shapeTreePath,
+            parentGroupId,
+            rootEntry,
+            leafKind: "shadowDirectionDegrees",
+            expectedValue: rawDirection,
+            value: direction / ROTATION_UNITS_PER_DEGREE,
+            unit: "degrees",
+            details: { nativeLeafIndex: 0 },
+            normalize(next) {
+              const candidate = typeof next === "number" ? next : Number(String(next ?? "").trim());
+              if (!Number.isFinite(candidate) || candidate < 0 || candidate >= 360) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowDirectionDegrees native leaf requires a finite number from 0 through 360 degrees (360 excluded).");
+              }
+              const tokenValue = Math.round(candidate * ROTATION_UNITS_PER_DEGREE);
+              if (tokenValue < 0 || tokenValue >= 21_600_000) {
+                throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowDirectionDegrees native leaf rounds to an out-of-range angle.");
+              }
+              return { raw: String(tokenValue), publicValue: tokenValue / ROTATION_UNITS_PER_DEGREE };
+            },
+            isNoop(next) { return next === rawDirection; },
+            apply(next) {
+              if (!model.shadow || typeof model.shadow !== "object") {
+                throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadowDirectionDegrees native leaf no longer resolves to the imported shadow.");
+              }
+              model.shadow = { ...model.shadow, direction: Number(next) / ROTATION_UNITS_PER_DEGREE };
+            },
+          });
+        }
+      }
+
+      const rawAlignment = String(shadow.alignment ?? "");
+      if (PRESENTATION_SHADOW_ALIGNMENTS.has(rawAlignment)) {
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "shadowAlignment",
+          expectedValue: rawAlignment,
+          value: rawAlignment,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const candidate = String(next ?? "").trim();
+            if (!PRESENTATION_SHADOW_ALIGNMENTS.has(candidate)) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowAlignment native leaf requires one of tl, t, tr, l, ctr, r, bl, b, or br.");
+            }
+            return { raw: candidate, publicValue: candidate };
+          },
+          isNoop(next) { return next === rawAlignment; },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadowAlignment native leaf no longer resolves to the imported shadow.");
+            }
+            model.shadow = { ...model.shadow, alignment: next };
+          },
+        });
+      }
+    };
+    registerImportedShadowGeometryLeaves();
+    const registerImportedShadowColorLeaves = () => {
+      if (wire.content.case !== "shape") return;
+      const shadow = wire.content.value.shadow;
+      if (!shadow || typeof shadow !== "object") return;
+      if (wire.source?.editable !== true && wire.source?.textEditable !== true) return;
+      const shadowColorRgb = String(shadow.colorRgb ?? "");
+      if (/^[0-9A-F]{6}$/u.test(shadowColorRgb)) {
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "shadowColorRgb",
+          expectedValue: shadowColorRgb,
+          value: `#${shadowColorRgb.toLowerCase()}`,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const match = /^#?([0-9a-f]{6})$/iu.exec(String(next ?? "").trim());
+            if (!match) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowColorRgb native leaf requires a six-digit RGB color.");
+            }
+            const normalized = match[1].toUpperCase();
+            return { raw: normalized, publicValue: `#${normalized.toLowerCase()}` };
+          },
+          isNoop(next) { return next.toUpperCase() === shadowColorRgb.toUpperCase(); },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadow color native leaf no longer resolves to the imported shadow.");
+            }
+            const { colorScheme: _ignoredColorScheme, ...rest } = model.shadow;
+            model.shadow = { ...rest, color: `#${next.toLowerCase()}` };
+          },
+        });
+      }
+      const shadowColorScheme = NATIVE_SCHEME_COLOR_CANONICAL[String(shadow.colorScheme ?? "").toLowerCase()];
+      if (shadowColorScheme) {
+        registerLeaf({
+          wire,
+          model,
+          slideState,
+          shapeTreePath,
+          parentGroupId,
+          rootEntry,
+          leafKind: "shadowColorScheme",
+          expectedValue: shadowColorScheme,
+          value: shadowColorScheme,
+          details: { nativeLeafIndex: 0 },
+          normalize(next) {
+            const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+            if (!canonical) {
+              throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation shadowColorScheme native leaf requires a supported theme color token.");
+            }
+            return { raw: canonical, publicValue: canonical };
+          },
+          isNoop(next) { return next === shadowColorScheme; },
+          apply(next) {
+            if (!model.shadow || typeof model.shadow !== "object") {
+              throw presentationNativeLeafError("presentation_native_leaf_stale", "Presentation shadow color native leaf no longer resolves to the imported shadow.");
+            }
+            const { color: _ignoredColor, ...rest } = model.shadow;
+            model.shadow = { ...rest, colorScheme: next };
+          },
+        });
+      }
+    };
+    registerImportedShadowColorLeaves();
     if (wire.content.case === "opaque") {
       const diagramBinding = wire.content.value.diagramText;
       const modelDiagramBinding = model?._diagramTextSourceBinding?.();
@@ -4734,7 +5101,10 @@ function createPresentationNativeLeafCapability(presentation, state) {
             return { raw: canonical, publicValue: canonical };
           },
           isNoop(next) { return next === scheme; },
-          apply(next) { model.fill = next; },
+          apply(next) {
+            const opacity = typeof model.fill === "object" && model.fill !== null ? model.fill.opacity : undefined;
+            model.fill = opacity == null ? next : { color: next, opacity };
+          },
         });
       }
       const lineWidth = String(wire.content.value.lineWidthEmu ?? "");
@@ -4789,6 +5159,35 @@ function createPresentationNativeLeafCapability(presentation, state) {
           },
         });
       }
+    };
+    const registerImportedShapeSchemeLeaf = () => {
+      // A fully modeled source shape takes the scalar path below. Keep the
+      // theme token as a separate native leaf so a scheme edit cannot rebuild
+      // the rest of the shape or discard a neighboring opacity value.
+      if (!isShape || wire.source?.editable !== true) return;
+      const scheme = NATIVE_SCHEME_COLOR_CANONICAL[String(wire.content.value.fillScheme || "").toLowerCase()];
+      if (!scheme) return;
+      registerLeaf({
+        wire,
+        model,
+        slideState,
+        shapeTreePath,
+        parentGroupId,
+        rootEntry,
+        leafKind: "fillScheme",
+        expectedValue: scheme,
+        value: scheme,
+        normalize(next) {
+          const canonical = NATIVE_SCHEME_COLOR_CANONICAL[String(next ?? "").trim().toLowerCase()];
+          if (!canonical) throw presentationNativeLeafError("invalid_presentation_native_leaf_edit", "Presentation fillScheme native leaf requires a supported theme color token.");
+          return { raw: canonical, publicValue: canonical };
+        },
+        isNoop(next) { return next === scheme; },
+        apply(next) {
+          const opacity = typeof model.fill === "object" && model.fill !== null ? model.fill.opacity : undefined;
+          model.fill = opacity == null ? next : { color: next, opacity };
+        },
+      });
     };
     const registerImportedImageOpacityLeaf = () => {
       if (!isImage || wire.source?.editable !== true) return;
@@ -5811,6 +6210,7 @@ function createPresentationNativeLeafCapability(presentation, state) {
     }
     registerImportedImageOpacityLeaf();
     registerImportedImageMaskLeaf();
+    registerImportedShapeSchemeLeaf();
     if (wire.source.editable !== true) {
       registerImportedShapeColorLeaves();
       return;
@@ -6021,6 +6421,33 @@ function compileIssuedPresentationNativeLeafOperation(pending, sourceSha256) {
   };
 }
 
+function presentationImportedEntryIsUnchanged(entry) {
+  if (!entry?.model || !entry?.wire) return false;
+  switch (entry.wire.content?.case) {
+    case "shape":
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedShapeSnapshot(entry.model) === entry.modelSnapshot;
+    case "group":
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedGroupSnapshot(entry.model) === entry.modelSnapshot;
+    case "image":
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedImageSnapshot(entry.model) === entry.modelSnapshot;
+    case "table":
+      return entry.modelSnapshot !== undefined &&
+        presentationImportedTableSnapshot(entry.model) === entry.modelSnapshot;
+    case "connector":
+      return entry.snapshot !== undefined &&
+        presentationImportedConnectorSnapshot(entry.model) === entry.snapshot;
+    case "opaque":
+      return !presentationCloneHasPendingNativeReplacement(entry.model) &&
+        entry.snapshot !== undefined &&
+        opaquePresentationSnapshot(entry.model) === entry.snapshot;
+    default:
+      return false;
+  }
+}
+
 function compilePresentationTextLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "shape" || requested.content.case !== "shape") return undefined;
   const originalLeaves = presentationTextLeafRuns(original.content.value);
@@ -6044,7 +6471,7 @@ function compilePresentationTextLeafOperation(original, requested, sourceSlide, 
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value.text = original.content.value.text;
   restored.content.value.textBody.paragraphs[before.paragraphIndex].runs[before.runIndex] = before.run;
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6109,7 +6536,7 @@ function restoreEquivalentPresentationScalarLeaves(original, requested) {
 
 function compilePresentationScalarLeafOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   const contentCase = original.content.case;
-  if (requested.content.case !== contentCase || !new Set(["shape", "image"]).has(contentCase) || original.source?.editable !== true) return undefined;
+  if (requested.content.case !== contentCase || !new Set(["shape", "image"]).has(contentCase)) return undefined;
   const beforeElement = original.content.value;
   const afterElement = requested.content.value;
   const scalarFields = contentCase === "image"
@@ -6119,6 +6546,12 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   const changed = scalarFields.filter(([field]) => fieldValue(field, beforeElement[field]) !== fieldValue(field, afterElement[field]));
   if (changed.length !== 1) return undefined;
   const [[field, leafKind]] = changed;
+  // A source-bound imported shape may expose a safe fill-opacity leaf even
+  // when its broader geometry is not typed-editable. Keep that native style
+  // capability narrow; all other scalar edits still require the full element
+  // edit capability below.
+  if (original.source?.editable !== true &&
+      (leafKind !== "fillOpacityThousandthPercent" || original.source?.textEditable !== true)) return undefined;
   const expectedValue = fieldValue(field, beforeElement[field]);
   const value = fieldValue(field, afterElement[field]);
   if ((leafKind === "fillRgb" || leafKind === "lineRgb") && (!/^[0-9A-F]{6}$/iu.test(expectedValue) || !/^[0-9A-F]{6}$/iu.test(value))) return undefined;
@@ -6130,7 +6563,7 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   if (leafKind.endsWith("Emu") && (!/^-?[0-9]+$/u.test(expectedValue) || !/^-?[0-9]+$/u.test(value))) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value[field] = beforeElement[field];
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!source || !slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6153,12 +6586,23 @@ function compilePresentationScalarLeafOperation(original, requested, sourceSlide
   };
 }
 
+function restoreEquivalentPresentationImageElementState(original, restored) {
+  // Imported cNvPr visibility/locking fields are presence-sensitive in the
+  // source graph, while the image facade intentionally omits them when they
+  // are not edited. Copy their source presence into the proof candidate so an
+  // otherwise asset-only replacement can still be compared byte-for-byte.
+  for (const field of ["hidden", "locked"]) {
+    if (Object.hasOwn(original, field)) restored[field] = original[field];
+  }
+}
+
 function compilePresentationImageAssetOperation(original, requested, sourceSlide, sourceSha256, shapeTreePath) {
   if (original.content.case !== "image" || requested.content.case !== "image" || original.source?.editable !== true) return undefined;
   const beforeImage = original.content.value;
   const afterImage = requested.content.value;
   if (!beforeImage.assetId || !afterImage.assetId || beforeImage.assetId === afterImage.assetId) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restoreEquivalentPresentationImageElementState(original, restored);
   restored.content.value.assetId = beforeImage.assetId;
   restored.content.value.crop = beforeImage.crop;
   if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
@@ -6195,8 +6639,9 @@ function compilePresentationImageSvgAssetOperation(original, requested, sourceSl
   const afterImage = requested.content.value;
   if (!beforeImage.svgAssetId || !afterImage.svgAssetId || beforeImage.svgAssetId === afterImage.svgAssetId) return undefined;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
+  restoreEquivalentPresentationImageElementState(original, restored);
   restored.content.value.svgAssetId = beforeImage.svgAssetId;
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6270,7 +6715,7 @@ function compilePresentationTableCellOperation(original, requested, sourceSlide,
   const [cell] = changed;
   const restored = clonePresentationWire(PresentationElementSchema, requested);
   restored.content.value.rows[cell.rowIndex].cells[cell.columnIndex].text = cell.before;
-  if (!samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   const source = original.source;
   const slideSource = sourceSlide.source;
   if (!slideSource || !source.elementSha256 || !source.semanticSha256 || !slideSource.partPath || !slideSource.slideXmlSha256) return undefined;
@@ -6335,7 +6780,7 @@ function compilePresentationElementEditOperations(original, requested, sourceSli
     operations.push(...childOperations);
     restored.content.value.children[index] = originalChild;
   }
-  if (!operations.length || !samePresentationWire(PresentationElementSchema, restored, original)) return undefined;
+  if (!operations.length || !samePresentationWireIgnoringDefaults(restored, original)) return undefined;
   return operations;
 }
 
@@ -6393,7 +6838,17 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
         restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
         continue;
       }
-      if (samePresentationWire(PresentationElementSchema, entry.wire, requested)) continue;
+      // Imported projections can omit explicit protobuf defaults (for example
+      // a source image's explicit `hidden=false`) without any user mutation.
+      // Restore the source wire for such untouched entries instead of trying
+      // to compile a phantom edit and blocking an otherwise bounded leaf edit.
+      if (presentationImportedEntryIsUnchanged(entry)) {
+        restoredArtifact.slides[slideIndex].elements[elementIndex] = entry.wire;
+        continue;
+      }
+      if (samePresentationWire(PresentationElementSchema, entry.wire, requested) ||
+          ((entry.wire.content.case === "image" || entry.wire.content.case === "table") &&
+            samePresentationWireIgnoringDefaults(entry.wire, requested))) continue;
       const entryOperations = compilePresentationElementEditOperations(
         entry.wire,
         requested,
@@ -6421,7 +6876,7 @@ export function compilePresentationEditPlan(presentation, protocolVersion) {
     (left.textLeafIndex ?? 0) - (right.textLeafIndex ?? 0) ||
     (left.nativeLeafIndex ?? 0) - (right.nativeLeafIndex ?? 0));
   const sourceArtifact = state.sourceArtifact;
-  if (!sourceArtifact || !samePresentationWire(PresentationArtifactSchema, restoredArtifact, sourceArtifact)) return undefined;
+  if (!sourceArtifact || !samePresentationWireIgnoringDefaults(restoredArtifact, sourceArtifact)) return undefined;
   const requestedAssetIds = new Set(operations
     .filter((operation) => operation.leafKind === "imageAsset" || operation.leafKind === "imageSvgAsset")
     .map((operation) => operation.leafKind === "imageSvgAsset"
@@ -6952,9 +7407,10 @@ function presentationSlidePlaceholder(shape, original, originalState, assetCatal
 
 function modelPresentationShapeLine(shape) {
   return {
-    fill: shape.lineRgb ? `#${shape.lineRgb}` : "transparent",
+    fill: shape.lineRgb ? `#${shape.lineRgb}` : shape.lineScheme || "transparent",
     width: Number(shape.lineWidthEmu) / EMU_PER_POINT,
-    style: shape.lineStyle || (shape.lineRgb ? "solid" : "none"),
+    style: shape.lineStyle || (shape.lineRgb || shape.lineScheme ? "solid" : "none"),
+    ...(shape.lineOpacityThousandthPercent === undefined ? {} : { opacity: Number(shape.lineOpacityThousandthPercent) / 100_000 }),
     ...(shape.startArrow ? { head: {
       type: shape.startArrow,
       ...(shape.startArrowWidth ? { width: shape.startArrowWidth } : {}),
@@ -7145,9 +7601,10 @@ function modelPresentationGroupChild(element, assetCatalog, customShowLinks, nat
       startSiteIndex: Number(connector.startConnectionSiteIndex || 0),
       endSiteIndex: Number(connector.endConnectionSiteIndex || 0),
       line: {
-        fill: connector.lineRgb ? `#${connector.lineRgb}` : "transparent",
+        fill: connector.lineRgb ? `#${connector.lineRgb}` : connector.lineScheme || "transparent",
         width: Number(connector.lineWidthEmu) / EMU_PER_POINT,
-        style: connector.lineStyle || "solid",
+        style: connector.lineStyle || (connector.lineRgb || connector.lineScheme ? "solid" : "none"),
+        ...(connector.lineOpacityThousandthPercent === undefined ? {} : { opacity: Number(connector.lineOpacityThousandthPercent) / 100_000 }),
         ...(connector.startArrow ? { startArrow: connector.startArrow } : {}),
         ...(connector.endArrow ? { endArrow: connector.endArrow } : {}),
       },
@@ -7491,9 +7948,10 @@ export async function presentationFromEnvelope(envelope, options = {}) {
           startSiteIndex: Number(connector.startConnectionSiteIndex || 0),
           endSiteIndex: Number(connector.endConnectionSiteIndex || 0),
           line: {
-            fill: connector.lineRgb ? `#${connector.lineRgb}` : "transparent",
+            fill: connector.lineRgb ? `#${connector.lineRgb}` : connector.lineScheme || "transparent",
             width: Number(connector.lineWidthEmu) / EMU_PER_POINT,
-            style: connector.lineStyle || "solid",
+            style: connector.lineStyle || (connector.lineRgb || connector.lineScheme ? "solid" : "none"),
+            ...(connector.lineOpacityThousandthPercent === undefined ? {} : { opacity: Number(connector.lineOpacityThousandthPercent) / 100_000 }),
             ...(connector.startArrow ? { startArrow: connector.startArrow } : {}),
             ...(connector.endArrow ? { endArrow: connector.endArrow } : {}),
           },
@@ -7645,6 +8103,10 @@ export async function presentationFromEnvelope(envelope, options = {}) {
         ? presentationImportedShapeSnapshot(entry.model)
         : entry.wire.content.case === "group"
           ? presentationImportedGroupSnapshot(entry.model)
+          : entry.wire.content.case === "image"
+            ? presentationImportedImageSnapshot(entry.model)
+            : entry.wire.content.case === "table"
+              ? presentationImportedTableSnapshot(entry.model)
           : undefined;
     }
     for (const sourceThread of sourceSlide.modernComments || []) {

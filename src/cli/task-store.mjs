@@ -1414,7 +1414,9 @@ function validateTaskEditPlan(value, outputSha256) {
   const requiredChangedParts = new Set();
   const operationIds = new Set();
   const nativeLeafKinds = new Set([
-    "text", "tableCellText", "nativeText", "fillRgb", "fillOpacityThousandthPercent", "fillScheme", "lineRgb", "lineScheme", "lineWidthEmu",
+    "text", "tableCellText", "nativeText", "fillRgb", "fillOpacityThousandthPercent", "fillScheme",
+    "shadowBlurRadiusEmu", "shadowDistanceEmu", "shadowDirectionDegrees", "shadowAlignment", "shadowColorRgb", "shadowColorScheme", "shadowOpacityThousandthPercent",
+    "lineRgb", "lineScheme", "lineStyle", "lineCap", "lineJoin", "lineStartArrow", "lineEndArrow", "lineWidthEmu",
     "leftEmu", "topEmu", "widthEmu", "heightEmu", "rotationDegrees", "flipHorizontal", "flipVertical", "imageAsset", "imageSvgAsset", "chartTitleText", "chartDataValue",
     "diagramText", "deleteElement",
   ]);
@@ -1438,7 +1440,11 @@ function validateTaskEditPlan(value, outputSha256) {
         typeof operation.expectedValue !== "string" || typeof operation.value !== "string" || operation.expectedValue === operation.value) {
       throw taskError("invalid-edit-plan", "Artifact Edit Plan operation is invalid.");
     }
-    const styleLeaf = new Set(["fillRgb", "fillOpacityThousandthPercent", "fillScheme", "lineRgb", "lineScheme", "lineWidthEmu", "rotationDegrees", "flipHorizontal", "flipVertical"]).has(leafKind);
+    const styleLeaf = new Set([
+      "fillRgb", "fillOpacityThousandthPercent", "fillScheme",
+      "shadowBlurRadiusEmu", "shadowDistanceEmu", "shadowDirectionDegrees", "shadowAlignment", "shadowColorRgb", "shadowColorScheme", "shadowOpacityThousandthPercent",
+      "lineRgb", "lineScheme", "lineStyle", "lineCap", "lineJoin", "lineStartArrow", "lineEndArrow", "lineWidthEmu", "rotationDegrees", "flipHorizontal", "flipVertical",
+    ]).has(leafKind);
     if (styleLeaf
       ? !Number.isSafeInteger(operation.nativeLeafIndex) || operation.nativeLeafIndex < 0
       : operation.nativeLeafIndex !== undefined) {
