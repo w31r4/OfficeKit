@@ -129,6 +129,7 @@ internal static class PpjJsonSchemaValidator
 {
     private static readonly Lazy<JsonElement> Schema = new(LoadSchema, LazyThreadSafetyMode.ExecutionAndPublication);
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
+    private static readonly string[] ChoiceDiscriminators = ["type", "kind", "mode"];
 
     internal static void Validate(JsonElement instance, List<PpjDiagnostic> diagnostics) =>
         ValidateNode(instance, Schema.Value, "$", diagnostics);
@@ -211,6 +212,8 @@ internal static class PpjJsonSchemaValidator
         List<PpjDiagnostic> diagnostics,
         bool requireExactlyOne)
     {
+        if (TryValidateExclusiveChoice(instance, choices, path)) return;
+
         var branches = new List<List<PpjDiagnostic>>();
         foreach (var choice in choices.EnumerateArray())
         {
@@ -229,6 +232,114 @@ internal static class PpjJsonSchemaValidator
                 ? $"Value must match exactly one typed PPJ alternative; matched {matches}."
                 : "Value must match at least one typed PPJ alternative.",
             path));
+    }
+
+    private static bool TryValidateExclusiveChoice(JsonElement instance, JsonElement choices, string path)
+    {
+        if (instance.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var discriminator in ChoiceDiscriminators)
+            {
+                if (!instance.TryGetProperty(discriminator, out var value) || value.ValueKind != JsonValueKind.String)
+                    continue;
+                if (TrySelectDiscriminatedBranch(choices, discriminator, value.GetString()!, out var selected) &&
+                    ValidatesWithoutDiagnostics(instance, selected, path))
+                    return true;
+            }
+        }
+
+        return TrySelectTypedBranch(instance, choices, out var typed) &&
+               ValidatesWithoutDiagnostics(instance, typed, path);
+    }
+
+    private static bool TrySelectDiscriminatedBranch(
+        JsonElement choices,
+        string discriminator,
+        string value,
+        out JsonElement selected)
+    {
+        selected = default;
+        var matches = 0;
+        foreach (var choice in choices.EnumerateArray())
+        {
+            if (!RequiresProperty(choice, discriminator) ||
+                !TryFindStringConstProperty(choice, discriminator, out var expected))
+                return false;
+            if (!value.Equals(expected, StringComparison.Ordinal)) continue;
+            selected = choice;
+            matches++;
+        }
+        return matches == 1;
+    }
+
+    private static bool TrySelectTypedBranch(JsonElement instance, JsonElement choices, out JsonElement selected)
+    {
+        selected = default;
+        var matches = 0;
+        foreach (var choice in choices.EnumerateArray())
+        {
+            if (!TryFindType(choice, out var type)) return false;
+            if (!MatchesType(instance, type)) continue;
+            selected = choice;
+            matches++;
+        }
+        return matches == 1;
+    }
+
+    private static bool ValidatesWithoutDiagnostics(JsonElement instance, JsonElement schema, string path)
+    {
+        var diagnostics = new List<PpjDiagnostic>();
+        ValidateNode(instance, schema, path, diagnostics);
+        return diagnostics.Count == 0;
+    }
+
+    private static bool RequiresProperty(JsonElement schema, string property)
+    {
+        if (schema.ValueKind != JsonValueKind.Object) return false;
+        if (schema.TryGetProperty("$ref", out var reference))
+            return RequiresProperty(ResolveReference(reference.GetString()!), property);
+        if (schema.TryGetProperty("required", out var required) &&
+            required.EnumerateArray().Any(item => property.Equals(item.GetString(), StringComparison.Ordinal)))
+            return true;
+        return schema.TryGetProperty("allOf", out var allOf) &&
+               allOf.EnumerateArray().Any(child => RequiresProperty(child, property));
+    }
+
+    private static bool TryFindStringConstProperty(JsonElement schema, string property, out string value)
+    {
+        value = string.Empty;
+        if (schema.ValueKind != JsonValueKind.Object) return false;
+        if (schema.TryGetProperty("$ref", out var reference))
+            return TryFindStringConstProperty(ResolveReference(reference.GetString()!), property, out value);
+        if (schema.TryGetProperty("properties", out var properties) &&
+            properties.TryGetProperty(property, out var propertySchema) &&
+            propertySchema.TryGetProperty("const", out var constant) &&
+            constant.ValueKind == JsonValueKind.String)
+        {
+            value = constant.GetString()!;
+            return true;
+        }
+        if (!schema.TryGetProperty("allOf", out var allOf)) return false;
+        foreach (var child in allOf.EnumerateArray())
+        {
+            if (TryFindStringConstProperty(child, property, out value)) return true;
+        }
+        return false;
+    }
+
+    private static bool TryFindType(JsonElement schema, out JsonElement type)
+    {
+        type = default;
+        if (schema.ValueKind != JsonValueKind.Object) return false;
+        if (schema.TryGetProperty("$ref", out var reference))
+            return TryFindType(ResolveReference(reference.GetString()!), out type);
+        if (schema.TryGetProperty("type", out type)) return true;
+        if (!schema.TryGetProperty("allOf", out var allOf)) return false;
+        foreach (var child in allOf.EnumerateArray())
+        {
+            if (TryFindType(child, out type)) return true;
+        }
+        return false;
     }
 
     private static void ValidateObject(JsonElement instance, JsonElement schema, string path, List<PpjDiagnostic> diagnostics)
