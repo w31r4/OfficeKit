@@ -57,15 +57,23 @@ internal static class PpjAuthoredPresentationCompiler
 
         var assets = ValidateAssets(program, request.Assets);
         var catalog = new Catalog(program.Root, assets);
-        var envelope = BuildEnvelope(program, validation.Expansion!, catalog, assets);
-        var exported = PptxCodec.Export(envelope, limits);
-        var file = PpjEmbeddedProgramCodec.Embed(
-            exported.File,
-            request.ProgramJson.Span,
-            validation,
-            envelope.Presentation,
-            assets,
-            limits);
+        var plan = new AuthoredSourceFreeBuildPlan(program, validation.Expansion!, catalog);
+        var packageAssets = assets
+            .Where(asset => !PptxAssetCatalog.IsCompilerOnlyAsset(asset))
+            .ToArray();
+        var originalProgramJson = request.ProgramJson.ToByteArray();
+        var exported = PptxCodec.ExportSourceFree(
+            plan,
+            packageAssets,
+            limits,
+            parts => PpjEmbeddedProgramCodec.AddToSourceFreePackage(
+                parts,
+                originalProgramJson,
+                validation,
+                plan.NativeBindings,
+                assets));
+        var file = exported.File;
+        PpjEmbeddedProgramCodec.ValidateEmbeddedOutput(file, limits);
         var fileSha256 = Sha256(file);
         var receipt = new PresentationProgramResult
         {
@@ -98,43 +106,65 @@ internal static class PpjAuthoredPresentationCompiler
         return output;
     }
 
-    private static ArtifactEnvelope BuildEnvelope(
-        PpjProgramModel program,
-        PpjExpansionResult expansion,
-        Catalog catalog,
-        IReadOnlyList<Asset> assets)
+    private sealed class AuthoredSourceFreeBuildPlan : IPptxSourceFreeBuildPlan
     {
-        var presentation = new PresentationArtifact
-        {
-            Id = program.Meta.Id,
-            Name = program.Meta.Title,
-            SlideWidthEmu = Emu(program.Design.Width),
-            SlideHeightEmu = Emu(program.Design.Height),
-            AuthoredTheme = catalog.Theme,
-        };
+        private readonly PpjProgramModel _program;
+        private readonly Catalog _catalog;
+        private readonly IReadOnlyDictionary<string, PpjExpandedPageModel> _expandedByPage;
+        private readonly HashSet<string> _semanticIds;
+        private readonly List<PptxNativeBinding> _nativeBindings = [];
 
-        AddMasterLayoutState(presentation, program, catalog);
-
-        var expandedByPage = expansion.Pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
-        for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
+        internal AuthoredSourceFreeBuildPlan(
+            PpjProgramModel program,
+            PpjExpansionResult expansion,
+            Catalog catalog)
         {
-            var page = program.Pages[pageIndex];
-            var expanded = expandedByPage[page.Id];
-            var slide = new PresentationSlide
+            _program = program;
+            _catalog = catalog;
+            _expandedByPage = expansion.Pages.ToDictionary(page => page.Id, StringComparer.Ordinal);
+            _semanticIds = expansion.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
+            Presentation = new PresentationArtifact
             {
-                Id = page.Id,
-                Name = DisplayName(page.Name, page.Role, page.Id),
-                LayoutId = page.LayoutId ?? string.Empty,
+                Id = program.Meta.Id,
+                Name = program.Meta.Title,
+                SlideWidthEmu = Emu(program.Design.Width),
+                SlideHeightEmu = Emu(program.Design.Height),
+                AuthoredTheme = catalog.Theme,
             };
-            if (page.Raw.TryGetProperty("hidden", out var hidden)) slide.Hidden = hidden.GetBoolean();
+
+            AddMasterLayoutState(Presentation, program, catalog);
+
+            foreach (var page in program.Pages)
+            {
+                var slide = new PresentationSlide
+                {
+                    Id = page.Id,
+                    Name = DisplayName(page.Name, page.Role, page.Id),
+                    LayoutId = page.LayoutId ?? string.Empty,
+                };
+                if (page.Raw.TryGetProperty("hidden", out var hidden)) slide.Hidden = hidden.GetBoolean();
+                if (page.Raw.TryGetProperty("notes", out var notes))
+                    slide.SpeakerNotes = BuildNotes(notes, catalog);
+                Presentation.Slides.Add(slide);
+            }
+
+            AddSections(Presentation, program);
+            AddCustomShows(Presentation, program);
+            AddComments(Presentation, program);
+        }
+
+        public PresentationArtifact Presentation { get; }
+        internal IReadOnlyList<PptxNativeBinding> NativeBindings => _nativeBindings;
+
+        public PresentationSlide MaterializeSlide(int pageIndex, PresentationSlide? previousSlide)
+        {
+            var page = _program.Pages[pageIndex];
+            var expanded = _expandedByPage[page.Id];
+            var slide = Presentation.Slides[pageIndex].Clone();
             if (page.Raw.TryGetProperty("background", out var background))
-                slide.Background = BuildBackground(background, catalog, program.Design.Width, program.Design.Height);
-            if (page.Raw.TryGetProperty("notes", out var notes))
-                slide.SpeakerNotes = BuildNotes(notes, catalog);
-
+                slide.Background = BuildBackground(background, _catalog, _program.Design.Width, _program.Design.Height);
             for (var elementIndex = 0; elementIndex < expanded.Elements.Count; elementIndex++)
-                slide.Elements.Add(BuildElement(expanded.Elements[elementIndex], expanded.ElementJson[elementIndex], catalog));
-
+                slide.Elements.Add(BuildElement(expanded.Elements[elementIndex], expanded.ElementJson[elementIndex], _catalog));
             var loweredElements = WalkPresentation(slide.Elements)
                 .ToDictionary(element => element.Id, StringComparer.Ordinal);
             foreach (var animation in page.Animations)
@@ -145,22 +175,27 @@ internal static class PpjAuthoredPresentationCompiler
                     throw Unsupported(animation.TargetId, "chartBuild requires a native ChartPart target; vector-lowered charts support whole-object animation only");
                 slide.Animations.Add(BuildAnimation(animation, expanded.Elements));
             }
-            ApplyTransition(slide, page, pageIndex == 0 ? null : presentation.Slides[pageIndex - 1]);
-            presentation.Slides.Add(slide);
+            ApplyTransition(slide, page, previousSlide);
+            return slide;
         }
 
-        AddSections(presentation, program);
-        AddCustomShows(presentation, program);
-        AddComments(presentation, program);
-
-        var envelope = new ArtifactEnvelope
+        public void RecordNativeBindings(
+            int pageIndex,
+            PresentationSlide slide,
+            IReadOnlyList<PresentationElement> flattenedElements)
         {
-            ProtocolVersion = CodecProtocol.ProtocolVersion,
-            Family = ArtifactFamily.Presentation,
-            Presentation = presentation,
-        };
-        envelope.Assets.Add(assets.Select(asset => asset.Clone()));
-        return envelope;
+            for (var index = 0; index < flattenedElements.Count; index++)
+            {
+                var element = flattenedElements[index];
+                if (!_semanticIds.Contains(element.Id)) continue;
+                _nativeBindings.Add(new PptxNativeBinding(
+                    slide.Id,
+                    element.Id,
+                    element.ContentCase.ToString(),
+                    $"ppt/slides/slide{pageIndex + 1}.xml",
+                    checked((uint)(index + 2))));
+            }
+        }
     }
 
     private static void AddMasterLayoutState(

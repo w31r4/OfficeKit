@@ -40,13 +40,6 @@ internal static class PpjEmbeddedProgramCodec
         string PartPath,
         byte[] Data);
 
-    private sealed record NativeBinding(
-        string PageId,
-        string ElementId,
-        string Type,
-        string PartPath,
-        uint NativeId);
-
     internal sealed record Recovery(
         PresentationProgramResult Program,
         IReadOnlyList<Diagnostic> Diagnostics);
@@ -156,6 +149,31 @@ internal static class PpjEmbeddedProgramCodec
             throw new InvalidOperationException("Authored PPJ source bytes are required for exact recovery.");
 
         var parts = ReadParts(pptx);
+        AddToSourceFreePackage(
+            parts,
+            originalProgramJson,
+            validation,
+            NativeBindings(presentation, validation.Expansion),
+            compiledAssets);
+        var output = WriteDeterministicArchive(parts);
+        ValidateEmbeddedOutput(output, limits);
+        return output;
+    }
+
+    internal static void AddToSourceFreePackage(
+        Dictionary<string, byte[]> parts,
+        ReadOnlySpan<byte> originalProgramJson,
+        PpjValidationResult validation,
+        IReadOnlyList<PptxNativeBinding> bindings,
+        IReadOnlyList<Asset> compiledAssets)
+    {
+        if (!validation.IsValid || validation.Program is null || validation.Expansion is null)
+            throw new InvalidOperationException("Only a validated authored PPJ can be embedded.");
+        if (validation.Program.Source is not null)
+            throw new InvalidOperationException("Source-bound PPJ must never be embedded into third-party output.");
+        if (originalProgramJson.IsEmpty)
+            throw new InvalidOperationException("Authored PPJ source bytes are required for exact recovery.");
+
         RejectReservedParts(parts);
         var assets = BindAssets(validation.Program, compiledAssets);
         var nativeParts = parts
@@ -165,7 +183,6 @@ internal static class PpjEmbeddedProgramCodec
             .OrderBy(part => part.Key, StringComparer.Ordinal)
             .Select(part => (Path: part.Key, Sha256: Sha256(part.Value)))
             .ToArray();
-        var bindings = NativeBindings(presentation, validation.Expansion);
         var map = WriteProgramMap(validation, assets, bindings, nativeParts);
 
         parts[ContentTypesPath] = AddContentTypes(parts[ContentTypesPath], assets);
@@ -175,10 +192,11 @@ internal static class PpjEmbeddedProgramCodec
         parts[ProgramRelationshipsPath] = WriteProgramRelationships(assets);
         foreach (var asset in assets.GroupBy(asset => asset.PartPath, StringComparer.Ordinal).Select(group => group.First()))
             parts[asset.PartPath] = asset.Data;
+    }
 
-        var output = WriteDeterministicArchive(parts);
+    internal static void ValidateEmbeddedOutput(byte[] output, EffectiveCodecLimits limits)
+    {
         _ = PackageGuards.ValidateAndCollectOpaque(output, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
-        return output;
     }
 
     private static Dictionary<string, byte[]> ReadParts(byte[] pptx)
@@ -233,12 +251,12 @@ internal static class PpjEmbeddedProgramCodec
         return output;
     }
 
-    private static IReadOnlyList<NativeBinding> NativeBindings(
+    private static IReadOnlyList<PptxNativeBinding> NativeBindings(
         PresentationArtifact presentation,
         PpjExpansionResult expansion)
     {
         var semanticIds = expansion.Nodes.Select(node => node.Id).ToHashSet(StringComparer.Ordinal);
-        var output = new List<NativeBinding>();
+        var output = new List<PptxNativeBinding>();
         for (var pageIndex = 0; pageIndex < presentation.Slides.Count; pageIndex++)
         {
             var slide = presentation.Slides[pageIndex];
@@ -252,7 +270,7 @@ internal static class PpjEmbeddedProgramCodec
                 // children are not independent PPJ nodes. Keep their native
                 // slots in the ID count, but bind only stable program IDs.
                 if (!semanticIds.Contains(element.Id)) continue;
-                output.Add(new(
+                output.Add(new PptxNativeBinding(
                     slide.Id,
                     element.Id,
                     element.ContentCase.ToString(),
@@ -276,7 +294,7 @@ internal static class PpjEmbeddedProgramCodec
     private static byte[] WriteProgramMap(
         PpjValidationResult validation,
         IReadOnlyList<EmbeddedAsset> assets,
-        IReadOnlyList<NativeBinding> bindings,
+        IReadOnlyList<PptxNativeBinding> bindings,
         IReadOnlyList<(string Path, string Sha256)> nativeParts)
     {
         using var nodeMap = JsonDocument.Parse(validation.Expansion!.NodeMapJson);

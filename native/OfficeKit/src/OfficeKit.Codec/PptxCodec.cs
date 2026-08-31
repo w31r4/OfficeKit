@@ -17,6 +17,27 @@ namespace OfficeKit.Codec;
 
 internal sealed record PptxImportResult(ArtifactEnvelope Artifact, IReadOnlyList<Diagnostic> Diagnostics);
 internal sealed record PptxExportResult(byte[] File, IReadOnlyList<Diagnostic> Diagnostics);
+internal sealed record PptxNativeBinding(string PageId, string ElementId, string Type, string PartPath, uint NativeId);
+
+internal interface IPptxSourceFreeBuildPlan
+{
+    PresentationArtifact Presentation { get; }
+    PresentationSlide MaterializeSlide(int slideIndex, PresentationSlide? previousSlide);
+    void RecordNativeBindings(int slideIndex, PresentationSlide slide, IReadOnlyList<PresentationElement> flattenedElements);
+}
+
+internal sealed class PptxArtifactSourceFreeBuildPlan(PresentationArtifact presentation) : IPptxSourceFreeBuildPlan
+{
+    public PresentationArtifact Presentation { get; } = presentation;
+
+    public PresentationSlide MaterializeSlide(int slideIndex, PresentationSlide? previousSlide) =>
+        Presentation.Slides[slideIndex];
+
+    public void RecordNativeBindings(int slideIndex, PresentationSlide slide, IReadOnlyList<PresentationElement> flattenedElements)
+    {
+    }
+}
+
 internal sealed record PptxLayoutGraphEntry(int Index, string Id, string RelationshipId, SlideLayoutPart Part);
 internal sealed record PptxMasterGraphEntry(int Index, string Id, string RelationshipId, SlideMasterPart Part, IReadOnlyList<PptxLayoutGraphEntry> Layouts);
 internal sealed record PptxSourceSlideEntry(int Index, P.SlideId SlideId, string RelationshipId, SlidePart Part);
@@ -42,6 +63,22 @@ internal sealed class PptxTargetSlideEntry
 
 internal static class PptxCodec
 {
+    private sealed class EnvelopeValidationContext(
+        PptxAssetCatalog assetCatalog,
+        bool hasSourcePackage,
+        HashSet<string> layoutIds,
+        Dictionary<string, PresentationMaster> mastersById,
+        Dictionary<string, PresentationLayout> layoutsById,
+        ulong items)
+    {
+        internal PptxAssetCatalog AssetCatalog { get; } = assetCatalog;
+        internal bool HasSourcePackage { get; } = hasSourcePackage;
+        internal HashSet<string> LayoutIds { get; } = layoutIds;
+        internal Dictionary<string, PresentationMaster> MastersById { get; } = mastersById;
+        internal Dictionary<string, PresentationLayout> LayoutsById { get; } = layoutsById;
+        internal ulong Items { get; set; } = items;
+    }
+
     internal static bool SupportsBoundTextLeaf(P.Shape shape) =>
         shape.TextBody is not null && PptxTextCodec.SupportsEditing(shape.TextBody);
 
@@ -388,16 +425,46 @@ internal static class PptxCodec
 
         using var stream = new MemoryStream();
         using (var package = PresentationDocument.Create(stream, PresentationDocumentType.Presentation, autoSave: true))
-            BuildPresentation(package, envelope.Presentation, assetCatalog);
+            BuildPresentation(package, new PptxArtifactSourceFreeBuildPlan(envelope.Presentation), assetCatalog);
         var bytes = NormalizeSourceFreePackage(stream.ToArray());
         ValidateOutputBudget(bytes, limits);
         ValidateOffice2021(bytes);
         return new PptxExportResult(bytes, diagnostics);
     }
 
-    private static byte[] NormalizeSourceFreePackage(byte[] bytes)
+    internal static PptxExportResult ExportSourceFree(
+        IPptxSourceFreeBuildPlan plan,
+        IReadOnlyList<Asset> assets,
+        EffectiveCodecLimits limits,
+        Action<Dictionary<string, byte[]>> enrichPackage)
     {
-        var parts = new List<(string Path, byte[] Data)>();
+        var envelope = new ArtifactEnvelope
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Family = ArtifactFamily.Presentation,
+            Presentation = plan.Presentation,
+        };
+        envelope.Assets.Add(assets);
+        var validation = ValidateEnvelopeHeader(envelope, limits);
+
+        using var stream = new MemoryStream();
+        using (var package = PresentationDocument.Create(stream, PresentationDocumentType.Presentation, autoSave: true))
+            BuildPresentation(
+                package,
+                plan,
+                validation.AssetCatalog,
+                (slideIndex, slide) => ValidatePresentationSlide(slide, slideIndex, validation, limits));
+        var bytes = NormalizeSourceFreePackage(stream.ToArray(), enrichPackage);
+        ValidateOutputBudget(bytes, limits);
+        ValidateOffice2021(bytes);
+        return new PptxExportResult(bytes, []);
+    }
+
+    private static byte[] NormalizeSourceFreePackage(
+        byte[] bytes,
+        Action<Dictionary<string, byte[]>>? enrichPackage = null)
+    {
+        var parts = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         using (var source = new MemoryStream(bytes, writable: false))
         using (var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: false))
         {
@@ -406,16 +473,17 @@ internal static class PptxCodec
                 using var entryStream = entry.Open();
                 using var copy = new MemoryStream();
                 entryStream.CopyTo(copy);
-                parts.Add((entry.FullName, copy.ToArray()));
+                if (!parts.TryAdd(entry.FullName, copy.ToArray()))
+                    throw new CodecException("duplicate_package_part", $"Generated PPTX contains duplicate part {entry.FullName}.", entry.FullName);
             }
         }
 
-        var rootRelationshipsIndex = parts.FindIndex(part =>
-            part.Path.Equals("_rels/.rels", StringComparison.OrdinalIgnoreCase));
-        if (rootRelationshipsIndex < 0)
+        var rootRelationshipsPath = parts.Keys.SingleOrDefault(path =>
+            path.Equals("_rels/.rels", StringComparison.OrdinalIgnoreCase));
+        if (rootRelationshipsPath is null)
             throw new CodecException("missing_package_relationships", "Generated PPTX has no package relationship part.", "_rels/.rels");
         XDocument rootRelationships;
-        using (var rootRelationshipsStream = new MemoryStream(parts[rootRelationshipsIndex].Data, writable: false))
+        using (var rootRelationshipsStream = new MemoryStream(parts[rootRelationshipsPath], writable: false))
             rootRelationships = XDocument.Load(rootRelationshipsStream, LoadOptions.PreserveWhitespace);
         XNamespace relationshipsNamespace = "http://schemas.openxmlformats.org/package/2006/relationships";
         var officeDocumentRelationship = rootRelationships.Root?
@@ -443,19 +511,21 @@ internal static class PptxCodec
         {
             rootRelationships.Save(writer);
             writer.Flush();
-            parts[rootRelationshipsIndex] = (parts[rootRelationshipsIndex].Path, normalized.ToArray());
+            parts[rootRelationshipsPath] = normalized.ToArray();
         }
+
+        enrichPackage?.Invoke(parts);
 
         using var output = new MemoryStream();
         using (var archive = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
         {
             var timestamp = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
-            foreach (var part in parts.OrderBy(part => part.Path, StringComparer.Ordinal))
+            foreach (var part in parts.OrderBy(part => part.Key, StringComparer.Ordinal))
             {
-                var entry = archive.CreateEntry(part.Path, CompressionLevel.Optimal);
+                var entry = archive.CreateEntry(part.Key, CompressionLevel.Optimal);
                 entry.LastWriteTime = timestamp;
                 using var target = entry.Open();
-                target.Write(part.Data);
+                target.Write(part.Value);
             }
         }
         return output.ToArray();
@@ -2109,8 +2179,13 @@ internal static class PptxCodec
         return requested.Length == 0 && opacity is null && !parent.ChildElements.Any(child => child.LocalName.EndsWith("Fill", StringComparison.Ordinal));
     }
 
-    private static void BuildPresentation(PresentationDocument package, PresentationArtifact artifact, PptxAssetCatalog assetCatalog)
+    private static void BuildPresentation(
+        PresentationDocument package,
+        IPptxSourceFreeBuildPlan plan,
+        PptxAssetCatalog assetCatalog,
+        Action<int, PresentationSlide>? validateSlide = null)
     {
+        var artifact = plan.Presentation;
         if (artifact.Masters.Count > 1)
             throw new CodecException(
                 "unsupported_presentation_features",
@@ -2210,9 +2285,11 @@ internal static class PptxCodec
             foreach (var (placeholder, index) in layout.Placeholders.Select((placeholder, index) => (placeholder, index)))
                 layoutShapeTree.Append(PptxPlaceholderCodec.Build(placeholder, checked((uint)(index + 2)), layoutContext));
         }
+        PresentationSlide? previousSlide = null;
         for (var slideIndex = 0; slideIndex < artifact.Slides.Count; slideIndex++)
         {
-            var source = artifact.Slides[slideIndex];
+            var source = plan.MaterializeSlide(slideIndex, previousSlide);
+            validateSlide?.Invoke(slideIndex, source);
             var slidePart = slideParts[slideIndex];
             var slideCommon = slidePart.Slide!.CommonSlideData!;
             var slideContext = new PptxPartContext(slidePart, slideIdByPartPath, slidePartById, assetCatalog, customShowCatalog);
@@ -2220,13 +2297,16 @@ internal static class PptxCodec
             PptxTransitionCodec.Build(slidePart.Slide!, source.Transition);
             var shapeTree = slideCommon.ShapeTree!;
             var flattenedElements = FlattenPresentationElements(source.Elements).ToArray();
+            plan.RecordNativeBindings(slideIndex, source, flattenedElements);
             var nativeIdsByElementId = flattenedElements.Select((element, index) => (element.Id, NativeId: checked((uint)(index + 2))))
                 .ToDictionary(item => item.Id, item => item.NativeId, StringComparer.Ordinal);
             foreach (var element in source.Elements)
                 shapeTree.Append(BuildElement(element, nativeIdsByElementId, slideContext, slidePart, package));
-            PptxTimingCodec.ValidateMorphContext(source, slideIndex > 0 ? artifact.Slides[slideIndex - 1] : null);
+            PptxTimingCodec.ValidateMorphContext(source, previousSlide);
             PptxTimingCodec.Build(slidePart.Slide!, source, nativeIdsByElementId);
             slidePart.Slide.Save();
+            slidePart.UnloadRootElement();
+            previousSlide = source;
         }
         var notesMasterRelationshipId = PptxSpeakerNotesCodec.BuildSourceFree(presentationPart, themePart, slideParts, artifact.Slides);
         var presentationRoot = new P.Presentation();
@@ -2952,6 +3032,14 @@ internal static class PptxCodec
 
     private static PptxAssetCatalog ValidateEnvelope(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
     {
+        var context = ValidateEnvelopeHeader(envelope, limits);
+        for (var slideIndex = 0; slideIndex < envelope.Presentation.Slides.Count; slideIndex++)
+            ValidatePresentationSlide(envelope.Presentation.Slides[slideIndex], slideIndex, context, limits);
+        return context.AssetCatalog;
+    }
+
+    private static EnvelopeValidationContext ValidateEnvelopeHeader(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
+    {
         if (envelope.ProtocolVersion != CodecProtocol.ProtocolVersion)
             throw new CodecException("unsupported_artifact_version", $"Artifact protocol version {envelope.ProtocolVersion} is unsupported.");
         if (envelope.Family != ArtifactFamily.Presentation || envelope.PayloadCase != ArtifactEnvelope.PayloadOneofCase.Presentation)
@@ -3016,41 +3104,52 @@ internal static class PptxCodec
             }
         }
 
-        for (var slideIndex = 0; slideIndex < envelope.Presentation.Slides.Count; slideIndex++)
+        return new EnvelopeValidationContext(assetCatalog, hasSourcePackage, layoutIds, mastersById, layoutsById, items);
+    }
+
+    private static void ValidatePresentationSlide(
+        PresentationSlide slide,
+        int slideIndex,
+        EnvelopeValidationContext context,
+        EffectiveCodecLimits limits)
+    {
+        var assetCatalog = context.AssetCatalog;
+        var hasSourcePackage = context.HasSourcePackage;
+        var layoutIds = context.LayoutIds;
+        var mastersById = context.MastersById;
+        var layoutsById = context.LayoutsById;
+        var items = context.Items;
+        PptxSpeakerNotesCodec.Validate(slide.SpeakerNotes);
+        PptxBackgroundCodec.Validate(slide.Background, assetCatalog);
+        PptxTransitionCodec.Validate(slide.Transition);
+        PptxLegacyCommentsCodec.Validate(slide, slideIndex);
+        PptxModernCommentsCodec.Validate(slide, slideIndex, hasSourcePackage);
+        if (!string.IsNullOrWhiteSpace(slide.LayoutId) && !layoutIds.Contains(slide.LayoutId))
+            throw new CodecException("invalid_presentation_layout", $"Presentation slide {slide.Id} references missing layout {slide.LayoutId}.");
+        if (!hasSourcePackage)
         {
-            var slide = envelope.Presentation.Slides[slideIndex];
-            PptxSpeakerNotesCodec.Validate(slide.SpeakerNotes);
-            PptxBackgroundCodec.Validate(slide.Background, assetCatalog);
-            PptxTransitionCodec.Validate(slide.Transition);
-            PptxLegacyCommentsCodec.Validate(slide, slideIndex);
-            PptxModernCommentsCodec.Validate(slide, slideIndex, hasSourcePackage);
-            if (!string.IsNullOrWhiteSpace(slide.LayoutId) && !layoutIds.Contains(slide.LayoutId))
-                throw new CodecException("invalid_presentation_layout", $"Presentation slide {slide.Id} references missing layout {slide.LayoutId}.");
-            if (!hasSourcePackage)
+            var placeholderShapes = slide.Elements.Where(element =>
+                element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Placeholder is not null).ToArray();
+            if (placeholderShapes.Length > 0)
             {
-                var placeholderShapes = slide.Elements.Where(element =>
-                    element.ContentCase == PresentationElement.ContentOneofCase.Shape && element.Shape.Placeholder is not null).ToArray();
-                if (placeholderShapes.Length > 0)
+                if (string.IsNullOrWhiteSpace(slide.LayoutId) || !layoutsById.TryGetValue(slide.LayoutId, out var layout))
+                    throw new CodecException("invalid_presentation_layout", $"Source-free presentation slide {slide.Id} has placeholders but no explicit layout binding.");
+                var master = mastersById[layout.MasterId];
+                foreach (var element in placeholderShapes)
                 {
-                    if (string.IsNullOrWhiteSpace(slide.LayoutId) || !layoutsById.TryGetValue(slide.LayoutId, out var layout))
-                        throw new CodecException("invalid_presentation_layout", $"Source-free presentation slide {slide.Id} has placeholders but no explicit layout binding.");
-                    var master = mastersById[layout.MasterId];
-                    foreach (var element in placeholderShapes)
-                    {
-                        var placeholder = element.Shape.Placeholder;
-                        if (placeholder.InheritsGeometry || element.Shape.DirectFrame is null)
-                            throw new CodecException("invalid_presentation_placeholder", $"Source-free presentation slide placeholder {element.Id} must use a direct frame.");
-                        ValidateSourceFreeTextPlaceholderIdentity(placeholder, element.Id);
-                        if (!master.Placeholders.Concat(layout.Placeholders).Any(candidate =>
-                                candidate.Type.Equals(placeholder.Type, StringComparison.Ordinal) && candidate.Index == placeholder.Index))
-                            throw new CodecException("presentation_placeholder_binding_mismatch", $"Source-free presentation slide placeholder {element.Id} has no matching master/layout placeholder.");
-                    }
+                    var placeholder = element.Shape.Placeholder;
+                    if (placeholder.InheritsGeometry || element.Shape.DirectFrame is null)
+                        throw new CodecException("invalid_presentation_placeholder", $"Source-free presentation slide placeholder {element.Id} must use a direct frame.");
+                    ValidateSourceFreeTextPlaceholderIdentity(placeholder, element.Id);
+                    if (!master.Placeholders.Concat(layout.Placeholders).Any(candidate =>
+                            candidate.Type.Equals(placeholder.Type, StringComparison.Ordinal) && candidate.Index == placeholder.Index))
+                        throw new CodecException("presentation_placeholder_binding_mismatch", $"Source-free presentation slide placeholder {element.Id} has no matching master/layout placeholder.");
                 }
             }
-            foreach (var element in slide.Elements)
-                ValidatePresentationElement(element, hasSourcePackage, assetCatalog, limits, ref items, 0);
         }
-        return assetCatalog;
+        foreach (var element in slide.Elements)
+            ValidatePresentationElement(element, hasSourcePackage, assetCatalog, limits, ref items, 0);
+        context.Items = items;
     }
 
     private static void ValidatePresentationElement(

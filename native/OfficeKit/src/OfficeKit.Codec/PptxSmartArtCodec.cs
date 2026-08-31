@@ -38,11 +38,12 @@ internal static class PptxSmartArtCodec
         SlidePart slidePart)
     {
         var diagram = element.Diagram;
-        var dataPart = slidePart.AddNewPart<DiagramDataPart>();
-        var layoutPart = slidePart.AddNewPart<DiagramLayoutDefinitionPart>();
-        var stylePart = slidePart.AddNewPart<DiagramStylePart>();
-        var colorsPart = slidePart.AddNewPart<DiagramColorsPart>();
-        var drawingPart = slidePart.AddNewPart<DiagramPersistLayoutPart>();
+        var relationshipSuffix = nativeId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var dataPart = slidePart.AddNewPart<DiagramDataPart>($"rIdOfficeKitSmartArtData{relationshipSuffix}");
+        var layoutPart = slidePart.AddNewPart<DiagramLayoutDefinitionPart>($"rIdOfficeKitSmartArtLayout{relationshipSuffix}");
+        var stylePart = slidePart.AddNewPart<DiagramStylePart>($"rIdOfficeKitSmartArtStyle{relationshipSuffix}");
+        var colorsPart = slidePart.AddNewPart<DiagramColorsPart>($"rIdOfficeKitSmartArtColors{relationshipSuffix}");
+        var drawingPart = slidePart.AddNewPart<DiagramPersistLayoutPart>($"rIdOfficeKitSmartArtDrawing{relationshipSuffix}");
         slideContext.TrackAddedPart(dataPart);
         slideContext.TrackAddedPart(layoutPart);
         slideContext.TrackAddedPart(stylePart);
