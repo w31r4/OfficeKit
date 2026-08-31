@@ -676,7 +676,7 @@ internal static class PptxModernCommentsCodec
 
     private static IReadOnlyList<PresentationModernCommentThread> Unsupported(OpenXmlPart part, int slideIndex, IList<Diagnostic> diagnostics, string reason)
     {
-        diagnostics.Add(CodecProtocol.Warning(
+        diagnostics.Add(CodecDiagnostics.Warning(
             "unsupported_presentation_modern_comments_preserved",
             $"Presentation slide {slideIndex + 1} has modern comments outside the bounded profile ({reason}); the graph remains opaque and source-bound.",
             PartPath(part)));

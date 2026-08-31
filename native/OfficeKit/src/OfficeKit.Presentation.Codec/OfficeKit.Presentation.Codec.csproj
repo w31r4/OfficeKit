@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>OfficeKit.Presentation.Codec</AssemblyName>
+    <RootNamespace>OfficeKit.Codec</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../OfficeKit.Codec/Ppj*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../OfficeKit.Codec/Pptx*.cs"
+             Exclude="../OfficeKit.Codec/PptxColor.cs;../OfficeKit.Codec/PptxGradientFillCodec.cs"
+             Link="%(Filename)%(Extension)" />
+    <Compile Include="../OfficeKit.Codec/Properties/AssemblyInfo.cs" Link="Properties/AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OfficeKit.Codec.Shared/OfficeKit.Codec.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="../../../../src/ppj/ppj-v1.schema.json" LogicalName="OfficeKit.Ppj.V1.Schema.json" />
+    <EmbeddedResource Include="../../../../src/ppj/smartart-definition-v1.schema.json" LogicalName="OfficeKit.Ppj.SmartArtDefinition.V1.Schema.json" />
+    <EmbeddedResource Include="../../../../src/ppj/smartart-operator-profiles.json" LogicalName="OfficeKit.Ppj.SmartArt.OperatorProfiles.json" />
+    <EmbeddedResource Include="../../../../src/ppj/preset-geometry-profiles.json" LogicalName="OfficeKit.Ppj.PresetGeometryProfiles.json" />
+    <EmbeddedResource Include="../../../../src/ppj/font-awesome-free-icons.json" LogicalName="OfficeKit.Ppj.FontAwesomeFreeIcons.json" />
+  </ItemGroup>
+</Project>

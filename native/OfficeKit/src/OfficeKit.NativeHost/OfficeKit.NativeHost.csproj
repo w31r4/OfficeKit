@@ -19,6 +19,9 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../OfficeKit.Codec/OfficeKit.Codec.csproj" />
+    <Compile Include="../OfficeKit.Codec/OfficeCodecProtocol.cs" Link="OfficeCodecProtocol.cs" />
+    <ProjectReference Include="../OfficeKit.Codec.Shared/OfficeKit.Codec.Shared.csproj" />
+    <ProjectReference Include="../OfficeKit.Document.Codec/OfficeKit.Document.Codec.csproj" />
+    <ProjectReference Include="../OfficeKit.Spreadsheet.Codec/OfficeKit.Spreadsheet.Codec.csproj" />
   </ItemGroup>
 </Project>

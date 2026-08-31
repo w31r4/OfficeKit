@@ -26,7 +26,7 @@ internal static class DocxCodec
         var diagnostics = new List<Diagnostic>();
         var opaqueCount = opaque.Parts.Count + opaque.PackageRelationships.Count;
         if (opaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_content_retained",
                 $"Retained {opaqueCount} unsupported OPC parts or relationships for source-bound, fail-closed export from the validated package snapshot.",
                 opaque.Parts.FirstOrDefault()?.Path ?? opaque.PackageRelationships.FirstOrDefault()?.SourcePath));
@@ -69,7 +69,7 @@ internal static class DocxCodec
 
         var envelope = new ArtifactEnvelope
         {
-            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            ProtocolVersion = CodecWireProtocol.ProtocolVersion,
             Family = ArtifactFamily.Document,
             Document = document,
             OpaqueOpc = opaque,
@@ -93,7 +93,7 @@ internal static class DocxCodec
             DocxBookmarkCodec.AssignNativeIds(envelope.Document);
         }
         var requiresSourcePreservation =
-            envelope.ProtocolVersion == CodecProtocol.ProtocolVersion &&
+            envelope.ProtocolVersion == CodecWireProtocol.ProtocolVersion &&
             envelope.Family == ArtifactFamily.Document &&
             envelope.PayloadCase == ArtifactEnvelope.PayloadOneofCase.Document &&
             RequiresSourcePreservation(envelope);
@@ -571,11 +571,11 @@ internal static class DocxCodec
             context is null ? null : context.IgnoresModeledPart);
         var diagnostics = new List<Diagnostic>();
         if (opaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_content_preserved",
                 $"Preserved {opaqueCount} opaque OPC parts or relationships while updating modeled document content."));
         if (retainedValidationErrorCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {retainedValidationErrorCount} pre-existing Office 2021 validation warning(s) from the source package; export introduced none."));
         return new DocxExportResult(bytes, diagnostics);
@@ -937,7 +937,7 @@ internal static class DocxCodec
 
     private static void ValidateEnvelope(ArtifactEnvelope envelope, EffectiveCodecLimits limits, DocxImageAssetCatalog images)
     {
-        if (envelope.ProtocolVersion != CodecProtocol.ProtocolVersion)
+        if (envelope.ProtocolVersion != CodecWireProtocol.ProtocolVersion)
             throw new CodecException("unsupported_artifact_version", $"Artifact protocol version {envelope.ProtocolVersion} is unsupported.");
         if (envelope.Family != ArtifactFamily.Document || envelope.PayloadCase != ArtifactEnvelope.PayloadOneofCase.Document)
             throw new CodecException("invalid_document_artifact", "Artifact envelope does not contain a document payload.");

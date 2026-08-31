@@ -20,6 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../OfficeKit.NativeHost/NativeHostRunner.cs" Link="NativeHostRunner.cs" />
-    <ProjectReference Include="../OfficeKit.Codec/OfficeKit.Codec.csproj" />
+    <ProjectReference Include="../OfficeKit.Codec.Shared/OfficeKit.Codec.Shared.csproj" />
+    <ProjectReference Include="../OfficeKit.Presentation.Codec/OfficeKit.Presentation.Codec.csproj" />
   </ItemGroup>
 </Project>

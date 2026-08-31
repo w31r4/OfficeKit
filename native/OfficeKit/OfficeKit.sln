@@ -5,6 +5,14 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Codec", "src/OfficeKit.Codec/OfficeKit.Codec.csproj", "{5F54F0CE-9B2F-4BBE-9E1F-FB8076419E31}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Codec.Shared", "src/OfficeKit.Codec.Shared/OfficeKit.Codec.Shared.csproj", "{A1111111-1111-4111-8111-111111111111}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Presentation.Codec", "src/OfficeKit.Presentation.Codec/OfficeKit.Presentation.Codec.csproj", "{B2222222-2222-4222-8222-222222222222}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Document.Codec", "src/OfficeKit.Document.Codec/OfficeKit.Document.Codec.csproj", "{C3333333-3333-4333-8333-333333333333}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Spreadsheet.Codec", "src/OfficeKit.Spreadsheet.Codec/OfficeKit.Spreadsheet.Codec.csproj", "{D4444444-4444-4444-8444-444444444444}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.NativeHost", "src/OfficeKit.NativeHost/OfficeKit.NativeHost.csproj", "{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.PpjNativeHost", "src/OfficeKit.PpjNativeHost/OfficeKit.PpjNativeHost.csproj", "{0DB9AB42-4A30-4EAC-B573-8915B121097C}"
@@ -21,6 +29,22 @@ Global
 		{5F54F0CE-9B2F-4BBE-9E1F-FB8076419E31}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5F54F0CE-9B2F-4BBE-9E1F-FB8076419E31}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5F54F0CE-9B2F-4BBE-9E1F-FB8076419E31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1111111-1111-4111-8111-111111111111}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1111111-1111-4111-8111-111111111111}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1111111-1111-4111-8111-111111111111}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1111111-1111-4111-8111-111111111111}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2222222-2222-4222-8222-222222222222}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2222222-2222-4222-8222-222222222222}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2222222-2222-4222-8222-222222222222}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2222222-2222-4222-8222-222222222222}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3333333-3333-4333-8333-333333333333}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3333333-3333-4333-8333-333333333333}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3333333-3333-4333-8333-333333333333}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3333333-3333-4333-8333-333333333333}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4444444-4444-4444-8444-444444444444}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4444444-4444-4444-8444-444444444444}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4444444-4444-4444-8444-444444444444}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4444444-4444-4444-8444-444444444444}.Release|Any CPU.Build.0 = Release|Any CPU
 		{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}.Release|Any CPU.ActiveCfg = Release|Any CPU

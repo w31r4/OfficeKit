@@ -151,7 +151,7 @@ internal static partial class PptxEditPlanCodec
         result.Operations.Add(results.OrderBy(item => item.OperationId, StringComparer.Ordinal));
         var diagnostics = new List<Diagnostic>();
         if (sourceValidationWarnings > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {sourceValidationWarnings} pre-existing Office 2021 validation warning(s) from the source package; the edit plan introduced none."));
         return new PptxEditPlanOutput(outputBytes, result, diagnostics);

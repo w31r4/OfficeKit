@@ -2,7 +2,7 @@
 
 ## Decision
 
-OfficeKit Codec is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and published as a platform-specific NativeAOT executable. PDF remains an independent implementation.
+OfficeKit Codec is the only XLSX, DOCX, and PPTX codec. It is implemented in C# with the Open XML SDK and published as two platform-specific NativeAOT executables: one for PPJ/PPTX and one for DOCX/XLSX. PDF remains an independent implementation.
 
 OfficeKit retains the single-codec boundary: no Office codec registry,
 selector, alternate runtime shim, or fallback path.
@@ -11,15 +11,15 @@ selector, alternate runtime shim, or fallback path.
 flowchart LR
   A["JavaScript Workbook / Document models"] --> B["Office facade"]
   B --> C["OfficeKit wire adapter"]
-  C --> D["OfficeKit Codec (NativeAOT sidecar)"]
+  C --> D["OfficeKit DOCX/XLSX NativeAOT sidecar"]
   D --> E["XLSX / DOCX package"]
   E --> D
   D --> C
   C --> A
 
   J["Agent edits strict JSON .ppj"] --> K["officekit ppj CLI"]
-  K --> D
-  D --> L["PPJ validation / expansion / diff"]
+  K --> H["OfficeKit PPJ/PPTX NativeAOT sidecar"]
+  H --> L["PPJ validation / expansion / diff"]
   L --> M["PPTX projection or compilation"]
   M --> N["PPTX package"]
   N --> M

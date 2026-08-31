@@ -20,7 +20,7 @@ internal static class NativeHostRunner
     {
         if (args.Length == 1 && args[0] == "--status")
         {
-            Console.Out.WriteLine($"{{\"assemblyName\":\"{assemblyName}\",\"backend\":\"native-aot\",\"transportVersion\":{TransportVersion},\"protocolVersion\":{CodecProtocol.ProtocolVersion}}}");
+            Console.Out.WriteLine($"{{\"assemblyName\":\"{assemblyName}\",\"backend\":\"native-aot\",\"transportVersion\":{TransportVersion},\"protocolVersion\":{CodecWireProtocol.ProtocolVersion}}}");
             return 0;
         }
         if (args.Length > 1 || args.Length == 1 && args[0] != "--serve")
@@ -34,7 +34,7 @@ internal static class NativeHostRunner
         var handshake = new byte[HandshakeBytes];
         "OKIT"u8.CopyTo(handshake);
         BinaryPrimitives.WriteInt32BigEndian(handshake.AsSpan(4, 4), TransportVersion);
-        BinaryPrimitives.WriteUInt32BigEndian(handshake.AsSpan(8, 4), CodecProtocol.ProtocolVersion);
+        BinaryPrimitives.WriteUInt32BigEndian(handshake.AsSpan(8, 4), CodecWireProtocol.ProtocolVersion);
         await output.WriteAsync(handshake);
         await output.FlushAsync();
 
@@ -116,7 +116,7 @@ internal static class NativeHostRunner
     {
         var response = new CodecResponse
         {
-            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            ProtocolVersion = CodecWireProtocol.ProtocolVersion,
             Ok = false,
         };
         response.Diagnostics.Add(new Diagnostic

@@ -271,7 +271,7 @@ internal static class DocxHeaderFooterCodec
                 if (!TryReadParagraph(paragraphs[index], out var text, out var styleId, out var fieldInstruction, out var segments))
                 {
                     parsed.Clear();
-                    diagnostics.Add(CodecProtocol.Warning(
+                    diagnostics.Add(CodecDiagnostics.Warning(
                         "unsupported_document_header_footer_preserved",
                         $"Preserved complex {(header ? "header" : "footer")} part {part.Uri} without exposing an editable model.",
                         part.Uri.OriginalString.TrimStart('/')));

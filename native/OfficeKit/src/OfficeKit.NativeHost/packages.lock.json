@@ -40,11 +40,23 @@
         "resolved": "8.0.1",
         "contentHash": "KYkIOAvPexQOLDxPO2g0BVoWInnQhPpkFzRqvNrNrMhVT6kqhVr0zEb6KCHlptLFukxnZrjuMVAnxK7pOGUYrw=="
       },
-      "officekit.codec": {
+      "officekit.codec.shared": {
         "type": "Project",
         "dependencies": {
           "DocumentFormat.OpenXml": "[3.5.1, )",
           "Google.Protobuf": "[3.35.1, )"
+        }
+      },
+      "officekit.document.codec": {
+        "type": "Project",
+        "dependencies": {
+          "OfficeKit.Codec.Shared": "[1.0.0, )"
+        }
+      },
+      "officekit.spreadsheet.codec": {
+        "type": "Project",
+        "dependencies": {
+          "OfficeKit.Codec.Shared": "[1.0.0, )"
         }
       }
     },

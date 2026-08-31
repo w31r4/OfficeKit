@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>OfficeKit.Codec.Shared</AssemblyName>
+    <RootNamespace>OfficeKit.Codec</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+    <PackageReference Include="Grpc.Tools" Version="2.82.0" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../OfficeKit.Codec/CodecException.cs" Link="CodecException.cs" />
+    <Compile Include="../OfficeKit.Codec/CodecRuntime.cs" Link="CodecRuntime.cs" />
+    <Compile Include="../OfficeKit.Codec/PackageGuards.cs" Link="PackageGuards.cs" />
+    <Compile Include="../OfficeKit.Codec/OpenXmlChart*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../OfficeKit.Codec/PptxColor.cs" Link="PptxColor.cs" />
+    <Compile Include="../OfficeKit.Codec/PptxGradientFillCodec.cs" Link="PptxGradientFillCodec.cs" />
+    <Compile Include="../OfficeKit.Codec/XlsxChart*.cs" Link="%(Filename)%(Extension)" />
+    <Compile Include="../OfficeKit.Codec/XlsxNonVisualAccessibilityCodec.cs" Link="XlsxNonVisualAccessibilityCodec.cs" />
+    <Compile Include="../OfficeKit.Codec/Properties/AssemblyInfo.cs" Link="Properties/AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Protobuf Include="../../../../proto/office_kit/artifact/v1/office_artifact.proto" GrpcServices="None" Link="Protos/office_artifact.proto" />
+  </ItemGroup>
+</Project>

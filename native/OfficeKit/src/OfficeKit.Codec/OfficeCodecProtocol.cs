@@ -8,7 +8,7 @@ public static class OfficeCodecProtocol
 {
     public static CodecResponse InvokeResponse(ref byte[] requestBytes, byte[]? requestFileBytes)
     {
-        var response = new CodecResponse { ProtocolVersion = CodecProtocol.ProtocolVersion };
+        var response = new CodecResponse { ProtocolVersion = CodecWireProtocol.ProtocolVersion };
         try
         {
             var request = ParseRequest(ref requestBytes, requestFileBytes);
@@ -90,8 +90,8 @@ public static class OfficeCodecProtocol
     {
         if (requestBytes is null || requestBytes.Length == 0)
             throw new CodecException("empty_request", "Codec request bytes must not be empty.");
-        if (requestBytes.Length > CodecProtocol.AbsoluteRequestLimit)
-            throw new CodecException("request_budget_exceeded", $"Codec request exceeds the absolute {CodecProtocol.AbsoluteRequestLimit}-byte wire budget.");
+        if (requestBytes.Length > CodecWireProtocol.AbsoluteRequestLimit)
+            throw new CodecException("request_budget_exceeded", $"Codec request exceeds the absolute {CodecWireProtocol.AbsoluteRequestLimit}-byte wire budget.");
         var request = CodecRequest.Parser.ParseFrom(requestBytes);
         requestBytes = [];
         if (requestFileBytes is not { Length: > 0 }) return request;
@@ -103,8 +103,8 @@ public static class OfficeCodecProtocol
 
     private static void ValidateRequest(CodecRequest request)
     {
-        if (request.ProtocolVersion != CodecProtocol.ProtocolVersion)
-            throw new CodecException("unsupported_protocol_version", $"Protocol version {request.ProtocolVersion} is unsupported; expected {CodecProtocol.ProtocolVersion}.");
+        if (request.ProtocolVersion != CodecWireProtocol.ProtocolVersion)
+            throw new CodecException("unsupported_protocol_version", $"Protocol version {request.ProtocolVersion} is unsupported; expected {CodecWireProtocol.ProtocolVersion}.");
         var expectedFamily = request.Operation switch
         {
             CodecOperation.ImportXlsx or CodecOperation.ExportXlsx => ArtifactFamily.Workbook,

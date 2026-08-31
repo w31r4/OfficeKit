@@ -3,19 +3,18 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>OfficeKit.Codec</AssemblyName>
+    <AssemblyName>OfficeKit.Spreadsheet.Codec</AssemblyName>
     <RootNamespace>OfficeKit.Codec</RootNamespace>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="CodecProtocol.cs" />
-    <Compile Include="Properties/AssemblyInfo.cs" />
+    <Compile Include="../OfficeKit.Codec/Xlsx*.cs"
+             Exclude="../OfficeKit.Codec/XlsxChart*.cs;../OfficeKit.Codec/XlsxNonVisualAccessibilityCodec.cs"
+             Link="%(Filename)%(Extension)" />
+    <Compile Include="../OfficeKit.Codec/Properties/AssemblyInfo.cs" Link="Properties/AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../OfficeKit.Codec.Shared/OfficeKit.Codec.Shared.csproj" />
-    <ProjectReference Include="../OfficeKit.Presentation.Codec/OfficeKit.Presentation.Codec.csproj" />
-    <ProjectReference Include="../OfficeKit.Document.Codec/OfficeKit.Document.Codec.csproj" />
-    <ProjectReference Include="../OfficeKit.Spreadsheet.Codec/OfficeKit.Spreadsheet.Codec.csproj" />
   </ItemGroup>
 </Project>

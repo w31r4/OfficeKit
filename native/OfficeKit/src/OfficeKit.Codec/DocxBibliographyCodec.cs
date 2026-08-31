@@ -65,7 +65,7 @@ internal static class DocxBibliographyCodec
             }
             catch (Exception error) when (error is XmlException or InvalidDataException)
             {
-                diagnostics.Add(CodecProtocol.Warning(
+                diagnostics.Add(CodecDiagnostics.Warning(
                     "document_bibliography_not_modeled",
                     $"Preserved an unreadable bibliography-like Custom XML part without semantic projection: {error.Message}",
                     Path(part)));
@@ -74,7 +74,7 @@ internal static class DocxBibliographyCodec
         if (candidates.Count == 0) return new HashSet<string>(StringComparer.Ordinal);
         if (candidates.Count != 1)
         {
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "document_bibliography_not_modeled",
                 "Preserved multiple bibliography Sources parts without semantic projection because ownership is ambiguous."));
             return new HashSet<string>(StringComparer.Ordinal);
@@ -95,7 +95,7 @@ internal static class DocxBibliographyCodec
         }
         catch (CodecException error) when (error.Code is "unsupported_document_bibliography" or "invalid_document_bibliography")
         {
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "document_bibliography_not_modeled",
                 $"Preserved a bibliography Sources part outside the bounded editable profile: {error.Message}",
                 Path(candidate.Part)));

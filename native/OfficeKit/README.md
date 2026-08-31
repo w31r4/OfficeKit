@@ -10,8 +10,13 @@ codec, compatibility bridge, selector, or fallback.
 
 ## Projects
 
-- `OfficeKit.Codec` implements package validation and the XLSX/DOCX/PPTX codecs.
-- `OfficeKit.NativeHost` exposes the byte-in/byte-out NativeAOT framed-stdio entry point.
+- `OfficeKit.Codec.Shared` owns the protobuf wire types, package limits, OPC guards, and cross-format Open XML helpers.
+- `OfficeKit.Presentation.Codec` implements PPJ/PPTX validation, projection, import, edit, and export.
+- `OfficeKit.Document.Codec` implements DOCX import, edit, and export.
+- `OfficeKit.Spreadsheet.Codec` implements XLSX import, edit, and export.
+- `OfficeKit.Codec` is the managed compatibility facade that composes all four assemblies for existing callers and tests.
+- `OfficeKit.PpjNativeHost` exposes the PPJ/PPTX NativeAOT framed-stdio entry point.
+- `OfficeKit.NativeHost` exposes the DOCX/XLSX NativeAOT framed-stdio entry point.
 - `OfficeKit.Codec.Tests` covers supported creation/import/edit/export profiles, opaque preservation, and fail-closed cases.
 
 `OpenXmlChartSpaceCodec` is the package-agnostic DrawingML ChartSpace core used
@@ -20,11 +25,12 @@ format-specific relationship, source-binding, and edit policies around that one
 semantic reader/writer/patcher instead of maintaining divergent chart XML
 implementations.
 
-`OfficeKit.NativeHost` keeps one sequential `byte[] -> byte[]` codec boundary
-over a private transport-v1 protocol. It writes a fixed handshake, then reads
-and writes 4-byte big-endian length-prefixed protobuf frames. It never writes
-logs to stdout; bounded diagnostics use stderr. The same `CodecProtocol.Invoke`
-implementation remains the only semantic Office codec.
+Both native hosts keep the same sequential `byte[] -> byte[]` codec boundary
+over the private transport-v1 protocol. Each writes the same fixed handshake,
+then reads and writes 4-byte big-endian length-prefixed protobuf frames. Neither
+writes logs to stdout; bounded diagnostics use stderr. The split changes only
+the NativeAOT reachability graph: PPJ/PPTX loads the Presentation assembly,
+while DOCX/XLSX loads the Document and Spreadsheet assemblies.
 
 Protocol version 2 removes `allow_lossy`; the removed field name and number are reserved. Opaque content can be exported only from a validated, hash-bound source package. Unsupported edits, source-evidence mismatch, unsafe OPC paths, invalid relationships/content types, and missing runtime data return structured failures.
 

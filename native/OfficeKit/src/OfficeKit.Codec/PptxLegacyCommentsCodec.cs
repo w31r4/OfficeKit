@@ -39,7 +39,7 @@ internal static class PptxLegacyCommentsCodec
     {
         var profile = Profile(presentationPart, slidePart, slideIndex);
         if (profile.Supported) return profile.Comments;
-        diagnostics.Add(CodecProtocol.Warning(
+        diagnostics.Add(CodecDiagnostics.Warning(
             "unsupported_presentation_legacy_comments_preserved",
             $"Presentation slide {slideIndex + 1} has a legacy comment graph outside the bounded single-text profile; it remains opaque and source-bound.",
             PartPath(slidePart)));

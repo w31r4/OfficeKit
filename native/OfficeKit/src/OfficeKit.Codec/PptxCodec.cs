@@ -122,7 +122,7 @@ internal static class PptxCodec
         var diagnostics = new List<Diagnostic>();
         var opaqueCount = opaque.Parts.Count + opaque.PackageRelationships.Count;
         if (opaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_content_retained",
                 $"Retained {opaqueCount} unsupported OPC parts or relationships for source-bound, fail-closed export from the validated package snapshot.",
                 opaque.Parts.FirstOrDefault()?.Path ?? opaque.PackageRelationships.FirstOrDefault()?.SourcePath));
@@ -171,7 +171,7 @@ internal static class PptxCodec
         artifact.CustomShows.Add(customShows.Shows);
         artifact.CustomShowsOpaque = customShows.Opaque;
         if (customShows.Opaque)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_presentation_custom_shows_retained",
                 $"Retained an unsupported custom-show graph without exposing incomplete editable semantics: {customShows.Reason}.",
                 "ppt/presentation.xml"));
@@ -182,7 +182,7 @@ internal static class PptxCodec
         artifact.Sections.Add(sections.Sections);
         artifact.SectionsOpaque = sections.Opaque;
         if (sections.Opaque)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_presentation_sections_retained",
                 $"Retained an unsupported PowerPoint section graph without exposing incomplete editable semantics: {sections.Reason}.",
                 "ppt/presentation.xml"));
@@ -387,7 +387,7 @@ internal static class PptxCodec
             slideParts[^1].UnloadRootElement();
         var envelope = new ArtifactEnvelope
         {
-            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            ProtocolVersion = CodecWireProtocol.ProtocolVersion,
             Family = ArtifactFamily.Presentation,
             Presentation = artifact,
             OpaqueOpc = opaque,
@@ -406,7 +406,7 @@ internal static class PptxCodec
     internal static PptxExportResult Export(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
     {
         var requiresSourcePreservation =
-            envelope.ProtocolVersion == CodecProtocol.ProtocolVersion &&
+            envelope.ProtocolVersion == CodecWireProtocol.ProtocolVersion &&
             envelope.Family == ArtifactFamily.Presentation &&
             envelope.PayloadCase == ArtifactEnvelope.PayloadOneofCase.Presentation &&
             RequiresSourcePreservation(envelope);
@@ -440,7 +440,7 @@ internal static class PptxCodec
     {
         var envelope = new ArtifactEnvelope
         {
-            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            ProtocolVersion = CodecWireProtocol.ProtocolVersion,
             Family = ArtifactFamily.Presentation,
             Presentation = plan.Presentation,
         };
@@ -1430,19 +1430,19 @@ internal static class PptxCodec
         var removedSlideOpaqueCount = removedOpaqueCount - removedElementOpaqueCount;
         var retainedOpaqueCount = opaqueCount - removedOpaqueCount;
         if (retainedOpaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_content_preserved",
                 $"Preserved {retainedOpaqueCount} opaque OPC parts or relationships while updating modeled presentation content."));
         if (removedSlideOpaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_content_deleted_with_slide",
                 $"Removed {removedSlideOpaqueCount} opaque OPC parts or relationships because they belonged exclusively to an explicitly deleted source slide graph."));
         if (removedElementOpaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "opaque_content_deleted_with_element",
                 $"Removed {removedElementOpaqueCount} opaque OPC parts or relationships because they belonged exclusively to explicitly deleted source slide elements."));
         if (retainedValidationErrorCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {retainedValidationErrorCount} pre-existing Office 2021 validation warning(s) from the source package; export introduced none."));
         return new PptxExportResult(bytes, diagnostics);
@@ -3040,7 +3040,7 @@ internal static class PptxCodec
 
     private static EnvelopeValidationContext ValidateEnvelopeHeader(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
     {
-        if (envelope.ProtocolVersion != CodecProtocol.ProtocolVersion)
+        if (envelope.ProtocolVersion != CodecWireProtocol.ProtocolVersion)
             throw new CodecException("unsupported_artifact_version", $"Artifact protocol version {envelope.ProtocolVersion} is unsupported.");
         if (envelope.Family != ArtifactFamily.Presentation || envelope.PayloadCase != ArtifactEnvelope.PayloadOneofCase.Presentation)
             throw new CodecException("invalid_presentation_artifact", "Artifact envelope does not contain a presentation payload.");

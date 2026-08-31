@@ -6,8 +6,8 @@ namespace OfficeKit.Codec;
 
 public static class CodecProtocol
 {
-    public const uint ProtocolVersion = 2;
-    public const int AbsoluteRequestLimit = 128 * 1024 * 1024;
+    public const uint ProtocolVersion = CodecWireProtocol.ProtocolVersion;
+    public const int AbsoluteRequestLimit = CodecWireProtocol.AbsoluteRequestLimit;
 
     public static byte[] Invoke(byte[] requestBytes)
     {
@@ -224,20 +224,9 @@ public static class CodecProtocol
         snapshot.Data = ByteString.Empty;
     }
 
-    internal static Diagnostic Error(string code, string message, string? sourcePath = null) => new()
-    {
-        Severity = DiagnosticSeverity.Error,
-        Code = code,
-        Message = message,
-        SourcePath = sourcePath ?? string.Empty,
-    };
+    internal static Diagnostic Error(string code, string message, string? sourcePath = null) =>
+        CodecDiagnostics.Error(code, message, sourcePath);
 
-    internal static Diagnostic Warning(string code, string message, string? sourcePath = null, string? sourceIdentity = null) => new()
-    {
-        Severity = DiagnosticSeverity.Warning,
-        Code = code,
-        Message = message,
-        SourcePath = sourcePath ?? string.Empty,
-        SourceIdentity = sourceIdentity ?? string.Empty,
-    };
+    internal static Diagnostic Warning(string code, string message, string? sourcePath = null, string? sourceIdentity = null) =>
+        CodecDiagnostics.Warning(code, message, sourcePath, sourceIdentity);
 }

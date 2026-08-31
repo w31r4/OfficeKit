@@ -8,7 +8,7 @@ public static class PpjCodecProtocol
 {
     public static CodecResponse InvokeResponse(ref byte[] requestBytes, byte[]? requestFileBytes)
     {
-        var response = new CodecResponse { ProtocolVersion = CodecProtocol.ProtocolVersion };
+        var response = new CodecResponse { ProtocolVersion = CodecWireProtocol.ProtocolVersion };
         try
         {
             var request = ParseRequest(ref requestBytes, requestFileBytes);
@@ -61,8 +61,8 @@ public static class PpjCodecProtocol
     {
         if (requestBytes is null || requestBytes.Length == 0)
             throw new CodecException("empty_request", "Codec request bytes must not be empty.");
-        if (requestBytes.Length > CodecProtocol.AbsoluteRequestLimit)
-            throw new CodecException("request_budget_exceeded", $"Codec request exceeds the absolute {CodecProtocol.AbsoluteRequestLimit}-byte wire budget.");
+        if (requestBytes.Length > CodecWireProtocol.AbsoluteRequestLimit)
+            throw new CodecException("request_budget_exceeded", $"Codec request exceeds the absolute {CodecWireProtocol.AbsoluteRequestLimit}-byte wire budget.");
         var request = CodecRequest.Parser.ParseFrom(requestBytes);
         requestBytes = [];
         if (requestFileBytes is not { Length: > 0 }) return request;
@@ -74,8 +74,8 @@ public static class PpjCodecProtocol
 
     private static void ValidateRequest(CodecRequest request)
     {
-        if (request.ProtocolVersion != CodecProtocol.ProtocolVersion)
-            throw new CodecException("unsupported_protocol_version", $"Protocol version {request.ProtocolVersion} is unsupported; expected {CodecProtocol.ProtocolVersion}.");
+        if (request.ProtocolVersion != CodecWireProtocol.ProtocolVersion)
+            throw new CodecException("unsupported_protocol_version", $"Protocol version {request.ProtocolVersion} is unsupported; expected {CodecWireProtocol.ProtocolVersion}.");
         if (request.Operation is not (CodecOperation.ProjectPptxToPpj or CodecOperation.CompilePpjToPptx))
             throw Unsupported(request.Operation);
         if (request.Family != ArtifactFamily.Presentation)

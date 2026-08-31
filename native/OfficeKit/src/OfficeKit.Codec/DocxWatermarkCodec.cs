@@ -47,7 +47,7 @@ internal static class DocxWatermarkCodec
             var partPath = PartPath(reference.Part);
             if (partUseCounts.GetValueOrDefault(partPath) != 1)
             {
-                diagnostics.Add(CodecProtocol.Warning(
+                diagnostics.Add(CodecDiagnostics.Warning(
                     "shared_document_watermark_preserved",
                     $"Preserved text-watermark content in shared Header part {partPath} without exposing mutable semantics.",
                     partPath));
@@ -55,7 +55,7 @@ internal static class DocxWatermarkCodec
             }
             if (candidates.Length != 1)
             {
-                diagnostics.Add(CodecProtocol.Warning(
+                diagnostics.Add(CodecDiagnostics.Warning(
                     "multiple_document_watermarks_preserved",
                     $"Preserved {candidates.Length} text-watermark paragraphs in Header part {partPath}; the bounded model permits one watermark per section/reference scope.",
                     partPath));

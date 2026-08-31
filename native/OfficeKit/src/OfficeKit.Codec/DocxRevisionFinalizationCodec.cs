@@ -179,7 +179,7 @@ internal static class DocxRevisionFinalizationCodec
         result.ChangedParts.Add(changedParts);
         var diagnostics = new List<Diagnostic>();
         if (retainedValidationErrorCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {retainedValidationErrorCount} pre-existing Office 2021 validation warning(s) from the source package; revision finalization introduced none."));
         return new DocxRevisionFinalizationOutput(outputBytes, result, diagnostics);

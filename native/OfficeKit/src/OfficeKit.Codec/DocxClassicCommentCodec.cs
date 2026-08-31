@@ -48,7 +48,7 @@ internal static class DocxClassicCommentCodec
         if (context.Owner.WordprocessingCommentsPart is null) return;
         if (!TryReadGraph(context, body, document, out var graph, out var reason))
         {
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "unsupported_document_comments_preserved",
                 $"Preserved a DOCX comment graph that is outside the editable bounded-comment profile: {reason}",
                 "word/comments.xml"));

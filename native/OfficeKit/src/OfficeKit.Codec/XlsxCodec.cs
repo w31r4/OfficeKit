@@ -18,7 +18,7 @@ internal static class XlsxCodec
 {
     internal static XlsxExportResult Export(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
     {
-        if (envelope.ProtocolVersion != CodecProtocol.ProtocolVersion)
+        if (envelope.ProtocolVersion != CodecWireProtocol.ProtocolVersion)
             throw new CodecException("unsupported_artifact_version", $"Artifact protocol version {envelope.ProtocolVersion} is unsupported.");
         if (envelope.Family != ArtifactFamily.Workbook || envelope.PayloadCase != ArtifactEnvelope.PayloadOneofCase.Workbook)
             throw new CodecException("invalid_workbook_artifact", "Artifact envelope does not contain a workbook payload.");
@@ -145,7 +145,7 @@ internal static class XlsxCodec
         var diagnostics = new List<Diagnostic>();
         var opaqueCount = opaque.Parts.Count + opaque.PackageRelationships.Count;
         if (opaqueCount > 0)
-            diagnostics.Add(CodecProtocol.Warning("opaque_content_retained", $"Retained {opaqueCount} opaque or residual OPC parts or relationships for source-bound, fail-closed export from the validated package snapshot.", opaque.Parts.FirstOrDefault()?.Path ?? opaque.PackageRelationships.FirstOrDefault()?.SourcePath));
+            diagnostics.Add(CodecDiagnostics.Warning("opaque_content_retained", $"Retained {opaqueCount} opaque or residual OPC parts or relationships for source-bound, fail-closed export from the validated package snapshot.", opaque.Parts.FirstOrDefault()?.Path ?? opaque.PackageRelationships.FirstOrDefault()?.SourcePath));
         var sharedStrings = ReadSharedStrings(workbookPart.SharedStringTablePart);
         var styles = new XlsxCellStyleCodec(workbookPart);
         var worksheetFeatures = new XlsxWorksheetFeatureCodec(styles);
@@ -189,7 +189,7 @@ internal static class XlsxCodec
 
         var envelope = new ArtifactEnvelope
         {
-            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            ProtocolVersion = CodecWireProtocol.ProtocolVersion,
             Family = ArtifactFamily.Workbook,
             Workbook = workbook,
             OpaqueOpc = opaque,
@@ -353,7 +353,7 @@ internal static class XlsxCodec
 
     private static IReadOnlyList<Diagnostic> SourcePreservationDiagnostics(int opaqueCount) =>
     [
-        CodecProtocol.Warning("opaque_content_preserved", $"Preserved {opaqueCount} unsupported OPC parts or relationships from the validated source package while updating modeled workbook content."),
+        CodecDiagnostics.Warning("opaque_content_preserved", $"Preserved {opaqueCount} unsupported OPC parts or relationships from the validated source package while updating modeled workbook content."),
     ];
 
     private static void ValidateOutputBudget(byte[] bytes, EffectiveCodecLimits limits)
@@ -758,7 +758,7 @@ internal static class XlsxCodec
         var worksheet = worksheetPart.Worksheet ?? throw new CodecException("missing_worksheet_root", $"Worksheet {name} has no Worksheet root element.");
         var formulas = XlsxFormulaCodec.ForWorksheet(worksheet, name, dynamicArrays);
         foreach (var range in formulas.SourceBoundSharedFormulaRanges)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "partial_shared_formula_preserved",
                 $"Worksheet {name} retains partial shared formula {range.Display}; its declared range is source-bound and read-only through the current model.",
                 name,

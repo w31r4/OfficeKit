@@ -178,7 +178,7 @@ internal static class DocxTrackedReplacementCodec
         result.ChangedParts.Add(changedParts);
         var diagnostics = new List<Diagnostic>();
         if (retainedValidationErrorCount > 0)
-            diagnostics.Add(CodecProtocol.Warning(
+            diagnostics.Add(CodecDiagnostics.Warning(
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {retainedValidationErrorCount} pre-existing Office 2021 validation warning(s) from the source package; tracked replacement introduced none."));
         return new DocxTrackedReplacementOutput(outputBytes, result, diagnostics);
