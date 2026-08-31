@@ -1052,6 +1052,9 @@ message SpreadsheetChartSeriesArtifact {
   // c:ser/c:dLbls container. This is independent from the plot-level labels
   // stored on SpreadsheetChartArtifact.
   SpreadsheetChartSeriesDataLabelsArtifact data_labels = 16;
+  // Sparse zero-based native c:dPt visual overrides. The first bounded
+  // profile owns fill, outline and pie/doughnut explosion only.
+  repeated SpreadsheetChartPointStyleArtifact point_styles = 17;
 }
 
 // Bounded primary-axis semantics for category/value worksheet charts. The x
@@ -4158,6 +4161,16 @@ message SpreadsheetChartPointDataLabelArtifact {
 message SpreadsheetChartSeriesDataLabelsArtifact {
   SpreadsheetChartDataLabelOverrideArtifact defaults = 1;
   repeated SpreadsheetChartPointDataLabelArtifact points = 2;
+}
+
+// One canonical c:dPt keyed by the logical series point index. Fill and line
+// reuse the bounded direct chart profiles; explosion is legal only for
+// pie/doughnut and retains optional native presence, including explicit zero.
+message SpreadsheetChartPointStyleArtifact {
+  uint32 index = 1;
+  SpreadsheetChartSurfaceFill fill = 2;
+  SpreadsheetChartLineStyleArtifact line = 3;
+  optional uint32 explosion = 4;
 }
 
 // Appended to preserve every pre-existing generated descriptor index while the
