@@ -93,6 +93,7 @@ The authored chart compiler owns these native visual controls:
 - structured data labels for value, category, series, percentage, native
   position, direct number format and bounded typography at plot, series and
   sparse point scope;
+- sparse point fill, outline and pie/doughnut explosion for measured exceptions;
 - direct marker symbol, size, RGB/alpha fill and bounded stroke;
 - exponential, linear, logarithmic, moving-average, polynomial and power
   trendlines on bar, column and line series;
@@ -158,7 +159,7 @@ non-missing point:
         "textStyle": { "fontSize": 8, "color": "#334155" },
         "points": [
           { "index": 0, "showValue": false },
-          { "index": 3, "position": "above", "textStyle": { "bold": true, "color": "#D9A21B" } }
+          { "index": 3, "position": "top", "textStyle": { "bold": true, "color": "#D9A21B" } }
         ]
       }
     }]
@@ -169,6 +170,32 @@ non-missing point:
 Do not use point labels as a substitute for a readable scale. Custom label
 text, manual label layout, label shapes/effects, leader-line graphs and
 source-linked number formats remain source-owned and fail closed.
+
+Use `pointStyles` when one real datum needs visual emphasis without rebuilding
+the chart as shapes. Keep the list sparse and sorted; a missing observation
+cannot be styled. `explosion` is native only on pie and doughnut:
+
+```json
+{
+  "data": {
+    "categories": ["Q1", "Q2", "Q3", "Q4"],
+    "series": [{
+      "id": "conversion",
+      "name": "Conversion",
+      "values": [0.18, 0.22, 0.27, 0.31],
+      "pointStyles": [{
+        "index": 3,
+        "fill": { "type": "solid", "color": "#D9A21B" },
+        "stroke": { "color": "#16324F", "width": 1.25 }
+      }]
+    }]
+  }
+}
+```
+
+Imported point styling requires `setChartFill`. Marker overrides, picture
+options, 3D state, effects, extensions and irregular point graphs stay
+source-owned rather than being approximated.
 
 Use title typography and line behavior as explicit chart state rather than
 rebuilding the visual with shapes:

@@ -151,6 +151,13 @@
       "reason": "PPJ owns plot-, series- and sparse point-level label visibility, native position, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis reversal; and direct RGB/no-fill axis and major-grid lines. Custom label text/layout/shape/effect/leader-line graphs, source-linked formats, pixel-radius ranges, logarithmic transforms, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
     },
     {
+      "feature": "native sparse chart point styles",
+      "ppjPath": "pages[].elements[].data.series[].pointStyles",
+      "behavior": "partial",
+      "sourceBound": "Canonical imported bar, column, pie and doughnut ChartParts project bounded c:dPt state and reuse setChartFill. A source-bound edit adds, replaces or removes only sorted sparse point fill, outline or legal explosion state inside the existing ChartPart before a second projection proves the requested semantics.",
+      "reason": "PPJ owns zero-based point indexes, none/solid/gradient direct fill, bounded RGB outline and pie/doughnut explosion from 0 through 400. Missing points, marker overrides, picture options, 3D state, effects, extensions, unknown children and irregular paint or line graphs remain source-owned and fail closed."
+    },
+    {
       "feature": "native chart axis arrowheads",
       "ppjPath": "pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis.axisLineArrow.start/end",
       "behavior": "partial",
