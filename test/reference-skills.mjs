@@ -69,6 +69,7 @@ const presentationTemplateSkills = [
   "artifact-template-river-handbook",
   "artifact-template-saffron-editorial",
   "artifact-template-silver-atelier",
+  "artifact-template-simple-dark-mode",
   "artifact-template-skyline-wayfinding",
   "artifact-template-soft-proof",
   "artifact-template-tidal-research",

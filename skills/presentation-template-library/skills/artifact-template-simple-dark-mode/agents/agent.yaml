@@ -1,0 +1,5 @@
+interface:
+  display_name: "Simple Dark Mode"
+  short_description: "Use the Simple Dark Mode presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-simple-dark-mode as the visual style for this presentation."

@@ -22,7 +22,7 @@ Documents or Spreadsheets then owns the edit and review workflow.
 
 ## Original presentation Template Skills
 
-`skills/presentation-template-library/` contains thirty-one OfficeKit-original,
+`skills/presentation-template-library/` contains thirty-two OfficeKit-original,
 AGPL-licensed presentation Template Skills. Presentation schema v3 has one
 public form:
 
@@ -37,7 +37,7 @@ assets/references/reference.pptx  # optional
 ```
 
 The guide is the style authority; the images are visual calibration evidence.
-Each of the thirty observed styles ships one declared, reviewed clean-room PPTX;
+Each of the thirty-one observed styles ships one declared, reviewed clean-room PPTX;
 Evidence Ledger ships both its PPJ and compiled PPTX. These references use
 unrelated OfficeKit-authored content. The library never ships a user/source
 deck, MJS, executable page code, SVG page skeleton, fixed Layout, or undeclared
@@ -58,7 +58,7 @@ templates, retained hashes, materialization, and bounded native workflows.
 `test/template-creator.mjs` checks deterministic presentation schema-v3
 creation/update and generic PPTX routing. `test/office-kit-skill.mjs` verifies
 schema-specific discovery, hash validation, old presentation schema rejection,
-and zero-or-one selection. Package checks require all thirty-one presentation
-styles and 157 calibration PNGs; they permit only hash-declared clean-room
+and zero-or-one selection. Package checks require all thirty-two presentation
+styles and 162 calibration PNGs; they permit only hash-declared clean-room
 PPJ/PPTX references and reject undeclared decks, executable code, and SVG page
 skeletons from template directories.

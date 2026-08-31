@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-simple-dark-mode",
+  "displayName": "Simple Dark Mode",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "a73ca6ff8219df01824a5a34e342d139386f0a2c7955c1e9b63537c93ef84b6e"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "9d813e559cf7ffb6b5c0c5f13fcf3d5227a5acb263fe79bd1009ba4d129360a4"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "aac988405802c6598de0a9a33b8cd9a60f42bea35719cdb26fc264add3e343ff"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "3327d8434e7569b163d91acec41d25113a5cda782aab9fb4f6433c4f924235b0"
+    }
+  ],
+  "useWhen": [
+    "nighttime operations briefing",
+    "infrastructure control-room narrative",
+    "incident response review",
+    "dark image-led technical proposition"
+  ],
+  "avoidWhen": [
+    "archival print report",
+    "warm lifestyle campaign",
+    "dense spreadsheet appendix",
+    "playful education deck"
+  ],
+  "audiences": [
+    "operations leaders",
+    "infrastructure program owners",
+    "technical executives",
+    "incident response teams"
+  ],
+  "contentShapes": [
+    "cinematic proposition",
+    "image-backed system scale",
+    "operational response sequence",
+    "threshold decision"
+  ],
+  "visualTraits": {
+    "tone": [
+      "nocturnal",
+      "operational",
+      "precise",
+      "cinematic but auditable"
+    ],
+    "density": "mixed",
+    "colorMode": "dark",
+    "structure": [
+      "native image backgrounds",
+      "hard image and evidence splits",
+      "cyan signal routes",
+      "amber decision thresholds",
+      "direct labels and flat dark fields"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "a815b575a0c70248c8ae55f411e3687c18d07bdb0451d72380a6e635a6b316c3",
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit-authored clean-room calibration program using fictional content and independently licensed reference photographs."
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "9bc5e24cd298bb3d58e3bb7de257a4c712c585921874f50a2e6e4ec154e80310",
+    "license": "AGPL-3.0-or-later",
+    "source": "Compiled from the included OfficeKit PPJ; the archived Codex reference deck is not included or copied."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room reconstruction informed by the communication territory of an archived Codex dark template; wording, PPJ, layout, images, data, and geometry are newly authored.",
+    "guideSha256": "f73ed03afaca625080a3420e52d7c552ff4662cd5e111e82a04c704e8e2a5f18",
+    "previewSha256": "24055c12c1435a724e36403ca8be0233a7baf5f8eb05ee4c09883e86d7a5d17b"
+  }
+}

@@ -1,6 +1,6 @@
 # Presentation Template Library
 
-This plugin contains thirty-one original OfficeKit presentation style Skills.
+This plugin contains thirty-two original OfficeKit presentation style Skills.
 Each template is guidance plus visual calibration evidence. A template may
 also declare one reviewed clean-room reference PPJ/PPTX when native reuse and
 provenance justify the package cost. `officekit template search --kind
@@ -23,7 +23,7 @@ The selected style informs a new deck-specific Design Grammar. The
 Presentations Skill still composes every page from the current content and
 reviews the rendered result. Selecting no template remains valid.
 
-Thirty styles were independently rebuilt from high-level observations of a
+Thirty-one styles were independently rebuilt from high-level observations of a
 user-supplied visual reference set. Each now includes an OfficeKit-authored
 clean-room reference PPTX made from unrelated content. The external reference
 archive, source descriptions, page images, names, and geometry are not

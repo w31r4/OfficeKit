@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "Presentation Template Library",
     "shortDescription": "Original presentation style Skills",
-    "longDescription": "Thirty-one original OfficeKit presentation styles expressed as complete guidance plus visual calibration examples and declared clean-room PPJ/PPTX references.",
+    "longDescription": "Thirty-two original OfficeKit presentation styles expressed as complete guidance plus visual calibration examples and declared clean-room PPJ/PPTX references.",
     "developerName": "w31r4",
     "category": "Productivity",
     "capabilities": ["Interactive"],
