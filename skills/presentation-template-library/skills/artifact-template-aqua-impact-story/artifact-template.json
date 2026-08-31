@@ -8,66 +8,92 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "55a1cfa42c2011016767d6ad65979f5f438a267339df4efbdb0e88031a016d55"
+      "sha256": "904b8d785ba4d847a7e5be4844b951db9b6cc5bc31b79065b302eefadfba180c"
     },
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "dc5925448afa441df9b279bb7132972b5faa93917f4b62d83967665ac4935e40"
+      "sha256": "b3a939e361c523a950f1a19ece5163dfeeb475f0546d88b91e38eca81153b700"
     },
     {
-      "path": "assets/examples/03-data.png",
+      "path": "assets/examples/03-process.png",
+      "role": "process",
+      "sha256": "2fbfc535032b0f7af453e79b6e9a79e3315c633f8a464167cdba46736ab25cb4"
+    },
+    {
+      "path": "assets/examples/04-comparison.png",
+      "role": "comparison",
+      "sha256": "da179eed52415540df6ba05c467c17c025a8a4467534e6ceabddb6ee78f5bd66"
+    },
+    {
+      "path": "assets/examples/05-data.png",
       "role": "data",
-      "sha256": "d1fee4e190abf73b0c568cae4285f40d8b9a68091d764d478da1bcc09f10a9a8"
+      "sha256": "33ab582b3374499131f3e33616d485f682174c61bfde49e01f9fc5160b3ba99f"
     },
     {
-      "path": "assets/examples/04-closing.png",
+      "path": "assets/examples/06-closing.png",
       "role": "closing",
-      "sha256": "29b1feb0741c9aeadd6626542ca25d42525ec1d0efd241deb2c0b7b3b83792d7"
+      "sha256": "22144b7fbf21249533b129e244def0f57fcaabc4323b8ec6f8ddda132965d694"
     }
   ],
   "useWhen": [
     "community impact report",
-    "promotion presentation"
+    "urban ecology program",
+    "public-interest funding decision",
+    "water or habitat evidence story"
   ],
   "avoidWhen": [
-    "technical architecture"
+    "pure software architecture",
+    "luxury brand launch",
+    "dense financial trading dashboard"
   ],
   "audiences": [
-    "public audiences",
-    "communities",
-    "brand teams"
+    "civic funders",
+    "community partners",
+    "public agencies",
+    "environmental program teams"
   ],
   "contentShapes": [
-    "identity",
-    "story",
-    "activation"
+    "documentary context",
+    "direct-labelled evidence map",
+    "delivery chain",
+    "outcome ledger",
+    "bounded funding decision"
   ],
   "visualTraits": {
     "tone": [
-      "promotion",
-      "Watery blue and documentary evidence make public impact tangible.",
-      "wave"
+      "documentary",
+      "civic",
+      "auditable",
+      "calm but decisive"
     ],
-    "density": "medium",
+    "density": "mixed",
     "colorMode": "light",
     "structure": [
-      "wave",
-      "variable page silhouettes",
-      "documentary imagery"
+      "paper fields",
+      "blue water contours",
+      "yellow decision signals",
+      "full-bleed contextual photography",
+      "direct labels and fine rules"
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "453159c4824be89833fb635537777c2eb1c14ae0abbab5cc77bcf5d7f50ed74b",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "5239e88b44afb6356bc9f23ca88f560346b1c571911fe7827c9c4009161d0a87",
-    "previewSha256": "0917c4d8b700256b4df4cf8fe4b48247d031cacce837aeee27c3d32123f1e3bb"
+    "source": "OfficeKit-authored clean-room reference program using fictional content and independently sourced public-domain photographs."
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
-    "sha256": "415566c9e7efac1318dd24e3bc297e50082ea58a68b1885d0ee76387be1aa15f",
+    "sha256": "f52325b638d7775dad58d9278a6a6d0fa4ceda48b338c4aaefdadad1dfe0c406",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "Compiled from the included OfficeKit reference PPJ; external template PPTX files are not included."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-provided image-only direction; wording, program, geometry, data, and image selection are newly authored.",
+    "guideSha256": "70c6f561049d5856553fb8ea9030e446bc50ce848f3706e98d26634534944caa",
+    "previewSha256": "28976d540e7e5d5c37c4e0cab1e25822a638025a91dc93df2eb879536ecb14be"
   }
 }

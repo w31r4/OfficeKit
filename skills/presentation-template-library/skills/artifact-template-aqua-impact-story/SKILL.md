@@ -1,139 +1,195 @@
 ---
 name: artifact-template-aqua-impact-story
-description: "Aqua Impact Story presentation style."
+description: "Use documentary imagery, evidence-led water-system diagrams, and a restrained blue-yellow civic palette for public-interest impact reports."
 ---
 
 # Aqua Impact Story
 
-## Role and communication job
+## Communication territory
 
-Use this style when the brief matches **community impact report; promotion presentation**. It is designed for
-public audiences, communities, brand teams. Its visual premise is Watery blue and documentary evidence make public impact tangible. The style is a
-clean-room OfficeKit grammar: the included images teach a range of decisions,
-not pages or coordinates to copy.
+Use this style for public-interest, community, environmental, destination, or
+ESG narratives that need human warmth and auditable outcomes in the same deck.
+It is strongest when the story moves from a place or lived experience to a
+system relationship, measurable change, and a bounded next decision.
 
-The deck should help the audience give a proposition a memorable visual form while keeping audience evidence and outcomes credible. The natural story arc is
-**big idea → audience truth → creative system → waves or experiences → measured outcome → next move**. This style is not a good fit for **technical architecture**;
-choose another style or record the mismatch instead of forcing the grammar.
+The central design proposition is **documentary humanity plus a visible
+evidence chain**. Photography earns attention; maps, tables, charts, and source
+notes earn belief. Neither may impersonate the other.
 
-## Visual grammar
+Avoid this style for software architecture, high-frequency trading, playful
+consumer launches, or a deck whose only available content is abstract slogans.
+Do not force the water motif onto material without a real flow, geography,
+sequence, network, or public-space relationship.
 
-### Surface, palette, and type
+## Surface and color system
 
-- Use **#F3EFE4** as the main field, **#1D4150** for primary type, **#0B8EA3** for the decisive signal, **#E3C225** for secondary evidence, and **#D9D1C4** for rules or context.
-- Keep the decisive accent for the one signal that changes the reading. Neutral
-  steps should carry context, history, comparison, and supporting text.
-- Promotion / Brand guidance: Keep one proposition per page, one visual language per deck, and full measurement context for every metric. Creative tension may come from scale, crop, contrast, or a field of color, but evidence must remain readable.
-- Use a readable sans or serif pairing only when the style's character calls for
-  it. Establish a title role, section role, body role, data role, and source role
-  before composing; do not shrink body text to rescue an overfilled page.
-- Keep titles conclusion-led and left-aligned unless the page's visual direction
-  gives a clear reason to change the reading axis. Units, dates, and source basis
-  stay adjacent to the number they qualify.
+Use a restrained warm-paper and water palette:
 
-### Geometry, layers, and motif
+- `#FFFFFF` is the outer gallery mat and the cleanest delivery surface.
+- `#FAF7F0` is the standard warm-paper field.
+- `#F8EED3` is a bounded funding or accounting field.
+- `#DDE9F6` is the map and system surface.
+- `#222520` is primary type and structural ink.
+- `#6E746F` is source, method, and quiet context.
+- `#5493D3`, `#76A9DC`, `#A7CDF2`, and `#CCDFF2` form one water scale.
+- `#FFC907` and `#FFD951` are decision and emphasis colors.
 
-- The recurring structure is **wave, variable page silhouettes, documentary imagery**. Vary the silhouette between
-  cover, evidence, data, process, comparison, and decision pages rather than
-  repeating a component grid.
-- Use a restrained wave or arc to express movement, participation, or a cycle. Keep wave geometry shallow enough that it never competes with data labels or body text.
-- Use native Office shapes, lines, tables, charts, SVG, and images when they
-  carry information. A visual field may be large, but important text and data
-  remain editable objects above it.
-- For a full-page image, use the real scene stack: background image → tested
-  scrim or contrast field → editable claim/evidence → foreground markers. Keep
-  axes, labels, connectors, decision lines, and chart marks unobstructed. If the
-  stack cannot be proven after rendering, use a bounded image region or refuse
-  the treatment.
+Use blue for a system, place, path, or measured category. Use yellow for a
+decision boundary, selected outcome, or one short visual hinge. Yellow may
+fill an entire bounded decision region, but must not decorate every page.
+Never add red or green simply to encode good and bad; write the direction and
+show the evidence.
 
-## Page composition
+Except on a full-bleed opening, place the active surface inside one stable
+white gallery mat. The mat is one page-level field, not a card. Do not nest
+smaller white containers inside it unless a real photo crop, table, or chart
+plot requires a bounded region.
 
-### Preferred page archetypes
+## Typography
 
-Use the following archetypes as a vocabulary, not as fixed layouts:
+Pair a humanist serif display role with a neutral sans-serif workhorse:
 
-1. **Opening proposition** — establish the audience task, scope, and one visual
-   signal. It may be sparse, but the empty area must create focus or pacing.
-2. **Evidence field** — one dominant chart, table, image, or diagram plus the
-   short explanation needed to read it. Direct-label the evidence.
-3. **Relationship page** — show a real sequence, comparison, dependency, or
-   causal contour with lines, axes, annotations, or a map-like structure.
-4. **Detail page** — increase density for the question that needs rows, points,
-   assumptions, or a method; keep local whitespace around labels and units.
-5. **Decision page** — state the implication, conditions, owner, or next move;
-   do not end with a decorative summary.
+- display and section claims: Georgia, Oranienbaum, or a rights-cleared
+  equivalent; use large Title Case rather than outlined novelty type;
+- titles, body, labels, charts, tables, and notes: Arial, Liter, or a
+  metrics-compatible sans-serif;
+- CJK fallback: a legible serif for display and a complete sans-serif for body;
+- all-caps sans labels use moderate tracking and stay short;
+- large numbers use the display role only when the unit, period, and basis are
+  adjacent.
 
-For this category, favor **proposition cover, audience insight, campaign system, wave/timeline, case study, results, action close**. The style's content shapes are
-identity, story, activation; select one primary carrier per page and explain why it earns the
-space.
+Let typography create hierarchy before adding containers. Interior titles are
+conclusion-led and usually upper-left. Sources, denominators, and method notes
+remain visibly subordinate but readable at the intended delivery size.
 
-### Information carriers
+## Image language and scene stack
 
-- simple direct-labelled bars, funnels, audience tiers, timelines, channel mixes, and outcome ladders; separate outputs such as reach from outcomes such as conversion or retention
-- authentic photography, illustration, collage, or user-provided media may carry identity and emotion. Source, crop, and accessibility remain explicit; never add stock imagery merely to fill a blank region.
-- A chart, table, photograph, SVG, or geometric composition is valid only when
-  it communicates scale, sequence, comparison, context, or identity. Remove
-  decorative shapes that do not support the page's conclusion.
-- Prefer direct labels and short reading cues over legends or unexplained icons.
-  If a framework has no meaningful relationship to show, use typography and a
-  rule instead of manufacturing a diagram.
+Photography is mandatory when place, people, or program identity is part of
+the brief. Give each image one declared job: identity, human context, field
+evidence, infrastructure, or section transition. Use distinct images for
+distinct recurring roles; do not repeat one hero image across the deck.
 
-### Density and rhythm
+Preferred image scales are:
 
-The expected density is **medium**: spaciousness must create emphasis, not hide missing content. Alternate page
-energy deliberately: a statement page can create a pause, while an evidence
-page earns its density through real data rather than tiny type. Do not spread
-whitespace evenly; concentrate it around the title-to-body transition, chart
-edges, column gutters, and the final implication.
+- a true full-slide native background for an opening or statement;
+- a half-slide documentary image for a narrative split;
+- one large evidence image with a compact supporting crop;
+- a small square thumbnail only when it identifies a specific case or site.
 
-## Style-specific playbook
+Do not build a mosaic of medium rounded photo cards. Do not place body copy
+directly on a high-contrast image. Establish a solid dark scrim or quiet field,
+then place editable text above it. The intended stack is explicit:
 
-- **Page skeleton.** Build chapters around a documentary image, a short impact claim, and a measurable follow-through. Standard pages use a generous aqua/white field with a clear horizontal metric rail rather than a panel grid.
-- **Type rhythm.** Use a friendly sans with large, plain-language impact figures. Keep the claim in the strongest weight and place definitions, periods, and denominators directly beside the metric.
-- **Evidence carriers.** Use outcome ladders, before/after bars, geography or audience maps, timelines, and a small number of directly labelled KPIs. Separate reach, activity, and outcome so visibility is not mistaken for impact.
-- **Images and layers.** Prefer authentic people, places, and program evidence. Images need source, crop, alt text, and a role; if the image is decorative, remove it instead of inventing a story.
-- **Pacing.** Open with an invitation, alternate human context with compact proof, and finish with a concrete next action. Reserve the strongest aqua block for a chapter or conclusion.
-- **Selection rule.** Choose this style for public-interest, community, ESG, or nonprofit work where evidence must remain human and accountable.
+```text
+native background or selectable image
+→ crop or custom mask
+→ one contrast field
+→ evidence or identity layer
+→ editable claim, labels, and source
+```
 
-## Signature moves and variation limits
+Use a custom curve or arc only when it describes water, geography, flow, or a
+real visual boundary. One curve is enough. Never let a curve, image, scrim, or
+mask hide a marker, label, source, data line, or subject.
 
-- Let **wave** recur as a quiet identity cue on selected pages; it must
-  not become a repeated border, badge, or container.
-- Keep one dominant contrast or focal color per page. Secondary colors describe
-  hierarchy or data roles, not decoration.
-- Repeat alignment, type rhythm, source treatment, and image crop discipline;
-  vary page contour, scale, and information carrier so the deck does not become
-  a wall of identical modules.
-- If a user supplies a brand system or template, it wins. This guide fills only
-  the undefined choices and must not be blended with a conflicting style.
+## Charts, tables, and diagrams
 
-## Anti-patterns and refusal boundaries
+Chart backgrounds remain transparent. Use only the yellow and blue scales.
+Direct labels are preferred to detached legends.
 
-- Avoid rainbow charts, mixed decorative systems, generic stock galleries, slogans without an audience truth, and result pages that confuse visibility with impact.
-- Do not use a generic rounded-card wall, equal panel grid, random circles, or
-  repeated metric boxes as the default way to make a page look finished.
-- Do not put a text box, chart label, connector, or decision marker behind an
-  image or scrim without checking the rendered layer order.
-- Do not invent facts, sources, or visual meaning. Mark unresolved design facts
-  as unresolved and ask only when the conflict changes the communication result.
-- If a requested effect would hide evidence, alter an unknown native object, or
-  require a fixed page clone, keep the safe portions and state the boundary.
+- maps use a pale-blue base, saturated blue priority areas, dots, elbow
+  leaders, and labels placed outside the geography;
+- circular composition charts label every segment and reserve their center for
+  a meaningful total or decision basis;
+- time series use truthful axes and maintain clear space around markers and
+  labels;
+- tables are border-light ledgers: one fine rule, aligned columns, restrained
+  row rhythm, and no colored cell mosaic;
+- process pages use a real delivery band or linked path with named phases and
+  phase-specific evidence beneath it.
 
-## Calibration evidence
+Separate outputs from outcomes. Reach, sites, events, or content volume cannot
+substitute for behavior, environmental condition, adoption, or verified public
+value. Every number needs a unit, period, and source or methodology boundary.
 
-Inspect all four example images before composing. They demonstrate the range of
-this grammar across cover, analysis, data, and closing roles; they are fictional
-OfficeKit calibration pages with unrelated content. Recompose every real page
-from its communication task. Never reuse their wording, geometry, image bytes,
-or implied source deck.
+## Page archetypes
 
-## Review checklist
+Treat these as a vocabulary rather than layouts to clone:
 
-- Check proposition clarity, image purpose and rights, metric context, rhythm between statement and evidence pages, and whether the ending gives a concrete next action.
-- The page has one audience task, one conclusion, and one primary visual carrier.
-- Text, image crop, contrast field, chart marks, connectors, and foreground
-  labels survive a rendered visual check without occlusion or overflow.
-- The deck preserves a coherent title read-through while allowing purposeful
-  changes in density and page silhouette.
-- The exported PPTX is reopened and structurally inspected; the final delivery
-  records the absolute path, SHA-256, and any visual-review limitation.
+1. **Documentary opening** — one proposition, one place image, one curved
+   boundary, and one narrow metric rail.
+2. **Direct-labelled geography** — the map or corridor carries the page; site
+   labels and supporting facts remain outside the path.
+3. **Delivery chain** — three or four named phases form one band, with outputs
+   and verification immediately below.
+4. **Human-context statement** — one large image, one tested scrim, one claim,
+   and no more than two headline measures.
+5. **Outcome ledger** — a compact table or aligned rows distinguish baseline,
+   follow-up, change, and measurement basis.
+6. **Funding decision** — one composition chart, a bounded yellow decision
+   region, explicit gates, and a concrete next action.
+
+Do not repeat one silhouette. Alternate image-led pauses with map, process,
+ledger, and decision pages so the deck moves between emotion and proof.
+
+## Density and rhythm
+
+Use medium-to-high density where evidence earns it. A documentary statement
+may contain one claim and two measures; a map may contain 6–14 labels; a
+delivery page may contain 5–10 output measures; a ledger may contain 4–8 rows.
+Do not dilute evidence to preserve a sparse aesthetic, and do not shrink body
+text to save an overloaded page.
+
+Reserve negative space for the gallery mat, the title-to-body transition, the
+outside of direct labels, and the direction of a photographic subject's gaze.
+Empty cells inside the evidence field are not intentional negative space.
+
+## Signature moves and limits
+
+- A single water curve may recur on an opening, map, or section boundary.
+- A short yellow rule may introduce a module or decision; it does not become a
+  universal underline.
+- One yellow field may close a decision page or phase band.
+- Serif display language may return at openings and conclusions, while dense
+  evidence remains sans-serif.
+- Page numbers and sources stay in a stable low-attention location.
+
+Do not use giant hollow numerals as ordinary decoration, random blue circles,
+soft rounded cards, equal panels, icon walls, glass effects, rainbow charts,
+or gradients that do not encode light, depth, or direction.
+
+## Calibration map
+
+Inspect every representative image before using the style:
+
+- **Opening** demonstrates a native photographic background, warm-paper curve,
+  editable display type, and one yellow metric rail.
+- **System map** demonstrates a custom editable water path with external labels
+  and no detached legend.
+- **Delivery chain** demonstrates a full-width phase band and typographic
+  evidence without cards.
+- **Human context** demonstrates a large documentary photograph, tested dark
+  scrim, visible source boundary, and two restrained measures.
+- **Outcome ledger** demonstrates aligned baseline/follow-up evidence and an
+  explicit measurement basis.
+- **Funding decision** demonstrates a native editable doughnut, direct segment
+  labels, and one bounded yellow action region.
+
+The examples contain unrelated fictional calibration content. Recompose every
+new page from its own communication task. Do not copy wording, coordinates,
+image bytes, or implied real-world results.
+
+## Review
+
+Before delivery, check:
+
+- the main claim survives without the photograph;
+- the photograph has a declared role, rights record, crop, credit, and honest
+  evidence status;
+- every map label, connector, data mark, number, and source remains visible;
+- yellow identifies a decision or selected signal rather than decoration;
+- page silhouettes vary while palette, type roles, source treatment, and curve
+  logic remain coherent;
+- every figure includes its unit, period, and basis;
+- the PPJ checks, builds, renders, and re-imports, and the PPTX remains natively
+  editable.
