@@ -236,10 +236,10 @@
     },
     {
       "feature": "native Office SmartArt parts",
-      "ppjPath": "pages[].elements[] where type is smartArt and mode is source-bound",
-      "behavior": "source-bound-only",
-      "sourceBound": "Imported SmartArt remains attached to its proven DiagramDataPart graph and accepts only issued node-text capabilities.",
-      "reason": "Authored PPJ diagrams lower to editable groups of ordinary shapes, connectors, text and images; OfficeKit does not rebuild or fabricate a native SmartArt part graph."
+      "ppjPath": "pages[].elements[] where type is smartArt",
+      "behavior": "partial",
+      "sourceBound": "Authored PPJ emits one native diagram frame with data, layout, style, colors and cached-drawing parts. OfficeKit-authored graphs reproject as typed nodes and connections; other imported SmartArt remains attached to its proven source graph and accepts only issued capabilities.",
+      "reason": "Arbitrary third-party operators, vendor extensions, topology and style edits, copy-on-write definitions and explicit detach remain source-owned or fail closed."
     },
     {
       "feature": "native-theme bullet identity and uncommon numbering schemes",

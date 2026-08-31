@@ -1,0 +1,13 @@
+{
+  "schema": "office-kit/smartart-operator-profiles/v1",
+  "profiles": [
+    { "id": "list", "placement": "grid", "connectionRoles": [] },
+    { "id": "process", "placement": "horizontal-grid", "connectionRoles": ["sequence"] },
+    { "id": "cycle", "placement": "radial", "connectionRoles": ["sequence"] },
+    { "id": "hierarchy", "placement": "depth-levels", "connectionRoles": ["parent"] },
+    { "id": "relationship", "placement": "center-radial", "connectionRoles": ["association"] },
+    { "id": "matrix", "placement": "square-grid", "connectionRoles": [] },
+    { "id": "pyramid", "placement": "stacked-width", "connectionRoles": [] },
+    { "id": "picture", "placement": "square-grid-picture", "connectionRoles": [] }
+  ]
+}

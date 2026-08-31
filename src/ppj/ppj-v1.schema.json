@@ -4639,35 +4639,45 @@
                 "source-bound"
               ]
             },
-        "layout": {
-          "enum": [
-            "list",
+            "layout": {
+              "enum": [
+                "list",
                 "process",
                 "cycle",
                 "hierarchy",
                 "relationship",
                 "matrix",
                 "pyramid",
-            "picture"
-          ]
-        },
-        "shapeStyleRef": {
-          "$ref": "#/$defs/id"
-        },
-        "textStyleRef": {
-          "$ref": "#/$defs/id"
-        },
-        "nodeGeometry": {
-          "$ref": "#/$defs/geometry"
-        },
-        "connector": {
-          "$ref": "#/$defs/smartArtConnector"
-        },
-        "nodes": {
-          "type": "array",
-          "maxItems": 64,
+                "picture"
+              ]
+            },
+            "definitionAsset": {
+              "$ref": "#/$defs/id"
+            },
+            "shapeStyleRef": {
+              "$ref": "#/$defs/id"
+            },
+            "textStyleRef": {
+              "$ref": "#/$defs/id"
+            },
+            "nodeGeometry": {
+              "$ref": "#/$defs/geometry"
+            },
+            "connector": {
+              "$ref": "#/$defs/smartArtConnector"
+            },
+            "nodes": {
+              "type": "array",
+              "maxItems": 64,
               "items": {
                 "$ref": "#/$defs/smartArtNode"
+              }
+            },
+            "connections": {
+              "type": "array",
+              "maxItems": 256,
+              "items": {
+                "$ref": "#/$defs/smartArtConnection"
               }
             }
           }
@@ -4684,9 +4694,6 @@
       ],
       "properties": {
         "id": {
-          "$ref": "#/$defs/id"
-        },
-        "parent": {
           "$ref": "#/$defs/id"
         },
         "text": {
@@ -4724,6 +4731,39 @@
         },
         "endArrow": {
           "$ref": "#/$defs/arrowHead"
+        }
+      }
+    },
+    "smartArtConnection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "from",
+        "to",
+        "role"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "from": {
+          "$ref": "#/$defs/id"
+        },
+        "to": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "enum": [
+            "parent",
+            "sequence",
+            "association"
+          ]
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
         }
       }
     },

@@ -934,6 +934,10 @@ internal static class PpjSourceBoundPresentationCompiler
                 changed = ApplySourceSmartArtElement(beforeSmartArt, afterSmartArt, target.Opaque, path);
                 if (changed) mutations.SemanticChanges = true;
                 break;
+            case PpjSmartArtElementModel beforeSmartArt when after is PpjSmartArtElementModel afterSmartArt &&
+                target.ContentCase == PresentationElement.ContentOneofCase.Diagram:
+                changed = ApplyNativeSmartArtElement(beforeSmartArt, afterSmartArt, target.Diagram, path);
+                break;
             case PpjOleElementModel beforeOle when after is PpjOleElementModel afterOle &&
                 target.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
                 (target.Opaque.OleWorkbook is not null || target.Opaque.OleOfficePackage is not null):
@@ -1889,6 +1893,33 @@ internal static class PpjSourceBoundPresentationCompiler
             changed = true;
         }
         return changed;
+    }
+
+    private static bool ApplyNativeSmartArtElement(
+        PpjSmartArtElementModel before,
+        PpjSmartArtElementModel after,
+        PresentationDiagram target,
+        string path)
+    {
+        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked");
+        if (before.Mode != "source-bound" || after.Mode != "source-bound" ||
+            before.Nodes.Count != target.Nodes.Count || before.Connections.Count != target.Connections.Count)
+            throw Unsupported(path, "native SmartArt identity, mode, or topology change");
+        for (var index = 0; index < before.Nodes.Count; index++)
+        {
+            if (before.Nodes[index].Id != target.Nodes[index].Id ||
+                string.Concat(SmartArtTextRuns(before.Nodes[index].Text, $"{path}.nodes[{index}].text")) != PptxTextCodec.Flatten(target.Nodes[index].TextBody))
+                throw new CodecException("ppj.nativeRef.stale", "The projected SmartArt node no longer matches the exact source binding.", $"{path}.nodes[{index}]");
+        }
+        for (var index = 0; index < before.Connections.Count; index++)
+        {
+            var projected = before.Connections[index];
+            var source = target.Connections[index];
+            if (projected.Id != source.Id || projected.FromId != source.FromId || projected.ToId != source.ToId ||
+                projected.Role != source.Role || projected.Order != source.Order)
+                throw new CodecException("ppj.nativeRef.stale", "The projected SmartArt connection no longer matches the exact source binding.", $"{path}.connections[{index}]");
+        }
+        return false;
     }
 
     private static IReadOnlyList<string> SmartArtTextRuns(PpjTextContentModel text, string path)

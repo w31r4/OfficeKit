@@ -29,6 +29,7 @@ internal static class PpjAuthoredPresentationCompiler
     {
         var program = validation.Program!;
         var assets = ValidateAssets(program, request.Assets);
+        _ = new Catalog(program.Root, assets);
         var receipt = new PresentationProgramResult
         {
             ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
@@ -61,7 +62,7 @@ internal static class PpjAuthoredPresentationCompiler
                 "$.source");
 
         var assets = ValidateAssets(program, request.Assets);
-        var catalog = new Catalog(program.Root);
+        var catalog = new Catalog(program.Root, assets);
         var envelope = BuildEnvelope(program, validation.Expansion!, catalog, assets);
         var exported = PptxCodec.Export(envelope, limits);
         var file = PpjEmbeddedProgramCodec.Embed(
@@ -164,7 +165,9 @@ internal static class PpjAuthoredPresentationCompiler
             Family = ArtifactFamily.Presentation,
             Presentation = presentation,
         };
-        envelope.Assets.Add(assets.Select(asset => asset.Clone()));
+        envelope.Assets.Add(assets
+            .Where(asset => !PptxAssetCatalog.IsCompilerOnlyAsset(asset))
+            .Select(asset => asset.Clone()));
         return envelope;
     }
 
@@ -313,7 +316,7 @@ internal static class PpjAuthoredPresentationCompiler
                 output.Media = BuildMedia(media, catalog);
                 break;
             case PpjSmartArtElementModel { Mode: "authored" } diagram:
-                output.Group = BuildAuthoredDiagram(diagram, raw, catalog);
+                output.Diagram = BuildAuthoredNativeDiagram(diagram, raw, catalog);
                 break;
             case PpjSmartArtElementModel:
                 throw Unsupported(element.Id, "source-bound SmartArt requires a bound source package");
@@ -4951,15 +4954,16 @@ internal static class PpjAuthoredPresentationCompiler
     private static PresentationGroup BuildAuthoredDiagram(
         PpjSmartArtElementModel element,
         JsonElement raw,
-        Catalog catalog)
+        Catalog catalog,
+        string resolvedLayout)
     {
         var nodeJson = raw.GetProperty("nodes").EnumerateArray().ToDictionary(
             node => node.GetProperty("id").GetString()!,
             node => node,
             StringComparer.Ordinal);
-        var layout = LayoutDiagramNodes(element);
+        var layout = LayoutDiagramNodes(element, resolvedLayout);
         if (layout.Any(item => item.Frame.Width < 8 || item.Frame.Height < 8) ||
-            element.Layout == "picture" && layout.Any(item =>
+            resolvedLayout == "picture" && layout.Any(item =>
                 DiagramPictureImageFrame(item.Frame).Height < 8 || DiagramPictureLabelFrame(item.Frame).Height < 8))
             throw Unsupported(element.Id, "authored diagram frame is too small for its layout and node count");
         var group = new PresentationGroup
@@ -4981,7 +4985,7 @@ internal static class PpjAuthoredPresentationCompiler
             StringComparer.Ordinal);
         if (raw.TryGetProperty("connector", out var connectorStyle))
         {
-            foreach (var edge in DiagramEdges(element, layout))
+            foreach (var edge in DiagramEdges(element, layout, resolvedLayout))
             {
                 var from = layout[edge.FromIndex];
                 var to = layout[edge.ToIndex];
@@ -4992,7 +4996,7 @@ internal static class PpjAuthoredPresentationCompiler
                     nodeIds[to.Node.Id],
                     connectorStyle,
                     catalog,
-                    element.Layout!);
+                    resolvedLayout);
                 group.Children.Add(new PresentationElement
                 {
                     Id = DiagramChildId(element.Id, "edge", $"{from.Node.Id}.{to.Node.Id}"),
@@ -5007,7 +5011,7 @@ internal static class PpjAuthoredPresentationCompiler
             var item = layout[index];
             var rawNode = nodeJson[item.Node.Id];
             var nodeId = nodeIds[item.Node.Id];
-            if (element.Layout == "picture")
+            if (resolvedLayout == "picture")
             {
                 group.Children.Add(new PresentationElement
                 {
@@ -5040,6 +5044,69 @@ internal static class PpjAuthoredPresentationCompiler
         }
         ApplyAccessibility(group, element.Accessibility);
         return group;
+    }
+
+    private static PresentationDiagram BuildAuthoredNativeDiagram(
+        PpjSmartArtElementModel element,
+        JsonElement raw,
+        Catalog catalog)
+    {
+        var resolvedLayout = element.Layout ?? catalog.SmartArtLayout(element.DefinitionAssetId!);
+        ValidateResolvedDiagramProfile(element, raw, resolvedLayout);
+        var rawNodes = raw.GetProperty("nodes").EnumerateArray().ToDictionary(
+            node => node.GetProperty("id").GetString()!,
+            node => node,
+            StringComparer.Ordinal);
+        var diagram = new PresentationDiagram
+        {
+            Layout = resolvedLayout,
+            LeftEmu = Emu(element.Frame.X),
+            TopEmu = Emu(element.Frame.Y),
+            WidthEmu = Emu(element.Frame.Width),
+            HeightEmu = Emu(element.Frame.Height),
+            Drawing = BuildAuthoredDiagram(element, raw, catalog, resolvedLayout),
+            DefinitionAssetId = element.DefinitionAssetId is null
+                ? string.Empty
+                : catalog.NativeAssetId(element.DefinitionAssetId),
+        };
+        ApplyAccessibility(diagram, element.Accessibility);
+        foreach (var node in element.Nodes)
+        {
+            var rawNode = rawNodes[node.Id];
+            var textStyle = catalog.TextStyle(node.StyleRef ?? element.TextStyleRef);
+            diagram.Nodes.Add(new PresentationDiagramNode
+            {
+                Id = node.Id,
+                TextBody = BuildTextBody(rawNode.GetProperty("text"), textStyle, null, catalog),
+                AssetId = node.AssetId is null ? string.Empty : catalog.NativeAssetId(node.AssetId),
+            });
+        }
+        diagram.Connections.Add(ResolvedDiagramConnections(element, resolvedLayout));
+        return diagram;
+    }
+
+    private static void ValidateResolvedDiagramProfile(
+        PpjSmartArtElementModel element,
+        JsonElement raw,
+        string resolvedLayout)
+    {
+        var hasParentConnections = element.Connections.Any(connection => connection.Role == "parent");
+        if (hasParentConnections && resolvedLayout is "list" or "process" or "cycle" or "matrix" or "pyramid" or "picture")
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot declare parent connections");
+        if (resolvedLayout == "hierarchy" && element.Nodes.Count > 1 && !hasParentConnections)
+            throw Unsupported(element.Id, "authored hierarchy diagrams require parent connections");
+
+        var connected = element.Nodes.Count > 1 && resolvedLayout is "process" or "cycle" or "hierarchy" or "relationship";
+        var hasConnector = raw.TryGetProperty("connector", out _);
+        if (connected && !hasConnector)
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams require explicit connector styling");
+        if (!connected && hasConnector)
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams do not emit connector edges for this node set");
+
+        if (resolvedLayout == "picture" && element.Nodes.Any(node => node.AssetId is null))
+            throw Unsupported(element.Id, "every authored picture-diagram node requires an image asset");
+        if (resolvedLayout != "picture" && element.Nodes.Any(node => node.AssetId is not null))
+            throw Unsupported(element.Id, "diagram node assets are only valid for the picture layout");
     }
 
     private static PresentationShape BuildDiagramNodeShape(
@@ -5169,30 +5236,62 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static IReadOnlyList<DiagramEdge> DiagramEdges(
         PpjSmartArtElementModel element,
-        IReadOnlyList<DiagramLayoutNode> layout)
+        IReadOnlyList<DiagramLayoutNode> layout,
+        string resolvedLayout)
     {
         if (layout.Count < 2) return [];
         var indexes = layout.Select((item, index) => (item.Node.Id, index))
             .ToDictionary(item => item.Id, item => item.index, StringComparer.Ordinal);
-        var explicitEdges = layout
-            .Select((item, index) => item.Node.ParentId is null
-                ? (DiagramEdge?)null
-                : new DiagramEdge(indexes[item.Node.ParentId], index))
-            .Where(item => item is not null)
-            .Select(item => item!.Value)
+        return ResolvedDiagramConnections(element, resolvedLayout)
+            .Select(connection => new DiagramEdge(indexes[connection.FromId], indexes[connection.ToId]))
             .ToArray();
-        if (explicitEdges.Length > 0) return explicitEdges;
-        if (element.Layout == "process")
-            return Enumerable.Range(0, layout.Count - 1).Select(index => new DiagramEdge(index, index + 1)).ToArray();
-        if (element.Layout == "cycle")
-            return Enumerable.Range(0, layout.Count).Select(index => new DiagramEdge(index, (index + 1) % layout.Count)).ToArray();
-        if (element.Layout == "relationship")
-            return Enumerable.Range(1, layout.Count - 1).Select(index => new DiagramEdge(0, index)).ToArray();
+    }
+
+    private static IReadOnlyList<PresentationDiagramConnection> ResolvedDiagramConnections(
+        PpjSmartArtElementModel element,
+        string resolvedLayout)
+    {
+        if (element.Connections.Count > 0)
+            return element.Connections.Select(connection => new PresentationDiagramConnection
+            {
+                Id = connection.Id,
+                FromId = connection.FromId,
+                ToId = connection.ToId,
+                Role = connection.Role,
+                Order = connection.Order,
+            }).ToArray();
+        if (resolvedLayout == "process")
+            return Enumerable.Range(0, element.Nodes.Count - 1).Select(index => new PresentationDiagramConnection
+            {
+                Id = $"sequence-{element.Nodes[index].Id}-{element.Nodes[index + 1].Id}",
+                FromId = element.Nodes[index].Id,
+                ToId = element.Nodes[index + 1].Id,
+                Role = "sequence",
+                Order = checked((uint)index),
+            }).ToArray();
+        if (resolvedLayout == "cycle")
+            return Enumerable.Range(0, element.Nodes.Count).Select(index => new PresentationDiagramConnection
+            {
+                Id = $"sequence-{element.Nodes[index].Id}-{element.Nodes[(index + 1) % element.Nodes.Count].Id}",
+                FromId = element.Nodes[index].Id,
+                ToId = element.Nodes[(index + 1) % element.Nodes.Count].Id,
+                Role = "sequence",
+                Order = checked((uint)index),
+            }).ToArray();
+        if (resolvedLayout == "relationship")
+            return Enumerable.Range(1, element.Nodes.Count - 1).Select(index => new PresentationDiagramConnection
+            {
+                Id = $"association-{element.Nodes[0].Id}-{element.Nodes[index].Id}",
+                FromId = element.Nodes[0].Id,
+                ToId = element.Nodes[index].Id,
+                Role = "association",
+                Order = checked((uint)(index - 1)),
+            }).ToArray();
         return [];
     }
 
-    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramNodes(PpjSmartArtElementModel element) =>
-        element.Layout switch
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramNodes(PpjSmartArtElementModel element, string resolvedLayout) =>
+        resolvedLayout switch
         {
             "list" => LayoutDiagramGrid(element, 1),
             "process" => LayoutDiagramGrid(element, element.Nodes.Count),
@@ -5202,7 +5301,7 @@ internal static class PpjAuthoredPresentationCompiler
             "matrix" => LayoutDiagramGrid(element, (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count))),
             "pyramid" => LayoutDiagramPyramid(element),
             "picture" => LayoutDiagramGrid(element, (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count))),
-            _ => throw Unsupported(element.Id, $"authored diagram layout {element.Layout} is not compiler-owned"),
+            _ => throw Unsupported(element.Id, $"authored diagram layout {resolvedLayout} is not compiler-owned"),
         };
 
     private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramGrid(PpjSmartArtElementModel element, int columns)
@@ -5272,11 +5371,14 @@ internal static class PpjAuthoredPresentationCompiler
     private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramHierarchy(PpjSmartArtElementModel element)
     {
         var byId = element.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
+        var parentIds = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var connection in element.Connections.Where(connection => connection.Role == "parent"))
+            parentIds[connection.ToId] = connection.FromId;
         var depths = new Dictionary<string, int>(StringComparer.Ordinal);
         int depth(PpjSmartArtNodeModel node)
         {
             if (depths.TryGetValue(node.Id, out var found)) return found;
-            var value = node.ParentId is null ? 0 : depth(byId[node.ParentId]) + 1;
+            var value = parentIds.TryGetValue(node.Id, out var parentId) ? depth(byId[parentId]) + 1 : 0;
             depths[node.Id] = value;
             return value;
         }
@@ -6416,6 +6518,9 @@ internal static class PpjAuthoredPresentationCompiler
     private static void ApplyAccessibility(PresentationGroup target, PpjAccessibilityModel? source) =>
         target.Accessibility = Accessibility(source);
 
+    private static void ApplyAccessibility(PresentationDiagram target, PpjAccessibilityModel? source) =>
+        target.Accessibility = Accessibility(source);
+
     private static PresentationNonVisualAccessibility? Accessibility(PpjAccessibilityModel? source)
     {
         if (source is null) return null;
@@ -6720,10 +6825,11 @@ internal static class PpjAuthoredPresentationCompiler
         private readonly Dictionary<string, JsonElement> _tableStyles;
         private readonly Dictionary<string, (double Width, double Height)> _assetDimensions;
         private readonly Dictionary<string, string> _nativeAssetIds;
+        private readonly Dictionary<string, PpjSmartArtDefinition> _smartArtDefinitions;
 
         internal PresentationThemeArtifact Theme { get; }
 
-        internal Catalog(JsonElement root)
+        internal Catalog(JsonElement root, IReadOnlyList<Asset>? compiledAssets = null)
         {
             var design = root.GetProperty("design");
             _colors = design.GetProperty("theme").GetProperty("colors").EnumerateArray()
@@ -6757,6 +6863,26 @@ internal static class PpjAuthoredPresentationCompiler
                         asset.GetProperty("sha256").GetString()!),
                     StringComparer.Ordinal)
                 : new Dictionary<string, string>(StringComparer.Ordinal);
+            _smartArtDefinitions = new Dictionary<string, PpjSmartArtDefinition>(StringComparer.Ordinal);
+            if (compiledAssets is not null && root.TryGetProperty("assets", out assets))
+            {
+                var compiledById = compiledAssets.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
+                foreach (var declaration in assets.EnumerateArray().Where(asset =>
+                             asset.GetProperty("mimeType").GetString() ==
+                             PptxAssetCatalog.SmartArtDefinitionContentType))
+                {
+                    var programId = declaration.GetProperty("id").GetString()!;
+                    var nativeId = _nativeAssetIds[programId];
+                    if (!compiledById.TryGetValue(nativeId, out var asset))
+                        throw new CodecException(
+                            "ppj.asset.missing",
+                            $"PPJ SmartArt definition asset {programId} was not supplied.",
+                            "$.assets");
+                    _smartArtDefinitions[programId] = PpjSmartArtDefinitionCodec.Parse(
+                        asset,
+                        $"$.assets[{programId}]");
+                }
+            }
             Theme = BuildTheme(design);
         }
 
@@ -6801,6 +6927,12 @@ internal static class PpjAuthoredPresentationCompiler
         internal string NativeAssetId(string id) => _nativeAssetIds.TryGetValue(id, out var nativeId)
             ? nativeId
             : throw new CodecException("ppj.asset.unknown", $"PPJ asset {id} is not declared.");
+        internal string SmartArtLayout(string definitionAssetId) =>
+            _smartArtDefinitions.TryGetValue(definitionAssetId, out var definition)
+                ? definition.LayoutProfile
+                : throw new CodecException(
+                    "ppj.smartArt.definitionUnavailable",
+                    $"PPJ SmartArt definition asset {definitionAssetId} is not available to the authored compiler.");
 
         private static Dictionary<string, JsonElement> Styles(JsonElement root, string kind) =>
             root.TryGetProperty(kind, out var styles)

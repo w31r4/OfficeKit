@@ -222,10 +222,12 @@ source-bound `setFill` rule.
 
 Use `type: "smartArt"` with `mode: "authored"` when the content is genuinely a
 finite list, process, cycle, hierarchy, relationship, matrix, pyramid, or
-picture sequence. Despite the compatibility name, OfficeKit compiles this form
-to one editable native group of ordinary shapes, connectors, text, and images;
-it does not fabricate a native Office SmartArt part. Imported native SmartArt
-continues to use `mode: "source-bound"` and its issued `nativeRef` capabilities.
+picture sequence. OfficeKit compiles one element to one native SmartArt
+graphic frame with data, layout, style, colors, and a deterministic cached
+drawing. The cached drawing is internal to the SmartArt object; its shapes are
+not exposed as independent page elements. Imported native SmartArt uses
+`mode: "source-bound"` and remains limited to its issued `nativeRef`
+capabilities.
 
 The program must supply named shape and text styles. Connected layouts also
 supply connector paint. This keeps the compiler deterministic without letting
@@ -249,14 +251,19 @@ it invent a palette, typography system, or decorative geometry:
     { "id": "observe", "text": "Observe" },
     { "id": "measure", "text": "Measure" },
     { "id": "decide", "text": "Decide" }
+  ],
+  "connections": [
+    { "id": "observe-measure", "from": "observe", "to": "measure", "role": "sequence", "order": 0 },
+    { "id": "measure-decide", "from": "measure", "to": "decide", "role": "sequence", "order": 1 }
   ]
 }
 ```
 
-Use ordered nodes for list, process, cycle, matrix, pyramid, and picture.
-Hierarchy nodes declare `parent`; relationship uses the first node as the
-center unless explicit parent edges are present. Picture nodes each declare an
-image `asset`. A node may override `shapeStyleRef`, `styleRef`, or `geometry`.
+Use `connections` as the only topology language: `sequence` for process/cycle,
+`parent` for hierarchy, and `association` for relationship graphs. Ordered
+nodes still determine stable placement for list, matrix, pyramid, and picture.
+Picture nodes each declare an image `asset`. A node may override
+`shapeStyleRef`, `styleRef`, or `geometry`.
 The authored budget is 1–64 nodes. For a composition whose layout itself is the
 message, use an explicit `group` and frames instead of forcing it into one of
 these eight bounded layouts.

@@ -1434,14 +1434,21 @@ internal static class PptxCodec
         }
         else if (source is P.GraphicFrame sourceFrame)
         {
-            var tableModeled = PptxTableCodec.TryRead(sourceFrame, out var table);
-            var chartModeled = PptxChartCodec.TryRead(sourceFrame, slideContext, out var chart, out var chartEditable);
+            PresentationDiagram diagram = null!;
+            PresentationTable table = null!;
+            PresentationChart chart = null!;
+            var chartEditable = false;
+            var diagramModeled = slideContext.Owner is SlidePart slidePart && PptxSmartArtCodec.TryRead(sourceFrame, slidePart, out diagram);
+            var tableModeled = !diagramModeled && PptxTableCodec.TryRead(sourceFrame, out table);
+            var chartModeled = !diagramModeled && PptxChartCodec.TryRead(sourceFrame, slideContext, out chart, out chartEditable);
             editable = chartModeled ? chartEditable : tableModeled;
-            if (tableModeled)
+            if (diagramModeled)
+                element.Diagram = diagram;
+            else if (tableModeled)
                 element.Table = table;
             else if (chartModeled)
                 element.Chart = chart;
-            modeled = tableModeled || chartModeled;
+            modeled = diagramModeled || tableModeled || chartModeled;
         }
         else if (source is P.ConnectionShape sourceConnector && PptxConnectorCodec.TryRead(sourceConnector, elementIdsByNativeId, out var connector))
         {
@@ -1488,7 +1495,7 @@ internal static class PptxCodec
                     P.Shape accessibilityShape => accessibilityShape.NonVisualShapeProperties?.NonVisualDrawingProperties,
                     P.ConnectionShape accessibilityConnector => accessibilityConnector.NonVisualConnectionShapeProperties?.NonVisualDrawingProperties,
                     P.GroupShape accessibilityGroup => accessibilityGroup.NonVisualGroupShapeProperties?.NonVisualDrawingProperties,
-                    P.GraphicFrame accessibilityFrame when element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Chart =>
+                    P.GraphicFrame accessibilityFrame when element.ContentCase is PresentationElement.ContentOneofCase.Table or PresentationElement.ContentOneofCase.Chart or PresentationElement.ContentOneofCase.Diagram =>
                         accessibilityFrame.NonVisualGraphicFrameProperties?.NonVisualDrawingProperties,
                     _ => null,
                 })),
@@ -2351,6 +2358,7 @@ internal static class PptxCodec
             PresentationElement.ContentOneofCase.Table => PptxTableCodec.Build(element, nativeIdsByElementId[element.Id], slideContext),
             PresentationElement.ContentOneofCase.Connector => PptxConnectorCodec.Build(element, nativeIdsByElementId[element.Id], nativeIdsByElementId),
             PresentationElement.ContentOneofCase.Chart => PptxChartCodec.Build(element, nativeIdsByElementId[element.Id], slidePart),
+            PresentationElement.ContentOneofCase.Diagram => PptxSmartArtCodec.Build(element, nativeIdsByElementId[element.Id], slideContext, slidePart),
             PresentationElement.ContentOneofCase.Group => BuildGroup(element, nativeIdsByElementId, slideContext, slidePart, package),
             PresentationElement.ContentOneofCase.Media when package is not null =>
                 PptxMediaCodec.Build(element, nativeIdsByElementId[element.Id], slideContext, slidePart, package),
@@ -3105,6 +3113,11 @@ internal static class PptxCodec
                 element.Chart.ComboSeries.Sum(entry => entry.Series?.Values.Count ?? 0)));
             if (items > limits.MaxCells)
                 throw new CodecException("presentation_item_budget_exceeded", $"Presentation exceeds max_cells semantic-item budget ({limits.MaxCells}).");
+        }
+        else if (element.ContentCase == PresentationElement.ContentOneofCase.Diagram)
+        {
+            PptxSmartArtCodec.Validate(element.Diagram, element.Id, assetCatalog);
+            items += checked((ulong)(element.Diagram.Nodes.Count + element.Diagram.Connections.Count));
         }
         else if (element.ContentCase == PresentationElement.ContentOneofCase.Media)
         {

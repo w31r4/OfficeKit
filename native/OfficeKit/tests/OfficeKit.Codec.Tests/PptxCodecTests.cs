@@ -13,6 +13,8 @@ using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using AD = DocumentFormat.OpenXml.Office2019.Drawing;
 using C = DocumentFormat.OpenXml.Drawing.Charts;
+using Dgm = DocumentFormat.OpenXml.Drawing.Diagrams;
+using OD = DocumentFormat.OpenXml.Office.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
 using P14 = DocumentFormat.OpenXml.Office2010.PowerPoint;
 using S = DocumentFormat.OpenXml.Spreadsheet;
@@ -452,6 +454,226 @@ public sealed class PptxCodecTests
         Assert.Equal("shape", projectedIcon.GetProperty("type").GetString());
         Assert.False(projectedIcon.TryGetProperty("iconName", out _));
         Assert.True(projectedIcon.TryGetProperty("nativeRef", out _));
+    }
+
+    [Fact]
+    public void AuthoredPpjSmartArtBuildsNativePartsAndReprojectsWithoutEmbeddedPpj()
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "package.json"))) root = root.Parent;
+        Assert.NotNull(root);
+        var program = JsonNode.Parse(File.ReadAllBytes(Path.Combine(
+            root!.FullName,
+            "test",
+            "fixtures",
+            "presentation",
+            "evidence-ledger-canonical.ppj")))!.AsObject();
+        program["assets"] = new JsonArray();
+        program.Remove("sections");
+        program.Remove("comments");
+        program.Remove("customShows");
+        program["pages"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "smartart-page",
+            ["name"] = "SmartArt",
+            ["role"] = "Native SmartArt proof",
+            ["elements"] = new JsonArray(new JsonObject
+            {
+                ["id"] = "decision-process",
+                ["name"] = "Decision process",
+                ["type"] = "smartArt",
+                ["role"] = "Process",
+                ["mode"] = "authored",
+                ["layout"] = "process",
+                ["frame"] = new JsonObject { ["x"] = 72, ["y"] = 120, ["width"] = 816, ["height"] = 240 },
+                ["shapeStyleRef"] = "decision-band",
+                ["textStyleRef"] = "body",
+                ["nodeGeometry"] = new JsonObject { ["kind"] = "preset", ["preset"] = "roundRect" },
+                ["connector"] = new JsonObject
+                {
+                    ["stroke"] = new JsonObject { ["color"] = "#0B8F8F", ["width"] = 1.5 },
+                    ["endArrow"] = "triangle",
+                },
+                ["nodes"] = new JsonArray(
+                    new JsonObject { ["id"] = "observe", ["text"] = "Observe" },
+                    new JsonObject { ["id"] = "decide", ["text"] = "Decide" },
+                    new JsonObject { ["id"] = "act", ["text"] = "Act" }),
+                ["connections"] = new JsonArray(
+                    new JsonObject { ["id"] = "observe-decide", ["from"] = "observe", ["to"] = "decide", ["role"] = "sequence", ["order"] = 0 },
+                    new JsonObject { ["id"] = "decide-act", ["from"] = "decide", ["to"] = "act", ["role"] = "sequence", ["order"] = 1 }),
+            }),
+        });
+
+        var built = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+            },
+        });
+        Assert.True(built.Ok, Diagnostics(built));
+        using (var stream = new MemoryStream(built.File.ToByteArray()))
+        using (var package = PresentationDocument.Open(stream, false))
+        {
+            var slide = package.PresentationPart!.SlideParts.Single();
+            Assert.Single(slide.Slide!.Descendants<P.GraphicFrame>(), frame => frame.Descendants<Dgm.RelationshipIds>().Any());
+            Assert.Single(slide.DiagramDataParts);
+            Assert.Single(slide.DiagramLayoutDefinitionParts);
+            Assert.Single(slide.DiagramStyleParts);
+            Assert.Single(slide.DiagramColorsParts);
+            Assert.Single(slide.Parts, pair => pair.OpenXmlPart is DiagramPersistLayoutPart);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+        }
+
+        var nativeOnly = RemoveEmbeddedPpj(built.File.ToByteArray());
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeOnly),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/native-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        using var json = JsonDocument.Parse(projected.PresentationProgram.ProgramJson.ToByteArray());
+        var smartArt = Assert.Single(json.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray());
+        Assert.Equal("smartArt", smartArt.GetProperty("type").GetString());
+        Assert.Equal("source-bound", smartArt.GetProperty("mode").GetString());
+        Assert.Equal("process", smartArt.GetProperty("layout").GetString());
+        Assert.Equal(["observe", "decide", "act"], smartArt.GetProperty("nodes").EnumerateArray().Select(node => node.GetProperty("id").GetString()));
+        Assert.Equal(["observe-decide", "decide-act"], smartArt.GetProperty("connections").EnumerateArray().Select(connection => connection.GetProperty("id").GetString()));
+
+        var noOp = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeOnly),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = projected.PresentationProgram.ProgramJson,
+            },
+        });
+        Assert.True(noOp.Ok, Diagnostics(noOp));
+        Assert.Empty(noOp.PresentationProgram.ChangedParts);
+
+        var renamedState = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        renamedState["pages"]![0]!["name"] = "Renamed around native SmartArt";
+        var renamed = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeOnly),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(renamedState.ToJsonString()),
+            },
+        });
+        Assert.True(renamed.Ok, Diagnostics(renamed));
+        Assert.Equal(["ppt/slides/slide1.xml"], renamed.PresentationProgram.ChangedParts);
+        var renamedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = renamed.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/renamed-native-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(renamedProjection.Ok, Diagnostics(renamedProjection));
+        using (var renamedJson = JsonDocument.Parse(renamedProjection.PresentationProgram.ProgramJson.ToByteArray()))
+            Assert.Equal(
+                "smartArt",
+                Assert.Single(renamedJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray())
+                    .GetProperty("type").GetString());
+
+        var definitionBytes = Encoding.UTF8.GetBytes("""
+            {
+              "schema": "office-kit/smartart-definition/v1",
+              "layout": { "id": "decision-process", "profile": "process" },
+              "style": { "id": "basic" },
+              "colors": { "id": "accent" }
+            }
+            """);
+        var definitionSha256 = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(definitionBytes)).ToLowerInvariant();
+        var authoredSmartArt = program["pages"]![0]!["elements"]![0]!.AsObject();
+        authoredSmartArt.Remove("layout");
+        authoredSmartArt["definitionAsset"] = "decision-process-definition";
+        program["assets"] = new JsonArray(new JsonObject
+        {
+            ["id"] = "decision-process-definition",
+            ["uri"] = "deck.assets/smartart/decision-process.json",
+            ["mimeType"] = "application/vnd.officekit.smartart-definition+json",
+            ["sha256"] = definitionSha256,
+            ["rights"] = new JsonObject { ["status"] = "internal" },
+            ["accessibility"] = new JsonObject { ["decorative"] = true },
+        });
+        var definitionRequest = new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString()),
+                Assets =
+                {
+                    new Asset
+                    {
+                        Id = "decision-process-definition",
+                        FileName = "decision-process.json",
+                        ContentType = "application/vnd.officekit.smartart-definition+json",
+                        Data = ByteString.CopyFrom(definitionBytes),
+                        Sha256 = definitionSha256,
+                    },
+                },
+            },
+        };
+        var definitionBuilt = Invoke(definitionRequest);
+        Assert.True(definitionBuilt.Ok, Diagnostics(definitionBuilt));
+        using var definitionStream = new MemoryStream(definitionBuilt.File.ToByteArray());
+        using var definitionPackage = PresentationDocument.Open(definitionStream, false);
+        var definitionSlide = Assert.Single(definitionPackage.PresentationPart!.SlideParts);
+        Assert.Contains(
+            "urn:officekit:smartart:v1:layout:process",
+            Assert.Single(definitionSlide.DiagramLayoutDefinitionParts).LayoutDefinition!.OuterXml,
+            StringComparison.Ordinal);
+
+        var unsupportedDefinitionBytes = Encoding.UTF8.GetBytes("""
+            {
+              "schema": "office-kit/smartart-definition/v1",
+              "layout": {
+                "id": "custom-process",
+                "profile": "process",
+                "operators": [{ "id": "custom-algorithm", "kind": "algorithm" }]
+              },
+              "style": { "id": "basic" },
+              "colors": { "id": "accent" }
+            }
+            """);
+        var unsupportedDefinitionSha256 = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(unsupportedDefinitionBytes)).ToLowerInvariant();
+        program["assets"]![0]!["sha256"] = unsupportedDefinitionSha256;
+        definitionRequest.PresentationProgram.ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString());
+        definitionRequest.PresentationProgram.Assets[0].Data = ByteString.CopyFrom(unsupportedDefinitionBytes);
+        definitionRequest.PresentationProgram.Assets[0].Sha256 = unsupportedDefinitionSha256;
+        var unsupportedDefinition = Invoke(definitionRequest);
+        Assert.False(unsupportedDefinition.Ok);
+        var unsupportedDiagnostic = Assert.Single(unsupportedDefinition.Diagnostics);
+        Assert.Equal("unsupported_ppj_compile_feature", unsupportedDiagnostic.Code);
+        Assert.Equal("$.assets[decision-process-definition].layout.operators", unsupportedDiagnostic.SourcePath);
     }
 
     [Fact]
@@ -1952,6 +2174,59 @@ public sealed class PptxCodecTests
             bool connected = false,
             string geometry = "roundRect")
         {
+            var connections = new JsonArray();
+            var nodeObjects = nodes.Select(node => node!.AsObject()).ToArray();
+            var parentIds = nodeObjects.Select(node => node["parent"]?.GetValue<string>()).ToArray();
+            for (var index = 0; index < nodeObjects.Length; index++) nodeObjects[index].Remove("parent");
+            if (layout == "hierarchy")
+            {
+                for (var index = 0; index < nodeObjects.Length; index++)
+                {
+                    if (parentIds[index] is not { } parentId) continue;
+                    var childId = nodeObjects[index]["id"]!.GetValue<string>();
+                    connections.Add(new JsonObject
+                    {
+                        ["id"] = $"parent-{parentId}-{childId}",
+                        ["from"] = parentId,
+                        ["to"] = childId,
+                        ["role"] = "parent",
+                        ["order"] = index,
+                    });
+                }
+            }
+            else if (layout is "process" or "cycle")
+            {
+                var count = layout == "cycle" ? nodeObjects.Length : nodeObjects.Length - 1;
+                for (var index = 0; index < count; index++)
+                {
+                    var fromId = nodeObjects[index]["id"]!.GetValue<string>();
+                    var toId = nodeObjects[(index + 1) % nodeObjects.Length]["id"]!.GetValue<string>();
+                    connections.Add(new JsonObject
+                    {
+                        ["id"] = $"sequence-{fromId}-{toId}",
+                        ["from"] = fromId,
+                        ["to"] = toId,
+                        ["role"] = "sequence",
+                        ["order"] = index,
+                    });
+                }
+            }
+            else if (layout == "relationship")
+            {
+                var rootId = nodeObjects[0]["id"]!.GetValue<string>();
+                for (var index = 1; index < nodeObjects.Length; index++)
+                {
+                    var toId = nodeObjects[index]["id"]!.GetValue<string>();
+                    connections.Add(new JsonObject
+                    {
+                        ["id"] = $"association-{rootId}-{toId}",
+                        ["from"] = rootId,
+                        ["to"] = toId,
+                        ["role"] = "association",
+                        ["order"] = index - 1,
+                    });
+                }
+            }
             var diagram = new JsonObject
             {
                 ["id"] = $"authored-{layout}-diagram",
@@ -1970,6 +2245,7 @@ public sealed class PptxCodecTests
                     ["description"] = $"Editable native {layout} diagram.",
                 },
             };
+            if (connections.Count > 0) diagram["connections"] = connections;
             if (connected)
                 diagram["connector"] = new JsonObject
                 {
@@ -2619,19 +2895,26 @@ public sealed class PptxCodecTests
                     shape.NonVisualShapeProperties?.NonVisualDrawingProperties?.Name?.Value?.StartsWith("pictographic symbol ", StringComparison.Ordinal) == true),
                 shape => Assert.Equal(A.ShapeTypeValues.Star5, shape.ShapeProperties!.GetFirstChild<A.PresetGeometry>()!.Preset!.Value));
             Assert.Contains(nativeMilestonePictograph.Descendants<A.Text>(), text => text.Text == "4 gates");
-            var diagramGroups = package.PresentationPart.SlideParts.ElementAt(2).Slide!
-                .CommonSlideData!.ShapeTree!.Elements<P.GroupShape>().ToArray();
-            Assert.Equal(8, diagramGroups.Length);
-            var nativeProcessDiagram = diagramGroups.Single(group =>
-                group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "authored process diagram");
-            Assert.Equal(3, nativeProcessDiagram.Elements<P.Shape>().Count());
-            Assert.Equal(2, nativeProcessDiagram.Elements<P.ConnectionShape>().Count());
-            Assert.Contains(nativeProcessDiagram.Descendants<A.Text>(), text => text.Text == "Evaluate");
-            var nativePictureDiagram = diagramGroups.Single(group =>
-                group.NonVisualGroupShapeProperties!.NonVisualDrawingProperties!.Name!.Value == "authored picture diagram");
-            Assert.Equal(8, nativePictureDiagram.Elements<P.Shape>().Count());
-            Assert.Equal(4, nativePictureDiagram.Elements<P.Picture>().Count());
-            Assert.Contains(nativePictureDiagram.Descendants<A.Text>(), text => text.Text == "Review");
+            var diagramSlide = package.PresentationPart.SlideParts.ElementAt(2);
+            var diagramFrames = diagramSlide.Slide!.CommonSlideData!.ShapeTree!.Elements<P.GraphicFrame>()
+                .Where(frame => frame.Descendants<Dgm.RelationshipIds>().Any()).ToArray();
+            Assert.Equal(8, diagramFrames.Length);
+            Assert.Equal(8, diagramSlide.DiagramDataParts.Count());
+            Assert.Equal(8, diagramSlide.DiagramLayoutDefinitionParts.Count());
+            Assert.Equal(8, diagramSlide.DiagramStyleParts.Count());
+            Assert.Equal(8, diagramSlide.DiagramColorsParts.Count());
+            Assert.Equal(8, diagramSlide.Parts.Count(pair => pair.OpenXmlPart is DiagramPersistLayoutPart));
+            var nativeProcessDiagram = diagramFrames.Single(frame =>
+                frame.NonVisualGraphicFrameProperties!.NonVisualDrawingProperties!.Name!.Value == "authored process diagram");
+            var processRelationships = nativeProcessDiagram.Descendants<Dgm.RelationshipIds>().Single();
+            var processDataPart = Assert.IsType<DiagramDataPart>(diagramSlide.GetPartById(processRelationships.DataPart!));
+            Assert.Contains(processDataPart.DataModelRoot!.Descendants<A.Text>(), text => text.Text == "Evaluate");
+            Assert.Equal(2, processDataPart.DataModelRoot.Descendants<Dgm.Connection>()
+                .Count(connection => connection.Type?.Value == Dgm.ConnectionValues.UnknownRelationship));
+            var pictureDrawing = diagramSlide.Parts.Select(pair => pair.OpenXmlPart).OfType<DiagramPersistLayoutPart>()
+                .Single(part => part.Drawing!.Descendants<A.Text>().Any(text => text.Text == "Review"));
+            Assert.Equal(4, pictureDrawing.Drawing!.Descendants<OD.Shape>().Count());
+            Assert.Single(pictureDrawing.ImageParts);
             var nativeTable = package.PresentationPart!.SlideParts.ElementAt(1).Slide!.Descendants<A.Table>().Single();
             Assert.True(nativeTable.TableProperties!.FirstRow!.Value);
             var firstCell = nativeTable.Descendants<A.TableCell>().First();
@@ -2690,14 +2973,16 @@ public sealed class PptxCodecTests
         Assert.True(importedTransition.HasAdvanceAfterMs);
         Assert.Equal(1250U, importedTransition.AdvanceAfterMs);
         var importedDiagrams = imported.Artifact.Presentation.Slides[2].Elements
-            .Where(element => element.ContentCase == PresentationElement.ContentOneofCase.Group)
+            .Where(element => element.ContentCase == PresentationElement.ContentOneofCase.Diagram)
             .ToArray();
         Assert.Equal(8, importedDiagrams.Length);
-        var importedProcessDiagram = importedDiagrams.Single(element => element.Name == "authored process diagram").Group;
-        Assert.Equal(5, importedProcessDiagram.Children.Count);
-        Assert.Equal(2, importedProcessDiagram.Children.Count(child => child.ContentCase == PresentationElement.ContentOneofCase.Connector));
-        var importedPictureDiagram = importedDiagrams.Single(element => element.Name == "authored picture diagram").Group;
-        Assert.Equal(4, importedPictureDiagram.Children.Count(child => child.ContentCase == PresentationElement.ContentOneofCase.Image));
+        var importedProcessDiagram = importedDiagrams.Single(element => element.Name == "authored process diagram").Diagram;
+        Assert.Equal(3, importedProcessDiagram.Nodes.Count);
+        Assert.Equal(2, importedProcessDiagram.Connections.Count);
+        Assert.Equal("Evaluate", PptxTextCodec.Flatten(importedProcessDiagram.Nodes[1].TextBody));
+        var importedPictureDiagram = importedDiagrams.Single(element => element.Name == "authored picture diagram").Diagram;
+        Assert.Equal(4, importedPictureDiagram.Nodes.Count);
+        Assert.All(importedPictureDiagram.Nodes, node => Assert.False(string.IsNullOrWhiteSpace(node.AssetId)));
         var importedBackground = imported.Artifact.Presentation.Slides[0].Background.GradientFill;
         Assert.Equal(PresentationGradientFill.Types.Kind.Linear, importedBackground.Kind);
         Assert.Equal(3, importedBackground.Stops.Count);

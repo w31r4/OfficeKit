@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://officekit.dev/schema/smartart-definition-v1.schema.json",
+  "title": "OfficeKit SmartArt definition v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "layout",
+    "style",
+    "colors"
+  ],
+  "properties": {
+    "schema": {
+      "const": "office-kit/smartart-definition/v1"
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "profile"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "profile": {
+          "enum": [
+            "list",
+            "process",
+            "cycle",
+            "hierarchy",
+            "relationship",
+            "matrix",
+            "pyramid",
+            "picture"
+          ]
+        },
+        "operators": {
+          "type": "array",
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/operator"
+          }
+        }
+      }
+    },
+    "style": {
+      "$ref": "#/$defs/definitionSection"
+    },
+    "colors": {
+      "$ref": "#/$defs/definitionSection"
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$"
+    },
+    "definitionSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "labels": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "select",
+            "forEach",
+            "choose",
+            "algorithm",
+            "constraint",
+            "rule",
+            "shape"
+          ]
+        },
+        "input": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "arguments": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": {
+            "type": [
+              "string",
+              "number",
+              "integer",
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

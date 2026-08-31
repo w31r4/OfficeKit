@@ -19,8 +19,10 @@ internal sealed class PptxAssetCatalog
     private const string MediaAssetPrefix = "asset/presentation/media/";
     private const string OleWorkbookAssetPrefix = "asset/presentation/ole-workbook/";
     private const string OleOfficePackageAssetPrefix = "asset/presentation/ole-office-package/";
+    private const string SmartArtDefinitionAssetPrefix = "asset/presentation/smartart-definition/";
     private const string SpreadsheetContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     private const string DocumentContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    internal const string SmartArtDefinitionContentType = "application/vnd.officekit.smartart-definition+json";
     private readonly Dictionary<string, Asset> _assets = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ImagePart> _partByAssetId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, MediaDataPart> _mediaPartByAssetId = new(StringComparer.Ordinal);
@@ -178,10 +180,15 @@ internal sealed class PptxAssetCatalog
             return OleWorkbookAssetPrefix + sha256.ToLowerInvariant();
         if (normalized.Equals(DocumentContentType, StringComparison.Ordinal))
             return OleOfficePackageAssetPrefix + sha256.ToLowerInvariant();
+        if (normalized.Equals(SmartArtDefinitionContentType, StringComparison.Ordinal))
+            return SmartArtDefinitionAssetPrefix + sha256.ToLowerInvariant();
         throw new CodecException(
             "ppj.asset.unsupportedPurpose",
             $"PPJ presentation asset MIME {contentType} does not have a native compiler purpose.");
     }
+
+    internal static bool IsCompilerOnlyAsset(Asset asset) =>
+        NormalizeContentType(asset.ContentType).Equals(SmartArtDefinitionContentType, StringComparison.Ordinal);
 
     private void AddRequested(Asset source)
     {

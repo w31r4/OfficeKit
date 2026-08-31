@@ -323,6 +323,7 @@ internal static partial class PpjPresentationProjector
             PresentationElement.ContentOneofCase.Table => ProjectTable(element, id, nativeRef),
             PresentationElement.ContentOneofCase.Connector => ProjectConnector(element, id, nativeRef, pageId, context),
             PresentationElement.ContentOneofCase.Chart => ProjectChart(element, id, nativeRef),
+            PresentationElement.ContentOneofCase.Diagram => ProjectNativeSmartArt(element, id, nativeRef, context),
             PresentationElement.ContentOneofCase.Group => ProjectGroup(element, id, nativeRef, slide, pageId, context, shapeTreePath),
             PresentationElement.ContentOneofCase.Opaque when element.Opaque.DiagramText is not null =>
                 ProjectSourceSmartArt(element, id, nativeRef, pageId, context),
@@ -1146,6 +1147,50 @@ internal static partial class PpjPresentationProjector
         return output;
     }
 
+    private static JsonObject ProjectNativeSmartArt(
+        PresentationElement element,
+        string id,
+        JsonObject nativeRef,
+        ProjectionContext context)
+    {
+        var diagram = element.Diagram;
+        var output = ElementBase(id, element.Name, DiagramFrame(diagram), Accessibility(diagram.Accessibility), nativeRef);
+        output["type"] = "smartArt";
+        output["mode"] = "source-bound";
+        if (!string.IsNullOrWhiteSpace(diagram.Layout)) output["layout"] = diagram.Layout;
+        var nodes = new JsonArray();
+        foreach (var node in diagram.Nodes)
+        {
+            var projected = new JsonObject
+            {
+                ["id"] = node.Id,
+                ["text"] = TextContent(node.TextBody, PptxTextCodec.Flatten(node.TextBody)),
+            };
+            if (!string.IsNullOrWhiteSpace(node.AssetId) && context.TryMaterializeAsset(node.AssetId, out var assetId))
+                projected["asset"] = assetId;
+            nodes.Add(projected);
+        }
+        output["nodes"] = nodes;
+        if (diagram.Connections.Count > 0)
+        {
+            var connections = new JsonArray();
+            foreach (var connection in diagram.Connections)
+            {
+                var projected = new JsonObject
+                {
+                    ["id"] = connection.Id,
+                    ["from"] = connection.FromId,
+                    ["to"] = connection.ToId,
+                    ["role"] = connection.Role,
+                };
+                if (connection.Order > 0) projected["order"] = connection.Order;
+                connections.Add(projected);
+            }
+            output["connections"] = connections;
+        }
+        return output;
+    }
+
     private static JsonObject ProjectSourceOle(
         PresentationElement element,
         string id,
@@ -1898,6 +1943,9 @@ internal static partial class PpjPresentationProjector
     private static JsonObject GroupFrame(PresentationGroup group) =>
         Frame(group.LeftEmu, group.TopEmu, group.WidthEmu, group.HeightEmu, group.FrameTransform);
 
+    private static JsonObject DiagramFrame(PresentationDiagram diagram) =>
+        Frame(diagram.LeftEmu, diagram.TopEmu, diagram.WidthEmu, diagram.HeightEmu);
+
     private static JsonObject ConnectorFrame(PresentationConnector connector)
     {
         var left = Math.Min(connector.StartXEmu, connector.EndXEmu);
@@ -1912,6 +1960,7 @@ internal static partial class PpjPresentationProjector
         PresentationElement.ContentOneofCase.Table => TableFrame(element.Table),
         PresentationElement.ContentOneofCase.Connector => ConnectorFrame(element.Connector),
         PresentationElement.ContentOneofCase.Chart => ChartFrame(element.Chart),
+        PresentationElement.ContentOneofCase.Diagram => DiagramFrame(element.Diagram),
         PresentationElement.ContentOneofCase.Group => GroupFrame(element.Group),
         PresentationElement.ContentOneofCase.Opaque => Frame(element.Opaque.LeftEmu, element.Opaque.TopEmu, element.Opaque.WidthEmu, element.Opaque.HeightEmu),
         _ => Frame(0, 0, 1, 1),

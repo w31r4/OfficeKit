@@ -15,6 +15,8 @@
   <ItemGroup>
     <Protobuf Include="../../../../proto/office_kit/artifact/v1/office_artifact.proto" GrpcServices="None" Link="Protos/office_artifact.proto" />
     <EmbeddedResource Include="../../../../src/ppj/ppj-v1.schema.json" LogicalName="OfficeKit.Ppj.V1.Schema.json" />
+    <EmbeddedResource Include="../../../../src/ppj/smartart-definition-v1.schema.json" LogicalName="OfficeKit.Ppj.SmartArtDefinition.V1.Schema.json" />
+    <EmbeddedResource Include="../../../../src/ppj/smartart-operator-profiles.json" LogicalName="OfficeKit.Ppj.SmartArt.OperatorProfiles.json" />
     <EmbeddedResource Include="../../../../src/ppj/preset-geometry-profiles.json" LogicalName="OfficeKit.Ppj.PresetGeometryProfiles.json" />
     <EmbeddedResource Include="../../../../src/ppj/font-awesome-free-icons.json" LogicalName="OfficeKit.Ppj.FontAwesomeFreeIcons.json" />
   </ItemGroup>

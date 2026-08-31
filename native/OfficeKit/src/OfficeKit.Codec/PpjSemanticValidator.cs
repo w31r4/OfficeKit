@@ -554,6 +554,7 @@ internal static class PpjSemanticValidator
                     program.Design.TextStyleIds,
                     program.Design.ShapeStyleIds,
                     assetIds,
+                    program.Assets,
                     diagnostics);
                 break;
             case PpjOleElementModel ole:
@@ -2277,12 +2278,26 @@ internal static class PpjSemanticValidator
         IReadOnlySet<string> textStyleIds,
         IReadOnlySet<string> shapeStyleIds,
         IReadOnlySet<string> assetIds,
+        IReadOnlyList<PpjAssetModel> assets,
         List<PpjDiagnostic> diagnostics)
     {
-        if (smartArt.Mode == "authored" && smartArt.Layout is null)
-            diagnostics.Add(new("ppj.smartArt.layout", "Authored SmartArt requires a supported layout.", $"{path}.layout"));
+        if (smartArt.Mode == "authored" && (smartArt.Layout is null) == (smartArt.DefinitionAssetId is null))
+            diagnostics.Add(new(
+                "ppj.smartArt.definition",
+                "Authored SmartArt requires exactly one built-in layout or definitionAsset.",
+                path));
         if (smartArt.Mode == "source-bound" && smartArt.NativeRef is null && smartArt.Nodes.All(node => node.NativeRef is null))
             diagnostics.Add(new("ppj.smartArt.nativeRef", "Source-bound SmartArt requires an element or node nativeRef.", $"{path}.nativeRef"));
+        if (smartArt.DefinitionAssetId is not null)
+        {
+            ValidateAssetRef(smartArt.DefinitionAssetId, assetIds, $"{path}.definitionAsset", diagnostics);
+            var definition = assets.FirstOrDefault(asset => asset.Id == smartArt.DefinitionAssetId);
+            if (definition is not null && !definition.MimeType.Equals("application/vnd.officekit.smartart-definition+json", StringComparison.OrdinalIgnoreCase))
+                diagnostics.Add(new(
+                    "ppj.smartArt.definitionMime",
+                    "SmartArt definitionAsset requires application/vnd.officekit.smartart-definition+json.",
+                    $"{path}.definitionAsset"));
+        }
 
         if (smartArt.Mode == "authored")
         {
@@ -2301,7 +2316,7 @@ internal static class PpjSemanticValidator
             if (smartArt.Raw.TryGetProperty("nodeGeometry", out var nodeGeometry))
                 ValidateDiagramGeometry(nodeGeometry, $"{path}.nodeGeometry", diagnostics);
 
-            var hasParentEdges = smartArt.Nodes.Any(node => node.ParentId is not null);
+            var hasParentEdges = smartArt.Connections.Any(connection => connection.Role == "parent");
             if (hasParentEdges && smartArt.Layout is ("list" or "process" or "cycle" or "matrix" or "pyramid" or "picture"))
                 diagnostics.Add(new("ppj.smartArt.topology", $"Authored {smartArt.Layout} diagrams use ordered nodes and cannot declare parent edges.", $"{path}.nodes"));
             if (smartArt.Layout == "hierarchy" && smartArt.Nodes.Count > 1 && !hasParentEdges)
@@ -2315,13 +2330,27 @@ internal static class PpjSemanticValidator
         }
 
         var nodes = UniqueIndex(smartArt.Nodes, node => node.Id, $"{path}.nodes", diagnostics);
+        var connections = UniqueIndex(smartArt.Connections, connection => connection.Id, $"{path}.connections", diagnostics);
+        _ = connections;
+        var explicitParents = new Dictionary<string, string>(StringComparer.Ordinal);
+        for (var index = 0; index < smartArt.Connections.Count; index++)
+        {
+            var connection = smartArt.Connections[index];
+            var connectionPath = $"{path}.connections[{index}]";
+            if (!nodes.ContainsKey(connection.FromId))
+                diagnostics.Add(new("ppj.smartArt.connectionEndpoint", $"SmartArt connection source {connection.FromId} does not exist.", $"{connectionPath}.from"));
+            if (!nodes.ContainsKey(connection.ToId))
+                diagnostics.Add(new("ppj.smartArt.connectionEndpoint", $"SmartArt connection destination {connection.ToId} does not exist.", $"{connectionPath}.to"));
+            if (connection.FromId == connection.ToId)
+                diagnostics.Add(new("ppj.smartArt.connectionLoop", "SmartArt connections cannot target their own source node.", connectionPath));
+            if (connection.Role == "parent" && !explicitParents.TryAdd(connection.ToId, connection.FromId))
+                diagnostics.Add(new("ppj.smartArt.parent", $"SmartArt node {connection.ToId} has more than one parent connection.", connectionPath));
+        }
         var rawNodes = smartArt.Raw.GetProperty("nodes").EnumerateArray().ToArray();
         for (var index = 0; index < smartArt.Nodes.Count; index++)
         {
             var node = smartArt.Nodes[index];
             var nodePath = $"{path}.nodes[{index}]";
-            if (node.ParentId is not null && !nodes.ContainsKey(node.ParentId))
-                diagnostics.Add(new("ppj.smartArt.parent", $"SmartArt parent {node.ParentId} does not exist.", $"{nodePath}.parent"));
             ValidateStyleRef(node.StyleRef, textStyleIds, $"{nodePath}.styleRef", diagnostics);
             ValidateStyleRef(node.ShapeStyleRef, shapeStyleIds, $"{nodePath}.shapeStyleRef", diagnostics);
             if (rawNodes[index].TryGetProperty("geometry", out var geometry))
@@ -2337,17 +2366,20 @@ internal static class PpjSemanticValidator
             ValidateNativeRef(node.NativeRef, source, $"{nodePath}.nativeRef", diagnostics);
         }
 
+        var parents = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (childId, parentId) in explicitParents) parents[childId] = parentId;
         foreach (var node in smartArt.Nodes)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            var cursor = node;
-            while (cursor.ParentId is not null && nodes.TryGetValue(cursor.ParentId, out cursor!))
+            var cursor = node.Id;
+            while (parents.TryGetValue(cursor, out var parentId) && nodes.ContainsKey(parentId))
             {
-                if (!seen.Add(cursor.Id))
+                if (!seen.Add(cursor))
                 {
                     diagnostics.Add(new("ppj.smartArt.cycle", "SmartArt parent references form a cycle.", $"{path}.nodes"));
                     break;
                 }
+                cursor = parentId;
             }
         }
     }

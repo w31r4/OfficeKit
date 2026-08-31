@@ -247,20 +247,28 @@ internal sealed class PpjSmartArtElementModel : PpjElementModel
 {
     internal required string Mode { get; init; }
     internal string? Layout { get; init; }
+    internal string? DefinitionAssetId { get; init; }
     internal string? ShapeStyleRef { get; init; }
     internal string? TextStyleRef { get; init; }
     internal required IReadOnlyList<PpjSmartArtNodeModel> Nodes { get; init; }
+    internal required IReadOnlyList<PpjSmartArtConnectionModel> Connections { get; init; }
 }
 
 internal sealed record PpjSmartArtNodeModel(
     string Id,
-    string? ParentId,
     PpjTextContentModel Text,
     string? StyleRef,
     string? ShapeStyleRef,
     string? AssetId,
     PpjNativeRefModel? NativeRef,
     JsonElement Raw);
+
+internal sealed record PpjSmartArtConnectionModel(
+    string Id,
+    string FromId,
+    string ToId,
+    string Role,
+    uint Order);
 
 internal sealed class PpjOleElementModel : PpjElementModel
 {
@@ -714,9 +722,13 @@ internal static class PpjProgramParser
             {
                 Mode = element.GetProperty("mode").GetString()!,
                 Layout = OptionalString(element, "layout"),
+                DefinitionAssetId = OptionalString(element, "definitionAsset"),
                 ShapeStyleRef = OptionalString(element, "shapeStyleRef"),
                 TextStyleRef = OptionalString(element, "textStyleRef"),
                 Nodes = element.GetProperty("nodes").EnumerateArray().Select(ParseSmartArtNode).ToArray(),
+                Connections = element.TryGetProperty("connections", out var connections)
+                    ? connections.EnumerateArray().Select(ParseSmartArtConnection).ToArray()
+                    : [],
             },
             "ole" => new PpjOleElementModel
             {
@@ -821,13 +833,19 @@ internal static class PpjProgramParser
 
     private static PpjSmartArtNodeModel ParseSmartArtNode(JsonElement node) => new(
         node.GetProperty("id").GetString()!,
-        OptionalString(node, "parent"),
         ParseText(node.GetProperty("text")),
         OptionalString(node, "styleRef"),
         OptionalString(node, "shapeStyleRef"),
         OptionalString(node, "asset"),
         node.TryGetProperty("nativeRef", out var nativeRef) ? ParseNativeRef(nativeRef) : null,
         node.Clone());
+
+    private static PpjSmartArtConnectionModel ParseSmartArtConnection(JsonElement connection) => new(
+        connection.GetProperty("id").GetString()!,
+        connection.GetProperty("from").GetString()!,
+        connection.GetProperty("to").GetString()!,
+        connection.GetProperty("role").GetString()!,
+        connection.TryGetProperty("order", out var order) ? order.GetUInt32() : 0);
 
     private static PpjTextContentModel ParseText(JsonElement text)
     {

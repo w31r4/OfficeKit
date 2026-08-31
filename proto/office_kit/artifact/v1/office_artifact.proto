@@ -2133,6 +2133,9 @@ message PresentationElement {
     PresentationChart chart = 15;
     PresentationGroup group = 16;
     PresentationMedia media = 17;
+    // Native Office SmartArt. Instance data remains semantic while the PPTX
+    // writer owns DiagramML part paths, relationship IDs, and cached drawing.
+    PresentationDiagram diagram = 18;
   }
 }
 
@@ -2221,6 +2224,39 @@ message PresentationGroup {
   // Bounded transform on the outer group frame. Child coordinate-space
   // fields remain independent and are not rotated or reflected themselves.
   PresentationFrameTransform frame_transform = 11;
+}
+
+// One SmartArt object is the ownership and transaction boundary. `drawing` is
+// the deterministic resolved layout used to build the native cached drawing;
+// it is not projected as independent slide children.
+message PresentationDiagram {
+  string layout = 1;
+  int64 left_emu = 2;
+  int64 top_emu = 3;
+  int64 width_emu = 4;
+  int64 height_emu = 5;
+  repeated PresentationDiagramNode nodes = 6;
+  repeated PresentationDiagramConnection connections = 7;
+  PresentationGroup drawing = 8;
+  PresentationNonVisualAccessibility accessibility = 9;
+  // Empty for a clean-room built-in definition. Custom definitions reference
+  // one content-addressed PPJ asset; native part identity remains private.
+  string definition_asset_id = 10;
+}
+
+message PresentationDiagramNode {
+  string id = 1;
+  PresentationTextBody text_body = 2;
+  string asset_id = 3;
+}
+
+message PresentationDiagramConnection {
+  string id = 1;
+  string from_id = 2;
+  string to_id = 3;
+  // PPJ semantic roles: parent, sequence, or association.
+  string role = 4;
+  uint32 order = 5;
 }
 
 message PresentationShape {
