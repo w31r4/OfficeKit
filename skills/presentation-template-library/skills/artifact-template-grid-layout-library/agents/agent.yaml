@@ -1,0 +1,5 @@
+interface:
+  display_name: "Grid Layout Library"
+  short_description: "Use the Grid Layout Library presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-grid-layout-library as the visual style for this presentation."

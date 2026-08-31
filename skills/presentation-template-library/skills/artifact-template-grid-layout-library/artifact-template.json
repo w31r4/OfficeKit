@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-grid-layout-library",
+  "displayName": "Grid Layout Library",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "90fa32dee6cc6013fad48f62c57787b88bb346cf0b7db0a3a3e02554ed43d0de"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "9e32eac26c609a3016e89e71eee04d053f4bd86a7e11256d606cf998fa4d2427"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "a6fc603fcb4434425217410d23a17e6bc03c70e553c23d178b8d17fdfdb96a72"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "80ea89e5acce5c62ef7732c0091b59468a843f6e5b324a4463c87153c0f2419d"
+    }
+  ],
+  "useWhen": [
+    "explicit editorial grid",
+    "modular evidence report",
+    "structured comparison"
+  ],
+  "avoidWhen": [
+    "dark immersive stage",
+    "organic brand story",
+    "authoritative external template"
+  ],
+  "audiences": [
+    "analysts",
+    "design-literate teams",
+    "business readers"
+  ],
+  "contentShapes": [
+    "indexed evidence",
+    "process strip",
+    "split comparison",
+    "closing ledger"
+  ],
+  "visualTraits": {
+    "tone": [
+      "rigorous",
+      "editorial",
+      "modular"
+    ],
+    "density": "mixed",
+    "colorMode": "light",
+    "structure": [
+      "column guides",
+      "baseline rhythm",
+      "indexed sections"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "ce69a1a1f64b726ea7f614945a70db34515d96530d1a43b26a29344e697ca26a",
+    "license": "MIT",
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Grid Layout Library reference; the immutable source hash and unsupported native subgraphs remain explicit."
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "3e9f8f2fc673e91a74227603ee8aa4abe67b0974ea4541a44db76abc97b55712",
+    "license": "MIT",
+    "source": "Historical Codex Grid Layout Library reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit template guide and calibration preview are newly authored migration material. The declared MIT reference PPJ/PPTX is source-bound for native inspection and is not presented as a clean-room redraw.",
+    "guideSha256": "74fe0f6c2b89bd262133de0de19878d7d8e3a503400624dbbe3df1d3f5b25266",
+    "previewSha256": "adbefb9a6727863a6ec030153f2e41e076174eee33dcd986316c09d1b4be28be"
+  }
+}
