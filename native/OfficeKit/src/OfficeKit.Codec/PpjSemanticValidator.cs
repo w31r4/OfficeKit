@@ -796,12 +796,23 @@ internal static class PpjSemanticValidator
         var hasBubbleSeries = chart.ChartType == "bubble" ||
             chart.ChartType == "combo" && chart.Data.Series.Any(series => series.ChartType == "bubble");
         if (chart.Raw.TryGetProperty("style", out style) &&
-            (style.TryGetProperty("bubbleScale", out _) || style.TryGetProperty("bubbleSizeMode", out _)) &&
+            (style.TryGetProperty("bubbleScale", out _) || style.TryGetProperty("bubbleSizeMode", out _) ||
+             style.TryGetProperty("bubbleSizeScale", out _) || style.TryGetProperty("bubbleRadiusRange", out _)) &&
             !hasBubbleSeries)
             diagnostics.Add(new(
                 "ppj.chart.bubbleStyleType",
-                "style.bubbleScale and style.bubbleSizeMode apply only to bubble charts.",
+                "Bubble sizing style applies only to charts containing a bubble series.",
                 path + ".style"));
+        if (chart.Raw.TryGetProperty("style", out style) &&
+            style.TryGetProperty("bubbleRadiusRange", out var bubbleRadiusRange))
+        {
+            var radii = bubbleRadiusRange.EnumerateArray().Select(item => item.GetDouble()).ToArray();
+            if (radii.Length == 2 && radii[0] >= radii[1])
+                diagnostics.Add(new(
+                    "ppj.chart.bubbleRadiusRangeOrder",
+                    "bubbleRadiusRange requires a strictly increasing [minimum, maximum] radius pair.",
+                    path + ".style.bubbleRadiusRange"));
+        }
         if (chart.Raw.TryGetProperty("style", out style) &&
             style.TryGetProperty("stacking", out var stacking) &&
             stacking.GetString() == "stream")
@@ -1295,7 +1306,7 @@ internal static class PpjSemanticValidator
 
         if (chart.Raw.TryGetProperty("style", out var style))
             foreach (var property in style.EnumerateObject())
-                if (property.Name is not ("legend" or "titleTextStyle" or "legendTextStyle" or "bubbleScale" or "bubbleSizeMode"))
+                if (property.Name is not ("legend" or "titleTextStyle" or "legendTextStyle" or "bubbleScale" or "bubbleSizeMode" or "bubbleSizeScale" or "bubbleRadiusRange"))
                     diagnostics.Add(new(
                         "ppj.chart.numericComboStyleField",
                         $"{property.Name} is not part of the bounded numeric combo style profile.",
@@ -2528,6 +2539,11 @@ internal static class PpjSemanticValidator
                     "ppj.animation.vectorChartBuild",
                     "Vector-lowered numeric combo charts support whole-object animation, not ChartPart build modes.",
                     $"{path}.chartBuild"));
+            if (animation.ChartBuild is not null && target is PpjChartElementModel sizedBubble && IsInlineSizedBubble(sizedBubble))
+                diagnostics.Add(new(
+                    "ppj.animation.vectorChartBuild",
+                    "Explicitly sized bubble charts support whole-object animation, not ChartPart build modes.",
+                    $"{path}.chartBuild"));
             if ((animation.Effect == "pulse") != (animation.Phase == "emphasis"))
                 diagnostics.Add(new("ppj.animation.phaseEffect", "pulse is the only emphasis effect and is only valid in the emphasis phase.", $"{path}.effect"));
 
@@ -2542,6 +2558,11 @@ internal static class PpjSemanticValidator
         chart.Raw.TryGetProperty("style", out var style) &&
         style.TryGetProperty("stacking", out var stacking) &&
         stacking.GetString() == "stream";
+
+    private static bool IsInlineSizedBubble(PpjChartElementModel chart) =>
+        chart.ChartType == "bubble" &&
+        chart.Raw.TryGetProperty("style", out var style) &&
+        (style.TryGetProperty("bubbleSizeScale", out _) || style.TryGetProperty("bubbleRadiusRange", out _));
 
     private static bool IsInlinePictographicChart(PpjChartElementModel chart) =>
         chart.ChartType is "bar" or "column" &&

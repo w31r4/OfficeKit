@@ -140,8 +140,16 @@ internal static class PpjAuthoredPresentationCompiler
             for (var elementIndex = 0; elementIndex < expanded.Elements.Count; elementIndex++)
                 slide.Elements.Add(BuildElement(expanded.Elements[elementIndex], expanded.ElementJson[elementIndex], catalog));
 
+            var loweredElements = WalkPresentation(slide.Elements)
+                .ToDictionary(element => element.Id, StringComparer.Ordinal);
             foreach (var animation in page.Animations)
+            {
+                if (animation.ChartBuild is not null &&
+                    loweredElements.TryGetValue(animation.TargetId, out var loweredTarget) &&
+                    loweredTarget.ContentCase != PresentationElement.ContentOneofCase.Chart)
+                    throw Unsupported(animation.TargetId, "chartBuild requires a native ChartPart target; vector-lowered charts support whole-object animation only");
                 slide.Animations.Add(BuildAnimation(animation, expanded.Elements));
+            }
             ApplyTransition(slide, page, pageIndex == 0 ? null : presentation.Slides[pageIndex - 1]);
             presentation.Slides.Add(slide);
         }
@@ -283,8 +291,8 @@ internal static class PpjAuthoredPresentationCompiler
             case PpjChartElementModel pictograph when IsPictographicChart(pictograph):
                 output.Group = BuildPictographicChart(pictograph, raw, catalog);
                 break;
-            case PpjChartElementModel numericCombo when IsNumericCombo(numericCombo):
-                output.Group = BuildNumericCombo(numericCombo, raw, catalog);
+            case PpjChartElementModel numericChart when IsNumericCombo(numericChart) || IsExplicitlySizedBubble(numericChart, raw, catalog):
+                output.Group = BuildVectorNumericChart(numericChart, raw, catalog);
                 break;
             case PpjChartElementModel chart:
                 output.Chart = BuildChart(chart, raw, catalog);
@@ -616,6 +624,15 @@ internal static class PpjAuthoredPresentationCompiler
         element.ChartType == "combo" &&
         element.Data.Series.Any(series => series.ChartType is "scatter" or "bubble");
 
+    private static bool IsExplicitlySizedBubble(PpjChartElementModel element, JsonElement raw, Catalog catalog)
+    {
+        if (element.ChartType != "bubble") return false;
+        var namedStyle = catalog.ChartStyle(element.StyleRef);
+        var inlineStyle = Property(raw, "style");
+        return FirstProperty(inlineStyle, namedStyle, "bubbleSizeScale") is not null ||
+               FirstProperty(inlineStyle, namedStyle, "bubbleRadiusRange") is not null;
+    }
+
     private sealed record VectorAxisRange(
         double Minimum,
         double Maximum,
@@ -624,14 +641,14 @@ internal static class PpjAuthoredPresentationCompiler
         bool Reverse,
         string? NumberFormat);
 
-    private static PresentationGroup BuildNumericCombo(
+    private static PresentationGroup BuildVectorNumericChart(
         PpjChartElementModel element,
         JsonElement raw,
         Catalog catalog)
     {
         var namedStyle = catalog.ChartStyle(element.StyleRef);
         var inlineStyle = Property(raw, "style");
-        ValidateNumericComboCompileProfile(element, raw, namedStyle, inlineStyle);
+        ValidateVectorNumericCompileProfile(element, raw, namedStyle, inlineStyle);
 
         var seriesJson = raw.GetProperty("data").GetProperty("series").EnumerateArray().ToArray();
         var xAxis = Property(raw, "xAxis");
@@ -658,7 +675,7 @@ internal static class PpjAuthoredPresentationCompiler
 
         var xValues = element.Data.Series.SelectMany(series => series.XValues).ToArray();
         var yValues = element.Data.Series.SelectMany(series => series.Values).Select(value => value!.Value).ToList();
-        var requiresZero = element.Data.Series.Any(series => series.ChartType is "area" or "column");
+        var requiresZero = element.Data.Series.Any(series => NumericSeriesType(element, series) is "area" or "column");
         var xRange = BuildVectorAxisRange(xValues, xAxis, includeZero: false, element.Id, "X");
         var yRange = BuildVectorAxisRange(yValues, yAxis, requiresZero, element.Id, "Y");
         if (requiresZero && (yRange.Minimum > 0 || yRange.Maximum < 0))
@@ -693,11 +710,11 @@ internal static class PpjAuthoredPresentationCompiler
         AddVectorGridlines(group, element.Id, "numeric", plotX, plotY, plotWidth, plotHeight, xRange, yRange, xAxis, yAxis, catalog);
 
         var ordered = element.Data.Series
-            .Select((series, index) => (Series: series, Json: seriesJson[index], Index: index))
-            .OrderBy(item => NumericSeriesOrder(item.Series.ChartType!))
+            .Select((series, index) => (Series: series, Json: seriesJson[index], Index: index, Type: NumericSeriesType(element, series)))
+            .OrderBy(item => NumericSeriesOrder(item.Type))
             .ThenBy(item => item.Index)
             .ToArray();
-        var columnSeries = ordered.Where(item => item.Series.ChartType == "column").ToArray();
+        var columnSeries = ordered.Where(item => item.Type == "column").ToArray();
         var columnPositions = columnSeries.Select((item, index) => (item.Series.Id, index))
             .ToDictionary(item => item.Id, item => item.index, StringComparer.Ordinal);
         var xSpacing = element.Data.Series
@@ -707,12 +724,22 @@ internal static class PpjAuthoredPresentationCompiler
         var slotWidth = Math.Clamp(Math.Abs(PlotX(xRange.Minimum + xSpacing) - PlotX(xRange.Minimum)) * 0.7, 4, 54);
         var columnWidth = columnSeries.Length == 0 ? 0 : Math.Max(2, slotWidth / columnSeries.Length);
         var baselineY = PlotY(0);
+        var bubbleSizes = ordered
+            .Where(item => item.Type == "bubble")
+            .SelectMany(item => item.Series.BubbleSizes)
+            .ToArray();
+        var bubbleScale = FirstProperty(inlineStyle, namedStyle, "bubbleScale")?.GetInt32() ?? 100;
+        var bubbleSizeMode = FirstProperty(inlineStyle, namedStyle, "bubbleSizeMode")?.GetString() ?? "area";
+        var bubbleSizeScale = FirstProperty(inlineStyle, namedStyle, "bubbleSizeScale")?.GetString();
+        var bubbleRadiusRange = FirstProperty(inlineStyle, namedStyle, "bubbleRadiusRange") is { } radiusRange
+            ? radiusRange.EnumerateArray().Select(item => item.GetDouble()).ToArray()
+            : null;
 
         foreach (var item in ordered)
         {
             var series = item.Series;
             var points = series.XValues.Zip(series.Values, (xValue, value) => (X: PlotX(xValue), Y: PlotY(value!.Value), Value: value.Value)).ToArray();
-            switch (series.ChartType)
+            switch (item.Type)
             {
                 case "area":
                 {
@@ -754,8 +781,12 @@ internal static class PpjAuthoredPresentationCompiler
                     break;
                 case "bubble":
                     AddVectorPointSeries(group, element.Id, "numeric", series, item.Json, item.Index, points, series.BubbleSizes, plotWidth, plotHeight, catalog,
-                        bubbleScale: FirstProperty(inlineStyle, namedStyle, "bubbleScale")?.GetInt32() ?? 100,
-                        bubbleSizeMode: FirstProperty(inlineStyle, namedStyle, "bubbleSizeMode")?.GetString() ?? "area");
+                        bubbleScale: bubbleScale,
+                        bubbleSizeMode: bubbleSizeMode,
+                        bubbleSizeScale: bubbleSizeScale,
+                        bubbleDomainMinimum: bubbleSizes.Min(),
+                        bubbleDomainMaximum: bubbleSizes.Max(),
+                        bubbleRadiusRange: bubbleRadiusRange);
                     break;
             }
         }
@@ -765,7 +796,7 @@ internal static class PpjAuthoredPresentationCompiler
         if (titleText.Length > 0)
             group.Children.Add(VectorChartTitleElement(
                 NumericComboNativeId(element.Id, "title"),
-                "numeric combo title",
+                "numeric chart title",
                 element.Frame.X,
                 element.Frame.Y,
                 element.Frame.Width,
@@ -776,7 +807,7 @@ internal static class PpjAuthoredPresentationCompiler
                 Math.Clamp(titleHeight * 0.48, 11, 18),
                 "left"));
         if (legend == "right")
-            AddVectorLegend(group, element.Id, "numeric", ordered.Select(item => (item.Series, item.Json, item.Index)).ToArray(),
+            AddVectorLegend(group, element.Id, "numeric", ordered.Select(item => (item.Series, item.Json, item.Index, item.Type)).ToArray(),
                 plotX + plotWidth + legendGap, plotY, legendWidth, plotHeight,
                 FirstProperty(inlineStyle, namedStyle, "legendTextStyle"), catalog);
 
@@ -784,26 +815,34 @@ internal static class PpjAuthoredPresentationCompiler
         return group;
     }
 
-    private static void ValidateNumericComboCompileProfile(
+    private static void ValidateVectorNumericCompileProfile(
         PpjChartElementModel element,
         JsonElement raw,
         JsonElement? namedStyle,
         JsonElement? inlineStyle)
     {
-        if (!IsNumericCombo(element) || element.Data.Categories.Count != 0 || element.Data.Series.Count is < 2 or > 8)
-            throw Unsupported(element.Id, "numeric combo charts require 2..8 series and an empty categories array");
+        var numericCombo = IsNumericCombo(element);
+        var explicitlySizedBubble = element.ChartType == "bubble" &&
+            (FirstProperty(inlineStyle, namedStyle, "bubbleSizeScale") is not null ||
+             FirstProperty(inlineStyle, namedStyle, "bubbleRadiusRange") is not null);
+        if (!numericCombo && !explicitlySizedBubble)
+            throw Unsupported(element.Id, "vector numeric charts require a numeric combo or explicit bubble sizing");
+        var minimumSeries = numericCombo ? 2 : 1;
+        if (element.Data.Categories.Count != 0 || element.Data.Series.Count < minimumSeries || element.Data.Series.Count > 8)
+            throw Unsupported(element.Id, $"vector numeric charts require {minimumSeries}..8 series and an empty categories array");
         var families = element.Data.Series.Select(series => series.ChartType).Distinct(StringComparer.Ordinal).ToArray();
-        if (!families.Any(family => family is "scatter" or "bubble") || families.Length < 2)
+        if (numericCombo && (!families.Any(family => family is "scatter" or "bubble") || families.Length < 2))
             throw Unsupported(element.Id, "numeric combo charts require scatter or bubble evidence and a different plot family");
         foreach (var series in element.Data.Series)
         {
-            if (series.ChartType is not ("scatter" or "bubble" or "line" or "area" or "column"))
+            var seriesType = NumericSeriesType(element, series);
+            if (seriesType is not ("scatter" or "bubble" or "line" or "area" or "column"))
                 throw Unsupported(element.Id, "numeric combo series types are scatter, bubble, line, area and column");
             if (series.Values.Count is < 2 or > 64 || series.Values.Any(value => value is null || !double.IsFinite(value.Value)) ||
                 series.XValues.Count != series.Values.Count || series.XValues.Any(value => !double.IsFinite(value)) ||
                 series.XValues.Zip(series.XValues.Skip(1)).Any(pair => pair.First >= pair.Second))
                 throw Unsupported(element.Id, $"numeric combo series {series.Id} requires 2..64 finite values with strictly increasing aligned xValues");
-            if (series.ChartType == "bubble")
+            if (seriesType == "bubble")
             {
                 if (series.BubbleSizes.Count != series.Values.Count || series.BubbleSizes.Any(value => !double.IsFinite(value) || value <= 0))
                     throw Unsupported(element.Id, $"bubble series {series.Id} requires one finite positive size per point");
@@ -812,9 +851,9 @@ internal static class PpjAuthoredPresentationCompiler
                 throw Unsupported(element.Id, "bubbleSizes apply only to a bubble series");
             if (series.Raw.TryGetProperty("marker", out var marker))
             {
-                if (series.ChartType is "area" or "column" or "bubble")
-                    throw Unsupported(element.Id, $"numeric combo {series.ChartType} series do not render markers");
-                if (series.ChartType == "scatter" &&
+                if (seriesType is "area" or "column" or "bubble")
+                    throw Unsupported(element.Id, $"numeric combo {seriesType} series do not render markers");
+                if (seriesType == "scatter" &&
                     (marker.ValueKind == JsonValueKind.String && marker.GetString() == "none" ||
                      marker.ValueKind == JsonValueKind.Object && OptionalString(marker, "symbol") == "none"))
                     throw Unsupported(element.Id, "numeric combo scatter series cannot use marker none");
@@ -831,13 +870,19 @@ internal static class PpjAuthoredPresentationCompiler
         {
             if (style is not { ValueKind: JsonValueKind.Object } value) continue;
             foreach (var property in value.EnumerateObject())
-                if (property.Name is not ("legend" or "titleTextStyle" or "legendTextStyle" or "bubbleScale" or "bubbleSizeMode"))
+                if (property.Name is not ("legend" or "titleTextStyle" or "legendTextStyle" or "bubbleScale" or "bubbleSizeMode" or "bubbleSizeScale" or "bubbleRadiusRange"))
                     throw Unsupported(element.Id, $"numeric combo charts do not support chart style field {property.Name}");
         }
         if (FirstProperty(inlineStyle, namedStyle, "legend") is { } legend && legend.GetString() is not ("none" or "right"))
             throw Unsupported(element.Id, "numeric combo legends support only none or right");
         if (FirstProperty(inlineStyle, namedStyle, "bubbleScale") is { } bubbleScale && bubbleScale.GetInt32() < 10)
             throw Unsupported(element.Id, "generated numeric combo bubbles require bubbleScale between 10 and 300");
+        if (FirstProperty(inlineStyle, namedStyle, "bubbleRadiusRange") is { } radiusRange)
+        {
+            var radii = radiusRange.EnumerateArray().Select(item => item.GetDouble()).ToArray();
+            if (radii.Length != 2 || radii[0] >= radii[1])
+                throw Unsupported(element.Id, "bubbleRadiusRange requires a strictly increasing [minimum, maximum] pair");
+        }
         ValidateVectorAxisCompileProfile(Property(raw, "xAxis"), element.Id, "X");
         ValidateVectorAxisCompileProfile(Property(raw, "yAxis"), element.Id, "Y");
     }
@@ -901,6 +946,9 @@ internal static class PpjAuthoredPresentationCompiler
         "bubble" => 4,
         _ => 5,
     };
+
+    private static string NumericSeriesType(PpjChartElementModel chart, PpjChartSeriesModel series) =>
+        chart.ChartType == "bubble" ? "bubble" : series.ChartType!;
 
     private static string NumericComboNativeId(string elementId, string suffix) =>
         $"{elementId}/numeric-combo/{suffix}";
@@ -1258,7 +1306,11 @@ internal static class PpjAuthoredPresentationCompiler
         double plotHeight,
         Catalog catalog,
         int bubbleScale = 100,
-        string bubbleSizeMode = "area")
+        string bubbleSizeMode = "area",
+        string? bubbleSizeScale = null,
+        double? bubbleDomainMinimum = null,
+        double? bubbleDomainMaximum = null,
+        IReadOnlyList<double>? bubbleRadiusRange = null)
     {
         if (bubbleSizes is null)
         {
@@ -1266,12 +1318,37 @@ internal static class PpjAuthoredPresentationCompiler
             AddVectorMarkers(group, elementId, family, series, seriesJson, seriesIndex, points, marker, catalog, defaultSymbol: "circle");
             return;
         }
-        var maximum = bubbleSizes.Max();
+        var minimum = bubbleDomainMinimum ?? bubbleSizes.Min();
+        var maximum = bubbleDomainMaximum ?? bubbleSizes.Max();
         var maximumDiameter = Math.Clamp(Math.Min(plotWidth, plotHeight) * 0.12 * bubbleScale / 100d, 10, 48);
+        var explicitSizing = bubbleSizeScale is not null || bubbleRadiusRange is not null;
+        var scale = bubbleSizeScale ?? (bubbleSizeMode == "width" ? "linear" : "sqrt");
+        var minimumRadius = bubbleRadiusRange is null ? 2d : bubbleRadiusRange[0];
+        var maximumRadius = bubbleRadiusRange is null ? maximumDiameter / 2 : bubbleRadiusRange[1];
+        double Transform(double value) => scale switch
+        {
+            "linear" => value,
+            "log" => Math.Log(value),
+            _ => Math.Sqrt(value),
+        };
+        var transformedMinimum = Transform(minimum);
+        var transformedMaximum = Transform(maximum);
         for (var index = 0; index < points.Count; index++)
         {
-            var ratio = bubbleSizes[index] / maximum;
-            var diameter = Math.Max(4, maximumDiameter * (bubbleSizeMode == "width" ? ratio : Math.Sqrt(ratio)));
+            double diameter;
+            if (explicitSizing)
+            {
+                var ratio = transformedMaximum == transformedMinimum
+                    ? 0.5
+                    : (Transform(bubbleSizes[index]) - transformedMinimum) / (transformedMaximum - transformedMinimum);
+                var radius = minimumRadius + Math.Clamp(ratio, 0, 1) * (maximumRadius - minimumRadius);
+                diameter = radius * 2;
+            }
+            else
+            {
+                var ratio = bubbleSizes[index] / maximum;
+                diameter = Math.Max(4, maximumDiameter * (bubbleSizeMode == "width" ? ratio : Math.Sqrt(ratio)));
+            }
             group.Children.Add(BuildVectorMarkerElement(
                 $"{elementId}/{family}/bubble/{series.Id}/{index}",
                 $"{family} bubble {series.Name} {index + 1}",
@@ -1369,7 +1446,7 @@ internal static class PpjAuthoredPresentationCompiler
         PresentationGroup group,
         string elementId,
         string family,
-        IReadOnlyList<(PpjChartSeriesModel Series, JsonElement Json, int Index)> series,
+        IReadOnlyList<(PpjChartSeriesModel Series, JsonElement Json, int Index, string Type)> series,
         double x,
         double y,
         double width,
@@ -1383,8 +1460,8 @@ internal static class PpjAuthoredPresentationCompiler
         {
             var item = series[index];
             var rowY = startY + index * rowHeight;
-            var swatch = ShapeFrame(new PpjFrameModel(x, rowY + rowHeight * 0.35, 12, Math.Max(2, rowHeight * 0.3), 0, false, false), item.Series.ChartType is "scatter" or "bubble" ? "ellipse" : "rect");
-            ApplyVectorSeriesFill(swatch, item.Json, catalog, item.Index, elementId, defaultOpacity: item.Series.ChartType == "area" ? 0.45 : 1);
+            var swatch = ShapeFrame(new PpjFrameModel(x, rowY + rowHeight * 0.35, 12, Math.Max(2, rowHeight * 0.3), 0, false, false), item.Type is "scatter" or "bubble" ? "ellipse" : "rect");
+            ApplyVectorSeriesFill(swatch, item.Json, catalog, item.Index, elementId, defaultOpacity: item.Type == "area" ? 0.45 : 1);
             group.Children.Add(new PresentationElement
             {
                 Id = $"{elementId}/{family}/legend-swatch/{item.Series.Id}",
