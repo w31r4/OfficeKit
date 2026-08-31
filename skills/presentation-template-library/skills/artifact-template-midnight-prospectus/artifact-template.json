@@ -8,7 +8,7 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "f31aabfeefacde499f973e35336eac55f04c7eb785429eda93b66cd203556620"
+      "sha256": "0c70aac742a3b7525a4a1618c6090272fdff1c1ce1f1ec8a5961ffb40ec10883"
     },
     {
       "path": "assets/examples/02-analysis.png",
@@ -58,16 +58,22 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "90505ee28513a9a3b2fdb737bdeff5e872e969923846eaad21933d7d0257c65f",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "03652a6e68446e63098d40a589ebd861c599f3a644370325465f4d337f28aebb",
-    "previewSha256": "f0c32f19264d732adf86d9b05d7a6b6afd5ea46cde98e9493a557c0631253f9f"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound."
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "159d9861fdd3b7287a13d6f2032a6a5c769d9bc283cb2ef1fc9063de7651e3da",
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "03652a6e68446e63098d40a589ebd861c599f3a644370325465f4d337f28aebb",
+    "previewSha256": "eb5f0a60b1406d570765e8e7b5f4d9da823ef16492adc520b71cfb7d7230eb3c"
   }
 }
