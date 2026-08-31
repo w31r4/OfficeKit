@@ -369,7 +369,7 @@ export async function importPptxAsPpj(
     if (error?.code === "EEXIST") throw new Error(`PPJ output already exists: ${destination}`);
     throw error;
   }
-  const workspace = await loadPpjWorkspace(destination, { cwd: root });
+  const workspace = await loadPpjWorkspace(destination, { cwd: root, retainRoot: false });
   const task = await recordPpjTask({ taskId, cwd, stage: "imported", workspace, receipt: projected });
   return Object.freeze({
     ok: true,
@@ -392,7 +392,9 @@ export async function inspectPpj(
   { inputPath, query, page },
   { cwd = process.cwd(), load = loadPpjWorkspace, validate = validatePpjWorkspace } = {},
 ) {
-  const workspace = await load(inputPath, { cwd });
+  // Native validation returns the canonical program used for inspection. The
+  // input tree itself does not need to be hydrated in JavaScript.
+  const workspace = await load(inputPath, { cwd, retainRoot: false });
   const validated = await validate(workspace, { includeNodeMap: true });
   const program = JSON.parse(Buffer.from(validated.programJson).toString("utf8"));
   const indexed = indexProgram(program);
@@ -424,7 +426,7 @@ export async function checkPpj(
   { inputPath, fix = false, taskId },
   { cwd = process.cwd(), load = loadPpjWorkspace, validate = validatePpjWorkspace } = {},
 ) {
-  const workspace = await load(inputPath, { cwd });
+  const workspace = await load(inputPath, { cwd, retainRoot: false });
   const validated = await validate(workspace, { includeNodeMap: true });
   const formatted = prettyProgram(validated.programJson);
   const alreadyFormatted = Buffer.from(workspace.program).equals(formatted);
@@ -453,7 +455,7 @@ export async function buildPpj(
   { inputPath, outputPath, taskId },
   { cwd = process.cwd(), load = loadPpjWorkspace, compile = compilePpjWorkspace } = {},
 ) {
-  const workspace = await load(inputPath, { cwd });
+  const workspace = await load(inputPath, { cwd, retainRoot: false });
   const destination = path.resolve(cwd, outputPath);
   if (path.extname(destination).toLowerCase() !== ".pptx") throw new Error(`PPJ build output must be a .pptx file: ${destination}`);
   if (destination === workspace.path || destination === workspace.sourcePath) {

@@ -23,7 +23,7 @@ export async function renderPpj(
     rasterRenderer,
   } = {},
 ) {
-  const workspace = await load(inputPath, { cwd });
+  const workspace = await load(inputPath, { cwd, retainRoot: false });
   const destination = path.resolve(cwd, outputPath);
   if (destination === workspace.path || destination === workspace.sourcePath) {
     throw new Error("PPJ render output must be a directory distinct from the PPJ and source PPTX.");
@@ -97,7 +97,7 @@ export async function reviewPpj(
     review,
   } = {},
 ) {
-  const workspace = await load(inputPath, { cwd });
+  const workspace = await load(inputPath, { cwd, retainRoot: false });
   const compiled = await compile(workspace, { includeNodeMap: true });
   const reviewArtifact = review ?? (await import("../review/index.mjs")).reviewArtifact;
   const report = await reviewArtifact(compiled.file, {
