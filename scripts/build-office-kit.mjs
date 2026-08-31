@@ -6,12 +6,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const project = path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.NativeHost", "OfficeKit.NativeHost.csproj");
+const profiles = Object.freeze({
+  office: Object.freeze({
+    assemblyName: "officekit-codec",
+    project: path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.NativeHost", "OfficeKit.NativeHost.csproj"),
+  }),
+  ppj: Object.freeze({
+    assemblyName: "officekit-ppj-codec",
+    project: path.join(repoRoot, "native", "OfficeKit", "src", "OfficeKit.PpjNativeHost", "OfficeKit.PpjNativeHost.csproj"),
+  }),
+});
 const packageMetadata = readJson(path.join(repoRoot, "package.json"));
 const targets = Object.freeze({
-  "darwin-arm64": Object.freeze({ rid: "osx-arm64", executable: "officekit-codec" }),
-  "linux-x64": Object.freeze({ rid: "linux-x64", executable: "officekit-codec" }),
-  "win32-x64": Object.freeze({ rid: "win-x64", executable: "officekit-codec.exe" }),
+  "darwin-arm64": Object.freeze({ rid: "osx-arm64" }),
+  "linux-x64": Object.freeze({ rid: "linux-x64" }),
+  "win32-x64": Object.freeze({ rid: "win-x64" }),
 });
 
 const options = parseArguments(process.argv.slice(2));
@@ -26,26 +35,29 @@ if (platformPackage.name !== platformPackageName || platformPackage.version !== 
 }
 const destination = options.output ?? (process.env.OFFICE_KIT_OUTPUT ? path.resolve(process.env.OFFICE_KIT_OUTPUT) : sourcePackageRoot);
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), `office-kit-native-${target}-`));
-const publishDirectory = path.join(temporary, "publish");
 
 try {
-  run("dotnet", ["clean", project, "--configuration", "Release", "--runtime", targetConfig.rid, "--verbosity", "quiet"]);
-  run("dotnet", ["restore", project, "--locked-mode"]);
-  run("dotnet", [
-    "publish", project,
-    "--configuration", "Release",
-    "--runtime", targetConfig.rid,
-    "--self-contained", "true",
-    "--no-restore",
-    "--output", publishDirectory,
-  ]);
+  for (const profile of Object.values(profiles)) {
+    run("dotnet", ["restore", profile.project, "--locked-mode"]);
+    run("dotnet", [
+      "publish", profile.project,
+      "--configuration", "Release",
+      "--runtime", targetConfig.rid,
+      "--self-contained", "true",
+      "--no-restore",
+      "--output", path.join(temporary, `publish-${profile.assemblyName}`),
+    ]);
+  }
 
   const stage = path.join(temporary, "package");
   fs.mkdirSync(path.join(stage, "bin"), { recursive: true });
   fs.copyFileSync(path.join(sourcePackageRoot, "package.json"), path.join(stage, "package.json"));
-  const executableDestination = path.join(stage, "bin", targetConfig.executable);
-  fs.copyFileSync(path.join(publishDirectory, targetConfig.executable), executableDestination);
-  if (target !== "win32-x64") fs.chmodSync(executableDestination, 0o755);
+  for (const profile of Object.values(profiles)) {
+    const executable = target === "win32-x64" ? `${profile.assemblyName}.exe` : profile.assemblyName;
+    const executableDestination = path.join(stage, "bin", executable);
+    fs.copyFileSync(path.join(temporary, `publish-${profile.assemblyName}`, executable), executableDestination);
+    if (target !== "win32-x64") fs.chmodSync(executableDestination, 0o755);
+  }
   fs.copyFileSync(path.join(repoRoot, "LICENSE"), path.join(stage, "LICENSE"));
   fs.copyFileSync(path.join(repoRoot, "THIRD_PARTY_NOTICES.md"), path.join(stage, "THIRD_PARTY_NOTICES.md"));
   copyDotnetNotices(stage);
@@ -55,7 +67,7 @@ try {
     .filter((file) => file !== "manifest.json" && file !== "package.json")
     .map((file) => fileRecord(stage, file));
   const manifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     packageVersion: packageMetadata.version,
     backend: "native-aot",
     transportVersion: 2,
@@ -63,9 +75,15 @@ try {
     target,
     runtimeIdentifier: targetConfig.rid,
     targetFramework: "net8.0",
-    assemblyName: "officekit-codec",
+    profiles: Object.fromEntries(Object.entries(profiles).map(([name, profile]) => [name, {
+      assemblyName: profile.assemblyName,
+      executable: `bin/${target === "win32-x64" ? `${profile.assemblyName}.exe` : profile.assemblyName}`,
+    }])),
     sdkVersion: runText("dotnet", ["--version"]),
-    sourceProject: "native/OfficeKit/src/OfficeKit.NativeHost/OfficeKit.NativeHost.csproj",
+    sourceProjects: Object.fromEntries(Object.entries(profiles).map(([name, profile]) => [
+      name,
+      path.relative(repoRoot, profile.project).split(path.sep).join("/"),
+    ])),
     sourceDependencies: {
       "DocumentFormat.OpenXml": "3.5.1",
       "Google.Protobuf": "3.35.1"

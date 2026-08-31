@@ -5,7 +5,7 @@ import {
 import {
   OFFICE_KIT_PROTOCOL_VERSION,
   codecLimits,
-  invokeOfficeKitLazy,
+  invokeOfficeKitPpjLazy,
 } from "../codecs/office-kit-runtime.mjs";
 
 export const PPJ_MAX_BYTES = 16 * 1024 * 1024;
@@ -65,7 +65,7 @@ export async function projectPptxToPpj(source, {
 } = {}) {
   const file = bytes(source, "PPTX source");
   if (!sourceUri || !assetRootUri) throw new TypeError("PPJ projection requires relative sourceUri and assetRootUri values.");
-  return invokeOfficeKitLazy(() => ({
+  return invokeOfficeKitPpjLazy(() => ({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.PROJECT_PPTX_TO_PPJ,
     family: ArtifactFamily.PRESENTATION,
@@ -100,7 +100,7 @@ export async function compilePpjToPptx(program, {
       data: bytes(asset.data, `PPJ asset ${asset.id || index + 1}`),
     };
   });
-  return invokeOfficeKitLazy(() => ({
+  return invokeOfficeKitPpjLazy(() => ({
     protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
     operation: CodecOperation.COMPILE_PPJ_TO_PPTX,
     family: ArtifactFamily.PRESENTATION,

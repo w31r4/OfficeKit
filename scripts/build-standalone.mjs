@@ -448,12 +448,17 @@ async function installNativeCodecPackage({ target, appNodeModules, repositoryRoo
   const source = path.join(repositoryRoot, "packages", name);
   const metadata = JSON.parse(await readFile(path.join(source, "package.json"), "utf8"));
   const manifest = JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"));
-  if (metadata.name !== name || metadata.version !== officeKitVersion || manifest.target !== target ||
+  if (metadata.name !== name || metadata.version !== officeKitVersion || manifest.schemaVersion !== 2 || manifest.target !== target ||
       manifest.packageVersion !== officeKitVersion || manifest.backend !== "native-aot") {
     fail(`native codec package ${name} is missing or does not match OfficeKit ${officeKitVersion}.`);
   }
-  const executable = target === "win32-x64" ? "officekit-codec.exe" : "officekit-codec";
-  await regularFile(path.join(source, "bin", executable), `${target} native codec`);
+  for (const assemblyName of ["officekit-codec", "officekit-ppj-codec"]) {
+    const executable = target === "win32-x64" ? `${assemblyName}.exe` : assemblyName;
+    if (manifest.profiles?.[assemblyName === "officekit-codec" ? "office" : "ppj"]?.executable !== `bin/${executable}`) {
+      fail(`native codec package ${name} has an invalid ${assemblyName} profile.`);
+    }
+    await regularFile(path.join(source, "bin", executable), `${target} ${assemblyName}`);
+  }
   const destination = path.join(appNodeModules, name);
   await copyPackageWithoutNestedModules(source, destination);
   return {

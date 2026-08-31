@@ -22,24 +22,26 @@ const STDERR_LIMIT = 16 * 1024;
 const require = createRequire(import.meta.url);
 const activeClients = new Set();
 
+const NATIVE_PROFILES = Object.freeze({
+  office: Object.freeze({ assemblyName: "officekit-codec", executable: "officekit-codec" }),
+  ppj: Object.freeze({ assemblyName: "officekit-ppj-codec", executable: "officekit-ppj-codec" }),
+});
+
 const PLATFORM_PACKAGES = Object.freeze({
   "darwin-arm64": Object.freeze({
     name: "office-kit-codec-darwin-arm64",
     os: "darwin",
     cpu: "arm64",
-    executable: "officekit-codec",
   }),
   "linux-x64": Object.freeze({
     name: "office-kit-codec-linux-x64",
     os: "linux",
     cpu: "x64",
-    executable: "officekit-codec",
   }),
   "win32-x64": Object.freeze({
     name: "office-kit-codec-win32-x64",
     os: "win32",
     cpu: "x64",
-    executable: "officekit-codec.exe",
   }),
 });
 
@@ -53,9 +55,16 @@ export function officeKitNativeTarget(platform = process.platform, arch = proces
   return target;
 }
 
-export async function loadOfficeKitNativeDescriptor({ platform = process.platform, arch = process.arch, packageJsonPath: suppliedPackageJsonPath } = {}) {
+export async function loadOfficeKitNativeDescriptor({
+  platform = process.platform,
+  arch = process.arch,
+  packageJsonPath: suppliedPackageJsonPath,
+  profile = "office",
+} = {}) {
   const target = officeKitNativeTarget(platform, arch);
   const expected = PLATFORM_PACKAGES[target];
+  const expectedProfile = NATIVE_PROFILES[profile];
+  if (!expectedProfile) throw new TypeError(`Unknown OfficeKit native codec profile ${profile}.`);
   const packageJsonPath = suppliedPackageJsonPath ?? await resolvePlatformPackageJson(expected.name);
   const packageRoot = path.dirname(packageJsonPath);
   const [packageMetadata, manifest] = await Promise.all([
@@ -70,14 +79,19 @@ export async function loadOfficeKitNativeDescriptor({ platform = process.platfor
   if (!packageMetadata.os?.includes(expected.os) || !packageMetadata.cpu?.includes(expected.cpu)) {
     throw nativeError("runtime_identity_mismatch", `Native codec package ${expected.name} does not declare ${target}.`);
   }
-  if (manifest.schemaVersion !== 1 || manifest.backend !== "native-aot" || manifest.target !== target ||
+  if (manifest.schemaVersion !== 2 || manifest.backend !== "native-aot" || manifest.target !== target ||
       manifest.transportVersion !== OFFICE_KIT_NATIVE_TRANSPORT_VERSION || manifest.protocolVersion !== 2 ||
       manifest.packageVersion !== rootMetadata.version) {
     throw nativeError("runtime_identity_mismatch", `Native codec manifest for ${target} is incompatible with this OfficeKit package.`);
   }
 
-  const executablePath = path.join(packageRoot, "bin", expected.executable);
-  const relativeExecutable = `bin/${expected.executable}`;
+  const profileManifest = manifest.profiles?.[profile];
+  const executableName = platform === "win32" ? `${expectedProfile.executable}.exe` : expectedProfile.executable;
+  const relativeExecutable = `bin/${executableName}`;
+  if (profileManifest?.assemblyName !== expectedProfile.assemblyName || profileManifest?.executable !== relativeExecutable) {
+    throw nativeError("runtime_identity_mismatch", `Native codec manifest does not contain the expected ${profile} profile for ${target}.`);
+  }
+  const executablePath = path.join(packageRoot, relativeExecutable);
   const executableRecord = manifest.files?.find((item) => item.path === relativeExecutable);
   if (!executableRecord || !Number.isSafeInteger(executableRecord.bytes) || executableRecord.bytes <= 0 ||
       !/^[a-f0-9]{64}$/u.test(executableRecord.sha256 || "")) {
@@ -99,10 +113,11 @@ export async function loadOfficeKitNativeDescriptor({ platform = process.platfor
   }
   return Object.freeze({
     target,
+    profile,
     packageName: expected.name,
     packageRoot,
     executablePath,
-    assemblyName: manifest.assemblyName,
+    assemblyName: profileManifest.assemblyName,
     manifest,
   });
 }

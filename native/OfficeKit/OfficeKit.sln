@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Codec", "src/Offi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.NativeHost", "src/OfficeKit.NativeHost/OfficeKit.NativeHost.csproj", "{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.PpjNativeHost", "src/OfficeKit.PpjNativeHost/OfficeKit.PpjNativeHost.csproj", "{0DB9AB42-4A30-4EAC-B573-8915B121097C}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OfficeKit.Codec.Tests", "tests/OfficeKit.Codec.Tests/OfficeKit.Codec.Tests.csproj", "{DBBA0934-59DC-4CE2-8632-121924944838}"
 EndProject
 Global
@@ -23,6 +25,10 @@ Global
 		{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8DB9F1A0-9844-4E89-A7D6-27CE49EEA272}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0DB9AB42-4A30-4EAC-B573-8915B121097C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DB9AB42-4A30-4EAC-B573-8915B121097C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DB9AB42-4A30-4EAC-B573-8915B121097C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DB9AB42-4A30-4EAC-B573-8915B121097C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{DBBA0934-59DC-4CE2-8632-121924944838}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{DBBA0934-59DC-4CE2-8632-121924944838}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DBBA0934-59DC-4CE2-8632-121924944838}.Release|Any CPU.ActiveCfg = Release|Any CPU

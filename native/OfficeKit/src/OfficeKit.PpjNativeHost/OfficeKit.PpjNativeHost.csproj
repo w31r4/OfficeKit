@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifiers>osx-arm64;linux-x64;win-x64</RuntimeIdentifiers>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>officekit-ppj-codec</AssemblyName>
+    <RootNamespace>OfficeKit.PpjNativeHost</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <SelfContained>true</SelfContained>
+    <PublishTrimmed>true</PublishTrimmed>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <StripSymbols>true</StripSymbols>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../OfficeKit.NativeHost/NativeHostRunner.cs" Link="NativeHostRunner.cs" />
+    <ProjectReference Include="../OfficeKit.Codec/OfficeKit.Codec.csproj" />
+  </ItemGroup>
+</Project>

@@ -18,23 +18,27 @@ import {
 
 export const OFFICE_KIT_PROTOCOL_VERSION = 2;
 
-let runtimePromise;
-let invocationTail = Promise.resolve();
+const runtimeStates = Object.freeze({
+  office: { promise: undefined, invocationTail: Promise.resolve() },
+  ppj: { promise: undefined, invocationTail: Promise.resolve() },
+});
 
-async function runtime() {
+async function runtime(profile) {
+  const state = runtimeStates[profile];
+  if (!state) throw new TypeError(`Unknown OfficeKit native codec profile ${profile}.`);
   while (true) {
-    if (!runtimePromise) {
-      runtimePromise = startOfficeKitNativeClient()
+    if (!state.promise) {
+      state.promise = startOfficeKitNativeClient({ profile })
         .catch((error) => {
-          runtimePromise = undefined;
+          state.promise = undefined;
           if (error instanceof OfficeKitCodecError) throw error;
           throw new OfficeKitCodecError("Bundled OfficeKit NativeAOT Codec could not be loaded.", [], { code: "runtime_unavailable", cause: error });
         });
     }
-    const loadedPromise = runtimePromise;
+    const loadedPromise = state.promise;
     const loaded = await loadedPromise;
     if (loaded.tryAcquire()) return loaded;
-    if (runtimePromise === loadedPromise) runtimePromise = undefined;
+    if (state.promise === loadedPromise) state.promise = undefined;
   }
 }
 
@@ -122,10 +126,11 @@ function responseFailure(response) {
   return new OfficeKitCodecError(message, response.diagnostics);
 }
 
-async function invokeOfficeKitExclusive(request, { fileSidecar = false, consumeResponse } = {}) {
+async function invokeOfficeKitExclusive(profile, request, { fileSidecar = false, consumeResponse } = {}) {
   if (request?.file?.byteLength) assertOfficeKitInputBudget(request.file, request.limits, "Office");
-  const loaded = await runtime();
-  const loadedPromise = runtimePromise;
+  const state = runtimeStates[profile];
+  const loaded = await runtime(profile);
+  const loadedPromise = state.promise;
   let response;
   let stage = "request encoding";
   try {
@@ -138,7 +143,7 @@ async function invokeOfficeKitExclusive(request, { fileSidecar = false, consumeR
     response = fromBinary(CodecResponseSchema, wireResponse);
   } catch (error) {
     loaded.kill();
-    if (runtimePromise === loadedPromise) runtimePromise = undefined;
+    if (state.promise === loadedPromise) state.promise = undefined;
     if (error instanceof OfficeKitCodecError) throw error;
     if (isJavaScriptMemoryAllocationError(error)) throw javaScriptMemoryBudgetError(stage, error);
     throw new OfficeKitCodecError("OfficeKit native codec returned an invalid protobuf response.", [], { code: "runtime_protocol_mismatch", cause: error });
@@ -164,8 +169,9 @@ function assertOfficeKitRequest(request) {
   if (request?.file?.byteLength) assertOfficeKitInputBudget(request.file, request.limits, "Office");
 }
 
-export async function invokeOfficeKitLazy(createRequest, options = {}) {
+async function invokeProfileLazy(profile, createRequest, options = {}) {
   if (typeof createRequest !== "function") throw new TypeError("invokeOfficeKitLazy expects a request factory.");
+  const state = runtimeStates[profile];
   const invokeCreatedRequest = () => {
     let request;
     try {
@@ -175,15 +181,23 @@ export async function invokeOfficeKitLazy(createRequest, options = {}) {
       throw error;
     }
     assertOfficeKitRequest(request);
-    return invokeOfficeKitExclusive(request, options);
+    return invokeOfficeKitExclusive(profile, request, options);
   };
-  const operation = invocationTail.then(
+  const operation = state.invocationTail.then(
     invokeCreatedRequest,
     invokeCreatedRequest,
   );
   // Never retain the most recent protobuf response through the queue tail.
-  invocationTail = operation.then(() => undefined, () => undefined);
+  state.invocationTail = operation.then(() => undefined, () => undefined);
   return operation;
+}
+
+export async function invokeOfficeKitLazy(createRequest, options = {}) {
+  return invokeProfileLazy("office", createRequest, options);
+}
+
+export async function invokeOfficeKitPpjLazy(createRequest, options = {}) {
+  return invokeProfileLazy("ppj", createRequest, options);
 }
 
 export async function invokeOfficeKit(request, options = {}) {
@@ -198,18 +212,23 @@ export function assertCodecOptions(options, allowed, apiName) {
 }
 
 export async function officeKitStatus() {
-  const loaded = await runtime();
+  const [office, ppj] = await Promise.all([runtime("office"), runtime("ppj")]);
   try {
     return {
       available: true,
       protocolVersion: OFFICE_KIT_PROTOCOL_VERSION,
-      assemblyName: loaded.descriptor.assemblyName,
+      assemblyName: office.descriptor.assemblyName,
       backend: "native-aot",
-      target: loaded.descriptor.target,
+      target: office.descriptor.target,
       transportVersion: OFFICE_KIT_NATIVE_TRANSPORT_VERSION,
-      manifest: loaded.descriptor.manifest,
+      manifest: office.descriptor.manifest,
+      profiles: Object.freeze({
+        office: Object.freeze({ assemblyName: office.descriptor.assemblyName }),
+        ppj: Object.freeze({ assemblyName: ppj.descriptor.assemblyName }),
+      }),
     };
   } finally {
-    loaded.release();
+    office.release();
+    ppj.release();
   }
 }
