@@ -139,7 +139,6 @@ export async function createReplSession(options = {}) {
   const evidence = Array.isArray(previous?.evidence) ? structuredClone(previous.evidence) : [];
   const state = initialState;
   const excelFacade = createLazyExcelFacade();
-  const powerpointFacade = createLazyPowerPointFacade();
   let closed = false;
   let currentSequence = sequence;
   const deregisterHooks = installOfficeKitModuleHooks(resolver);
@@ -208,11 +207,6 @@ export async function createReplSession(options = {}) {
     enumerable: true,
     configurable: false,
     get: () => excelFacade,
-  });
-  Object.defineProperty(ctx, "powerpoint", {
-    enumerable: true,
-    configurable: false,
-    get: () => powerpointFacade,
   });
 
   const session = {
@@ -797,25 +791,6 @@ function createLazyExcelFacade() {
     if (facade) return facade;
     loading ??= import("../excel-live/repl.mjs").then(({ createExcelLiveReplFacade }) => {
       facade = createExcelLiveReplFacade();
-      return facade;
-    });
-    return loading;
-  };
-  return Object.freeze({
-    doctor: (...args) => load().then((value) => value.doctor(...args)),
-    sessions: (...args) => load().then((value) => value.sessions(...args)),
-    execute: (...args) => load().then((value) => value.execute(...args)),
-    disconnect: (...args) => load().then((value) => value.disconnect(...args)),
-  });
-}
-
-function createLazyPowerPointFacade() {
-  let facade;
-  let loading;
-  const load = async () => {
-    if (facade) return facade;
-    loading ??= import("../powerpoint-live/repl.mjs").then(({ createPowerPointLiveReplFacade }) => {
-      facade = createPowerPointLiveReplFacade();
       return facade;
     });
     return loading;

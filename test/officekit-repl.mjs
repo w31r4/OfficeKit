@@ -129,6 +129,7 @@ const lazySession = await createReplSession({ workspaceRoot: lazyWorkspace, newT
 const lazyResult = await lazySession.handleLine(JSON.stringify({ id: "lazy", code: "return Object.keys(ctx).sort();" }));
 assert.equal(lazyResult.ok, true);
 for (const key of ["commit", "input", "publish", "task"]) assert.ok(lazyResult.result.includes(key));
+assert.equal(lazyResult.result.includes("powerpoint"), false);
 assert.equal(await stat(path.join(lazyWorkspace, ".office-kit")).then(() => true, () => false), true);
 assert.equal(await stat(path.join(lazyWorkspace, ".office-kit", "excel")).then(() => true, () => false), false);
 assert.equal(await stat(path.join(lazyWorkspace, ".office-kit", "powerpoint")).then(() => true, () => false), false);

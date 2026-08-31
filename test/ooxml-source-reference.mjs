@@ -8,7 +8,6 @@ import {
   SpreadsheetFile,
   Workbook,
 } from "../src/index.mjs";
-import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 import {
   inspectOoxmlPackage,
   ooxmlResolveRelationshipTarget,
@@ -239,26 +238,5 @@ const importedAddedSheet = (await SpreadsheetFile.importXlsx(addedSheetXlsx)).wo
 assert.ok(importedAddedSheet);
 assert.equal(importedAddedSheet.getRange("A1").values[0][0], "Added");
 assert.equal((await SpreadsheetFile.inspectXlsx(addedSheetXlsx)).ok, true);
-
-const presentation = Presentation.create();
-presentation.slides.add({ name: "Patch slide" }).shapes.add({
-  name: "patch-text",
-  geometry: "textbox",
-  text: "Patch this PPTX",
-  position: { left: 40, top: 40, width: 400, height: 80 },
-});
-const basePptx = await PresentationFile.exportPptx(presentation);
-assert.equal((await PresentationFile.inspectPptx(basePptx)).ok, true);
-
-const pptxZip = await zipOf(basePptx);
-const slideXml = await pptxZip.file("ppt/slides/slide1.xml").async("text");
-assert.match(slideXml, /Patch this PPTX/);
-const patchedPptx = await PresentationFile.patchPptx(basePptx, [{
-  path: "ppt/slides/slide1.xml",
-  xml: slideXml.replace("Patch this PPTX", "Patched PPTX"),
-}]);
-const importedPresentation = await PresentationFile.importPptx(patchedPptx);
-assert.equal(importedPresentation.slides.getItem(0).shapes.items[0].text.value, "Patched PPTX");
-assert.equal((await PresentationFile.inspectPptx(patchedPptx)).ok, true);
 
 console.log("OOXML inspect/patch tests passed");

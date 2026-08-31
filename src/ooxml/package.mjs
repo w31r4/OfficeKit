@@ -19,12 +19,6 @@ import {
   supportsOoxmlSourceReference,
   validateOoxmlSourceReferenceTarget,
 } from "./source-references.mjs";
-import {
-  PPTX_MODERN_AUTHOR_CONTENT_TYPE,
-  PPTX_MODERN_AUTHOR_RELATIONSHIP_TYPE,
-  PPTX_MODERN_COMMENT_CONTENT_TYPE,
-  PPTX_MODERN_COMMENT_RELATIONSHIP_TYPE,
-} from "../presentation/ooxml-modern-comments.mjs";
 import { decoder, encoder, toUint8Array } from "../shared/binary.mjs";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { imageContentTypeFromExtension } from "../shared/images.mjs";
@@ -35,6 +29,10 @@ const OOXML_DEFAULT_MAX_INPUT_BYTES = 256 * 1024 * 1024;
 const OOXML_DEFAULT_MAX_PARTS = 5_000;
 const OOXML_DEFAULT_MAX_PART_BYTES = 64 * 1024 * 1024;
 const OOXML_DEFAULT_MAX_TOTAL_BYTES = 256 * 1024 * 1024;
+const PPTX_MODERN_COMMENT_CONTENT_TYPE = "application/vnd.ms-powerpoint.comments+xml";
+const PPTX_MODERN_COMMENT_RELATIONSHIP_TYPE = "http://schemas.microsoft.com/office/2018/10/relationships/comments";
+const PPTX_MODERN_AUTHOR_CONTENT_TYPE = "application/vnd.ms-powerpoint.authors+xml";
+const PPTX_MODERN_AUTHOR_RELATIONSHIP_TYPE = "http://schemas.microsoft.com/office/2018/10/relationships/authors";
 
 function ooxmlPositiveLimit(value, fallback) {
   const number = Number(value ?? fallback);

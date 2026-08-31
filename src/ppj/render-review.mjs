@@ -102,6 +102,7 @@ export async function reviewPpj(
   const reviewArtifact = review ?? (await import("../review/index.mjs")).reviewArtifact;
   const report = await reviewArtifact(compiled.file, {
     format: "pptx",
+    ppjReceipt: compiled,
     source: workspace.sourcePath ?? undefined,
     playbackEvidence: "structural",
     visualReview: "unavailable",

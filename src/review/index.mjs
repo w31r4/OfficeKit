@@ -4,12 +4,11 @@ import path from "node:path";
 
 import { DocumentFile, DocumentModel } from "../document/index.mjs";
 import { PdfArtifact, PdfFile } from "../pdf/index.mjs";
-import { Presentation, PresentationFile } from "../presentation/index.mjs";
+import { reviewPpjArtifact } from "../ppj/review.mjs";
 import { createArtifactVisualQaApi } from "../qa/artifact-visual.mjs";
-import { FileBlob } from "../shared/file-blob.mjs";
 import { toUint8Array } from "../shared/binary.mjs";
+import { FileBlob } from "../shared/file-blob.mjs";
 import { SpreadsheetFile, Workbook } from "../spreadsheet/index.mjs";
-import { canonicalJson, normalizePresentationAuthoringPlan } from "../cli/authoring-plan.mjs";
 
 const ANYDOC_VERSION = "0.1.3";
 const DEFAULT_MAX_BYTES = 100 * 1024 * 1024;
@@ -17,39 +16,21 @@ const DEFAULT_MAX_CONTENT_CHARS = 40_000;
 const DEFAULT_MAX_INSPECT_CHARS = 20_000;
 const DEFAULT_MAX_SUMMARY_CHARS = 50_000;
 
-const FORMAT_DETAILS = {
-  docx: {
-    artifactKind: "document",
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  },
-  xlsx: {
-    artifactKind: "workbook",
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  },
-  pptx: {
-    artifactKind: "presentation",
-    type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  },
-  pdf: { artifactKind: "pdf", type: "application/pdf" },
-};
+const FORMAT_DETAILS = Object.freeze({
+  docx: Object.freeze({ artifactKind: "document", type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }),
+  xlsx: Object.freeze({ artifactKind: "workbook", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+  pptx: Object.freeze({ artifactKind: "presentation", type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }),
+  pdf: Object.freeze({ artifactKind: "pdf", type: "application/pdf" }),
+});
 
 const FORMAT_ALIASES = new Map([
-  ["document", "docx"],
-  ["word", "docx"],
-  ["docx", "docx"],
-  ["workbook", "xlsx"],
-  ["spreadsheet", "xlsx"],
-  ["excel", "xlsx"],
-  ["xlsx", "xlsx"],
-  ["presentation", "pptx"],
-  ["powerpoint", "pptx"],
-  ["pptx", "pptx"],
+  ["document", "docx"], ["word", "docx"], ["docx", "docx"],
+  ["workbook", "xlsx"], ["spreadsheet", "xlsx"], ["excel", "xlsx"], ["xlsx", "xlsx"],
+  ["presentation", "pptx"], ["powerpoint", "pptx"], ["pptx", "pptx"],
   ["pdf", "pdf"],
 ]);
-
 const MIME_FORMATS = new Map(Object.entries(FORMAT_DETAILS).map(([format, details]) => [details.type, format]));
 const VISUAL_REVIEW_STATUSES = new Set(["complete", "unavailable", "requires-human"]);
-const PLAYBACK_EVIDENCE_STATUSES = new Set(["structural", "keynote", "powerpoint"]);
 
 function positiveInteger(value, fallback, label) {
   if (value == null) return fallback;
@@ -62,39 +43,20 @@ function sha256(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
 
+function boundedMessage(error, maxChars = 1_000) {
+  return String(error?.message || error || "Unknown error").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ").slice(0, maxChars);
+}
+
 function modelFormat(value) {
   if (value instanceof DocumentModel) return "docx";
   if (value instanceof Workbook) return "xlsx";
-  if (value instanceof Presentation) return "pptx";
   if (value instanceof PdfArtifact) return "pdf";
   return undefined;
 }
 
 function normalizeFormat(value) {
   if (value == null || value === "") return undefined;
-  const normalized = String(value).trim().toLowerCase().replace(/^\./u, "");
-  return FORMAT_ALIASES.get(normalized);
-}
-
-function formatFromPath(value) {
-  return normalizeFormat(path.extname(value));
-}
-
-function formatFromInputMetadata(input) {
-  return normalizeFormat(input?.metadata?.artifactKind)
-    || normalizeFormat(input?.metadata?.format)
-    || MIME_FORMATS.get(String(input?.type || "").toLowerCase());
-}
-
-function formatFromPdfSignature(bytes) {
-  return bytes?.length >= 5
-    && bytes[0] === 0x25
-    && bytes[1] === 0x50
-    && bytes[2] === 0x44
-    && bytes[3] === 0x46
-    && bytes[4] === 0x2d
-    ? "pdf"
-    : undefined;
+  return FORMAT_ALIASES.get(String(value).trim().toLowerCase().replace(/^\./u, ""));
 }
 
 function selectFormat(input, bytes, options = {}) {
@@ -102,15 +64,15 @@ function selectFormat(input, bytes, options = {}) {
     modelFormat(input),
     normalizeFormat(options.format),
     normalizeFormat(options.kind),
-    typeof input === "string" ? formatFromPath(input) : undefined,
-    formatFromInputMetadata(input),
-    formatFromPdfSignature(bytes),
+    typeof input === "string" ? normalizeFormat(path.extname(input)) : undefined,
+    normalizeFormat(input?.metadata?.artifactKind),
+    normalizeFormat(input?.metadata?.format),
+    MIME_FORMATS.get(String(input?.type || "").toLowerCase()),
+    bytes?.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d ? "pdf" : undefined,
   ].filter(Boolean);
   const unique = [...new Set(candidates)];
   if (unique.length > 1) throw new TypeError(`Review input format declarations disagree: ${unique.join(", ")}.`);
-  if (!unique.length) {
-    throw new TypeError("Review input format is unknown. Use a .docx/.xlsx/.pptx/.pdf path, a typed FileBlob, a modeled artifact, or options.format.");
-  }
+  if (!unique.length) throw new TypeError("Review input format is unknown. Use a .docx/.xlsx/.pptx/.pdf path, a typed FileBlob, or options.format.");
   return unique[0];
 }
 
@@ -120,8 +82,7 @@ async function readBoundedBytes(input, maxBytes, label) {
     const metadata = await fs.stat(absolutePath);
     if (!metadata.isFile()) throw new TypeError(`${label} must be a regular file.`);
     if (metadata.size > maxBytes) throw new RangeError(`${label} has ${metadata.size} bytes and exceeds maxBytes (${maxBytes}).`);
-    const bytes = new Uint8Array(await fs.readFile(absolutePath));
-    return { bytes, path: absolutePath };
+    return { bytes: new Uint8Array(await fs.readFile(absolutePath)), path: absolutePath };
   }
   let bytes;
   if (input instanceof FileBlob) bytes = input.bytes;
@@ -132,30 +93,35 @@ async function readBoundedBytes(input, maxBytes, label) {
   return { bytes: new Uint8Array(bytes), path: undefined };
 }
 
-async function exportModel(model, format, options = {}) {
-  if (format === "docx") return DocumentFile.exportDocx(model, options);
-  if (format === "xlsx") return SpreadsheetFile.exportXlsx(model, options);
-  if (format === "pptx") return PresentationFile.exportPptx(model, options);
-  if (format === "pdf") return PdfFile.exportPdf(model, options);
-  throw new TypeError(`Unsupported review format ${format}.`);
+async function materializeReviewInput(input, options, maxBytes) {
+  const format = modelFormat(input);
+  if (format) {
+    const exported = format === "docx"
+      ? await DocumentFile.exportDocx(input, options.exportOptions || {})
+      : format === "xlsx"
+        ? await SpreadsheetFile.exportXlsx(input, options.exportOptions || {})
+        : await PdfFile.exportPdf(input, options.exportOptions || {});
+    if (exported.bytes.byteLength > maxBytes) throw new RangeError(`Review output has ${exported.bytes.byteLength} bytes and exceeds maxBytes (${maxBytes}).`);
+    return { bytes: new Uint8Array(exported.bytes), format, path: options.outputPath ? path.resolve(options.outputPath) : undefined };
+  }
+  const materialized = await readBoundedBytes(input, maxBytes, "Review output");
+  return { ...materialized, format: selectFormat(input, materialized.bytes, options) };
 }
 
 async function importModel(bytes, format, options = {}) {
   const blob = new FileBlob(bytes, { type: FORMAT_DETAILS[format].type });
   if (format === "docx") return DocumentFile.importDocx(blob, options);
   if (format === "xlsx") return SpreadsheetFile.importXlsx(blob, options);
-  if (format === "pptx") return PresentationFile.importPptx(blob, options);
   if (format === "pdf") return PdfFile.importPdf(blob, options);
-  throw new TypeError(`Unsupported review format ${format}.`);
+  throw new TypeError(`Unsupported modeled review format ${format}.`);
 }
 
 async function inspectPackage(bytes, format, options = {}) {
   const blob = new FileBlob(bytes, { type: FORMAT_DETAILS[format].type });
   if (format === "docx") return DocumentFile.inspectDocx(blob, options);
   if (format === "xlsx") return SpreadsheetFile.inspectXlsx(blob, options);
-  if (format === "pptx") return PresentationFile.inspectPptx(blob, options);
   if (format === "pdf") return PdfFile.inspectPdf(blob, options);
-  throw new TypeError(`Unsupported review format ${format}.`);
+  throw new TypeError(`Unsupported package review format ${format}.`);
 }
 
 function inferArtifactKind(artifact) {
@@ -163,10 +129,6 @@ function inferArtifactKind(artifact) {
 }
 
 const visualQaApi = createArtifactVisualQaApi({ inferArtifactKind });
-
-function boundedMessage(error, maxChars = 1_000) {
-  return String(error?.message || error || "Unknown error").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ").slice(0, maxChars);
-}
 
 function parseNdjson(text) {
   return String(text || "").split(/\r?\n/u).filter(Boolean).flatMap((line) => {
@@ -193,44 +155,34 @@ function hasHardIssue(issues = []) {
   return issues.some((issue) => issueSeverity(issue) === "error");
 }
 
-function reviewIssueFingerprint(issue) {
-  return JSON.stringify({
-    kind: issue?.kind,
-    type: issue?.type,
-    slide: issue?.slide,
-    id: issue?.id,
-    ids: issue?.ids,
-    name: issue?.name,
-    names: issue?.names,
-    message: issue?.message,
-  });
+function reviewIssue(type, message, severity = "error", details = {}) {
+  return { kind: "reviewIssue", type, severity, message, ...details };
+}
+
+function issueFingerprint(issue) {
+  return JSON.stringify({ kind: issue?.kind, type: issue?.type, slide: issue?.slide, id: issue?.id, pageId: issue?.pageId, message: issue?.message });
 }
 
 function applyBaselineReview(report, baselineReport) {
-  // A source-bound baseline may explain unchanged modeled/layout findings,
-  // but it never masks a structural package failure. The package itself must
-  // still reopen and pass the independent OPC inspection.
-  const sections = ["semantic", "layout"];
   let matchedIssues = 0;
   let newIssues = 0;
-  for (const sectionName of sections) {
-    const section = report[sectionName];
+  for (const sectionName of ["semantic", "layout"]) {
+    const current = report[sectionName];
     const baseline = baselineReport?.[sectionName];
-    if (!section || !baseline || !Array.isArray(section.issues) || !Array.isArray(baseline.issues)) continue;
-    const baselineIssues = new Set(baseline.issues.map(reviewIssueFingerprint));
-    section.issues = section.issues.map((issue) => {
-      if (issueSeverity(issue) === "error" && baselineIssues.has(reviewIssueFingerprint(issue))) {
+    if (!Array.isArray(current?.issues) || !Array.isArray(baseline?.issues)) continue;
+    const known = new Set(baseline.issues.map(issueFingerprint));
+    current.issues = current.issues.map((entry) => {
+      if (issueSeverity(entry) === "error" && known.has(issueFingerprint(entry))) {
         matchedIssues += 1;
-        return { ...issue, severity: "warning", preexisting: true };
+        return { ...entry, severity: "warning", preexisting: true };
       }
-      if (issueSeverity(issue) === "error") newIssues += 1;
-      return issue;
+      if (issueSeverity(entry) === "error") newIssues += 1;
+      return entry;
     });
-    if (section.status === "skipped") continue;
-    section.ok = !hasHardIssue(section.issues);
-    section.status = section.ok
-      ? section.issues.length ? "passed-with-warnings" : "passed"
-      : "failed";
+    if (current.status !== "skipped") {
+      current.ok = !hasHardIssue(current.issues);
+      current.status = current.ok ? current.issues.length ? "passed-with-warnings" : "passed" : "failed";
+    }
   }
   return { matchedIssues, newIssues };
 }
@@ -240,803 +192,25 @@ function truncateMarkdown(value, maxChars) {
   if (text.length <= maxChars) return { markdown: text, chars: text.length, originalChars: text.length, truncated: false };
   const notice = "\n\n[OfficeKit: content view truncated; narrow the task or raise maxContentChars.]";
   const limit = Math.max(0, maxChars - notice.length);
-  let cut = text.slice(0, limit);
-  const newline = cut.lastIndexOf("\n");
-  if (newline >= Math.floor(limit * 0.7)) cut = cut.slice(0, newline);
-  const markdown = `${cut.trimEnd()}${notice}`;
+  const markdown = `${text.slice(0, limit).trimEnd()}${notice}`;
   return { markdown, chars: markdown.length, originalChars: text.length, truncated: true };
 }
 
-function removeEmbeddedDataUris(markdown) {
-  return String(markdown || "").replace(/data:[a-z0-9.+-]+\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/giu, "officekit:embedded-image-bytes-omitted");
-}
-
-async function anyDocContentView(bytes, format, options = {}) {
+async function anyDocContentView(bytes, format, maxChars) {
   let anydoc;
   try {
     const module = await import("@firecrawl/anydoc");
     anydoc = module.toMarkdownBytes ? module : module.default;
     if (typeof anydoc?.toMarkdownBytes !== "function") throw new Error("toMarkdownBytes is unavailable");
   } catch (error) {
-    return {
-      status: "unavailable",
-      requested: true,
-      provider: "anydoc",
-      providerVersion: ANYDOC_VERSION,
-      format,
-      reason: "provider-unavailable",
-      message: boundedMessage(error),
-    };
+    return { status: "unavailable", requested: true, provider: "anydoc", providerVersion: ANYDOC_VERSION, format, reason: "provider-unavailable", message: boundedMessage(error) };
   }
   try {
-    const markdown = removeEmbeddedDataUris(await anydoc.toMarkdownBytes(bytes, format));
-    const bounded = truncateMarkdown(markdown, options.maxChars);
-    return {
-      status: bounded.markdown ? "ready" : "empty",
-      requested: true,
-      provider: "anydoc",
-      providerVersion: ANYDOC_VERSION,
-      format,
-      sourceSha256: sha256(bytes),
-      markdownSha256: sha256(new TextEncoder().encode(bounded.markdown)),
-      ...bounded,
-    };
+    const markdown = String(await anydoc.toMarkdownBytes(bytes, format)).replace(/data:[a-z0-9.+-]+\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/giu, "officekit:embedded-image-bytes-omitted");
+    return { status: markdown ? "ready" : "empty", requested: true, provider: "anydoc", providerVersion: ANYDOC_VERSION, format, sourceSha256: sha256(bytes), ...truncateMarkdown(markdown, maxChars) };
   } catch (error) {
-    return {
-      status: "unavailable",
-      requested: true,
-      provider: "anydoc",
-      providerVersion: ANYDOC_VERSION,
-      format,
-      sourceSha256: sha256(bytes),
-      reason: /scan|image.only|ocr|unsupported/iu.test(boundedMessage(error)) ? "unsupported-content" : "conversion-failed",
-      message: boundedMessage(error),
-    };
+    return { status: "unavailable", requested: true, provider: "anydoc", providerVersion: ANYDOC_VERSION, format, sourceSha256: sha256(bytes), reason: "conversion-failed", message: boundedMessage(error) };
   }
-}
-
-async function canonicalPath(value) {
-  const absolute = path.resolve(value);
-  try { return await fs.realpath(absolute); }
-  catch (error) {
-    if (error?.code !== "ENOENT") throw error;
-    const parent = await fs.realpath(path.dirname(absolute));
-    return path.join(parent, path.basename(absolute));
-  }
-}
-
-function reviewIssue(type, message, severity = "error", details = {}) {
-  return { kind: "reviewIssue", type, severity, message, ...details };
-}
-
-function presentationDesignReview(model, options = {}) {
-  const requested = options.authoringPlan != null || options.changedPageIds != null;
-  if (!requested) {
-    return {
-      status: "not-requested",
-      ok: true,
-      planSha256: null,
-      changedPageIds: [],
-      issues: [],
-    };
-  }
-  const issues = [];
-  if (!(model instanceof Presentation)) {
-    return {
-      status: "blocked",
-      ok: false,
-      planSha256: null,
-      changedPageIds: [],
-      issues: [reviewIssue("designReviewBlocked", "Design review requires a successfully reopened Presentation.")],
-    };
-  }
-  let normalized;
-  try {
-    normalized = normalizePresentationAuthoringPlan(options.authoringPlan);
-  } catch (error) {
-    return {
-      status: "failed",
-      ok: false,
-      planSha256: null,
-      changedPageIds: [],
-      issues: [reviewIssue("invalidAuthoringPlan", boundedMessage(error))],
-    };
-  }
-  const plan = normalized.plan;
-  const strategy = presentationStrategyDescriptor(normalized);
-  addPresentationStrategyIssues(plan, normalized, issues);
-  const pages = plan.pages;
-  const actualPageCount = model.slides.items.length;
-  if (actualPageCount !== pages.length) {
-    issues.push(reviewIssue("authoringPlanPageCount", `Authoring plan declares ${pages.length} pages but the candidate contains ${actualPageCount}.`, "error", {
-      expected: pages.length,
-      actual: actualPageCount,
-    }));
-  }
-  for (const [index, unresolved] of plan.unresolved.entries()) {
-    const blocking = typeof unresolved === "string" || unresolved?.required !== false && unresolved?.blocking !== false;
-    if (!blocking) continue;
-    issues.push(reviewIssue("requiredAuthoringDecision", `Authoring plan still contains required unresolved item ${index + 1}.`, "error", {
-      unresolvedIndex: index,
-      id: typeof unresolved === "object" ? unresolved.id : undefined,
-    }));
-  }
-
-  const pageIds = new Set(pages.map((page) => page.id));
-  const changedPageIds = normalizeChangedPageIds(options.changedPageIds, pageIds, issues);
-  const records = presentationDesignRecords(model, issues);
-  const pageSignatures = buildPageSignatures(records, pages);
-  const profile = presentationDesignProfile(model, issues);
-  checkStrictDesignGrammar(plan, profile, issues);
-  checkTypographyFloor(plan, records, issues);
-  checkContentBudgets(plan, pageSignatures, issues);
-  addDesignHeuristicWarnings(model, plan, records, pageSignatures, profile, issues);
-  if (changedPageIds.length > 0) {
-    compareChangedPageScope(pageSignatures, options.baselineDesign, changedPageIds, issues);
-    compareDesignDrift(profile, options.baselineDesign, issues);
-  }
-
-  const ok = !hasHardIssue(issues);
-  return {
-    status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed",
-    ok,
-    planSha256: normalized.sha256,
-    strategy,
-    layers: summarizePresentationDesignLayers(issues),
-    changedPageIds,
-    issues,
-    pageSignatures,
-    profile,
-  };
-}
-
-function presentationStrategyDescriptor(normalized) {
-  const plan = normalized.plan;
-  if (normalized.strategyStatus === "legacy") {
-    return {
-      status: "legacy",
-      primaryJob: null,
-      supportingJobs: [],
-      expectedOutcome: null,
-      mediumFit: null,
-      mediumFitNote: null,
-      afterUse: null,
-      deliveryMode: plan.brief.deliveryMode ?? "hybrid",
-      scenario: null,
-      direction: null,
-    };
-  }
-  return {
-    status: "current",
-    primaryJob: plan.brief.primaryJob,
-    supportingJobs: [...(plan.brief.supportingJobs || [])],
-    expectedOutcome: plan.brief.expectedOutcome,
-    mediumFit: plan.brief.mediumFit ?? "acceptable",
-    mediumFitNote: plan.brief.mediumFitNote ?? null,
-    afterUse: plan.brief.afterUse ?? null,
-    deliveryMode: plan.brief.deliveryMode ?? "hybrid",
-    scenario: structuredClone(plan.design.scenario),
-    direction: structuredClone(plan.design.direction),
-  };
-}
-
-function addPresentationStrategyIssues(plan, normalized, issues) {
-  if (normalized.strategyStatus === "legacy") {
-    issues.push(reviewIssue("legacyPresentationStrategy", "The authoring plan predates communication strategy fields. Preserve its existing scope or add strategy during an explicit redesign.", "warning", { layer: "communication" }));
-    return;
-  }
-  if (plan.brief.deliveryMode == null) {
-    issues.push(reviewIssue("inferredDeliveryMode", "The plan does not record a delivery mode; review used the hybrid default.", "warning", { layer: "communication" }));
-  }
-  if (plan.brief.afterUse == null) {
-    issues.push(reviewIssue("missingAfterUse", "The plan does not state how the deck will be used after delivery.", "warning", { layer: "communication" }));
-  }
-  if (plan.brief.mediumFit === "weak") {
-    issues.push(reviewIssue("weakMediumFit", `The plan records a weak medium fit: ${plan.brief.mediumFitNote}`, "warning", { layer: "communication" }));
-  }
-  const claims = new Map();
-  for (const page of plan.pages) {
-    const key = String(page.claim || "").trim().replace(/\s+/gu, " ").toLocaleLowerCase("en-US");
-    if (!key) continue;
-    const pageIds = claims.get(key) || [];
-    pageIds.push(page.id);
-    claims.set(key, pageIds);
-  }
-  for (const pageIds of claims.values()) {
-    if (pageIds.length > 1) issues.push(reviewIssue("repeatedPageClaim", `Pages ${pageIds.join(", ")} repeat the same primary claim.`, "warning", { layer: "narrative", pageIds }));
-  }
-  const evidencePages = plan.pages.filter((page) => Array.isArray(page.evidence) && page.evidence.length > 0).length;
-  if (["analysis-decision", "academic-research", "management-report"].includes(plan.design.scenario.primary) && evidencePages === 0) {
-    issues.push(reviewIssue("missingNarrativeEvidence", `Scenario ${plan.design.scenario.primary} has no page-level evidence references.`, "warning", { layer: "narrative" }));
-  }
-}
-
-function summarizePresentationDesignLayers(issues) {
-  const summaries = Object.fromEntries(["communication", "narrative", "cognitive", "visual"].map((layer) => [layer, {
-    status: "passed",
-    errors: 0,
-    warnings: 0,
-  }]));
-  for (const issue of issues) {
-    const layer = issue.layer || designIssueLayer(issue.type);
-    const summary = summaries[layer] || summaries.visual;
-    if (issueSeverity(issue) === "error") summary.errors += 1;
-    else summary.warnings += 1;
-  }
-  for (const summary of Object.values(summaries)) {
-    summary.status = summary.errors > 0 ? "failed" : summary.warnings > 0 ? "passed-with-warnings" : "passed";
-  }
-  return summaries;
-}
-
-function designIssueLayer(type) {
-  if (["authoringPlanPageCount", "requiredAuthoringDecision", "repeatedPageClaim", "missingNarrativeEvidence"].includes(type)) return "narrative";
-  if (["contentBudgetCharacters", "contentBudgetObjects", "minimumFontSize", "densityRhythmJump"].includes(type)) return "cognitive";
-  if (["legacyPresentationStrategy", "inferredDeliveryMode", "missingAfterUse", "weakMediumFit"].includes(type)) return "communication";
-  return "visual";
-}
-
-function presentationMotionReview(model, options = {}) {
-  const playbackEvidence = options.playbackEvidence ?? "structural";
-  if (!PLAYBACK_EVIDENCE_STATUSES.has(playbackEvidence)) {
-    throw new TypeError("playbackEvidence must be structural, keynote, or powerpoint.");
-  }
-  if (!(model instanceof Presentation)) {
-    return {
-      status: "blocked",
-      ok: false,
-      planSha256: null,
-      playbackEvidence,
-      animationCount: 0,
-      motionUnits: [],
-      morphPairs: [],
-      issues: [reviewIssue("motionReviewBlocked", "Motion review requires a successfully reopened Presentation.")],
-    };
-  }
-
-  const issues = [];
-  let normalized;
-  if (options.authoringPlan != null) {
-    try { normalized = normalizePresentationAuthoringPlan(options.authoringPlan); }
-    catch (error) { issues.push(reviewIssue("invalidMotionAuthoringPlan", boundedMessage(error))); }
-  }
-  const plan = normalized?.plan;
-  const motionUnits = [];
-  const morphPairs = [];
-  const rhythms = [];
-  let animationCount = 0;
-
-  for (const [index, slide] of model.slides.items.entries()) {
-    const page = plan?.pages[index];
-    const animations = slide.animations.items;
-    const morph = slide.morph.value;
-    animationCount += animations.length;
-    const semanticUnitCount = animations.length + (morph ? 1 : 0);
-    const rhythm = animations.map((animation) => `${animation.effect}:${animation.start}`).join("|") || (morph ? "morph" : "static");
-    rhythms.push(rhythm);
-
-    if (animations.length > 32 || animations.length * 2 > 64) {
-      issues.push(reviewIssue("motionNodeLimit", `Slide ${index + 1} exceeds the supported semantic or expanded timing-node limit.`, "error", { slide: index + 1 }));
-    }
-    for (const [order, animation] of animations.entries()) {
-      const target = slide.resolve(animation.targetId);
-      motionUnits.push({
-        slide: index + 1,
-        pageId: page?.id,
-        order: order + 1,
-        id: animation.id,
-        targetId: animation.targetId,
-        effect: animation.effect,
-        start: animation.start,
-        chartBuild: animation.chartBuild,
-        textBuild: animation.textBuild,
-      });
-      if (!target) issues.push(reviewIssue("invalidMotionTarget", `Animation ${animation.id} on slide ${index + 1} targets a missing object.`, "error", { slide: index + 1, id: animation.id }));
-      if (animation.chartBuild && animation.targetKind !== "chart") {
-        issues.push(reviewIssue("invalidChartBuildTarget", `Animation ${animation.id} uses chartBuild on a non-chart target.`, "error", { slide: index + 1, id: animation.id }));
-      }
-      if (animation.textBuild && !["shape", "textbox", "text", "element"].includes(animation.targetKind)) {
-        issues.push(reviewIssue("invalidTextBuildTarget", `Animation ${animation.id} uses textBuild on a non-text target.`, "error", { slide: index + 1, id: animation.id }));
-      }
-    }
-
-    if (morph) {
-      const sourceSlide = index > 0 ? model.slides.items[index - 1] : undefined;
-      if (!sourceSlide || morph.fromSlideId !== sourceSlide.id) {
-        issues.push(reviewIssue("invalidMorphAdjacency", `Slide ${index + 1} Morph does not reference its immediately preceding slide.`, "error", { slide: index + 1 }));
-      }
-      for (const pair of morph.pairs) {
-        const from = sourceSlide?.resolve(pair.fromId);
-        const to = slide.resolve(pair.toId);
-        const expectedName = `!!${pair.key}`;
-        const compatible = Boolean(from && to && from.name === expectedName && to.name === expectedName);
-        morphPairs.push({ slide: index + 1, pageId: page?.id, key: pair.key, fromId: pair.fromId, toId: pair.toId, compatible });
-        if (!compatible) issues.push(reviewIssue("invalidMorphPair", `Morph pair ${pair.key} on slide ${index + 1} no longer resolves to matching native object names.`, "error", { slide: index + 1, key: pair.key }));
-      }
-    }
-
-    const intent = page?.motionIntent;
-    const declaredUnits = intent?.units || [];
-    if (intent && declaredUnits.length !== semanticUnitCount) {
-      issues.push(reviewIssue("motionPlanMismatch", `Page ${page.id} declares ${declaredUnits.length} motion units but the artifact contains ${semanticUnitCount}.`, "error", { pageId: page.id, slide: index + 1 }));
-    }
-    if (intent) {
-      const transition = slide.transition.toJSON();
-      const matchesTransition = intent.transition === "morph"
-        ? Boolean(morph)
-        : intent.transition === "none" || intent.transition == null
-          ? !transition && !morph
-          : transition?.effect === intent.transition;
-      if (!matchesTransition) issues.push(reviewIssue("motionTransitionMismatch", `Page ${page.id} transition does not match its motion intent.`, "error", { pageId: page.id, slide: index + 1 }));
-      for (const [unitIndex, unit] of [...declaredUnits].sort((left, right) => left.order - right.order).entries()) {
-        if (unit.start && animations[unitIndex]?.start && unit.start !== animations[unitIndex].start) {
-          issues.push(reviewIssue("motionStartMismatch", `Page ${page.id} motion unit ${unit.id} start does not match the authored timeline.`, "error", { pageId: page.id, slide: index + 1, id: unit.id }));
-        }
-      }
-    }
-    if (plan?.brief.deliveryMode === "reader" && semanticUnitCount > 0 && plan.design.motionPolicy !== "explicit") {
-      issues.push(reviewIssue("readerMotionUnauthorized", `Reader-mode page ${page?.id || index + 1} contains motion without an explicit motion policy.`, "error", { pageId: page?.id, slide: index + 1 }));
-    }
-    if (semanticUnitCount > 4) issues.push(reviewIssue("excessiveMotionUnits", `Slide ${index + 1} contains ${semanticUnitCount} motion units; review whether every step serves the spoken narrative.`, "warning", { slide: index + 1 }));
-    if (animations.filter((animation) => animation.effect === "pulse").length > 1) {
-      issues.push(reviewIssue("repeatedPulse", `Slide ${index + 1} pulses more than one object.`, "warning", { slide: index + 1 }));
-    }
-    if (semanticUnitCount > 0 && options.design?.issues?.some((issue) => issue.slide === index + 1 && ["unfinishedComposition", "underComposedPage"].includes(issue.type))) {
-      issues.push(reviewIssue("motionOnUnfinishedComposition", `Slide ${index + 1} adds motion before its static composition is complete.`, "warning", { slide: index + 1 }));
-    }
-  }
-
-  for (let index = 2; index < rhythms.length; index += 1) {
-    if (rhythms[index] !== "static" && rhythms[index] === rhythms[index - 1] && rhythms[index] === rhythms[index - 2]) {
-      issues.push(reviewIssue("repeatedMotionRhythm", `Slides ${index - 1}, ${index}, and ${index + 1} repeat the same motion rhythm.`, "warning", { slides: [index - 1, index, index + 1] }));
-    }
-  }
-
-  const ok = !hasHardIssue(issues);
-  return {
-    status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed",
-    ok,
-    planSha256: normalized?.sha256 || null,
-    playbackEvidence,
-    animationCount,
-    motionUnits,
-    morphPairs,
-    issues,
-  };
-}
-
-function checkTypographyFloor(plan, records, issues) {
-  const typography = plan.design?.designGrammar?.typography || {};
-  const minimumBodyFontSize = Number(typography.minimumBodyFontSize);
-  const minimumCaptionFontSize = Number(typography.minimumCaptionFontSize);
-  const hasBodyFloor = Number.isFinite(minimumBodyFontSize) && minimumBodyFontSize > 0;
-  const hasCaptionFloor = Number.isFinite(minimumCaptionFontSize) && minimumCaptionFontSize > 0;
-  if (!hasBodyFloor && !hasCaptionFloor) return;
-  for (const record of records) {
-    if (!Array.isArray(record.paragraphs)) continue;
-    for (const [paragraphIndex, paragraph] of record.paragraphs.entries()) {
-      for (const [runIndex, run] of (paragraph.runs || []).entries()) {
-        const fontSize = Number(run.style?.fontSize);
-        if (!Number.isFinite(fontSize)) continue;
-        const role = presentationTextRole(record, paragraph, run);
-        const required = role === "caption"
-          ? (hasCaptionFloor ? minimumCaptionFontSize : undefined)
-          : role === "title"
-            ? undefined
-            : hasBodyFloor ? minimumBodyFontSize : minimumCaptionFontSize;
-        if (required == null || fontSize >= required) continue;
-        issues.push(reviewIssue("minimumFontSize", `Text on slide ${record.slide ?? "?"} is ${fontSize} below the declared minimum ${role} size ${required}.`, "error", {
-          slide: Number(record.slide) || undefined,
-          id: record.id,
-          paragraphIndex,
-          runIndex,
-          actual: fontSize,
-          required,
-          role,
-        }));
-      }
-    }
-  }
-}
-
-const CAPTION_ROLE_PATTERN = /(?:caption|footnote|footer|source|legend|axis|annotation|eyebrow|kicker|meta|citation|small|note)/iu;
-const TITLE_PLACEHOLDER_TYPES = new Set(["title", "ctrTitle"]);
-
-function presentationTextRole(record, paragraph, run) {
-  const placeholder = record?.placeholder;
-  if (TITLE_PLACEHOLDER_TYPES.has(String(placeholder?.type || ""))) return "title";
-  const hints = [
-    run?.style?.role,
-    run?.style?.textRole,
-    paragraph?.role,
-    paragraph?.style?.role,
-    record?.textRole,
-    record?.role,
-    record?.name,
-    placeholder?.name,
-  ].filter((value) => typeof value === "string" && value.trim());
-  if (hints.some((value) => CAPTION_ROLE_PATTERN.test(value))) return "caption";
-  return "body";
-}
-
-function normalizeChangedPageIds(value, pageIds, issues) {
-  if (value == null) return [];
-  if (!Array.isArray(value) || value.length > 64 || value.some((entry) => typeof entry !== "string")) {
-    issues.push(reviewIssue("invalidChangedPageIds", "changedPageIds must be an array of at most 64 plan page IDs."));
-    return [];
-  }
-  const unique = [...new Set(value)];
-  if (unique.length !== value.length) issues.push(reviewIssue("invalidChangedPageIds", "changedPageIds must not contain duplicates."));
-  for (const pageId of unique) {
-    if (!pageIds.has(pageId)) issues.push(reviewIssue("unknownChangedPageId", `changedPageIds contains unknown plan page ${pageId}.`, "error", { pageId }));
-  }
-  return unique.filter((pageId) => pageIds.has(pageId));
-}
-
-function presentationDesignRecords(model, issues) {
-  try {
-    return parseNdjson(model.inspect({
-      kind: "slide,shape,textbox,image,table,chart,connector,groupShape,nativeObject",
-      maxChars: Infinity,
-    }).ndjson);
-  } catch (error) {
-    issues.push(reviewIssue("designInspectionFailed", boundedMessage(error)));
-    return [];
-  }
-}
-
-function presentationDesignProfile(model, issues) {
-  try {
-    const profile = model.designProfile({ includeComponentCandidates: false });
-    return {
-      paletteDirect: (profile.designLanguage?.palette?.direct || []).map((entry) => String(entry.value).toUpperCase()),
-      fonts: (profile.designLanguage?.typography?.fonts || []).map((entry) => String(entry.value)),
-      archetypes: (profile.slideArchetypes || []).map((entry) => ({
-        slide: entry.slide,
-        signature: entry.signature,
-        familySize: entry.familySize,
-        textChars: entry.textChars,
-      })),
-    };
-  } catch (error) {
-    issues.push(reviewIssue("designProfileFailed", boundedMessage(error)));
-    return { paletteDirect: [], fonts: [], archetypes: [] };
-  }
-}
-
-function buildPageSignatures(records, pages) {
-  const elementKinds = new Set(["shape", "textbox", "image", "table", "chart", "connector", "groupShape", "nativeObject"]);
-  return pages.map((page, index) => {
-    const slide = index + 1;
-    const slideRecords = records.filter((record) => Number(record.slide) === slide);
-    const signatureRecords = slideRecords.map((record) => stableReviewRecord(record)).sort((left, right) => canonicalJson(left).localeCompare(canonicalJson(right)));
-    return {
-      pageId: page.id,
-      slide,
-      sha256: sha256(canonicalJson(signatureRecords)),
-      objectCount: slideRecords.filter((record) => elementKinds.has(record.kind)).length,
-      textChars: slideRecords.reduce((sum, record) => sum + String(record.text || record.textPreview || "").length, 0),
-    };
-  });
-}
-
-function stableReviewRecord(record) {
-  if (Array.isArray(record)) return record.map(stableReviewRecord);
-  if (!record || typeof record !== "object") return record;
-  const output = {};
-  for (const key of Object.keys(record).sort()) {
-    if (key === "sourceRevisionSha256" || key === "expectedHash" || key === "leafId") continue;
-    output[key] = stableReviewRecord(record[key]);
-  }
-  return output;
-}
-
-function checkStrictDesignGrammar(plan, profile, issues) {
-  const grammar = plan.design.designGrammar || {};
-  const palette = grammar.palette || {};
-  if (palette.strict === true) {
-    const allowed = new Set((palette.allowedColors || palette.allowed || Object.values(palette.roles || {}))
-      .filter((value) => typeof value === "string" && /^#[0-9a-f]{6}$/iu.test(value))
-      .map((value) => value.toUpperCase()));
-    for (const color of profile.paletteDirect) {
-      if (allowed.size > 0 && !allowed.has(color)) {
-        issues.push(reviewIssue("strictPaletteViolation", `Candidate uses ${color}, which is outside the strict authoring-plan palette.`, "error", { value: color }));
-      }
-    }
-  }
-  const typography = grammar.typography || {};
-  if (typography.strict === true) {
-    const allowed = new Set((typography.allowedFonts || Object.values(typography.roles || {}))
-      .filter((value) => typeof value === "string" && value.trim() !== "")
-      .map((value) => value.toLocaleLowerCase("en-US")));
-    for (const font of profile.fonts) {
-      if (allowed.size > 0 && !allowed.has(font.toLocaleLowerCase("en-US"))) {
-        issues.push(reviewIssue("strictTypographyViolation", `Candidate uses ${font}, which is outside the strict authoring-plan font set.`, "error", { value: font }));
-      }
-    }
-  }
-}
-
-function checkContentBudgets(plan, pageSignatures, issues) {
-  for (const [index, page] of plan.pages.entries()) {
-    const actual = pageSignatures[index];
-    if (!actual || !page.contentBudget) continue;
-    if (page.contentBudget.maxCharacters != null && actual.textChars > page.contentBudget.maxCharacters) {
-      issues.push(reviewIssue("contentBudgetCharacters", `Page ${page.id} contains ${actual.textChars} text characters, exceeding its budget of ${page.contentBudget.maxCharacters}.`, "error", { pageId: page.id }));
-    }
-    if (page.contentBudget.maxObjects != null && actual.objectCount > page.contentBudget.maxObjects) {
-      issues.push(reviewIssue("contentBudgetObjects", `Page ${page.id} contains ${actual.objectCount} objects, exceeding its budget of ${page.contentBudget.maxObjects}.`, "error", { pageId: page.id }));
-    }
-  }
-}
-
-function addDesignHeuristicWarnings(model, plan, records, pageSignatures, profile, issues) {
-  const repeated = new Map();
-  for (const archetype of profile.archetypes) {
-    const slides = repeated.get(archetype.signature) || [];
-    slides.push(archetype.slide);
-    repeated.set(archetype.signature, slides);
-  }
-  for (const slides of repeated.values()) {
-    if (slides.length >= 3) issues.push(reviewIssue("repeatedComposition", `Slides ${slides.join(", ")} share the same modeled composition signature. Review their rhythm if the repetition was not intentional.`, "warning", { slides }));
-  }
-  for (let index = 1; index < pageSignatures.length; index += 1) {
-    const previous = pageSignatures[index - 1];
-    const current = pageSignatures[index];
-    const objectRatio = ratioJump(previous.objectCount, current.objectCount);
-    const textRatio = ratioJump(previous.textChars, current.textChars);
-    if (objectRatio >= 3 || textRatio >= 3) {
-      issues.push(reviewIssue("densityRhythmJump", `Modeled density changes sharply between ${previous.pageId} and ${current.pageId}.`, "warning", { pageIds: [previous.pageId, current.pageId] }));
-    }
-  }
-  const bySlide = new Map();
-  for (const record of records.filter((record) => (record.kind === "shape" || record.kind === "textbox") && Array.isArray(record.bbox))) {
-    const key = Number(record.slide);
-    const list = bySlide.get(key) || [];
-    list.push(record);
-    bySlide.set(key, list);
-  }
-  for (const [slide, entries] of bySlide) {
-    const sizes = new Map();
-    for (const entry of entries) {
-      const key = `${Math.round(Number(entry.bbox[2]))}x${Math.round(Number(entry.bbox[3]))}`;
-      sizes.set(key, (sizes.get(key) || 0) + 1);
-    }
-    const maximum = Math.max(0, ...sizes.values());
-    if (maximum >= 6) issues.push(reviewIssue("cardWallPattern", `Slide ${slide} contains ${maximum} same-sized modeled boxes. Confirm that the card-wall structure is intentional.`, "warning", { slide }));
-  }
-  addGeometryAndHierarchyWarnings(model, records, issues);
-  const titles = records.filter((record) => record.kind === "slide" && typeof record.title === "string" && record.title.trim()).map((record) => ({
-    slide: Number(record.slide),
-    stem: record.title.trim().split(/\s+/u).slice(0, 2).join(" ").toLocaleLowerCase("en-US"),
-  }));
-  const titleStems = new Map();
-  for (const title of titles) {
-    const slides = titleStems.get(title.stem) || [];
-    slides.push(title.slide);
-    titleStems.set(title.stem, slides);
-  }
-  for (const [stem, slides] of titleStems) {
-    if (slides.length >= 3) issues.push(reviewIssue("repeatedTitleForm", `Slides ${slides.join(", ")} begin with the same title form “${stem}”.`, "warning", { slides }));
-  }
-  addCompositionIntentWarnings(model, plan, records, pageSignatures, issues);
-}
-
-function addGeometryAndHierarchyWarnings(model, records, issues) {
-  const slideArea = Math.max(1, Number(model.slideSize?.width) * Number(model.slideSize?.height));
-  const dominant = [];
-  for (const [index, slide] of model.slides.items.entries()) {
-    const candidates = slide.shapes.items
-      .map((shape) => ({ shape, areaRatio: elementAreaRatio(shape, slideArea) }))
-      .filter(({ areaRatio }) => areaRatio >= 0.18 && areaRatio <= 0.78)
-      .sort((left, right) => right.areaRatio - left.areaRatio);
-    const first = candidates[0];
-    dominant.push(first ? { slide: index + 1, geometry: String(first.shape.geometry || "unknown"), areaRatio: first.areaRatio } : null);
-
-    for (const { shape, areaRatio } of candidates) {
-      if (areaRatio >= 0.25 && isHollowShape(shape) && hasVisibleLine(shape)) {
-        issues.push(reviewIssue("largeHollowContainer", `Slide ${index + 1} contains a large outlined ${shape.geometry || "shape"} without a modeled surface fill. Confirm that the boundary has an information role.`, "warning", {
-          layer: "visual",
-          slide: index + 1,
-          id: shape.id,
-          areaRatio,
-        }));
-        break;
-      }
-    }
-  }
-  for (let index = 2; index < dominant.length; index += 1) {
-    const run = dominant.slice(index - 2, index + 1);
-    if (run.every(Boolean) && run.every((entry) => entry.geometry === run[0].geometry)) {
-      issues.push(reviewIssue("repeatedDominantGeometry", `Slides ${run.map((entry) => entry.slide).join(", ")} repeat ${run[0].geometry} as the dominant modeled geometry. Review whether the visual argument is also repeating.`, "warning", {
-        layer: "visual",
-        slides: run.map((entry) => entry.slide),
-        geometry: run[0].geometry,
-      }));
-      index += 2;
-    }
-  }
-
-  for (const record of records) {
-    if (!Array.isArray(record.paragraphs) || record.paragraphs.length < 2 || !Array.isArray(record.bbox)) continue;
-    const slide = model.slides.items[Number(record.slide) - 1];
-    const shape = slide?.shapes.items.find((entry) => entry.id === record.id);
-    if (!shape || shape.geometry === "textbox" || elementAreaRatio(shape, slideArea) < 0.18) continue;
-    const sizes = new Set(record.paragraphs.flatMap((paragraph) => (paragraph.runs || []))
-      .map((run) => Number(run.style?.fontSize))
-      .filter(Number.isFinite));
-    if (sizes.size <= 1) {
-      issues.push(reviewIssue("weakTextContainerHierarchy", `Slide ${record.slide} places multiple text paragraphs inside one large ${shape.geometry || "shape"} without a modeled type-size hierarchy.`, "warning", {
-        layer: "visual",
-        slide: Number(record.slide),
-        id: record.id,
-      }));
-    }
-  }
-}
-
-function elementAreaRatio(element, slideArea) {
-  const width = Number(element?.position?.width);
-  const height = Number(element?.position?.height);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return 0;
-  return width * height / slideArea;
-}
-
-function isHollowShape(shape) {
-  if (shape.fill == null || shape.fill === "none" || shape.fill === "transparent") return true;
-  return typeof shape.fill === "object" && Number(shape.fill.transparency) >= 0.95;
-}
-
-function hasVisibleLine(shape) {
-  if (typeof shape.line === "string") return shape.line !== "none" && shape.line !== "transparent";
-  return shape.line != null && shape.line !== false && Number(shape.line.width ?? 1) > 0;
-}
-
-const VISUAL_CARRIER_PATTERN = /(?:image|photo|illustration|chart|graph|diagram|flow|typograph|vector|table|timeline|screenshot|icon|图片|图表|关系图|文字构图|矢量|表格|流程|时间线)/iu;
-const SPARSE_INTENT_PATTERN = /(?:sparse|minimal|negative space|single focal|留白|极简|单一焦点)/iu;
-
-function addCompositionIntentWarnings(model, plan, records, pageSignatures, issues) {
-  const slideArea = Math.max(1, Number(model.slideSize?.width) * Number(model.slideSize?.height));
-  for (const [index, page] of plan.pages.entries()) {
-    const slide = index + 1;
-    const intent = String(page.compositionIntent || "");
-    const sparse = SPARSE_INTENT_PATTERN.test(intent);
-    if (!VISUAL_CARRIER_PATTERN.test(intent)) {
-      issues.push(reviewIssue("missingVisualCarrierIntent", `Page ${page.id} does not name the visual carrier that should communicate its claim.`, "warning", { pageId: page.id, slide }));
-    }
-    const signature = pageSignatures[index];
-    if (!signature || sparse) continue;
-    if (signature.objectCount <= 1) {
-      issues.push(reviewIssue("unfinishedComposition", `Page ${page.id} has no declared sparse intent but contains only ${signature.objectCount} modeled visual object.`, "warning", { pageId: page.id, slide }));
-    }
-    const boxes = records
-      .filter((record) => Number(record.slide) === slide && Array.isArray(record.bbox) && record.bbox.length === 4)
-      .map((record) => record.bbox.map(Number))
-      .filter((bbox) => bbox.every(Number.isFinite) && bbox[2] > 0 && bbox[3] > 0);
-    if (!boxes.length) continue;
-    const left = Math.min(...boxes.map((bbox) => bbox[0]));
-    const top = Math.min(...boxes.map((bbox) => bbox[1]));
-    const right = Math.max(...boxes.map((bbox) => bbox[0] + bbox[2]));
-    const bottom = Math.max(...boxes.map((bbox) => bbox[1] + bbox[3]));
-    const envelopeRatio = Math.max(0, right - left) * Math.max(0, bottom - top) / slideArea;
-    if (envelopeRatio < 0.28) {
-      issues.push(reviewIssue("underComposedPage", `Page ${page.id} uses only ${Math.round(envelopeRatio * 100)}% of the slide envelope without an explicit sparse composition intent.`, "warning", { pageId: page.id, slide, envelopeRatio }));
-    }
-  }
-}
-
-function compareChangedPageScope(current, baselineDesign, changedPageIds, issues) {
-  if (!baselineDesign?.pageSignatures) {
-    issues.push(reviewIssue("changedPageScopeUnverified", "No baseline design signatures were available to prove non-target page stability.", "warning"));
-    return;
-  }
-  const changed = new Set(changedPageIds);
-  const baseline = new Map(baselineDesign.pageSignatures.map((entry) => [entry.pageId, entry]));
-  for (const entry of current) {
-    if (changed.has(entry.pageId)) continue;
-    const before = baseline.get(entry.pageId);
-    if (!before || before.sha256 !== entry.sha256) {
-      issues.push(reviewIssue("undeclaredPageChange", `Page ${entry.pageId} changed outside changedPageIds.`, "error", { pageId: entry.pageId }));
-    }
-  }
-}
-
-function compareDesignDrift(profile, baselineDesign, issues) {
-  if (!baselineDesign?.profile) return;
-  const priorColors = new Set(baselineDesign.profile.paletteDirect || []);
-  const priorFonts = new Set(baselineDesign.profile.fonts || []);
-  const newColors = profile.paletteDirect.filter((value) => !priorColors.has(value));
-  const newFonts = profile.fonts.filter((value) => !priorFonts.has(value));
-  if (newColors.length > 0) issues.push(reviewIssue("paletteDrift", `Local edit introduces modeled color tokens: ${newColors.join(", ")}.`, "warning", { values: newColors }));
-  if (newFonts.length > 0) issues.push(reviewIssue("typographyDrift", `Local edit introduces modeled fonts: ${newFonts.join(", ")}.`, "warning", { values: newFonts }));
-}
-
-function ratioJump(left, right) {
-  const low = Math.max(1, Math.min(Number(left) || 0, Number(right) || 0));
-  const high = Math.max(Number(left) || 0, Number(right) || 0);
-  return high / low;
-}
-
-function summarizeIssues(issues = [], limit = 8) {
-  if (!issues.length) return ["- No machine-detected issues."];
-  const lines = issues.slice(0, limit).map((issue) => `- ${String(issue.severity || "error").toUpperCase()} ${issue.type || issue.kind || "issue"}: ${issue.message || "No message"}`);
-  if (issues.length > limit) lines.push(`- ${issues.length - limit} more issue(s) omitted from this compact view.`);
-  return lines;
-}
-
-function createReviewMarkdown(report, maxChars) {
-  const semanticIssues = report.semantic.issues || [];
-  const structuralIssues = report.structural.issues || [];
-  const layoutIssues = report.layout.issues || [];
-  const designIssues = report.design?.issues || [];
-  const motionIssues = report.motion?.issues || [];
-  const deliveryIssues = report.delivery.issues || [];
-  const counts = Object.entries(report.semantic.recordCounts || {}).map(([kind, count]) => `${kind}=${count}`).join(", ") || "unavailable";
-  const prefix = [
-    "# OfficeKit post-edit review",
-    "",
-    `- Verdict: ${report.verdict}`,
-    `- Artifact: ${report.artifactKind} (${report.delivery.type})`,
-    `- SHA-256: ${report.delivery.sha256}`,
-    `- Bytes: ${report.delivery.bytes}`,
-    "",
-    "## 6. Semantic review",
-    "",
-    `Status: ${report.semantic.status}. Modeled records: ${counts}.`,
-    ...summarizeIssues(semanticIssues),
-    "",
-    "## 7. Structural review",
-    "",
-    `Status: ${report.structural.status}.`,
-    ...summarizeIssues(structuralIssues),
-    "",
-    "## 8. Layout/render review",
-    "",
-    `Status: ${report.layout.status}${report.layout.scope ? `; scope: ${report.layout.scope}` : ""}.`,
-    ...summarizeIssues(layoutIssues),
-    "",
-    "### Authoring-plan design checks",
-    "",
-    `Status: ${report.design?.status || "not-applicable"}${report.design?.planSha256 ? `; plan: ${report.design.planSha256}` : ""}.`,
-    ...(report.design?.strategy?.status === "current" ? [
-      `Strategy: ${report.design.strategy.primaryJob}; scenario: ${report.design.strategy.scenario.primary}; direction: ${report.design.strategy.direction.name}; delivery: ${report.design.strategy.deliveryMode}.`,
-    ] : report.design?.strategy?.status === "legacy" ? ["Strategy: legacy plan; communication strategy was not recorded."] : []),
-    ...summarizeIssues(designIssues),
-    "",
-    "### Motion and playback checks",
-    "",
-    `Status: ${report.motion?.status || "not-applicable"}; evidence: ${report.motion?.playbackEvidence || "not-applicable"}; animations: ${report.motion?.animationCount || 0}; Morph pairs: ${report.motion?.morphPairs?.length || 0}.`,
-    ...summarizeIssues(motionIssues),
-    "",
-    "## 9. Text reading view (optional)",
-    "",
-    `Status: ${report.contentView.status}; provider: anydoc@${ANYDOC_VERSION}.`,
-  ].join("\n");
-  const suffix = [
-    "## 10. Visual/human review",
-    "",
-    `Status: ${report.visualReview}. Text reading/OCR output does not count as pixel or aesthetic review.`,
-    "",
-    "## 11. Delivery review",
-    "",
-    `Status: ${report.delivery.status}${report.delivery.path ? `; path: ${report.delivery.path}` : ""}.`,
-    ...summarizeIssues(deliveryIssues),
-  ].join("\n");
-  const content = report.contentView.markdown || (report.contentView.message ? `_${report.contentView.message}_` : "_No text view available._");
-  const contentBudget = Math.max(80, maxChars - prefix.length - suffix.length - 4);
-  const boundedContent = truncateMarkdown(content, contentBudget).markdown;
-  return truncateMarkdown(`${prefix}\n${boundedContent}\n\n${suffix}`, maxChars);
-}
-
-async function materializeReviewInput(input, options, maxBytes) {
-  const format = modelFormat(input);
-  if (format) {
-    const exported = await exportModel(input, format, options.exportOptions || {});
-    if (exported.bytes.byteLength > maxBytes) throw new RangeError(`Review output has ${exported.bytes.byteLength} bytes and exceeds maxBytes (${maxBytes}).`);
-    return { bytes: new Uint8Array(exported.bytes), format, path: options.outputPath ? path.resolve(options.outputPath) : undefined };
-  }
-  const materialized = await readBoundedBytes(input, maxBytes, "Review output");
-  return { ...materialized, format: selectFormat(input, materialized.bytes, options) };
 }
 
 async function semanticReview(model, maxChars, options = {}) {
@@ -1062,16 +236,8 @@ async function structuralReview(bytes, format, maxChars, maxBytes, options = {})
   try {
     const inspection = await inspectPackage(bytes, format, { ...(options.inspectOptions || {}), maxBytes, maxChars });
     const issues = inspection.issues || [];
-    const summary = inspection.summary || inspection.records?.[0] || {};
     const ok = inspection.ok !== false && !hasHardIssue(issues);
-    return {
-      status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed",
-      ok,
-      summary,
-      issues,
-      ndjson: inspection.ndjson,
-      truncated: Boolean(inspection.truncated),
-    };
+    return { status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed", ok, summary: inspection.summary || inspection.records?.[0] || {}, issues, ndjson: inspection.ndjson, truncated: Boolean(inspection.truncated) };
   } catch (error) {
     return { status: "failed", ok: false, summary: {}, issues: [reviewIssue("structuralReviewFailed", boundedMessage(error))] };
   }
@@ -1086,47 +252,37 @@ async function layoutReview(model, bytes, format, maxChars, options = {}) {
     let scope = "modeled representative render";
     if (format === "pdf") {
       const page = positiveInteger(renderOptions.page ?? 1, 1, "layout.renderOptions.page");
-      target = {
-        __officeKitReviewKind: "pdf",
-        render: () => PdfFile.renderPdf(new FileBlob(bytes, { type: FORMAT_DETAILS.pdf.type }), {
-          dpi: 144,
-          format: "png",
-          ...renderOptions,
-          page,
-        }),
-      };
+      target = { __officeKitReviewKind: "pdf", render: () => PdfFile.renderPdf(new FileBlob(bytes, { type: FORMAT_DETAILS.pdf.type }), { dpi: 144, format: "png", ...renderOptions, page }) };
       scope = `native PDF page ${page}`;
     }
     const result = await visualQaApi.visualQaArtifact(target, renderOptions);
     const issues = result.issues || [];
     const ok = !hasHardIssue(issues);
-    return {
-      status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed",
-      ok,
-      scope,
-      summary: result.summary,
-      issues,
-      ndjson: result.ndjson,
-      truncated: Boolean(result.truncated),
-    };
+    return { status: ok ? issues.length ? "passed-with-warnings" : "passed" : "failed", ok, scope, summary: result.summary, issues, ndjson: result.ndjson, truncated: Boolean(result.truncated) };
   } catch (error) {
     return { status: "failed", ok: false, issues: [reviewIssue("layoutReviewFailed", boundedMessage(error))], scope: "none" };
+  }
+}
+
+async function canonicalPath(value) {
+  const absolute = path.resolve(value);
+  try { return await fs.realpath(absolute); }
+  catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+    return path.join(await fs.realpath(path.dirname(absolute)), path.basename(absolute));
   }
 }
 
 async function deliveryReview(materialized, source, options, maxBytes) {
   const issues = [];
   const outputPath = materialized.path || (options.outputPath ? path.resolve(options.outputPath) : undefined);
-  let sourceInfo;
-  if (source != null) sourceInfo = await readBoundedBytes(source, maxBytes, "Review source");
-  if (outputPath && sourceInfo?.path && await canonicalPath(outputPath) === await canonicalPath(sourceInfo.path)) {
-    issues.push(reviewIssue("inputOutputCollision", "The final output path resolves to the read-only source path.", "error", { outputPath, sourcePath: sourceInfo.path }));
-  }
+  const sourceInfo = source != null ? await readBoundedBytes(source, maxBytes, "Review source") : undefined;
+  if (outputPath && sourceInfo?.path && await canonicalPath(outputPath) === await canonicalPath(sourceInfo.path)) issues.push(reviewIssue("inputOutputCollision", "The final output path resolves to the read-only source path.", "error", { outputPath, sourcePath: sourceInfo.path }));
   if (!outputPath) issues.push(reviewIssue("missingOutputPath", "No final output path was supplied; delivery publication is not yet proven.", "warning"));
-  const hardFailure = hasHardIssue(issues);
+  const ok = !hasHardIssue(issues);
   return {
-    status: hardFailure ? "failed" : issues.length ? "ready-with-warnings" : "ready",
-    ok: !hardFailure,
+    status: ok ? issues.length ? "ready-with-warnings" : "ready" : "failed",
+    ok,
     path: outputPath,
     type: FORMAT_DETAILS[materialized.format].type,
     bytes: materialized.bytes.byteLength,
@@ -1137,11 +293,31 @@ async function deliveryReview(materialized, source, options, maxBytes) {
   };
 }
 
-/**
- * Reopen a final Office/PDF artifact and produce one bounded post-edit review
- * report. AnyDoc supplies only the compact text view; native OfficeKit checks
- * remain authoritative for semantic, structural, render, and delivery facts.
- */
+function summarizeIssues(issues = [], limit = 8) {
+  if (!issues.length) return ["- No machine-detected issues."];
+  const lines = issues.slice(0, limit).map((entry) => `- ${String(entry.severity || "error").toUpperCase()} ${entry.type || entry.kind || "issue"}: ${entry.message || "No message"}`);
+  if (issues.length > limit) lines.push(`- ${issues.length - limit} more issue(s) omitted from this compact view.`);
+  return lines;
+}
+
+function createReviewMarkdown(report, maxChars) {
+  const lines = [
+    "# OfficeKit post-edit review", "",
+    `- Verdict: ${report.verdict}`,
+    `- Artifact: ${report.artifactKind} (${report.delivery.type})`,
+    `- SHA-256: ${report.delivery.sha256}`,
+    `- Bytes: ${report.delivery.bytes}`, "",
+    "## Semantic review", "", `Status: ${report.semantic.status}.`, ...summarizeIssues(report.semantic.issues), "",
+    "## Structural review", "", `Status: ${report.structural.status}.`, ...summarizeIssues(report.structural.issues), "",
+    "## Layout review", "", `Status: ${report.layout.status}${report.layout.scope ? `; scope: ${report.layout.scope}` : ""}.`, ...summarizeIssues(report.layout.issues), "",
+    "## Design checks", "", `Status: ${report.design.status}.`, ...summarizeIssues(report.design.issues), "",
+    "## Motion checks", "", `Status: ${report.motion.status}; evidence: ${report.motion.playbackEvidence || "not-applicable"}.`, ...summarizeIssues(report.motion.issues), "",
+    "## Text reading view", "", `Status: ${report.contentView.status}; provider: anydoc@${ANYDOC_VERSION}.`, report.contentView.markdown || report.contentView.message || "No text view available.", "",
+    "## Delivery review", "", `Status: ${report.delivery.status}.`, ...summarizeIssues(report.delivery.issues),
+  ];
+  return truncateMarkdown(lines.join("\n"), maxChars).markdown;
+}
+
 export async function reviewArtifact(input, options = {}) {
   const maxBytes = positiveInteger(options.maxBytes, DEFAULT_MAX_BYTES, "maxBytes");
   const maxContentChars = positiveInteger(options.maxContentChars, DEFAULT_MAX_CONTENT_CHARS, "maxContentChars");
@@ -1150,79 +326,58 @@ export async function reviewArtifact(input, options = {}) {
   const visualReview = options.visualReview ?? "unavailable";
   if (!VISUAL_REVIEW_STATUSES.has(visualReview)) throw new TypeError("visualReview must be complete, unavailable, or requires-human.");
   const contentViewRequested = options.contentView === true || options.contentView === "anydoc";
-  if (![undefined, false, true, "none", "anydoc"].includes(options.contentView)) {
-    throw new TypeError("contentView must be anydoc, none, true, or false.");
-  }
+  if (![undefined, false, true, "none", "anydoc"].includes(options.contentView)) throw new TypeError("contentView must be anydoc, none, true, or false.");
 
   const materialized = await materializeReviewInput(input, options, maxBytes);
-  if (materialized.format !== "pptx" && (options.authoringPlan != null || options.changedPageIds != null)) {
-    throw new TypeError("authoringPlan and changedPageIds are available only for Presentation review.");
-  }
-  let model;
-  let importError;
-  const importOptions = { ...(options.importOptions || {}) };
-  if (materialized.format === "pdf") importOptions.maxBytes = maxBytes;
-  try { model = await importModel(materialized.bytes, materialized.format, importOptions); }
-  catch (error) { importError = boundedMessage(error); }
+  if (materialized.format !== "pptx" && (options.authoringPlan != null || options.changedPageIds != null || options.ppjReceipt != null)) throw new TypeError("authoringPlan, changedPageIds, and ppjReceipt are available only for PPJ/PPTX review.");
 
-  const semantic = await semanticReview(model, maxInspectChars, { ...options, importError });
-  const structural = await structuralReview(materialized.bytes, materialized.format, maxInspectChars, maxBytes, options);
-  const layout = structural.ok
-    ? await layoutReview(model, materialized.bytes, materialized.format, maxInspectChars, { enabled: options.layout !== false, renderOptions: options.renderOptions })
-    : { status: "blocked", ok: false, issues: [reviewIssue("layoutReviewBlocked", "Structural review failed before rendering untrusted output.")], scope: "none" };
+  let semantic;
+  let structural;
+  let layout;
+  let design;
+  let motion;
+  if (materialized.format === "pptx") {
+    const ppj = await reviewPpjArtifact(materialized.bytes, { ...options, maxChars: maxInspectChars });
+    ({ semantic, structural, layout, design, motion } = ppj);
+  } else {
+    let model;
+    let importError;
+    const importOptions = { ...(options.importOptions || {}) };
+    if (materialized.format === "pdf") importOptions.maxBytes = maxBytes;
+    try { model = await importModel(materialized.bytes, materialized.format, importOptions); }
+    catch (error) { importError = boundedMessage(error); }
+    semantic = await semanticReview(model, maxInspectChars, { ...options, importError });
+    structural = await structuralReview(materialized.bytes, materialized.format, maxInspectChars, maxBytes, options);
+    layout = structural.ok
+      ? await layoutReview(model, materialized.bytes, materialized.format, maxInspectChars, { enabled: options.layout !== false, renderOptions: options.renderOptions })
+      : { status: "blocked", ok: false, issues: [reviewIssue("layoutReviewBlocked", "Structural review failed before rendering untrusted output.")], scope: "none" };
+    design = { status: "not-applicable", ok: true, planSha256: null, changedPageIds: [], issues: [] };
+    motion = { status: "not-applicable", ok: true, planSha256: null, playbackEvidence: null, animationCount: 0, motionUnits: [], morphPairs: [], issues: [] };
+  }
+
   const contentView = !contentViewRequested
     ? { status: "not-requested", requested: false, provider: "anydoc", providerVersion: ANYDOC_VERSION, format: materialized.format }
     : structural.ok
-      ? await anyDocContentView(materialized.bytes, materialized.format, { maxChars: maxContentChars })
+      ? await anyDocContentView(materialized.bytes, materialized.format, maxContentChars)
       : { status: "blocked", requested: true, provider: "anydoc", providerVersion: ANYDOC_VERSION, format: materialized.format, reason: "structural-review-failed" };
   const delivery = await deliveryReview(materialized, options.source, options, maxBytes);
 
-  let baseline;
   let baselineReview;
-  // Source-bound work may inherit layout findings from the imported source.
-  // Treat an explicit baseline as authoritative, otherwise use `source` so
-  // unchanged findings are preserved as evidence rather than new failures.
+  let baseline;
   const baselineInput = options.baseline ?? options.source;
   if (baselineInput != null) {
-    baselineReview = await reviewArtifact(baselineInput, {
-      ...options,
-      baseline: undefined,
-      source: undefined,
-      outputPath: undefined,
-      contentView: "none",
-      authoringPlan: options.authoringPlan,
-      changedPageIds: undefined,
-    });
-    if (baselineReview.format !== materialized.format) {
-      throw new TypeError(`Review baseline format ${baselineReview.format} does not match output format ${materialized.format}.`);
-    }
+    baselineReview = await reviewArtifact(baselineInput, { ...options, baseline: undefined, source: undefined, outputPath: undefined, contentView: "none", changedPageIds: undefined, ppjReceipt: undefined });
+    if (baselineReview.format !== materialized.format) throw new TypeError(`Review baseline format ${baselineReview.format} does not match output format ${materialized.format}.`);
     baseline = applyBaselineReview({ semantic, structural, layout }, baselineReview);
+    if (materialized.format === "pptx" && options.changedPageIds?.length) {
+      const ppj = await reviewPpjArtifact(materialized.bytes, { ...options, maxChars: maxInspectChars, baselineDesign: baselineReview.design });
+      design = ppj.design;
+      motion = ppj.motion;
+    }
   }
-  const design = materialized.format === "pptx"
-    ? presentationDesignReview(model, {
-      authoringPlan: options.authoringPlan,
-      changedPageIds: options.changedPageIds,
-      baselineDesign: baselineReview?.design,
-    })
-    : { status: "not-applicable", ok: true, planSha256: null, changedPageIds: [], issues: [] };
-  const motion = materialized.format === "pptx"
-    ? presentationMotionReview(model, {
-      authoringPlan: options.authoringPlan,
-      playbackEvidence: options.playbackEvidence,
-      design,
-    })
-    : { status: "not-applicable", ok: true, planSha256: null, playbackEvidence: null, animationCount: 0, motionUnits: [], morphPairs: [], issues: [] };
+
   const hardFailure = !semantic.ok || !structural.ok || !layout.ok || !design.ok || !motion.ok || !delivery.ok;
-  const limitations = !hardFailure && (
-    visualReview !== "complete"
-    || (contentView.requested && contentView.status !== "ready")
-    || semantic.status === "passed-with-warnings"
-    || structural.status === "passed-with-warnings"
-    || layout.status !== "passed"
-    || design.status === "passed-with-warnings"
-    || motion.status === "passed-with-warnings"
-    || delivery.status !== "ready"
-  );
+  const limitations = !hardFailure && (visualReview !== "complete" || (contentView.requested && contentView.status !== "ready") || [semantic, structural, layout, design, motion].some((entry) => entry.status === "passed-with-warnings") || delivery.status !== "ready");
   const report = {
     schemaVersion: 1,
     artifactKind: FORMAT_DETAILS[materialized.format].artifactKind,
@@ -1237,15 +392,7 @@ export async function reviewArtifact(input, options = {}) {
     contentView,
     visualReview,
     delivery,
-    ...(baselineReview ? {
-      baseline: {
-        sourceSha256: baselineReview.delivery.sha256,
-        verdict: baselineReview.verdict,
-        matchedIssues: baseline.matchedIssues,
-        newIssues: baseline.newIssues,
-        policy: "unchanged-issues-only",
-      },
-    } : {}),
+    ...(baselineReview ? { baseline: { sourceSha256: baselineReview.delivery.sha256, verdict: baselineReview.verdict, matchedIssues: baseline.matchedIssues, newIssues: baseline.newIssues, policy: "unchanged-issues-only" } } : {}),
   };
   report.summary = createReviewMarkdown(report, maxSummaryChars);
   return report;

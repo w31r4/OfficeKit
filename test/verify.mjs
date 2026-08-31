@@ -6,7 +6,6 @@ import {
   verifyArtifact,
   Workbook,
 } from "office-kit";
-import { Presentation } from "../src/presentation/index.mjs";
 
 const workbook = Workbook.create();
 const sheet = workbook.worksheets.add("Sheet1");
@@ -46,13 +45,6 @@ assert.match(consistencyIssues, /dataValidationRuleInvalid/);
 assert.match(consistencyIssues, /conditionalFormatRangeInvalid/);
 assert.match(consistencyIssues, /conditionalFormatFormulaMissing/);
 assert.match(consistencyIssues, /commentTargetInvalid/);
-
-const presentation = Presentation.create({ slideSize: { width: 320, height: 180 } });
-const slide = presentation.slides.add();
-slide.shapes.add({ name: "ok", position: { left: 20, top: 20, width: 80, height: 60 }, text: "OK" });
-assert.equal(presentation.verify().ok, true);
-slide.shapes.add({ name: "bad-overlap", position: { left: 40, top: 30, width: 80, height: 40 }, text: "Bad" });
-assert.match(verifyArtifact(presentation).ndjson, /overlap/);
 
 const document = DocumentModel.create({ paragraphs: ["Title"] });
 document.addParagraph("- fake bullet");

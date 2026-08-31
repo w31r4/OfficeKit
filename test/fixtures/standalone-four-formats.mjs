@@ -15,7 +15,6 @@ const publicSpecifiers = [
   "office-kit/live",
   "office-kit/live/protocol",
   "office-kit/live/adapters/powerpoint",
-  "office-kit/powerpoint-live",
   "office-kit/renderers/playwright",
   "office-kit/renderers/sharp",
   "office-kit/renderers/canvas",

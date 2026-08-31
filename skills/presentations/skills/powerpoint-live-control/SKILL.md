@@ -11,16 +11,9 @@ Skill and must not be silently switched to the live route.
 
 ## Connection and work loop
 
-Start a multi-step task with `officekit repl`. Use the lazy `ctx.powerpoint`
-facade and keep requests typed:
-
-```js
-const doctor = await ctx.powerpoint.doctor();
-const sessions = await ctx.powerpoint.sessions();
-```
-
-Select exactly one intended session, then execute one validated operation at a
-time. Re-read the target after every mutation. If a result contains
+Use the typed `officekit live` commands. Select exactly one intended session,
+then execute one validated operation at a time. Re-read the target after every
+mutation. If a result contains
 `maybeApplied: true`, inspect the slide before retrying. Disconnect when the
 task is complete.
 

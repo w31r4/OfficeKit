@@ -49,7 +49,7 @@ assert.equal(packageMetadata.scripts["test:powerpoint-live"], "node scripts/buil
 assert.equal(packageMetadata.exports["./live"], "./src/live/bridge.mjs");
 assert.equal(packageMetadata.exports["./live/protocol"], "./src/live/protocol.mjs");
 assert.equal(packageMetadata.exports["./live/adapters/powerpoint"], "./src/live/adapters/powerpoint.mjs");
-assert.equal(packageMetadata.exports["./powerpoint-live"], "./src/powerpoint-live/repl.mjs");
+assert.equal(packageMetadata.exports["./powerpoint-live"], undefined, "PowerPoint Live is available through officekit live, not the retired REPL facade");
 assert.equal(
   packageMetadata.scripts["test:standalone"],
   "node test/standalone-distribution.mjs",
@@ -125,23 +125,9 @@ assert.match(documentCodecSource, /from "\.\/office-kit-source-state\.mjs";/, "t
 assert.doesNotMatch(documentCodecSource, /from "\.\/office-kit\.mjs";/, "the Document codec must not load the aggregate codec");
 assert.doesNotMatch(documentCodecSource, /\.\.\/(?:presentation|spreadsheet)\/index\.mjs/, "the Document codec must not load another artifact model");
 assert.doesNotMatch(documentCodecSource, /from "\.\.\/index\.mjs";/, "the Document codec must not create a back-edge to the root entry");
-const presentationCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation.mjs"), "utf8");
-assert.match(presentationCodecSource, /from "\.\.\/presentation\/index\.mjs";/, "the Presentation codec must depend on the Presentation leaf module");
-assert.match(presentationCodecSource, /from "\.\/office-kit-presentation-charts\.mjs";/, "the Presentation codec must delegate chart wire semantics to the chart leaf module");
-assert.doesNotMatch(presentationCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation codec must not create a back-edge to the root entry");
-const presentationFacadeSource = await fs.readFile(path.join(repoRoot, "src", "presentation", "index.mjs"), "utf8");
-const presentationCodecAdapterSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation-codec.mjs"), "utf8");
 const officeKitRuntimeSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-runtime.mjs"), "utf8");
-assert.match(presentationFacadeSource, /await import\("\.\.\/codecs\/office-kit-presentation-codec\.mjs"\)/, "Presentation file I/O must load the format-specific codec adapter");
-assert.doesNotMatch(presentationFacadeSource, /await import\("\.\.\/codecs\/office-kit\.mjs"\)/, "Presentation file I/O must not load the aggregate Document/Spreadsheet codec");
-assert.match(presentationCodecAdapterSource, /from "\.\/office-kit-runtime\.mjs";/, "the Presentation adapter must use the shared runtime boundary");
-assert.match(presentationCodecAdapterSource, /from "\.\/office-kit-presentation\.mjs";/, "the Presentation adapter must use the Presentation wire mapper");
-assert.doesNotMatch(presentationCodecAdapterSource, /from "\.\/office-kit\.mjs";/, "the Presentation adapter must not load the aggregate codec");
-assert.doesNotMatch(presentationCodecAdapterSource, /\.\.\/(?:document|spreadsheet)\/index\.mjs/, "the Presentation adapter must not load another artifact model");
 assert.doesNotMatch(officeKitRuntimeSource, /from "\.\/office-kit\.mjs";/, "the runtime boundary must not load the aggregate codec");
 assert.doesNotMatch(officeKitRuntimeSource, /\.\.\/(?:document|presentation|spreadsheet)\/index\.mjs/, "the runtime boundary must not own an artifact model");
-const presentationChartCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-presentation-charts.mjs"), "utf8");
-assert.doesNotMatch(presentationChartCodecSource, /from "\.\.\/index\.mjs";/, "the Presentation chart codec must not create a back-edge to the root entry");
 const spreadsheetFacadeSource = await fs.readFile(path.join(repoRoot, "src", "spreadsheet", "index.mjs"), "utf8");
 const spreadsheetCodecSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-spreadsheet-codec.mjs"), "utf8");
 const sourceStateSource = await fs.readFile(path.join(repoRoot, "src", "codecs", "office-kit-source-state.mjs"), "utf8");
@@ -222,10 +208,6 @@ for (const required of [
   "src/codecs/office-kit-native-client.mjs",
   "src/codecs/office-kit-runtime.mjs",
   "src/codecs/office-kit-source-state.mjs",
-  "src/codecs/office-kit-assets.mjs",
-  "src/codecs/office-kit-presentation-codec.mjs",
-  "src/codecs/office-kit-presentation.mjs",
-  "src/codecs/office-kit-presentation-charts.mjs",
   "src/codecs/office-kit-spreadsheet-codec.mjs",
   "src/codecs/office-kit-spreadsheet-formula-syntax.mjs",
   "src/codecs/office-kit-spreadsheet-let-syntax.mjs",
@@ -233,16 +215,8 @@ for (const required of [
   "src/ooxml/docx-comments.mjs",
   "src/ooxml/docx-bibliography.mjs",
   "src/ooxml/package.mjs",
-  "src/presentation/chart-trendline-svg.mjs",
-  "src/presentation/index.mjs",
-  "src/presentation/svg-leaves.mjs",
-  "src/presentation/svg-text.mjs",
-  "src/presentation/ooxml-chart-data.mjs",
-  "src/presentation/ooxml-charts.mjs",
   "src/shared/chart-error-bars.mjs",
   "src/shared/chart-trendlines.mjs",
-  "src/presentation/ooxml-hyperlinks.mjs",
-  "src/presentation/ooxml-custom-shows.mjs",
   "src/ooxml/docx-links.mjs",
   "src/ooxml/docx-numbering.mjs",
   "src/ooxml/docx-sections.mjs",
@@ -253,6 +227,7 @@ for (const required of [
   "src/pdf/mupdf.mjs",
   "src/pdf/mupdf-outlines.mjs",
   "src/review/index.mjs",
+  "src/ppj/review.mjs",
   "skills/office-kit/skills/office-kit/references/review.md",
   "src/pdf/providers/catalog.mjs",
   "src/pdf/providers/index.mjs",
@@ -284,7 +259,6 @@ for (const required of [
   "src/powerpoint-live/bridge-server.mjs",
   "src/powerpoint-live/client.mjs",
   "src/powerpoint-live/manifest.mjs",
-  "src/powerpoint-live/repl.mjs",
   "src/powerpoint-live/state.mjs",
   "src/templates/search.mjs",
   "src/help/index.mjs",
@@ -292,19 +266,9 @@ for (const required of [
   "examples/officekit-repl-cells.jsonl",
   "src/ooxml/docx-source-references.mjs",
   "src/ooxml/docx-settings.mjs",
-  "src/ooxml/pptx-package-semantics.mjs",
   "src/ooxml/pptx-source-references.mjs",
   "src/ooxml/source-reference-xml.mjs",
   "src/ooxml/source-references.mjs",
-  "src/presentation/ooxml-theme.mjs",
-  "src/presentation/group-shapes.mjs",
-  "src/presentation/native-objects.mjs",
-  "src/presentation/compose.mjs",
-  "src/presentation/custom-geometry.mjs",
-  "src/presentation/custom-geometry-formulas.mjs",
-  "src/presentation/text-paragraphs.mjs",
-  "src/presentation/ooxml-masters.mjs",
-  "src/presentation/ooxml-modern-comments.mjs",
   "src/shared/colors.mjs",
   "src/shared/binary.mjs",
   "src/shared/file-blob.mjs",
@@ -560,6 +524,8 @@ assert.ok(
   "npm package must not publish legacy Presentation API, MJS example, container-tool, or template-transaction routes",
 );
 assert.ok(files.every((file) => !file.includes("/tests/") && !file.startsWith("test/")), "npm package must exclude development-only test sources");
+assert.ok(files.every((file) => !file.startsWith("src/presentation/")), "npm package must exclude the legacy Presentation object model");
+assert.ok(files.every((file) => !/^src\/codecs\/office-kit-(?:assets|presentation)/u.test(file)), "npm package must exclude legacy Presentation wire mappers");
 assert.ok(files.every((file) => !file.includes(".DS_Store") && !file.includes("__pycache__") && !file.endsWith(".pyc")), "npm package must exclude local metadata and Python bytecode");
 assert.ok(files.filter((file) => file.startsWith("src/pdf/providers/")).every((file) => !/\.(?:tar\.gz|tgz|zip|whl|jar|exe|dylib|so)$/i.test(file)), "npm package must ship provider policy/source only, never capability-pack binaries");
 assert.ok(files.every((file) => !file.startsWith("reference/")), "npm package must exclude reference material");

@@ -13,7 +13,6 @@ import {
   SpreadsheetFile,
   Workbook,
 } from "office-kit";
-import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 
 const packageRoot = path.resolve(import.meta.dirname, "..");
 const creatorPath = path.join(
@@ -213,12 +212,11 @@ async function assertNoTransactionalResidue() {
 }
 
 async function writePresentationFixture(filePath, slideCount) {
-  const presentation = Presentation.create({
-    slideSize: { width: 1280, height: 720 },
-  });
-  for (let index = 0; index < slideCount; index += 1) presentation.slides.add();
-  const file = await PresentationFile.exportPptx(presentation);
-  await file.save(filePath);
+  assert.equal(slideCount, 1);
+  await fs.copyFile(
+    path.join(packageRoot, "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.pptx"),
+    filePath,
+  );
 }
 
 async function writePngFixture(filePath, background = { r: 15, g: 118, b: 110, alpha: 1 }) {

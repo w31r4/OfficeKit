@@ -3140,12 +3140,11 @@ if (presentationNativeLeafReceipt) {
 
 const PPJ_HELP_PREFIX = "officekit ppj ";
 
-// HELP_CATALOG remains the repository-internal capability ledger used by the
-// codec and maintainer. Only PPJ commands are part of the public Presentation
-// Help surface in 2.0; the JavaScript facade entries stay discoverable to
-// internal codec diagnostics through includeInternal.
-export const PUBLIC_HELP_CATALOG = HELP_CATALOG.filter((item) =>
-  item.artifactKind !== "presentation" || item.name.startsWith(PPJ_HELP_PREFIX));
+// Presentation Help is PPJ-only. Retired object-model entries are discarded
+// after the shared catalog has received its schemas and adoption metadata.
+HELP_CATALOG.splice(0, HELP_CATALOG.length, ...HELP_CATALOG.filter((item) =>
+  item.artifactKind !== "presentation" || item.name.startsWith(PPJ_HELP_PREFIX)));
+export const PUBLIC_HELP_CATALOG = HELP_CATALOG;
 
 export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) {
   const q = String(query || "*").toLowerCase();
@@ -3155,8 +3154,7 @@ export function queryHelpRecords(artifactKind = "*", query = "*", options = {}) 
     ? new RegExp(`^${q.split("*").map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*")}$`, "i")
     : undefined;
   const searchTerms = search.split("|").map((part) => part.trim()).filter(Boolean);
-  const catalog = options.includeInternal === true ? HELP_CATALOG : PUBLIC_HELP_CATALOG;
-  return catalog.filter((item) => {
+  return PUBLIC_HELP_CATALOG.filter((item) => {
     const kindMatch = artifactKind === "*" || item.artifactKind === artifactKind || (artifactKind === "unknown" && item.artifactKind === "shared");
     if (!kindMatch) return false;
     const tierMatch = adoptionTier === "*" || item.adoptionTier === adoptionTier;

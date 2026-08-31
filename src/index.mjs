@@ -20,10 +20,6 @@ function inferArtifactKind(artifact) {
   if (artifact instanceof Workbook) return "workbook";
   if (artifact instanceof DocumentModel) return "document";
   if (artifact instanceof PdfArtifact) return "pdf";
-  // The Presentation object model is an internal codec implementation in 2.0.
-  // Keep generic QA useful for repository-internal presentation values without
-  // importing or re-exporting that authoring surface from the public root.
-  if (artifact?.slides?.items && artifact?.slideSize && typeof artifact?.toProto === "function") return "presentation";
   return "unknown";
 }
 

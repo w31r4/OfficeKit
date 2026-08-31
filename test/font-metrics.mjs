@@ -9,7 +9,6 @@ import {
   skiaPaintBaselineCompensationPx,
   Workbook,
 } from "office-kit";
-import { Presentation } from "../src/presentation/index.mjs";
 
 const metric = (family, weight, ascent, extra = {}) => ({
   family,
@@ -92,16 +91,5 @@ sheet.getRange("B1").format = { font: { name: "alpha" } };
 sheet.getRange("C1").values = [["Duplicate"]];
 sheet.getRange("C1").format = { font: { name: "zulu" } };
 assert.deepEqual(workbook.fontFamilies, ["alpha", "Aptos", "Zulu"]);
-
-const presentation = Presentation.create();
-const slide = presentation.slides.add();
-slide.shapes.add({
-  text: [
-    { runs: [{ text: "Primary", style: { fontFamily: "Zulu" } }] },
-    { bulletFont: "alpha", runs: [{ text: "Secondary", style: { fontFamily: "Alpha" } }] },
-  ],
-  textStyle: { fontFamily: "Zulu" },
-});
-assert.deepEqual(presentation.fontFamilies, ["Alpha", "Zulu"]);
 
 console.log("font metrics smoke ok");

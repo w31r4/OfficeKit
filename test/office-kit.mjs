@@ -6,15 +6,12 @@ import {
   SpreadsheetFile,
   Workbook,
 } from "../src/index.mjs";
-import { Presentation, PresentationFile } from "../src/presentation/index.mjs";
 import {
   addDocxTrackedReplacementWithOfficeKit,
   exportDocxWithOfficeKit,
-  exportPptxWithOfficeKit,
   exportXlsxWithOfficeKit,
   finalizeDocxRevisionsWithOfficeKit,
   importDocxWithOfficeKit,
-  importPptxWithOfficeKit,
   importXlsxWithOfficeKit,
   officeKitStatus,
 } from "../src/codecs/office-kit.mjs";
@@ -25,10 +22,6 @@ import {
   importDocxWithOfficeKit as importDocxWithOfficeKitLeaf,
 } from "../src/codecs/office-kit-document-codec.mjs";
 import {
-  exportPptxWithOfficeKit as exportPptxWithOfficeKitLeaf,
-  importPptxWithOfficeKit as importPptxWithOfficeKitLeaf,
-} from "../src/codecs/office-kit-presentation-codec.mjs";
-import {
   exportXlsxWithOfficeKit as exportXlsxWithOfficeKitLeaf,
   importXlsxWithOfficeKit as importXlsxWithOfficeKitLeaf,
 } from "../src/codecs/office-kit-spreadsheet-codec.mjs";
@@ -37,8 +30,6 @@ assert.equal(addDocxTrackedReplacementWithOfficeKit, addDocxTrackedReplacementWi
 assert.equal(exportDocxWithOfficeKit, exportDocxWithOfficeKitLeaf);
 assert.equal(finalizeDocxRevisionsWithOfficeKit, finalizeDocxRevisionsWithOfficeKitLeaf);
 assert.equal(importDocxWithOfficeKit, importDocxWithOfficeKitLeaf);
-assert.equal(exportPptxWithOfficeKit, exportPptxWithOfficeKitLeaf);
-assert.equal(importPptxWithOfficeKit, importPptxWithOfficeKitLeaf);
 assert.equal(exportXlsxWithOfficeKit, exportXlsxWithOfficeKitLeaf);
 assert.equal(importXlsxWithOfficeKit, importXlsxWithOfficeKitLeaf);
 
@@ -441,75 +432,6 @@ assert.equal(editedDocumentImage.placement.wrapSide, undefined);
 assert.deepEqual(editedDocumentImage.placement.distanceFromTextPx, { top: 6, right: 0, bottom: 8, left: 0 });
 await assert.rejects(exportDocxWithOfficeKit(document, { allowLossy: true }), /does not accept option/i);
 
-// PPTX: source-free roundRect/textbox, basic effect styling, connector arrows,
-// and bar/line/pie charts, followed by a bounded second edit.
-const presentation = Presentation.create({ slideSize: { width: 1280, height: 720 } });
-const slide = presentation.slides.add({ name: "Core presentation" });
-const roundedCard = slide.shapes.add({
-  name: "Rounded card",
-  geometry: "roundRect",
-  position: { left: 48, top: 48, width: 260, height: 100 },
-  fill: "#DBEAFE",
-  line: { fill: "#2563EB", width: 2 },
-  shadow: { color: "#000000", blurRadius: 8, distance: 4, direction: 45, opacity: 0.25 },
-  text: "Rounded",
-});
-const textBox = slide.shapes.add({
-  name: "Text box",
-  geometry: "textbox",
-  position: { left: 380, top: 48, width: 260, height: 100 },
-  fill: "transparent",
-  line: { fill: "transparent", width: 0 },
-  text: [{ bulletCharacter: "•", runs: [{ text: "Linked text", style: { bold: true }, link: { uri: "https://example.com" } }] }],
-});
-slide.connectors.add({
-  name: "Elbow connector",
-  connectorType: "elbow",
-  from: roundedCard,
-  to: textBox,
-  line: { fill: "#334155", width: 2, startArrow: "triangle", endArrow: "triangle" },
-});
-slide.charts.add("bar", { name: "Revenue bars", position: { left: 48, top: 200, width: 340, height: 210 }, title: "Revenue", categories: ["Q1", "Q2"], series: [{ name: "Actual", values: [8, 11], color: "#2563EB" }], legend: false, dataLabels: { showValue: true, position: "outsideEnd" } });
-slide.charts.add("line", { name: "Trend line", position: { left: 420, top: 200, width: 340, height: 210 }, title: "Trend", categories: ["Q1", "Q2"], series: [{ name: "Actual", values: [8, 11], color: "#16A34A", line: { fill: "#16A34A", width: 2, style: "dash" }, marker: { symbol: "circle", size: 7, fill: "#16A34A" } }], legend: false });
-slide.charts.add("pie", { name: "Mix", position: { left: 790, top: 200, width: 340, height: 210 }, title: "Mix", categories: ["Direct", "Partner"], series: [{ name: "Share", values: [60, 40], color: "#7C3AED" }], legend: true, dataLabels: { showCategoryName: true, showValue: true, position: "bestFit" } });
-
-const pptx = await exportPptxWithOfficeKit(presentation);
-assert.equal(pptx.metadata.codec, "office-kit");
-assert.deepEqual([...pptx.bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
-const authoredPptxZip = await JSZip.loadAsync(pptx.bytes);
-const authoredSlideXml = await authoredPptxZip.file("ppt/slides/slide1.xml").async("text");
-const backgroundFillSlideXml = authoredSlideXml.replace("<p:sp>", '<p:sp useBgFill="1">');
-assert.notEqual(backgroundFillSlideXml, authoredSlideXml);
-const backgroundFillPptx = await PresentationFile.patchPptx(pptx, [{ path: "ppt/slides/slide1.xml", xml: backgroundFillSlideXml }]);
-const backgroundFillPresentation = await importPptxWithOfficeKit(backgroundFillPptx);
-const backgroundFillShape = backgroundFillPresentation.slides.getItem(0).shapes.items[0];
-assert.equal(backgroundFillShape.useBackgroundFill, true);
-assert.throws(() => { backgroundFillShape.useBackgroundFill = false; }, TypeError);
-assert.match(backgroundFillShape.toSvg(), /fill="#ffffff"/i);
-const backgroundFillRoundTrip = await exportPptxWithOfficeKit(backgroundFillPresentation);
-const backgroundFillRoundTripZip = await JSZip.loadAsync(backgroundFillRoundTrip.bytes);
-assert.equal(await backgroundFillRoundTripZip.file("ppt/slides/slide1.xml").async("text"), backgroundFillSlideXml);
-const importedPresentation = await importPptxWithOfficeKit(pptx);
-const importedSlide = importedPresentation.slides.getItem(0);
-const importedRounded = importedSlide.shapes.items.find((shape) => shape.name === "Rounded card");
-assert.equal(importedRounded.geometry, "roundRect");
-assert.deepEqual(importedRounded.shadow, { color: "#000000", blurRadius: 8, distance: 4, direction: 45, opacity: 0.25 });
-assert.equal(importedSlide.shapes.items.find((shape) => shape.name === "Text box").geometry, "textbox");
-assert.equal(importedSlide.connectors.items[0].connectorType, "elbow");
-assert.equal(importedSlide.connectors.items[0].line.startArrow, "triangle");
-assert.deepEqual(importedSlide.charts.items.map((chart) => chart.chartType), ["bar", "line", "pie"]);
-importedRounded.shadow.opacity = 0.35;
-importedSlide.connectors.items[0].line.endArrow = undefined;
-importedSlide.charts.items[0].title = "Updated revenue";
-importedSlide.charts.items[0].series[0].values[1] = 12;
-const pptx2 = await exportPptxWithOfficeKit(importedPresentation);
-const editedPresentation = await importPptxWithOfficeKit(pptx2);
-assert.equal(editedPresentation.slides.items[0].shapes.items.find((shape) => shape.name === "Rounded card").shadow.opacity, 0.35);
-assert.equal(editedPresentation.slides.items[0].connectors.items[0].line.endArrow, undefined);
-assert.equal(editedPresentation.slides.items[0].charts.items[0].title, "Updated revenue");
-assert.deepEqual(editedPresentation.slides.items[0].charts.items[0].series[0].values, [8, 12]);
-await assert.rejects(exportPptxWithOfficeKit(presentation, { allowLossy: true }), /does not accept option/i);
-
 for (const options of [
   { codec: "office-kit" },
   { codec: "javascript" },
@@ -522,10 +444,7 @@ for (const options of [
     /does not accept option|only Office codec|lossy fallback/i,
   );
 }
-await assert.rejects(PresentationFile.importPptx(new Uint8Array(), "office-kit"), /options must be an object/i);
 await assert.rejects(DocumentFile.exportDocx(document, { allowLossy: true }), /does not accept option|lossy fallback/i);
 await assert.rejects(DocumentFile.importDocx(docx, { preferNative: true }), /does not accept option|only Office codec/i);
-await assert.rejects(PresentationFile.exportPptx(presentation, { codec: "javascript" }), /does not accept option|only Office codec/i);
-await assert.rejects(PresentationFile.importPptx(pptx, { allowLossy: true }), /does not accept option|lossy fallback/i);
 
 console.log("OfficeKit protocol 2 canonical core smoke ok");

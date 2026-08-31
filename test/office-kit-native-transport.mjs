@@ -15,7 +15,12 @@ assert.equal(target, `${process.platform}-${process.arch}`);
 assert.throws(() => officeKitNativeTarget("freebsd", "x64"), (error) => error?.code === "runtime_unsupported_platform");
 
 const installed = await loadOfficeKitNativeDescriptor();
+const installedPpj = await loadOfficeKitNativeDescriptor({ profile: "ppj" });
 assert.equal(installed.target, target);
+assert.equal(installed.profile, "office");
+assert.equal(installedPpj.profile, "ppj");
+assert.equal(installedPpj.packageRoot, installed.packageRoot);
+assert.equal(installed.manifest.schemaVersion, 2);
 assert.equal(installed.manifest.backend, "native-aot");
 assert.equal(installed.manifest.transportVersion, 2);
 assert.equal(installed.manifest.protocolVersion, 2);
@@ -30,6 +35,16 @@ try {
   if (process.platform !== "win32") await chmod(tamperedExecutable, 0o755);
   await assert.rejects(
     loadOfficeKitNativeDescriptor({ packageJsonPath: path.join(tamperedRoot, "package.json") }),
+    (error) => error?.code === "runtime_integrity_failure",
+  );
+
+  const ppjExecutableName = process.platform === "win32" ? "officekit-ppj-codec.exe" : "officekit-ppj-codec";
+  const tamperedPpjRoot = path.join(temporary, "tampered-ppj");
+  await cp(installed.packageRoot, tamperedPpjRoot, { recursive: true });
+  await appendFile(path.join(tamperedPpjRoot, "bin", ppjExecutableName), Buffer.from([0]));
+  if (process.platform !== "win32") await chmod(path.join(tamperedPpjRoot, "bin", ppjExecutableName), 0o755);
+  await assert.rejects(
+    loadOfficeKitNativeDescriptor({ packageJsonPath: path.join(tamperedPpjRoot, "package.json"), profile: "ppj" }),
     (error) => error?.code === "runtime_integrity_failure",
   );
 

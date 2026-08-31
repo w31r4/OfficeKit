@@ -11,7 +11,6 @@ import {
   Workbook,
 } from "office-kit";
 import { createArtifactVisualQaApi } from "../src/qa/artifact-visual.mjs";
-import { Presentation } from "../src/presentation/index.mjs";
 
 function pngChunk(type, data = Buffer.alloc(0)) {
   const length = Buffer.alloc(4);
@@ -64,14 +63,6 @@ assert.equal(workbookPreview.type, "image/svg+xml");
 assert.equal(workbookPreview.metadata.artifactKind, "workbook");
 assert.equal(workbookPreview.metadata.sheetName, "Sheet1");
 assert.match(await workbookPreview.text(), /A/);
-
-const presentation = Presentation.create({ slideSize: { width: 320, height: 180 } });
-const slide = presentation.slides.add();
-slide.shapes.add({ name: "render-shape", position: { left: 20, top: 20, width: 120, height: 60 }, text: "Render me" });
-const presentationPreview = await renderArtifact(presentation, { slide, format: "svg" });
-assert.equal(presentationPreview.type, "image/svg+xml");
-assert.equal(presentationPreview.metadata.artifactKind, "presentation");
-assert.match(await presentationPreview.text(), /Render me/);
 
 const document = DocumentModel.create({ paragraphs: ["Render document"] });
 const documentPreview = await renderArtifact(document);
