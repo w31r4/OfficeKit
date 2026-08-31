@@ -39,11 +39,11 @@ internal static class PptxSmartArtCodec
     {
         var diagram = element.Diagram;
         var relationshipSuffix = nativeId.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        var dataPart = slidePart.AddNewPart<DiagramDataPart>($"rIdOfficeKitSmartArtData{relationshipSuffix}");
-        var layoutPart = slidePart.AddNewPart<DiagramLayoutDefinitionPart>($"rIdOfficeKitSmartArtLayout{relationshipSuffix}");
-        var stylePart = slidePart.AddNewPart<DiagramStylePart>($"rIdOfficeKitSmartArtStyle{relationshipSuffix}");
-        var colorsPart = slidePart.AddNewPart<DiagramColorsPart>($"rIdOfficeKitSmartArtColors{relationshipSuffix}");
-        var drawingPart = slidePart.AddNewPart<DiagramPersistLayoutPart>($"rIdOfficeKitSmartArtDrawing{relationshipSuffix}");
+        var dataPart = slidePart.AddNewPart<DiagramDataPart>(slideContext.NextRelationshipId($"rIdOfficeKitSmartArtData{relationshipSuffix}"));
+        var layoutPart = slidePart.AddNewPart<DiagramLayoutDefinitionPart>(slideContext.NextRelationshipId($"rIdOfficeKitSmartArtLayout{relationshipSuffix}"));
+        var stylePart = slidePart.AddNewPart<DiagramStylePart>(slideContext.NextRelationshipId($"rIdOfficeKitSmartArtStyle{relationshipSuffix}"));
+        var colorsPart = slidePart.AddNewPart<DiagramColorsPart>(slideContext.NextRelationshipId($"rIdOfficeKitSmartArtColors{relationshipSuffix}"));
+        var drawingPart = slidePart.AddNewPart<DiagramPersistLayoutPart>(slideContext.NextRelationshipId($"rIdOfficeKitSmartArtDrawing{relationshipSuffix}"));
         slideContext.TrackAddedPart(dataPart);
         slideContext.TrackAddedPart(layoutPart);
         slideContext.TrackAddedPart(stylePart);

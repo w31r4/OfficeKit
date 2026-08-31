@@ -78,6 +78,24 @@ internal sealed class PptxPartContext
         _addedPartPaths.Add(part.Uri.OriginalString.TrimStart('/'));
     }
 
+    internal string NextRelationshipId(string stem)
+    {
+        var used = Owner.Parts.Select(pair => pair.RelationshipId)
+            .Concat(Owner.ExternalRelationships.Select(relationship => relationship.Id))
+            .Concat(Owner.HyperlinkRelationships.Select(relationship => relationship.Id))
+            .Concat(Owner.DataPartReferenceRelationships.Select(relationship => relationship.Id))
+            .Concat(_addedRelationshipIds)
+            .ToHashSet(StringComparer.Ordinal);
+        for (var index = 1; index <= 1_000_000; index++)
+        {
+            var candidate = index == 1 ? stem : $"{stem}_{index}";
+            if (!used.Contains(candidate)) return candidate;
+        }
+        throw new CodecException(
+            "presentation_relationship_budget_exceeded",
+            "PPTX relationship ID allocation exceeded its bounded search.");
+    }
+
     internal string AddExternalHyperlink(string uri)
     {
         var existing = Owner.HyperlinkRelationships.FirstOrDefault(relationship =>

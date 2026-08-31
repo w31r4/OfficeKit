@@ -57,13 +57,10 @@ internal static class PpjAuthoredPresentationCompiler
         var assets = ValidateAssets(program, request.Assets);
         var catalog = new Catalog(program.Root, assets);
         var plan = new AuthoredSourceFreeBuildPlan(program, validation.Expansion!, catalog);
-        var packageAssets = assets
-            .Where(asset => !PptxAssetCatalog.IsCompilerOnlyAsset(asset))
-            .ToArray();
         var originalProgramJson = request.ProgramJson.ToByteArray();
         var exported = PptxCodec.ExportSourceFree(
             plan,
-            packageAssets,
+            assets,
             limits,
             parts => PpjEmbeddedProgramCodec.AddToSourceFreePackage(
                 parts,
