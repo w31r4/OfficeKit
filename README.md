@@ -261,10 +261,10 @@ OfficeKit keeps two catalogs behind one search command. The
 [Default Template Library](skills/default-template-library/README.md) contains
 13 MIT-licensed, source-backed DOCX/XLSX templates. The
 [Presentation Template Library](skills/presentation-template-library/README.md)
-contains eight original presentation Template Skills: each is style guidance,
-search metadata, and visual calibration images—never a source PPTX, fixed
-layout, or page code. `officekit init` installs workflow Skills and leaves both
-catalogs in place.
+contains thirty-nine presentation style Skills: style guidance, search
+metadata, visual calibration images, and only explicitly declared PPJ/PPTX
+references. `officekit init` installs workflow Skills and leaves both catalogs
+in place.
 
 When the goal is clear and no template has been specified, OfficeKit normalizes
 the intent into English search terms and runs local BM25F retrieval. The Agent

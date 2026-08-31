@@ -101,14 +101,16 @@ arbitrary nested-native reorder or Windows PowerPoint visual acceptance.
 
 ## Unreleased presentation style expansion
 
-The presentation template library now contains thirty-one schema-v3 style
-Skills. Thirty styles were independently authored from high-level visual
-observations of a user-supplied reference set and now include unrelated,
-OfficeKit-authored clean-room reference PPTX files. Evidence Ledger retains its
-declared PPJ/PPTX pair. The external source archive, descriptions, names, images,
-and page geometry are excluded; every shipped guide, calibration page, and
-reference deck is an original OfficeKit work. The former eight low-fidelity
-style entries were removed rather than preserved behind a compatibility layer.
+The presentation template library now contains thirty-nine schema-v3 style
+Skills: thirty Kimi-derived directions, eight Codex-aligned styles (seven
+source-bound migrations and the OfficeKit-authored Simple Dark pilot), and the
+synthetic Evidence Ledger. Kimi directions and the pilot include OfficeKit
+clean-room reference programs; the seven Codex migrations retain their
+MIT-licensed reference PPJ/PPTX packages with source hashes so native objects
+and opaque subgraphs remain inspectable and resumable. Their current guides and
+calibration previews are newly authored migration material. No executable page
+code, undeclared source deck, or fixed layout skeleton is included in a
+template.
 
 Evidence Ledger adds the first declared PPJ-native template reference: an
 original ten-page experimental-report program, the PPTX compiled from it, six

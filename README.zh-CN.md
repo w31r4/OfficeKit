@@ -237,8 +237,9 @@ OfficeKit 用同一条搜索命令管理两类目录：
 [Default Template Library](skills/default-template-library/README.md) 保存 13 套
 MIT 授权的 DOCX/XLSX 源文件模板；
 [Presentation Template Library](skills/presentation-template-library/README.md)
-保存 8 套原创演示 Template Skill。演示模板只有风格指导、检索元数据和视觉校准图，
-不含源 PPTX、固定布局或页面代码。`officekit init` 安装工作流 Skill，两个目录继续留在包内。
+保存 39 套演示 Template Skill：包括 30 套 Kimi 风格方向、8 套 Codex 对齐风格，
+以及 Evidence Ledger。每套包含风格指导、检索元数据和视觉校准图；只有明确声明并
+绑定许可与哈希的 PPJ/PPTX 才会随包提供。`officekit init` 安装工作流 Skill，两个目录继续留在包内。
 
 目标明确且模板未指定时，OfficeKit 把需求归一成英文检索词，再执行本地 BM25F
 搜索。Agent 选择 0 或 1 个结果；选中演示模板后，读取风格指导、查看示例，形成当前

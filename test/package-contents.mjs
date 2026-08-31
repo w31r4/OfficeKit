@@ -176,7 +176,7 @@ const report = JSON.parse(result.stdout)[0];
 const files = report.files.map((item) => item.path);
 // npm's gzip output varies between the macOS and Linux npm builds used by local
 // and hosted gates. The 2.0.0 global CLI ships 13 source-backed DOCX/XLSX
-// templates plus thirty-two presentation style Skills once inside the package. Keep
+// templates plus thirty-nine presentation style Skills once inside the package. Keep
 // narrow cross-platform headroom over the measured release archive.
 const maxPackedBytes = 37_500_000;
 // The npm payload owns executable runtime, public schemas, Skills, templates,
@@ -582,7 +582,7 @@ assert.equal(
 const packagedPresentationSidecars = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/artifact-template\.json$/u.test(file),
 );
-assert.equal(packagedPresentationSidecars.length, 32, "npm package must ship exactly thirty-two schema-v3 presentation style Skills");
+assert.equal(packagedPresentationSidecars.length, 39, "npm package must ship exactly thirty-nine schema-v3 presentation style Skills");
 const permittedPresentationReferences = new Set();
 for (const sidecarPath of packagedPresentationSidecars) {
   const sidecar = JSON.parse(await fs.readFile(path.join(repoRoot, sidecarPath), "utf8"));
@@ -609,7 +609,7 @@ assert.ok(
 const packagedPresentationCalibrationPngs = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
 );
-assert.equal(packagedPresentationCalibrationPngs.length, 162, "the presentation library must ship every declared preview and calibration example");
+assert.equal(packagedPresentationCalibrationPngs.length, 190, "the presentation library must ship every declared preview and calibration example");
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(

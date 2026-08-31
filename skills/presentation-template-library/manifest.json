@@ -35,7 +35,14 @@
     "skills/artifact-template-moonlit-work-report",
     "skills/artifact-template-skyline-wayfinding",
     "skills/artifact-template-clay-craft-review",
-    "skills/artifact-template-jade-annual-brief"
+    "skills/artifact-template-jade-annual-brief",
+    "skills/artifact-template-business-review",
+    "skills/artifact-template-market-trends-report",
+    "skills/artifact-template-operating-review",
+    "skills/artifact-template-project-kickoff",
+    "skills/artifact-template-simple-light-mode",
+    "skills/artifact-template-team-alignment",
+    "skills/artifact-template-grid-layout-library"
   ],
   "assets": {"icon": "assets/icon.svg"},
   "interface": {

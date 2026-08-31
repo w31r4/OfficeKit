@@ -30,7 +30,7 @@ The npm package declares or optionally integrates the following public libraries
 
 > MIT License — Copyright (c) 2026 w31r4
 
-The full retained notice is at [`skills/default-template-library/LICENSE.md`](skills/default-template-library/LICENSE.md). The retained Office files and PNG previews remain byte-for-byte copies; `skills/default-template-library/integrity.json` records the source commit plus individual and aggregate SHA-256 values. They ship in the npm package under the retained MIT notice. The eight presentation Template Skills are separate OfficeKit-original AGPL work and contain only guidance, metadata, and original calibration images.
+The full retained notice is at [`skills/default-template-library/LICENSE.md`](skills/default-template-library/LICENSE.md). The retained Office files and PNG previews remain byte-for-byte copies; `skills/default-template-library/integrity.json` records the source commit plus individual and aggregate SHA-256 values. They ship in the npm package under the retained MIT notice. Presentation styles are a separate OfficeKit surface: guides and calibration material are AGPL-licensed project work, while the seven Codex source-bound PPJ/PPTX migrations retain the upstream MIT notice and exact source hashes in their sidecars.
 
 The PDF Skill also ships thin Python scripts that can call the following separately installed providers. These Python packages and binaries are not npm dependencies, are not copied into this repository, and are not included in the npm tarball:
 
