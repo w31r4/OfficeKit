@@ -198,6 +198,30 @@ revision, see the pending decision, make a local change, and review it again.
 For self-directed decks, OfficeKit calibrates an opening page, an evidence page,
 and the densest page before expanding the full story. Route C is the default.
 
+## Source presentation images with provenance
+
+When a page needs an image, OfficeKit can search Openverse and Wikimedia or
+find a Lucide icon, let the Agent choose a candidate, and save the selected
+bytes plus rights evidence inside the durable task. User and template assets
+remain the first source.
+
+```sh
+officekit image search "institutional bitcoin trading" \
+  --task <task-id> --kind photo --purpose evidence \
+  --orientation landscape --max 5 --json
+
+officekit image add --task <task-id> --candidate <candidate-ref> --json
+officekit image audit deck.pptx --task <task-id> \
+  --sources-output deck.pptx.sources.json --json
+```
+
+Search results keep selection with the Agent. Registered images are
+content-addressed and reusable after `tasks → resume`; audit matches their
+SHA-256 values to the media actually embedded in the PPTX and reports visible
+credit obligations. Openverse metadata is provider-declared, while Wikimedia
+machine metadata and Lucide's ISC package license retain their own evidence
+labels.
+
 ## One front door, with direct routes when you want them
 
 For ordinary work, start with OfficeKit. It inspects the inputs, decides the

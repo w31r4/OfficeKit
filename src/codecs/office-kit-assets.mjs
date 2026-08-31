@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
+import { isSafeSvgImageBytes } from "../shared/image-bytes.mjs";
 
 const MAX_ASSET_BYTES = 16 * 1024 * 1024;
 const MAX_ASSET_COUNT = 1024;
@@ -12,7 +13,7 @@ const IMAGE_TYPES = new Map([
   ["image/png", { extension: "png", signature: (bytes) => bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex")) }],
   ["image/jpeg", { extension: "jpg", signature: (bytes) => bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff }],
   ["image/gif", { extension: "gif", signature: (bytes) => bytes.length >= 6 && new Set(["GIF87a", "GIF89a"]).has(bytes.subarray(0, 6).toString("ascii")) }],
-  ["image/svg+xml", { extension: "svg", signature: safeSvg }],
+  ["image/svg+xml", { extension: "svg", signature: isSafeSvgImageBytes }],
 ]);
 
 function fail(message, code = "invalid_presentation_asset") {
@@ -21,25 +22,6 @@ function fail(message, code = "invalid_presentation_asset") {
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
-}
-
-function safeSvg(bytes) {
-  const source = bytes.toString("utf8").replace(/^\uFEFF/, "");
-  // Exporters commonly place an XML comment (for example an Illustrator
-  // generator marker) between the declaration and the root. Comments are
-  // inert SVG content and are accepted by the native catalog; do not reject a
-  // valid fallback merely because that harmless preamble is present.
-  if (!/^\s*(?:<\?xml[\s\S]*?\?>\s*)?(?:(?:<!--[\s\S]*?-->\s*)*)<svg(?:\s|>)/i.test(source)) return false;
-  if (/<!DOCTYPE|<!ENTITY|<\?xml-stylesheet|<\s*(?:script|foreignObject)\b|\son[a-z]+\s*=|@import\b/i.test(source)) return false;
-  for (const match of source.matchAll(/\s(?:href|xlink:href)\s*=\s*(["'])(.*?)\1/gi)) {
-    const target = match[2].trim();
-    if (target && !target.startsWith("#") && !/^data:image\/(?:png|jpe?g|gif);base64,/i.test(target)) return false;
-  }
-  for (const match of source.matchAll(/url\(\s*(["']?)(.*?)\1\s*\)/gi)) {
-    const target = match[2].trim();
-    if (target && !target.startsWith("#") && !/^data:image\/(?:png|jpe?g|gif);base64,/i.test(target)) return false;
-  }
-  return true;
 }
 
 function normalizeContentType(value) {

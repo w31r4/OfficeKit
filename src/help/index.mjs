@@ -449,7 +449,7 @@ export const HELP_CATALOG = [
   { artifactKind: "presentation", kind: "api", name: "chart.setAccessibilityMetadata", summary: "Transactionally add, change, or clear non-visible chart title/description/decorative metadata independently of its visible chart title. Imported irregular graphic-frame p:cNvPr graphs fail closed." },
   { artifactKind: "presentation", kind: "api", name: "chart.deletionCapability", summary: "Report whether one imported top-level chart frame owns one uniquely used internal ChartPart relationship. Export re-proves relationship use and the exclusively owned descendant closure; shared ChartParts survive." },
   { artifactKind: "presentation", kind: "api", name: "chart.delete", summary: "Explicitly remove a source-free chart or one capability-proven imported chart frame. The source-bound transaction removes its exact relationship and only ChartPart descendants without another package parent; external, repeated, nested, or identity-sensitive graphs fail closed." },
-  { artifactKind: "presentation", kind: "api", name: "slide.images.add", summary: "Add an embedded image with accessibility metadata, fit/crop, opacity, bounded preset mask, RGB or supported theme-color border/shadow, frame, rotation/flips, layout, preview, and PPTX output. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, a:alphaModFix, decorative metadata, a:srcRect, recognized DrawingML preset geometry, and bounded picture effects." },
+  { artifactKind: "presentation", kind: "api", name: "slide.images.add", summary: "Add an embedded image from a data URL or FileBlob with accessibility metadata, fit/crop, opacity, bounded preset mask, RGB or supported theme-color border/shadow, frame, rotation/flips, layout, preview, and PPTX output. Task-sourced images can remain content-addressed files until placement. Ready bounded-overlay accepts rectangular images in a clean export. OfficeKit writes native p:cNvPr, a:alphaModFix, decorative metadata, a:srcRect, recognized DrawingML preset geometry, and bounded picture effects." },
   { artifactKind: "presentation", kind: "api", name: "image.accessibilityCapability", summary: "Report sourceBound/editable/addable preflight for picture p:cNvPr title/description/decorative metadata; export re-proves the residual-protected picture profile." },
   { artifactKind: "presentation", kind: "api", name: "image.svgTextCapability", summary: "Report bounded direct SVG text/tspan leaves for a base64 SVG image, including the image-byte SHA-256 and exact replacement hashes. Active content, external references, oversized SVGs, and nested/non-text leaves remain unsupported." },
   { artifactKind: "presentation", kind: "api", name: "image.getSvgTextNodes", summary: "Return defensive source-issued SVG text/tspan leaves for an image. Each leaf has a stable image-local ID, text, tag, and expectedHash; the returned records cannot mutate the image." },
@@ -2978,6 +2978,7 @@ const PRESENTATION_RECIPE_PATHS = Object.freeze({
   review: "skills/presentations/skills/presentations/references/review-and-delivery.md",
   motion: "skills/presentations/skills/presentations/references/motion.md",
   layers: "skills/presentations/skills/presentations/references/media-and-layers.md#layer-stack",
+  image: "skills/presentations/skills/presentations/references/image-sourcing.md#register-before-use",
 });
 
 const PRESENTATION_EXAMPLE_PATH = "examples/create-pptx-compose.mjs";
@@ -3000,6 +3001,7 @@ const PRESENTATION_DESIGN_INTENTS = Object.freeze({
 
 function presentationRecipeFor(name) {
   if (/animation|Morph/.test(name)) return `${PRESENTATION_RECIPE_PATHS.motion}#typed-surface`;
+  if (name === "slide.images.add") return PRESENTATION_RECIPE_PATHS.image;
   if (/BackgroundImage|slide\.elements|stackIndex|zOrderCapability|bringToFront|sendToBack|moveBefore|moveAfter/.test(name)) {
     return `${PRESENTATION_RECIPE_PATHS.layers}#public-surface`;
   }

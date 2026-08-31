@@ -32,6 +32,8 @@ For local PPTX and PPJ files, stay in this Skill. Never import
    primary scenario guide.
 3. Read only the focused references needed by the planned carriers: fonts,
    text, shapes, charts/tables, media/layers, components/templates, or motion.
+   When a required image is not supplied by the user, brand, template, or
+   source deck, also read [image sourcing](references/image-sourcing.md).
 4. Write one deck-specific Design Grammar and ordered page plan into PPJ.
 5. Build, render, review, revise the PPJ, and emit a new PPTX path.
 

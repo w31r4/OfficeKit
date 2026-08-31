@@ -17,6 +17,7 @@
   "declaredPackages": {
     "@bufbuild/protobuf": "(Apache-2.0 AND BSD-3-Clause)",
     "@firecrawl/anydoc": "MIT",
+    "@iconify-json/lucide": "ISC",
     "jszip": "(MIT OR GPL-3.0-or-later)",
     "mupdf": "AGPL-3.0-or-later",
     "selfsigned": "MIT",

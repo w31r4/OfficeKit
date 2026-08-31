@@ -8,6 +8,7 @@ import { officeFontFamilies } from "../shared/font-design-metrics.mjs";
 import { resolveColorToken } from "../shared/colors.mjs";
 import { aid } from "../shared/ids.mjs";
 import { imageDataFromDataUrl } from "../shared/images.mjs";
+import { imageDataUrlFromBytes, inspectImageBytes, normalizeImageMimeType } from "../shared/image-bytes.mjs";
 import { filterInspectRecords, inspectRecordMatchesTarget, inspectTargetTokens, ndjson, normalizeKinds, verificationIssue, verificationResult } from "../shared/inspection.mjs";
 import { LAYOUT_MIME } from "../shared/render-output.mjs";
 import { attrEscape, xmlEscape } from "../shared/xml.mjs";
@@ -2725,14 +2726,14 @@ function presentationImageDataUrlFromBlob(blob, contentType, label) {
   const bytes = blob instanceof FileBlob || blob?.bytes instanceof Uint8Array
     ? blob.bytes
     : toUint8Array(blob);
-  const resolvedContentType = String(contentType || blobType || "").trim().toLowerCase();
+  const resolvedContentType = normalizeImageMimeType(contentType || blobType);
   if (!PRESENTATION_EMBEDDED_IMAGE_CONTENT_TYPES.has(resolvedContentType)) {
     throw new TypeError(`${label} blob requires contentType image/png, image/jpeg, image/gif, or image/svg+xml.`);
   }
-  if (bytes.byteLength === 0) throw new TypeError(`${label} blob cannot be empty.`);
+  inspectImageBytes(bytes, { declaredMimeType: resolvedContentType, label: `${label} blob` });
   return {
     contentType: resolvedContentType,
-    dataUrl: `data:${resolvedContentType};base64,${Buffer.from(bytes).toString("base64")}`,
+    dataUrl: imageDataUrlFromBytes(bytes, resolvedContentType),
   };
 }
 

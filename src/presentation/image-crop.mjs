@@ -1,3 +1,5 @@
+import { inspectImageBytes } from "../shared/image-bytes.mjs";
+
 const IMAGE_FITS = new Set(["contain", "cover", "stretch"]);
 const MAX_CROP = 1;
 const CROP_SCALE = 100_000;
@@ -8,78 +10,19 @@ function finite(value, label) {
   return number;
 }
 
-function validDimension(value) {
-  return Number.isFinite(value) && value > 0 && value <= 10_000_000;
-}
-
-function dimensions(width, height, label) {
-  if (!validDimension(width) || !validDimension(height)) throw new TypeError(`${label} does not expose bounded positive intrinsic dimensions.`);
-  return { width, height };
-}
-
-function pngDimensions(bytes) {
-  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) return undefined;
-  return dimensions(bytes.readUInt32BE(16), bytes.readUInt32BE(20), "Presentation PNG image");
-}
-
-function gifDimensions(bytes) {
-  if (bytes.length < 10 || !new Set(["GIF87a", "GIF89a"]).has(bytes.subarray(0, 6).toString("ascii"))) return undefined;
-  return dimensions(bytes.readUInt16LE(6), bytes.readUInt16LE(8), "Presentation GIF image");
-}
-
-function jpegDimensions(bytes) {
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return undefined;
-  const sof = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
-  let offset = 2;
-  while (offset + 3 < bytes.length) {
-    while (offset < bytes.length && bytes[offset] !== 0xff) offset += 1;
-    while (offset < bytes.length && bytes[offset] === 0xff) offset += 1;
-    if (offset >= bytes.length) break;
-    const marker = bytes[offset++];
-    if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
-    if (offset + 2 > bytes.length) break;
-    const length = bytes.readUInt16BE(offset);
-    if (length < 2 || offset + length > bytes.length) break;
-    if (sof.has(marker)) {
-      if (length < 7) break;
-      return dimensions(bytes.readUInt16BE(offset + 3), bytes.readUInt16BE(offset + 5), "Presentation JPEG image");
-    }
-    offset += length;
-  }
-  throw new TypeError("Presentation JPEG image does not expose intrinsic dimensions in a supported SOF segment.");
-}
-
-function svgDimensions(bytes) {
-  const source = bytes.toString("utf8").replace(/^\uFEFF/, "");
-  const root = /<svg\b([^>]*)>/i.exec(source)?.[1];
-  if (root == null) return undefined;
-  const numericAttribute = (name) => {
-    const match = new RegExp(`\\b${name}\\s*=\\s*(["'])([+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+))(?:px)?\\1`, "i").exec(root);
-    return match ? Number(match[2]) : undefined;
-  };
-  const width = numericAttribute("width");
-  const height = numericAttribute("height");
-  if (validDimension(width) && validDimension(height)) return { width, height };
-  const viewBox = /\bviewBox\s*=\s*(["'])([-+0-9.eE\s,]+)\1/i.exec(root)?.[2]
-    ?.trim().split(/[\s,]+/).map(Number);
-  if (viewBox?.length === 4) return dimensions(viewBox[2], viewBox[3], "Presentation SVG image");
-  throw new TypeError("Presentation SVG image requires bounded numeric width/height or viewBox dimensions for contain/cover fitting.");
-}
-
 export function presentationImageDataUrlDimensions(value) {
   const match = /^data:(image\/(?:png|jpe?g|gif|svg\+xml));base64,([A-Za-z0-9+/=\s]+)$/i.exec(String(value || ""));
   if (!match) throw new TypeError("Presentation image contain/cover fitting requires an embedded base64 PNG, JPEG, GIF, or SVG dataUrl.");
   const bytes = Buffer.from(match[2].replace(/\s/g, ""), "base64");
   const type = match[1].toLowerCase().replace("image/jpg", "image/jpeg");
-  const parsed = type === "image/png"
-    ? pngDimensions(bytes)
-    : type === "image/jpeg"
-      ? jpegDimensions(bytes)
-      : type === "image/gif"
-        ? gifDimensions(bytes)
-        : svgDimensions(bytes);
-  if (!parsed) throw new TypeError(`Presentation ${type} image does not expose bounded positive intrinsic dimensions.`);
-  return parsed;
+  let parsed;
+  try {
+    parsed = inspectImageBytes(bytes, { declaredMimeType: type, label: `Presentation ${type} image` });
+  } catch (error) {
+    if (type !== "image/svg+xml") throw new TypeError(`Presentation ${type} image does not expose bounded positive intrinsic dimensions.`, { cause: error });
+    throw error;
+  }
+  return { width: parsed.width, height: parsed.height };
 }
 
 export function normalizePresentationImageFit(value = "contain") {
@@ -106,7 +49,7 @@ export function normalizePresentationImageCrop(value) {
 function normalizedFrame(frame = {}) {
   const width = Number(frame.width);
   const height = Number(frame.height);
-  if (!validDimension(width) || !validDimension(height)) throw new RangeError("Presentation image contain/cover fitting requires a positive bounded frame.");
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || width > 10_000_000 || height > 10_000_000) throw new RangeError("Presentation image contain/cover fitting requires a positive bounded frame.");
   return { width, height };
 }
 
