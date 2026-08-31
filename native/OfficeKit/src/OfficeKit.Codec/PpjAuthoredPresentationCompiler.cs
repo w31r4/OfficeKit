@@ -165,9 +165,7 @@ internal static class PpjAuthoredPresentationCompiler
             Family = ArtifactFamily.Presentation,
             Presentation = presentation,
         };
-        envelope.Assets.Add(assets
-            .Where(asset => !PptxAssetCatalog.IsCompilerOnlyAsset(asset))
-            .Select(asset => asset.Clone()));
+        envelope.Assets.Add(assets.Select(asset => asset.Clone()));
         return envelope;
     }
 
@@ -4955,13 +4953,14 @@ internal static class PpjAuthoredPresentationCompiler
         PpjSmartArtElementModel element,
         JsonElement raw,
         Catalog catalog,
-        string resolvedLayout)
+        PpjSmartArtDefinition definition)
     {
+        var resolvedLayout = definition.LayoutProfile;
         var nodeJson = raw.GetProperty("nodes").EnumerateArray().ToDictionary(
             node => node.GetProperty("id").GetString()!,
             node => node,
             StringComparer.Ordinal);
-        var layout = LayoutDiagramNodes(element, resolvedLayout);
+        var layout = LayoutDiagramNodes(element, definition.Execution);
         if (layout.Any(item => item.Frame.Width < 8 || item.Frame.Height < 8) ||
             resolvedLayout == "picture" && layout.Any(item =>
                 DiagramPictureImageFrame(item.Frame).Height < 8 || DiagramPictureLabelFrame(item.Frame).Height < 8))
@@ -5051,8 +5050,11 @@ internal static class PpjAuthoredPresentationCompiler
         JsonElement raw,
         Catalog catalog)
     {
-        var resolvedLayout = element.Layout ?? catalog.SmartArtLayout(element.DefinitionAssetId!);
-        ValidateResolvedDiagramProfile(element, raw, resolvedLayout);
+        var definition = element.Layout is not null
+            ? PpjSmartArtDefinitionCodec.BuiltIn(element.Layout)
+            : catalog.SmartArtDefinition(element.DefinitionAssetId!);
+        var resolvedLayout = definition.LayoutProfile;
+        ValidateResolvedDiagramProfile(element, raw, definition);
         var rawNodes = raw.GetProperty("nodes").EnumerateArray().ToDictionary(
             node => node.GetProperty("id").GetString()!,
             node => node,
@@ -5064,7 +5066,8 @@ internal static class PpjAuthoredPresentationCompiler
             TopEmu = Emu(element.Frame.Y),
             WidthEmu = Emu(element.Frame.Width),
             HeightEmu = Emu(element.Frame.Height),
-            Drawing = BuildAuthoredDiagram(element, raw, catalog, resolvedLayout),
+            Drawing = BuildAuthoredDiagram(element, raw, catalog, definition),
+            DrawingCacheVerified = true,
             DefinitionAssetId = element.DefinitionAssetId is null
                 ? string.Empty
                 : catalog.NativeAssetId(element.DefinitionAssetId),
@@ -5088,8 +5091,10 @@ internal static class PpjAuthoredPresentationCompiler
     private static void ValidateResolvedDiagramProfile(
         PpjSmartArtElementModel element,
         JsonElement raw,
-        string resolvedLayout)
+        PpjSmartArtDefinition definition)
     {
+        var resolvedLayout = definition.LayoutProfile;
+        var placement = definition.Execution.Placement;
         var hasParentConnections = element.Connections.Any(connection => connection.Role == "parent");
         if (hasParentConnections && resolvedLayout is "list" or "process" or "cycle" or "matrix" or "pyramid" or "picture")
             throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot declare parent connections");
@@ -5107,6 +5112,18 @@ internal static class PpjAuthoredPresentationCompiler
             throw Unsupported(element.Id, "every authored picture-diagram node requires an image asset");
         if (resolvedLayout != "picture" && element.Nodes.Any(node => node.AssetId is not null))
             throw Unsupported(element.Id, "diagram node assets are only valid for the picture layout");
+        if ((resolvedLayout == "picture") != (placement == "square-grid-picture"))
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot execute the {placement} placement");
+        if ((resolvedLayout == "hierarchy") != (placement == "depth-levels"))
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot execute the {placement} placement");
+        if ((resolvedLayout == "pyramid") != (placement == "stacked-width"))
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot execute the {placement} placement");
+        if (resolvedLayout is "cycle" or "relationship" && placement is not ("radial" or "center-radial"))
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot execute the {placement} placement");
+        if (resolvedLayout is "list" or "process" or "matrix" && placement is not ("grid" or "horizontal-grid" or "square-grid"))
+            throw Unsupported(element.Id, $"authored {resolvedLayout} diagrams cannot execute the {placement} placement");
+        if (definition.Execution.Reverse && placement == "depth-levels")
+            throw Unsupported(element.Id, "reverse is not executable for a hierarchy placement");
     }
 
     private static PresentationShape BuildDiagramNodeShape(
@@ -5290,25 +5307,37 @@ internal static class PpjAuthoredPresentationCompiler
         return [];
     }
 
-    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramNodes(PpjSmartArtElementModel element, string resolvedLayout) =>
-        resolvedLayout switch
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramNodes(
+        PpjSmartArtElementModel element,
+        PpjSmartArtExecutionPlan execution)
+    {
+        var layout = execution.Placement switch
         {
-            "list" => LayoutDiagramGrid(element, 1),
-            "process" => LayoutDiagramGrid(element, element.Nodes.Count),
-            "cycle" => LayoutDiagramRadial(element, centerFirst: false),
-            "hierarchy" => LayoutDiagramHierarchy(element),
-            "relationship" => LayoutDiagramRadial(element, centerFirst: true),
-            "matrix" => LayoutDiagramGrid(element, (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count))),
-            "pyramid" => LayoutDiagramPyramid(element),
-            "picture" => LayoutDiagramGrid(element, (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count))),
-            _ => throw Unsupported(element.Id, $"authored diagram layout {resolvedLayout} is not compiler-owned"),
+            "grid" => LayoutDiagramGrid(element, execution.Columns ?? 1, execution.GapPoints),
+            "horizontal-grid" => LayoutDiagramGrid(element, execution.Columns ?? element.Nodes.Count, execution.GapPoints),
+            "radial" => LayoutDiagramRadial(element, centerFirst: false),
+            "depth-levels" => LayoutDiagramHierarchy(element, execution.GapPoints),
+            "center-radial" => LayoutDiagramRadial(element, centerFirst: true),
+            "square-grid" or "square-grid-picture" => LayoutDiagramGrid(
+                element,
+                execution.Columns ?? (int)Math.Ceiling(Math.Sqrt(element.Nodes.Count)),
+                execution.GapPoints),
+            "stacked-width" => LayoutDiagramPyramid(element, execution.GapPoints),
+            _ => throw Unsupported(element.Id, $"authored diagram placement {execution.Placement} is not compiler-owned"),
         };
+        if (!execution.Reverse) return layout;
+        var reversed = element.Nodes.Reverse().ToArray();
+        return layout.Select((item, index) => new DiagramLayoutNode(reversed[index], item.Frame)).ToArray();
+    }
 
-    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramGrid(PpjSmartArtElementModel element, int columns)
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramGrid(
+        PpjSmartArtElementModel element,
+        int columns,
+        double? gapPoints)
     {
         columns = Math.Max(1, Math.Min(columns, element.Nodes.Count));
         var rows = (int)Math.Ceiling(element.Nodes.Count / (double)columns);
-        var gap = DiagramGap(element.Frame, Math.Max(rows, columns));
+        var gap = DiagramGap(element.Frame, Math.Max(rows, columns), gapPoints);
         var width = (element.Frame.Width - gap * (columns - 1)) / columns;
         var height = (element.Frame.Height - gap * (rows - 1)) / rows;
         return element.Nodes.Select((node, index) => new DiagramLayoutNode(
@@ -5368,7 +5397,9 @@ internal static class PpjAuthoredPresentationCompiler
         return result;
     }
 
-    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramHierarchy(PpjSmartArtElementModel element)
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramHierarchy(
+        PpjSmartArtElementModel element,
+        double? gapPoints)
     {
         var byId = element.Nodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
         var parentIds = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -5384,13 +5415,13 @@ internal static class PpjAuthoredPresentationCompiler
         }
         foreach (var node in element.Nodes) depth(node);
         var levels = element.Nodes.GroupBy(node => depths[node.Id]).OrderBy(group => group.Key).ToArray();
-        var verticalGap = DiagramGap(element.Frame, levels.Length);
+        var verticalGap = DiagramGap(element.Frame, levels.Length, gapPoints);
         var rowHeight = (element.Frame.Height - verticalGap * (levels.Length - 1)) / levels.Length;
         var result = new List<DiagramLayoutNode>(element.Nodes.Count);
         foreach (var level in levels)
         {
             var nodes = level.ToArray();
-            var horizontalGap = DiagramGap(element.Frame, nodes.Length);
+            var horizontalGap = DiagramGap(element.Frame, nodes.Length, gapPoints);
             var width = (element.Frame.Width - horizontalGap * (nodes.Length - 1)) / nodes.Length;
             for (var index = 0; index < nodes.Length; index++)
                 result.Add(new DiagramLayoutNode(nodes[index], new PpjFrameModel(
@@ -5405,9 +5436,11 @@ internal static class PpjAuthoredPresentationCompiler
         return element.Nodes.Select(node => result.Single(item => item.Node.Id == node.Id)).ToArray();
     }
 
-    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramPyramid(PpjSmartArtElementModel element)
+    private static IReadOnlyList<DiagramLayoutNode> LayoutDiagramPyramid(
+        PpjSmartArtElementModel element,
+        double? gapPoints)
     {
-        var gap = DiagramGap(element.Frame, element.Nodes.Count);
+        var gap = DiagramGap(element.Frame, element.Nodes.Count, gapPoints);
         var height = (element.Frame.Height - gap * (element.Nodes.Count - 1)) / element.Nodes.Count;
         return element.Nodes.Select((node, index) =>
         {
@@ -5442,8 +5475,8 @@ internal static class PpjAuthoredPresentationCompiler
         false,
         false);
 
-    private static double DiagramGap(PpjFrameModel frame, int count) =>
-        count <= 1 ? 0 : Math.Min(18, Math.Max(4, Math.Min(frame.Width, frame.Height) * 0.025));
+    private static double DiagramGap(PpjFrameModel frame, int count, double? explicitGap = null) =>
+        count <= 1 ? 0 : explicitGap ?? Math.Min(18, Math.Max(4, Math.Min(frame.Width, frame.Height) * 0.025));
 
     private static string DiagramChildId(string owner, string kind, string suffix)
     {
@@ -6927,9 +6960,9 @@ internal static class PpjAuthoredPresentationCompiler
         internal string NativeAssetId(string id) => _nativeAssetIds.TryGetValue(id, out var nativeId)
             ? nativeId
             : throw new CodecException("ppj.asset.unknown", $"PPJ asset {id} is not declared.");
-        internal string SmartArtLayout(string definitionAssetId) =>
+        internal PpjSmartArtDefinition SmartArtDefinition(string definitionAssetId) =>
             _smartArtDefinitions.TryGetValue(definitionAssetId, out var definition)
-                ? definition.LayoutProfile
+                ? definition
                 : throw new CodecException(
                     "ppj.smartArt.definitionUnavailable",
                     $"PPJ SmartArt definition asset {definitionAssetId} is not available to the authored compiler.");

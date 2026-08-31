@@ -238,8 +238,8 @@
       "feature": "native Office SmartArt parts",
       "ppjPath": "pages[].elements[] where type is smartArt",
       "behavior": "partial",
-      "sourceBound": "Authored PPJ emits one native diagram frame with data, layout, style, colors and cached-drawing parts. OfficeKit-authored graphs reproject as typed nodes and connections; other imported SmartArt remains attached to its proven source graph and accepts only issued capabilities.",
-      "reason": "Arbitrary third-party operators, vendor extensions, topology and style edits, copy-on-write definitions and explicit detach remain source-owned or fail closed."
+      "sourceBound": "Authored PPJ emits one native diagram frame with data, layout, style, colors and cached-drawing parts. Custom definition assets execute bounded placement, gap, column and reverse operators and round-trip as content-addressed JSON. OfficeKit-owned native graphs issue text, connection, frame and verified detach capabilities. Every closed third-party diagram projects as typed SmartArt: proven nodes and parent edges are editable by issued text leaves, while unknown graphs stay typed read-only with path-independent section hashes.",
+      "reason": "Arbitrary DiagramML programs, unsupported operator kinds, shared or external native closures and unverified caches fail closed. detachToShapes is explicit and reports semantic loss."
     },
     {
       "feature": "native-theme bullet identity and uncommon numbering schemes",

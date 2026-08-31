@@ -43,13 +43,35 @@ internal static class PptxSmartArtCodec
         var stylePart = slidePart.AddNewPart<DiagramStylePart>();
         var colorsPart = slidePart.AddNewPart<DiagramColorsPart>();
         var drawingPart = slidePart.AddNewPart<DiagramPersistLayoutPart>();
+        slideContext.TrackAddedPart(dataPart);
+        slideContext.TrackAddedPart(layoutPart);
+        slideContext.TrackAddedPart(stylePart);
+        slideContext.TrackAddedPart(colorsPart);
+        slideContext.TrackAddedPart(drawingPart);
         var drawingRelationshipId = slidePart.GetIdOfPart(drawingPart);
         var imageRelationshipIds = AddCachedDrawingImages(diagram, drawingPart, slideContext.Assets);
 
-        dataPart.DataModelRoot = new Dgm.DataModelRoot(BuildDataModel(element.Id, diagram, drawingRelationshipId));
-        layoutPart.LayoutDefinition = new Dgm.LayoutDefinition(BuildLayoutDefinition(diagram.Layout));
-        stylePart.StyleDefinition = new Dgm.StyleDefinition(BuildStyleDefinition());
-        colorsPart.ColorsDefinition = new Dgm.ColorsDefinition(BuildColorsDefinition());
+        var definition = string.IsNullOrWhiteSpace(diagram.DefinitionAssetId)
+            ? null
+            : (slideContext.Assets ?? throw new CodecException(
+                "invalid_presentation_asset",
+                "Presentation SmartArt custom definitions require an asset catalog."))
+                .GetSmartArtDefinition(diagram.DefinitionAssetId);
+        var parsedDefinition = definition is null
+            ? null
+            : PpjSmartArtDefinitionCodec.Parse(definition, "presentation.diagram.definition");
+        var styleId = parsedDefinition?.Root.GetProperty("style").GetProperty("id").GetString() ?? "basic";
+        var colorsId = parsedDefinition?.Root.GetProperty("colors").GetProperty("id").GetString() ?? "accent";
+
+        dataPart.DataModelRoot = new Dgm.DataModelRoot(BuildDataModel(
+            element.Id,
+            diagram,
+            drawingRelationshipId,
+            styleId,
+            colorsId));
+        layoutPart.LayoutDefinition = new Dgm.LayoutDefinition(BuildLayoutDefinition(diagram.Layout, definition));
+        stylePart.StyleDefinition = new Dgm.StyleDefinition(BuildStyleDefinition(styleId));
+        colorsPart.ColorsDefinition = new Dgm.ColorsDefinition(BuildColorsDefinition(colorsId));
         drawingPart.Drawing = new OD.Drawing(BuildCachedDrawing(element.Id, diagram, imageRelationshipIds));
         dataPart.DataModelRoot.Save();
         layoutPart.LayoutDefinition.Save();
@@ -82,6 +104,7 @@ internal static class PptxSmartArtCodec
     internal static bool TryRead(
         P.GraphicFrame frame,
         SlidePart slidePart,
+        PptxAssetCatalog assets,
         out PresentationDiagram diagram)
     {
         diagram = null!;
@@ -89,10 +112,12 @@ internal static class PptxSmartArtCodec
         if (relationshipIds.Length != 1 || frame.Transform?.Offset is not { } offset || frame.Transform.Extents is not { } extents)
             return false;
         DiagramDataPart dataPart;
+        DiagramLayoutDefinitionPart layoutPart;
         DiagramPersistLayoutPart? drawingPart;
         try
         {
             dataPart = slidePart.GetPartById(relationshipIds[0].DataPart?.Value ?? string.Empty) as DiagramDataPart ?? throw new InvalidDataException();
+            layoutPart = slidePart.GetPartById(relationshipIds[0].LayoutPart?.Value ?? string.Empty) as DiagramLayoutDefinitionPart ?? throw new InvalidDataException();
             drawingPart = slidePart.Parts.Select(pair => pair.OpenXmlPart).OfType<DiagramPersistLayoutPart>().SingleOrDefault(part =>
                 DataModelDrawingRelationshipId(dataPart) is { } id && ReferenceEquals(slidePart.GetPartById(id), part));
         }
@@ -130,6 +155,8 @@ internal static class PptxSmartArtCodec
             WidthEmu = extents.Cx?.Value ?? 0,
             HeightEmu = extents.Cy?.Value ?? 0,
         };
+        if (!TryReadDefinitionAsset(layoutPart, assets, out var definitionAssetId)) return false;
+        output.DefinitionAssetId = definitionAssetId;
         var modelIdsByNodeId = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var point in root.Element(DgmNs + "ptLst")?.Elements(DgmNs + "pt") ?? [])
         {
@@ -165,7 +192,8 @@ internal static class PptxSmartArtCodec
                 Order = uint.TryParse(metadata.Attribute("order")?.Value, out var order) ? order : 0,
             });
         }
-        output.Drawing = ReadCachedDrawing(output, drawingPart);
+        output.Drawing = ReadCachedDrawing(output, drawingPart, out var drawingCacheVerified);
+        output.DrawingCacheVerified = drawingCacheVerified;
         diagram = output;
         return true;
     }
@@ -196,10 +224,17 @@ internal static class PptxSmartArtCodec
         }
         if (diagram.Drawing is null || diagram.Drawing.Children.Count == 0)
             throw new CodecException("invalid_presentation_diagram", $"Presentation SmartArt {elementId} requires a non-empty cached drawing.");
+        if (!string.IsNullOrWhiteSpace(diagram.DefinitionAssetId))
+            _ = assets.GetSmartArtDefinition(diagram.DefinitionAssetId);
         PptxNonVisualAccessibilityCodec.Validate(diagram.Accessibility, elementId, "SmartArt");
     }
 
-    private static string BuildDataModel(string elementId, PresentationDiagram diagram, string drawingRelationshipId)
+    private static string BuildDataModel(
+        string elementId,
+        PresentationDiagram diagram,
+        string drawingRelationshipId,
+        string styleId,
+        string colorsId)
     {
         var layoutId = LayoutId(diagram.Layout);
         var documentId = StableModelId(elementId, "document");
@@ -213,9 +248,9 @@ internal static class PptxSmartArtCodec
                 new XElement(DgmNs + "prSet",
                     new XAttribute("loTypeId", layoutId),
                     new XAttribute("loCatId", diagram.Layout),
-                    new XAttribute("qsTypeId", "urn:officekit:smartart:v1:quickstyle:basic"),
+                    new XAttribute("qsTypeId", $"urn:officekit:smartart:v1:quickstyle:{styleId}"),
                     new XAttribute("qsCatId", "simple"),
-                    new XAttribute("csTypeId", "urn:officekit:smartart:v1:colors:accent"),
+                    new XAttribute("csTypeId", $"urn:officekit:smartart:v1:colors:{colorsId}"),
                     new XAttribute("csCatId", "accent")),
                 new XElement(DgmNs + "spPr"),
                 EmptyDiagramText()));
@@ -316,7 +351,7 @@ internal static class PptxSmartArtCodec
         return output;
     }
 
-    private static string BuildLayoutDefinition(string layout)
+    private static string BuildLayoutDefinition(string layout, Asset? definition)
     {
         var root = new XElement(DgmNs + "layoutDef",
             new XAttribute(XNamespace.Xmlns + "dgm", DgmNs),
@@ -340,16 +375,55 @@ internal static class PptxSmartArtCodec
                         new XElement(DgmNs + "alg", new XAttribute("type", "tx")),
                         new XElement(DgmNs + "shape", new XAttribute("type", "rect"), new XAttribute(RNs + "blip", string.Empty), new XElement(DgmNs + "adjLst")),
                         new XElement(DgmNs + "presOf", new XAttribute("axis", "desOrSelf"), new XAttribute("ptType", "node"))))));
+        if (definition is not null)
+        {
+            root.Add(new XElement(DgmNs + "extLst",
+                new XElement(DgmNs + "ext",
+                    new XAttribute("uri", OfficeKitExtension),
+                    new XElement(OkNs + "definition",
+                        new XAttribute("schema", "office-kit/smartart-definition/v1"),
+                        new XAttribute("sha256", definition.Sha256),
+                        Convert.ToBase64String(definition.Data.ToByteArray())))));
+        }
         return root.ToString(SaveOptions.DisableFormatting);
     }
 
-    private static string BuildStyleDefinition()
+    private static bool TryReadDefinitionAsset(
+        DiagramLayoutDefinitionPart part,
+        PptxAssetCatalog assets,
+        out string definitionAssetId)
+    {
+        definitionAssetId = string.Empty;
+        XDocument layout;
+        try { layout = ReadXml(part); }
+        catch (Exception exception) when (exception is IOException or System.Xml.XmlException) { return false; }
+        var definitions = layout.Descendants(OkNs + "definition").Take(2).ToArray();
+        if (definitions.Length == 0) return true;
+        if (definitions.Length != 1 ||
+            definitions[0].Attribute("schema")?.Value != "office-kit/smartart-definition/v1" ||
+            definitions[0].Attribute("sha256")?.Value is not { Length: 64 } sha256)
+            return false;
+        byte[] data;
+        try { data = Convert.FromBase64String(definitions[0].Value); }
+        catch (FormatException) { return false; }
+        try
+        {
+            definitionAssetId = assets.ImportSmartArtDefinition(data, sha256).Id;
+            return true;
+        }
+        catch (CodecException)
+        {
+            return false;
+        }
+    }
+
+    private static string BuildStyleDefinition(string styleId)
     {
         var root = new XElement(DgmNs + "styleDef",
             new XAttribute(XNamespace.Xmlns + "dgm", DgmNs),
             new XAttribute(XNamespace.Xmlns + "a", ANs),
-            new XAttribute("uniqueId", "urn:officekit:smartart:v1:quickstyle:basic"),
-            new XElement(DgmNs + "title", new XAttribute("val", "OfficeKit Basic")),
+            new XAttribute("uniqueId", $"urn:officekit:smartart:v1:quickstyle:{styleId}"),
+            new XElement(DgmNs + "title", new XAttribute("val", $"OfficeKit {styleId}")),
             new XElement(DgmNs + "desc", new XAttribute("val", "OfficeKit clean-room SmartArt style")),
             new XElement(DgmNs + "catLst", new XElement(DgmNs + "cat", new XAttribute("type", "simple"), new XAttribute("pri", 1))),
             Scene3D(),
@@ -357,13 +431,13 @@ internal static class PptxSmartArtCodec
         return root.ToString(SaveOptions.DisableFormatting);
     }
 
-    private static string BuildColorsDefinition()
+    private static string BuildColorsDefinition(string colorsId)
     {
         var root = new XElement(DgmNs + "colorsDef",
             new XAttribute(XNamespace.Xmlns + "dgm", DgmNs),
             new XAttribute(XNamespace.Xmlns + "a", ANs),
-            new XAttribute("uniqueId", "urn:officekit:smartart:v1:colors:accent"),
-            new XElement(DgmNs + "title", new XAttribute("val", "OfficeKit Accent")),
+            new XAttribute("uniqueId", $"urn:officekit:smartart:v1:colors:{colorsId}"),
+            new XElement(DgmNs + "title", new XAttribute("val", $"OfficeKit {colorsId}")),
             new XElement(DgmNs + "desc", new XAttribute("val", "OfficeKit clean-room SmartArt colors")),
             new XElement(DgmNs + "catLst", new XElement(DgmNs + "cat", new XAttribute("type", "accent"), new XAttribute("pri", 1))),
             new XElement(DgmNs + "styleLbl",
@@ -498,7 +572,10 @@ internal static class PptxSmartArtCodec
         return output;
     }
 
-    private static PresentationGroup ReadCachedDrawing(PresentationDiagram diagram, DiagramPersistLayoutPart? part)
+    private static PresentationGroup ReadCachedDrawing(
+        PresentationDiagram diagram,
+        DiagramPersistLayoutPart? part,
+        out bool verified)
     {
         var group = new PresentationGroup
         {
@@ -514,6 +591,7 @@ internal static class PptxSmartArtCodec
         XDocument? drawing = null;
         try { if (part is not null) drawing = ReadXml(part); }
         catch (Exception exception) when (exception is IOException or System.Xml.XmlException) { }
+        verified = drawing is not null;
         foreach (var node in diagram.Nodes)
         {
             var native = drawing?.Descendants(DspNs + "sp").SingleOrDefault(shape =>
@@ -521,6 +599,9 @@ internal static class PptxSmartArtCodec
             var transform = native?.Element(DspNs + "spPr")?.Element(ANs + "xfrm");
             var nativeOffset = transform?.Element(ANs + "off");
             var nativeExtents = transform?.Element(ANs + "ext");
+            if (native is null || nativeOffset is null || nativeExtents is null ||
+                LongAttribute(nativeExtents, "cx") <= 0 || LongAttribute(nativeExtents, "cy") <= 0)
+                verified = false;
             var shape = new PresentationShape
             {
                 Geometry = native?.Element(DspNs + "spPr")?.Element(ANs + "prstGeom")?.Attribute("prst")?.Value ?? "rect",

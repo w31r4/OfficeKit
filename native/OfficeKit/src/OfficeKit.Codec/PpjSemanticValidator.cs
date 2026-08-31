@@ -2301,6 +2301,11 @@ internal static class PpjSemanticValidator
 
         if (smartArt.Mode == "authored")
         {
+            if (smartArt.DetachToShapes)
+                diagnostics.Add(new(
+                    "ppj.smartArt.detachSourceOnly",
+                    "detachToShapes is available only for a source-bound SmartArt with a verified cached drawing.",
+                    $"{path}.detachToShapes"));
             if (smartArt.LayoutDefinitionId is not null)
                 diagnostics.Add(new(
                     "ppj.smartArt.sourceIdentity",

@@ -2242,6 +2242,9 @@ message PresentationDiagram {
   // Empty for a clean-room built-in definition. Custom definitions reference
   // one content-addressed PPJ asset; native part identity remains private.
   string definition_asset_id = 10;
+  // True only when every semantic node resolved to a bounded cached drawing
+  // shape with positive native geometry. Explicit detach requires this proof.
+  bool drawing_cache_verified = 11;
 }
 
 message PresentationDiagramNode {

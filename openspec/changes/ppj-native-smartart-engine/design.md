@@ -27,6 +27,12 @@ Custom definitions use the media type
 `style`, and `colors` documents. Editing is copy-on-write: the editor writes a
 new content-addressed asset and changes only the selected element reference.
 
+The V1 executor recognizes three finite operator forms. An `algorithm` selects
+one of the eight embedded placements, a `constraint` sets `gapPoints` from 0
+through 72, and a `rule` sets a bounded column count and/or reverses node
+placement. Operators read only the `nodes` input. Other typed kinds and unknown
+arguments fail at the exact operator JSON path.
+
 ## Native representation
 
 The presentation wire gains an additive `PresentationDiagram` content arm. It
@@ -49,14 +55,17 @@ extensions independently. A supported native graph projects as typed SmartArt
 with section-scoped capabilities. Standard but not executable definition nodes
 may still be represented by the definition JSON. Vendor/version extensions and
 unknown OPC descendants stay in a content-addressed preservation fragment.
+PPJ exposes that boundary as `nativeSections`: path-independent SHA-256 values
+for data, layout, style, colors, optional cached drawing, and their canonical
+closure. Package paths and relationship IDs remain private.
 
 No-op source-bound export keeps the original parts. A local edit may change only
 the sections named by its capability and must re-prove every untouched fragment
 hash. The first third-party slice recognizes plain content points, the
 layout-definition identity, and parent-of edges while keeping document-root and
-presentation wiring private. A diagram with no provable semantic nodes remains
-opaque today; projecting every such diagram as typed read-only SmartArt belongs
-to the later residue-preservation slice.
+presentation wiring private. A closed diagram with no provable semantic nodes
+still projects as typed read-only SmartArt with zero nodes, no text capability,
+and its section hashes. It is not flattened or mislabeled as an ordinary group.
 
 ## Explicit detach
 

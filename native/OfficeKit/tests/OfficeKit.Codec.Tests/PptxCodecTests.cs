@@ -564,6 +564,64 @@ public sealed class PptxCodecTests
         Assert.True(noOp.Ok, Diagnostics(noOp));
         Assert.Empty(noOp.PresentationProgram.ChangedParts);
 
+        var locallyEditedState = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var locallyEditedSmartArt = locallyEditedState["pages"]![0]!["elements"]![0]!.AsObject();
+        locallyEditedSmartArt["nodes"]![1]!["text"] = "Decide better";
+        locallyEditedSmartArt["connections"]![0]!["to"] = "act";
+        locallyEditedSmartArt["connections"]![0]!["role"] = "association";
+        locallyEditedSmartArt["frame"]!["x"] = 84;
+        locallyEditedSmartArt["frame"]!["width"] = 792;
+        var locallyEdited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeOnly),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(locallyEditedState.ToJsonString()),
+            },
+        });
+        Assert.True(locallyEdited.Ok, Diagnostics(locallyEdited));
+        using (var sourceStream = new MemoryStream(nativeOnly))
+        using (var sourcePackage = PresentationDocument.Open(sourceStream, false))
+        using (var editedStream = new MemoryStream(locallyEdited.File.ToByteArray()))
+        using (var editedPackage = PresentationDocument.Open(editedStream, false))
+        {
+            var sourceSlide = Assert.Single(sourcePackage.PresentationPart!.SlideParts);
+            var editedSlide = Assert.Single(editedPackage.PresentationPart!.SlideParts);
+            Assert.Equal(Assert.Single(sourceSlide.DiagramLayoutDefinitionParts).LayoutDefinition!.OuterXml,
+                Assert.Single(editedSlide.DiagramLayoutDefinitionParts).LayoutDefinition!.OuterXml);
+            Assert.Equal(Assert.Single(sourceSlide.DiagramStyleParts).StyleDefinition!.OuterXml,
+                Assert.Single(editedSlide.DiagramStyleParts).StyleDefinition!.OuterXml);
+            Assert.Equal(Assert.Single(sourceSlide.DiagramColorsParts).ColorsDefinition!.OuterXml,
+                Assert.Single(editedSlide.DiagramColorsParts).ColorsDefinition!.OuterXml);
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(editedPackage));
+        }
+        var locallyEditedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = locallyEdited.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/locally-edited-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(locallyEditedProjection.Ok, Diagnostics(locallyEditedProjection));
+        using (var locallyEditedJson = JsonDocument.Parse(locallyEditedProjection.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var local = Assert.Single(locallyEditedJson.RootElement.GetProperty("pages")[0]
+                .GetProperty("elements").EnumerateArray());
+            Assert.Contains("Decide better", local.GetProperty("nodes")[1].GetProperty("text").GetRawText(), StringComparison.Ordinal);
+            Assert.Equal("act", local.GetProperty("connections")[0].GetProperty("to").GetString());
+            Assert.Equal("association", local.GetProperty("connections")[0].GetProperty("role").GetString());
+            Assert.Equal(84, local.GetProperty("frame").GetProperty("x").GetDouble());
+            Assert.Equal(792, local.GetProperty("frame").GetProperty("width").GetDouble());
+        }
+
         var renamedState = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
         renamedState["pages"]![0]!["name"] = "Renamed around native SmartArt";
         var renamed = Invoke(new CodecRequest
@@ -597,6 +655,50 @@ public sealed class PptxCodecTests
                 "smartArt",
                 Assert.Single(renamedJson.RootElement.GetProperty("pages")[0].GetProperty("elements").EnumerateArray())
                     .GetProperty("type").GetString());
+
+        var detachedState = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var detachable = detachedState["pages"]![0]!["elements"]![0]!.AsObject();
+        Assert.Contains(detachable["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "detachSmartArt");
+        detachable["detachToShapes"] = true;
+        var detached = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(nativeOnly),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(detachedState.ToJsonString()),
+            },
+        });
+        Assert.True(detached.Ok, Diagnostics(detached));
+        Assert.Contains(detached.Diagnostics, diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Warning && diagnostic.Code == "ppj.smartArt.detachedToShapes");
+        using (var detachedStream = new MemoryStream(detached.File.ToByteArray()))
+        using (var detachedPackage = PresentationDocument.Open(detachedStream, false))
+        {
+            var detachedSlide = Assert.Single(detachedPackage.PresentationPart!.SlideParts);
+            Assert.DoesNotContain(detachedSlide.Slide!.Descendants<P.GraphicFrame>(), frame => frame.Descendants<Dgm.RelationshipIds>().Any());
+            Assert.True(detachedSlide.Slide.Descendants<P.GroupShape>().Any());
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(detachedPackage));
+        }
+        var detachedProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = detached.File,
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/detached-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(detachedProjection.Ok, Diagnostics(detachedProjection));
+        using (var detachedJson = JsonDocument.Parse(detachedProjection.PresentationProgram.ProgramJson.ToByteArray()))
+            Assert.Equal("group", Assert.Single(detachedJson.RootElement.GetProperty("pages")[0]
+                .GetProperty("elements").EnumerateArray()).GetProperty("type").GetString());
 
         var definitionBytes = Encoding.UTF8.GetBytes("""
             {
@@ -651,13 +753,90 @@ public sealed class PptxCodecTests
             Assert.Single(definitionSlide.DiagramLayoutDefinitionParts).LayoutDefinition!.OuterXml,
             StringComparison.Ordinal);
 
+        var executableDefinitionBytes = Encoding.UTF8.GetBytes("""
+            {
+              "schema": "office-kit/smartart-definition/v1",
+              "layout": {
+                "id": "custom-process",
+                "profile": "process",
+                "operators": [
+                  { "id": "custom-algorithm", "kind": "algorithm", "input": "nodes", "arguments": { "placement": "square-grid" } },
+                  { "id": "custom-rule", "kind": "rule", "arguments": { "columns": 2, "reverse": true } },
+                  { "id": "custom-gap", "kind": "constraint", "arguments": { "gapPoints": 20 } }
+                ]
+              },
+              "style": { "id": "emphasis" },
+              "colors": { "id": "cool" }
+            }
+            """);
+        var executableDefinitionSha256 = Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(executableDefinitionBytes)).ToLowerInvariant();
+        program["assets"]![0]!["sha256"] = executableDefinitionSha256;
+        definitionRequest.PresentationProgram.ProgramJson = ByteString.CopyFromUtf8(program.ToJsonString());
+        definitionRequest.PresentationProgram.Assets[0].Data = ByteString.CopyFrom(executableDefinitionBytes);
+        definitionRequest.PresentationProgram.Assets[0].Sha256 = executableDefinitionSha256;
+        var executableDefinition = Invoke(definitionRequest);
+        Assert.True(executableDefinition.Ok, Diagnostics(executableDefinition));
+        using (var executableStream = new MemoryStream(executableDefinition.File.ToByteArray()))
+        using (var executablePackage = PresentationDocument.Open(executableStream, false))
+        {
+            var executableSlide = Assert.Single(executablePackage.PresentationPart!.SlideParts);
+            Assert.Contains(
+                "urn:officekit:smartart:v1:quickstyle:emphasis",
+                Assert.Single(executableSlide.DiagramStyleParts).StyleDefinition!.OuterXml,
+                StringComparison.Ordinal);
+            Assert.Contains(
+                "urn:officekit:smartart:v1:colors:cool",
+                Assert.Single(executableSlide.DiagramColorsParts).ColorsDefinition!.OuterXml,
+                StringComparison.Ordinal);
+            var drawing = XDocument.Parse(Assert.Single(
+                executableSlide.Parts,
+                pair => pair.OpenXmlPart is DiagramPersistLayoutPart).OpenXmlPart.RootElement!.OuterXml);
+            XNamespace dsp = "http://schemas.microsoft.com/office/drawing/2008/diagram";
+            XNamespace a = "http://schemas.openxmlformats.org/drawingml/2006/main";
+            var offsets = drawing.Descendants(dsp + "sp").ToDictionary(
+                shape => shape.Element(dsp + "nvSpPr")!.Element(dsp + "cNvPr")!.Attribute("name")!.Value,
+                shape => shape.Element(dsp + "spPr")!.Element(a + "xfrm")!.Element(a + "off")!,
+                StringComparer.Ordinal);
+            Assert.Equal((0L, 0L), ((long)offsets["act"].Attribute("x")!, (long)offsets["act"].Attribute("y")!));
+            Assert.Equal((5_308_600L, 0L), ((long)offsets["decide"].Attribute("x")!, (long)offsets["decide"].Attribute("y")!));
+            Assert.Equal((0L, 1_651_000L), ((long)offsets["observe"].Attribute("x")!, (long)offsets["observe"].Attribute("y")!));
+        }
+        var projectedDefinition = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(RemoveEmbeddedPpj(executableDefinition.File.ToByteArray())),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/custom-definition-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projectedDefinition.Ok, Diagnostics(projectedDefinition));
+        var projectedDefinitionAsset = Assert.Single(projectedDefinition.PresentationProgram.Assets,
+            asset => asset.ContentType == "application/vnd.officekit.smartart-definition+json");
+        Assert.Equal(executableDefinitionSha256, projectedDefinitionAsset.Sha256);
+        Assert.Equal(executableDefinitionBytes, projectedDefinitionAsset.Data.ToByteArray());
+        using (var projectedDefinitionJson = JsonDocument.Parse(projectedDefinition.PresentationProgram.ProgramJson.ToByteArray()))
+        {
+            var projectedElement = Assert.Single(projectedDefinitionJson.RootElement.GetProperty("pages")[0]
+                .GetProperty("elements").EnumerateArray());
+            Assert.False(projectedElement.TryGetProperty("layout", out _));
+            var projectedAssetId = projectedElement.GetProperty("definitionAsset").GetString();
+            var declaration = Assert.Single(projectedDefinitionJson.RootElement.GetProperty("assets").EnumerateArray(),
+                asset => asset.GetProperty("id").GetString() == projectedAssetId);
+            Assert.Equal(executableDefinitionSha256, declaration.GetProperty("sha256").GetString());
+        }
+
         var unsupportedDefinitionBytes = Encoding.UTF8.GetBytes("""
             {
               "schema": "office-kit/smartart-definition/v1",
               "layout": {
                 "id": "custom-process",
                 "profile": "process",
-                "operators": [{ "id": "custom-algorithm", "kind": "algorithm" }]
+                "operators": [{ "id": "unsupported-shape", "kind": "shape", "arguments": { "geometry": "hexagon" } }]
               },
               "style": { "id": "basic" },
               "colors": { "id": "accent" }
@@ -673,7 +852,7 @@ public sealed class PptxCodecTests
         Assert.False(unsupportedDefinition.Ok);
         var unsupportedDiagnostic = Assert.Single(unsupportedDefinition.Diagnostics);
         Assert.Equal("unsupported_ppj_compile_feature", unsupportedDiagnostic.Code);
-        Assert.Equal("$.assets[decision-process-definition].layout.operators", unsupportedDiagnostic.SourcePath);
+        Assert.Equal("$.assets[decision-process-definition].layout.operators[0].kind", unsupportedDiagnostic.SourcePath);
     }
 
     [Fact]
@@ -11829,9 +12008,44 @@ public sealed class PptxCodecTests
             xml => xml.Replace("type=\"parOf\" srcId=\"1\" destId=\"2\"", "type=\"unknownRelationship\" srcId=\"1\" destId=\"2\"", StringComparison.Ordinal));
         var unknownImport = Import(unknownRelationship);
         Assert.True(unknownImport.Ok, Diagnostics(unknownImport));
-        Assert.Null(Assert.Single(
+        var unknownBinding = Assert.IsType<PresentationDiagramText>(Assert.Single(
             unknownImport.Artifact.Presentation.Slides[0].Elements,
             element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Empty(unknownBinding.Nodes);
+        Assert.Empty(unknownBinding.Connections);
+        Assert.Equal("urn:office-kit:clone-layout", unknownBinding.LayoutDefinitionId);
+        var unknownProjection = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(unknownRelationship),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/unknown-relationship-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(unknownProjection.Ok, Diagnostics(unknownProjection));
+        var unknownState = JsonNode.Parse(unknownProjection.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var unknownSmartArt = unknownState["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject()).Single(item => item["type"]!.GetValue<string>() == "smartArt");
+        Assert.Empty(unknownSmartArt["nodes"]!.AsArray());
+        Assert.DoesNotContain(unknownSmartArt["nativeRef"]!["capabilities"]!.AsArray(), capability =>
+            capability!["operation"]!.GetValue<string>() == "setSmartArtText");
+        var unknownNoOp = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(unknownRelationship),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = unknownProjection.PresentationProgram.ProgramJson,
+            },
+        });
+        Assert.True(unknownNoOp.Ok, Diagnostics(unknownNoOp));
+        Assert.Equal(unknownRelationship, unknownNoOp.File.ToByteArray());
     }
 
     [Fact]
@@ -11842,6 +12056,13 @@ public sealed class PptxCodecTests
             AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray()),
             dataPath,
             _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dgm:ptLst><dgm:pt modelId=\"{B31B1833-2B65-4D6B-B3D4-9B3988427B21}\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Original node</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId=\"1\" type=\"doc\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Second node</a:t></a:r></a:p></dgm:t></dgm:pt></dgm:ptLst><dgm:cxnLst/><dgm:bg/><dgm:whole/></dgm:dataModel>");
+        source = ReplaceZipText(
+            source,
+            "ppt/diagrams/clone-layout.xml",
+            xml => xml.Replace(
+                "</dgm:layoutDef>",
+                "<dgm:extLst><dgm:ext uri=\"{A4E4965B-2160-4B10-B9C0-9B596F3A1E20}\"><vendor:layoutResidue xmlns:vendor=\"urn:vendor:smartart:test\" value=\"preserve-me\"/></dgm:ext></dgm:extLst></dgm:layoutDef>",
+                StringComparison.Ordinal));
         var imported = Import(source);
         Assert.True(imported.Ok, Diagnostics(imported));
         var diagram = Assert.Single(imported.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram");
@@ -11888,6 +12109,11 @@ public sealed class PptxCodecTests
             .Single(item => item["type"]!.GetValue<string>() == "smartArt");
         Assert.Equal("source-bound", smartArt["mode"]!.GetValue<string>());
         Assert.Equal(["Original node", "Second node"], smartArt["nodes"]!.AsArray().Select(node => node!["text"]!.GetValue<string>()));
+        var sourceSections = smartArt["nativeSections"]!.AsObject().DeepClone().AsObject();
+        Assert.Equal(binding.SourceSha256, sourceSections["dataSha256"]!.GetValue<string>());
+        Assert.Matches("^[a-f0-9]{64}$", sourceSections["closureSha256"]!.GetValue<string>());
+        Assert.All(new[] { "layoutSha256", "styleSha256", "colorsSha256" }, section =>
+            Assert.Matches("^[a-f0-9]{64}$", sourceSections[section]!.GetValue<string>()));
         Assert.Contains(smartArt["nativeRef"]!["capabilities"]!.AsArray(), capability =>
             capability!["operation"]!.GetValue<string>() == "setSmartArtText" &&
             capability["fields"]!.AsArray().Any(field => field!.GetValue<string>() == "smartArt.text"));
@@ -11933,6 +12159,11 @@ public sealed class PptxCodecTests
             var ppjSmartArt = ppjJson.RootElement.GetProperty("pages")[0].GetProperty("elements")
                 .EnumerateArray().Single(item => item.GetProperty("type").GetString() == "smartArt");
             Assert.Equal("PPJ revised node", ppjSmartArt.GetProperty("nodes")[0].GetProperty("text").GetString());
+            var editedSections = ppjSmartArt.GetProperty("nativeSections");
+            Assert.NotEqual(sourceSections["dataSha256"]!.GetValue<string>(), editedSections.GetProperty("dataSha256").GetString());
+            Assert.Equal(sourceSections["layoutSha256"]!.GetValue<string>(), editedSections.GetProperty("layoutSha256").GetString());
+            Assert.Equal(sourceSections["styleSha256"]!.GetValue<string>(), editedSections.GetProperty("styleSha256").GetString());
+            Assert.Equal(sourceSections["colorsSha256"]!.GetValue<string>(), editedSections.GetProperty("colorsSha256").GetString());
         }
 
         imported = Import(source);
@@ -11963,7 +12194,9 @@ public sealed class PptxCodecTests
             xml => xml.Replace("{B31B1833-2B65-4D6B-B3D4-9B3988427B21}", "agent-node-1", StringComparison.Ordinal));
         var invalidModelIdImport = Import(invalidModelId);
         Assert.True(invalidModelIdImport.Ok, Diagnostics(invalidModelIdImport));
-        Assert.Null(Assert.Single(invalidModelIdImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Empty(Assert.IsType<PresentationDiagramText>(Assert.Single(
+            invalidModelIdImport.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText).Nodes);
 
         var annotatedText = ReplaceZipText(
             source,
@@ -11971,7 +12204,9 @@ public sealed class PptxCodecTests
             xml => xml.Replace("<a:t>Original node</a:t>", "<a:t><!--source-owned annotation-->Original node</a:t>", StringComparison.Ordinal));
         var annotatedTextImport = Import(annotatedText);
         Assert.True(annotatedTextImport.Ok, Diagnostics(annotatedTextImport));
-        Assert.Null(Assert.Single(annotatedTextImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Empty(Assert.IsType<PresentationDiagramText>(Assert.Single(
+            annotatedTextImport.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText).Nodes);
     }
 
     [Fact]
@@ -12124,7 +12359,9 @@ public sealed class PptxCodecTests
             StringComparison.Ordinal));
         var attributedBreakImport = Import(attributedBreakSource);
         Assert.True(attributedBreakImport.Ok, Diagnostics(attributedBreakImport));
-        Assert.Null(Assert.Single(attributedBreakImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Empty(Assert.IsType<PresentationDiagramText>(Assert.Single(
+            attributedBreakImport.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText).Nodes);
 
         var fieldSource = ReplaceZipText(source, dataPath, xml => xml.Replace(
             "<a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r>",
@@ -12132,14 +12369,18 @@ public sealed class PptxCodecTests
             StringComparison.Ordinal));
         var fieldImport = Import(fieldSource);
         Assert.True(fieldImport.Ok, Diagnostics(fieldImport));
-        Assert.Null(Assert.Single(fieldImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Empty(Assert.IsType<PresentationDiagramText>(Assert.Single(
+            fieldImport.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText).Nodes);
 
         var emptyNodeSource = ReplaceZipText(source, dataPath, xml => xml
             .Replace("<a:r><a:rPr b=\"1\"/><a:t>Bold</a:t></a:r>", string.Empty, StringComparison.Ordinal)
             .Replace("<a:r><a:rPr i=\"1\"/><a:t> italic</a:t></a:r>", string.Empty, StringComparison.Ordinal));
         var emptyNodeImport = Import(emptyNodeSource);
         Assert.True(emptyNodeImport.Ok, Diagnostics(emptyNodeImport));
-        Assert.Null(Assert.Single(emptyNodeImport.Artifact.Presentation.Slides[0].Elements, element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Empty(Assert.IsType<PresentationDiagramText>(Assert.Single(
+            emptyNodeImport.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText).Nodes);
     }
 
     [Fact]

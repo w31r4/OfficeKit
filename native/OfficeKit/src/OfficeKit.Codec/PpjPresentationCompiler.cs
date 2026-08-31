@@ -57,6 +57,7 @@ internal static class PpjSourceBoundPresentationCompiler
         internal bool SemanticChanges { get; set; }
         internal List<NativeLeafMutation> NativeLeaves { get; } = [];
         internal HashSet<string>? AuthoredOverlayNodeIds { get; set; }
+        internal List<Diagnostic> Warnings { get; } = [];
     }
 
     private sealed record NativeLeafMutation(
@@ -162,7 +163,7 @@ internal static class PpjSourceBoundPresentationCompiler
             };
             validationReceipt.Assets.Add(projected.Program.Assets.Select(asset => asset.Clone()));
             validationReceipt.ChangedNodeIds.Add(changedNodeIds.OrderBy(id => id, StringComparer.Ordinal));
-        return new([], validationReceipt, projected.Diagnostics);
+            return new([], validationReceipt, projected.Diagnostics.Concat(mutations.Warnings).ToArray());
         }
 
         byte[] output;
@@ -173,7 +174,7 @@ internal static class PpjSourceBoundPresentationCompiler
             // equivalent package. PPJ-only intent/design metadata may still
             // advance outside the third-party PPTX.
             output = sourceBytes;
-            diagnostics = projected.Diagnostics;
+            diagnostics = projected.Diagnostics.Concat(mutations.Warnings).ToArray();
         }
         else if (mutations.NativeLeaves.Count > 0)
         {
@@ -181,13 +182,13 @@ internal static class PpjSourceBoundPresentationCompiler
                 throw Unsupported("$.pages", "mixing precise native-leaf edits with other semantic edits in one source-bound build");
             var edited = PptxEditPlanCodec.Apply(sourceBytes, NativeLeafEditPlan(sourceSha256, mutations.NativeLeaves), limits);
             output = edited.File;
-            diagnostics = projected.Diagnostics.Concat(edited.Diagnostics).ToArray();
+            diagnostics = projected.Diagnostics.Concat(edited.Diagnostics).Concat(mutations.Warnings).ToArray();
         }
         else
         {
             var exported = PptxCodec.Export(artifact, limits);
             output = exported.File;
-            diagnostics = projected.Diagnostics.Concat(exported.Diagnostics).ToArray();
+            diagnostics = projected.Diagnostics.Concat(exported.Diagnostics).Concat(mutations.Warnings).ToArray();
         }
 
         var receipt = new PresentationProgramResult
@@ -937,6 +938,19 @@ internal static class PpjSourceBoundPresentationCompiler
             case PpjSmartArtElementModel beforeSmartArt when after is PpjSmartArtElementModel afterSmartArt &&
                 target.ContentCase == PresentationElement.ContentOneofCase.Diagram:
                 changed = ApplyNativeSmartArtElement(beforeSmartArt, afterSmartArt, target.Diagram, path);
+                if (afterSmartArt.DetachToShapes && !beforeSmartArt.DetachToShapes)
+                {
+                    var detached = target.Diagram.Drawing.Clone();
+                    target.Group = detached;
+                    mutations.SemanticChanges = true;
+                    mutations.Warnings.Add(new Diagnostic
+                    {
+                        Severity = DiagnosticSeverity.Warning,
+                        Code = "ppj.smartArt.detachedToShapes",
+                        Message = "SmartArt was explicitly detached to ordinary shapes; diagram semantics were removed.",
+                        SourcePath = path + ".detachToShapes",
+                    });
+                }
                 break;
             case PpjOleElementModel beforeOle when after is PpjOleElementModel afterOle &&
                 target.ContentCase == PresentationElement.ContentOneofCase.Opaque &&
@@ -1901,25 +1915,142 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationDiagram target,
         string path)
     {
-        RequireEqualExcept(before.Raw, after.Raw, path, "role", "tags", "hidden", "locked");
+        RequireEqualExcept(
+            before.Raw,
+            after.Raw,
+            path,
+            "role",
+            "tags",
+            "hidden",
+            "locked",
+            "frame",
+            "nodes",
+            "connections",
+            "detachToShapes");
         if (before.Mode != "source-bound" || after.Mode != "source-bound" ||
-            before.Nodes.Count != target.Nodes.Count || before.Connections.Count != target.Connections.Count)
+            before.Nodes.Count != after.Nodes.Count || before.Nodes.Count != target.Nodes.Count ||
+            before.Connections.Count != after.Connections.Count || before.Connections.Count != target.Connections.Count)
             throw Unsupported(path, "native SmartArt identity, mode, or topology change");
         for (var index = 0; index < before.Nodes.Count; index++)
         {
-            if (before.Nodes[index].Id != target.Nodes[index].Id ||
-                string.Concat(SmartArtTextRuns(before.Nodes[index].Text, $"{path}.nodes[{index}].text")) != PptxTextCodec.Flatten(target.Nodes[index].TextBody))
+            var oldNode = before.Nodes[index];
+            var newNode = after.Nodes[index];
+            var targetNode = target.Nodes[index];
+            var nodePath = $"{path}.nodes[{index}]";
+            if (oldNode.Id != targetNode.Id || oldNode.Id != newNode.Id ||
+                string.Concat(SmartArtTextRuns(oldNode.Text, nodePath + ".text")) != PptxTextCodec.Flatten(targetNode.TextBody))
                 throw new CodecException("ppj.nativeRef.stale", "The projected SmartArt node no longer matches the exact source binding.", $"{path}.nodes[{index}]");
+            RequireEqualExcept(oldNode.Raw, newNode.Raw, nodePath, "text");
+            var oldRuns = SmartArtTextRuns(oldNode.Text, nodePath + ".text");
+            var newRuns = SmartArtTextRuns(newNode.Text, nodePath + ".text");
+            if (oldRuns.SequenceEqual(newRuns, StringComparer.Ordinal)) continue;
+            if (oldRuns.Count != newRuns.Count)
+                throw Unsupported(nodePath + ".text", "native SmartArt run topology change");
+            RequireCapabilityField(after.NativeRef, "setSmartArtText", "smartArt.text", nodePath + ".text");
+            ReplaceDiagramTextRuns(targetNode.TextBody, newRuns, nodePath + ".text");
+            var cached = target.Drawing.Children.SingleOrDefault(child => child.Name == targetNode.Id && child.Shape is not null);
+            if (cached is null)
+                throw Unsupported(nodePath + ".text", "native SmartArt text edit without a matching cached drawing node");
+            cached.Shape.TextBody = targetNode.TextBody.Clone();
+            cached.Shape.Text = PptxTextCodec.Flatten(targetNode.TextBody);
         }
+        var graphChanged = false;
         for (var index = 0; index < before.Connections.Count; index++)
         {
             var projected = before.Connections[index];
+            var requested = after.Connections[index];
             var source = target.Connections[index];
             if (projected.Id != source.Id || projected.FromId != source.FromId || projected.ToId != source.ToId ||
                 projected.Role != source.Role || projected.Order != source.Order)
                 throw new CodecException("ppj.nativeRef.stale", "The projected SmartArt connection no longer matches the exact source binding.", $"{path}.connections[{index}]");
+            if (projected.Id != requested.Id)
+                throw Unsupported($"{path}.connections[{index}].id", "native SmartArt connection identity change");
+            if (projected.FromId == requested.FromId && projected.ToId == requested.ToId &&
+                projected.Role == requested.Role && projected.Order == requested.Order) continue;
+            graphChanged = true;
+            source.FromId = requested.FromId;
+            source.ToId = requested.ToId;
+            source.Role = requested.Role;
+            source.Order = requested.Order;
         }
-        return false;
+        if (graphChanged)
+            RequireCapabilityField(after.NativeRef, "setSmartArtGraph", "smartArt.connections", path + ".connections");
+        var frameChanged = FrameChanged(before, after);
+        if (frameChanged)
+        {
+            RequireCapability(after, "setFrame", path + ".frame");
+            ApplyDiagramFrame(before, after, target, path + ".frame");
+        }
+        if (after.DetachToShapes != before.DetachToShapes)
+        {
+            if (!after.DetachToShapes)
+                throw Unsupported(path + ".detachToShapes", "reattaching ordinary shapes as SmartArt");
+            if (!target.DrawingCacheVerified || target.Drawing is null || target.Drawing.Children.Count == 0)
+                throw Unsupported(path + ".detachToShapes", "detaching SmartArt without a verified cached drawing");
+            RequireCapabilityField(
+                after.NativeRef,
+                "detachSmartArt",
+                "smartArt.detachToShapes",
+                path + ".detachToShapes");
+            return true;
+        }
+        return graphChanged || frameChanged || before.Nodes.Zip(after.Nodes).Any(pair =>
+            !SmartArtTextRuns(pair.First.Text, path + ".nodes.text")
+                .SequenceEqual(SmartArtTextRuns(pair.Second.Text, path + ".nodes.text"), StringComparer.Ordinal));
+    }
+
+    private static void ReplaceDiagramTextRuns(
+        PresentationTextBody? body,
+        IReadOnlyList<string> values,
+        string path)
+    {
+        if (body is null) throw Unsupported(path, "native SmartArt text without a text body");
+        var runs = body.Paragraphs.SelectMany(paragraph => paragraph.Runs)
+            .Where(run => run.ContentCase == PresentationTextRun.ContentOneofCase.Text)
+            .ToArray();
+        if (runs.Length != values.Count)
+            throw Unsupported(path, "native SmartArt text run topology mismatch");
+        for (var index = 0; index < runs.Length; index++) runs[index].Text = values[index];
+    }
+
+    private static void ApplyDiagramFrame(
+        PpjSmartArtElementModel before,
+        PpjSmartArtElementModel after,
+        PresentationDiagram target,
+        string path)
+    {
+        if (target.LeftEmu != Emu(before.Frame.X) || target.TopEmu != Emu(before.Frame.Y) ||
+            target.WidthEmu != Emu(before.Frame.Width) || target.HeightEmu != Emu(before.Frame.Height))
+            throw new CodecException("ppj.nativeRef.stale", "The projected SmartArt frame no longer matches the exact source binding.", path);
+        var newLeft = Emu(after.Frame.X);
+        var newTop = Emu(after.Frame.Y);
+        var newWidth = Emu(after.Frame.Width);
+        var newHeight = Emu(after.Frame.Height);
+        if (newWidth <= 0 || newHeight <= 0) throw Unsupported(path, "non-positive native SmartArt frame");
+        var scaleX = newWidth / (double)target.WidthEmu;
+        var scaleY = newHeight / (double)target.HeightEmu;
+        foreach (var child in target.Drawing.Children)
+        {
+            if (child.ContentCase != PresentationElement.ContentOneofCase.Shape)
+                throw Unsupported(path, "frame scaling with an unsupported cached drawing child");
+            var shape = child.Shape;
+            shape.LeftEmu = newLeft + checked((long)Math.Round((shape.LeftEmu - target.LeftEmu) * scaleX));
+            shape.TopEmu = newTop + checked((long)Math.Round((shape.TopEmu - target.TopEmu) * scaleY));
+            shape.WidthEmu = Math.Max(1, checked((long)Math.Round(shape.WidthEmu * scaleX)));
+            shape.HeightEmu = Math.Max(1, checked((long)Math.Round(shape.HeightEmu * scaleY)));
+        }
+        target.LeftEmu = newLeft;
+        target.TopEmu = newTop;
+        target.WidthEmu = newWidth;
+        target.HeightEmu = newHeight;
+        target.Drawing.LeftEmu = newLeft;
+        target.Drawing.TopEmu = newTop;
+        target.Drawing.WidthEmu = newWidth;
+        target.Drawing.HeightEmu = newHeight;
+        target.Drawing.ChildLeftEmu = newLeft;
+        target.Drawing.ChildTopEmu = newTop;
+        target.Drawing.ChildWidthEmu = newWidth;
+        target.Drawing.ChildHeightEmu = newHeight;
     }
 
     private static IReadOnlyList<string> SmartArtTextRuns(PpjTextContentModel text, string path)

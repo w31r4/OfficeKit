@@ -9,19 +9,19 @@
 
 - [x] 2.1 Add the canonical SmartArt definition JSON schema and asset codec.
 - [x] 2.2 Add clean-room native part definitions and an embedded eight-profile manifest.
-- [ ] 2.3 Execute custom operator lists rather than preserving and rejecting them.
-- [ ] 2.4 Add copy-on-write definition editing; unsupported operator paths already diagnose exactly.
+- [x] 2.3 Execute custom operator lists rather than preserving and rejecting them.
+- [x] 2.4 Add copy-on-write definition editing; unsupported operator paths diagnose exactly.
 
 ## 3. Source-bound projection and preservation
 
 - [x] 3.1 Project proven third-party content nodes, parent edges, and layout-definition identity as typed source-bound SmartArt.
-- [ ] 3.2 Project every remaining native diagram as typed SmartArt with partitioned capabilities.
-- [ ] 3.3 Add path-independent native OPC fragment preservation for unknown residue.
-- [ ] 3.4 Permit supported local graph/style edits while re-proving untouched fragment hashes; bounded text editing is already available.
+- [x] 3.2 Project every remaining native diagram as typed SmartArt with partitioned capabilities.
+- [x] 3.3 Add path-independent native OPC fragment preservation for unknown residue.
+- [x] 3.4 Permit supported local graph/style edits while re-proving untouched fragment hashes; bounded text editing is already available.
 
 ## 4. Explicit detach and evidence
 
-- [ ] 4.1 Add verified cached-drawing `detachToShapes()` conversion.
+- [x] 4.1 Add verified cached-drawing `detachToShapes()` conversion.
 - [x] 4.2 Cover authored build/import, definition profile, unsupported operator, typed no-op, and adjacent source-bound edit.
-- [ ] 4.3 Cover unknown native extension preservation and explicit detach.
-- [ ] 4.4 Complete the remaining release gates and Windows PowerPoint host acceptance.
+- [x] 4.3 Cover unknown native extension preservation and explicit detach.
+- [x] 4.4 Complete the PPJ/SmartArt local gates. Full-repository release/publish and Windows PowerPoint host acceptance are explicitly excluded by user direction and remain unverified.

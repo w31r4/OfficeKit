@@ -72,16 +72,39 @@ internal static class PptxDiagramTextCodec
         XDocument Document,
         IReadOnlyList<DiagramNode> Nodes,
         IReadOnlyList<DiagramConnection> Connections);
+    private sealed record DiagramParts(
+        DiagramDataPart Data,
+        DiagramLayoutDefinitionPart Layout,
+        string DataRelationshipId);
 
     internal static bool TryDescribe(OpenXmlElement source, OpenXmlPart owner, out PresentationDiagramText binding)
     {
-        if (!TryResolve(source, owner, out var resolved))
+        if (TryResolve(source, owner, out var resolved))
+        {
+            binding = resolved.Binding;
+            return true;
+        }
+        binding = null!;
+        if (!TryResolveParts(source, owner, out var parts)) return false;
+        try
+        {
+            var sourceBytes = ReadPart(parts.Data);
+            if (!TryReadLayoutDefinitionId(parts.Layout, out var layoutDefinitionId)) return false;
+            binding = new PresentationDiagramText
+            {
+                PartPath = PartPath(parts.Data),
+                ContentType = parts.Data.ContentType,
+                SourceSha256 = Hash(sourceBytes),
+                RelationshipId = parts.DataRelationshipId,
+                LayoutDefinitionId = layoutDefinitionId,
+            };
+            return true;
+        }
+        catch (Exception exception) when (exception is XmlException or IOException or UnauthorizedAccessException)
         {
             binding = null!;
             return false;
         }
-        binding = resolved.Binding;
-        return true;
     }
 
     internal static bool TryResolveForEditPlan(
@@ -130,6 +153,12 @@ internal static class PptxDiagramTextCodec
         }
         if (requested.DiagramText is null)
             throw Unsupported("A source-bound SmartArt text binding cannot be removed.");
+        if (IsReadOnlyDescription(original.DiagramText))
+        {
+            if (!original.DiagramText.Equals(requested.DiagramText))
+                throw Unsupported("This SmartArt graph is typed for preservation but has no proven editable text or graph leaves.");
+            return null;
+        }
         if (!TryResolve(source, owner, out var resolved))
             throw BindingMismatch("The SmartArt source no longer proves the bounded diagram-text profile.", PartPath(owner));
         if (!SameBinding(original.DiagramText, resolved.Binding) ||
@@ -200,6 +229,15 @@ internal static class PptxDiagramTextCodec
         PresentationOpaqueElement requested)
     {
         if (requested.DiagramText is null) return;
+        if (IsReadOnlyDescription(requested.DiagramText))
+        {
+            if (!TryDescribe(source, sourceOwner, out var sourceDescription) ||
+                !SameEditBinding(requested.DiagramText, sourceDescription) ||
+                !TryDescribe(output, outputOwner, out var outputDescription) ||
+                !SameEditBinding(requested.DiagramText, outputDescription))
+                throw BindingMismatch("The preserved SmartArt graph no longer matches its typed read-only binding.", PartPath(outputOwner));
+            return;
+        }
         if (!TryResolve(source, sourceOwner, out var sourceResolved) ||
             !SameBinding(requested.DiagramText, sourceResolved.Binding) ||
             !SameGraphIdentity(requested.DiagramText, sourceResolved.Binding))
@@ -217,6 +255,53 @@ internal static class PptxDiagramTextCodec
     private static bool TryResolve(OpenXmlElement source, OpenXmlPart owner, out ResolvedDiagram resolved)
     {
         resolved = null!;
+        if (!TryResolveParts(source, owner, out var parts)) return false;
+        var dataPart = parts.Data;
+        var layoutPart = parts.Layout;
+
+        byte[] sourceBytes;
+        XDocument document;
+        IReadOnlyList<DiagramNode> nodes;
+        IReadOnlyList<DiagramConnection> connections;
+        string layoutDefinitionId;
+        try
+        {
+            sourceBytes = ReadPart(dataPart);
+            using var memory = new MemoryStream(sourceBytes, writable: false);
+            using var reader = XmlReader.Create(memory, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null,
+                IgnoreComments = false,
+                IgnoreProcessingInstructions = false,
+                IgnoreWhitespace = false,
+            });
+            document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
+            if (!TryReadGraph(document, out nodes, out connections) ||
+                !TryReadLayoutDefinitionId(layoutPart, out layoutDefinitionId)) return false;
+        }
+        catch (Exception exception) when (exception is XmlException or IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        var binding = new PresentationDiagramText
+        {
+            PartPath = PartPath(dataPart),
+            ContentType = dataPart.ContentType,
+            SourceSha256 = Hash(sourceBytes),
+            RelationshipId = parts.DataRelationshipId,
+            LayoutDefinitionId = layoutDefinitionId,
+        };
+        binding.Nodes.Add(nodes.Select(ToWireNode));
+        binding.Connections.Add(connections.Select(ToWireConnection));
+        resolved = new ResolvedDiagram(binding, dataPart, document, nodes, connections);
+        return true;
+    }
+
+    private static bool TryResolveParts(OpenXmlElement source, OpenXmlPart owner, out DiagramParts parts)
+    {
+        parts = null!;
         if (source is not P.GraphicFrame frame || owner is not SlidePart || source.Parent is not P.ShapeTree ||
             PptxNativeObjectCatalog.Classify(source) != "diagram" || !PptxNativeObjectCatalog.SupportsPlacementEditing(source))
             return false;
@@ -271,43 +356,7 @@ internal static class PptxDiagramTextCodec
             expected.Count != rootAttributes.Select(attribute => attribute.LocalName).Distinct(StringComparer.Ordinal).Count())
             return false;
 
-        byte[] sourceBytes;
-        XDocument document;
-        IReadOnlyList<DiagramNode> nodes;
-        IReadOnlyList<DiagramConnection> connections;
-        string layoutDefinitionId;
-        try
-        {
-            sourceBytes = ReadPart(dataPart);
-            using var memory = new MemoryStream(sourceBytes, writable: false);
-            using var reader = XmlReader.Create(memory, new XmlReaderSettings
-            {
-                DtdProcessing = DtdProcessing.Prohibit,
-                XmlResolver = null,
-                IgnoreComments = false,
-                IgnoreProcessingInstructions = false,
-                IgnoreWhitespace = false,
-            });
-            document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
-            if (!TryReadGraph(document, out nodes, out connections) ||
-                !TryReadLayoutDefinitionId(layoutPart, out layoutDefinitionId)) return false;
-        }
-        catch (Exception exception) when (exception is XmlException or IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-
-        var binding = new PresentationDiagramText
-        {
-            PartPath = PartPath(dataPart),
-            ContentType = dataPart.ContentType,
-            SourceSha256 = Hash(sourceBytes),
-            RelationshipId = dataRelationshipId,
-            LayoutDefinitionId = layoutDefinitionId,
-        };
-        binding.Nodes.Add(nodes.Select(ToWireNode));
-        binding.Connections.Add(connections.Select(ToWireConnection));
-        resolved = new ResolvedDiagram(binding, dataPart, document, nodes, connections);
+        parts = new(dataPart, layoutPart, dataRelationshipId);
         return true;
     }
 
@@ -585,6 +634,9 @@ internal static class PptxDiagramTextCodec
         return expected.RunTexts.Count == actual.Runs.Count &&
             expected.RunTexts.Select((text, index) => text == actual.Runs[index].Text).All(match => match);
     }
+
+    private static bool IsReadOnlyDescription(PresentationDiagramText binding) =>
+        binding.Nodes.Count == 0 && binding.Connections.Count == 0;
 
     private static bool IsClosedDiagramPart(OpenXmlPart part) =>
         part.Parts.Any() == false && !part.ExternalRelationships.Any() && !part.HyperlinkRelationships.Any() && !part.DataPartReferenceRelationships.Any();

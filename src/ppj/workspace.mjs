@@ -14,6 +14,7 @@ import path from "node:path";
 import process from "node:process";
 
 import { compilePpjToPptx, PPJ_MAX_BYTES } from "./native.mjs";
+export { copyOnWriteSmartArtDefinition } from "./smartart-definition.mjs";
 
 export async function loadPpjWorkspace(ppjPath, { cwd = process.cwd() } = {}) {
   const file = await resolveRegularFile(path.resolve(cwd, ppjPath), "PPJ input");

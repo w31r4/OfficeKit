@@ -72,6 +72,12 @@ internal sealed class PptxPartContext
     internal IReadOnlyCollection<string> RemovedRelationshipIds => _removedRelationshipIds;
     internal IReadOnlyCollection<string> RemovedPartPaths => _removedPartPaths;
 
+    internal void TrackAddedPart(OpenXmlPart part)
+    {
+        _addedRelationshipIds.Add(Owner.GetIdOfPart(part));
+        _addedPartPaths.Add(part.Uri.OriginalString.TrimStart('/'));
+    }
+
     internal string AddExternalHyperlink(string uri)
     {
         var existing = Owner.HyperlinkRelationships.FirstOrDefault(relationship =>

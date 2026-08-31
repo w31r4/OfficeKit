@@ -38,6 +38,7 @@
           ]
         },
         "operators": {
+          "description": "Ordered bounded engine operators. V1 executes algorithm.placement, constraint.gapPoints, and rule.columns/reverse; other declared kinds fail closed at their exact path.",
           "type": "array",
           "maxItems": 256,
           "items": {
@@ -90,6 +91,7 @@
           "$ref": "#/$defs/id"
         },
         "kind": {
+          "description": "Only algorithm, constraint, and rule are executable in engine v1; the wider enum reserves typed future operators without granting execution.",
           "enum": [
             "select",
             "forEach",
@@ -102,9 +104,12 @@
         },
         "input": {
           "type": "string",
-          "maxLength": 256
+          "enum": [
+            "nodes"
+          ]
         },
         "arguments": {
+          "description": "algorithm accepts placement; constraint accepts gapPoints from 0 through 72; rule accepts columns from 1 through 64 and/or reverse.",
           "type": "object",
           "maxProperties": 32,
           "additionalProperties": {

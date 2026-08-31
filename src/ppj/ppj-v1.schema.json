@@ -1163,6 +1163,8 @@
             "setChartAxis",
             "setChartPlot",
             "setSmartArtText",
+            "setSmartArtGraph",
+            "detachSmartArt",
             "setOlePayload",
             "setName",
             "setPages",
@@ -1218,6 +1220,8 @@
               "chart.axis",
               "chart.plot",
               "smartArt.text",
+              "smartArt.connections",
+              "smartArt.detachToShapes",
               "ole.payload",
               "name",
               "pages",
@@ -4659,6 +4663,12 @@
               "minLength": 1,
               "maxLength": 2048
             },
+            "detachToShapes": {
+              "type": "boolean"
+            },
+            "nativeSections": {
+              "$ref": "#/$defs/smartArtNativeSections"
+            },
             "shapeStyleRef": {
               "$ref": "#/$defs/id"
             },
@@ -4725,6 +4735,33 @@
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef"
+        }
+      }
+    },
+    "smartArtNativeSections": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "closureSha256"
+      ],
+      "properties": {
+        "closureSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "dataSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "layoutSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "styleSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "colorsSha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "drawingSha256": {
+          "$ref": "#/$defs/sha256"
         }
       }
     },

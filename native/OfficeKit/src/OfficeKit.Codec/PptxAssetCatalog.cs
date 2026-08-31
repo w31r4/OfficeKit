@@ -61,6 +61,11 @@ internal sealed class PptxAssetCatalog
             ? asset
             : throw new CodecException("invalid_presentation_asset", $"Presentation OLE Office package references missing asset {assetId}.");
 
+    internal Asset GetSmartArtDefinition(string assetId) => _assets.TryGetValue(assetId, out var asset) &&
+        asset.Id.StartsWith(SmartArtDefinitionAssetPrefix, StringComparison.Ordinal)
+            ? asset
+            : throw new CodecException("invalid_presentation_asset", $"Presentation SmartArt references missing definition asset {assetId}.");
+
     internal Asset GetMedia(string assetId) => _assets.TryGetValue(assetId, out var asset) &&
         asset.Id.StartsWith(MediaAssetPrefix, StringComparison.Ordinal)
             ? asset
@@ -133,6 +138,30 @@ internal sealed class PptxAssetCatalog
         return asset;
     }
 
+    internal Asset ImportSmartArtDefinition(ReadOnlySpan<byte> data, string declaredSha256)
+    {
+        if (data.Length is < 1 or > 1024 * 1024)
+            throw new CodecException("invalid_presentation_asset", "Presentation SmartArt definition must contain 1 through 1048576 bytes.");
+        var digest = Hash(data);
+        if (!string.IsNullOrWhiteSpace(declaredSha256) &&
+            !declaredSha256.Equals(digest, StringComparison.OrdinalIgnoreCase))
+            throw new CodecException("invalid_presentation_asset", "Presentation SmartArt definition does not match its declared SHA-256 digest.");
+        var id = SmartArtDefinitionAssetPrefix + digest;
+        if (_assets.TryGetValue(id, out var requested)) return requested;
+        if (_imported.TryGetValue(id, out var imported)) return imported;
+        EnsureBudget(data.Length, 1024 * 1024, "SmartArt definition");
+        var asset = new Asset
+        {
+            Id = id,
+            FileName = $"smartart-definition-{digest[..16]}.json",
+            ContentType = SmartArtDefinitionContentType,
+            Data = ByteString.CopyFrom(data),
+            Sha256 = digest,
+        };
+        _imported.Add(id, asset);
+        return asset;
+    }
+
     internal ImagePart? ExistingPart(string assetId) => _partByAssetId.GetValueOrDefault(assetId);
 
     internal void RegisterPart(string assetId, ImagePart part) => _partByAssetId.TryAdd(assetId, part);
@@ -200,20 +229,37 @@ internal sealed class PptxAssetCatalog
         var isMedia = source.Id.StartsWith(MediaAssetPrefix, StringComparison.Ordinal);
         var isOleWorkbook = source.Id.StartsWith(OleWorkbookAssetPrefix, StringComparison.Ordinal);
         var isOleOfficePackage = source.Id.StartsWith(OleOfficePackageAssetPrefix, StringComparison.Ordinal);
+        var isSmartArtDefinition = source.Id.StartsWith(SmartArtDefinitionAssetPrefix, StringComparison.Ordinal);
         if (isPicture) ValidateImage(contentType, data, $"Presentation asset {source.Id}");
         else if (isMedia) ValidateMedia(contentType, data, $"Presentation asset {source.Id}");
         else if (isOleWorkbook) ValidateOleWorkbook(contentType, data, $"Presentation asset {source.Id}");
         else if (isOleOfficePackage) ValidateOleOfficePackage(contentType, data, $"Presentation asset {source.Id}");
+        else if (isSmartArtDefinition)
+        {
+            if (!contentType.Equals(SmartArtDefinitionContentType, StringComparison.Ordinal) || data.Length is < 1 or > 1024 * 1024)
+                throw new CodecException("invalid_presentation_asset", $"Presentation SmartArt definition asset {source.Id} has invalid bytes or MIME type.");
+        }
         else throw new CodecException("invalid_presentation_asset", $"Presentation asset ID {source.Id} has an unsupported purpose prefix.");
         var digest = Hash(data);
         if (!source.Sha256.Equals(digest, StringComparison.OrdinalIgnoreCase))
             throw new CodecException("invalid_presentation_asset", $"Presentation asset {source.Id} does not match its SHA-256 digest.");
-        var expectedId = (isPicture ? PictureAssetPrefix : isMedia ? MediaAssetPrefix : isOleWorkbook ? OleWorkbookAssetPrefix : OleOfficePackageAssetPrefix) + digest;
+        var expectedId = (isPicture
+            ? PictureAssetPrefix
+            : isMedia
+                ? MediaAssetPrefix
+                : isOleWorkbook
+                    ? OleWorkbookAssetPrefix
+                    : isOleOfficePackage
+                        ? OleOfficePackageAssetPrefix
+                        : SmartArtDefinitionAssetPrefix) + digest;
         if (!source.Id.Equals(expectedId, StringComparison.Ordinal))
             throw new CodecException("invalid_presentation_asset", $"Presentation asset {source.Id} is not content-addressed by its bytes.");
         if (!_assets.TryAdd(source.Id, source.Clone()))
             throw new CodecException("invalid_presentation_asset", $"Presentation contains duplicate asset ID {source.Id}.");
-        EnsureBudget(data.LongLength, isMedia ? _maxMediaAssetBytes : MaxAssetBytes, isMedia ? "media" : "image/OLE");
+        EnsureBudget(
+            data.LongLength,
+            isMedia ? _maxMediaAssetBytes : isSmartArtDefinition ? 1024UL * 1024 : MaxAssetBytes,
+            isMedia ? "media" : isSmartArtDefinition ? "SmartArt definition" : "image/OLE");
     }
 
     private void EnsureBudget(long length) => EnsureBudget(length, MaxAssetBytes, "picture-bullet");

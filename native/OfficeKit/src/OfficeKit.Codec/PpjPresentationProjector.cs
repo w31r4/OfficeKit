@@ -1123,6 +1123,8 @@ internal static partial class PpjPresentationProjector
         var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
         output["type"] = "smartArt";
         output["mode"] = "source-bound";
+        if (context.SmartArtNativeSections(element.Opaque.PreservedPartPaths) is { } nativeSections)
+            output["nativeSections"] = nativeSections;
         if (!string.IsNullOrWhiteSpace(diagram.LayoutDefinitionId))
             output["layoutDefinitionId"] = diagram.LayoutDefinitionId;
         var nodes = new JsonArray();
@@ -1192,6 +1194,12 @@ internal static partial class PpjPresentationProjector
         output["type"] = "smartArt";
         output["mode"] = "source-bound";
         if (!string.IsNullOrWhiteSpace(diagram.Layout)) output["layout"] = diagram.Layout;
+        if (!string.IsNullOrWhiteSpace(diagram.DefinitionAssetId) &&
+            context.TryMaterializeAsset(diagram.DefinitionAssetId, out var definitionAssetId))
+        {
+            output.Remove("layout");
+            output["definitionAsset"] = definitionAssetId;
+        }
         var nodes = new JsonArray();
         foreach (var node in diagram.Nodes)
         {
@@ -1870,8 +1878,15 @@ internal static partial class PpjPresentationProjector
             case PresentationElement.ContentOneofCase.Group when source.Editable:
                 output.Add(new("setFrame", EditableFrameFields));
                 break;
+            case PresentationElement.ContentOneofCase.Diagram:
+                output.Add(new("setSmartArtText", ["smartArt.text"]));
+                output.Add(new("setSmartArtGraph", ["smartArt.connections"]));
+                output.Add(new("setFrame", ["frame.x", "frame.y", "frame.width", "frame.height"]));
+                if (element.Diagram.DrawingCacheVerified)
+                    output.Add(new("detachSmartArt", ["smartArt.detachToShapes"]));
+                break;
             case PresentationElement.ContentOneofCase.Opaque:
-                if (element.Opaque.DiagramText is not null)
+                if (element.Opaque.DiagramText is { Nodes.Count: > 0 })
                     output.Add(new("setSmartArtText", ["smartArt.text"]));
                 if (element.Opaque.OleWorkbook is not null || element.Opaque.OleOfficePackage is not null)
                     output.Add(new("setOlePayload", ["ole.payload"]));
@@ -2482,6 +2497,32 @@ internal static partial class PpjPresentationProjector
                     Sha256 = hash,
                 });
             return true;
+        }
+
+        internal JsonObject? SmartArtNativeSections(IEnumerable<string> partPaths)
+        {
+            var sections = new SortedDictionary<string, string>(StringComparer.Ordinal);
+            foreach (var partPath in partPaths)
+            {
+                if (!sourceParts.TryGetValue(partPath, out var part) || string.IsNullOrWhiteSpace(part.Sha256)) continue;
+                var name = part.ContentType switch
+                {
+                    var value when value.Contains("diagramData", StringComparison.OrdinalIgnoreCase) => "dataSha256",
+                    var value when value.Contains("diagramLayout", StringComparison.OrdinalIgnoreCase) => "layoutSha256",
+                    var value when value.Contains("diagramStyle", StringComparison.OrdinalIgnoreCase) => "styleSha256",
+                    var value when value.Contains("diagramColors", StringComparison.OrdinalIgnoreCase) => "colorsSha256",
+                    var value when value.Contains("diagramDrawing", StringComparison.OrdinalIgnoreCase) => "drawingSha256",
+                    _ => string.Empty,
+                };
+                if (name.Length > 0) sections.TryAdd(name, part.Sha256.ToLowerInvariant());
+            }
+            if (sections.Count == 0) return null;
+            var output = new JsonObject();
+            foreach (var (name, hash) in sections) output[name] = hash;
+            output["closureSha256"] = Sha256(Encoding.UTF8.GetBytes(string.Join(
+                "\n",
+                sections.Select(pair => $"{pair.Key}:{pair.Value}"))));
+            return output;
         }
 
         internal void RecordNode(string pageId, string id, string type, JsonObject nativeRef)

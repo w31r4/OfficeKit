@@ -1047,6 +1047,66 @@ internal static class PptxCodec
                         changed = true;
                     }
                     if (!contentChanged) continue;
+                    if (original.ContentCase == PresentationElement.ContentOneofCase.Diagram &&
+                        requested.ContentCase == PresentationElement.ContentOneofCase.Group &&
+                        original.Diagram.DrawingCacheVerified &&
+                        original.Diagram.Drawing.Equals(requested.Group))
+                    {
+                        if (!deletionPlan.Supported)
+                            throw new CodecException(
+                                "unsupported_presentation_smartart_detach",
+                                $"Presentation slide {slideIndex + 1} SmartArt cannot detach because its native closure is not exclusively owned: {deletionPlan.BlockedReason}.",
+                                PartPath(slidePart));
+                        var nextNativeId = nativeIdsByElementId.Values.DefaultIfEmpty(1u).Max() + 1u;
+                        foreach (var detachedElement in FlattenPresentationElements([requested]))
+                            if (!nativeIdsByElementId.ContainsKey(detachedElement.Id))
+                                nativeIdsByElementId.Add(detachedElement.Id, checked(nextNativeId++));
+                        sourceElement.InsertBeforeSelf(BuildElement(requested, nativeIdsByElementId, slideContext, slidePart));
+                        PptxElementDeletionCodec.Apply(slidePart, sourceElement, deletionPlan);
+                        foreach (var removedRelationshipId in deletionPlan.RelationshipIds)
+                        {
+                            removedSourceRelationshipKeys.Add($"{PartPath(slidePart)}\0{removedRelationshipId}");
+                            removedElementRelationshipKeys.Add($"{PartPath(slidePart)}\0{removedRelationshipId}");
+                        }
+                        if (deletionPlan.RelationshipIds.Count > 0)
+                            changedParts.Add(RelationshipPartPath(slidePart));
+                        if (deletionPlan.RemovedPackagePartPaths.Count > 0)
+                        {
+                            changedParts.UnionWith(deletionPlan.RemovedPackagePartPaths);
+                            removedSourcePartPaths.UnionWith(deletionPlan.RemovedPackagePartPaths);
+                            removedElementPartPaths.UnionWith(deletionPlan.RemovedPackagePartPaths);
+                            changedParts.Add("[Content_Types].xml");
+                        }
+                        changed = true;
+                        continue;
+                    }
+                    if (original.ContentCase == PresentationElement.ContentOneofCase.Diagram &&
+                        requested.ContentCase == PresentationElement.ContentOneofCase.Diagram)
+                    {
+                        if (!deletionPlan.Supported)
+                            throw new CodecException(
+                                "unsupported_presentation_smartart_edit",
+                                $"Presentation slide {slideIndex + 1} SmartArt cannot be rewritten because its native closure is not exclusively owned: {deletionPlan.BlockedReason}.",
+                                PartPath(slidePart));
+                        sourceElement.InsertBeforeSelf(BuildElement(requested, nativeIdsByElementId, slideContext, slidePart));
+                        PptxElementDeletionCodec.Apply(slidePart, sourceElement, deletionPlan);
+                        foreach (var removedRelationshipId in deletionPlan.RelationshipIds)
+                        {
+                            removedSourceRelationshipKeys.Add($"{PartPath(slidePart)}\0{removedRelationshipId}");
+                            removedElementRelationshipKeys.Add($"{PartPath(slidePart)}\0{removedRelationshipId}");
+                        }
+                        if (deletionPlan.RelationshipIds.Count > 0)
+                            changedParts.Add(RelationshipPartPath(slidePart));
+                        if (deletionPlan.RemovedPackagePartPaths.Count > 0)
+                        {
+                            changedParts.UnionWith(deletionPlan.RemovedPackagePartPaths);
+                            removedSourcePartPaths.UnionWith(deletionPlan.RemovedPackagePartPaths);
+                            removedElementPartPaths.UnionWith(deletionPlan.RemovedPackagePartPaths);
+                            changedParts.Add("[Content_Types].xml");
+                        }
+                        changed = true;
+                        continue;
+                    }
                     if (!elementBinding.Editable)
                     {
                         if (elementBinding.TextEditable &&
@@ -1438,7 +1498,8 @@ internal static class PptxCodec
             PresentationTable table = null!;
             PresentationChart chart = null!;
             var chartEditable = false;
-            var diagramModeled = slideContext.Owner is SlidePart slidePart && PptxSmartArtCodec.TryRead(sourceFrame, slidePart, out diagram);
+            var diagramModeled = slideContext.Owner is SlidePart slidePart && slideContext.Assets is { } diagramAssets &&
+                PptxSmartArtCodec.TryRead(sourceFrame, slidePart, diagramAssets, out diagram);
             var tableModeled = !diagramModeled && PptxTableCodec.TryRead(sourceFrame, out table);
             var chartModeled = !diagramModeled && PptxChartCodec.TryRead(sourceFrame, slideContext, out chart, out chartEditable);
             editable = chartModeled ? chartEditable : tableModeled;
@@ -3637,9 +3698,38 @@ internal static class PptxCodec
                         request.Opaque);
                     continue;
                 }
+                if (request.ContentCase == PresentationElement.ContentOneofCase.Diagram)
+                {
+                    if (beforeElement is not P.GraphicFrame || afterElement is not P.GraphicFrame afterDiagramFrame)
+                        throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited SmartArt {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
+                    var outputDiagram = ReadElement(afterDiagramFrame, slideIndex, elementIndex, outputContext, elementIdsByNativeId: afterIds);
+                    if (outputDiagram.ContentCase != PresentationElement.ContentOneofCase.Diagram ||
+                        !SemanticHash(outputDiagram).Equals(SemanticHash(request), StringComparison.OrdinalIgnoreCase))
+                        throw new CodecException("presentation_postwrite_semantics_mismatch", $"PPTX slide {slideIndex + 1} edited SmartArt {elementIndex + 1} does not match requested semantics after export.", PartPath(outputSlides[slideIndex]));
+                    continue;
+                }
                 if (request.ContentCase == PresentationElement.ContentOneofCase.Group)
                 {
-                    if (beforeElement is not P.GroupShape beforeGroup || afterElement is not P.GroupShape afterGroup)
+                    if (afterElement is not P.GroupShape afterGroup)
+                        throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited group {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
+                    if (beforeElement is P.GraphicFrame)
+                    {
+                        var sourceDiagram = ReadElement(
+                            beforeElement,
+                            slideIndex,
+                            sourceElementIndex,
+                            sourceContext,
+                            elementIdsByNativeId: sourceTimingIds);
+                        if (sourceDiagram.ContentCase != PresentationElement.ContentOneofCase.Diagram ||
+                            !sourceDiagram.Diagram.DrawingCacheVerified ||
+                            !sourceDiagram.Diagram.Drawing.Equals(request.Group))
+                            throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} group {elementIndex + 1} is not an exact verified SmartArt cache detachment.", PartPath(outputSlides[slideIndex]));
+                        var detachedSemantic = ReadElement(afterGroup, slideIndex, elementIndex, outputContext, elementIdsByNativeId: afterIds);
+                        if (!SemanticHash(detachedSemantic).Equals(SemanticHash(request), StringComparison.OrdinalIgnoreCase))
+                            throw new CodecException("presentation_postwrite_semantics_mismatch", $"PPTX slide {slideIndex + 1} detached SmartArt group {elementIndex + 1} does not match requested semantics after export.", PartPath(outputSlides[slideIndex]));
+                        continue;
+                    }
+                    if (beforeElement is not P.GroupShape beforeGroup)
                         throw new CodecException("presentation_postwrite_element_mismatch", $"PPTX slide {slideIndex + 1} edited group {elementIndex + 1} changed native element type.", PartPath(outputSlides[slideIndex]));
                     ValidateGroupOutput(beforeGroup, afterGroup, request, sourceContext, outputContext, afterIds, slideIndex, $"element {elementIndex + 1}");
                     var outputGroupSemantic = ReadElement(afterGroup, slideIndex, elementIndex, outputContext, elementIdsByNativeId: afterIds);
