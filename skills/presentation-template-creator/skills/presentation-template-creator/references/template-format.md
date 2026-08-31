@@ -86,8 +86,8 @@ preview, every example, and any declared reference. The generated preview is a
 deterministic two-column montage; examples remain the full-resolution evidence
 the Agent should inspect. `referenceProgram` and `referencePptx` are optional,
 but when present they must be clean-room, reviewed, rights-declared files. The
-Creator copies them under `assets/references/`. Relative assets declared by a
-`referenceProgram` are hash-verified and copied below
-`assets/references/<asset-uri>` so the packaged PPJ remains directly buildable.
-It never packages an undeclared
+Creator copies them under `assets/references/`. Relative assets and a
+source-bound PPTX declared by a `referenceProgram` are hash-verified and copied
+below `assets/references/<asset-uri>` so the packaged PPJ remains directly
+buildable. It never packages an undeclared
 source deck.

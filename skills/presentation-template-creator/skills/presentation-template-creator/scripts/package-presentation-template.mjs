@@ -288,28 +288,47 @@ async function validateStagedSurface(root, sidecar, referenceProgramAssets = [])
 }
 
 async function readReferenceProgramAssets(program, programPath) {
-  if (program.assets == null) return [];
-  if (!Array.isArray(program.assets)) throw new Error("referenceProgram assets must be an array");
+  if (program.assets != null && !Array.isArray(program.assets)) {
+    throw new Error("referenceProgram assets must be an array");
+  }
   const programRoot = path.dirname(path.resolve(programPath));
   const seen = new Set();
   const assets = [];
   let totalBytes = 0;
-  for (const [index, asset] of program.assets.entries()) {
-    const uri = asset?.uri;
+  const declared = [];
+  if (program.source != null) {
+    declared.push({
+      index: "source",
+      uri: program.source.uri,
+      sha256: program.source.sha256,
+      label: "source package",
+    });
+  }
+  for (const [index, asset] of (program.assets ?? []).entries()) {
+    declared.push({
+      index,
+      uri: asset?.uri,
+      sha256: asset?.sha256,
+      label: `assets[${index}]`,
+    });
+  }
+  for (const entry of declared) {
+    const { index, uri, sha256: expectedHash, label } = entry;
     if (typeof uri !== "string" || uri.length === 0 || uri.includes("\\") || path.posix.isAbsolute(uri)) {
-      throw new Error(`referenceProgram assets[${index}].uri must be a safe relative path`);
+      throw new Error(`referenceProgram ${label}.uri must be a safe relative path`);
     }
     const segments = uri.split("/");
     if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
-      throw new Error(`referenceProgram assets[${index}].uri must not contain empty or traversal segments`);
+      throw new Error(`referenceProgram ${label}.uri must not contain empty or traversal segments`);
     }
     if (seen.has(uri)) throw new Error(`referenceProgram asset URI is duplicated: ${uri}`);
     seen.add(uri);
-    if (!HASH.test(asset?.sha256 ?? "")) {
-      throw new Error(`referenceProgram assets[${index}].sha256 must be a lowercase SHA-256 value`);
+    if (!HASH.test(expectedHash ?? "")) {
+      throw new Error(`referenceProgram ${label}.sha256 must be a lowercase SHA-256 value`);
     }
-    const bytes = await readRegularFile(path.join(programRoot, ...segments), MAX_REFERENCE_ASSET_BYTES, `referenceProgram assets[${index}]`);
-    if (sha256(bytes) !== asset.sha256) throw new Error(`referenceProgram asset hash does not match: ${uri}`);
+    const maxBytes = label === "source package" ? MAX_REFERENCE_PPTX_BYTES : MAX_REFERENCE_ASSET_BYTES;
+    const bytes = await readRegularFile(path.join(programRoot, ...segments), maxBytes, `referenceProgram ${label}`);
+    if (sha256(bytes) !== expectedHash) throw new Error(`referenceProgram asset hash does not match: ${uri}`);
     totalBytes += bytes.byteLength;
     if (totalBytes > MAX_TOTAL_REFERENCE_ASSET_BYTES) {
       throw new Error(`referenceProgram assets exceed the ${MAX_TOTAL_REFERENCE_ASSET_BYTES}-byte total budget`);

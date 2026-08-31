@@ -592,6 +592,9 @@ for (const sidecarPath of packagedPresentationSidecars) {
   if (sidecar.referenceProgram?.path) {
     const programPath = path.join(repoRoot, path.posix.dirname(sidecarPath), sidecar.referenceProgram.path);
     const program = JSON.parse(await fs.readFile(programPath, "utf8"));
+    if (program.source?.uri) {
+      permittedPresentationReferences.add(path.posix.join(path.posix.dirname(sidecarPath), path.posix.dirname(sidecar.referenceProgram.path), program.source.uri));
+    }
     for (const asset of program.assets ?? []) {
       permittedPresentationReferences.add(path.posix.join(path.posix.dirname(sidecarPath), path.posix.dirname(sidecar.referenceProgram.path), asset.uri));
     }

@@ -72,8 +72,9 @@ reference PPJ/PPTX.
    Keep the
    original source files, extracted media, and analysis evidence private. Add
    the clean-room `referenceProgram` and `referencePptx` to the packaging spec;
-   the Creator validates every relative PPJ asset hash and packages those files
-   beside the program so the published `reference.ppj` builds standalone
+   the Creator validates every relative PPJ asset/source hash and packages those
+   files beside the program so a published authored or source-bound
+   `reference.ppj` builds standalone
    only when their license, package size, and reuse value justify publishing;
    otherwise publish only the guide and calibration PNGs.
 7. Package with:
