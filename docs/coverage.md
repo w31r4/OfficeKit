@@ -399,6 +399,16 @@ from `solid` to `dashed`, reported only `ppt/slides/slide6.xml`, matched the
 source XML byte-for-byte after masking that one token, preserved every other
 OPC part, and reprojected the same object with `lineStyle: dashed`.
 
+Canonical third-party connector style references are covered separately: when a
+`p:cxnSp` has no direct outline paint but its `p:style/a:lnRef` contains one bare
+RGB or theme color and the complete four-reference graph is validated, the
+source-bound connector exposes `lineRgb` or `lineScheme`. Editing splices only
+that `a:srgbClr/@val` or `a:schemeClr/@val`; the line endpoint, style references,
+opaque attributes, and connector topology remain unchanged. NASA FROSTE provides
+two real `accent5` connectors; changing one to `accent1` changed only
+`ppt/slides/slide9.xml` and survived second import. Transformed, ambiguous, or
+partial style-reference graphs remain opaque.
+
 The imported style boundary also includes bounded direct run baseline leaves:
 `fontBaselinePercent` maps to a signed `a:rPr/@baseline` token in
 thousandths of a percent. It is source-bound and does not imply inherited or

@@ -2535,7 +2535,6 @@ function presentationImportedImageSnapshot(image) {
     assetsUnchanged: presentationImportedImageAssetsUnchanged(image),
   });
 }
-
 function distributePresentationTableSize(total, count, ownerLabel) {
   const slots = Number(count);
   if (!Number.isInteger(slots) || slots < 1) {

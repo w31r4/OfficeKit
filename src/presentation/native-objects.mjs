@@ -198,6 +198,34 @@ function hasCanonicalStyleLineReference(rawXml) {
   return references.every((reference) => hasCanonicalStyleReference(reference));
 }
 
+// A connector may inherit its visible line paint from p:style/a:lnRef
+// instead of carrying a direct a:ln/a:solidFill.  Keep that reference as a
+// bounded native leaf rather than flattening the connector into a semantic
+// object: changing the referenced color is a single token splice and leaves
+// the effect/fill/font references and connector topology untouched.
+function nativeStyleLineColor(rawXml) {
+  if (!hasCanonicalStyleLineReference(rawXml)) return undefined;
+  const styles = directPresentationChildren(String(rawXml || ""), "cxnSp")
+    .filter((child) => child.localName === "style");
+  if (styles.length !== 1) return undefined;
+  const references = directPresentationChildren(styles[0].xml, "style")
+    .filter((child) => child.localName === "lnRef");
+  if (references.length !== 1) return undefined;
+  const colors = directPresentationChildren(references[0].xml, "lnRef")
+    .filter((child) => child.localName === "schemeClr" || child.localName === "srgbClr");
+  if (colors.length !== 1 || directPresentationChildren(colors[0].xml, colors[0].localName).length !== 0) return undefined;
+  const open = /^<[^>]+>/u.exec(colors[0].xml)?.[0] || "";
+  const attributes = nativeTagAttributes(open);
+  if (attributes.length !== 1 || attributes[0].name.split(":").pop()?.toLowerCase() !== "val" || !attributes[0].value) return undefined;
+  if (colors[0].localName === "schemeClr") {
+    const value = nativeSchemeColorToken(attributes[0].value);
+    return value ? { leafKind: "lineScheme", value } : undefined;
+  }
+  return /^[0-9a-f]{6}$/iu.test(attributes[0].value)
+    ? { leafKind: "lineRgb", value: attributes[0].value.toUpperCase() }
+    : undefined;
+}
+
 function nativeLineArrowLeaf(xml, endpointName, leafKind) {
   const nodes = directPresentationChildren(xml, "ln").filter((child) => child.localName === endpointName);
   if (nodes.length !== 1) return undefined;
@@ -223,6 +251,7 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
   if (lineMatches.length !== 1) return undefined;
   const line = lineMatches[0];
   const leaves = [];
+  const hasStyleLineReference = hasCanonicalStyleLineReference(source);
   const width = nativeTagAttributes(line.groups?.attributes || "")
     .find((attribute) => attribute.name.split(":").pop()?.toLowerCase() === "w")?.value;
   if (width !== undefined && /^\d+$/u.test(width)) {
@@ -251,6 +280,10 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
       }
     }
   }
+  if (!leaves.some((leaf) => leaf.leafKind === "lineRgb" || leaf.leafKind === "lineScheme") && hasStyleLineReference) {
+    const styleColor = nativeStyleLineColor(source);
+    if (styleColor) leaves.push({ lineLeafIndex: leaves.length, ...styleColor, expectedHash: sha256(styleColor.value) });
+  }
   const dashMatches = [...(line.groups?.value || "").matchAll(NATIVE_PRESET_DASH_TAG)]
     .filter((match) => (match.groups?.prefix || "") === linePrefix);
   if (dashMatches.length === 1 && solidMatches.length === 1) {
@@ -269,7 +302,6 @@ function deriveNativeLineLeaves(rawXml, nativeKind) {
   const joinNodes = directPresentationChildren(line[0], "ln")
     .filter((child) => child.localName === "round" || child.localName === "bevel" || child.localName === "miter");
   const hasSimpleLinePaint = leaves.some((leaf) => leaf.leafKind === "lineRgb" || leaf.leafKind === "lineScheme");
-  const hasStyleLineReference = hasCanonicalStyleLineReference(source);
   if (joinNodes.length === 1 && hasSimpleLinePaint) {
     const open = /^<[^>]+>/u.exec(joinNodes[0].xml)?.[0] || "";
     if (/\/\s*>$/u.test(joinNodes[0].xml) && nativeTagAttributes(open).length === 0 && directPresentationChildren(joinNodes[0].xml, joinNodes[0].localName).length === 0) {
