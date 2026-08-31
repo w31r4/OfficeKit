@@ -52,8 +52,11 @@ unknown OPC descendants stay in a content-addressed preservation fragment.
 
 No-op source-bound export keeps the original parts. A local edit may change only
 the sections named by its capability and must re-prove every untouched fragment
-hash. A diagram with no semantic nodes still projects as typed read-only
-SmartArt rather than a generic opaque element.
+hash. The first third-party slice recognizes plain content points, the
+layout-definition identity, and parent-of edges while keeping document-root and
+presentation wiring private. A diagram with no provable semantic nodes remains
+opaque today; projecting every such diagram as typed read-only SmartArt belongs
+to the later residue-preservation slice.
 
 ## Explicit detach
 

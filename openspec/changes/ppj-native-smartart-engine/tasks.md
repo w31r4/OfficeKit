@@ -14,9 +14,10 @@
 
 ## 3. Source-bound projection and preservation
 
-- [ ] 3.1 Project every native diagram as typed SmartArt with partitioned capabilities.
-- [ ] 3.2 Add path-independent native OPC fragment preservation for unknown residue.
-- [ ] 3.3 Permit supported local edits while re-proving untouched fragment hashes.
+- [x] 3.1 Project proven third-party content nodes, parent edges, and layout-definition identity as typed source-bound SmartArt.
+- [ ] 3.2 Project every remaining native diagram as typed SmartArt with partitioned capabilities.
+- [ ] 3.3 Add path-independent native OPC fragment preservation for unknown residue.
+- [ ] 3.4 Permit supported local graph/style edits while re-proving untouched fragment hashes; bounded text editing is already available.
 
 ## 4. Explicit detach and evidence
 

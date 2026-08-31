@@ -1123,11 +1123,15 @@ internal static partial class PpjPresentationProjector
         var output = ElementBase(id, element.Name, ElementFrame(element), null, nativeRef);
         output["type"] = "smartArt";
         output["mode"] = "source-bound";
+        if (!string.IsNullOrWhiteSpace(diagram.LayoutDefinitionId))
+            output["layoutDefinitionId"] = diagram.LayoutDefinitionId;
         var nodes = new JsonArray();
+        var nodeIds = new Dictionary<string, string>(StringComparer.Ordinal);
         for (var index = 0; index < diagram.Nodes.Count; index++)
         {
             var source = diagram.Nodes[index];
             var nodeId = context.UniqueId($"{id}-node-{NormalizeId(source.ModelId, $"node-{index + 1}")}");
+            nodeIds.Add(source.ModelId, nodeId);
             var values = source.RunTexts.Count > 0 ? source.RunTexts.ToArray() : [source.Text];
             var hash = Sha256(Encoding.UTF8.GetBytes(source.ModelId + "\0" + string.Join("\0", values)));
             var capabilities = new[] { new CapabilitySpec("setSmartArtText", ["smartArt.text"]) };
@@ -1141,9 +1145,39 @@ internal static partial class PpjPresentationProjector
                     hash,
                     capabilities),
             };
+            node["kind"] = source.PointType switch
+            {
+                "asst" => "assistant",
+                "doc" => "document",
+                _ => "node",
+            };
             nodes.Add(node);
         }
         output["nodes"] = nodes;
+        if (diagram.Connections.Count > 0)
+        {
+            var connections = new JsonArray();
+            for (var index = 0; index < diagram.Connections.Count; index++)
+            {
+                var source = diagram.Connections[index];
+                if (!nodeIds.TryGetValue(source.FromModelId, out var fromId) ||
+                    !nodeIds.TryGetValue(source.ToModelId, out var toId))
+                    throw new CodecException(
+                        "ppj.smartArt.invalid_source_graph",
+                        "A proven source-bound SmartArt parent edge no longer resolves to projected content nodes.",
+                        $"elements.{id}.connections[{index}]");
+                var connection = new JsonObject
+                {
+                    ["id"] = context.UniqueId($"{id}-connection-{NormalizeId(source.ModelId, $"connection-{index + 1}")}"),
+                    ["from"] = fromId,
+                    ["to"] = toId,
+                    ["role"] = "parent",
+                };
+                if (source.Order > 0) connection["order"] = source.Order;
+                connections.Add(connection);
+            }
+            output["connections"] = connections;
+        }
         return output;
     }
 

@@ -2301,6 +2301,11 @@ internal static class PpjSemanticValidator
 
         if (smartArt.Mode == "authored")
         {
+            if (smartArt.LayoutDefinitionId is not null)
+                diagnostics.Add(new(
+                    "ppj.smartArt.sourceIdentity",
+                    "Authored diagrams cannot declare a source layoutDefinitionId.",
+                    $"{path}.layoutDefinitionId"));
             if (smartArt.NativeRef is not null || smartArt.Nodes.Any(node => node.NativeRef is not null))
                 diagnostics.Add(new("ppj.smartArt.nativeRef", "Authored diagrams cannot carry source-bound nativeRef authority.", path));
             if (smartArt.Nodes.Count is < 1 or > 64)
@@ -2351,6 +2356,11 @@ internal static class PpjSemanticValidator
         {
             var node = smartArt.Nodes[index];
             var nodePath = $"{path}.nodes[{index}]";
+            if (smartArt.Mode == "authored" && rawNodes[index].TryGetProperty("kind", out _))
+                diagnostics.Add(new(
+                    "ppj.smartArt.sourceIdentity",
+                    "Authored SmartArt node kind is derived by the native writer and cannot be declared.",
+                    $"{nodePath}.kind"));
             ValidateStyleRef(node.StyleRef, textStyleIds, $"{nodePath}.styleRef", diagnostics);
             ValidateStyleRef(node.ShapeStyleRef, shapeStyleIds, $"{nodePath}.shapeStyleRef", diagnostics);
             if (rawNodes[index].TryGetProperty("geometry", out var geometry))

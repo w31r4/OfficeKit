@@ -26,20 +26,29 @@ internal sealed record PptxDiagramTextEditResolution(
 
 // Owns one deliberately small SmartArt edit boundary. It does not author a
 // diagram, change the graph, or reinterpret layout/style/colors. It exposes
-// text only where an imported top-level p:graphicFrame proves it owns the
-// canonical closed four-part Diagram graph and every document point has one
-// or more DrawingML paragraphs made only of direct plain runs and fixed line
-// breaks. A node may retain source-owned empty paragraphs, but must contain at
-// least one text run overall. Paragraph, run, and break topology remain owned
-// by the source XML; the wire projects only the source-ordered text leaves.
-// Everything outside that profile stays opaque.
+// a semantic slice only where an imported top-level p:graphicFrame proves it
+// owns four closed directly referenced Diagram definition parts. An optional
+// cached drawing side graph, including images, remains source-owned and is not
+// interpreted here. Content points must have one or more DrawingML paragraphs
+// made only of direct plain runs and fixed line breaks. Parent-of connections
+// between those points are exposed, while the document root, presentation
+// points/edges, layout program, style, and colors remain source-owned. A node
+// may retain source-owned empty paragraphs, but must contain at least one text
+// run overall. Paragraph, run, and break topology remain owned by the source
+// XML; the wire projects only the source-ordered text leaves. Everything
+// outside that profile stays opaque.
 internal static class PptxDiagramTextCodec
 {
     private const string DiagramDataContentType = "application/vnd.openxmlformats-officedocument.drawingml.diagramData+xml";
     private const int MaxModelIdLength = 1_024;
+    private const int MaxLayoutDefinitionIdLength = 2_048;
     private const int MaxNodeTextLength = 32_767;
     private const int MaxNodeParagraphCount = 256;
     private const int MaxNodeInlineCount = 256;
+    private const int MaxPointCount = 1_024;
+    private const int MaxConnectionCount = 4_096;
+    private const int MaxProjectedNodeCount = 64;
+    private const int MaxProjectedConnectionCount = 256;
 
     private static readonly HashSet<string> DiagramNamespaces = new(StringComparer.Ordinal)
     {
@@ -54,13 +63,15 @@ internal static class PptxDiagramTextCodec
     };
 
     private sealed record DiagramRun(string Text, XElement TextElement);
-    private sealed record DiagramNode(string ModelId, string Text, IReadOnlyList<DiagramRun> Runs);
+    private sealed record DiagramNode(string ModelId, string PointType, string Text, IReadOnlyList<DiagramRun> Runs);
+    private sealed record DiagramConnection(string ModelId, string FromModelId, string ToModelId, uint Order);
 
     private sealed record ResolvedDiagram(
         PresentationDiagramText Binding,
         DiagramDataPart Part,
         XDocument Document,
-        IReadOnlyList<DiagramNode> Nodes);
+        IReadOnlyList<DiagramNode> Nodes,
+        IReadOnlyList<DiagramConnection> Connections);
 
     internal static bool TryDescribe(OpenXmlElement source, OpenXmlPart owner, out PresentationDiagramText binding)
     {
@@ -121,9 +132,11 @@ internal static class PptxDiagramTextCodec
             throw Unsupported("A source-bound SmartArt text binding cannot be removed.");
         if (!TryResolve(source, owner, out var resolved))
             throw BindingMismatch("The SmartArt source no longer proves the bounded diagram-text profile.", PartPath(owner));
-        if (!SameBinding(original.DiagramText, resolved.Binding) || !SameNodes(original.DiagramText.Nodes, resolved.Nodes))
+        if (!SameBinding(original.DiagramText, resolved.Binding) ||
+            !SameGraphIdentity(original.DiagramText, resolved.Binding) ||
+            !SameNodes(original.DiagramText.Nodes, resolved.Nodes))
             throw BindingMismatch("The SmartArt diagram data no longer matches its source binding.", resolved.Binding.PartPath);
-        ValidateRequestedNodes(original.DiagramText.Nodes, requested.DiagramText.Nodes, resolved.Binding.PartPath);
+        ValidateRequestedGraph(original.DiagramText, requested.DiagramText, resolved.Binding.PartPath);
 
         var changed = false;
         for (var index = 0; index < resolved.Nodes.Count; index++)
@@ -189,13 +202,14 @@ internal static class PptxDiagramTextCodec
         if (requested.DiagramText is null) return;
         if (!TryResolve(source, sourceOwner, out var sourceResolved) ||
             !SameBinding(requested.DiagramText, sourceResolved.Binding) ||
-            !SameNodeIds(requested.DiagramText.Nodes, sourceResolved.Nodes))
+            !SameGraphIdentity(requested.DiagramText, sourceResolved.Binding))
             throw BindingMismatch("The source SmartArt diagram text does not match the requested source binding.", PartPath(sourceOwner));
         if (!TryResolve(output, outputOwner, out var outputResolved))
             throw BindingMismatch("The exported SmartArt diagram no longer proves the bounded diagram-text profile.", PartPath(outputOwner));
         if (!outputResolved.Binding.PartPath.Equals(requested.DiagramText.PartPath, StringComparison.OrdinalIgnoreCase) ||
             !outputResolved.Binding.ContentType.Equals(requested.DiagramText.ContentType, StringComparison.OrdinalIgnoreCase) ||
             outputResolved.Binding.RelationshipId != requested.DiagramText.RelationshipId ||
+            !SameGraphIdentity(requested.DiagramText, outputResolved.Binding) ||
             !SameRequestedText(requested.DiagramText.Nodes, outputResolved.Nodes))
             throw BindingMismatch("The exported SmartArt node text does not match the requested bounded edit.", outputResolved.Binding.PartPath);
     }
@@ -227,6 +241,7 @@ internal static class PptxDiagramTextCodec
         var relationshipIds = new HashSet<string>(StringComparer.Ordinal);
         var partPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         DiagramDataPart? dataPart = null;
+        DiagramLayoutDefinitionPart? layoutPart = null;
         string dataRelationshipId = string.Empty;
         foreach (var attribute in rootAttributes)
         {
@@ -247,14 +262,20 @@ internal static class PptxDiagramTextCodec
                 dataPart = (DiagramDataPart)part;
                 dataRelationshipId = attribute.Value;
             }
+            else if (attribute.LocalName == "lo")
+            {
+                layoutPart = (DiagramLayoutDefinitionPart)part;
+            }
         }
-        if (dataPart is null || relationshipIds.Count != 4 || partPaths.Count != 4 ||
+        if (dataPart is null || layoutPart is null || relationshipIds.Count != 4 || partPaths.Count != 4 ||
             expected.Count != rootAttributes.Select(attribute => attribute.LocalName).Distinct(StringComparer.Ordinal).Count())
             return false;
 
         byte[] sourceBytes;
         XDocument document;
         IReadOnlyList<DiagramNode> nodes;
+        IReadOnlyList<DiagramConnection> connections;
+        string layoutDefinitionId;
         try
         {
             sourceBytes = ReadPart(dataPart);
@@ -268,7 +289,8 @@ internal static class PptxDiagramTextCodec
                 IgnoreWhitespace = false,
             });
             document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
-            if (!TryReadNodes(document, out nodes)) return false;
+            if (!TryReadGraph(document, out nodes, out connections) ||
+                !TryReadLayoutDefinitionId(layoutPart, out layoutDefinitionId)) return false;
         }
         catch (Exception exception) when (exception is XmlException or IOException or UnauthorizedAccessException)
         {
@@ -281,32 +303,112 @@ internal static class PptxDiagramTextCodec
             ContentType = dataPart.ContentType,
             SourceSha256 = Hash(sourceBytes),
             RelationshipId = dataRelationshipId,
+            LayoutDefinitionId = layoutDefinitionId,
         };
         binding.Nodes.Add(nodes.Select(ToWireNode));
-        resolved = new ResolvedDiagram(binding, dataPart, document, nodes);
+        binding.Connections.Add(connections.Select(ToWireConnection));
+        resolved = new ResolvedDiagram(binding, dataPart, document, nodes, connections);
         return true;
     }
 
-    private static bool TryReadNodes(XDocument document, out IReadOnlyList<DiagramNode> nodes)
+    private static bool TryReadGraph(
+        XDocument document,
+        out IReadOnlyList<DiagramNode> nodes,
+        out IReadOnlyList<DiagramConnection> connections)
     {
         nodes = [];
+        connections = [];
         var root = document.Root;
         if (root is null || root.Name.LocalName != "dataModel" || !DiagramNamespaces.Contains(root.Name.NamespaceName)) return false;
         var pointLists = root.Elements().Where(element => IsDiagram(element, "ptLst")).ToArray();
-        if (pointLists.Length != 1) return false;
+        var connectionLists = root.Elements().Where(element => IsDiagram(element, "cxnLst")).ToArray();
+        if (pointLists.Length != 1 || connectionLists.Length != 1) return false;
+        var points = pointLists[0].Elements().Where(element => IsDiagram(element, "pt")).ToArray();
+        var sourceConnections = connectionLists[0].Elements().Where(element => IsDiagram(element, "cxn")).ToArray();
+        if (points.Length is < 1 or > MaxPointCount || sourceConnections.Length > MaxConnectionCount ||
+            pointLists[0].Elements().Count() != points.Length || connectionLists[0].Elements().Count() != sourceConnections.Length)
+            return false;
+
         var results = new List<DiagramNode>();
-        var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var point in pointLists[0].Elements().Where(element => IsDiagram(element, "pt")))
+        var pointTypes = new Dictionary<string, string>(StringComparer.Ordinal);
+        var modelIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var point in points)
         {
-            if (point.Attribute("type")?.Value != "doc") continue;
             var modelId = point.Attribute("modelId")?.Value ?? string.Empty;
-            if (!IsBoundedModelId(modelId) || !ids.Add(modelId)) return false;
+            var pointType = NormalizePointType(point.Attribute("type")?.Value);
+            if (!IsBoundedModelId(modelId) || pointType is null || !modelIds.Add(modelId) || !pointTypes.TryAdd(modelId, pointType)) return false;
             var textBodies = point.Elements().Where(element => IsDiagram(element, "t")).ToArray();
+            if (pointType == "doc" && textBodies.Length == 0) continue;
+            if (pointType is not "node" and not "asst" and not "doc") continue;
             if (textBodies.Length != 1 || !TryReadPlainRuns(textBodies[0], out var text, out var runs)) return false;
-            results.Add(new DiagramNode(modelId, text, runs));
+            results.Add(new DiagramNode(modelId, pointType, text, runs));
         }
-        if (results.Count == 0) return false;
+        if (results.Count is < 1 or > MaxProjectedNodeCount) return false;
+
+        var contentIds = results.Select(node => node.ModelId).ToHashSet(StringComparer.Ordinal);
+        var documentIds = pointTypes.Where(pair => pair.Value == "doc").Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal);
+        var graph = new List<DiagramConnection>();
+        foreach (var connection in sourceConnections)
+        {
+            var modelId = connection.Attribute("modelId")?.Value ?? string.Empty;
+            var type = connection.Attribute("type")?.Value;
+            var fromId = connection.Attribute("srcId")?.Value ?? string.Empty;
+            var toId = connection.Attribute("destId")?.Value ?? string.Empty;
+            if (!IsBoundedModelId(modelId) || !modelIds.Add(modelId) ||
+                !pointTypes.ContainsKey(fromId) || !pointTypes.ContainsKey(toId)) return false;
+
+            // Missing type is the schema default, parent-of. Presentation
+            // relationships drive cached drawing/layout generation, not the
+            // user's content graph, so they stay source-private.
+            if (string.IsNullOrEmpty(type) || type == "parOf")
+            {
+                if (documentIds.Contains(fromId) && contentIds.Contains(toId)) continue;
+                if (!contentIds.Contains(fromId) || !contentIds.Contains(toId) ||
+                    !TryReadOrder(connection.Attribute("srcOrd")?.Value, out var order)) return false;
+                graph.Add(new DiagramConnection(modelId, fromId, toId, order));
+                if (graph.Count > MaxProjectedConnectionCount) return false;
+                continue;
+            }
+            if (type is "presOf" or "presParOf") continue;
+            return false;
+        }
         nodes = results;
+        connections = graph;
+        return true;
+    }
+
+    private static string? NormalizePointType(string? value) => value switch
+    {
+        null or "" or "node" => "node",
+        "asst" => "asst",
+        "doc" => "doc",
+        "pres" => "pres",
+        "parTrans" => "parTrans",
+        "sibTrans" => "sibTrans",
+        _ => null,
+    };
+
+    private static bool TryReadOrder(string? value, out uint order) =>
+        uint.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out order);
+
+    private static bool TryReadLayoutDefinitionId(DiagramLayoutDefinitionPart part, out string layoutDefinitionId)
+    {
+        layoutDefinitionId = string.Empty;
+        using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
+        using var reader = XmlReader.Create(stream, new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            IgnoreComments = false,
+            IgnoreProcessingInstructions = false,
+            IgnoreWhitespace = false,
+        });
+        var document = XDocument.Load(reader, LoadOptions.PreserveWhitespace);
+        var root = document.Root;
+        if (root is null || !IsDiagram(root, "layoutDef")) return false;
+        var value = root.Attribute("uniqueId")?.Value ?? string.Empty;
+        if (!IsBoundedIdentifier(value, MaxLayoutDefinitionIdLength)) return false;
+        layoutDefinitionId = value;
         return true;
     }
 
@@ -366,24 +468,30 @@ internal static class PptxDiagramTextCodec
         });
     }
 
-    private static void ValidateRequestedNodes(
-        Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> original,
-        Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> requested,
+    private static void ValidateRequestedGraph(
+        PresentationDiagramText original,
+        PresentationDiagramText requested,
         string partPath)
     {
-        if (original.Count != requested.Count)
+        if (original.LayoutDefinitionId != requested.LayoutDefinitionId ||
+            !SameConnections(original.Connections, requested.Connections))
+            throw Unsupported("SmartArt layout identity and connection topology are source-bound and cannot be changed.", partPath);
+        var originalNodes = original.Nodes;
+        var requestedNodes = requested.Nodes;
+        if (originalNodes.Count != requestedNodes.Count)
             throw Unsupported("SmartArt node topology is source-bound and cannot be changed.", partPath);
-        for (var index = 0; index < original.Count; index++)
+        for (var index = 0; index < originalNodes.Count; index++)
         {
-            if (original[index].ModelId != requested[index].ModelId)
+            if (originalNodes[index].ModelId != requestedNodes[index].ModelId ||
+                originalNodes[index].PointType != requestedNodes[index].PointType)
                 throw Unsupported("SmartArt node identifiers are source-bound and cannot be changed.", partPath);
-            var requestedRuns = RequestedRunTexts(original[index], requested[index], partPath);
-            if (requestedRuns.Count != original[index].RunTexts.Count)
+            var requestedRuns = RequestedRunTexts(originalNodes[index], requestedNodes[index], partPath);
+            if (requestedRuns.Count != originalNodes[index].RunTexts.Count)
                 throw Unsupported("SmartArt run topology is source-bound and cannot be changed.", partPath);
             if (requestedRuns.Any(text => !IsBoundedText(text)) ||
-                !IsBoundedText(requested[index].Text) ||
-                string.Concat(requestedRuns) != requested[index].Text)
-                throw Unsupported($"SmartArt node {requested[index].ModelId} text is outside the bounded plain-run profile.", partPath);
+                !IsBoundedText(requestedNodes[index].Text) ||
+                string.Concat(requestedRuns) != requestedNodes[index].Text)
+                throw Unsupported($"SmartArt node {requestedNodes[index].ModelId} text is outside the bounded plain-run profile.", partPath);
         }
     }
 
@@ -408,16 +516,26 @@ internal static class PptxDiagramTextCodec
 
     private static PresentationDiagramTextNode ToWireNode(DiagramNode node)
     {
-        var result = new PresentationDiagramTextNode { ModelId = node.ModelId, Text = node.Text };
+        var result = new PresentationDiagramTextNode { ModelId = node.ModelId, PointType = node.PointType, Text = node.Text };
         result.RunTexts.Add(node.Runs.Select(run => run.Text));
         return result;
     }
 
+    private static PresentationDiagramTextConnection ToWireConnection(DiagramConnection connection) => new()
+    {
+        ModelId = connection.ModelId,
+        FromModelId = connection.FromModelId,
+        ToModelId = connection.ToModelId,
+        Order = connection.Order,
+    };
+
     internal static bool SameEditBinding(PresentationDiagramText expected, PresentationDiagramText actual) =>
         SameBinding(expected, actual) &&
+        SameGraphIdentity(expected, actual) &&
         expected.Nodes.Count == actual.Nodes.Count &&
         expected.Nodes.Select((node, index) =>
             node.ModelId == actual.Nodes[index].ModelId &&
+            node.PointType == actual.Nodes[index].PointType &&
             node.Text == actual.Nodes[index].Text &&
             node.RunTexts.SequenceEqual(actual.Nodes[index].RunTexts)).All(match => match);
 
@@ -432,21 +550,33 @@ internal static class PptxDiagramTextCodec
         IReadOnlyList<DiagramNode> actual) =>
         expected.Count == actual.Count && expected.Select((node, index) =>
             node.ModelId == actual[index].ModelId && node.Text == actual[index].Text &&
+            node.PointType == actual[index].PointType &&
             SameRunTexts(node, actual[index])).All(match => match);
-
-    private static bool SameNodeIds(
-        Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> expected,
-        IReadOnlyList<DiagramNode> actual) =>
-        expected.Count == actual.Count && expected.Select((node, index) =>
-            node.ModelId == actual[index].ModelId &&
-            (node.RunTexts.Count == 0 ? actual[index].Runs.Count == 1 : node.RunTexts.Count == actual[index].Runs.Count)).All(match => match);
 
     private static bool SameRequestedText(
         Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextNode> expected,
         IReadOnlyList<DiagramNode> actual) =>
         expected.Count == actual.Count && expected.Select((node, index) =>
-            node.ModelId == actual[index].ModelId && node.Text == actual[index].Text &&
+            node.ModelId == actual[index].ModelId && node.PointType == actual[index].PointType && node.Text == actual[index].Text &&
             SameRunTexts(node, actual[index])).All(match => match);
+
+    private static bool SameGraphIdentity(PresentationDiagramText expected, PresentationDiagramText actual) =>
+        expected.LayoutDefinitionId == actual.LayoutDefinitionId &&
+        expected.Nodes.Count == actual.Nodes.Count &&
+        expected.Nodes.Select((node, index) =>
+            node.ModelId == actual.Nodes[index].ModelId &&
+            node.PointType == actual.Nodes[index].PointType &&
+            (node.RunTexts.Count == 0 ? actual.Nodes[index].RunTexts.Count == 1 : node.RunTexts.Count == actual.Nodes[index].RunTexts.Count)).All(match => match) &&
+        SameConnections(expected.Connections, actual.Connections);
+
+    private static bool SameConnections(
+        Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextConnection> expected,
+        Google.Protobuf.Collections.RepeatedField<PresentationDiagramTextConnection> actual) =>
+        expected.Count == actual.Count && expected.Select((connection, index) =>
+            connection.ModelId == actual[index].ModelId &&
+            connection.FromModelId == actual[index].FromModelId &&
+            connection.ToModelId == actual[index].ToModelId &&
+            connection.Order == actual[index].Order).All(match => match);
 
     private static bool SameRunTexts(PresentationDiagramTextNode expected, DiagramNode actual)
     {
@@ -477,6 +607,20 @@ internal static class PptxDiagramTextCodec
             // later reject. Keep the import capability at the same boundary.
             return int.TryParse(value, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out _) ||
                 Guid.TryParseExact(value, "B", out _);
+        }
+        catch (XmlException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsBoundedIdentifier(string value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Length > maxLength || value.Any(char.IsControl)) return false;
+        try
+        {
+            XmlConvert.VerifyXmlChars(value);
+            return true;
         }
         catch (XmlException)
         {

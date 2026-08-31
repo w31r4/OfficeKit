@@ -248,6 +248,7 @@ internal sealed class PpjSmartArtElementModel : PpjElementModel
     internal required string Mode { get; init; }
     internal string? Layout { get; init; }
     internal string? DefinitionAssetId { get; init; }
+    internal string? LayoutDefinitionId { get; init; }
     internal string? ShapeStyleRef { get; init; }
     internal string? TextStyleRef { get; init; }
     internal required IReadOnlyList<PpjSmartArtNodeModel> Nodes { get; init; }
@@ -723,6 +724,7 @@ internal static class PpjProgramParser
                 Mode = element.GetProperty("mode").GetString()!,
                 Layout = OptionalString(element, "layout"),
                 DefinitionAssetId = OptionalString(element, "definitionAsset"),
+                LayoutDefinitionId = OptionalString(element, "layoutDefinitionId"),
                 ShapeStyleRef = OptionalString(element, "shapeStyleRef"),
                 TextStyleRef = OptionalString(element, "textStyleRef"),
                 Nodes = element.GetProperty("nodes").EnumerateArray().Select(ParseSmartArtNode).ToArray(),

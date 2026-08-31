@@ -42,6 +42,30 @@ requires interpreting an unsupported operator, extension, or relationship.
 - **WHEN** a requested definition change touches an unsupported layout node
 - **THEN** validation SHALL identify the definition path and produce no PPTX.
 
+### Requirement: Proven third-party content graphs have a typed facade
+
+OfficeKit SHALL expose supported content points and parent-of relationships from
+a closed third-party DiagramML graph without transferring ownership of its
+layout program, presentation mapping, style, colors, or native identifiers to
+PPJ.
+
+#### Scenario: Inspect and edit one supported child
+
+- **WHEN** a third-party diagram has supported `node` or `asst` text points and
+  default or explicit `parOf` connections
+- **THEN** PPJ SHALL expose typed nodes, `parent` connections, sibling order,
+  and the immutable layout-definition identity
+- **AND** changing one issued text leaf SHALL change only DiagramDataPart
+- **AND** layout, style, colors, slide XML, and presentation wiring SHALL remain
+  byte-identical.
+
+#### Scenario: Unknown relationship semantics
+
+- **WHEN** the data graph contains an unknown relationship kind or a dangling
+  semantic endpoint
+- **THEN** OfficeKit SHALL withhold the typed SmartArt capability and preserve
+  the source graph unchanged.
+
 ### Requirement: Shape detachment is explicit and lossy
 
 OfficeKit SHALL convert SmartArt to ordinary shapes only through an explicit

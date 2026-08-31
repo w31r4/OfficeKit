@@ -82,9 +82,13 @@ an authored route to make the request appear successful.
 ## Edit source-bound SmartArt text
 
 A proven imported SmartArt frame appears as `type: "smartArt"` with
-`mode: "source-bound"` instead of a generic opaque object. Edit only an
-existing node's `text` after confirming that both the element and node
-nativeRefs advertise `setSmartArtText` for `smartArt.text`:
+`mode: "source-bound"` instead of a generic opaque object. Its
+`layoutDefinitionId` is the immutable source definition identity. Supported
+content points appear as nodes with `kind: "node" | "assistant" | "document"`;
+only proven DiagramML parent-of relations appear in `connections` with
+`role: "parent"`. Edit only an existing node's `text` after confirming that
+both the element and node nativeRefs advertise `setSmartArtText` for
+`smartArt.text`:
 
 ```json
 {
@@ -104,11 +108,14 @@ nativeRefs advertise `setSmartArtText` for `smartArt.text`:
 
 One native run projects as a string; multiple formatted runs project as one
 ordered PPJ run list. Change only the string values. Never add, remove,
-reorder, restyle, or reparent nodes or runs. Layout, connectors, geometry,
-colors, quick styles, relationship identity, and all non-data parts remain
-source-owned. If the graph is not fully proven, it stays opaque and no
-SmartArt text capability exists. Build to a new PPTX, then re-import before a
-second edit because node IDs and capabilities are revision-bound.
+reorder, restyle, or reparent nodes, connections, or runs. The layout identity
+is inspectable but not editable. Document-root and presentation mappings are
+intentionally absent from PPJ; layout programs, connectors, geometry, colors,
+quick styles, relationship identity, and all non-data parts remain
+source-owned. If content points, parent edges, or ignored presentation wiring
+cannot be proved safely, the graph stays opaque and no SmartArt text capability
+exists. Build to a new PPTX, then re-import before a second edit because node
+IDs and capabilities are revision-bound.
 
 ## Replace a proven embedded Office payload
 

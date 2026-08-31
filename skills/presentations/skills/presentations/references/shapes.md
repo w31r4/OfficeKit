@@ -227,7 +227,10 @@ graphic frame with data, layout, style, colors, and a deterministic cached
 drawing. The cached drawing is internal to the SmartArt object; its shapes are
 not exposed as independent page elements. Imported native SmartArt uses
 `mode: "source-bound"` and remains limited to its issued `nativeRef`
-capabilities.
+capabilities. When the DiagramML graph is fully proven, PPJ may expose its
+immutable `layoutDefinitionId`, content-node `kind`, and `parent` connections;
+these are an inspectable semantic facade, not authority to rebuild or reparent
+the source graph.
 
 The program must supply named shape and text styles. Connected layouts also
 supply connector paint. This keeps the compiler deterministic without letting

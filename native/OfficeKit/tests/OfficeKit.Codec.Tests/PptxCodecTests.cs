@@ -11734,6 +11734,107 @@ public sealed class PptxCodecTests
     }
 
     [Fact]
+    public void SourceBoundSmartArtProjectsProvenContentGraphWithoutRewritingNativeParts()
+    {
+        const string dataPath = "ppt/diagrams/clone-data.xml";
+        var source = ReplaceZipText(
+            AddDiagramPersistLayoutGraph(AddCloneableDiagramGraph(Invoke(ExportRequest()).File.ToByteArray())),
+            dataPath,
+            _ => "<dgm:dataModel xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\"><dgm:ptLst><dgm:pt modelId=\"0\" type=\"doc\"/><dgm:pt modelId=\"1\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Parent</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId=\"2\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>First child</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId=\"3\" type=\"asst\"><dgm:t><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Assistant</a:t></a:r></a:p></dgm:t></dgm:pt><dgm:pt modelId=\"4\" type=\"pres\"/></dgm:ptLst><dgm:cxnLst><dgm:cxn modelId=\"10\" srcId=\"0\" destId=\"1\" srcOrd=\"0\" destOrd=\"0\"/><dgm:cxn modelId=\"11\" type=\"parOf\" srcId=\"1\" destId=\"2\" srcOrd=\"0\" destOrd=\"0\"/><dgm:cxn modelId=\"12\" type=\"parOf\" srcId=\"1\" destId=\"3\" srcOrd=\"1\" destOrd=\"0\"/><dgm:cxn modelId=\"13\" type=\"presOf\" srcId=\"1\" destId=\"4\" srcOrd=\"0\" destOrd=\"0\"/></dgm:cxnLst><dgm:bg/><dgm:whole/><dgm:extLst><a:ext uri=\"{C28D6A17-3A09-4B91-8F6C-3E9D4F6A8C12}\"><dsp:dataModelExt relId=\"rIdCloneDiagramDrawing\"/></a:ext></dgm:extLst></dgm:dataModel>");
+
+        using (var stream = new MemoryStream(source))
+        using (var package = PresentationDocument.Open(stream, false))
+            Assert.Empty(new OpenXmlValidator(FileFormatVersions.Office2021).Validate(package));
+
+        var imported = Import(source);
+        Assert.True(imported.Ok, Diagnostics(imported));
+        var binding = Assert.IsType<PresentationDiagramText>(Assert.Single(
+            imported.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+        Assert.Equal("urn:office-kit:clone-layout", binding.LayoutDefinitionId);
+        Assert.Equal([("1", "node"), ("2", "node"), ("3", "asst")], binding.Nodes.Select(node => (node.ModelId, node.PointType)));
+        Assert.Equal([("11", "1", "2", 0u), ("12", "1", "3", 1u)], binding.Connections.Select(connection =>
+            (connection.ModelId, connection.FromModelId, connection.ToModelId, connection.Order)));
+
+        var projected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.ProjectPptxToPpj,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                SourceUri = "deck.assets/source/third-party-smartart.pptx",
+                AssetRootUri = "deck.assets/media",
+            },
+        });
+        Assert.True(projected.Ok, Diagnostics(projected));
+        var state = JsonNode.Parse(projected.PresentationProgram.ProgramJson.ToByteArray())!.AsObject();
+        var smartArt = state["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "smartArt");
+        Assert.Equal("source-bound", smartArt["mode"]!.GetValue<string>());
+        Assert.Equal("urn:office-kit:clone-layout", smartArt["layoutDefinitionId"]!.GetValue<string>());
+        var nodes = smartArt["nodes"]!.AsArray().Select(node => node!.AsObject()).ToArray();
+        Assert.Equal(["node", "node", "assistant"], nodes.Select(node => node["kind"]!.GetValue<string>()));
+        var connections = smartArt["connections"]!.AsArray().Select(connection => connection!.AsObject()).ToArray();
+        Assert.Equal(2, connections.Length);
+        Assert.All(connections, connection => Assert.Equal("parent", connection["role"]!.GetValue<string>()));
+        Assert.Equal(nodes[0]["id"]!.GetValue<string>(), connections[0]["from"]!.GetValue<string>());
+        Assert.Equal(nodes[1]["id"]!.GetValue<string>(), connections[0]["to"]!.GetValue<string>());
+        Assert.Equal(nodes[2]["id"]!.GetValue<string>(), connections[1]["to"]!.GetValue<string>());
+        Assert.Equal(1u, connections[1]["order"]!.GetValue<uint>());
+
+        nodes[1]["text"] = "Edited child";
+        var edited = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(state.ToJsonString()),
+                IncludeNodeMap = true,
+            },
+        });
+        Assert.True(edited.Ok, Diagnostics(edited));
+        Assert.Equal([dataPath], edited.PresentationProgram.ChangedParts);
+        var output = edited.File.ToByteArray();
+        Assert.Contains("Edited child", Encoding.UTF8.GetString(ZipBytes(output, dataPath)));
+        foreach (var path in ZipPartPaths(source).Where(path => !path.Equals(dataPath, StringComparison.OrdinalIgnoreCase)))
+            Assert.Equal(ZipBytes(source, path), ZipBytes(output, path));
+
+        var topologyEdit = state.DeepClone().AsObject();
+        topologyEdit["pages"]![0]!["elements"]!.AsArray()
+            .Select(item => item!.AsObject())
+            .Single(item => item["type"]!.GetValue<string>() == "smartArt")["connections"]![0]!["order"] = 2;
+        var topologyRejected = Invoke(new CodecRequest
+        {
+            ProtocolVersion = CodecProtocol.ProtocolVersion,
+            Operation = CodecOperation.CompilePpjToPptx,
+            Family = ArtifactFamily.Presentation,
+            File = ByteString.CopyFrom(source),
+            PresentationProgram = new PresentationProgramRequest
+            {
+                ProgramJson = ByteString.CopyFromUtf8(topologyEdit.ToJsonString()),
+            },
+        });
+        Assert.False(topologyRejected.Ok);
+        Assert.Equal("ppj.source.unsupportedMutation", Assert.Single(topologyRejected.Diagnostics).Code);
+
+        var unknownRelationship = ReplaceZipText(
+            source,
+            dataPath,
+            xml => xml.Replace("type=\"parOf\" srcId=\"1\" destId=\"2\"", "type=\"unknownRelationship\" srcId=\"1\" destId=\"2\"", StringComparison.Ordinal));
+        var unknownImport = Import(unknownRelationship);
+        Assert.True(unknownImport.Ok, Diagnostics(unknownImport));
+        Assert.Null(Assert.Single(
+            unknownImport.Artifact.Presentation.Slides[0].Elements,
+            element => element.Opaque?.NativeKind == "diagram").Opaque.DiagramText);
+    }
+
+    [Fact]
     public void SourceBoundSmartArtPlainNodeTextCanBeEditedWithoutChangingItsGraph()
     {
         const string dataPath = "ppt/diagrams/clone-data.xml";
@@ -16866,6 +16967,25 @@ public sealed class PptxCodecTests
             AddZipText(archive, "ppt/diagrams/clone-layout.xml", "<dgm:layoutDef xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" uniqueId=\"urn:office-kit:clone-layout\"><dgm:title val=\"Clone\"/><dgm:desc val=\"Clone layout\"/><dgm:catLst/><dgm:layoutNode name=\"root\"/></dgm:layoutDef>");
             AddZipText(archive, "ppt/diagrams/clone-style.xml", "<dgm:styleDef xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" uniqueId=\"urn:office-kit:clone-style\"><dgm:title val=\"Clone\"/><dgm:desc val=\"Clone style\"/><dgm:catLst/><dgm:styleLbl name=\"node0\"/></dgm:styleDef>");
             AddZipText(archive, "ppt/diagrams/clone-colors.xml", "<dgm:colorsDef xmlns:dgm=\"http://schemas.openxmlformats.org/drawingml/2006/diagram\" uniqueId=\"urn:office-kit:clone-colors\"><dgm:title val=\"Clone\"/><dgm:desc val=\"Clone colors\"/><dgm:catLst/></dgm:colorsDef>");
+        }
+        return stream.ToArray();
+    }
+
+    private static byte[] AddDiagramPersistLayoutGraph(byte[] bytes)
+    {
+        const string drawing = "<dsp:drawing xmlns:dsp=\"http://schemas.microsoft.com/office/drawing/2008/diagram\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><dsp:spTree><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/></dsp:spTree></dsp:drawing>";
+        using var stream = new MemoryStream();
+        stream.Write(bytes);
+        stream.Position = 0;
+        using (var package = PresentationDocument.Open(stream, true))
+        {
+            var slide = package.PresentationPart!.SlideParts.Single();
+            var drawingPart = slide.AddNewPart<DiagramPersistLayoutPart>("rIdCloneDiagramDrawing");
+            drawingPart.Drawing = new OD.Drawing(drawing);
+            drawingPart.Drawing.Save();
+            var imagePart = drawingPart.AddImagePart(ImagePartType.Png, "rIdCloneDiagramDrawingImage");
+            using var image = new MemoryStream(Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="));
+            imagePart.FeedData(image);
         }
         return stream.ToArray();
     }

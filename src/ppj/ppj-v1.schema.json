@@ -4654,6 +4654,11 @@
             "definitionAsset": {
               "$ref": "#/$defs/id"
             },
+            "layoutDefinitionId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            },
             "shapeStyleRef": {
               "$ref": "#/$defs/id"
             },
@@ -4710,6 +4715,13 @@
         },
         "asset": {
           "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "node",
+            "assistant",
+            "document"
+          ]
         },
         "nativeRef": {
           "$ref": "#/$defs/nativeRef"
