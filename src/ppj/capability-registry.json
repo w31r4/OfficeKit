@@ -123,6 +123,13 @@
       "reason": "The bounded profile owns one shared value/value coordinate system, 2..8 scatter, bubble, line, area or column series and 2..64 strictly increasing finite X/Y points per series. It emits stable editable axes, fills, bars, segments and point marks. Secondary axes, chart formulas, statistical transforms, ChartPart build animation and unsupported styling fail closed."
     },
     {
+      "feature": "bounded visible bubble sizing",
+      "ppjPath": "pages[].elements[].style.bubbleSizeScale and pages[].elements[].style.bubbleRadiusRange on bubble or numeric combo charts",
+      "behavior": "partial",
+      "sourceBound": "OfficeKit-authored PPTX restores the exact size mapping from its embedded PPJ program. Without that private program, the generated ellipses and axes import truthfully as an editable group; third-party DrawingML groups are never inferred as bubble data.",
+      "reason": "PPJ can map one shared positive bubble-size domain through sqrt, linear or logarithmic scaling into a strictly increasing 2..72 point radius range. Declaring either field intentionally selects editable vector lowering because ChartML cannot promise exact visible radii or logarithmic transforms. Native ChartPart build animation, formulas, secondary axes, per-series ranges and reverse inference fail closed."
+    },
+    {
       "feature": "editable candlestick overlays",
       "ppjPath": "pages[].elements[] where chartType is candlestick and data.series has aligned line, area or column overlays after the OHLC/HLC body",
       "behavior": "partial",
@@ -148,7 +155,7 @@
       "ppjPath": "pages[].elements[].style.dataLabels, pages[].elements[].data.series[].dataLabels, pages[].elements[].style.bubbleScale/bubbleSizeMode and pages[].elements[].xAxis/yAxis/secondaryXAxis/secondaryYAxis reverse/axisLine/gridLine",
       "behavior": "partial",
       "sourceBound": "Recognized imported ChartParts issue setChartLabels for plot defaults plus bounded series defaults and sparse zero-based point overrides, setChartPlot for native bubble scale and size semantics, and setChartAxis for bounded axis direction plus direct axis/grid line styling. Each capability owns only its declared field group and patches the existing ChartPart.",
-      "reason": "PPJ owns plot-, series- and sparse point-level label visibility, native position, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis reversal; and direct RGB/no-fill axis and major-grid lines. Custom label text/layout/shape/effect/leader-line graphs, source-linked formats, pixel-radius ranges, logarithmic transforms, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
+      "reason": "PPJ owns plot-, series- and sparse point-level label visibility, native position, direct number format and bounded typography; bubble scale from 0 through 300; native area/width size semantics; presence-aware axis reversal; and direct RGB/no-fill axis and major-grid lines. Exact visible radii and logarithmic sizing are a separate authored vector capability, not a native source-bound ChartPart mutation. Custom label text/layout/shape/effect/leader-line graphs, source-linked formats, theme/effect line graphs and unsupported topology remain source-owned and fail closed."
     },
     {
       "feature": "native sparse chart point styles",

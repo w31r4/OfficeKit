@@ -407,8 +407,24 @@ values are finite, bubble sizes are positive, and `categories` is empty. Only
 Y `values` may contain `null`. Do not encode numeric X values as strings merely
 to reuse a category chart. `bubbleScale` changes the native chart-wide scale,
 not each datum's meaning; `bubbleSizeMode` chooses whether the native size
-values represent area or width. PPJ intentionally has no pixel-radius range:
-PowerPoint does not store that semantic as a stable native chart property.
+values represent area or width.
+
+When exact visible size is part of the evidence, declare a bounded mapping:
+
+```json
+"style": {
+  "bubbleSizeScale": "log",
+  "bubbleRadiusRange": [5, 24]
+}
+```
+
+`bubbleSizeScale` is `sqrt`, `linear`, or `log`; the radius pair is measured in
+points and must increase within 2–72. OfficeKit uses one shared size domain for
+all bubble series. Declaring either field intentionally compiles the chart as
+editable DrawingML ellipses and axes, because native ChartML cannot promise
+exact visible radii or logarithmic sizing. Whole-object animation remains
+available; native chart-build animation does not. Without the embedded PPJ,
+reimport returns the honest editable group and does not infer data semantics.
 
 On imported charts, `setChartData` owns only the bounded data vectors and does
 not authorize changing X values, bubble sizes, or the positions of missing Y
@@ -421,7 +437,8 @@ as decoration, to grid lines, or to radar spokes. When the matching capability
 is absent, preserve the native graph rather than redrawing it with shapes.
 Per-point label formats, logarithmic transforms, custom arrow sizing,
 theme/effect line graphs, and other irregular native formatting remain
-source-owned.
+source-owned. `bubbleSizeScale` and `bubbleRadiusRange` are authored vector
+semantics, not permission to rewrite an imported native ChartPart.
 
 Use `combo` only when two or three different plot families share one real
 ordered category domain. Each series declares `chartType: "column" | "line" | "area"`
@@ -525,8 +542,10 @@ This is an editable DrawingML group, not a disguised categorical ChartPart.
 Filled area and column marks sit behind lines and points. The profile accepts
 2–8 series and 2–64 complete points per series, one shared axis pair, bounded
 axis formatting, and `none` or `right` legend placement. Area or column
-overlays require a truthful zero baseline. `bubbleScale` is 10–300. Line and
-scatter series may use bounded markers, but scatter cannot choose `none`;
+overlays require a truthful zero baseline. `bubbleScale` is 10–300. An explicit
+`bubbleSizeScale` or `bubbleRadiusRange` uses the same shared domain
+and exact editable ellipse mapping described above. Line and scatter series may
+use bounded markers, but scatter cannot choose `none`;
 bubble, area and column marker settings are rejected instead of ignored.
 Secondary axes, formulas,
 trendlines, error bars and `chartBuild` animation fail closed. Without the
