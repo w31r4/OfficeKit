@@ -154,7 +154,7 @@ internal static class PpjSourceBoundPresentationCompiler
         {
             var validationReceipt = new PresentationProgramResult
             {
-                ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+                ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
                 ProgramSha256 = validation.ProgramSha256,
                 NodeMapJson = request.IncludeNodeMap ? projected.Program.NodeMapJson : ByteString.Empty,
                 SourceSha256 = sourceSha256,
@@ -193,7 +193,7 @@ internal static class PpjSourceBoundPresentationCompiler
 
         var receipt = new PresentationProgramResult
         {
-            ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+            ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
             ProgramSha256 = validation.ProgramSha256,
             NodeMapJson = request.IncludeNodeMap ? projected.Program.NodeMapJson : ByteString.Empty,
             SourceSha256 = sourceSha256,

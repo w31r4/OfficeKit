@@ -120,7 +120,7 @@ internal static partial class PpjPresentationProjector
 
         var result = new PresentationProgramResult
         {
-            ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+            ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
             ProgramSha256 = validation.ProgramSha256,
             NodeMapJson = request.IncludeNodeMap ? ByteString.CopyFrom(nodeMapBytes) : ByteString.Empty,
             SourceSha256 = sourceSha256,

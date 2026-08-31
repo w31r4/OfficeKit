@@ -31,13 +31,13 @@ internal static class PpjAuthoredPresentationCompiler
         _ = new Catalog(program.Root, assets);
         var receipt = new PresentationProgramResult
         {
-            ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+            ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
             ProgramSha256 = validation.ProgramSha256,
             SourceBound = false,
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         if (request.IncludeNodeMap)
-            receipt.NodeMapJson = ByteString.CopyFrom(validation.Expansion.NodeMapJson);
+            receipt.NodeMapJson = UnsafeByteOperations.UnsafeWrap(validation.Expansion.NodeMapJson);
         receipt.Assets.Add(assets.Select(asset => asset.Clone()));
         return new([], receipt, []);
     }
@@ -73,14 +73,14 @@ internal static class PpjAuthoredPresentationCompiler
         var fileSha256 = Sha256(file);
         var receipt = new PresentationProgramResult
         {
-            ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+            ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
             ProgramSha256 = validation.ProgramSha256,
             OutputSha256 = fileSha256,
             SourceBound = false,
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         if (request.IncludeNodeMap)
-            receipt.NodeMapJson = ByteString.CopyFrom(validation.Expansion.NodeMapJson);
+            receipt.NodeMapJson = UnsafeByteOperations.UnsafeWrap(validation.Expansion.NodeMapJson);
         receipt.Assets.Add(assets.Select(asset => asset.Clone()));
         receipt.ChangedNodeIds.Add(validation.Expansion.Nodes.Select(node => node.Id));
         return new(file, receipt, exported.Diagnostics);

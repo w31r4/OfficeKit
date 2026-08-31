@@ -112,7 +112,7 @@ internal static class PpjEmbeddedProgramCodec
             var diagnostics = NativeDriftDiagnostics(root.GetProperty("nativePackage"), parts);
             var result = new PresentationProgramResult
             {
-                ProgramJson = ByteString.CopyFrom(validation.CanonicalJson),
+                ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
                 OriginalProgramJson = ByteString.CopyFrom(programBytes),
                 ProgramSha256 = validation.ProgramSha256,
                 NodeMapJson = request.IncludeNodeMap ? ByteString.CopyFrom(nodeMap) : ByteString.Empty,
@@ -135,7 +135,7 @@ internal static class PpjEmbeddedProgramCodec
 
     internal static byte[] Embed(
         byte[] pptx,
-        ReadOnlySpan<byte> originalProgramJson,
+        byte[] originalProgramJson,
         PpjValidationResult validation,
         PresentationArtifact presentation,
         IReadOnlyList<Asset> compiledAssets,
@@ -145,7 +145,7 @@ internal static class PpjEmbeddedProgramCodec
             throw new InvalidOperationException("Only a validated authored PPJ can be embedded.");
         if (validation.Program.Source is not null)
             throw new InvalidOperationException("Source-bound PPJ must never be embedded into third-party output.");
-        if (originalProgramJson.IsEmpty)
+        if (originalProgramJson.Length == 0)
             throw new InvalidOperationException("Authored PPJ source bytes are required for exact recovery.");
 
         var parts = ReadParts(pptx);
@@ -162,7 +162,7 @@ internal static class PpjEmbeddedProgramCodec
 
     internal static void AddToSourceFreePackage(
         Dictionary<string, byte[]> parts,
-        ReadOnlySpan<byte> originalProgramJson,
+        byte[] originalProgramJson,
         PpjValidationResult validation,
         IReadOnlyList<PptxNativeBinding> bindings,
         IReadOnlyList<Asset> compiledAssets)
@@ -171,7 +171,7 @@ internal static class PpjEmbeddedProgramCodec
             throw new InvalidOperationException("Only a validated authored PPJ can be embedded.");
         if (validation.Program.Source is not null)
             throw new InvalidOperationException("Source-bound PPJ must never be embedded into third-party output.");
-        if (originalProgramJson.IsEmpty)
+        if (originalProgramJson.Length == 0)
             throw new InvalidOperationException("Authored PPJ source bytes are required for exact recovery.");
 
         RejectReservedParts(parts);
@@ -187,7 +187,7 @@ internal static class PpjEmbeddedProgramCodec
 
         parts[ContentTypesPath] = AddContentTypes(parts[ContentTypesPath], assets);
         parts[RootRelationshipsPath] = AddRootProgramRelationship(parts[RootRelationshipsPath]);
-        parts[ProgramPath] = originalProgramJson.ToArray();
+        parts[ProgramPath] = originalProgramJson;
         parts[ProgramMapPath] = map;
         parts[ProgramRelationshipsPath] = WriteProgramRelationships(assets);
         foreach (var asset in assets.GroupBy(asset => asset.PartPath, StringComparer.Ordinal).Select(group => group.First()))
