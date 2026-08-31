@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-project-kickoff",
+  "displayName": "Project Kickoff",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "22d039622bbf7a1db1006b760946ebae689b2857805252f4ad9f58b85ec422a6"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "3ecdba3cc7797680355b83b37da03f07e097176bca9b3f900e94b91a9806eb5b"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "b78c3ed6c525a83cea1b5f0003713f93d6815f89e35f52f35948937427273155"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "d3a8ab9270ca326cb7278cf3708a6a6d789b2412c0597e9af544abee644ff05b"
+    }
+  ],
+  "useWhen": [
+    "project kickoff",
+    "cross-functional alignment",
+    "program planning"
+  ],
+  "avoidWhen": [
+    "retrospective only",
+    "financial appendix",
+    "brand campaign"
+  ],
+  "audiences": [
+    "project sponsors",
+    "delivery teams",
+    "partner functions"
+  ],
+  "contentShapes": [
+    "north-star proposition",
+    "scope map",
+    "milestone path",
+    "risk and ask"
+  ],
+  "visualTraits": {
+    "tone": [
+      "confident",
+      "energizing",
+      "structured"
+    ],
+    "density": "mixed",
+    "colorMode": "dark",
+    "structure": [
+      "dark promise field",
+      "lime route",
+      "named phases"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "c28fae688b6a055592a83b69ba40eedd75a9fab5b33880bc2ab5ee456b7f8be3",
+    "license": "MIT",
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Project Kickoff reference; the immutable source hash and unsupported native subgraphs remain explicit."
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "a7c3267ee27f8ecba4cfda456a6c3769efaebf8f9c7219dad7ffcc028728b5ee",
+    "license": "MIT",
+    "source": "Historical Codex Project Kickoff reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit template guide and calibration preview are newly authored migration material. The declared MIT reference PPJ/PPTX is source-bound for native inspection and is not presented as a clean-room redraw.",
+    "guideSha256": "59d6274627350b347121e68b32b07a920f7b09a10c96836265a13b4ed248adaa",
+    "previewSha256": "9994741aedbbd448bd31232d4c699029f60484e6b7c23c931780f0904eef1ebc"
+  }
+}
