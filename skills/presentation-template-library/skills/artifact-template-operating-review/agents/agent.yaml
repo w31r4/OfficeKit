@@ -1,0 +1,5 @@
+interface:
+  display_name: "Operating Review"
+  short_description: "Use the Operating Review presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-operating-review as the visual style for this presentation."
