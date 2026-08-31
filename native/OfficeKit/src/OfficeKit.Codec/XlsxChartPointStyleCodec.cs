@@ -92,7 +92,7 @@ internal static class XlsxChartPointStyleCodec
                     shapeProperties.Elements().Any(child => !FillNames.Contains(child.Name) && child.Name != DrawingNs + "ln") ||
                     shapeProperties.Elements().Count(child => FillNames.Contains(child.Name)) > 1 ||
                     shapeProperties.Elements(DrawingNs + "ln").Take(2).Count() > 1 ||
-                    !XlsxChartSurfaceFillCodec.TryRead(shapeProperties, out var fill) ||
+                    !XlsxChartSurfaceFillCodec.TryReadPaint(shapeProperties.Elements().SingleOrDefault(child => FillNames.Contains(child.Name)), out var fill) ||
                     !XlsxChartSeriesLineStyleCodec.TryReadLine(shapeProperties, out var line)) return false;
                 if (fill is not null) output.Fill = fill;
                 if (line is not null) output.Line = line;
