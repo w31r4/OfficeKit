@@ -1,0 +1,5 @@
+interface:
+  display_name: "Market Trends Report"
+  short_description: "Use the Market Trends Report presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-market-trends-report as the visual style for this presentation."
