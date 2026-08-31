@@ -67,13 +67,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "c7319a8e8c41c77b66c077f9a1f79ecf4580cb20bca9928a5f32f9915b3f0a3f",
     "license": "MIT",
-    "source": "OfficeKit source-bound PPJ projection of the historical Codex Team Alignment reference; the immutable source hash and unsupported native subgraphs remain explicit."
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Team Alignment reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-team-alignment/assets/references/reference.ppj",
+      "sha256": "c7319a8e8c41c77b66c077f9a1f79ecf4580cb20bca9928a5f32f9915b3f0a3f",
+      "bytes": 2124376
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "2429c3b2281c116f41185d27b3621615ee86eef2688977544d304de76b80883b",
     "license": "MIT",
-    "source": "Historical Codex Team Alignment reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+    "source": "Historical Codex Team Alignment reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-team-alignment/assets/references/reference.pptx",
+      "sha256": "2429c3b2281c116f41185d27b3621615ee86eef2688977544d304de76b80883b",
+      "bytes": 7300626
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

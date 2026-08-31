@@ -71,12 +71,15 @@ reference PPJ/PPTX.
    masks, crop, transparency, or layer order survived the host.
    Keep the
    original source files, extracted media, and analysis evidence private. Add
-   the clean-room `referenceProgram` and `referencePptx` to the packaging spec;
-   the Creator validates every relative PPJ asset/source hash and packages those
-   files beside the program so a published authored or source-bound
-   `reference.ppj` builds standalone
-   only when their license, package size, and reuse value justify publishing;
-   otherwise publish only the guide and calibration PNGs.
+   the clean-room `referenceProgram` and `referencePptx` to the packaging spec.
+   For a library template, add a GitHub `download` descriptor with the same
+   SHA-256 and byte count; local reference trees remain useful for review but
+   are excluded from the npm archive and restored only by
+   `officekit template fetch`. The Creator validates every relative PPJ
+   asset/source hash and packages those files beside the program for local
+   verification. Publish a reference only when its license, package size, and
+   reuse value justify retaining it in GitHub; otherwise publish only the guide
+   and calibration PNGs.
 7. Package with:
 
    ```bash

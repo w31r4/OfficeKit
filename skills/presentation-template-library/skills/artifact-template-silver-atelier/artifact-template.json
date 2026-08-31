@@ -62,13 +62,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "291d10972778d5f865e03273aab0eadc5667be69620ec825af825536a18b7a9b",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound."
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/references/reference.ppj",
+      "sha256": "291d10972778d5f865e03273aab0eadc5667be69620ec825af825536a18b7a9b",
+      "bytes": 492513
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/references/reference.pptx",
+      "sha256": "6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a",
+      "bytes": 715823
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

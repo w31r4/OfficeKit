@@ -479,14 +479,11 @@ for (const required of [
   "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/artifact-template.json",
   "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/preview.png",
   "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/examples/01-cover.png",
-  "skills/presentation-template-library/skills/artifact-template-amber-committee-memo/assets/references/reference.pptx",
   "skills/presentation-template-library/skills/artifact-template-evidence-ledger/SKILL.md",
   "skills/presentation-template-library/skills/artifact-template-evidence-ledger/agents/agent.yaml",
   "skills/presentation-template-library/skills/artifact-template-evidence-ledger/artifact-template.json",
   "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/preview.png",
   "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/examples/06-closing.png",
-  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.ppj",
-  "skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.pptx",
   "skills/pdf/.codex-plugin/plugin.json",
   "skills/pdf/manifest.json",
   "skills/pdf/README.md",
@@ -584,10 +581,18 @@ const packagedPresentationSidecars = files.filter((file) =>
 );
 assert.equal(packagedPresentationSidecars.length, 39, "npm package must ship exactly thirty-nine schema-v3 presentation style Skills");
 const permittedPresentationReferences = new Set();
+let declaredPresentationCalibrationPngs = 0;
 for (const sidecarPath of packagedPresentationSidecars) {
   const sidecar = JSON.parse(await fs.readFile(path.join(repoRoot, sidecarPath), "utf8"));
+  declaredPresentationCalibrationPngs += 1 + sidecar.examples.length;
   for (const reference of [sidecar.referenceProgram, sidecar.referencePptx]) {
-    if (reference?.path) permittedPresentationReferences.add(path.posix.join(path.posix.dirname(sidecarPath), reference.path));
+    if (reference?.path) {
+      permittedPresentationReferences.add(path.posix.join(path.posix.dirname(sidecarPath), reference.path));
+      assert.ok(reference.download, `${sidecarPath} must provide a lazy reference download descriptor`);
+      assert.match(reference.download.url, /^https:\/\/raw\.githubusercontent\.com\//u);
+      assert.equal(reference.download.sha256, reference.sha256);
+      assert.ok(Number.isSafeInteger(reference.download.bytes) && reference.download.bytes > 0);
+    }
   }
   if (sidecar.referenceProgram?.path) {
     const programPath = path.join(repoRoot, path.posix.dirname(sidecarPath), sidecar.referenceProgram.path);
@@ -606,10 +611,18 @@ assert.ok(
     || permittedPresentationReferences.has(file)),
   "presentation templates may ship only declared clean-room PPJ/PPTX references, never source decks, code, or SVG page skeletons",
 );
+assert.ok(
+  files.every((file) => !file.startsWith("skills/presentation-template-library/") || !file.includes("/assets/references/")),
+  "presentation reference packages must be fetched lazily and must not enter the npm archive",
+);
 const packagedPresentationCalibrationPngs = files.filter((file) =>
   /^skills\/presentation-template-library\/skills\/artifact-template-[^/]+\/assets\/(?:preview|examples\/[^/]+)\.png$/u.test(file),
 );
-assert.equal(packagedPresentationCalibrationPngs.length, 190, "the presentation library must ship every declared preview and calibration example");
+assert.equal(
+  packagedPresentationCalibrationPngs.length,
+  declaredPresentationCalibrationPngs,
+  "the presentation library must ship every declared preview and calibration example",
+);
 assert.ok(files.every((file) => !file.startsWith("native/OfficeKit/") && !file.startsWith("scripts/")), "npm runtime package must not duplicate repository-only OfficeKit source or build tooling");
 assert.ok(files.every((file) => !file.startsWith("runtime/office-kit/")), "the root npm package must not retain the removed WASM runtime");
 assert.ok(

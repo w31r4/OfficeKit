@@ -66,13 +66,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "cdf1fece8e8808e3d381c81edea603df9ff15eb6dc117cdaa152e2ce1f8114c3",
     "license": "MIT",
-    "source": "OfficeKit source-bound PPJ projection of the historical Codex Operating Review reference; the immutable source hash and unsupported native subgraphs remain explicit."
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Operating Review reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-operating-review/assets/references/reference.ppj",
+      "sha256": "cdf1fece8e8808e3d381c81edea603df9ff15eb6dc117cdaa152e2ce1f8114c3",
+      "bytes": 3837118
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "17b6d3fdca22054c2501aa6eaecd17eb95c48275750fb96c71b4336aac6b76c4",
     "license": "MIT",
-    "source": "Historical Codex Operating Review reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+    "source": "Historical Codex Operating Review reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-operating-review/assets/references/reference.pptx",
+      "sha256": "17b6d3fdca22054c2501aa6eaecd17eb95c48275750fb96c71b4336aac6b76c4",
+      "bytes": 272358
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

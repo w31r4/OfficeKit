@@ -82,13 +82,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "5219e8120a9c6a8464fcc7b3dfe76f0e6f6fe12737a4976b84d4d8c8e2fa14f5",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room reference program using fictional content and independently sourced public-domain photographs."
+    "source": "OfficeKit-authored clean-room reference program using fictional content and independently sourced public-domain photographs.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/references/reference.ppj",
+      "sha256": "5219e8120a9c6a8464fcc7b3dfe76f0e6f6fe12737a4976b84d4d8c8e2fa14f5",
+      "bytes": 89533
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "e4c3de8ec9616a1b7d9f68349a8d13d67f29ea6874d10c38f3b67320fea25055",
     "license": "AGPL-3.0-or-later",
-    "source": "Compiled from the included OfficeKit reference PPJ; external template PPTX files are not included."
+    "source": "Compiled from the included OfficeKit reference PPJ; external template PPTX files are not included.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/references/reference.pptx",
+      "sha256": "e4c3de8ec9616a1b7d9f68349a8d13d67f29ea6874d10c38f3b67320fea25055",
+      "bytes": 5351110
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

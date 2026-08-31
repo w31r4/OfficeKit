@@ -73,6 +73,7 @@
     "skills/presentation-template-creator/**",
     "skills/default-template-library/**",
     "skills/presentation-template-library/**",
+    "!skills/presentation-template-library/**/assets/references/**",
     "proto/**",
     "native/OfficeBridge/src/*.cs",
     "native/OfficeBridge/src/*.csproj",

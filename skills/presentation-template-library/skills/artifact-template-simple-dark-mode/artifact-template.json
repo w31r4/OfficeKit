@@ -72,13 +72,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "a815b575a0c70248c8ae55f411e3687c18d07bdb0451d72380a6e635a6b316c3",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration program using fictional content and independently licensed reference photographs."
+    "source": "OfficeKit-authored clean-room calibration program using fictional content and independently licensed reference photographs.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-simple-dark-mode/assets/references/reference.ppj",
+      "sha256": "a815b575a0c70248c8ae55f411e3687c18d07bdb0451d72380a6e635a6b316c3",
+      "bytes": 21594
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "9bc5e24cd298bb3d58e3bb7de257a4c712c585921874f50a2e6e4ec154e80310",
     "license": "AGPL-3.0-or-later",
-    "source": "Compiled from the included OfficeKit PPJ; the archived Codex reference deck is not included or copied."
+    "source": "Compiled from the included OfficeKit PPJ; the archived Codex reference deck is not included or copied.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-simple-dark-mode/assets/references/reference.pptx",
+      "sha256": "9bc5e24cd298bb3d58e3bb7de257a4c712c585921874f50a2e6e4ec154e80310",
+      "bytes": 12954157
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

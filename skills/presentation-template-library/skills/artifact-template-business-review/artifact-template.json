@@ -66,13 +66,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "f73ad48710aaa3c90936a489d3dcc39ee1bbd4fe4eadcc7a209c103e348210ea",
     "license": "MIT",
-    "source": "OfficeKit source-bound PPJ projection of the historical Codex Business Review reference; the immutable source hash and unsupported native subgraphs remain explicit."
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Business Review reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-business-review/assets/references/reference.ppj",
+      "sha256": "f73ad48710aaa3c90936a489d3dcc39ee1bbd4fe4eadcc7a209c103e348210ea",
+      "bytes": 1570693
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "f055d4feb429b737591b226418f09df329b7d340230c2c65e5118ef8f9d309be",
     "license": "MIT",
-    "source": "Historical Codex Business Review reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+    "source": "Historical Codex Business Review reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-business-review/assets/references/reference.pptx",
+      "sha256": "f055d4feb429b737591b226418f09df329b7d340230c2c65e5118ef8f9d309be",
+      "bytes": 2031589
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

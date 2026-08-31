@@ -67,13 +67,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "91333a327974589774cd98d6eea1b0e3c1d6289e84beb98c582124903b0a29a3",
     "license": "MIT",
-    "source": "OfficeKit source-bound PPJ projection of the historical Codex Simple Light Mode reference; the immutable source hash and unsupported native subgraphs remain explicit."
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Simple Light Mode reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-simple-light-mode/assets/references/reference.ppj",
+      "sha256": "91333a327974589774cd98d6eea1b0e3c1d6289e84beb98c582124903b0a29a3",
+      "bytes": 2386569
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "9da5923fd96dd30dddd7894f78000f31e2b38c68b332c3e92aa58d93f609be89",
     "license": "MIT",
-    "source": "Historical Codex Simple Light Mode reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+    "source": "Historical Codex Simple Light Mode reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-simple-light-mode/assets/references/reference.pptx",
+      "sha256": "9da5923fd96dd30dddd7894f78000f31e2b38c68b332c3e92aa58d93f609be89",
+      "bytes": 1516652
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

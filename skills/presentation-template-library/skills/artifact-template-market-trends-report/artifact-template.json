@@ -66,13 +66,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "e9a319fe536c6e1c3b3f165fcba2d822cb9bda7497b556b500b82b8530850c4c",
     "license": "MIT",
-    "source": "OfficeKit source-bound PPJ projection of the historical Codex Market Trends Report reference; the immutable source hash and unsupported native subgraphs remain explicit."
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Market Trends Report reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-market-trends-report/assets/references/reference.ppj",
+      "sha256": "e9a319fe536c6e1c3b3f165fcba2d822cb9bda7497b556b500b82b8530850c4c",
+      "bytes": 368528
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "9f0d2c9b36608595437e944ed31f9af16c94a0e0f072d886c2e114b08c6bd62b",
     "license": "MIT",
-    "source": "Historical Codex Market Trends Report reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+    "source": "Historical Codex Market Trends Report reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-market-trends-report/assets/references/reference.pptx",
+      "sha256": "9f0d2c9b36608595437e944ed31f9af16c94a0e0f072d886c2e114b08c6bd62b",
+      "bytes": 1971556
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

@@ -206,6 +206,25 @@ export async function runOfficeKitCli(
 
 async function runTemplateCommand(args, { output }) {
   const [subcommand, ...subcommandArguments] = args;
+  if (subcommand === "fetch") {
+    const {
+      TEMPLATE_FETCH_USAGE,
+      fetchTemplateReferences,
+      formatTemplateFetchResult,
+      parseTemplateFetchArguments,
+    } = await import("../templates/fetch.mjs");
+    const request = parseTemplateFetchArguments(subcommandArguments);
+    if (request.help) {
+      output.write(`${TEMPLATE_FETCH_USAGE}\n`);
+      return;
+    }
+    const result = await fetchTemplateReferences({
+      ...request,
+      projectPath: process.cwd(),
+    });
+    output.write(request.json ? `${JSON.stringify(result)}\n` : `${formatTemplateFetchResult(result)}\n`);
+    return;
+  }
   const {
     TEMPLATE_SEARCH_USAGE,
     formatTemplateSearchResult,
@@ -224,7 +243,7 @@ async function runTemplateCommand(args, { output }) {
   }
   if (subcommand !== "search") {
     throw new Error(
-      `Unknown template command "${subcommand}". Run "officekit template search --help".`,
+      `Unknown template command "${subcommand}". Run "officekit template search --help" or "officekit template fetch --help".`,
     );
   }
 
@@ -770,6 +789,7 @@ Examples:
   officekit tasks --new "Create a quarterly business review"
   officekit repl --new "Create a quarterly business review"
   officekit template search --kind presentation --purpose "quarterly business review"
+  officekit template fetch artifact-template-<id> --json
   officekit ppj import input.pptx -o deck.ppj
   officekit image search "financial market" --task <task-id> --kind photo --purpose evidence --orientation landscape --json
   officekit excel install

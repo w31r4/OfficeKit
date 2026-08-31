@@ -19,6 +19,8 @@ const MAX_PRESENTATION_EXAMPLES = 6;
 const DEFAULT_MAX_CANDIDATES = 5;
 const MAX_CANDIDATES = 20;
 const MAX_INTENT_VALUES = 20;
+const MAX_REMOTE_REFERENCE_BYTES = 256 * 1024 * 1024;
+const REMOTE_REFERENCE_HOSTS = new Set(["raw.githubusercontent.com"]);
 const MIN_FIELD_MATCH = 0.45;
 const AVOID_CONFLICT_MATCH = 0.72;
 const BM25_K1 = 1.2;
@@ -61,6 +63,7 @@ export const TEMPLATE_SEARCH_USAGE = [
   "  [--operation <verified-operation>]... [--brand-sensitive]",
   "  [--tag <legacy-tag>]... [--id <artifact-template-id>]",
   "  [--root <absolute-template-root>]... [--max <1-20>] [--json]",
+  "  officekit template fetch <artifact-template-id> [--cache-root <absolute-dir>] [--json]",
 ].join("\n");
 
 export async function queryTemplates({
@@ -362,16 +365,14 @@ async function readTemplate({ expectedId, root, templatePath }) {
           `examples[${index}]`,
         )),
     );
-    const referenceProgramPath = metadata.referenceProgram == null ? null : await resolveAsset(
+    const referenceProgramPath = metadata.referenceProgram == null ? null : await resolveOptionalAsset(
       templatePath,
-      metadata.referenceProgram.path,
-      metadata.referenceProgram.sha256,
+      metadata.referenceProgram,
       "referenceProgram",
     );
-    const referencePptxPath = metadata.referencePptx == null ? null : await resolveAsset(
+    const referencePptxPath = metadata.referencePptx == null ? null : await resolveOptionalAsset(
       templatePath,
-      metadata.referencePptx.path,
-      metadata.referencePptx.sha256,
+      metadata.referencePptx,
       "referencePptx",
     );
     return {
@@ -386,10 +387,14 @@ async function readTemplate({ expectedId, root, templatePath }) {
       referenceProgram: metadata.referenceProgram == null ? null : {
         ...metadata.referenceProgram,
         absolutePath: referenceProgramPath,
+        available: referenceProgramPath != null,
+        fetchCommand: referenceProgramPath == null ? `officekit template fetch ${metadata.id}` : null,
       },
       referencePptx: metadata.referencePptx == null ? null : {
         ...metadata.referencePptx,
         absolutePath: referencePptxPath,
+        available: referencePptxPath != null,
+        fetchCommand: referencePptxPath == null ? `officekit template fetch ${metadata.id}` : null,
       },
     };
   }
@@ -596,13 +601,33 @@ function validatePresentationMetadata(value, expectedId) {
 function validatePresentationReference(value, label, extension) {
   if (value == null) return;
   if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
-  assertObjectKeys(value, label, ["path", "sha256", "license", "source"]);
+  assertObjectKeys(value, label, ["path", "sha256", "license", "source", "download"]);
   assertRelativeAssetPath(value.path, `${label}.path`);
   if (!value.path.startsWith("assets/references/")) throw new Error(`${label}.path must be under assets/references/`);
   if (path.posix.extname(value.path).toLowerCase() !== extension) throw new Error(`${label}.path must use ${extension}`);
   assertHash(value.sha256, `${label}.sha256`);
   assertShortString(value.license, `${label}.license`, 120);
   assertShortString(value.source, `${label}.source`, 500);
+  if (value.download != null) validateRemoteReference(value.download, `${label}.download`, value.sha256);
+}
+
+function validateRemoteReference(value, label, expectedHash) {
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
+  assertObjectKeys(value, label, ["url", "sha256", "bytes"]);
+  if (typeof value.url !== "string" || value.url.length > 2048 || /[\0\r\n]/u.test(value.url)) {
+    throw new Error(`${label}.url must be a bounded HTTPS URL`);
+  }
+  let parsed;
+  try { parsed = new URL(value.url); } catch { throw new Error(`${label}.url must be a valid HTTPS URL`); }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash ||
+      !REMOTE_REFERENCE_HOSTS.has(parsed.hostname.toLowerCase()) || parsed.pathname.includes("..")) {
+    throw new Error(`${label}.url must be an HTTPS raw.githubusercontent.com URL without credentials or traversal`);
+  }
+  assertHash(value.sha256, `${label}.sha256`);
+  if (value.sha256 !== expectedHash) throw new Error(`${label}.sha256 must match the declared reference hash`);
+  if (!Number.isSafeInteger(value.bytes) || value.bytes < 1 || value.bytes > MAX_REMOTE_REFERENCE_BYTES) {
+    throw new Error(`${label}.bytes must be an integer from 1 to ${MAX_REMOTE_REFERENCE_BYTES}`);
+  }
 }
 
 function validateVisualMetadata(value) {
@@ -637,6 +662,15 @@ async function resolveAsset(templatePath, relativePath, expectedHash, label) {
     throw new Error(`${label} SHA-256 mismatch`);
   }
   return canonicalAssetPath;
+}
+
+async function resolveOptionalAsset(templatePath, declaration, label) {
+  try {
+    return await resolveAsset(templatePath, declaration.path, declaration.sha256, label);
+  } catch (error) {
+    if (declaration.download != null && error?.code === "ENOENT") return null;
+    throw error;
+  }
 }
 
 async function resolveTemplateSkill(templatePath, expectedHash = null) {
@@ -684,12 +718,15 @@ async function assertPresentationTemplateSurface(templatePath, metadata) {
   const assetsPath = path.join(templatePath, "assets");
   const assetEntries = await fs.readdir(assetsPath, { withFileTypes: true });
   const hasReferences = metadata.referenceProgram != null || metadata.referencePptx != null;
-  const expectedAssetCount = hasReferences ? 3 : 2;
-  if (assetEntries.length !== expectedAssetCount ||
+  const hasLocalReferences = assetEntries.some((entry) => entry.name === "references" && entry.isDirectory());
+  const remoteOnlyReferences = hasReferences && !hasLocalReferences &&
+    [metadata.referenceProgram, metadata.referencePptx].filter(Boolean).every((reference) => reference.download != null);
+  const expectedAssetNames = new Set(["preview.png", "examples"]);
+  if (hasLocalReferences || !remoteOnlyReferences) expectedAssetNames.add("references");
+  if (assetEntries.length !== expectedAssetNames.size ||
+      assetEntries.some((entry) => entry.isSymbolicLink() || !expectedAssetNames.has(entry.name)) ||
       !assetEntries.some((entry) => entry.name === "preview.png" && entry.isFile()) ||
-      !assetEntries.some((entry) => entry.name === "examples" && entry.isDirectory()) ||
-      (hasReferences && !assetEntries.some((entry) => entry.name === "references" && entry.isDirectory())) ||
-      assetEntries.some((entry) => entry.isSymbolicLink())) {
+      !assetEntries.some((entry) => entry.name === "examples" && entry.isDirectory())) {
     throw new Error("presentation template assets must match preview, examples, and declared references");
   }
   const examplesPath = path.join(assetsPath, "examples");
@@ -700,19 +737,51 @@ async function assertPresentationTemplateSurface(templatePath, metadata) {
         !entry.isFile() || entry.isSymbolicLink() || !expectedFiles.has(entry.name))) {
     throw new Error("presentation template examples/ must match metadata exactly");
   }
-  if (hasReferences) {
+  if (hasReferences && hasLocalReferences) {
     const referencesPath = path.join(assetsPath, "references");
-    const referenceEntries = await fs.readdir(referencesPath, { withFileTypes: true });
-    const expectedReferences = new Set([
-      ...(metadata.referenceProgram == null ? [] : [path.posix.basename(metadata.referenceProgram.path)]),
-      ...(metadata.referencePptx == null ? [] : [path.posix.basename(metadata.referencePptx.path)]),
-    ]);
-    if (referenceEntries.length !== expectedReferences.size ||
-        referenceEntries.some((entry) =>
-          !entry.isFile() || entry.isSymbolicLink() || !expectedReferences.has(entry.name))) {
+    const referenceEntries = await listRelativeFiles(referencesPath);
+    const expectedReferences = new Set();
+    for (const reference of [metadata.referenceProgram, metadata.referencePptx]) {
+      if (reference == null) continue;
+      const localPath = path.resolve(templatePath, reference.path);
+      const relativeToReferences = path.relative(referencesPath, localPath).split(path.sep).join("/");
+      const localExists = await fs.lstat(localPath).then((stat) => stat.isFile()).catch(() => false);
+      if (localExists) expectedReferences.add(relativeToReferences);
+      if (reference === metadata.referenceProgram && localExists) {
+        let program;
+        try { program = JSON.parse(await fs.readFile(localPath, "utf8")); } catch (error) {
+          throw new Error(`referenceProgram is not valid JSON: ${error.message}`);
+        }
+        for (const declaration of [program.source, ...(program.assets ?? [])]) {
+          if (declaration == null || typeof declaration.uri !== "string") continue;
+          const dependency = path.resolve(path.dirname(localPath), ...declaration.uri.split("/"));
+          const relative = path.relative(referencesPath, dependency).split(path.sep).join("/");
+          const dependencyExists = await fs.lstat(dependency).then((stat) => stat.isFile()).catch(() => false);
+          if (dependencyExists) expectedReferences.add(relative);
+          else if (reference.download == null) throw new Error(`referenceProgram dependency is missing: ${declaration.uri}`);
+        }
+      }
+    }
+    if (!referenceEntries.every((entry) => expectedReferences.has(entry)) ||
+        !expectedReferences.size && referenceEntries.length > 0 ||
+        referenceEntries.length > expectedReferences.size) {
       throw new Error("presentation template references/ must match metadata exactly");
     }
   }
+}
+
+async function listRelativeFiles(root, prefix = "") {
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) throw new Error("presentation template references must not contain symlinks");
+    const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+    const absolute = path.join(root, entry.name);
+    if (entry.isDirectory()) files.push(...await listRelativeFiles(absolute, relative));
+    else if (entry.isFile()) files.push(relative);
+    else throw new Error("presentation template references contain an unsupported entry");
+  }
+  return files;
 }
 
 function createBm25Context(candidates, intent, tags) {

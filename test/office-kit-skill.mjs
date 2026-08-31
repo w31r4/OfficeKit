@@ -78,7 +78,7 @@ assert.match(templateSelectionText, /provenance\.source` as permission to access
 assert.match(templateSelectionText, /Clear \| None \| Query the catalog/i);
 assert.match(templateSelectionText, /Uploaded PPTX.*source continuation/i);
 assert.match(templateSelectionText, /original file stays in the task/i);
-assert.match(templateSelectionText, /contains no\s+PPTX, layout code, or source components/i);
+assert.match(templateSelectionText, /never returns the external source PPTX, a fixed layout/i);
 assert.match(templateSelectionText, /Search is local BM25F/i);
 assert.match(templateSelectionText, /does not call a\s+model, build a vector/i);
 assert.match(templateSelectionText, /Normalize intent into short English terms/i);
@@ -130,6 +130,13 @@ for (const candidate of presentationCatalog.candidates) {
   assert.equal(candidate.examplePaths.length, candidate.examples.length);
   assert.equal(Object.hasOwn(candidate, "referencePath"), false);
   assert.equal(Object.hasOwn(candidate, "editProfile"), false);
+  for (const reference of [candidate.referenceProgram, candidate.referencePptx]) {
+    if (reference == null) continue;
+    assert.ok(reference.download != null, `${candidate.id} reference must be fetchable on demand`);
+    assert.equal(reference.download.sha256, reference.sha256);
+    assert.match(reference.download.url, /^https:\/\/raw\.githubusercontent\.com\//);
+    assert.equal(reference.available, true);
+  }
   await Promise.all([
     fs.access(candidate.skillPath),
     fs.access(candidate.previewPath),

@@ -62,13 +62,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "95a883cd73b81ef0d1270f9e9f49f5427259327171587f64b731415ee593749c",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound."
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-rice-paper-yearbook/assets/references/reference.ppj",
+      "sha256": "95a883cd73b81ef0d1270f9e9f49f5427259327171587f64b731415ee593749c",
+      "bytes": 680250
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "66c468afdedeb2c0d1ca8c6c9390451f5c87324a4d84e5fe78b2de70bacf61ae",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-rice-paper-yearbook/assets/references/reference.pptx",
+      "sha256": "66c468afdedeb2c0d1ca8c6c9390451f5c87324a4d84e5fe78b2de70bacf61ae",
+      "bytes": 17359
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",
