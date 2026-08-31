@@ -3220,6 +3220,14 @@
         },
         "dataLabels": {
           "$ref": "#/$defs/chartSeriesDataLabels"
+        },
+        "pointStyles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "items": {
+            "$ref": "#/$defs/chartPointStyle"
+          }
         }
       }
     },
@@ -4031,6 +4039,36 @@
         { "required": ["position"] },
         { "required": ["textStyle"] },
         { "required": ["numberFormat"] }
+      ]
+    },
+    "chartPointStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9999
+        },
+        "fill": {
+          "$ref": "#/$defs/fill"
+        },
+        "stroke": {
+          "$ref": "#/$defs/stroke"
+        },
+        "explosion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 400
+        }
+      },
+      "anyOf": [
+        { "required": ["fill"] },
+        { "required": ["stroke"] },
+        { "required": ["explosion"] }
       ]
     },
     "chartTrendline": {

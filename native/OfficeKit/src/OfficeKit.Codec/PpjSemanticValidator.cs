@@ -730,6 +730,8 @@ internal static class PpjSemanticValidator
             }
             if (series.Raw.TryGetProperty("dataLabels", out var dataLabels))
                 ValidateSeriesDataLabels(chart, series, dataLabels, seriesPath, diagnostics);
+            if (series.Raw.TryGetProperty("pointStyles", out var pointStyles))
+                ValidatePointStyles(chart, series, pointStyles, seriesPath, diagnostics);
         }
 
         if (chart.ChartType == "waterfall") ValidateWaterfall(chart, path, diagnostics);
@@ -881,6 +883,54 @@ internal static class PpjSemanticValidator
                     pointPath + ".showPercent"));
             previous = index;
             pointIndex++;
+        }
+    }
+
+    private static void ValidatePointStyles(
+        PpjChartElementModel chart,
+        PpjChartSeriesModel series,
+        JsonElement pointStyles,
+        string path,
+        List<PpjDiagnostic> diagnostics)
+    {
+        var nativeType = chart.ChartType == "combo" ? series.ChartType : chart.ChartType;
+        if (nativeType is not ("column" or "bar" or "pie" or "doughnut"))
+        {
+            diagnostics.Add(new(
+                "ppj.chart.pointStyleType",
+                "Point styles require a native bar, column, pie or doughnut series.",
+                path + ".pointStyles"));
+            return;
+        }
+
+        var previous = -1;
+        var itemIndex = 0;
+        foreach (var point in pointStyles.EnumerateArray())
+        {
+            var pointPath = $"{path}.pointStyles[{itemIndex}]";
+            var index = point.GetProperty("index").GetInt32();
+            if (index <= previous)
+                diagnostics.Add(new(
+                    "ppj.chart.pointStyleOrder",
+                    "Point-style indexes must be unique and strictly increasing.",
+                    pointPath + ".index"));
+            if (index >= series.Values.Count)
+                diagnostics.Add(new(
+                    "ppj.chart.pointStyleRange",
+                    "Point-style index must address an existing series point.",
+                    pointPath + ".index"));
+            else if (series.Values[index] is null)
+                diagnostics.Add(new(
+                    "ppj.chart.pointStyleMissingPoint",
+                    "A missing chart point cannot carry a visual override.",
+                    pointPath + ".index"));
+            if (point.TryGetProperty("explosion", out _) && nativeType is not ("pie" or "doughnut"))
+                diagnostics.Add(new(
+                    "ppj.chart.pointExplosionType",
+                    "Point explosion applies only to pie and doughnut series.",
+                    pointPath + ".explosion"));
+            previous = index;
+            itemIndex++;
         }
     }
 
