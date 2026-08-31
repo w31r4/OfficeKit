@@ -8,4 +8,4 @@
       test file or make the oversized comprehensive contract heavier.
 - [x] 4. Sync the capability registry, generated PPJ manual, chart guidance and
       coverage.
-- [ ] 5. Record focused evidence and prepare main integration.
+- [x] 5. Record focused evidence and prepare main integration.
