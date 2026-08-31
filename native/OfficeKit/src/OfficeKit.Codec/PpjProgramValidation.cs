@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -128,8 +129,21 @@ internal static class PpjProgramValidator
 internal static class PpjJsonSchemaValidator
 {
     private static readonly Lazy<JsonElement> Schema = new(LoadSchema, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly Lazy<IReadOnlyDictionary<string, JsonElement>> Definitions =
+        new(LoadDefinitions, LazyThreadSafetyMode.ExecutionAndPublication);
+    private static readonly ConcurrentDictionary<JsonElement, ObjectSchemaMetadata> ObjectMetadata = new();
+    private static readonly ConcurrentDictionary<JsonElement, ChoiceMetadata> ChoiceMetadataCache = new();
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(100);
     private static readonly string[] ChoiceDiscriminators = ["type", "kind", "mode"];
+
+    private sealed record ObjectSchemaMetadata(
+        IReadOnlyList<string> Required,
+        IReadOnlyDictionary<string, JsonElement> Declared,
+        IReadOnlySet<string>? Evaluated);
+
+    private sealed record ChoiceMetadata(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> Discriminated,
+        IReadOnlyList<(JsonElement Choice, JsonElement Type)>? Typed);
 
     internal static void Validate(JsonElement instance, List<PpjDiagnostic> diagnostics) =>
         ValidateNode(instance, Schema.Value, "$", diagnostics);
@@ -141,6 +155,10 @@ internal static class PpjJsonSchemaValidator
         using var document = JsonDocument.Parse(stream);
         return document.RootElement.Clone();
     }
+
+    private static IReadOnlyDictionary<string, JsonElement> LoadDefinitions() =>
+        Schema.Value.GetProperty("$defs").EnumerateObject()
+            .ToDictionary(property => property.Name, property => property.Value, StringComparer.Ordinal);
 
     private static void ValidateNode(JsonElement instance, JsonElement schema, string path, List<PpjDiagnostic> diagnostics)
     {
@@ -259,31 +277,58 @@ internal static class PpjJsonSchemaValidator
         out JsonElement selected)
     {
         selected = default;
-        var matches = 0;
-        foreach (var choice in choices.EnumerateArray())
-        {
-            if (!RequiresProperty(choice, discriminator) ||
-                !TryFindStringConstProperty(choice, discriminator, out var expected))
-                return false;
-            if (!value.Equals(expected, StringComparison.Ordinal)) continue;
-            selected = choice;
-            matches++;
-        }
-        return matches == 1;
+        return ChoiceMetadataCache.GetOrAdd(choices, BuildChoiceMetadata)
+            .Discriminated.TryGetValue(discriminator, out var branches) &&
+            branches.TryGetValue(value, out selected);
     }
 
     private static bool TrySelectTypedBranch(JsonElement instance, JsonElement choices, out JsonElement selected)
     {
         selected = default;
         var matches = 0;
-        foreach (var choice in choices.EnumerateArray())
+        var typed = ChoiceMetadataCache.GetOrAdd(choices, BuildChoiceMetadata).Typed;
+        if (typed is null) return false;
+        foreach (var (choice, type) in typed)
         {
-            if (!TryFindType(choice, out var type)) return false;
             if (!MatchesType(instance, type)) continue;
             selected = choice;
             matches++;
         }
         return matches == 1;
+    }
+
+    private static ChoiceMetadata BuildChoiceMetadata(JsonElement choices)
+    {
+        var choiceList = choices.EnumerateArray().ToArray();
+        var discriminated = new Dictionary<string, IReadOnlyDictionary<string, JsonElement>>(StringComparer.Ordinal);
+        foreach (var discriminator in ChoiceDiscriminators)
+        {
+            var branches = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+            var complete = true;
+            foreach (var choice in choiceList)
+            {
+                if (!RequiresProperty(choice, discriminator) ||
+                    !TryFindStringConstProperty(choice, discriminator, out var expected) ||
+                    !branches.TryAdd(expected, choice))
+                {
+                    complete = false;
+                    break;
+                }
+            }
+            if (complete) discriminated.Add(discriminator, branches);
+        }
+
+        List<(JsonElement Choice, JsonElement Type)>? typed = new(choiceList.Length);
+        foreach (var choice in choiceList)
+        {
+            if (!TryFindType(choice, out var type))
+            {
+                typed = null;
+                break;
+            }
+            typed.Add((choice, type));
+        }
+        return new(discriminated, typed);
     }
 
     private static bool ValidatesWithoutDiagnostics(JsonElement instance, JsonElement schema, string path)
@@ -344,27 +389,21 @@ internal static class PpjJsonSchemaValidator
 
     private static void ValidateObject(JsonElement instance, JsonElement schema, string path, List<PpjDiagnostic> diagnostics)
     {
-        var properties = instance.EnumerateObject().ToArray();
-        if (schema.TryGetProperty("maxProperties", out var maximum) && properties.Length > maximum.GetInt32())
-            diagnostics.Add(new("ppj.schema.limit", $"Object has {properties.Length} properties; maximum is {maximum.GetInt32()}.", path));
+        var metadata = ObjectMetadata.GetOrAdd(schema, BuildObjectMetadata);
+        var propertyCount = instance.EnumerateObject().Count();
+        if (schema.TryGetProperty("maxProperties", out var maximum) && propertyCount > maximum.GetInt32())
+            diagnostics.Add(new("ppj.schema.limit", $"Object has {propertyCount} properties; maximum is {maximum.GetInt32()}.", path));
 
-        if (schema.TryGetProperty("required", out var required))
+        foreach (var name in metadata.Required)
         {
-            foreach (var name in required.EnumerateArray().Select(item => item.GetString()!))
-            {
-                if (!instance.TryGetProperty(name, out _))
-                    diagnostics.Add(new("ppj.schema.required", $"Required property {name} is missing.", PpjJsonPath.Property(path, name)));
-            }
+            if (!instance.TryGetProperty(name, out _))
+                diagnostics.Add(new("ppj.schema.required", $"Required property {name} is missing.", PpjJsonPath.Property(path, name)));
         }
 
-        var declared = schema.TryGetProperty("properties", out var propertySchemas)
-            ? propertySchemas.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.Ordinal)
-            : new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-
-        foreach (var property in properties)
+        foreach (var property in instance.EnumerateObject())
         {
             var propertyPath = PpjJsonPath.Property(path, property.Name);
-            if (declared.TryGetValue(property.Name, out var propertySchema))
+            if (metadata.Declared.TryGetValue(property.Name, out var propertySchema))
                 ValidateNode(property.Value, propertySchema, propertyPath, diagnostics);
             if (schema.TryGetProperty("propertyNames", out var propertyNameSchema))
                 ValidateNode(StringElement(property.Name), propertyNameSchema, propertyPath, diagnostics);
@@ -372,7 +411,7 @@ internal static class PpjJsonSchemaValidator
 
         if (schema.TryGetProperty("additionalProperties", out var additional))
         {
-            foreach (var property in properties.Where(item => !declared.ContainsKey(item.Name)))
+            foreach (var property in instance.EnumerateObject().Where(item => !metadata.Declared.ContainsKey(item.Name)))
             {
                 var propertyPath = PpjJsonPath.Property(path, property.Name);
                 if (additional.ValueKind == JsonValueKind.False)
@@ -384,10 +423,25 @@ internal static class PpjJsonSchemaValidator
 
         if (schema.TryGetProperty("unevaluatedProperties", out var unevaluated) && unevaluated.ValueKind == JsonValueKind.False)
         {
-            var evaluated = CollectDeclaredProperties(schema);
-            foreach (var property in properties.Where(item => !evaluated.Contains(item.Name)))
+            var evaluated = metadata.Evaluated!;
+            foreach (var property in instance.EnumerateObject().Where(item => !evaluated.Contains(item.Name)))
                 diagnostics.Add(new("ppj.schema.unknownField", $"Unknown property {property.Name} is not allowed.", PpjJsonPath.Property(path, property.Name)));
         }
+    }
+
+    private static ObjectSchemaMetadata BuildObjectMetadata(JsonElement schema)
+    {
+        var required = schema.TryGetProperty("required", out var requiredSchema)
+            ? requiredSchema.EnumerateArray().Select(item => item.GetString()!).ToArray()
+            : [];
+        var declared = schema.TryGetProperty("properties", out var properties)
+            ? properties.EnumerateObject().ToDictionary(item => item.Name, item => item.Value, StringComparer.Ordinal)
+            : new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var evaluated = schema.TryGetProperty("unevaluatedProperties", out var unevaluated) &&
+                        unevaluated.ValueKind == JsonValueKind.False
+            ? CollectDeclaredProperties(schema)
+            : null;
+        return new(required, declared, evaluated);
     }
 
     private static JsonElement StringElement(string value)
@@ -401,25 +455,28 @@ internal static class PpjJsonSchemaValidator
 
     private static void ValidateArray(JsonElement instance, JsonElement schema, string path, List<PpjDiagnostic> diagnostics)
     {
-        var items = instance.EnumerateArray().ToArray();
-        if (schema.TryGetProperty("minItems", out var minimum) && items.Length < minimum.GetInt32())
-            diagnostics.Add(new("ppj.schema.limit", $"Array has {items.Length} items; minimum is {minimum.GetInt32()}.", path));
-        if (schema.TryGetProperty("maxItems", out var maximum) && items.Length > maximum.GetInt32())
-            diagnostics.Add(new("ppj.schema.limit", $"Array has {items.Length} items; maximum is {maximum.GetInt32()}.", path));
+        var itemCount = instance.GetArrayLength();
+        if (schema.TryGetProperty("minItems", out var minimum) && itemCount < minimum.GetInt32())
+            diagnostics.Add(new("ppj.schema.limit", $"Array has {itemCount} items; minimum is {minimum.GetInt32()}.", path));
+        if (schema.TryGetProperty("maxItems", out var maximum) && itemCount > maximum.GetInt32())
+            diagnostics.Add(new("ppj.schema.limit", $"Array has {itemCount} items; maximum is {maximum.GetInt32()}.", path));
         if (schema.TryGetProperty("uniqueItems", out var unique) && unique.GetBoolean())
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            for (var index = 0; index < items.Length; index++)
+            var index = 0;
+            foreach (var item in instance.EnumerateArray())
             {
-                var key = Convert.ToBase64String(PpjCanonicalJson.Write(items[index]));
+                var key = Convert.ToBase64String(PpjCanonicalJson.Write(item));
                 if (!seen.Add(key))
                     diagnostics.Add(new("ppj.schema.unique", "Array item duplicates an earlier value.", $"{path}[{index}]"));
+                index++;
             }
         }
         if (schema.TryGetProperty("items", out var itemSchema))
         {
-            for (var index = 0; index < items.Length; index++)
-                ValidateNode(items[index], itemSchema, $"{path}[{index}]", diagnostics);
+            var index = 0;
+            foreach (var item in instance.EnumerateArray())
+                ValidateNode(item, itemSchema, $"{path}[{index++}]", diagnostics);
         }
     }
 
@@ -505,7 +562,7 @@ internal static class PpjJsonSchemaValidator
         if (!reference.StartsWith(prefix, StringComparison.Ordinal))
             throw new InvalidOperationException($"Unsupported PPJ schema reference {reference}.");
         var name = reference[prefix.Length..].Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
-        if (!Schema.Value.GetProperty("$defs").TryGetProperty(name, out var result))
+        if (!Definitions.Value.TryGetValue(name, out var result))
             throw new InvalidOperationException($"Missing PPJ schema definition {name}.");
         return result;
     }
@@ -535,8 +592,16 @@ internal static class PpjJsonSchemaValidator
         _ => true,
     };
 
-    private static bool JsonEqual(JsonElement left, JsonElement right) =>
-        PpjCanonicalJson.Write(left).AsSpan().SequenceEqual(PpjCanonicalJson.Write(right));
+    private static bool JsonEqual(JsonElement left, JsonElement right)
+    {
+        if (left.ValueKind != right.ValueKind) return false;
+        return left.ValueKind switch
+        {
+            JsonValueKind.String => string.Equals(left.GetString(), right.GetString(), StringComparison.Ordinal),
+            JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null => true,
+            _ => PpjCanonicalJson.Write(left).AsSpan().SequenceEqual(PpjCanonicalJson.Write(right)),
+        };
+    }
 
     private static string DescribeType(JsonElement type) =>
         type.ValueKind == JsonValueKind.Array
