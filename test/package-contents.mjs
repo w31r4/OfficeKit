@@ -206,6 +206,7 @@ for (const required of [
   "src/codecs/office-kit-document-codec.mjs",
   "src/codecs/office-kit-error.mjs",
   "src/codecs/office-kit-native-client.mjs",
+  "src/codecs/office-kit-ppj-wire.mjs",
   "src/codecs/office-kit-runtime.mjs",
   "src/codecs/office-kit-source-state.mjs",
   "src/codecs/office-kit-spreadsheet-codec.mjs",

@@ -1,9 +1,3 @@
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-
-import {
-  CodecRequestSchema,
-  CodecResponseSchema,
-} from "../generated/office_kit/artifact/v1/office_artifact_pb.js";
 import { FileBlob } from "../shared/file-blob.mjs";
 import { OfficeKitCodecError } from "./office-kit-error.mjs";
 import {
@@ -134,13 +128,26 @@ async function invokeOfficeKitExclusive(profile, request, { fileSidecar = false,
   let response;
   let stage = "request encoding";
   try {
-    const wireRequest = create(CodecRequestSchema, request);
-    const sidecar = fileSidecar && wireRequest.file?.byteLength ? bytesFrom(wireRequest.file) : undefined;
-    if (sidecar) wireRequest.file = new Uint8Array();
-    const wireRequestBytes = toBinary(CodecRequestSchema, wireRequest);
+    const sidecar = fileSidecar && request.file?.byteLength ? bytesFrom(request.file) : undefined;
+    let wireRequestBytes;
+    let decodeResponse;
+    if (profile === "ppj") {
+      const wire = await import("./office-kit-ppj-wire.mjs");
+      wireRequestBytes = wire.encodePpjCodecRequest(request, { omitFile: sidecar != null });
+      decodeResponse = wire.decodePpjCodecResponse;
+    } else {
+      const [{ create, fromBinary, toBinary }, { CodecRequestSchema, CodecResponseSchema }] = await Promise.all([
+        import("@bufbuild/protobuf"),
+        import("../generated/office_kit/artifact/v1/office_artifact_pb.js"),
+      ]);
+      const wireRequest = create(CodecRequestSchema, request);
+      if (sidecar) wireRequest.file = new Uint8Array();
+      wireRequestBytes = toBinary(CodecRequestSchema, wireRequest);
+      decodeResponse = (bytes) => fromBinary(CodecResponseSchema, bytes);
+    }
     stage = "response decoding";
     const wireResponse = bytesFrom(await loaded.invoke(wireRequestBytes, sidecar));
-    response = fromBinary(CodecResponseSchema, wireResponse);
+    response = decodeResponse(wireResponse);
   } catch (error) {
     loaded.kill();
     if (state.promise === loadedPromise) state.promise = undefined;
