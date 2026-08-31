@@ -35,6 +35,11 @@ internal static class PpjComponentExpander
         string programSha256,
         List<PpjDiagnostic> diagnostics)
     {
+        // Semantic validation has already ruled out component instances when
+        // no definitions exist, so these typed nodes need no JSON round-trip.
+        if (program.Components.Count == 0)
+            return ReuseComponentFreeProgram(program, programSha256);
+
         var components = program.Components
             .GroupBy(item => item.Id, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
@@ -89,6 +94,63 @@ internal static class PpjComponentExpander
         var nodeMapJson = WriteNodeMap(programSha256, nodes);
         var nodeMapSha256 = Convert.ToHexString(SHA256.HashData(nodeMapJson)).ToLowerInvariant();
         return new(pages, nodes, nodeMapJson, nodeMapSha256, nodes.Count);
+    }
+
+    private static PpjExpansionResult ReuseComponentFreeProgram(
+        PpjProgramModel program,
+        string programSha256)
+    {
+        var pages = new List<PpjExpandedPageModel>(program.Pages.Count);
+        var nodes = new List<PpjExpandedNodeModel>();
+        for (var pageIndex = 0; pageIndex < program.Pages.Count; pageIndex++)
+        {
+            var page = program.Pages[pageIndex];
+            IndexComponentFreeElements(
+                page.Elements,
+                $"$.pages[{pageIndex}].elements",
+                page.Id,
+                nodes,
+                nestedInGroup: false);
+            pages.Add(new(
+                page.Id,
+                page.Elements,
+                page.Elements.Select(element => element.Raw).ToArray()));
+        }
+
+        var nodeMapJson = WriteNodeMap(programSha256, nodes);
+        var nodeMapSha256 = Convert.ToHexString(SHA256.HashData(nodeMapJson)).ToLowerInvariant();
+        return new(pages, nodes, nodeMapJson, nodeMapSha256, nodes.Count);
+    }
+
+    private static void IndexComponentFreeElements(
+        IReadOnlyList<PpjElementModel> elements,
+        string path,
+        string pageId,
+        List<PpjExpandedNodeModel> nodes,
+        bool nestedInGroup)
+    {
+        for (var index = 0; index < elements.Count; index++)
+        {
+            var element = elements[index];
+            var elementPath = $"{path}[{index}]";
+            if (element is PpjGroupElementModel group)
+                IndexComponentFreeElements(
+                    group.Elements,
+                    elementPath + ".elements",
+                    pageId,
+                    nodes,
+                    nestedInGroup: true);
+            nodes.Add(new(
+                pageId,
+                element.Id,
+                element.Id,
+                element.Type,
+                null,
+                null,
+                null,
+                elementPath,
+                nestedInGroup ? 0 : index));
+        }
     }
 
     private static void ExpandElement(

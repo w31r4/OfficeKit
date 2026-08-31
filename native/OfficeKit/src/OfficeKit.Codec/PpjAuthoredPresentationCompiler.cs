@@ -45,15 +45,9 @@ internal static class PpjAuthoredPresentationCompiler
 
     internal static PpjCompileResult Compile(
         PresentationProgramRequest request,
-        EffectiveCodecLimits limits)
+        EffectiveCodecLimits limits,
+        PpjValidationResult validation)
     {
-        var validation = PpjProgramValidator.Validate(request.ProgramJson.Span);
-        if (!validation.IsValid)
-        {
-            var first = validation.Diagnostics[0];
-            throw new CodecException(first.Code, first.Message, first.Path);
-        }
-
         var program = validation.Program!;
         if (program.Source is not null)
             throw new CodecException(

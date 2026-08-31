@@ -28,7 +28,7 @@ internal static class PpjProgramValidator
     internal const int MaxComponentDepth = 16;
     private const int MaxJsonDepth = 96;
 
-    internal static PpjValidationResult Validate(ReadOnlySpan<byte> json)
+    internal static PpjValidationResult Validate(ReadOnlyMemory<byte> json)
     {
         var diagnostics = new List<PpjDiagnostic>();
         if (json.Length == 0)
@@ -44,7 +44,8 @@ internal static class PpjProgramValidator
                 "$"));
             return Invalid(diagnostics);
         }
-        if (json.Length >= 3 && json[0] == 0xef && json[1] == 0xbb && json[2] == 0xbf)
+        var jsonSpan = json.Span;
+        if (json.Length >= 3 && jsonSpan[0] == 0xef && jsonSpan[1] == 0xbb && jsonSpan[2] == 0xbf)
         {
             diagnostics.Add(new("ppj.utf8Bom", "PPJ must be UTF-8 JSON without a byte-order mark.", "$"));
             return Invalid(diagnostics);
@@ -53,7 +54,7 @@ internal static class PpjProgramValidator
         JsonElement root;
         try
         {
-            using var document = JsonDocument.Parse(json.ToArray(), new JsonDocumentOptions
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions
             {
                 AllowTrailingCommas = false,
                 CommentHandling = JsonCommentHandling.Disallow,

@@ -20,7 +20,7 @@ internal static class PpjPresentationCompiler
         byte[] sourceBytes,
         EffectiveCodecLimits limits)
     {
-        var validation = PpjProgramValidator.Validate(request.ProgramJson.Span);
+        var validation = PpjProgramValidator.Validate(request.ProgramJson.Memory);
         if (!validation.IsValid)
         {
             var first = validation.Diagnostics[0];
@@ -36,7 +36,7 @@ internal static class PpjPresentationCompiler
                     "$.source");
             if (request.ValidationOnly)
                 return PpjAuthoredPresentationCompiler.ValidateOnly(request, validation);
-            return PpjAuthoredPresentationCompiler.Compile(request, limits);
+            return PpjAuthoredPresentationCompiler.Compile(request, limits, validation);
         }
 
         return PpjSourceBoundPresentationCompiler.Compile(request, sourceBytes, limits, validation);
@@ -102,7 +102,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 IncludeNodeMap = true,
             },
             limits);
-        var baselineValidation = PpjProgramValidator.Validate(projected.Program.ProgramJson.Span);
+        var baselineValidation = PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory);
         if (!baselineValidation.IsValid)
             throw new CodecException(
                 "ppj.projection.invalid",
