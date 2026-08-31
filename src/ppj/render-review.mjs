@@ -9,7 +9,6 @@ import {
   sha256,
   writeExclusiveFile,
 } from "./workspace.mjs";
-import { recordPpjTask } from "./task.mjs";
 
 const PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -108,7 +107,7 @@ export async function reviewPpj(
     visualReview: "unavailable",
     contentView: "none",
   });
-  const task = await recordPpjTask({
+  const task = taskId == null ? null : await (await import("./task.mjs")).recordPpjTask({
     taskId,
     cwd,
     stage: "reviewed",

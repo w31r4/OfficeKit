@@ -2,10 +2,7 @@ import { lstat, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-import { openTask, resumeTaskPpjRevision } from "../cli/task-store.mjs";
 import { projectPptxToPpj } from "./native.mjs";
-import { renderPpj, reviewPpj } from "./render-review.mjs";
-import { recordPpjTask } from "./task.mjs";
 import {
   resolveRegularFile,
   compilePpjWorkspace,
@@ -51,15 +48,15 @@ export async function runPpjCommand(args, {
     output.write(`${PPJ_USAGE}\n`);
     return;
   }
-  const handler = {
-    resume: resumePpjTask,
-    import: importPptxAsPpj,
-    inspect: inspectPpj,
-    check: checkPpj,
-    build: buildPpj,
-    render: renderPpj,
-    review: reviewPpj,
-  }[subcommand];
+  const handler = subcommand === "render" || subcommand === "review"
+    ? (await import("./render-review.mjs"))[subcommand === "render" ? "renderPpj" : "reviewPpj"]
+    : ({
+      resume: resumePpjTask,
+      import: importPptxAsPpj,
+      inspect: inspectPpj,
+      check: checkPpj,
+      build: buildPpj,
+    }[subcommand]);
   const result = await handler(request, { cwd });
   output.write(request.json ? `${JSON.stringify(result)}\n` : `${formatResult(result)}\n`);
 }
@@ -223,8 +220,12 @@ function requiredValue(args, index, option) {
 
 export async function resumePpjTask(
   { taskId, outputPath },
-  { cwd = process.cwd(), open = openTask, resume = resumeTaskPpjRevision, load = loadPpjWorkspace } = {},
+  options = {},
 ) {
+  const { cwd = process.cwd(), load = loadPpjWorkspace } = options;
+  const taskStore = options.open && options.resume ? null : await import("../cli/task-store.mjs");
+  const open = options.open ?? taskStore.openTask;
+  const resume = options.resume ?? taskStore.resumeTaskPpjRevision;
   const task = await open({ workspaceRoot: cwd, taskId });
   const revision = await resume(task);
   if (revision == null) throw new Error(`OfficeKit task ${taskId} has no PPJ revision to resume.`);
@@ -370,7 +371,7 @@ export async function importPptxAsPpj(
     throw error;
   }
   const workspace = await loadPpjWorkspace(destination, { cwd: root, retainRoot: false });
-  const task = await recordPpjTask({ taskId, cwd, stage: "imported", workspace, receipt: projected });
+  const task = await recordPpjTaskIfRequested({ taskId, cwd, stage: "imported", workspace, receipt: projected });
   return Object.freeze({
     ok: true,
     command: "import",
@@ -432,7 +433,7 @@ export async function checkPpj(
   const alreadyFormatted = Buffer.from(workspace.program).equals(formatted);
   if (fix && !alreadyFormatted) await replaceRegularFile(workspace.path, formatted);
   const program = JSON.parse(Buffer.from(validated.programJson).toString("utf8"));
-  const task = await recordPpjTask({ taskId, cwd, stage: "checked", workspace, receipt: validated });
+  const task = await recordPpjTaskIfRequested({ taskId, cwd, stage: "checked", workspace, receipt: validated });
   return Object.freeze({
     ok: true,
     command: "check",
@@ -475,7 +476,7 @@ export async function buildPpj(
     if (error?.code === "EEXIST") throw new Error(`PPTX output already exists: ${destination}`);
     throw error;
   }
-  const task = await recordPpjTask({
+  const task = await recordPpjTaskIfRequested({
     taskId,
     cwd,
     stage: "built",
@@ -498,6 +499,12 @@ export async function buildPpj(
     diagnostics: compiled.diagnostics,
     task,
   });
+}
+
+async function recordPpjTaskIfRequested(options) {
+  if (options.taskId == null) return null;
+  const { recordPpjTask } = await import("./task.mjs");
+  return recordPpjTask(options);
 }
 
 function programPageCount(bytes) {
