@@ -1,8 +1,8 @@
+using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Google.Protobuf;
 using OfficeKit.Artifact.Wire.V1;
 
@@ -6696,15 +6696,31 @@ internal static class PpjAuthoredPresentationCompiler
 
     private static JsonElement? MergeJsonObjects(params JsonElement?[] sources)
     {
-        JsonObject? merged = null;
+        Dictionary<string, JsonElement>? merged = null;
         foreach (var source in sources)
         {
             if (source is not { ValueKind: JsonValueKind.Object } value) continue;
-            merged ??= new JsonObject();
+            merged ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (var property in value.EnumerateObject())
-                merged[property.Name] = JsonNode.Parse(property.Value.GetRawText());
+                merged[property.Name] = property.Value.Clone();
         }
-        return merged is null ? null : JsonSerializer.SerializeToElement(merged);
+        if (merged is null) return null;
+
+        // Keep this path NativeAOT-safe: serializing JsonObject would require
+        // reflection metadata that the standalone codec deliberately omits.
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            writer.WriteStartObject();
+            foreach (var (name, value) in merged)
+            {
+                writer.WritePropertyName(name);
+                value.WriteTo(writer);
+            }
+            writer.WriteEndObject();
+        }
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
     }
 
     private static CodecException Unsupported(string owner, string message) =>
