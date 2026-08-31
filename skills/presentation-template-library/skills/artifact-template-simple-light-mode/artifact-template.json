@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-simple-light-mode",
+  "displayName": "Simple Light Mode",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "0c4365c8dd896714e61b5609a87f6f29bc9c0837029f68422b5bb2c3960b427e"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "38ac7479996a9e814b98a18f3959df1284037ccda8ee2e4e9abf84059ab8fa92"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "b4c4a9882cd79add84a317e50cedc7789bcd4f5438777f54c92127ec0642f8bb"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "add652ea602b5fca56e2974fe687b5a787f28e2fd36e0403f24e58a949f70299"
+    }
+  ],
+  "useWhen": [
+    "light executive briefing",
+    "research handout",
+    "readable evidence note"
+  ],
+  "avoidWhen": [
+    "immersive dark stage",
+    "brand-led launch",
+    "high-energy campaign"
+  ],
+  "audiences": [
+    "executives",
+    "research readers",
+    "mixed stakeholders"
+  ],
+  "contentShapes": [
+    "quiet opening",
+    "evidence page",
+    "comparison",
+    "method",
+    "decision close"
+  ],
+  "visualTraits": {
+    "tone": [
+      "clear",
+      "neutral",
+      "calm"
+    ],
+    "density": "mixed",
+    "colorMode": "light",
+    "structure": [
+      "white field",
+      "typographic hierarchy",
+      "fine rules"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "91333a327974589774cd98d6eea1b0e3c1d6289e84beb98c582124903b0a29a3",
+    "license": "MIT",
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Simple Light Mode reference; the immutable source hash and unsupported native subgraphs remain explicit."
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "9da5923fd96dd30dddd7894f78000f31e2b38c68b332c3e92aa58d93f609be89",
+    "license": "MIT",
+    "source": "Historical Codex Simple Light Mode reference deck, distributed under the repository MIT license and retained only as a source-bound native reference."
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit template guide and calibration preview are newly authored migration material. The declared MIT reference PPJ/PPTX is source-bound for native inspection and is not presented as a clean-room redraw.",
+    "guideSha256": "49c28a6a2fcbc226a40c523fee8e97a2ebf86a25509aff46928eeaa35a8cffdf",
+    "previewSha256": "8b57893400cba0e5cfdceb45ff8129033232904e5a358b233dd8dbf2c682fcd3"
+  }
+}

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Simple Light Mode"
+  short_description: "Use the Simple Light Mode presentation style"
+  icon_large: "./assets/preview.png"
+  default_prompt: "Use $artifact-template-simple-light-mode as the visual style for this presentation."
