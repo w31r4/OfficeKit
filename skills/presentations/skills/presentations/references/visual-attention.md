@@ -70,6 +70,18 @@ suggests unobserved intermediate values. A `null` gap is not enough without a
 render check because hosts can bridge sparse points. A syntactically valid chart
 whose labels collide, repeat, or imply unsupported data is a failed page.
 
+**Sparse-observation route.** Count the observed points before choosing a
+shared-axis chart. If a series has only two observed points, or more than half
+of its category values are missing, do not put it on a time/category line or
+combo chart by default. Route it to an independent endpoint comparison:
+two labelled metrics, a dumbbell with no intermediate ticks, or two aligned
+bars whose categories are explicitly `baseline` and `current`. Keep the
+comparison outside the unrelated series' plot and name the observation window
+in its heading. A native sparse line is allowed only when the user explicitly
+requests it, the x positions are truly observed, and a final-size render shows
+no bridge, collision, or false continuity. Never hide a sparse line with a
+transparent stroke and leave a line legend behind.
+
 ## Four executable quality contracts
 
 Use these contracts while composing and during the single render-correction

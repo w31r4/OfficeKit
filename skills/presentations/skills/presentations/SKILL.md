@@ -148,6 +148,9 @@ For charts, missing observations, or layered pages, follow the four executable
 quality contracts in that reference. Do not deliver from a structural pass
 alone: render at final size, repair visible collisions or occlusion locally,
 and state `visualReview: unavailable` when inspection was not possible.
+If a series has only two observations, use the sparse-observation route: an
+independent endpoint comparison is the default; a shared-axis sparse line is
+an explicit exception, never an automatic fallback.
 
 Arrays are semantic. `pages[]` is page order. `pages[].elements[]` is the real
 back-to-front z-order. Use stable IDs and edit those IDs in later turns.

@@ -40,6 +40,15 @@ missing categories into an invented continuous trend. Render the chart at
 final size and remove any label collision before delivery, even when structural
 review passes.
 
+When a series contains only two observations, prefer a separate endpoint
+comparison instead of adding a sparse line to a multi-series time axis. The
+comparison may be two large values, a dumbbell without intermediate ticks, or a
+two-category bar chart (`baseline`, `current`). State the exact observation
+window in the heading and keep the unrelated chart's scale independent. A
+shared-axis sparse line requires an explicit user request and a render proving
+that the host preserves a gap; a valid PPJ shape is not evidence of a truthful
+trend.
+
 Use JSON `null` for a genuinely missing Y observation. OfficeKit keeps the
 logical point count and writes a native chart gap; it does not coerce the value
 to zero or invent an estimate. This works for the bounded authored chart
