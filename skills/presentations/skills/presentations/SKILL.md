@@ -30,7 +30,8 @@ For local PPTX and PPJ files, stay in this Skill. Never import
    delivery mode, and after-use.
 2. Read [scenario routing](references/scenarios/README.md) and exactly one
    primary scenario guide.
-3. Read only the focused references needed by the planned carriers: fonts,
+3. Read [the visual attention contract](references/visual-attention.md), then
+   read only the focused references needed by the planned carriers: fonts,
    text, shapes, charts/tables, media/layers, components/templates, or motion.
    When a required image is not supplied by the user, brand, template, or
    source deck, also read [image sourcing](references/image-sourcing.md).
@@ -61,6 +62,12 @@ imported text, style, or geometry scalars, change only `value` on an existing
 hash. Keep the copied source asset and its SHA-256 unchanged. Unsupported
 mutations fail closed; do not rebuild, flatten, rasterize, or patch the package
 to force success.
+
+For a visual edit, preserve the page's existing communication contract before
+changing elements: identify its current audience task, primary claim, carrier,
+reading order, protected evidence, and layer order. A local edit changes only
+the requested surface. Replace the contract only when the user asks for a
+redesign or a global style change.
 
 ### Recover an OfficeKit-authored deck
 
@@ -122,6 +129,20 @@ budget, and a dominant relationship or explicit `none`. Choose the carrier
 that communicates that relationship: text, image, chart, table, diagram,
 native vector, or a deliberate mix. Negative space must create focus,
 separation, or rhythm; it is not leftover canvas.
+
+Before creating `pages[].elements[]`, write a short visual attention contract
+in the existing `intent`, `design.grammar`, and page-planning fields:
+
+```text
+audience task → one conclusion → primary carrier → reading order
+→ protected evidence → deliberate canvas occupancy → layer order
+```
+
+Do not start with a shape helper or a decorative asset. The contract is a
+decision aid, not a fixed visual style: colors, fonts, geometry, imagery, and
+density remain free to follow the selected scenario, template, or design
+system. Use the detailed checklist in [visual attention](references/visual-attention.md)
+for new pages and material redesigns.
 
 Arrays are semantic. `pages[]` is page order. `pages[].elements[]` is the real
 back-to-front z-order. Use stable IDs and edit those IDs in later turns.

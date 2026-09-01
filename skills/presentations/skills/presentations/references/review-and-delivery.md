@@ -12,7 +12,9 @@ Review the artifact in layers. A later layer does not replace an earlier one.
    order is clear, and detail matches the page budget.
 5. **Visual and layer**: carrier, hierarchy, density, crop, contrast, and
    rhythm work at final size; no fill, bar, mask, decoration, or label obscures
-   evidence.
+   evidence. Compare the rendered page with its visual attention contract:
+   reading order, deliberate occupancy, protected evidence, and true layer
+   order must agree with the plan.
 6. **Native and delivery**: PPJ checks, PPTX builds, re-imports, source-bound
    constraints hold, and final paths and hashes are unambiguous.
 
