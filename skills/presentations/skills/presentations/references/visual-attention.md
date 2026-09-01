@@ -60,6 +60,16 @@ subject, or connector that carries the page's claim. For combo charts, reserve
 separate label clearances instead of forcing a line through a data label or
 making a bar transparent merely to hide a layering mistake.
 
+Native chart defaults are not a label plan. For a chart with more than a few
+categories, explicitly configure data labels to show only the values the
+reader needs; set category, series, and percentage labels off unless each is
+deliberately useful. A series name belongs in a legend or one heading, never
+repeated beside every data point. If only two endpoints are known, use endpoint
+marks or a clearly two-point comparison; do not draw a continuous line that
+suggests unobserved intermediate values. A `null` gap is not enough without a
+render check because hosts can bridge sparse points. A syntactically valid chart
+whose labels collide, repeat, or imply unsupported data is a failed page.
+
 ## 1→10 edits
 
 For an existing page, inspect before editing:

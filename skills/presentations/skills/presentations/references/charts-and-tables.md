@@ -31,6 +31,15 @@ and a chart that merely repeats one large number.
 - Show missing values and estimates honestly.
 - Put the exact source and as-of date on the page or in a visible source area.
 
+Treat native data-label defaults as unsafe. Configure `showValue`,
+`showCategory`, `showSeries`, and `showPercent` explicitly at the smallest
+scope that communicates the claim. Keep a series name in one legend or
+heading, not repeated beside every mark. For endpoint-only evidence, use two
+endpoint marks or a visibly two-point comparison; never let a renderer bridge
+missing categories into an invented continuous trend. Render the chart at
+final size and remove any label collision before delivery, even when structural
+review passes.
+
 Use JSON `null` for a genuinely missing Y observation. OfficeKit keeps the
 logical point count and writes a native chart gap; it does not coerce the value
 to zero or invent an estimate. This works for the bounded authored chart
