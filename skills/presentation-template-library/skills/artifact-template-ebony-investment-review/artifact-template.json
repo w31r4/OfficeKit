@@ -58,16 +58,32 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "5ff49993da1d2a4da95ecef431ec9eebe1181a1a9a1aaedfd8131ea52e654c5f",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "791f717d8a3d8508885a45eca708fc654a83568eeb251cf56a8c32aa1aed2427",
-    "previewSha256": "7859a14891fffd4df558ae3e8f48d07a7e21ba10c6e65a45d92dda90d376a683"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-ebony-investment-review/assets/references/reference.ppj",
+      "sha256": "5ff49993da1d2a4da95ecef431ec9eebe1181a1a9a1aaedfd8131ea52e654c5f",
+      "bytes": 680318
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "533e7b4140764d79c4fb22cf992ac03f7abe098d6343e9dac46c285b964730aa",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-ebony-investment-review/assets/references/reference.pptx",
+      "sha256": "533e7b4140764d79c4fb22cf992ac03f7abe098d6343e9dac46c285b964730aa",
+      "bytes": 17368
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "791f717d8a3d8508885a45eca708fc654a83568eeb251cf56a8c32aa1aed2427",
+    "previewSha256": "167a145087510c867002d4de14364c946de9bde5846ebeb0602fa14b393bf963"
   }
 }

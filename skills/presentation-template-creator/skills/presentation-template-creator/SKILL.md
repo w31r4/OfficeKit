@@ -15,6 +15,9 @@ script, or a reference whose rights and provenance are unclear.
 
 Read [references/template-format.md](references/template-format.md) before
 packaging a template.
+When rebuilding from an existing PPTX, a long reference image, or a design
+guide, also read
+[references/reference-reconstruction.md](references/reference-reconstruction.md).
 
 During calibration, use the Presentations PPJ, typography, media/layers,
 shapes, charts/tables, and components/templates references as shared language
@@ -43,7 +46,14 @@ reference PPJ/PPTX.
    diagram treatment, density and rhythm, layer order, signatures, variation
    limits, prohibitions, review checks, and a calibration map. Do not copy
    reference wording or claim uncertain design intent as fact.
-4. Create an unrelated four-to-six-page clean-room calibration deck as PPJ and
+4. Before building the calibration deck, run one minimal native capability
+   probe for every design-defining carrier the style depends on: for example a
+   table, chart, background image plus scrim, masked image, layered diagram, or
+   motion recipe. The probe must use the packaged NativeAOT codec and a real
+   host render. If the carrier fails, fix or explicitly bound the product gap;
+   do not silently replace it with unrelated shapes merely to finish the
+   template.
+5. Create an unrelated four-to-six-page clean-room calibration deck as PPJ and
    compile it to PPTX. Use
    new content and geometry, cover at least three page roles, render every page,
    and review it visually. Recreate any design-defining overlap with real
@@ -55,12 +65,22 @@ reference PPJ/PPTX.
    Score the result against the declared visual and functional fidelity rubric.
    Both scores must reach 95/100 before calling the style restored; otherwise
    label it a candidate and record the missing evidence instead of rounding up.
-5. Check, build, render, review, and re-import the clean-room PPJ/PPTX. Keep the
+6. Check, build, render, review, and re-import the clean-room PPJ/PPTX. Inspect
+   the actual host-rendered pages, not only PPJ structure or an internal
+   preview. A successful build is not evidence that table text, fonts, image
+   masks, crop, transparency, or layer order survived the host.
+   Keep the
    original source files, extracted media, and analysis evidence private. Add
-   the clean-room `referenceProgram` and `referencePptx` to the packaging spec
-   only when their license, package size, and reuse value justify publishing;
-   otherwise publish only the guide and calibration PNGs.
-6. Package with:
+   the clean-room `referenceProgram` and `referencePptx` to the packaging spec.
+   For a library template, add a GitHub `download` descriptor with the same
+   SHA-256 and byte count; local reference trees remain useful for review but
+   are excluded from the npm archive and restored only by
+   `officekit template fetch`. The Creator validates every relative PPJ
+   asset/source hash and packages those files beside the program for local
+   verification. Publish a reference only when its license, package size, and
+   reuse value justify retaining it in GitHub; otherwise publish only the guide
+   and calibration PNGs.
+7. Package with:
 
    ```bash
    officekit run "$SKILL_DIR/scripts/package-presentation-template.mjs" -- \
@@ -69,7 +89,7 @@ reference PPJ/PPTX.
 
    For an explicit update, also pass the current sidecar SHA-256 as
    `--expected-sha256`.
-7. Read the JSON result, query the generated template by exact ID, view its
+8. Read the JSON result, query the generated template by exact ID, view its
    preview and examples, and create a short unrelated deck from the style. If a
    reference PPJ/PPTX ships, also import it, perform one bounded local edit,
    re-import, and render it. Stop if the result depends on copied layouts,
@@ -84,6 +104,10 @@ reference PPJ/PPTX.
   templates or select more than one.
 - Existing OfficeKit bundled-template migration always uses recreated examples,
   never old screenshots.
+- Do not hide a compiler or host-rendering defect by redrawing a semantic table,
+  chart, or diagram as loose text and lines. Such a construction is acceptable
+  only when it is itself the intended visual grammar and remains accessible and
+  editable.
 - The calibration workflow may use PPJ background images, true scene order,
   chart/shape/image composition, motion, and `officekit ppj inspect`. A template
   never promises that a third-party source graph is fully editable.

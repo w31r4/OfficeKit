@@ -12,7 +12,7 @@ artifact-template-<slug>/
     ├── examples/
     │   ├── 01-<role>.png
     │   └── ...
-    └── references/              # optional, only when declared
+    └── references/              # optional local cache; excluded from npm
         ├── reference.ppj
         └── reference.pptx
 ```
@@ -63,7 +63,12 @@ Do not repeat the general Presentations workflow or prescribe fixed coordinates.
   "referenceProgram": {
     "path": "/absolute/task/reference.ppj",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration"
+    "source": "OfficeKit original clean-room calibration",
+    "download": {
+      "url": "https://raw.githubusercontent.com/<owner>/<repo>/main/skills/.../reference.ppj",
+      "sha256": "<same hash as the reference>",
+      "bytes": 12345
+    }
   },
   "referencePptx": {
     "path": "/absolute/task/reference.pptx",
@@ -86,5 +91,10 @@ preview, every example, and any declared reference. The generated preview is a
 deterministic two-column montage; examples remain the full-resolution evidence
 the Agent should inspect. `referenceProgram` and `referencePptx` are optional,
 but when present they must be clean-room, reviewed, rights-declared files. The
-Creator copies them under `assets/references/`; it never packages an undeclared
-source deck.
+Creator copies them under `assets/references/` for local review. A published
+template may add a `download` descriptor for each reference; the npm package
+excludes the local reference directory, and `officekit template fetch` restores
+it by HTTPS and SHA-256 before compilation. Relative assets and a source-bound
+PPTX declared by a `referenceProgram` are hash-verified and copied below
+`assets/references/<asset-uri>` so the local PPJ remains directly buildable. It
+never packages an undeclared source deck.

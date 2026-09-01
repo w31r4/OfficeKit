@@ -23,7 +23,7 @@
     {
       "path": "assets/examples/04-closing.png",
       "role": "closing",
-      "sha256": "1512a6357c9266b88ea6cfc8d7dd9a2b0525ca1b1064ac22ad7d06ac0ebe45e2"
+      "sha256": "e42664cbd61b5065564502d100c29e4f25bf25903173cfdeccf6aad9a5c5ce96"
     }
   ],
   "useWhen": [
@@ -58,16 +58,32 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "291d10972778d5f865e03273aab0eadc5667be69620ec825af825536a18b7a9b",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "49a1f7b72d781e873a915bed48fb32917981a28ce8172073f8e89f383064717d",
-    "previewSha256": "6db6fe43eeb30caed3e94a4571f11d08fb5e388b1ff59da51159c7d7fa1d8111"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/references/reference.ppj",
+      "sha256": "291d10972778d5f865e03273aab0eadc5667be69620ec825af825536a18b7a9b",
+      "bytes": 492513
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-silver-atelier/assets/references/reference.pptx",
+      "sha256": "6491590bbb390fd28ae270ed2c7290585c4948da2dfd29e307784e560a1b202a",
+      "bytes": 715823
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "49a1f7b72d781e873a915bed48fb32917981a28ce8172073f8e89f383064717d",
+    "previewSha256": "33d2f3e1a4c7e89720d848b455ea7359ced149ca87da4e9df854f7a802a85014"
   }
 }

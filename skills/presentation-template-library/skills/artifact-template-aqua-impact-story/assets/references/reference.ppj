@@ -614,6 +614,93 @@
                 "right": 6,
                 "bottom": 3
               }
+            },
+            "headerTextStyle": {
+              "defaultText": {
+                "font": "sans",
+                "size": 9,
+                "bold": true,
+                "color": {
+                  "token": "ink"
+                }
+              },
+              "verticalAlignment": "middle"
+            },
+            "firstColumnStyle": {
+              "textStyle": {
+                "defaultText": {
+                  "font": "sans",
+                  "size": 9,
+                  "bold": true,
+                  "color": {
+                    "token": "ink"
+                  }
+                }
+              }
+            },
+            "cellStyle": {
+              "borders": {
+                "left": {
+                  "color": "#FAF7F0",
+                  "width": 0.25,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "right": {
+                  "color": "#FAF7F0",
+                  "width": 0.25,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "top": {
+                  "color": "#FAF7F0",
+                  "width": 0.25,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "bottom": {
+                  "color": "#76A9DC",
+                  "width": 0.7,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                }
+              }
+            },
+            "firstRowStyle": {
+              "borders": {
+                "left": {
+                  "color": "#FAF7F0",
+                  "width": 0.25,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "right": {
+                  "color": "#FAF7F0",
+                  "width": 0.25,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "top": {
+                  "color": "#FAF7F0",
+                  "width": 0.25,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                },
+                "bottom": {
+                  "color": "#222520",
+                  "width": 1.2,
+                  "dash": "solid",
+                  "cap": "round",
+                  "join": "round"
+                }
+              }
             }
           }
         }
@@ -2726,474 +2813,182 @@
           }
         },
         {
-          "type": "connector",
-          "id": "p05-row-0",
-          "connectorType": "straight",
+          "id": "p05-native-ledger",
+          "type": "table",
+          "role": "editable outcome ledger",
           "frame": {
             "x": 48,
-            "y": 203,
+            "y": 158,
             "width": 650,
-            "height": 1
+            "height": 260
           },
-          "from": {
-            "x": 48,
-            "y": 203
-          },
-          "to": {
-            "x": 698,
-            "y": 203
-          },
-          "stroke": {
-            "color": "#222520",
-            "width": 1.2,
-            "dash": "solid",
-            "cap": "round",
-            "join": "round"
-          },
-          "endArrow": "none",
-          "accessibility": {
-            "decorative": true
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-0-0",
-          "frame": {
-            "x": 48,
-            "y": 166,
-            "width": 250,
-            "height": 32
-          },
-          "text": "INDICATOR",
-          "styleRef": "table-strong",
           "accessibility": {
             "decorative": false,
-            "description": "Outcome ledger header: INDICATOR"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-0-1",
-          "frame": {
-            "x": 316,
-            "y": 166,
-            "width": 110,
-            "height": 32
+            "description": "Outcome ledger comparing baseline, follow-up, and measured change"
           },
-          "text": "BASELINE",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger header: BASELINE"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-0-2",
-          "frame": {
-            "x": 446,
-            "y": 166,
-            "width": 110,
-            "height": 32
-          },
-          "text": "FOLLOW-UP",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger header: FOLLOW-UP"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-0-3",
-          "frame": {
-            "x": 568,
-            "y": 166,
-            "width": 130,
-            "height": 32
-          },
-          "text": "CHANGE",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger header: CHANGE"
-          }
-        },
-        {
-          "type": "connector",
-          "id": "p05-row-1",
-          "connectorType": "straight",
-          "frame": {
-            "x": 48,
-            "y": 255,
-            "width": 650,
-            "height": 1
-          },
-          "from": {
-            "x": 48,
-            "y": 255
-          },
-          "to": {
-            "x": 698,
-            "y": 255
-          },
-          "stroke": {
-            "color": "#76A9DC",
-            "width": 0.7,
-            "dash": "solid",
-            "cap": "round",
-            "join": "round"
-          },
-          "endArrow": "none",
-          "accessibility": {
-            "decorative": true
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-1-0",
-          "frame": {
-            "x": 48,
-            "y": 218,
-            "width": 250,
-            "height": 32
-          },
-          "text": "Water-quality compliance",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: Water-quality compliance"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-1-1",
-          "frame": {
-            "x": 316,
-            "y": 218,
-            "width": 110,
-            "height": 32
-          },
-          "text": "66%",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 66%"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-1-2",
-          "frame": {
-            "x": 446,
-            "y": 218,
-            "width": 110,
-            "height": 32
-          },
-          "text": "84%",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 84%"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-1-3",
-          "frame": {
-            "x": 568,
-            "y": 218,
-            "width": 130,
-            "height": 32
-          },
-          "text": "+18 pp",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: +18 pp"
-          }
-        },
-        {
-          "type": "connector",
-          "id": "p05-row-2",
-          "connectorType": "straight",
-          "frame": {
-            "x": 48,
-            "y": 307,
-            "width": 650,
-            "height": 1
-          },
-          "from": {
-            "x": 48,
-            "y": 307
-          },
-          "to": {
-            "x": 698,
-            "y": 307
-          },
-          "stroke": {
-            "color": "#76A9DC",
-            "width": 0.7,
-            "dash": "solid",
-            "cap": "round",
-            "join": "round"
-          },
-          "endArrow": "none",
-          "accessibility": {
-            "decorative": true
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-2-0",
-          "frame": {
-            "x": 48,
-            "y": 270,
-            "width": 250,
-            "height": 32
-          },
-          "text": "Native breeding success",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: Native breeding success"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-2-1",
-          "frame": {
-            "x": 316,
-            "y": 270,
-            "width": 110,
-            "height": 32
-          },
-          "text": "52%",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 52%"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-2-2",
-          "frame": {
-            "x": 446,
-            "y": 270,
-            "width": 110,
-            "height": 32
-          },
-          "text": "68%",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 68%"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-2-3",
-          "frame": {
-            "x": 568,
-            "y": 270,
-            "width": 130,
-            "height": 32
-          },
-          "text": "+16 pp",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: +16 pp"
-          }
-        },
-        {
-          "type": "connector",
-          "id": "p05-row-3",
-          "connectorType": "straight",
-          "frame": {
-            "x": 48,
-            "y": 359,
-            "width": 650,
-            "height": 1
-          },
-          "from": {
-            "x": 48,
-            "y": 359
-          },
-          "to": {
-            "x": 698,
-            "y": 359
-          },
-          "stroke": {
-            "color": "#76A9DC",
-            "width": 0.7,
-            "dash": "solid",
-            "cap": "round",
-            "join": "round"
-          },
-          "endArrow": "none",
-          "accessibility": {
-            "decorative": true
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-3-0",
-          "frame": {
-            "x": 48,
-            "y": 322,
-            "width": 250,
-            "height": 32
-          },
-          "text": "Access within 15 minutes",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: Access within 15 minutes"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-3-1",
-          "frame": {
-            "x": 316,
-            "y": 322,
-            "width": 110,
-            "height": 32
-          },
-          "text": "41%",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 41%"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-3-2",
-          "frame": {
-            "x": 446,
-            "y": 322,
-            "width": 110,
-            "height": 32
-          },
-          "text": "63%",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 63%"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-3-3",
-          "frame": {
-            "x": 568,
-            "y": 322,
-            "width": 130,
-            "height": 32
-          },
-          "text": "+22 pp",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: +22 pp"
-          }
-        },
-        {
-          "type": "connector",
-          "id": "p05-row-4",
-          "connectorType": "straight",
-          "frame": {
-            "x": 48,
-            "y": 411,
-            "width": 650,
-            "height": 1
-          },
-          "from": {
-            "x": 48,
-            "y": 411
-          },
-          "to": {
-            "x": 698,
-            "y": 411
-          },
-          "stroke": {
-            "color": "#76A9DC",
-            "width": 0.7,
-            "dash": "solid",
-            "cap": "round",
-            "join": "round"
-          },
-          "endArrow": "none",
-          "accessibility": {
-            "decorative": true
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-4-0",
-          "frame": {
-            "x": 48,
-            "y": 374,
-            "width": 250,
-            "height": 32
-          },
-          "text": "Verified public records",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: Verified public records"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-4-1",
-          "frame": {
-            "x": 316,
-            "y": 374,
-            "width": 110,
-            "height": 32
-          },
-          "text": "1,820",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 1,820"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-4-2",
-          "frame": {
-            "x": 446,
-            "y": 374,
-            "width": 110,
-            "height": 32
-          },
-          "text": "3,460",
-          "styleRef": "table",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: 3,460"
-          }
-        },
-        {
-          "type": "text",
-          "id": "p05-cell-4-3",
-          "frame": {
-            "x": 568,
-            "y": 374,
-            "width": 130,
-            "height": 32
-          },
-          "text": "+1,640",
-          "styleRef": "table-strong",
-          "accessibility": {
-            "decorative": false,
-            "description": "Outcome ledger value: +1,640"
-          }
+          "styleRef": "impact-ledger",
+          "columns": [
+            {
+              "id": "indicator",
+              "width": 268
+            },
+            {
+              "id": "baseline",
+              "width": 130
+            },
+            {
+              "id": "follow-up",
+              "width": 122
+            },
+            {
+              "id": "change",
+              "width": 130
+            }
+          ],
+          "rows": [
+            {
+              "id": "ledger-row-0",
+              "height": 52,
+              "cells": [
+                {
+                  "id": "ledger-cell-0-0",
+                  "text": "INDICATOR"
+                },
+                {
+                  "id": "ledger-cell-0-1",
+                  "text": "BASELINE"
+                },
+                {
+                  "id": "ledger-cell-0-2",
+                  "text": "FOLLOW-UP"
+                },
+                {
+                  "id": "ledger-cell-0-3",
+                  "text": "CHANGE"
+                }
+              ]
+            },
+            {
+              "id": "ledger-row-1",
+              "height": 52,
+              "cells": [
+                {
+                  "id": "ledger-cell-1-0",
+                  "text": "Water-quality compliance"
+                },
+                {
+                  "id": "ledger-cell-1-1",
+                  "text": "66%"
+                },
+                {
+                  "id": "ledger-cell-1-2",
+                  "text": "84%"
+                },
+                {
+                  "id": "ledger-cell-1-3",
+                  "text": "+18 pp",
+                  "textStyle": {
+                    "defaultText": {
+                      "font": "sans",
+                      "size": 9,
+                      "bold": true,
+                      "color": "#5493D3"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ledger-row-2",
+              "height": 52,
+              "cells": [
+                {
+                  "id": "ledger-cell-2-0",
+                  "text": "Native breeding success"
+                },
+                {
+                  "id": "ledger-cell-2-1",
+                  "text": "52%"
+                },
+                {
+                  "id": "ledger-cell-2-2",
+                  "text": "68%"
+                },
+                {
+                  "id": "ledger-cell-2-3",
+                  "text": "+16 pp",
+                  "textStyle": {
+                    "defaultText": {
+                      "font": "sans",
+                      "size": 9,
+                      "bold": true,
+                      "color": "#5493D3"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ledger-row-3",
+              "height": 52,
+              "cells": [
+                {
+                  "id": "ledger-cell-3-0",
+                  "text": "Access within 15 minutes"
+                },
+                {
+                  "id": "ledger-cell-3-1",
+                  "text": "41%"
+                },
+                {
+                  "id": "ledger-cell-3-2",
+                  "text": "63%"
+                },
+                {
+                  "id": "ledger-cell-3-3",
+                  "text": "+22 pp",
+                  "textStyle": {
+                    "defaultText": {
+                      "font": "sans",
+                      "size": 9,
+                      "bold": true,
+                      "color": "#5493D3"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "ledger-row-4",
+              "height": 52,
+              "cells": [
+                {
+                  "id": "ledger-cell-4-0",
+                  "text": "Verified public records"
+                },
+                {
+                  "id": "ledger-cell-4-1",
+                  "text": "1,820"
+                },
+                {
+                  "id": "ledger-cell-4-2",
+                  "text": "3,460"
+                },
+                {
+                  "id": "ledger-cell-4-3",
+                  "text": "+1,640",
+                  "textStyle": {
+                    "defaultText": {
+                      "font": "sans",
+                      "size": 9,
+                      "bold": true,
+                      "color": "#5493D3"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
         },
         {
           "type": "connector",

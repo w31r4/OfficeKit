@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-operating-review",
+  "displayName": "Operating Review",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "62e480b22bae33a958a47de51379aeacb832ebc89a7119998ecfec47f229cde6"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "ae92bc968f8a9e39e949cecbf73aa4e1fea1bca8c274ad055a9c90dbf963a7f4"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "6fd83d226b7656d62ab32f6e7a74c0d17129c718f4be3aeeac456210db62adc2"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "ea4c022e35bf1bc678d657a48ece91dabc153ed57c45cc78bfda9359791ca543"
+    }
+  ],
+  "useWhen": [
+    "weekly operating review",
+    "service performance",
+    "incident and action review"
+  ],
+  "avoidWhen": [
+    "marketing launch",
+    "academic lecture",
+    "unbounded dashboard"
+  ],
+  "audiences": [
+    "operations leaders",
+    "product teams",
+    "service owners"
+  ],
+  "contentShapes": [
+    "operating thesis",
+    "metric spine",
+    "exception field",
+    "dependency path"
+  ],
+  "visualTraits": {
+    "tone": [
+      "operational",
+      "precise",
+      "accountable"
+    ],
+    "density": "dense",
+    "colorMode": "dark",
+    "structure": [
+      "navy opening",
+      "metric baselines",
+      "exception signals"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "cdf1fece8e8808e3d381c81edea603df9ff15eb6dc117cdaa152e2ce1f8114c3",
+    "license": "MIT",
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Operating Review reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-operating-review/assets/references/reference.ppj",
+      "sha256": "cdf1fece8e8808e3d381c81edea603df9ff15eb6dc117cdaa152e2ce1f8114c3",
+      "bytes": 3837118
+    }
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "17b6d3fdca22054c2501aa6eaecd17eb95c48275750fb96c71b4336aac6b76c4",
+    "license": "MIT",
+    "source": "Historical Codex Operating Review reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-operating-review/assets/references/reference.pptx",
+      "sha256": "17b6d3fdca22054c2501aa6eaecd17eb95c48275750fb96c71b4336aac6b76c4",
+      "bytes": 272358
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit template guide and calibration preview are newly authored migration material. The declared MIT reference PPJ/PPTX is source-bound for native inspection and is not presented as a clean-room redraw.",
+    "guideSha256": "ca163ae9ec0db65f60675ad8096c4d0b4587e7223b0239328b4f0b6ece109558",
+    "previewSha256": "44fbea0e26d0b6fb3098e4ca7fb3272482eefc1d3a4de42376724ab7860e9535"
+  }
+}

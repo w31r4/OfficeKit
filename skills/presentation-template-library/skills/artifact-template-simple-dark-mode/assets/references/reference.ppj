@@ -1,0 +1,239 @@
+{
+  "schema": "office-kit/ppj/v1",
+  "meta": {
+    "id": "night-signal-reference",
+    "title": "Night Signal: Urban Mobility Operations",
+    "language": "en-US",
+    "version": 1,
+    "description": "OfficeKit clean-room calibration for an image-led dark presentation style. All operational data is synthetic."
+  },
+  "intent": {
+    "brief": {
+      "primaryJob": "decide",
+      "supportingJobs": ["explain", "report"],
+      "purpose": "Frame a night-mobility operating model and the evidence needed for a controlled pilot.",
+      "expectedOutcome": "An operations board can approve a bounded night-corridor pilot.",
+      "durationMinutes": 7,
+      "evidenceBoundary": "All figures are synthetic calibration data. Photographs are contextual and do not depict the fictional pilot.",
+      "constraints": [
+        "Use imagery as identity or operating context, never filler.",
+        "Keep all text, data marks, and decision rules editable.",
+        "Use one cyan signal and one amber decision accent."
+      ]
+    },
+    "audience": {
+      "description": "Urban operations leaders and infrastructure program owners.",
+      "knowledgeLevel": "expert",
+      "decisionRole": "Approve or revise a limited night-corridor pilot.",
+      "needs": ["A memorable proposition", "Visible operating evidence", "A bounded next decision"]
+    },
+    "narrative": {
+      "thesis": "Night mobility improves when demand, detection, and dispatch share one observable signal chain.",
+      "arc": [
+        { "id": "frame", "purpose": "Set the proposition", "claim": "The city after dark is an operating system, not an empty road." },
+        { "id": "scale", "purpose": "Show the signal", "claim": "Demand concentrates in a small set of connected corridors." },
+        { "id": "operate", "purpose": "Show the mechanism", "claim": "Detect, decide, and recover must stay within one response window." },
+        { "id": "commit", "purpose": "Make the decision", "claim": "Launch only where the evidence chain remains observable." }
+      ]
+    },
+    "editorial": {
+      "tone": ["controlled", "cinematic", "operational"],
+      "titleMode": "conclusion",
+      "lockedFacts": ["All numeric values are illustrative."],
+      "avoid": ["neon gradients", "glass cards", "generic future-city slogans", "uncredited photography"],
+      "sourceStyle": "footnote"
+    },
+    "delivery": { "mode": "hybrid", "afterUse": "Pilot decision record", "mediumFit": "strong" }
+  },
+  "design": {
+    "canvas": { "width": 960, "height": 540, "unit": "pt" },
+    "theme": {
+      "name": "Night Signal",
+      "colors": [
+        { "id": "black", "value": "#05070A", "role": "deep surface" },
+        { "id": "coal", "value": "#0D1218", "role": "secondary surface" },
+        { "id": "white", "value": "#F6F8FA", "role": "primary type" },
+        { "id": "quiet", "value": "#A7B0BA", "role": "secondary type" },
+        { "id": "cyan", "value": "#31C7D9", "role": "live signal" },
+        { "id": "amber", "value": "#F1A51A", "role": "decision" },
+        { "id": "line", "value": "#27313A", "role": "structure" }
+      ]
+    },
+    "fonts": [
+      { "id": "display", "family": "Arial", "fallbacks": ["Helvetica", "sans-serif"], "language": "en-US", "weight": 400, "style": "normal" },
+      { "id": "body", "family": "Arial", "fallbacks": ["Helvetica", "sans-serif"], "language": "en-US", "weight": 400, "style": "normal" }
+    ],
+    "styles": {
+      "text": [
+        {
+          "id": "display",
+          "style": {
+            "defaultText": { "font": "display", "size": 44, "color": { "token": "white" } },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "title",
+          "style": {
+            "defaultText": { "font": "display", "size": 27, "color": { "token": "white" } },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "body",
+          "style": {
+            "defaultText": { "font": "body", "size": 11, "color": { "token": "quiet" } },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "body-white",
+          "style": {
+            "defaultText": { "font": "body", "size": 11, "color": { "token": "white" } },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "kicker",
+          "style": {
+            "defaultText": { "font": "body", "size": 7.5, "bold": true, "color": { "token": "cyan" }, "letterSpacing": 1.5, "capitalization": "all" },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "metric",
+          "style": {
+            "defaultText": { "font": "display", "size": 54, "bold": true, "color": { "token": "white" } },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "label",
+          "style": {
+            "defaultText": { "font": "body", "size": 8.5, "bold": true, "color": { "token": "white" }, "letterSpacing": 0.7 },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        },
+        {
+          "id": "source",
+          "style": {
+            "defaultText": { "font": "body", "size": 6.5, "color": { "token": "quiet" } },
+            "verticalAlignment": "top", "autoFit": "shrink-text",
+            "margins": { "left": 0, "top": 0, "right": 0, "bottom": 0 }
+          }
+        }
+      ]
+    },
+    "grammar": {
+      "name": "Night Signal",
+      "rationale": "A dark operating story needs real nighttime context, one live signal color, and disciplined evidence rather than decorative futurism.",
+      "visualThesis": "Photography establishes scale; cyan traces the live signal; amber marks the decision boundary.",
+      "surfaceHierarchy": ["Use near-black as the operating field.", "Let photography occupy one decisive region or the full native background."],
+      "typographyRhythm": ["Large unboxed claims lead.", "Short labels and source notes remain quiet but legible."],
+      "geometryRules": ["Use lines to encode routes, windows, and thresholds.", "Do not use rounded cards or glowing borders."],
+      "densityRhythm": ["Alternate one sparse cinematic page with one denser evidence page."],
+      "carrierRules": ["Use distinct images for city scale, operating context, and motion identity.", "Use simple native marks for response timing."],
+      "forbiddenPatterns": ["No card wall.", "No blue-purple gradient.", "No random circles.", "No repeated stock image."]
+    },
+    "motionPolicy": "adaptive"
+  },
+  "assets": [
+    {
+      "id": "night-highway", "uri": "assets/night-highway.jpg", "mimeType": "image/jpeg",
+      "sha256": "5bf6700ea6b7d63cf418ba286181687cf0a623c7fb78211eb5dc7163dce82e33", "widthPx": 2592, "heightPx": 1728,
+      "rights": { "status": "cc-by", "sourceUrl": "https://commons.wikimedia.org/wiki/File:Highway_401_Night_Lapse_Busy.jpg", "author": "kennymatic", "licenseUrl": "https://creativecommons.org/licenses/by/2.0", "creditLine": "Highway 401 Night Lapse Busy · kennymatic · CC BY 2.0" },
+      "accessibility": { "decorative": false, "description": "Long-exposure traffic moving through a city at night." }
+    },
+    {
+      "id": "city-lights", "uri": "assets/city-lights.jpg", "mimeType": "image/jpeg",
+      "sha256": "fa4d5790b46eee73893efd42a92dce82c25bdeef417dc3f56423102bceb886ba", "widthPx": 4800, "heightPx": 2400,
+      "rights": { "status": "public-domain", "sourceUrl": "https://commons.wikimedia.org/wiki/File:Earth%27s_City_Lights_by_DMSP,_1994-1995_(large).jpg", "author": "NASA GSFC / NOAA NGDC", "creditLine": "Earth city lights · NASA GSFC / NOAA NGDC · public domain" },
+      "accessibility": { "decorative": false, "description": "A global night-lights composite showing concentrated urban activity." }
+    },
+    {
+      "id": "mission-control", "uri": "assets/mission-control.jpg", "mimeType": "image/jpeg",
+      "sha256": "bc712517c9cdb9ffa838ece603efbe2d9ffc2da0922cb4b3184934b16fd7575b", "widthPx": 2954, "heightPx": 2172,
+      "rights": { "status": "public-domain", "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mission_Operations_Control_Room_during_Apollo_13.jpg", "author": "NASA", "creditLine": "Apollo 13 Mission Control · NASA · public domain" },
+      "accessibility": { "decorative": false, "description": "NASA mission control operators monitoring a complex live system." }
+    }
+  ],
+  "pages": [
+    {
+      "id": "opening",
+      "role": "cinematic cover",
+      "background": { "type": "solid", "color": "#05070A" },
+      "elements": [
+        { "id": "opening-photo", "type": "image", "role": "motion identity", "frame": { "x": 520, "y": 0, "width": 440, "height": 540 }, "asset": "night-highway", "fit": "cover", "locked": true, "accessibility": { "decorative": false, "description": "Night highway and city lights establishing the operating context." } },
+        { "id": "opening-scrim", "type": "shape", "frame": { "x": 500, "y": 0, "width": 180, "height": 540 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "gradient", "kind": "linear", "angle": 0, "stops": [ { "offset": 0, "color": "#05070A", "opacity": 1 }, { "offset": 1, "color": "#05070A", "opacity": 0 } ] } }, "accessibility": { "decorative": true } },
+        { "id": "opening-kicker", "type": "text", "frame": { "x": 56, "y": 48, "width": 360, "height": 16 }, "text": "URBAN OPERATIONS · NIGHT CORRIDOR", "styleRef": "kicker", "accessibility": { "decorative": false, "description": "Deck category" } },
+        { "id": "opening-title", "type": "text", "frame": { "x": 56, "y": 142, "width": 430, "height": 150 }, "text": "Night Shift\nSignal System", "styleRef": "display", "accessibility": { "decorative": false, "description": "Presentation title" } },
+        { "id": "opening-rule", "type": "shape", "frame": { "x": 56, "y": 314, "width": 64, "height": 4 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#31C7D9" } }, "accessibility": { "decorative": true } },
+        { "id": "opening-subtitle", "type": "text", "frame": { "x": 56, "y": 338, "width": 390, "height": 70 }, "text": "From fragmented night demand\nto one observable dispatch window", "styleRef": "body-white", "accessibility": { "decorative": false, "description": "Presentation proposition" } },
+        { "id": "opening-meta", "type": "text", "frame": { "x": 56, "y": 468, "width": 350, "height": 20 }, "text": "4 calibration pages · synthetic data · 2026", "styleRef": "source", "accessibility": { "decorative": false, "description": "Calibration boundary" } },
+        { "id": "opening-credit", "type": "text", "frame": { "x": 558, "y": 510, "width": 350, "height": 12 }, "text": "Photo · kennymatic · CC BY 2.0", "styleRef": "source", "accessibility": { "decorative": false, "description": "Photo credit" } }
+      ]
+    },
+    {
+      "id": "network-signal",
+      "role": "image-backed evidence",
+      "background": { "type": "image", "asset": "city-lights", "fit": "cover", "opacity": 0.88 },
+      "elements": [
+        { "id": "network-scrim", "type": "shape", "frame": { "x": 0, "y": 0, "width": 960, "height": 540 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#05070A" }, "opacity": 0.56 }, "accessibility": { "decorative": true } },
+        { "id": "network-kicker", "type": "text", "frame": { "x": 56, "y": 40, "width": 380, "height": 16 }, "text": "SIGNAL SCALE · SYNTHETIC NIGHT DEMAND", "styleRef": "kicker", "accessibility": { "decorative": false, "description": "Evidence category" } },
+        { "id": "network-title", "type": "text", "frame": { "x": 56, "y": 82, "width": 620, "height": 82 }, "text": "68% of night requests cluster\nalong twelve connected corridors", "styleRef": "title", "accessibility": { "decorative": false, "description": "Evidence conclusion" } },
+        { "id": "network-metric", "type": "text", "frame": { "x": 56, "y": 246, "width": 210, "height": 72 }, "text": "68%", "styleRef": "metric", "accessibility": { "decorative": false, "description": "Synthetic clustered demand share" } },
+        { "id": "network-label", "type": "text", "frame": { "x": 58, "y": 322, "width": 250, "height": 42 }, "text": "ILLUSTRATIVE REQUEST SHARE\n20:00—02:00", "styleRef": "label", "accessibility": { "decorative": false, "description": "Metric definition" } },
+        { "id": "network-route", "type": "connector", "connectorType": "straight", "frame": { "x": 348, "y": 278, "width": 490, "height": 1 }, "from": { "x": 348, "y": 278 }, "to": { "x": 838, "y": 278 }, "stroke": { "color": "#31C7D9", "width": 2.5, "dash": "solid", "cap": "round", "join": "round" }, "endArrow": "triangle", "accessibility": { "decorative": false, "description": "Signal route from demand to dispatch" } },
+        { "id": "network-step-1", "type": "text", "frame": { "x": 348, "y": 292, "width": 130, "height": 48 }, "text": "DEMAND\n12 corridors", "styleRef": "label", "accessibility": { "decorative": false, "description": "Demand node" } },
+        { "id": "network-step-2", "type": "text", "frame": { "x": 548, "y": 292, "width": 130, "height": 48 }, "text": "DETECTION\n4-minute window", "styleRef": "label", "accessibility": { "decorative": false, "description": "Detection node" } },
+        { "id": "network-step-3", "type": "text", "frame": { "x": 742, "y": 292, "width": 150, "height": 48 }, "text": "DISPATCH\n2 control zones", "styleRef": "label", "accessibility": { "decorative": false, "description": "Dispatch node" } },
+        { "id": "network-source", "type": "text", "frame": { "x": 56, "y": 502, "width": 760, "height": 14 }, "text": "Source · Synthetic calibration model · image: NASA GSFC / NOAA NGDC · public domain", "styleRef": "source", "accessibility": { "decorative": false, "description": "Evidence and image source" } },
+        { "id": "network-folio", "type": "text", "frame": { "x": 878, "y": 502, "width": 40, "height": 14 }, "text": "02 / 04", "styleRef": "source", "accessibility": { "decorative": false, "description": "Page number" } }
+      ]
+    },
+    {
+      "id": "control-window",
+      "role": "operating mechanism",
+      "background": { "type": "solid", "color": "#0D1218" },
+      "elements": [
+        { "id": "control-photo", "type": "image", "role": "operating context", "frame": { "x": 0, "y": 0, "width": 512, "height": 540 }, "asset": "mission-control", "fit": "cover", "opacity": 0.82, "locked": true, "accessibility": { "decorative": false, "description": "Historical mission control used as contextual operating-system imagery." } },
+        { "id": "control-scrim", "type": "shape", "frame": { "x": 0, "y": 0, "width": 512, "height": 540 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#05070A" }, "opacity": 0.38 }, "accessibility": { "decorative": true } },
+        { "id": "control-kicker", "type": "text", "frame": { "x": 548, "y": 42, "width": 340, "height": 16 }, "text": "CONTROL WINDOW · RESPONSE CHAIN", "styleRef": "kicker", "accessibility": { "decorative": false, "description": "Mechanism category" } },
+        { "id": "control-title", "type": "text", "frame": { "x": 548, "y": 82, "width": 350, "height": 88 }, "text": "Every handoff stays\ninside fourteen minutes", "styleRef": "title", "accessibility": { "decorative": false, "description": "Mechanism conclusion" } },
+        { "id": "control-baseline", "type": "connector", "connectorType": "straight", "frame": { "x": 566, "y": 310, "width": 302, "height": 1 }, "from": { "x": 566, "y": 310 }, "to": { "x": 868, "y": 310 }, "stroke": { "color": "#27313A", "width": 1.2, "dash": "solid", "cap": "round", "join": "round" }, "endArrow": "none", "accessibility": { "decorative": true } },
+        { "id": "control-detect", "type": "shape", "frame": { "x": 566, "y": 246, "width": 56, "height": 64 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#31C7D9" } }, "accessibility": { "decorative": false, "description": "Detect stage duration: 3 minutes 40 seconds" } },
+        { "id": "control-decide", "type": "shape", "frame": { "x": 678, "y": 207, "width": 56, "height": 103 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#31C7D9" } }, "accessibility": { "decorative": false, "description": "Decide stage duration: 7 minutes 10 seconds" } },
+        { "id": "control-recover", "type": "shape", "frame": { "x": 790, "y": 164, "width": 56, "height": 146 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#F1A51A" } }, "accessibility": { "decorative": false, "description": "Recover stage total window: 14 minutes 20 seconds" } },
+        { "id": "control-detect-label", "type": "text", "frame": { "x": 554, "y": 324, "width": 82, "height": 48 }, "text": "DETECT\n03:40", "styleRef": "label", "accessibility": { "decorative": false, "description": "Detect label" } },
+        { "id": "control-decide-label", "type": "text", "frame": { "x": 666, "y": 324, "width": 82, "height": 48 }, "text": "DECIDE\n07:10", "styleRef": "label", "accessibility": { "decorative": false, "description": "Decide label" } },
+        { "id": "control-recover-label", "type": "text", "frame": { "x": 772, "y": 324, "width": 102, "height": 48 }, "text": "RECOVER\n14:20", "styleRef": "label", "accessibility": { "decorative": false, "description": "Recover label" } },
+        { "id": "control-read", "type": "text", "frame": { "x": 548, "y": 410, "width": 340, "height": 58 }, "text": "The pilot fails if any stage loses its timestamp, owner, or decision basis.", "styleRef": "body", "accessibility": { "decorative": false, "description": "Operating interpretation" } },
+        { "id": "control-credit", "type": "text", "frame": { "x": 28, "y": 510, "width": 390, "height": 12 }, "text": "Photo · Apollo 13 Mission Control · NASA · public domain · contextual only", "styleRef": "source", "accessibility": { "decorative": false, "description": "Photo credit" } },
+        { "id": "control-folio", "type": "text", "frame": { "x": 878, "y": 510, "width": 40, "height": 12 }, "text": "03 / 04", "styleRef": "source", "accessibility": { "decorative": false, "description": "Page number" } }
+      ]
+    },
+    {
+      "id": "decision",
+      "role": "closing decision",
+      "background": { "type": "solid", "color": "#05070A" },
+      "elements": [
+        { "id": "decision-kicker", "type": "text", "frame": { "x": 56, "y": 44, "width": 420, "height": 16 }, "text": "PILOT DECISION · OBSERVABILITY BEFORE SCALE", "styleRef": "kicker", "accessibility": { "decorative": false, "description": "Decision category" } },
+        { "id": "decision-title", "type": "text", "frame": { "x": 56, "y": 96, "width": 760, "height": 106 }, "text": "Open two corridors.\nScale only after every signal survives.", "styleRef": "display", "accessibility": { "decorative": false, "description": "Closing decision" } },
+        { "id": "decision-rule", "type": "shape", "frame": { "x": 56, "y": 240, "width": 848, "height": 4 }, "geometry": { "kind": "preset", "preset": "rect" }, "style": { "fill": { "type": "solid", "color": "#F1A51A" } }, "accessibility": { "decorative": true } },
+        { "id": "decision-approve-label", "type": "text", "frame": { "x": 56, "y": 288, "width": 180, "height": 18 }, "text": "APPROVE NOW", "styleRef": "label", "accessibility": { "decorative": false, "description": "Immediate decision label" } },
+        { "id": "decision-approve", "type": "text", "frame": { "x": 56, "y": 326, "width": 360, "height": 90 }, "text": "Two corridors\nOne shared event ledger\nFour-week observation window", "styleRef": "body-white", "accessibility": { "decorative": false, "description": "Immediate pilot scope" } },
+        { "id": "decision-gates-label", "type": "text", "frame": { "x": 528, "y": 288, "width": 180, "height": 18 }, "text": "SCALE GATES", "styleRef": "label", "accessibility": { "decorative": false, "description": "Scale gate label" } },
+        { "id": "decision-gates", "type": "text", "frame": { "x": 528, "y": 326, "width": 360, "height": 90 }, "text": "≥95% event capture\n<15 min end-to-end response\nNo unresolved handoff ownership", "styleRef": "body-white", "accessibility": { "decorative": false, "description": "Scale conditions" } },
+        { "id": "decision-source", "type": "text", "frame": { "x": 56, "y": 500, "width": 700, "height": 14 }, "text": "Source · Synthetic OfficeKit calibration brief · values are illustrative", "styleRef": "source", "accessibility": { "decorative": false, "description": "Evidence boundary" } },
+        { "id": "decision-folio", "type": "text", "frame": { "x": 878, "y": 500, "width": 40, "height": 14 }, "text": "04 / 04", "styleRef": "source", "accessibility": { "decorative": false, "description": "Page number" } }
+      ]
+    }
+  ]
+}

@@ -22,6 +22,7 @@
     "skills/artifact-template-amber-committee-memo",
     "skills/artifact-template-lake-research-journal",
     "skills/artifact-template-midnight-prospectus",
+    "skills/artifact-template-simple-dark-mode",
     "skills/artifact-template-rice-paper-yearbook",
     "skills/artifact-template-aqua-impact-story",
     "skills/artifact-template-cream-civic-collage",
@@ -34,7 +35,14 @@
     "skills/artifact-template-moonlit-work-report",
     "skills/artifact-template-skyline-wayfinding",
     "skills/artifact-template-clay-craft-review",
-    "skills/artifact-template-jade-annual-brief"
+    "skills/artifact-template-jade-annual-brief",
+    "skills/artifact-template-business-review",
+    "skills/artifact-template-market-trends-report",
+    "skills/artifact-template-operating-review",
+    "skills/artifact-template-project-kickoff",
+    "skills/artifact-template-simple-light-mode",
+    "skills/artifact-template-team-alignment",
+    "skills/artifact-template-grid-layout-library"
   ],
   "assets": {"icon": "assets/icon.svg"},
   "interface": {

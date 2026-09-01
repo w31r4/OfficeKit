@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 3,
+  "id": "artifact-template-market-trends-report",
+  "displayName": "Market Trends Report",
+  "kind": "presentation",
+  "preview": "assets/preview.png",
+  "examples": [
+    {
+      "path": "assets/examples/01-cover.png",
+      "role": "cover",
+      "sha256": "d13ba1ddcaca81665840f1991a03d2d34b7b6b1b4ac64516587da8b1e7150a28"
+    },
+    {
+      "path": "assets/examples/02-analysis.png",
+      "role": "analysis",
+      "sha256": "a12f40e92c7cd5971dbf832bc753e9fe112f7fec4d5b960aaddbdd0ede383527"
+    },
+    {
+      "path": "assets/examples/03-data.png",
+      "role": "data",
+      "sha256": "e35e7796efcc255ddd4bce8ff77f0f2ee80811f8462b7b6116ab27f403ccb61f"
+    },
+    {
+      "path": "assets/examples/04-closing.png",
+      "role": "closing",
+      "sha256": "9357070a48f2fd8203d2ef1e7985627cc69e52eda848b4dc580d079deff4da2b"
+    }
+  ],
+  "useWhen": [
+    "industry trend report",
+    "market intelligence",
+    "investment or strategy outlook"
+  ],
+  "avoidWhen": [
+    "weekly operating scorecard",
+    "warm lifestyle story",
+    "technical lesson"
+  ],
+  "audiences": [
+    "investors",
+    "strategy teams",
+    "research readers"
+  ],
+  "contentShapes": [
+    "market thesis",
+    "signal timeline",
+    "driver comparison",
+    "scenario frame"
+  ],
+  "visualTraits": {
+    "tone": [
+      "analytical",
+      "quietly dramatic",
+      "evidence-led"
+    ],
+    "density": "mixed",
+    "colorMode": "mixed",
+    "structure": [
+      "dark thesis field",
+      "annotated time axis",
+      "scenario evidence"
+    ]
+  },
+  "visualCommitment": "opinionated",
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "e9a319fe536c6e1c3b3f165fcba2d822cb9bda7497b556b500b82b8530850c4c",
+    "license": "MIT",
+    "source": "OfficeKit source-bound PPJ projection of the historical Codex Market Trends Report reference; the immutable source hash and unsupported native subgraphs remain explicit.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-market-trends-report/assets/references/reference.ppj",
+      "sha256": "e9a319fe536c6e1c3b3f165fcba2d822cb9bda7497b556b500b82b8530850c4c",
+      "bytes": 368528
+    }
+  },
+  "referencePptx": {
+    "path": "assets/references/reference.pptx",
+    "sha256": "9f0d2c9b36608595437e944ed31f9af16c94a0e0f072d886c2e114b08c6bd62b",
+    "license": "MIT",
+    "source": "Historical Codex Market Trends Report reference deck, distributed under the repository MIT license and retained only as a source-bound native reference.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-market-trends-report/assets/references/reference.pptx",
+      "sha256": "9f0d2c9b36608595437e944ed31f9af16c94a0e0f072d886c2e114b08c6bd62b",
+      "bytes": 1971556
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit template guide and calibration preview are newly authored migration material. The declared MIT reference PPJ/PPTX is source-bound for native inspection and is not presented as a clean-room redraw.",
+    "guideSha256": "8b12973d16f42948f5fead5acdb9bdafb579b78146e77b921b4bb9023d9d3307",
+    "previewSha256": "c843d97a9a3a085876736b10fc90d09e4bcc3e4f30344ae28428f708cdbf6d09"
+  }
+}

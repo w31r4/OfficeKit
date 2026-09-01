@@ -28,7 +28,7 @@
     {
       "path": "assets/examples/05-data.png",
       "role": "data",
-      "sha256": "33ab582b3374499131f3e33616d485f682174c61bfde49e01f9fc5160b3ba99f"
+      "sha256": "8f07293f7a1e348339722c34b100ea2583354ff453c59f3050793d54a1295dd8"
     },
     {
       "path": "assets/examples/06-closing.png",
@@ -80,20 +80,30 @@
   "visualCommitment": "opinionated",
   "referenceProgram": {
     "path": "assets/references/reference.ppj",
-    "sha256": "453159c4824be89833fb635537777c2eb1c14ae0abbab5cc77bcf5d7f50ed74b",
+    "sha256": "5219e8120a9c6a8464fcc7b3dfe76f0e6f6fe12737a4976b84d4d8c8e2fa14f5",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room reference program using fictional content and independently sourced public-domain photographs."
+    "source": "OfficeKit-authored clean-room reference program using fictional content and independently sourced public-domain photographs.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/references/reference.ppj",
+      "sha256": "5219e8120a9c6a8464fcc7b3dfe76f0e6f6fe12737a4976b84d4d8c8e2fa14f5",
+      "bytes": 89533
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
-    "sha256": "f52325b638d7775dad58d9278a6a6d0fa4ceda48b338c4aaefdadad1dfe0c406",
+    "sha256": "e4c3de8ec9616a1b7d9f68349a8d13d67f29ea6874d10c38f3b67320fea25055",
     "license": "AGPL-3.0-or-later",
-    "source": "Compiled from the included OfficeKit reference PPJ; external template PPTX files are not included."
+    "source": "Compiled from the included OfficeKit reference PPJ; external template PPTX files are not included.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-aqua-impact-story/assets/references/reference.pptx",
+      "sha256": "e4c3de8ec9616a1b7d9f68349a8d13d67f29ea6874d10c38f3b67320fea25055",
+      "bytes": 5351110
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",
     "source": "OfficeKit original clean-room calibration from user-provided image-only direction; wording, program, geometry, data, and image selection are newly authored.",
     "guideSha256": "70c6f561049d5856553fb8ea9030e446bc50ce848f3706e98d26634534944caa",
-    "previewSha256": "28976d540e7e5d5c37c4e0cab1e25822a638025a91dc93df2eb879536ecb14be"
+    "previewSha256": "ddd7f1c22271769c2e5cc729f141e4050fdda9601b7a30e6ce728e06b2acfd36"
   }
 }

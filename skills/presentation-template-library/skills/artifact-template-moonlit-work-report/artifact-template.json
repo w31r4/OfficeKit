@@ -58,16 +58,32 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "683d486dc53fa6a53303b15ae8ce970a8331bb74f5dccce2c5a853d83e261777",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "a877ad6b106036dcf9fcb4dfbb2c82002b63c643b7cd1fb610d7be2542526ca5",
-    "previewSha256": "007d6704c56d910f33352fb26e039688eb3b5014a1e995c7a2f514f893f011d6"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-moonlit-work-report/assets/references/reference.ppj",
+      "sha256": "683d486dc53fa6a53303b15ae8ce970a8331bb74f5dccce2c5a853d83e261777",
+      "bytes": 586392
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "e6f9fe2afeaba94a225ff5748bba140db2ce83a8e43f74bedd6111dba571fa97",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-moonlit-work-report/assets/references/reference.pptx",
+      "sha256": "e6f9fe2afeaba94a225ff5748bba140db2ce83a8e43f74bedd6111dba571fa97",
+      "bytes": 870155
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "a877ad6b106036dcf9fcb4dfbb2c82002b63c643b7cd1fb610d7be2542526ca5",
+    "previewSha256": "21d1a4b7d6c1f1cce795cd02932d599db714861bc1abaa1a748b4609d7f886c3"
   }
 }

@@ -8,7 +8,7 @@
     {
       "path": "assets/examples/01-cover.png",
       "role": "cover",
-      "sha256": "d7823f6bd99326ac7e80870b4e28592f21a1a39e794391dbdce7499a6c1ef82b"
+      "sha256": "e3da97c56b901ed26ca8d1e47c7a4a4beb6e5792688beee39c15f5c56a576aec"
     },
     {
       "path": "assets/examples/02-analysis.png",
@@ -58,16 +58,32 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "fe237fd93f98e7c0d488d39e8323698a8d918e66cd63192f21bd34bf47dbf4e5",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "e2727562da8d79778abf8efa644721aa94d5c1bf853bd2c8606bf61af2c1ac95",
-    "previewSha256": "264e506abc249e3be92ef4dbeb9ad24c54c6758182514d22806a00dd83f7aed9"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-moss-transformation/assets/references/reference.ppj",
+      "sha256": "fe237fd93f98e7c0d488d39e8323698a8d918e66cd63192f21bd34bf47dbf4e5",
+      "bytes": 915325
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "4a49bb996570edcd918ebbdd077ec6dd19329c6eea0f89ea4e54115a167f50eb",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-moss-transformation/assets/references/reference.pptx",
+      "sha256": "4a49bb996570edcd918ebbdd077ec6dd19329c6eea0f89ea4e54115a167f50eb",
+      "bytes": 21684
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "e2727562da8d79778abf8efa644721aa94d5c1bf853bd2c8606bf61af2c1ac95",
+    "previewSha256": "518d5785518116ccb75ea9a0c753abaa71f80c355eeaa4293d251546d9151d1d"
   }
 }

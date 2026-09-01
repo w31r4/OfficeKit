@@ -84,13 +84,23 @@
     "path": "assets/references/reference.ppj",
     "sha256": "607c5f382868307b60dd11d23a615d51ff857b8f17e620a761e43fa3c1eef005",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration program authored for PPJ 2.0"
+    "source": "OfficeKit original clean-room calibration program authored for PPJ 2.0",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.ppj",
+      "sha256": "607c5f382868307b60dd11d23a615d51ff857b8f17e620a761e43fa3c1eef005",
+      "bytes": 95353
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "7027e8f56d1e7c6cb46ae9c1148ef1513514f601c46b2b3333a57de2402a94f6",
     "license": "AGPL-3.0-or-later",
-    "source": "Compiled from the declared OfficeKit Evidence Ledger referenceProgram"
+    "source": "Compiled from the declared OfficeKit Evidence Ledger referenceProgram",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-evidence-ledger/assets/references/reference.pptx",
+      "sha256": "7027e8f56d1e7c6cb46ae9c1148ef1513514f601c46b2b3333a57de2402a94f6",
+      "bytes": 58487
+    }
   },
   "provenance": {
     "license": "AGPL-3.0-or-later",

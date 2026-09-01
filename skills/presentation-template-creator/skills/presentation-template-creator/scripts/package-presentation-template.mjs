@@ -22,6 +22,9 @@ const MAX_TOTAL_IMAGE_BYTES = 60 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 40_000_000;
 const MAX_REFERENCE_PROGRAM_BYTES = 16 * 1024 * 1024;
 const MAX_REFERENCE_PPTX_BYTES = 256 * 1024 * 1024;
+const MAX_REFERENCE_ASSET_BYTES = 64 * 1024 * 1024;
+const MAX_TOTAL_REFERENCE_ASSET_BYTES = 256 * 1024 * 1024;
+const REMOTE_REFERENCE_HOSTS = new Set(["raw.githubusercontent.com"]);
 const LOCK_NAME = ".presentation-template-write-lock";
 
 let args = null;
@@ -48,6 +51,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     maxBytes: MAX_REFERENCE_PROGRAM_BYTES,
     extension: ".ppj",
   });
+  let referenceProgramAssets = [];
   if (referenceProgram != null) {
     let parsed;
     try {
@@ -58,6 +62,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     if (parsed?.schema !== "office-kit/ppj/v1") {
       throw new Error("referenceProgram must use schema office-kit/ppj/v1");
     }
+    referenceProgramAssets = await readReferenceProgramAssets(parsed, spec.referenceProgram.path);
   }
   const referencePptx = await readReference(spec.referencePptx, {
     label: "referencePptx",
@@ -151,6 +156,11 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
         writeImmutable(path.join(stagedPath, "assets", "references", "reference.pptx"), referencePptx.bytes),
       ]),
     ]);
+    for (const asset of referenceProgramAssets) {
+      const assetPath = path.join(stagedPath, "assets", "references", asset.relativePath);
+      await fs.mkdir(path.dirname(assetPath), { recursive: true, mode: 0o755 });
+      await writeImmutable(assetPath, asset.bytes);
+    }
 
     const sidecar = {
       schemaVersion: 3,
@@ -180,7 +190,7 @@ async function packageTemplate({ specPath, outputRoot, expectedSha256 }) {
     };
     const sidecarBytes = Buffer.from(`${JSON.stringify(sidecar, null, 2)}\n`);
     await writeImmutable(path.join(stagedPath, "artifact-template.json"), sidecarBytes);
-    await validateStagedSurface(stagedPath, sidecar);
+    await validateStagedSurface(stagedPath, sidecar, referenceProgramAssets);
     await publishAtomically({ targetPath, stagedPath, current });
     stagedExists = false;
     return {
@@ -251,7 +261,7 @@ function validateSpec(spec) {
   assertLine(spec.provenance.source, "provenance.source", 500);
 }
 
-async function validateStagedSurface(root, sidecar) {
+async function validateStagedSurface(root, sidecar, referenceProgramAssets = []) {
   const rootNames = (await fs.readdir(root)).sort();
   if (JSON.stringify(rootNames) !== JSON.stringify(["SKILL.md", "agents", "artifact-template.json", "assets"].sort())) {
     throw new Error("generated template root does not match the fixed surface");
@@ -266,10 +276,11 @@ async function validateStagedSurface(root, sidecar) {
     throw new Error("generated example surface is invalid");
   }
   if (expectedAssets.includes("references")) {
-    const referenceNames = (await fs.readdir(path.join(root, "assets", "references"))).sort();
+    const referenceNames = (await listRelativeFiles(path.join(root, "assets", "references"))).sort();
     const expectedReferences = [
       ...(sidecar.referenceProgram == null ? [] : ["reference.ppj"]),
       ...(sidecar.referencePptx == null ? [] : ["reference.pptx"]),
+      ...referenceProgramAssets.map((asset) => asset.relativePath),
     ].sort();
     if (JSON.stringify(referenceNames) !== JSON.stringify(expectedReferences)) {
       throw new Error("generated reference surface is invalid");
@@ -277,14 +288,99 @@ async function validateStagedSurface(root, sidecar) {
   }
 }
 
+async function readReferenceProgramAssets(program, programPath) {
+  if (program.assets != null && !Array.isArray(program.assets)) {
+    throw new Error("referenceProgram assets must be an array");
+  }
+  const programRoot = path.dirname(path.resolve(programPath));
+  const seen = new Set();
+  const assets = [];
+  let totalBytes = 0;
+  const declared = [];
+  if (program.source != null) {
+    declared.push({
+      index: "source",
+      uri: program.source.uri,
+      sha256: program.source.sha256,
+      label: "source package",
+    });
+  }
+  for (const [index, asset] of (program.assets ?? []).entries()) {
+    declared.push({
+      index,
+      uri: asset?.uri,
+      sha256: asset?.sha256,
+      label: `assets[${index}]`,
+    });
+  }
+  for (const entry of declared) {
+    const { index, uri, sha256: expectedHash, label } = entry;
+    if (typeof uri !== "string" || uri.length === 0 || uri.includes("\\") || path.posix.isAbsolute(uri)) {
+      throw new Error(`referenceProgram ${label}.uri must be a safe relative path`);
+    }
+    const segments = uri.split("/");
+    if (segments.some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
+      throw new Error(`referenceProgram ${label}.uri must not contain empty or traversal segments`);
+    }
+    if (seen.has(uri)) throw new Error(`referenceProgram asset URI is duplicated: ${uri}`);
+    seen.add(uri);
+    if (!HASH.test(expectedHash ?? "")) {
+      throw new Error(`referenceProgram ${label}.sha256 must be a lowercase SHA-256 value`);
+    }
+    const maxBytes = label === "source package" ? MAX_REFERENCE_PPTX_BYTES : MAX_REFERENCE_ASSET_BYTES;
+    const bytes = await readRegularFile(path.join(programRoot, ...segments), maxBytes, `referenceProgram ${label}`);
+    if (sha256(bytes) !== expectedHash) throw new Error(`referenceProgram asset hash does not match: ${uri}`);
+    totalBytes += bytes.byteLength;
+    if (totalBytes > MAX_TOTAL_REFERENCE_ASSET_BYTES) {
+      throw new Error(`referenceProgram assets exceed the ${MAX_TOTAL_REFERENCE_ASSET_BYTES}-byte total budget`);
+    }
+    assets.push({ relativePath: uri, bytes });
+  }
+  return assets;
+}
+
+async function listRelativeFiles(root, prefix = "") {
+  const names = (await fs.readdir(root)).sort();
+  const files = [];
+  for (const name of names) {
+    const absolutePath = path.join(root, name);
+    const relativePath = prefix === "" ? name : `${prefix}/${name}`;
+    const stat = await fs.lstat(absolutePath);
+    if (stat.isSymbolicLink()) throw new Error("generated reference surface must not contain symlinks");
+    if (stat.isDirectory()) files.push(...await listRelativeFiles(absolutePath, relativePath));
+    else if (stat.isFile()) files.push(relativePath);
+    else throw new Error("generated reference surface contains an unsupported entry");
+  }
+  return files;
+}
+
 function validateReferenceSpec(value, label, extension) {
   if (value == null) return;
   if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
-  assertKeys(value, label, ["path", "license", "source"]);
+  assertOptionalKeys(value, label, ["path", "license", "source", "download"]);
   assertAbsolutePath(value.path, `${label}.path`);
   if (path.extname(value.path).toLowerCase() !== extension) throw new Error(`${label}.path must use ${extension}`);
   assertLine(value.license, `${label}.license`, 120);
   assertLine(value.source, `${label}.source`, 500);
+  if (value.download != null) validateRemoteReference(value.download, `${label}.download`);
+}
+
+function validateRemoteReference(value, label) {
+  if (typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
+  assertKeys(value, label, ["url", "sha256", "bytes"]);
+  if (typeof value.url !== "string" || value.url.length > 2048 || /[\0\r\n]/u.test(value.url)) {
+    throw new Error(`${label}.url must be a bounded HTTPS URL`);
+  }
+  let parsed;
+  try { parsed = new URL(value.url); } catch { throw new Error(`${label}.url must be a valid HTTPS URL`); }
+  if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.search || parsed.hash ||
+      !REMOTE_REFERENCE_HOSTS.has(parsed.hostname.toLowerCase()) || parsed.pathname.includes("..")) {
+    throw new Error(`${label}.url must be an HTTPS raw.githubusercontent.com URL without credentials or traversal`);
+  }
+  if (!HASH.test(value.sha256 ?? "")) throw new Error(`${label}.sha256 must be a lowercase SHA-256 value`);
+  if (!Number.isSafeInteger(value.bytes) || value.bytes < 1 || value.bytes > MAX_REFERENCE_PPTX_BYTES) {
+    throw new Error(`${label}.bytes must be a positive bounded integer`);
+  }
 }
 
 async function readReference(value, { label, maxBytes, extension }) {
@@ -299,6 +395,13 @@ function referenceMetadata(value, relativePath) {
     sha256: sha256(value.bytes),
     license: value.license,
     source: value.source,
+    ...(value.download == null ? {} : {
+      download: {
+        ...value.download,
+        sha256: sha256(value.bytes),
+        bytes: value.bytes.byteLength,
+      },
+    }),
   };
 }
 
@@ -398,6 +501,12 @@ function assertKeys(value, label, allowedKeys) {
   for (const key of allowedKeys) {
     if (!(key in value)) throw new Error(`${label} is missing ${key}`);
   }
+}
+
+function assertOptionalKeys(value, label, allowedKeys) {
+  const allowed = new Set(allowedKeys);
+  const extra = Object.keys(value).filter((key) => !allowed.has(key));
+  if (extra.length > 0) throw new Error(`${label} contains unsupported fields: ${extra.join(", ")}`);
 }
 
 function assertLine(value, label, max) {

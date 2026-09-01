@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -6868,8 +6869,11 @@ internal static class PpjAuthoredPresentationCompiler
                 merged[property.Name] = property.Value.Clone();
         }
         if (merged is null) return null;
-        using var stream = new MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
+
+        // Keep this path NativeAOT-safe: serializing JsonObject would require
+        // reflection metadata that the standalone codec deliberately omits.
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
         {
             writer.WriteStartObject();
             foreach (var (name, value) in merged)
@@ -6879,8 +6883,7 @@ internal static class PpjAuthoredPresentationCompiler
             }
             writer.WriteEndObject();
         }
-        stream.Position = 0;
-        using var document = JsonDocument.Parse(stream);
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
         return document.RootElement.Clone();
     }
 

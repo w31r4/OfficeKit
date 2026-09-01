@@ -13,7 +13,7 @@
     {
       "path": "assets/examples/02-analysis.png",
       "role": "analysis",
-      "sha256": "dff555b6ab332428a5104ac36fb04bd41d4eb69a55539453ba7bac24d1f0b0c2"
+      "sha256": "eaae5cc93afe4c3d6aaab4f224d4bde9277fcb9aaffd96773569d466c792a9c0"
     },
     {
       "path": "assets/examples/03-data.png",
@@ -58,16 +58,32 @@
     ]
   },
   "visualCommitment": "opinionated",
-  "provenance": {
+  "referenceProgram": {
+    "path": "assets/references/reference.ppj",
+    "sha256": "009645c7563c1214a566e1b443903a160645583a26144cb19db37e537ae22d50",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
-    "guideSha256": "08e48015811509d106b0f77ee0d78c80962a8ab24b6102df1b944545a022d397",
-    "previewSha256": "97475c056eb6a196da66500ddedf9cdfed65f6567a761945a685816e27be0849"
+    "source": "OfficeKit source-bound PPJ projection of the included clean-room reference PPTX; native source remains hash-bound.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-skyline-wayfinding/assets/references/reference.ppj",
+      "sha256": "009645c7563c1214a566e1b443903a160645583a26144cb19db37e537ae22d50",
+      "bytes": 588251
+    }
   },
   "referencePptx": {
     "path": "assets/references/reference.pptx",
     "sha256": "c66068b0b64a70f81cada43b35083c7dea0af41a14ea8c1d7f1d3f4c7623adc0",
     "license": "AGPL-3.0-or-later",
-    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded."
+    "source": "OfficeKit-authored clean-room calibration deck compiled from unrelated content; external reference files excluded.",
+    "download": {
+      "url": "https://raw.githubusercontent.com/w31r4/OfficeKit/73bc6c7859cf0fee102dbd355ffeea6e0e529e68/skills/presentation-template-library/skills/artifact-template-skyline-wayfinding/assets/references/reference.pptx",
+      "sha256": "c66068b0b64a70f81cada43b35083c7dea0af41a14ea8c1d7f1d3f4c7623adc0",
+      "bytes": 232785
+    }
+  },
+  "provenance": {
+    "license": "AGPL-3.0-or-later",
+    "source": "OfficeKit original clean-room calibration from user-supplied image-only visual evidence and written direction; no external PPTX copied.",
+    "guideSha256": "08e48015811509d106b0f77ee0d78c80962a8ab24b6102df1b944545a022d397",
+    "previewSha256": "ce01f40318c1f863058a965b7a6fe0ddd5e35af51a78f69642a47edcf8909fd8"
   }
 }

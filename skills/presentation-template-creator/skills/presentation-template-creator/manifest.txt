@@ -2,4 +2,5 @@ SKILL.md
 agents/agent.yaml
 assets/icon.svg
 references/template-format.md
+references/reference-reconstruction.md
 scripts/package-presentation-template.mjs
