@@ -34,7 +34,8 @@ internal static class PpjPresentationCompiler
         PresentationProgramRequest request,
         byte[] sourceBytes,
         EffectiveCodecLimits limits,
-        PpjValidationResult validation)
+        PpjValidationResult validation,
+        Func<PpjAssetModel, Asset?>? loadAsset = null)
     {
         if (!validation.IsValid)
             throw new InvalidOperationException("PPJ compilation requires a successful validation result.");
@@ -51,7 +52,7 @@ internal static class PpjPresentationCompiler
             return PpjAuthoredPresentationCompiler.Compile(request, limits, validation);
         }
 
-        return PpjSourceBoundPresentationCompiler.Compile(request, sourceBytes, limits, validation);
+        return PpjSourceBoundPresentationCompiler.Compile(request, sourceBytes, limits, validation, loadAsset);
     }
 }
 
@@ -87,7 +88,8 @@ internal static class PpjSourceBoundPresentationCompiler
         PresentationProgramRequest request,
         byte[] sourceBytes,
         EffectiveCodecLimits limits,
-        PpjValidationResult validation)
+        PpjValidationResult validation,
+        Func<PpjAssetModel, Asset?>? loadAsset)
     {
         if (sourceBytes.Length == 0)
             throw new CodecException(
@@ -105,7 +107,7 @@ internal static class PpjSourceBoundPresentationCompiler
                 "The source-bound PPJ does not match the exact PPTX input bytes.",
                 "$.source.sha256");
 
-        var projected = PpjPresentationProjector.Project(
+        using var projected = PpjPresentationProjector.Project(
             sourceBytes,
             new PresentationProgramRequest
             {
@@ -114,7 +116,10 @@ internal static class PpjSourceBoundPresentationCompiler
                 IncludeNodeMap = true,
             },
             limits);
-        using var baselineValidation = PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory);
+        using var reparsedBaselineValidation = projected.Validation is null
+            ? PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory)
+            : null;
+        var baselineValidation = projected.Validation ?? reparsedBaselineValidation!;
         if (!baselineValidation.IsValid)
             throw new CodecException(
                 "ppj.projection.invalid",
@@ -130,7 +135,7 @@ internal static class PpjSourceBoundPresentationCompiler
             throw new CodecException("ppj.source.projection", "Source-bound projection did not return its native source artifact.", "$.source");
         var presentation = artifact.Presentation ??
             throw new CodecException("ppj.source.presentation", "The exact source did not import as a Presentation artifact.", "$.source");
-        var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact);
+        var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact, loadAsset);
         var changedNodeIds = new HashSet<string>(StringComparer.Ordinal);
         var mutations = new MutationState();
         var physicalChanges = ApplyCanvas(baseline, requested, presentation, changedNodeIds, mutations);
@@ -260,7 +265,8 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjProgramModel requested,
         PpjProjectionResult projected,
         IEnumerable<Asset> supplied,
-        ArtifactEnvelope artifact)
+        ArtifactEnvelope artifact,
+        Func<PpjAssetModel, Asset?>? loadAsset)
     {
         var declared = requested.Assets.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
         var suppliedById = supplied.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
@@ -281,7 +287,10 @@ internal static class PpjSourceBoundPresentationCompiler
         var baselineIds = baseline.Assets.Select(asset => asset.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var declaration in requested.Assets.Where(asset => !baselineIds.Contains(asset.Id)))
         {
-            if (!suppliedById.TryGetValue(declaration.Id, out var asset) || asset.Data.IsEmpty)
+            suppliedById.TryGetValue(declaration.Id, out var asset);
+            if (asset is null || asset.Data.IsEmpty)
+                asset = loadAsset?.Invoke(declaration);
+            if (asset is null || asset.Data.IsEmpty)
                 throw new CodecException("ppj.asset.missing", $"PPJ asset {declaration.Id} has no supplied bytes.", "$.assets");
             var hash = Sha256(asset.Data.Span);
             if (!hash.Equals(declaration.Sha256, StringComparison.OrdinalIgnoreCase) ||

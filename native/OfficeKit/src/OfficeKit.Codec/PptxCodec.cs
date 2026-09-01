@@ -394,7 +394,7 @@ internal static class PptxCodec
             Source = new SourceIdentity
             {
                 Format = "pptx",
-                PackageSha256 = Hash(bytes),
+                PackageSha256 = opaque.SourcePackage?.Sha256 ?? Hash(bytes),
                 Producer = "office-kit/OfficeKit",
             },
         };

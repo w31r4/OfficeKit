@@ -14,7 +14,11 @@ internal sealed record PpjProjectionResult(
     PresentationProgramResult Program,
     IReadOnlyList<Diagnostic> Diagnostics,
     ArtifactEnvelope? SourceArtifact,
-    IReadOnlyDictionary<string, PpjNativeLeafBinding> NativeLeafBindings);
+    IReadOnlyDictionary<string, PpjNativeLeafBinding> NativeLeafBindings,
+    PpjValidationResult? Validation) : IDisposable
+{
+    public void Dispose() => Validation?.Dispose();
+}
 
 /// <summary>
 /// Projects a validated PPTX package into the bounded public PPJ language.
@@ -33,13 +37,20 @@ internal static partial class PpjPresentationProjector
         EffectiveCodecLimits limits)
     {
         if (PpjEmbeddedProgramCodec.TryRecover(sourceBytes, request, limits) is { } recovered)
-            return new(recovered.Program, recovered.Diagnostics, null, new Dictionary<string, PpjNativeLeafBinding>(StringComparer.Ordinal));
+            return new(
+                recovered.Program,
+                recovered.Diagnostics,
+                null,
+                new Dictionary<string, PpjNativeLeafBinding>(StringComparer.Ordinal),
+                null);
 
         var imported = PptxCodec.Import(sourceBytes, limits);
         var envelope = imported.Artifact;
         var presentation = envelope.Presentation ??
             throw new CodecException("ppj.projection.presentation", "The imported package did not produce a Presentation artifact.", "$");
-        var sourceSha256 = Sha256(sourceBytes);
+        var sourceSha256 = envelope.Source?.PackageSha256;
+        if (string.IsNullOrEmpty(sourceSha256))
+            sourceSha256 = Sha256(sourceBytes);
         var revision = $"pptx-{sourceSha256[..16]}";
         var sourceUri = string.IsNullOrWhiteSpace(request.SourceUri)
             ? $"deck.assets/source/{sourceSha256}.pptx"
@@ -68,13 +79,18 @@ internal static partial class PpjPresentationProjector
         var projectionPayload = new JsonObject
         {
             ["canvas"] = FrameDimensions(presentation),
-            ["assets"] = assets.DeepClone(),
-            ["pages"] = pages.DeepClone(),
-            ["sections"] = sections.DeepClone(),
-            ["customShows"] = customShows.DeepClone(),
-            ["comments"] = comments.DeepClone(),
+            ["assets"] = assets,
+            ["pages"] = pages,
+            ["sections"] = sections,
+            ["customShows"] = customShows,
+            ["comments"] = comments,
         };
         var projectionSha256 = Sha256(CanonicalBytes(projectionPayload));
+        // JsonNode has single-parent ownership. The payload exists only to
+        // bind the source-derived semantic graph, so release its children and
+        // reuse those exact nodes in the public program instead of cloning the
+        // full projection.
+        projectionPayload.Clear();
 
         var root = new JsonObject
         {
@@ -111,10 +127,11 @@ internal static partial class PpjPresentationProjector
         if (comments.Count > 0) root["comments"] = comments;
 
         var candidateBytes = CanonicalBytes(root);
-        using var validation = PpjProgramValidator.Validate(candidateBytes);
+        var validation = PpjProgramValidator.Validate(candidateBytes);
         if (!validation.IsValid)
         {
             var first = validation.Diagnostics[0];
+            validation.Dispose();
             throw new CodecException(first.Code, first.Message, first.Path);
         }
 
@@ -128,7 +145,7 @@ internal static partial class PpjPresentationProjector
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         result.Assets.Add(context.ResultAssets.Select(asset => asset.Clone()));
-        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings);
+        return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings, validation);
     }
 
     private static JsonObject ImportedIntent() => new()
@@ -241,7 +258,7 @@ internal static partial class PpjPresentationProjector
         ProjectionContext context)
     {
         var pageId = context.PageId(slide.Id);
-        var pageHash = HashOrFallback(slide.Source?.SlideXmlSha256, slide.ToByteArray());
+        var pageHash = HashOrFallback(slide.Source?.SlideXmlSha256, slide);
         var pageCapabilities = new List<CapabilitySpec>();
         if (slide.Source is not null)
             pageCapabilities.Add(new("setName", ["name"]));
@@ -306,7 +323,7 @@ internal static partial class PpjPresentationProjector
         IReadOnlyList<uint> shapeTreePath)
     {
         var id = context.ElementId(pageId, element.Id);
-        var hash = HashOrFallback(element.Source?.ElementSha256, element.ToByteArray());
+        var hash = HashOrFallback(element.Source?.ElementSha256, element);
         var capabilities = Capabilities(element);
         var leaves = PpjNativeLeafProjection.Describe(
             context.SourceSha256,
@@ -1742,7 +1759,7 @@ internal static partial class PpjPresentationProjector
                 item["nativeRef"] = NativeRef(
                     context,
                     $"section:{sectionIndex}",
-                    HashOrFallback(source.SectionXmlSha256, section.ToByteArray()),
+                    HashOrFallback(source.SectionXmlSha256, section),
                     capabilities);
             }
             output.Add(item);
@@ -1774,7 +1791,7 @@ internal static partial class PpjPresentationProjector
                 item["nativeRef"] = NativeRef(
                     context,
                     $"customShow:{showIndex}",
-                    HashOrFallback(source.ShowXmlSha256, show.ToByteArray()),
+                    HashOrFallback(source.ShowXmlSha256, show),
                     capabilities);
             }
             output.Add(item);
@@ -1795,7 +1812,7 @@ internal static partial class PpjPresentationProjector
                 var capabilities = slide.Source?.LegacyCommentsEditable == true
                     ? new[] { new CapabilitySpec("replaceText", ["text"]) }
                     : [];
-                var commentHash = HashOrFallback(null, comment.ToByteArray());
+                var commentHash = HashOrFallback(null, comment);
                 output.Add(new JsonObject
                 {
                     ["id"] = context.UniqueId($"comment-{pageId}-{comment.Id}"),
@@ -2245,10 +2262,14 @@ internal static partial class PpjPresentationProjector
     private static double Unit(uint value) => Math.Clamp(value / 100_000d, 0, 1);
     private static double Points(long emu) => Math.Round(emu / EmuPerPoint, 6, MidpointRounding.AwayFromZero);
 
-    private static string HashOrFallback(string? hash, byte[] fallback) =>
-        hash is { Length: 64 } && hash.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f')
-            ? hash
-            : Sha256(fallback);
+    private static string HashOrFallback(string? hash, IMessage fallback) =>
+        IsCanonicalSha256(hash) ? hash! : Sha256(fallback.ToByteArray());
+
+    private static string HashOrFallback(string? hash, ByteString fallback) =>
+        IsCanonicalSha256(hash) ? hash! : Sha256(fallback.Span);
+
+    private static bool IsCanonicalSha256(string? hash) =>
+        hash is { Length: 64 } && hash.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 
     private static string StableDocumentId(string? candidate, string sha256)
     {
@@ -2267,7 +2288,10 @@ internal static partial class PpjPresentationProjector
 
     private static byte[] CanonicalBytes(JsonNode node)
     {
-        using var document = JsonDocument.Parse(node.ToJsonString());
+        var buffer = new ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+            node.WriteTo(writer);
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
         return PpjCanonicalJson.Write(document.RootElement);
     }
 
@@ -2287,7 +2311,8 @@ internal static partial class PpjPresentationProjector
         return JsonNode.Parse(buffer.WrittenSpan) ?? throw new InvalidOperationException("Number JSON primitive could not be created.");
     }
 
-    private static string Sha256(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+    private static string Sha256(byte[] bytes) => Sha256(bytes.AsSpan());
+    private static string Sha256(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
     [GeneratedRegex("[^A-Za-z0-9._:-]+")]
     private static partial Regex InvalidIdCharacters();
@@ -2400,7 +2425,7 @@ internal static partial class PpjPresentationProjector
         {
             if (assetIdBySourceId.TryGetValue(sourceId, out programAssetId!)) return true;
             if (!sourceAssets.TryGetValue(sourceId, out var source) || source.Data.IsEmpty) return false;
-            var hash = HashOrFallback(source.Sha256, source.Data.ToByteArray());
+            var hash = HashOrFallback(source.Sha256, source.Data);
             if (assetIdByHash.TryGetValue(hash, out programAssetId!))
             {
                 assetIdBySourceId[sourceId] = programAssetId;

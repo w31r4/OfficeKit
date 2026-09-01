@@ -128,7 +128,7 @@ public static class CodecProtocol
                 }
                 case CodecOperation.ProjectPptxToPpj:
                 {
-                    var result = PpjPresentationProjector.Project(
+                    using var result = PpjPresentationProjector.Project(
                         RequestFileBytes(request.File),
                         request.PresentationProgram,
                         limits);
