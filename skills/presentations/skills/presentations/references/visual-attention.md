@@ -70,6 +70,44 @@ suggests unobserved intermediate values. A `null` gap is not enough without a
 render check because hosts can bridge sparse points. A syntactically valid chart
 whose labels collide, repeat, or imply unsupported data is a failed page.
 
+## Four executable quality contracts
+
+Use these contracts while composing and during the single render-correction
+pass. They are implementation rules, not suggestions for a visual style.
+
+**Chart labels.** Before building a chart, state the label budget: which marks
+need a value, category, series name, or percentage. Set all four visibility
+flags explicitly (`showValue`, `showCategory`, `showSeries`, `showPercent`).
+For six or more categories, default to no per-mark labels; add only short,
+non-repeating labels or sparse endpoint labels that carry the claim. Put a
+series name in one legend or heading. If a label collides at final size,
+remove, shorten, or relocate the label; never shrink the whole page to save it.
+
+**Missing data.** Represent an unobserved value with `null` and disclose the
+gap in the chart or source note. Never coerce it to zero, interpolate it, or
+connect two observed endpoints through missing categories. If the renderer
+bridges `null`, replace the line with endpoint marks, a two-point comparison,
+or separate observed segments. A visual trend is a data claim, so the chosen
+mark must match the observation topology.
+
+**Layer and occlusion.** Write a short stack before adding overlays:
+`background → scrim → carrier → evidence marks → labels/annotations →
+foreground/source`. For each overlay, name the evidence it is allowed to
+touch. No object may cover a bar, line, marker, error bar, axis, data label,
+source, image subject, or connector. Preserve truthful shared plots; use
+opacity, clearance, or a separate annotation only when it keeps the measured
+relationship visible. Do not separate objects, move a scale, or use
+transparency merely to silence a checker.
+
+**Render correction.** The minimum loop is `check → build → render at final
+size → inspect high-risk regions → repair the smallest source field → render
+again`. A structural pass is not a visual pass. Stop and report
+`visualReview: unavailable` when the page cannot be inspected; do not deliver
+an unreviewed candidate. Treat any evidence occlusion, label collision,
+clipping, false trend, unreadable text, or accidental empty region as a
+blocking issue. Keep the correction local and record what changed; do not
+rewrite the deck to hide a failed page.
+
 ## 1→10 edits
 
 For an existing page, inspect before editing:

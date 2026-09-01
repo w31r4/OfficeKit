@@ -144,6 +144,11 @@ density remain free to follow the selected scenario, template, or design
 system. Use the detailed checklist in [visual attention](references/visual-attention.md)
 for new pages and material redesigns.
 
+For charts, missing observations, or layered pages, follow the four executable
+quality contracts in that reference. Do not deliver from a structural pass
+alone: render at final size, repair visible collisions or occlusion locally,
+and state `visualReview: unavailable` when inspection was not possible.
+
 Arrays are semantic. `pages[]` is page order. `pages[].elements[]` is the real
 back-to-front z-order. Use stable IDs and edit those IDs in later turns.
 

@@ -32,6 +32,14 @@ at full size: dense evidence, combo charts, tables, CJK text, image crops,
 layered backgrounds, diagrams, and animated targets. Check non-target pages
 after imported edits.
 
+For every chart or layered composition, apply the four executable contracts in
+`visual-attention.md`: explicit label budget, honest missing-data topology,
+back-to-front evidence-safe layering, and one render-correction loop. If the
+rendered page fails any of these, keep the candidate in working state, repair
+the smallest PPJ field, and rebuild/re-render. A passing `check` or `review`
+report cannot override a visible collision or a chart that implies data that
+was not supplied.
+
 For `live` or `hybrid` delivery, also read the speaker notes in sequence. Verify
 that the talk track agrees with the visible claim, preserves qualifications and
 sources, and does not contain instructions meant for the audience. After a
