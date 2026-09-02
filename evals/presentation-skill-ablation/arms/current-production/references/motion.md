@@ -1,0 +1,127 @@
+# Motion
+
+Motion explains order, causality, comparison, focus, or continuity. Complete
+the static composition first; animation cannot repair an empty or incoherent
+page.
+
+PPJ stores transitions in `pages[].transition` and semantic object animations
+in `pages[].animations`. Targets are stable element IDs. Supported effects are
+fade, wipe, fly, zoom, and pulse; start modes are `withPrevious`,
+`afterPrevious`, and `onClick`. Text may build as whole or paragraph. Charts
+may build all at once, by series, category, or element. Morph uses explicit
+adjacent-page pairs.
+
+## Imported object motion
+
+An imported page may edit its complete `animations[]` array only when the page
+`nativeRef` advertises `setAnimations/animations`. OfficeKit issues this
+capability for an absent timing graph that is safe to create or for an existing
+canonical graph that is safe to replace. It never issues it for opaque native
+timing or a page participating in Morph.
+
+Keep the page nativeRef unchanged and use the projected stable element IDs as
+targets. Build privately resolves those IDs to the current native objects,
+including supported descendants in an unchanged group; never substitute a
+drawing ID. Adding, changing order, replacing, or removing entries describes
+the whole canonical object-animation state. A new topmost overlay has no
+native identity during the append build, so build and re-import it before
+adding motion in a later revision.
+
+After build, re-import and confirm effect, target, start mode, duration, and
+text/chart build. This is package-structural evidence only. Keep
+`playbackEvidence: structural` until Keynote or PowerPoint has actually played
+the result.
+
+## Slide transitions
+
+PPJ can express every bounded native base transition already supported by the
+compiler:
+
+```text
+blinds checker circle comb cover cut diamond dissolve fade newsflash plus
+pull push random randomBar split strips wedge wheel wipe zoom
+```
+
+Use `fade`, `push`, or `wipe` for ordinary continuity. `split`, `cover`,
+`strips`, and `zoom` are useful only when the movement reinforces the page
+change. `checker`, `newsflash`, `plus`, `random`, `randomBar`, `wedge`, and
+similar high-noise effects require explicit user or stage direction; language
+support does not make them automatic design choices.
+
+Effect-specific fields are validated rather than ignored. Direction may be
+cardinal, corner, or `in`/`out` depending on the effect; blinds, checker, comb,
+randomBar, and split use an orientation; cut and fade may use `throughBlack`;
+wheel uses one through eight spokes. Common state includes `slow`, `medium`, or
+`fast` speed, independent playback `durationMs`, click advance, and optional
+timed advance:
+
+```json
+{
+  "type": "split",
+  "orientation": "horizontal",
+  "direction": "in",
+  "speed": "fast",
+  "durationMs": 750,
+  "advanceOnClick": false,
+  "advanceAfterMs": 1250
+}
+```
+
+Prefer click advance for live talks. Timed advance is appropriate for a kiosk,
+rehearsed loop, or explicitly automatic show. Imported pages expose
+`setTransition` only when the native source graph can be edited or receive a
+transition without disturbing timing or extension topology.
+
+## Delivery policy
+
+- `reader`: static by default; animation requires explicit user intent.
+- `hybrid`: one restrained base transition; animate only data, sequence, or
+  causal relationships that gain meaning from reveal.
+- `live`: semantic choreography is allowed, usually no more than four motion
+  units on a page.
+
+Never auto-advance or add sound unless the user explicitly requests it. Keep
+one base transition and at most one section transition across a deck. High-noise
+effects are not automatic choices.
+
+## Six recipes
+
+### Data Rise
+
+Reveal bars, line points, or a small number of categories in data order. Keep
+axes, labels needed for orientation, and sources visible. Do not use stagger to
+hide an unreadable chart.
+
+### Causal Reveal
+
+Reveal causes, connectors, and effects in the direction of reasoning. A
+connector appears with or after the node whose relationship it explains.
+
+### Comparison Beat
+
+Bring comparable objects in together, then reveal the conclusion. Preserve a
+common scale and avoid making one side look stronger through timing alone.
+
+### Focus Pulse
+
+Pulse one already visible number, threshold, or risk. Repeated pulse becomes
+noise and should trigger a review warning.
+
+### Calm Continuity
+
+Use short fade, wipe, or push transitions to maintain chapter rhythm without
+turning page changes into the subject.
+
+### Morph Continuity
+
+Use adjacent pages and explicit one-to-one compatible object pairs to move,
+scale, crop, or focus a repeated object. Charts do not participate in Morph;
+use chart build or cross-fade. Pair keys and object identities must remain
+unique and recoverable after re-import.
+
+## Review
+
+Check target existence, trigger order, delay/stagger, text/chart build type,
+timing budgets, reader-mode authorization, and Morph adjacency. Then observe
+playback in an available host. `structural` proves only that canonical timing
+was written; report Keynote or PowerPoint evidence only when actually played.

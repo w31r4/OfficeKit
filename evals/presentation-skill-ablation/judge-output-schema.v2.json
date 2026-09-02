@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "office-kit/presentation-skill-ablation/judge-output/v2",
+  "type": "object",
+  "required": ["caseId", "round", "scores", "winner", "confidence", "hardGate", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "caseId": { "type": "string", "minLength": 1 },
+    "round": { "type": "integer", "minimum": 1 },
+    "scores": {
+      "type": "object",
+      "required": ["A", "B", "C"],
+      "additionalProperties": false,
+      "properties": {
+        "A": { "$ref": "#/$defs/scoreSet" },
+        "B": { "$ref": "#/$defs/scoreSet" },
+        "C": { "$ref": "#/$defs/scoreSet" }
+      }
+    },
+    "winner": { "enum": ["A", "B", "C", "tie", "invalid"] },
+    "confidence": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "hardGate": {
+      "type": "object",
+      "required": ["A", "B", "C"],
+      "additionalProperties": false,
+      "properties": {
+        "A": { "enum": ["passed", "failed", "unknown"] },
+        "B": { "enum": ["passed", "failed", "unknown"] },
+        "C": { "enum": ["passed", "failed", "unknown"] }
+      }
+    },
+    "reason": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "scoreSet": {
+      "type": "object",
+      "required": [
+        "communicationEvidence",
+        "hierarchyReadabilityOccupancy",
+        "designCraftSpecificity",
+        "functionalEditability",
+        "layerLayoutRender",
+        "displayMediumFit",
+        "completionPolish"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "communicationEvidence": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "hierarchyReadabilityOccupancy": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "designCraftSpecificity": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "functionalEditability": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "layerLayoutRender": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "displayMediumFit": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "completionPolish": { "type": "integer", "minimum": 1, "maximum": 5 }
+      }
+    }
+  }
+}

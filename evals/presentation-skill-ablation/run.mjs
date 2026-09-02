@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const EXPERIMENT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const REPO_ROOT = path.resolve(EXPERIMENT_ROOT, "../..");
-const CASES_PATH = path.join(EXPERIMENT_ROOT, "cases.v1.json");
+const CASES_PATH = path.join(EXPERIMENT_ROOT, process.env.PRESENTATION_ABLATION_CASES || "cases.v1.json");
 const RUBRIC_PATH = path.join(EXPERIMENT_ROOT, "rubric.v1.json");
 const COVERAGE_PATH = path.join(EXPERIMENT_ROOT, "capability-coverage.v1.json");
 const FIXTURES_PATH = path.join(EXPERIMENT_ROOT, "fixtures", "index.v1.json");
@@ -281,22 +281,24 @@ function runProcess(command, args, options = {}) {
   });
 }
 
-function armOrderForCase(seed, caseId) {
+function armOrderForCase(seed, caseId, arms = ["shared-what-kind-how", "kimi-concise"]) {
   const caseSeed = seed + [...caseId].reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  return shuffled(["shared-what-kind-how", "kimi-concise"], caseSeed >>> 0);
+  return shuffled(arms, caseSeed >>> 0);
 }
 
 export async function validateExperiment(options = {}) {
   const [casesManifest, rubric, coverage, fixtures] = await loadInputs();
   const errors = [];
   const warnings = [];
-  if (casesManifest.schema !== "office-kit/presentation-skill-ablation-cases/v1") errors.push("unexpected cases schema");
+  if (!["office-kit/presentation-skill-ablation-cases/v1", "office-kit/presentation-skill-ablation-cases/v2"].includes(casesManifest.schema)) errors.push("unexpected cases schema");
   if (rubric.schema !== "office-kit/presentation-skill-ablation-rubric/v1") errors.push("unexpected rubric schema");
   if (coverage.schema !== "office-kit/presentation-skill-ablation-capability-coverage/v1") errors.push("unexpected coverage schema");
   if (fixtures.schema !== "office-kit/presentation-skill-ablation-fixtures/v1") errors.push("unexpected fixtures schema");
   if (casesManifest.model?.id !== "gpt-5.6-luna" || casesManifest.model?.reasoningEffort !== "max") errors.push("model must be gpt-5.6-luna/max");
   if (casesManifest.model?.timeoutMs !== 1200000) errors.push("frozen timeout must be 1200000ms");
-  if (!Array.isArray(casesManifest.arms) || casesManifest.arms.length !== 2) errors.push("exactly two arms are required");
+  const expectedArmCount = casesManifest.schema.endsWith("/v2") ? 3 : 2;
+  if (!Array.isArray(casesManifest.arms) || casesManifest.arms.length !== expectedArmCount) errors.push("expected " + expectedArmCount + " arms");
+  if (casesManifest.schema.endsWith("/v2") && !casesManifest.arms.includes("current-production")) errors.push("v2 must include the current-production control arm");
   const scoreKeys = new Set();
   if (!Array.isArray(rubric.dimensions)) errors.push("rubric dimensions must be an array");
   else {
@@ -390,16 +392,17 @@ async function prepare(flags) {
   const [casesManifest, rubric, coverage, fixtures] = await loadInputs();
   const runRoot = await makeRunRoot(flags);
   const identity = await repositoryIdentity();
-  const schedule = casesManifest.cases.flatMap((item) => armOrderForCase(casesManifest.seed || DEFAULT_SEED, item.id).map((arm, index) => ({
+  const schedule = casesManifest.cases.flatMap((item) => armOrderForCase(casesManifest.seed || DEFAULT_SEED, item.id, casesManifest.arms).map((arm, index) => ({
     caseId: item.id,
     arm,
     order: index + 1,
   })));
   await writeJson(path.join(runRoot, "study.json"), {
-    schema: "office-kit/presentation-skill-ablation-study/v1",
+    schema: "office-kit/presentation-skill-ablation-study/" + (casesManifest.arms.length === 3 ? "v2" : "v1"),
     preparedAt: nowIso(),
     seed: casesManifest.seed || DEFAULT_SEED,
     model: casesManifest.model,
+    arms: casesManifest.arms,
     identity,
     manifests: {
       casesSha256: await digestFile(CASES_PATH),
@@ -754,7 +757,7 @@ async function runAuthors(flags) {
   const targets = [];
   for (const item of casesManifest.cases) {
     if (requestedCase && item.id !== requestedCase) continue;
-    for (const arm of armOrderForCase(casesManifest.seed || DEFAULT_SEED, item.id)) {
+    for (const arm of armOrderForCase(casesManifest.seed || DEFAULT_SEED, item.id, casesManifest.arms)) {
       if (!requestedArm || requestedArm === arm) targets.push({ item, arm });
     }
   }
@@ -800,30 +803,32 @@ async function auditExisting(flags) {
 }
 
 function judgeSchemaPath() {
-  return path.join(EXPERIMENT_ROOT, "judge-output-schema.v1.json");
+  return path.join(EXPERIMENT_ROOT, process.env.PRESENTATION_ABLATION_JUDGE_SCHEMA || "judge-output-schema.v1.json");
 }
 
-function judgePrompt({ item, round, hardGate }) {
+function judgePrompt({ item, round, hardGate, slots = ["A", "B"] }) {
+  const scoreFields = slots.map((slot) => slot + ":{communicationEvidence,hierarchyReadabilityOccupancy,designCraftSpecificity,functionalEditability,layerLayoutRender,displayMediumFit,completionPolish}").join(",");
+  const gateFields = slots.map((slot) => slot + ':"passed|failed|unknown"').join(",");
   return [
-    "You are a blind evaluator for a presentation quality study. Do not infer or mention which Skill produced A or B.",
+    "You are a blind evaluator for a presentation quality study. Do not infer or mention which Skill produced any slot.",
     "Case: " + item.id + "; scenario=" + item.scenario + "; lifecycle=" + item.lifecycle,
     "Brief: " + item.brief,
     "",
-    "Inspect attached rendered pages and, when present, local structural evidence. A and B are randomized labels and do not identify an authoring route.",
+    "Inspect attached rendered pages and, when present, local structural evidence. Slots " + slots.join(", ") + " are randomized labels and do not identify an authoring route.",
     "Score each dimension independently from 1 to 5. Anchor 1 = undeliverable or communication-breaking; 3 = usable but ordinary with a clear local issue; 5 = clear information, intentional design, reliable structure, close to production delivery.",
     "Weights: communication/evidence 20; hierarchy/readability/occupancy 15; design craft/creative specificity 20; functional/editability 15; layer/layout/render robustness 15; display/medium fit 10; completion/polish 5.",
-    "Treat any structural hard-gate failure shown in evidence as a failure regardless of appearance. The redacted oracle summary is A=" + (hardGate?.A || "unknown") + ", B=" + (hardGate?.B || "unknown") + ". Do not claim playback unless evidence explicitly records a real host.",
+    "Treat any structural hard-gate failure shown in evidence as a failure regardless of appearance. The redacted oracle summary is " + slots.map((slot) => slot + "=" + (hardGate?.[slot] || "unknown")).join(", ") + ". Do not claim playback unless evidence explicitly records a real host.",
     "",
-    "This is blind round " + round + ". Return JSON only: {caseId, round, scores:{A:{communicationEvidence,hierarchyReadabilityOccupancy,designCraftSpecificity,functionalEditability,layerLayoutRender,displayMediumFit,completionPolish},B:{...}},winner:\"A|B|tie|invalid\",confidence:1-5,hardGate:{A:\"passed|failed|unknown\",B:\"passed|failed|unknown\"},reason:\"brief evidence-based reason\"}.",
+    "This is blind round " + round + ". Return JSON only: {caseId, round, scores:{" + scoreFields + "},winner:\"" + slots.join("|") + "|tie|invalid\",confidence:1-5,hardGate:{" + gateFields + "},reason:\"brief evidence-based reason\"}.",
   ].join("\n");
 }
 
-function parseJudgeOutput(text) {
+function parseJudgeOutput(text, slots = ["A", "B"]) {
   const candidates = [text.trim(), ...(text.match(/\{[\s\S]*\}/gu) || [])];
   for (const candidate of candidates.reverse()) {
     try {
       const value = JSON.parse(candidate);
-      if (value?.scores?.A && value?.scores?.B && value.winner) return value;
+      if (slots.every((slot) => value?.scores?.[slot]) && value.winner) return value;
     } catch {
       // The final response may contain prose around the JSON. Keep it invalid
       // instead of silently inventing a score.
@@ -832,15 +837,16 @@ function parseJudgeOutput(text) {
   return null;
 }
 
-async function prepareBlindPair(runRoot, item, records, round, seed) {
+async function prepareBlindSet(runRoot, item, records, round, seed, arms) {
   const byArm = new Map(records.filter((record) => record.caseId === item.id).map((record) => [record.arm, record]));
-  if (!byArm.has("shared-what-kind-how") || !byArm.has("kimi-concise")) return null;
-  const order = shuffled(["shared-what-kind-how", "kimi-concise"], seed + round * 1009 + item.id.length);
-  const assignment = { A: order[0], B: order[1] };
+  if (!arms.every((arm) => byArm.has(arm))) return null;
+  const slots = arms.map((_, index) => String.fromCharCode(65 + index));
+  const order = shuffled(arms, seed + round * 1009 + item.id.length);
+  const assignment = Object.fromEntries(slots.map((slot, index) => [slot, order[index]]));
   const destination = path.join(runRoot, "blind-review", "round-" + round, item.id);
   await ensureDir(destination);
   const files = {};
-  for (const slot of ["A", "B"]) {
+  for (const slot of slots) {
     const record = byArm.get(assignment[slot]);
     const source = path.join(record.workspace, "outputs", "previews");
     const target = path.join(destination, slot);
@@ -853,11 +859,12 @@ async function prepareBlindPair(runRoot, item, records, round, seed) {
     };
   }
   await writeJson(path.join(destination, "pair.json"), {
-    schema: "office-kit/presentation-skill-ablation-blind-pair/v1",
+    schema: "office-kit/presentation-skill-ablation-blind-set/v1",
     caseId: item.id,
     round,
-    assignment: { A: "A", B: "B" },
-    files: { A: files.A.directory, B: files.B.directory },
+    slots,
+    assignment: Object.fromEntries(slots.map((slot) => [slot, "redacted"])),
+    files: Object.fromEntries(slots.map((slot) => [slot, files[slot].directory])),
     createdAt: nowIso(),
   });
   // Keep the randomized label-to-arm mapping outside the judge workspace.
@@ -867,10 +874,11 @@ async function prepareBlindPair(runRoot, item, records, round, seed) {
     schema: "office-kit/presentation-skill-ablation-blind-truth/v1",
     caseId: item.id,
     round,
+    slots,
     assignment,
     createdAt: nowIso(),
   });
-  return { destination, assignment, files, item };
+  return { destination, assignment, files, slots, item };
 }
 
 async function findPreviews(directory) {
@@ -884,8 +892,8 @@ async function findPreviews(directory) {
 async function runOneJudge({ pair, round, timeout }) {
   const workspace = path.join(pair.destination, "judge");
   await ensureDir(workspace);
-  const hardGate = Object.fromEntries(["A", "B"].map((slot) => [slot, pair.files[slot].evidence?.gates?.overall === "passed" ? "passed" : "failed"]));
-  const prompt = judgePrompt({ item: pair.item, round, hardGate });
+  const hardGate = Object.fromEntries(pair.slots.map((slot) => [slot, pair.files[slot].evidence?.gates?.overall === "passed" ? "passed" : "failed"]));
+  const prompt = judgePrompt({ item: pair.item, round, hardGate, slots: pair.slots });
   const promptPath = path.join(workspace, "JUDGE_PROMPT.md");
   const eventPath = path.join(workspace, "events.jsonl");
   const finalPath = path.join(workspace, "final.txt");
@@ -896,7 +904,7 @@ async function runOneJudge({ pair, round, timeout }) {
     "--config", "model_reasoning_effort=\"max\"", "--output-schema", judgeSchemaPath(),
     "--output-last-message", finalPath,
   ];
-  for (const slot of ["A", "B"]) {
+  for (const slot of pair.slots) {
     for (const preview of await findPreviews(pair.files[slot].directory)) args.push("--image", preview);
   }
   const startedAt = nowIso();
@@ -909,7 +917,7 @@ async function runOneJudge({ pair, round, timeout }) {
     stderrFile: path.join(workspace, "stderr.log"),
   });
   const finalText = await readFile(finalPath, "utf8").catch(() => "");
-  const parsed = parseJudgeOutput(finalText);
+  const parsed = parseJudgeOutput(finalText, pair.slots);
   if (parsed) parsed.hardGate = hardGate;
   const record = {
     schema: "office-kit/presentation-skill-ablation-judge-run/v1",
@@ -967,7 +975,7 @@ async function runJudges(flags) {
     let completed = 0;
     for (const item of casesManifest.cases) {
       if (requestedCase && requestedCase !== item.id) continue;
-      const pair = await prepareBlindPair(runRoot, item, authors, round, casesManifest.seed || DEFAULT_SEED);
+      const pair = await prepareBlindSet(runRoot, item, authors, round, casesManifest.seed || DEFAULT_SEED, casesManifest.arms);
       if (!pair) continue;
       results.push(await runOneJudge({ pair, round, timeout: flag(flags, "timeout-ms", DEFAULT_TIMEOUT_MS) }));
       completed += 1;
@@ -1062,8 +1070,162 @@ function bootstrap(values, seed = DEFAULT_SEED, iterations = 2000) {
   };
 }
 
+function combinations(arms) {
+  const result = [];
+  for (let left = 0; left < arms.length; left += 1) {
+    for (let right = left + 1; right < arms.length; right += 1) result.push([arms[left], arms[right]]);
+  }
+  return result;
+}
+
+function triPairwiseStats(scope, arms) {
+  const output = {};
+  for (const [left, right] of combinations(arms)) {
+    const key = left + "__vs__" + right;
+    const deltas = scope.flatMap((pair) => pair.rounds
+      .filter((round) => round.eligible && Number.isFinite(round.scores[left]) && Number.isFinite(round.scores[right]))
+      .map((round) => Number((round.scores[left] - round.scores[right]).toFixed(3))));
+    output[key] = {
+      left,
+      right,
+      deltas,
+      meanDelta: mean(deltas),
+      medianDelta: median(deltas),
+      bootstrap95: bootstrap(deltas),
+      signTest: signTest(deltas),
+      pairedPermutation: exactPairedPermutation(deltas),
+    };
+  }
+  return output;
+}
+
+async function analyzeTri(flags) {
+  const [casesManifest, rubric] = await loadInputs();
+  const arms = casesManifest.arms;
+  const slots = arms.map((_, index) => String.fromCharCode(65 + index));
+  const runRoot = path.resolve(String(flag(flags, "run-root", path.join(EXPERIMENT_ROOT, "runs"))));
+  const authors = await authorRecords(runRoot);
+  const judges = await loadJudgeRecords(runRoot);
+  const pairs = [];
+  for (const item of casesManifest.cases) {
+    const authorByArm = new Map(authors.filter((record) => record.caseId === item.id).map((record) => [record.arm, record]));
+    const hardGate = Object.fromEntries(arms.map((arm) => [arm, authorByArm.get(arm)?.artifact?.gates?.overall || "missing"]));
+    const rounds = [];
+    for (const record of judges.filter((candidate) => candidate.caseId === item.id && candidate.status === "valid")) {
+      const truth = await loadPairTruth(runRoot, item.id, record.round);
+      const scores = {};
+      for (const slot of slots) {
+        const arm = truth?.assignment?.[slot];
+        if (arm) scores[arm] = weightedScore(record.score.scores?.[slot], rubric.dimensions);
+      }
+      rounds.push({
+        round: record.round,
+        scores,
+        winnerArm: truth?.assignment && slots.includes(record.score.winner) ? truth.assignment[record.score.winner] : record.score.winner === "tie" ? "tie" : null,
+        confidence: record.score.confidence,
+        eligible: arms.every((arm) => hardGate[arm] === "passed" && Number.isFinite(scores[arm])),
+      });
+    }
+    pairs.push({
+      caseId: item.id,
+      scenario: item.scenario,
+      lifecycle: item.lifecycle,
+      image: Boolean(item.imageNeed && item.imageNeed !== "none"),
+      hardGate,
+      rounds,
+      authors: Object.fromEntries(arms.filter((arm) => authorByArm.has(arm)).map((arm) => [arm, {
+        durationMs: authorByArm.get(arm).codex.durationMs,
+        usage: authorByArm.get(arm).usage,
+        artifactStatus: authorByArm.get(arm).artifact?.gates?.overall || "missing",
+      }])),
+    });
+  }
+  const pairwise = triPairwiseStats(pairs, arms);
+  const routeWins = Object.fromEntries([...arms, "tie"].map((arm) => [arm, 0]));
+  for (const pair of pairs) for (const round of pair.rounds) if (round.winnerArm && routeWins[round.winnerArm] !== undefined) routeWins[round.winnerArm] += 1;
+  const byLifecycle = Object.fromEntries(["0-to-1", "1-to-10"].map((lifecycle) => [lifecycle, triPairwiseStats(pairs.filter((pair) => pair.lifecycle === lifecycle), arms)]));
+  const scenarios = [...new Set(casesManifest.cases.map((item) => item.scenario))].sort();
+  const byScenario = Object.fromEntries(scenarios.map((scenario) => [scenario, triPairwiseStats(pairs.filter((pair) => pair.scenario === scenario), arms)]));
+  const byImage = Object.fromEntries([["image", true], ["non-image", false]].map(([name, image]) => [name, triPairwiseStats(pairs.filter((pair) => pair.image === image), arms)]));
+  const efficiency = Object.fromEntries(arms.map((arm) => {
+    const records = authors.filter((record) => record.arm === arm);
+    const average = (selector) => mean(records.map(selector).filter((value) => Number.isFinite(value)));
+    return [arm, {
+      n: records.length,
+      wallTimeMs: average((record) => record.codex?.durationMs),
+      inputTokens: average((record) => record.usage?.tokens?.inputTokens),
+      outputTokens: average((record) => record.usage?.tokens?.outputTokens),
+      toolCalls: average((record) => record.usage?.toolCalls),
+      imageSearches: average((record) => record.usage?.imageSearches),
+    }];
+  }));
+  const report = {
+    schema: "office-kit/presentation-skill-ablation-tri-route-analysis/v1",
+    generatedAt: nowIso(),
+    runRoot: path.relative(REPO_ROOT, runRoot) || ".",
+    arms,
+    sample: {
+      cases: casesManifest.cases.length,
+      authorSets: pairs.filter((pair) => arms.every((arm) => Object.hasOwn(pair.authors, arm))).length,
+      validHardGateSets: pairs.filter((pair) => arms.every((arm) => pair.hardGate[arm] === "passed")).length,
+      judgeRecords: judges.length,
+      judgedSets: pairs.filter((pair) => pair.rounds.length > 0).length,
+    },
+    routeWins,
+    pairwise,
+    byLifecycle,
+    byScenario,
+    byImage,
+    efficiency,
+    pairs,
+    limitations: [
+      "三方盲评只把三方作者都通过硬门槛的回合纳入 pairwise 质量分差",
+      "Structural/render evidence is not PowerPoint playback evidence",
+      "Human calibration records are pending unless supplied separately",
+    ],
+  };
+  await writeJson(path.join(runRoot, "analysis.tri-route.v1.json"), report);
+  const evidenceDir = path.join(EXPERIMENT_ROOT, "evidence");
+  await ensureDir(evidenceDir);
+  await writeJson(path.join(evidenceDir, "summary.tri-route.v1.json"), report);
+  await writeFile(path.join(EXPERIMENT_ROOT, "report.tri-route.v1.md"), renderTriReport(report), "utf8");
+  return report;
+}
+
+function renderTriReport(report) {
+  const lines = [
+    "# Presentation Skill 三路线质量实验：研究报告",
+    "",
+    "生成时间：" + report.generatedAt,
+    "",
+    "> 当前生产 Skill 是冻结控制组；Shared What/What-kind/How 与 Kimi-style concise 是实验组。",
+    "",
+    "## 样本",
+    "",
+    "- 任务数：" + report.sample.cases + "；三方作者集合：" + report.sample.authorSets + "。",
+    "- 三方均通过硬门槛的任务：" + report.sample.validHardGateSets + "。",
+    "- 有效盲评记录：" + report.sample.judgeRecords + "。",
+    "",
+    "## 路线胜负",
+    "",
+  ];
+  for (const [arm, wins] of Object.entries(report.routeWins)) lines.push("- " + arm + "：" + wins + "。");
+  lines.push("", "## 两两质量分差（左路线 − 右路线）", "", "| 比较 | n | 均值 | 中位数 | bootstrap 95% | p(sign) |", "| --- | ---: | ---: | ---: | --- | ---: |");
+  for (const value of Object.values(report.pairwise)) lines.push("| " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " | " + (value.bootstrap95.low ?? "pending") + " … " + (value.bootstrap95.high ?? "pending") + " | " + value.signTest.pTwoSided + " |");
+  lines.push("", "## 分层结果", "", "以下只在三方均通过硬门槛的回合中统计。", "", "| 分层 | 比较 | n | 均值 | 中位数 |", "| --- | --- | ---: | ---: | ---: |");
+  for (const [lifecycle, values] of Object.entries(report.byLifecycle)) for (const value of Object.values(values)) lines.push("| lifecycle=" + lifecycle + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
+  for (const [scenario, values] of Object.entries(report.byScenario)) for (const value of Object.values(values)) lines.push("| scenario=" + scenario + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
+  for (const [image, values] of Object.entries(report.byImage)) for (const value of Object.values(values)) lines.push("| asset=" + image + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
+  lines.push("", "## 效率", "", "| 路线 | 作者数 | 平均 wall time (ms) | 平均输入 token | 平均工具调用 |", "| --- | ---: | ---: | ---: | ---: |");
+  for (const [arm, value] of Object.entries(report.efficiency)) lines.push("| " + arm + " | " + value.n + " | " + (value.wallTimeMs ?? "pending") + " | " + (value.inputTokens ?? "pending") + " | " + (value.toolCalls ?? "pending") + " |");
+  lines.push("", "## 限制", "");
+  for (const item of report.limitations) lines.push("- " + item);
+  return lines.join("\n") + "\n";
+}
+
 async function analyze(flags) {
   const [casesManifest, rubric] = await loadInputs();
+  if (casesManifest.arms.length === 3) return analyzeTri(flags);
   const runRoot = path.resolve(String(flag(flags, "run-root", path.join(EXPERIMENT_ROOT, "runs"))));
   const authors = await authorRecords(runRoot);
   const judges = await loadJudgeRecords(runRoot);
@@ -1250,16 +1412,19 @@ async function createHumanCalibrationTemplate(flags) {
   const runRoot = path.resolve(String(flag(flags, "run-root", path.join(EXPERIMENT_ROOT, "runs"))));
   const authors = await authorRecords(runRoot);
   const [casesManifest] = await loadInputs();
+  const slots = casesManifest.arms.map((_, index) => String.fromCharCode(65 + index));
   const candidates = casesManifest.cases.map((item) => item.id)
-    .filter((id) => authors.filter((record) => record.caseId === id).length >= 2)
+    .filter((id) => casesManifest.arms.every((arm) => authors.some((record) => record.caseId === id && record.arm === arm)))
     .slice(0, 4);
   const output = {
-    schema: "office-kit/presentation-skill-ablation-human-calibration/v1",
+    schema: "office-kit/presentation-skill-ablation-human-calibration/" + (casesManifest.arms.length === 3 ? "v2" : "v1"),
     createdAt: nowIso(),
     status: candidates.length === 4 ? "pending-human-input" : "insufficient-pairs",
-    instruction: "由人类评审填写；不要透露 A/B 对应的 Skill。人类结果不用于调参。",
+    instruction: "由人类评审填写；不要透露 A/B/C 对应的路线（双路线历史运行仍可只填 A/B）。人类结果不用于调参。",
     pairs: candidates.map((caseId, index) => ({
-      caseId, pair: index + 1, A: null, B: null, winner: null, confidence: null, reason: null,
+      caseId, pair: index + 1,
+      scores: Object.fromEntries(slots.map((slot) => [slot, null])),
+      winner: null, confidence: null, reason: null,
     })),
   };
   await writeJson(path.join(runRoot, "blind-review", "human-calibration.v1.json"), output);
@@ -1274,7 +1439,12 @@ export async function main(argv = process.argv.slice(2)) {
     const result = await validateExperiment({ checkFixtures: !boolFlag(flags, "skip-fixtures") });
     if (command === "smoke") {
       const [casesManifest] = await loadInputs();
-      const routeText = await Promise.all(casesManifest.arms.map((arm) => readFile(path.join(ARMS_ROOT, arm, "SKILL.md"), "utf8")));
+      const commonText = (await Promise.all((await captureTree(COMMON_ROOT)).map((entry) => readFile(path.join(COMMON_ROOT, entry.path), "utf8")))).join("\n");
+      const routeText = await Promise.all(casesManifest.arms.map(async (arm) => {
+        const root = path.join(ARMS_ROOT, arm);
+        const tree = await captureTree(root);
+        return commonText + "\n" + (await Promise.all(tree.map((entry) => readFile(path.join(root, entry.path), "utf8")))).join("\n");
+      }));
       for (const text of routeText) {
         if (!/check\s*→\s*build\s*→\s*render/iu.test(text) || !/review/iu.test(text)) fail("route smoke: check/build/render/review route is not reachable");
         if (!/occlusion/iu.test(text) || !/(?:source[- ]bound|source binding)/iu.test(text) || !/image/iu.test(text)) fail("route smoke: shared invariants are not reachable");
