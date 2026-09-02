@@ -1,0 +1,337 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-analysis/v1",
+  "generatedAt": "2026-09-02T14:21:36.620Z",
+  "runRoot": "evals/presentation-skill-ablation/runs/study-20260902-codec",
+  "sample": {
+    "cases": 12,
+    "validHardGatePairs": 1,
+    "judgeRecords": 2,
+    "authorPairs": 1,
+    "judgedPairs": 1
+  },
+  "winners": {
+    "A": 2,
+    "B": 0,
+    "tie": 0
+  },
+  "routeWinners": {
+    "shared": 1,
+    "kimi": 1,
+    "tie": 0
+  },
+  "overall": {
+    "deltas": [
+      -17,
+      3
+    ],
+    "meanDelta": -7,
+    "medianDelta": -7,
+    "bootstrap95": {
+      "n": 2,
+      "low": -17,
+      "high": 3,
+      "median": -7
+    },
+    "signTest": {
+      "n": 2,
+      "positive": 1,
+      "negative": 1,
+      "pTwoSided": 1
+    },
+    "pairedPermutation": {
+      "n": 2,
+      "method": "exact-sign-flip",
+      "combinations": 4,
+      "pTwoSided": 1
+    }
+  },
+  "byLifecycle": {
+    "0-to-1": {
+      "n": 2,
+      "meanDelta": -7,
+      "medianDelta": -7,
+      "bootstrap95": {
+        "n": 2,
+        "low": -17,
+        "high": 3,
+        "median": -7
+      }
+    },
+    "1-to-10": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null,
+      "bootstrap95": {
+        "n": 0,
+        "low": null,
+        "high": null,
+        "median": null
+      }
+    }
+  },
+  "byScenario": {
+    "academic-research": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "analysis-decision": {
+      "n": 2,
+      "meanDelta": -7,
+      "medianDelta": -7
+    },
+    "brand-creative": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "education-training": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "management-report": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "technical-engineering": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    }
+  },
+  "byImage": {
+    "image": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "non-image": {
+      "n": 2,
+      "meanDelta": -7,
+      "medianDelta": -7
+    }
+  },
+  "efficiency": {
+    "shared-what-kind-how": {
+      "n": 1,
+      "wallTimeMs": 798847,
+      "inputTokens": 5856146,
+      "outputTokens": 36027,
+      "toolCalls": 166,
+      "imageSearches": 0,
+      "retries": 0,
+      "renderReviewPasses": 56
+    },
+    "kimi-concise": {
+      "n": 1,
+      "wallTimeMs": 903634,
+      "inputTokens": 6474779,
+      "outputTokens": 39903,
+      "toolCalls": 122,
+      "imageSearches": 0,
+      "retries": 0,
+      "renderReviewPasses": 66
+    }
+  },
+  "judgeAgreement": {
+    "n": 1,
+    "same": 0
+  },
+  "pairs": [
+    {
+      "caseId": "analysis-decision-01",
+      "scenario": "analysis-decision",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "kimi-concise": "passed",
+        "shared-what-kind-how": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "A": 94,
+          "B": 77,
+          "shared": 77,
+          "kimi": 94,
+          "delta": -17,
+          "winner": "A",
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "A": 96,
+          "B": 93,
+          "shared": 96,
+          "kimi": 93,
+          "delta": 3,
+          "winner": "A",
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "meanDelta": -7,
+      "authors": {
+        "kimi-concise": {
+          "durationMs": 903634,
+          "usage": {
+            "jsonlEvents": 136,
+            "fileReads": 0,
+            "toolCalls": 122,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 29,
+            "buildPasses": 30,
+            "renderPasses": 30,
+            "reviewPasses": 36,
+            "tokens": {
+              "inputTokens": 6474779,
+              "outputTokens": 39903
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 798847,
+          "usage": {
+            "jsonlEvents": 183,
+            "fileReads": 0,
+            "toolCalls": 166,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 29,
+            "buildPasses": 29,
+            "renderPasses": 25,
+            "reviewPasses": 31,
+            "tokens": {
+              "inputTokens": 5856146,
+              "outputTokens": 36027
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "management-report-01",
+      "scenario": "management-report",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "technical-engineering-01",
+      "scenario": "technical-engineering",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "academic-research-01",
+      "scenario": "academic-research",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "education-training-01",
+      "scenario": "education-training",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "brand-creative-01",
+      "scenario": "brand-creative",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "analysis-decision-10",
+      "scenario": "analysis-decision",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "management-report-10",
+      "scenario": "management-report",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "technical-engineering-10",
+      "scenario": "technical-engineering",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "academic-research-10",
+      "scenario": "academic-research",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "education-training-10",
+      "scenario": "education-training",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "brand-creative-10",
+      "scenario": "brand-creative",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    }
+  ],
+  "limitations": [
+    "冻结设计为 n=12 探索性配对样本；当前已完成作者配对 1/12，盲评记录 2/24",
+    "No default Skill or production route is selected",
+    "Structural/render evidence is not PowerPoint playback evidence",
+    "Human calibration records are pending unless supplied separately"
+  ]
+}

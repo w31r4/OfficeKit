@@ -1,0 +1,26 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-freeze/v1",
+  "frozenAt": "2026-09-02",
+  "seed": 20260902,
+  "model": "gpt-5.6-luna",
+  "reasoningEffort": "max",
+  "timeoutMs": 1200000,
+  "casesSha256": "4bb54eb7bdf8766f98be2b8600fd033df90a39154f865edbb4c09e9d0d4e69fb",
+  "rubricSha256": "19e76da4480cc250f93b5ddc1b84c2f3ee99d4f2635a84636594c54ed54cfd42",
+  "coverageSha256": "cb52c3a3a0f16aea7b795c9d55f1a257e626a5423c610c060b9fbb61fdeeb19c",
+  "fixturesSha256": "6df72e6966e0b369054f4e4c100a557e620342a40b45e5fc021d21cb7c613962",
+  "commonSha256": "e0c091acb7ae489806dc929c783e84c0a8aa40c1ac99118f2a230d5f65930d29",
+  "armsSha256": {
+    "shared-what-kind-how": "e4aa72a2174179df02ecdfd8487fc11748c4f95b3238029be7fe9fb749953607",
+    "kimi-concise": "e2a1da31737704d9558eaa7cd808ee119efcdab61228899fd97573672d57c92d"
+  },
+  "scope": {
+    "cases": 12,
+    "scenarios": 6,
+    "arms": 2,
+    "authorRuns": 24,
+    "blindJudgeRuns": 24,
+    "humanCalibrationPairs": 4,
+    "productionChanges": false
+  }
+}
