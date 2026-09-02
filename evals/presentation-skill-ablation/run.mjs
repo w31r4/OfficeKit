@@ -938,7 +938,7 @@ async function runOneJudge({ pair, round, timeout }) {
     round,
     startedAt,
     finishedAt: nowIso(),
-    assignment: { A: "A", B: "B" },
+    assignment: Object.fromEntries(pair.slots.map((slot) => [slot, "redacted"])),
     codex: {
       model: "gpt-5.6-luna",
       reasoningEffort: "max",
@@ -983,18 +983,30 @@ async function runJudges(flags) {
   const rounds = boolFlag(flags, "both-rounds") ? [1, 2] : [roundStart];
   const requestedCase = flag(flags, "case");
   const limit = flag(flags, "limit") ? positiveInteger(flag(flags, "limit"), "limit") : Infinity;
-  const results = [];
+  const concurrency = flag(flags, "concurrency") ? positiveInteger(flag(flags, "concurrency"), "concurrency") : 1;
+  const skipExisting = boolFlag(flags, "skip-existing");
+  const selected = [];
   for (const round of rounds) {
     let completed = 0;
     for (const item of casesManifest.cases) {
       if (requestedCase && requestedCase !== item.id) continue;
       const pair = await prepareBlindSet(runRoot, item, authors, round, casesManifest.seed || DEFAULT_SEED, casesManifest.arms);
       if (!pair) continue;
-      results.push(await runOneJudge({ pair, round, timeout: flag(flags, "timeout-ms", DEFAULT_TIMEOUT_MS) }));
+      if (skipExisting && await exists(path.join(pair.destination, "judge.json"))) continue;
+      selected.push({ pair, round });
       completed += 1;
       if (completed >= limit) break;
     }
   }
+  const results = [];
+  let cursor = 0;
+  async function worker() {
+    while (cursor < selected.length) {
+      const target = selected[cursor++];
+      results.push(await runOneJudge({ pair: target.pair, round: target.round, timeout: flag(flags, "timeout-ms", DEFAULT_TIMEOUT_MS) }));
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, selected.length) }, () => worker()));
   await writeJson(path.join(runRoot, "judges-index.json"), {
     schema: "office-kit/presentation-skill-ablation-judges-index/v1",
     updatedAt: nowIso(),
@@ -1502,7 +1514,7 @@ export async function main(argv = process.argv.slice(2)) {
     "  node evals/presentation-skill-ablation/run.mjs prepare [--run-root <dir>]",
     "  node evals/presentation-skill-ablation/run.mjs run-authors [--run-root <dir>] [--case <id>] [--arm <id>] [--limit N] [--concurrency N] [--skip-existing]",
     "  node evals/presentation-skill-ablation/run.mjs audit --run-root <dir> --case <id> --arm <id>",
-    "  node evals/presentation-skill-ablation/run.mjs run-judges --run-root <dir> [--both-rounds] [--limit N]",
+    "  node evals/presentation-skill-ablation/run.mjs run-judges --run-root <dir> [--both-rounds] [--limit N] [--concurrency N] [--skip-existing]",
     "  node evals/presentation-skill-ablation/run.mjs human-template --run-root <dir>",
     "  node evals/presentation-skill-ablation/run.mjs analyze --run-root <dir>",
   ].join("\n"));
