@@ -1166,8 +1166,15 @@ async function analyzeTri(flags) {
     });
   }
   const pairwise = triPairwiseStats(pairs, arms);
+  // Only count winners from eligible rounds.  A judge can still return a
+  // useful explanation for a failed artifact, but that appearance must not
+  // become a route win in the quality summary.
   const routeWins = Object.fromEntries([...arms, "tie"].map((arm) => [arm, 0]));
-  for (const pair of pairs) for (const round of pair.rounds) if (round.winnerArm && routeWins[round.winnerArm] !== undefined) routeWins[round.winnerArm] += 1;
+  const allRouteWins = Object.fromEntries([...arms, "tie"].map((arm) => [arm, 0]));
+  for (const pair of pairs) for (const round of pair.rounds) {
+    if (round.winnerArm && allRouteWins[round.winnerArm] !== undefined) allRouteWins[round.winnerArm] += 1;
+    if (round.eligible && round.winnerArm && routeWins[round.winnerArm] !== undefined) routeWins[round.winnerArm] += 1;
+  }
   const byLifecycle = Object.fromEntries(["0-to-1", "1-to-10"].map((lifecycle) => [lifecycle, triPairwiseStats(pairs.filter((pair) => pair.lifecycle === lifecycle), arms)]));
   const scenarios = [...new Set(casesManifest.cases.map((item) => item.scenario))].sort();
   const byScenario = Object.fromEntries(scenarios.map((scenario) => [scenario, triPairwiseStats(pairs.filter((pair) => pair.scenario === scenario), arms)]));
@@ -1195,8 +1202,13 @@ async function analyzeTri(flags) {
       validHardGateSets: pairs.filter((pair) => arms.every((arm) => pair.hardGate[arm] === "passed")).length,
       judgeRecords: judges.length,
       judgedSets: pairs.filter((pair) => pair.rounds.length > 0).length,
+      authorTimeouts: authors.filter((record) => record.codex?.timedOut).length,
+      hardGateFailures: pairs.flatMap((pair) => arms
+        .filter((arm) => pair.hardGate[arm] !== "passed")
+        .map((arm) => ({ caseId: pair.caseId, arm, status: pair.hardGate[arm] }))),
     },
     routeWins,
+    allRouteWins,
     pairwise,
     byLifecycle,
     byScenario,
@@ -1231,10 +1243,11 @@ function renderTriReport(report) {
     "- 三方均通过硬门槛的任务：" + report.sample.validHardGateSets + "。",
     "- 有效盲评记录：" + report.sample.judgeRecords + "。",
     "",
-    "## 路线胜负",
+    "## 路线胜负（仅合格配对）",
     "",
   ];
   for (const [arm, wins] of Object.entries(report.routeWins)) lines.push("- " + arm + "：" + wins + "。");
+  lines.push("", "未过滤硬门槛的评审胜负仅作为诊断保留：" + Object.entries(report.allRouteWins).map(([arm, wins]) => arm + "=" + wins).join("，") + "。", "这些诊断胜负不进入质量结论。", "");
   lines.push("", "## 两两质量分差（左路线 − 右路线）", "", "| 比较 | n | 均值 | 中位数 | bootstrap 95% | p(sign) |", "| --- | ---: | ---: | ---: | --- | ---: |");
   for (const value of Object.values(report.pairwise)) lines.push("| " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " | " + (value.bootstrap95.low ?? "pending") + " … " + (value.bootstrap95.high ?? "pending") + " | " + value.signTest.pTwoSided + " |");
   lines.push("", "## 分层结果", "", "以下只在三方均通过硬门槛的回合中统计。", "", "| 分层 | 比较 | n | 均值 | 中位数 |", "| --- | --- | ---: | ---: | ---: |");
@@ -1243,6 +1256,18 @@ function renderTriReport(report) {
   for (const [image, values] of Object.entries(report.byImage)) for (const value of Object.values(values)) lines.push("| asset=" + image + " | " + value.left + " − " + value.right + " | " + value.deltas.length + " | " + (value.meanDelta ?? "pending") + " | " + (value.medianDelta ?? "pending") + " |");
   lines.push("", "## 效率", "", "| 路线 | 作者数 | 平均 wall time (ms) | 平均输入 token | 平均工具调用 |", "| --- | ---: | ---: | ---: | ---: |");
   for (const [arm, value] of Object.entries(report.efficiency)) lines.push("| " + arm + " | " + value.n + " | " + (value.wallTimeMs ?? "pending") + " | " + (value.inputTokens ?? "pending") + " | " + (value.toolCalls ?? "pending") + " |");
+  lines.push("", "作者超时：" + report.sample.authorTimeouts + " / " + (report.sample.cases * report.arms.length) + "。", "硬门槛失败：" + report.sample.hardGateFailures.map((item) => item.caseId + "/" + item.arm + " (" + item.status + ")").join("；") + "。", "");
+  lines.push(
+    "## 结论（探索性）",
+    "",
+    "- 没有足够证据宣布单一路线胜出：三组总体配对区间均跨过 0，exact paired permutation 的双侧 p 值也未达到稳定差异标准。",
+    "- 合格回合的路线胜负为 current-production=" + report.routeWins["current-production"] + "、shared-what-kind-how=" + report.routeWins["shared-what-kind-how"] + "、kimi-concise=" + report.routeWins["kimi-concise"] + "、tie=" + report.routeWins.tie + "；这比包含失败产物的诊断胜负更适合作为结论依据。",
+    "- 0→1 中，两条实验路线相对当前生产路线的分差点估计为负（current−shared=-5.6，current−kimi=-4.5），说明新入口在从零创作上有潜力；shared 与 kimi 的差异很小（+1.1）。",
+    "- 1→10 中，shared 相对 current 落后（+6.67），kimi 与 current 接近（-1.0），更像是编辑/源绑定可靠性和任务完成度的差异，而不是单纯视觉偏好。",
+    "- brand-creative 的两项任务没有三方同时过门槛，因此本轮不能对品牌场景下结论；四个硬门槛失败必须作为工程问题处理。",
+    "- 暂不改变生产默认路由：可把 kimi-concise 作为后续 0→1 优化候选，把 current-production 保留为稳定控制/编辑回退，把 shared 路线先修复失败的源绑定和超时问题后再复测。",
+    "",
+  );
   lines.push("", "## 限制", "");
   for (const item of report.limitations) lines.push("- " + item);
   return lines.join("\n") + "\n";

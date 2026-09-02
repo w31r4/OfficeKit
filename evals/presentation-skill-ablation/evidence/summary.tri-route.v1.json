@@ -1,0 +1,2237 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-tri-route-analysis/v1",
+  "generatedAt": "2026-09-02T20:53:07.248Z",
+  "runRoot": "evals/presentation-skill-ablation/runs/tri-route-20260903",
+  "arms": [
+    "current-production",
+    "shared-what-kind-how",
+    "kimi-concise"
+  ],
+  "sample": {
+    "cases": 12,
+    "authorSets": 12,
+    "validHardGateSets": 8,
+    "judgeRecords": 24,
+    "judgedSets": 12,
+    "authorTimeouts": 16,
+    "hardGateFailures": [
+      {
+        "caseId": "brand-creative-01",
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      },
+      {
+        "caseId": "management-report-10",
+        "arm": "kimi-concise",
+        "status": "failed"
+      },
+      {
+        "caseId": "academic-research-10",
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      },
+      {
+        "caseId": "brand-creative-10",
+        "arm": "shared-what-kind-how",
+        "status": "failed"
+      }
+    ]
+  },
+  "routeWins": {
+    "current-production": 3,
+    "shared-what-kind-how": 3,
+    "kimi-concise": 7,
+    "tie": 3
+  },
+  "allRouteWins": {
+    "current-production": 8,
+    "shared-what-kind-how": 3,
+    "kimi-concise": 10,
+    "tie": 3
+  },
+  "pairwise": {
+    "current-production__vs__shared-what-kind-how": {
+      "left": "current-production",
+      "right": "shared-what-kind-how",
+      "deltas": [
+        -9,
+        -18,
+        -5,
+        -11,
+        -16,
+        -5,
+        3,
+        7,
+        7,
+        -9,
+        0,
+        0,
+        7,
+        0,
+        8,
+        25
+      ],
+      "meanDelta": -1,
+      "medianDelta": 0,
+      "bootstrap95": {
+        "n": 16,
+        "low": -6,
+        "high": 4.3125,
+        "median": 0
+      },
+      "signTest": {
+        "n": 13,
+        "positive": 6,
+        "negative": 7,
+        "pTwoSided": 1
+      },
+      "pairedPermutation": {
+        "n": 16,
+        "method": "exact-sign-flip",
+        "combinations": 65536,
+        "pTwoSided": 0.736328125
+      }
+    },
+    "current-production__vs__kimi-concise": {
+      "left": "current-production",
+      "right": "kimi-concise",
+      "deltas": [
+        -13,
+        -4,
+        -9,
+        -20,
+        7,
+        8,
+        6,
+        13,
+        -13,
+        -20,
+        0,
+        0,
+        6,
+        0,
+        -6,
+        -6
+      ],
+      "meanDelta": -3.1875,
+      "medianDelta": -2,
+      "bootstrap95": {
+        "n": 16,
+        "low": -7.875,
+        "high": 1.6875,
+        "median": -2
+      },
+      "signTest": {
+        "n": 13,
+        "positive": 5,
+        "negative": 8,
+        "pTwoSided": 0.5810546875
+      },
+      "pairedPermutation": {
+        "n": 16,
+        "method": "exact-sign-flip",
+        "combinations": 65536,
+        "pTwoSided": 0.234375
+      }
+    },
+    "shared-what-kind-how__vs__kimi-concise": {
+      "left": "shared-what-kind-how",
+      "right": "kimi-concise",
+      "deltas": [
+        -4,
+        14,
+        -4,
+        -9,
+        23,
+        13,
+        3,
+        6,
+        -20,
+        -11,
+        0,
+        0,
+        -1,
+        0,
+        -14,
+        -31
+      ],
+      "meanDelta": -2.1875,
+      "medianDelta": -0.5,
+      "bootstrap95": {
+        "n": 16,
+        "low": -8.75,
+        "high": 4.0625,
+        "median": -0.5
+      },
+      "signTest": {
+        "n": 13,
+        "positive": 5,
+        "negative": 8,
+        "pTwoSided": 0.5810546875
+      },
+      "pairedPermutation": {
+        "n": 16,
+        "method": "exact-sign-flip",
+        "combinations": 65536,
+        "pTwoSided": 0.535888671875
+      }
+    }
+  },
+  "byLifecycle": {
+    "0-to-1": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -9,
+          -18,
+          -5,
+          -11,
+          -16,
+          -5,
+          3,
+          7,
+          7,
+          -9
+        ],
+        "meanDelta": -5.6,
+        "medianDelta": -7,
+        "bootstrap95": {
+          "n": 10,
+          "low": -10.6,
+          "high": 0,
+          "median": -7
+        },
+        "signTest": {
+          "n": 10,
+          "positive": 3,
+          "negative": 7,
+          "pTwoSided": 0.34375
+        },
+        "pairedPermutation": {
+          "n": 10,
+          "method": "exact-sign-flip",
+          "combinations": 1024,
+          "pTwoSided": 0.087890625
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -4,
+          -9,
+          -20,
+          7,
+          8,
+          6,
+          13,
+          -13,
+          -20
+        ],
+        "meanDelta": -4.5,
+        "medianDelta": -6.5,
+        "bootstrap95": {
+          "n": 10,
+          "low": -11.6,
+          "high": 3.1,
+          "median": -6.5
+        },
+        "signTest": {
+          "n": 10,
+          "positive": 4,
+          "negative": 6,
+          "pTwoSided": 0.75390625
+        },
+        "pairedPermutation": {
+          "n": 10,
+          "method": "exact-sign-flip",
+          "combinations": 1024,
+          "pTwoSided": 0.28515625
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -4,
+          14,
+          -4,
+          -9,
+          23,
+          13,
+          3,
+          6,
+          -20,
+          -11
+        ],
+        "meanDelta": 1.1,
+        "medianDelta": -0.5,
+        "bootstrap95": {
+          "n": 10,
+          "low": -6.6,
+          "high": 8.8,
+          "median": -0.5
+        },
+        "signTest": {
+          "n": 10,
+          "positive": 5,
+          "negative": 5,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 10,
+          "method": "exact-sign-flip",
+          "combinations": 1024,
+          "pTwoSided": 0.810546875
+        }
+      }
+    },
+    "1-to-10": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          0,
+          0,
+          7,
+          0,
+          8,
+          25
+        ],
+        "meanDelta": 6.666666666666667,
+        "medianDelta": 3.5,
+        "bootstrap95": {
+          "n": 6,
+          "low": 1.1666666666666667,
+          "high": 14.833333333333334,
+          "median": 3.5
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 3,
+          "negative": 0,
+          "pTwoSided": 0.25
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.25
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          0,
+          0,
+          6,
+          0,
+          -6,
+          -6
+        ],
+        "meanDelta": -1,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 6,
+          "low": -4,
+          "high": 3,
+          "median": 0
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 1,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          0,
+          0,
+          -1,
+          0,
+          -14,
+          -31
+        ],
+        "meanDelta": -7.666666666666667,
+        "medianDelta": -0.5,
+        "bootstrap95": {
+          "n": 6,
+          "low": -17.833333333333332,
+          "high": -0.16666666666666666,
+          "median": -0.5
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 0,
+          "negative": 3,
+          "pTwoSided": 0.25
+        },
+        "pairedPermutation": {
+          "n": 6,
+          "method": "exact-sign-flip",
+          "combinations": 64,
+          "pTwoSided": 0.25
+        }
+      }
+    }
+  },
+  "byScenario": {
+    "academic-research": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          3,
+          7
+        ],
+        "meanDelta": 5,
+        "medianDelta": 5,
+        "bootstrap95": {
+          "n": 2,
+          "low": 3,
+          "high": 7,
+          "median": 5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          6,
+          13
+        ],
+        "meanDelta": 9.5,
+        "medianDelta": 9.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": 6,
+          "high": 13,
+          "median": 9.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          3,
+          6
+        ],
+        "meanDelta": 4.5,
+        "medianDelta": 4.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": 3,
+          "high": 6,
+          "median": 4.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 2,
+          "negative": 0,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      }
+    },
+    "analysis-decision": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -9,
+          -18,
+          0,
+          0
+        ],
+        "meanDelta": -6.75,
+        "medianDelta": -4.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": -13.5,
+          "high": 0,
+          "median": -4.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -4,
+          0,
+          0
+        ],
+        "meanDelta": -4.25,
+        "medianDelta": -2,
+        "bootstrap95": {
+          "n": 4,
+          "low": -9.75,
+          "high": 0,
+          "median": -2
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -4,
+          14,
+          0,
+          0
+        ],
+        "meanDelta": 2.5,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 4,
+          "low": -3,
+          "high": 10.5,
+          "median": 0
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 1,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 1
+        }
+      }
+    },
+    "brand-creative": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [],
+        "meanDelta": null,
+        "medianDelta": null,
+        "bootstrap95": {
+          "n": 0,
+          "low": null,
+          "high": null,
+          "median": null
+        },
+        "signTest": {
+          "n": 0,
+          "positive": 0,
+          "negative": 0,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 0,
+          "method": "exact-sign-flip",
+          "pTwoSided": 1
+        }
+      }
+    },
+    "education-training": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          7,
+          -9,
+          8,
+          25
+        ],
+        "meanDelta": 7.75,
+        "medianDelta": 7.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": -4.75,
+          "high": 20.5,
+          "median": 7.5
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 3,
+          "negative": 1,
+          "pTwoSided": 0.625
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -20,
+          -6,
+          -6
+        ],
+        "meanDelta": -11.25,
+        "medianDelta": -9.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": -16.5,
+          "high": -6,
+          "median": -9.5
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 0,
+          "negative": 4,
+          "pTwoSided": 0.125
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.125
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -20,
+          -11,
+          -14,
+          -31
+        ],
+        "meanDelta": -19,
+        "medianDelta": -17,
+        "bootstrap95": {
+          "n": 4,
+          "low": -26.75,
+          "high": -12.5,
+          "median": -17
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 0,
+          "negative": 4,
+          "pTwoSided": 0.125
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.125
+        }
+      }
+    },
+    "management-report": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -5,
+          -11
+        ],
+        "meanDelta": -8,
+        "medianDelta": -8,
+        "bootstrap95": {
+          "n": 2,
+          "low": -11,
+          "high": -5,
+          "median": -8
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -9,
+          -20
+        ],
+        "meanDelta": -14.5,
+        "medianDelta": -14.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -20,
+          "high": -9,
+          "median": -14.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -4,
+          -9
+        ],
+        "meanDelta": -6.5,
+        "medianDelta": -6.5,
+        "bootstrap95": {
+          "n": 2,
+          "low": -9,
+          "high": -4,
+          "median": -6.5
+        },
+        "signTest": {
+          "n": 2,
+          "positive": 0,
+          "negative": 2,
+          "pTwoSided": 0.5
+        },
+        "pairedPermutation": {
+          "n": 2,
+          "method": "exact-sign-flip",
+          "combinations": 4,
+          "pTwoSided": 0.5
+        }
+      }
+    },
+    "technical-engineering": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -16,
+          -5,
+          7,
+          0
+        ],
+        "meanDelta": -3.5,
+        "medianDelta": -2.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": -12,
+          "high": 4,
+          "median": -2.5
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 1,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.75
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          7,
+          8,
+          6,
+          0
+        ],
+        "meanDelta": 5.25,
+        "medianDelta": 6.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": 1.75,
+          "high": 7.5,
+          "median": 6.5
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 3,
+          "negative": 0,
+          "pTwoSided": 0.25
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.25
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          23,
+          13,
+          -1,
+          0
+        ],
+        "meanDelta": 8.75,
+        "medianDelta": 6.5,
+        "bootstrap95": {
+          "n": 4,
+          "low": -0.5,
+          "high": 18,
+          "median": 6.5
+        },
+        "signTest": {
+          "n": 3,
+          "positive": 2,
+          "negative": 1,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.5
+        }
+      }
+    }
+  },
+  "byImage": {
+    "image": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -16,
+          -5,
+          7,
+          -9
+        ],
+        "meanDelta": -5.75,
+        "medianDelta": -7,
+        "bootstrap95": {
+          "n": 4,
+          "low": -13.25,
+          "high": 3,
+          "median": -7
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 1,
+          "negative": 3,
+          "pTwoSided": 0.625
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.375
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          7,
+          8,
+          -13,
+          -20
+        ],
+        "meanDelta": -4.5,
+        "medianDelta": -3,
+        "bootstrap95": {
+          "n": 4,
+          "low": -16.5,
+          "high": 7.5,
+          "median": -3
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 2,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.625
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          23,
+          13,
+          -20,
+          -11
+        ],
+        "meanDelta": 1.25,
+        "medianDelta": 1,
+        "bootstrap95": {
+          "n": 4,
+          "low": -15.5,
+          "high": 18,
+          "median": 1
+        },
+        "signTest": {
+          "n": 4,
+          "positive": 2,
+          "negative": 2,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 4,
+          "method": "exact-sign-flip",
+          "combinations": 16,
+          "pTwoSided": 0.875
+        }
+      }
+    },
+    "non-image": {
+      "current-production__vs__shared-what-kind-how": {
+        "left": "current-production",
+        "right": "shared-what-kind-how",
+        "deltas": [
+          -9,
+          -18,
+          -5,
+          -11,
+          3,
+          7,
+          0,
+          0,
+          7,
+          0,
+          8,
+          25
+        ],
+        "meanDelta": 0.5833333333333334,
+        "medianDelta": 0,
+        "bootstrap95": {
+          "n": 12,
+          "low": -5.083333333333333,
+          "high": 6.916666666666667,
+          "median": 0
+        },
+        "signTest": {
+          "n": 9,
+          "positive": 5,
+          "negative": 4,
+          "pTwoSided": 1
+        },
+        "pairedPermutation": {
+          "n": 12,
+          "method": "exact-sign-flip",
+          "combinations": 4096,
+          "pTwoSided": 0.8828125
+        }
+      },
+      "current-production__vs__kimi-concise": {
+        "left": "current-production",
+        "right": "kimi-concise",
+        "deltas": [
+          -13,
+          -4,
+          -9,
+          -20,
+          6,
+          13,
+          0,
+          0,
+          6,
+          0,
+          -6,
+          -6
+        ],
+        "meanDelta": -2.75,
+        "medianDelta": -2,
+        "bootstrap95": {
+          "n": 12,
+          "low": -7.666666666666667,
+          "high": 2.25,
+          "median": -2
+        },
+        "signTest": {
+          "n": 9,
+          "positive": 3,
+          "negative": 6,
+          "pTwoSided": 0.5078125
+        },
+        "pairedPermutation": {
+          "n": 12,
+          "method": "exact-sign-flip",
+          "combinations": 4096,
+          "pTwoSided": 0.34765625
+        }
+      },
+      "shared-what-kind-how__vs__kimi-concise": {
+        "left": "shared-what-kind-how",
+        "right": "kimi-concise",
+        "deltas": [
+          -4,
+          14,
+          -4,
+          -9,
+          3,
+          6,
+          0,
+          0,
+          -1,
+          0,
+          -14,
+          -31
+        ],
+        "meanDelta": -3.3333333333333335,
+        "medianDelta": -0.5,
+        "bootstrap95": {
+          "n": 12,
+          "low": -9.916666666666666,
+          "high": 2.5,
+          "median": -0.5
+        },
+        "signTest": {
+          "n": 9,
+          "positive": 3,
+          "negative": 6,
+          "pTwoSided": 0.5078125
+        },
+        "pairedPermutation": {
+          "n": 12,
+          "method": "exact-sign-flip",
+          "combinations": 4096,
+          "pTwoSided": 0.37890625
+        }
+      }
+    }
+  },
+  "efficiency": {
+    "current-production": {
+      "n": 12,
+      "wallTimeMs": 1032112.5,
+      "inputTokens": 7564695.125,
+      "outputTokens": 38848.75,
+      "toolCalls": 150.66666666666666,
+      "imageSearches": 1.6666666666666667
+    },
+    "shared-what-kind-how": {
+      "n": 12,
+      "wallTimeMs": 1077783.4166666667,
+      "inputTokens": 6552249.8,
+      "outputTokens": 38433.4,
+      "toolCalls": 146.83333333333334,
+      "imageSearches": 2.5
+    },
+    "kimi-concise": {
+      "n": 12,
+      "wallTimeMs": 1029989.25,
+      "inputTokens": 7127431.428571428,
+      "outputTokens": 39667.142857142855,
+      "toolCalls": 134.33333333333334,
+      "imageSearches": 3.0833333333333335
+    }
+  },
+  "pairs": [
+    {
+      "caseId": "analysis-decision-01",
+      "scenario": "analysis-decision",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 96,
+            "kimi-concise": 100,
+            "current-production": 87
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 83,
+            "current-production": 79,
+            "shared-what-kind-how": 97
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 918468,
+          "usage": {
+            "jsonlEvents": 120,
+            "fileReads": 0,
+            "toolCalls": 100,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 28,
+            "buildPasses": 32,
+            "renderPasses": 27,
+            "reviewPasses": 41,
+            "tokens": {
+              "inputTokens": 7454488,
+              "outputTokens": 40017
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200208,
+          "usage": {
+            "jsonlEvents": 199,
+            "fileReads": 0,
+            "toolCalls": 184,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 39,
+            "buildPasses": 37,
+            "renderPasses": 27,
+            "reviewPasses": 45,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1199634,
+          "usage": {
+            "jsonlEvents": 143,
+            "fileReads": 0,
+            "toolCalls": 118,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 21,
+            "renderPasses": 20,
+            "reviewPasses": 29,
+            "tokens": {
+              "inputTokens": 9176275,
+              "outputTokens": 52140
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "management-report-01",
+      "scenario": "management-report",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 73,
+            "kimi-concise": 77,
+            "current-production": 68
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 92,
+            "current-production": 72,
+            "shared-what-kind-how": 83
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1005778,
+          "usage": {
+            "jsonlEvents": 195,
+            "fileReads": 0,
+            "toolCalls": 170,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 33,
+            "buildPasses": 32,
+            "renderPasses": 24,
+            "reviewPasses": 44,
+            "tokens": {
+              "inputTokens": 7172231,
+              "outputTokens": 42229
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 864703,
+          "usage": {
+            "jsonlEvents": 105,
+            "fileReads": 0,
+            "toolCalls": 82,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 23,
+            "buildPasses": 24,
+            "renderPasses": 20,
+            "reviewPasses": 26,
+            "tokens": {
+              "inputTokens": 5328656,
+              "outputTokens": 37681
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1007331,
+          "usage": {
+            "jsonlEvents": 135,
+            "fileReads": 0,
+            "toolCalls": 116,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 22,
+            "buildPasses": 25,
+            "renderPasses": 21,
+            "reviewPasses": 35,
+            "tokens": {
+              "inputTokens": 9139489,
+              "outputTokens": 43345
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "technical-engineering-01",
+      "scenario": "technical-engineering",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "current-production": 77,
+            "shared-what-kind-how": 93,
+            "kimi-concise": 70
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 80,
+            "shared-what-kind-how": 93,
+            "current-production": 88
+          },
+          "winnerArm": "shared-what-kind-how",
+          "confidence": 3,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 851080,
+          "usage": {
+            "jsonlEvents": 147,
+            "fileReads": 0,
+            "toolCalls": 132,
+            "imageSearches": 2,
+            "retries": 0,
+            "checkPasses": 19,
+            "buildPasses": 22,
+            "renderPasses": 21,
+            "reviewPasses": 30,
+            "tokens": {
+              "inputTokens": 5715652,
+              "outputTokens": 38451
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 899081,
+          "usage": {
+            "jsonlEvents": 196,
+            "fileReads": 0,
+            "toolCalls": 152,
+            "imageSearches": 3,
+            "retries": 0,
+            "checkPasses": 32,
+            "buildPasses": 39,
+            "renderPasses": 37,
+            "reviewPasses": 46,
+            "tokens": {
+              "inputTokens": 6723459,
+              "outputTokens": 39559
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200076,
+          "usage": {
+            "jsonlEvents": 136,
+            "fileReads": 0,
+            "toolCalls": 124,
+            "imageSearches": 12,
+            "retries": 0,
+            "checkPasses": 17,
+            "buildPasses": 20,
+            "renderPasses": 25,
+            "reviewPasses": 28,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "academic-research-01",
+      "scenario": "academic-research",
+      "lifecycle": "0-to-1",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 81,
+            "kimi-concise": 78,
+            "current-production": 84
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 77,
+            "current-production": 90,
+            "shared-what-kind-how": 83
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 955668,
+          "usage": {
+            "jsonlEvents": 165,
+            "fileReads": 0,
+            "toolCalls": 142,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 24,
+            "buildPasses": 26,
+            "renderPasses": 28,
+            "reviewPasses": 37,
+            "tokens": {
+              "inputTokens": 5942893,
+              "outputTokens": 42600
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 983413,
+          "usage": {
+            "jsonlEvents": 178,
+            "fileReads": 0,
+            "toolCalls": 156,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 27,
+            "renderPasses": 22,
+            "reviewPasses": 38,
+            "tokens": {
+              "inputTokens": 6976871,
+              "outputTokens": 41131
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 906022,
+          "usage": {
+            "jsonlEvents": 102,
+            "fileReads": 0,
+            "toolCalls": 78,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 21,
+            "buildPasses": 24,
+            "renderPasses": 16,
+            "reviewPasses": 25,
+            "tokens": {
+              "inputTokens": 5053624,
+              "outputTokens": 42657
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "education-training-01",
+      "scenario": "education-training",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 77,
+            "current-production": 84,
+            "kimi-concise": 97
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 97,
+            "shared-what-kind-how": 86,
+            "current-production": 77
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1200266,
+          "usage": {
+            "jsonlEvents": 200,
+            "fileReads": 0,
+            "toolCalls": 178,
+            "imageSearches": 9,
+            "retries": 0,
+            "checkPasses": 35,
+            "buildPasses": 37,
+            "renderPasses": 30,
+            "reviewPasses": 52,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 930257,
+          "usage": {
+            "jsonlEvents": 105,
+            "fileReads": 0,
+            "toolCalls": 88,
+            "imageSearches": 11,
+            "retries": 0,
+            "checkPasses": 19,
+            "buildPasses": 15,
+            "renderPasses": 16,
+            "reviewPasses": 24,
+            "tokens": {
+              "inputTokens": 5925296,
+              "outputTokens": 41875
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200067,
+          "usage": {
+            "jsonlEvents": 203,
+            "fileReads": 0,
+            "toolCalls": 190,
+            "imageSearches": 15,
+            "retries": 0,
+            "checkPasses": 35,
+            "buildPasses": 31,
+            "renderPasses": 28,
+            "reviewPasses": 35,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "brand-creative-01",
+      "scenario": "brand-creative",
+      "lifecycle": "0-to-1",
+      "image": true,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "failed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "current-production": 77,
+            "shared-what-kind-how": 58,
+            "kimi-concise": 89
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "shared-what-kind-how": 51,
+            "kimi-concise": 97,
+            "current-production": 84
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1200098,
+          "usage": {
+            "jsonlEvents": 250,
+            "fileReads": 0,
+            "toolCalls": 236,
+            "imageSearches": 6,
+            "retries": 0,
+            "checkPasses": 34,
+            "buildPasses": 52,
+            "renderPasses": 25,
+            "reviewPasses": 60,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200090,
+          "usage": {
+            "jsonlEvents": 179,
+            "fileReads": 0,
+            "toolCalls": 166,
+            "imageSearches": 11,
+            "retries": 0,
+            "checkPasses": 30,
+            "buildPasses": 32,
+            "renderPasses": 31,
+            "reviewPasses": 46,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        },
+        "kimi-concise": {
+          "durationMs": 1001359,
+          "usage": {
+            "jsonlEvents": 172,
+            "fileReads": 0,
+            "toolCalls": 154,
+            "imageSearches": 9,
+            "retries": 0,
+            "checkPasses": 28,
+            "buildPasses": 28,
+            "renderPasses": 22,
+            "reviewPasses": 43,
+            "tokens": {
+              "inputTokens": 8415436,
+              "outputTokens": 44036
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "analysis-decision-10",
+      "scenario": "analysis-decision",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 64,
+            "kimi-concise": 64,
+            "current-production": 64
+          },
+          "winnerArm": "tie",
+          "confidence": 5,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 67,
+            "current-production": 67,
+            "shared-what-kind-how": 67
+          },
+          "winnerArm": "tie",
+          "confidence": 5,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 851706,
+          "usage": {
+            "jsonlEvents": 152,
+            "fileReads": 0,
+            "toolCalls": 136,
+            "imageSearches": 1,
+            "retries": 0,
+            "checkPasses": 23,
+            "buildPasses": 23,
+            "renderPasses": 31,
+            "reviewPasses": 42,
+            "tokens": {
+              "inputTokens": 8689337,
+              "outputTokens": 31349
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 854976,
+          "usage": {
+            "jsonlEvents": 146,
+            "fileReads": 0,
+            "toolCalls": 126,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 25,
+            "buildPasses": 19,
+            "renderPasses": 26,
+            "reviewPasses": 28,
+            "tokens": {
+              "inputTokens": 7806967,
+              "outputTokens": 31921
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 743621,
+          "usage": {
+            "jsonlEvents": 118,
+            "fileReads": 0,
+            "toolCalls": 100,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 16,
+            "buildPasses": 15,
+            "renderPasses": 25,
+            "reviewPasses": 26,
+            "tokens": {
+              "inputTokens": 6439597,
+              "outputTokens": 26393
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "management-report-10",
+      "scenario": "management-report",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "failed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 71,
+            "kimi-concise": 20,
+            "current-production": 76
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 20,
+            "current-production": 76,
+            "shared-what-kind-how": 71
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1199995,
+          "usage": {
+            "jsonlEvents": 218,
+            "fileReads": 0,
+            "toolCalls": 202,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 29,
+            "buildPasses": 24,
+            "renderPasses": 29,
+            "reviewPasses": 33,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1199991,
+          "usage": {
+            "jsonlEvents": 202,
+            "fileReads": 0,
+            "toolCalls": 184,
+            "imageSearches": 2,
+            "retries": 0,
+            "checkPasses": 35,
+            "buildPasses": 29,
+            "renderPasses": 29,
+            "reviewPasses": 36,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200005,
+          "usage": {
+            "jsonlEvents": 208,
+            "fileReads": 0,
+            "toolCalls": 192,
+            "imageSearches": 1,
+            "retries": 0,
+            "checkPasses": 29,
+            "buildPasses": 20,
+            "renderPasses": 21,
+            "reviewPasses": 24,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        }
+      }
+    },
+    {
+      "caseId": "technical-engineering-10",
+      "scenario": "technical-engineering",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "current-production": 82,
+            "shared-what-kind-how": 75,
+            "kimi-concise": 76
+          },
+          "winnerArm": "current-production",
+          "confidence": 3,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 75,
+            "shared-what-kind-how": 75,
+            "current-production": 75
+          },
+          "winnerArm": "tie",
+          "confidence": 3,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 757868,
+          "usage": {
+            "jsonlEvents": 92,
+            "fileReads": 0,
+            "toolCalls": 76,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 12,
+            "buildPasses": 12,
+            "renderPasses": 17,
+            "reviewPasses": 22,
+            "tokens": {
+              "inputTokens": 5554286,
+              "outputTokens": 35208
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200077,
+          "usage": {
+            "jsonlEvents": 153,
+            "fileReads": 0,
+            "toolCalls": 138,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 22,
+            "renderPasses": 28,
+            "reviewPasses": 22,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 836582,
+          "usage": {
+            "jsonlEvents": 130,
+            "fileReads": 0,
+            "toolCalls": 106,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 12,
+            "buildPasses": 14,
+            "renderPasses": 16,
+            "reviewPasses": 14,
+            "tokens": {
+              "inputTokens": 5853138,
+              "outputTokens": 38455
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "academic-research-10",
+      "scenario": "academic-research",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "failed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 47,
+            "kimi-concise": 63,
+            "current-production": 76
+          },
+          "winnerArm": "current-production",
+          "confidence": 5,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 66,
+            "current-production": 73,
+            "shared-what-kind-how": 20
+          },
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1199995,
+          "usage": {
+            "jsonlEvents": 184,
+            "fileReads": 0,
+            "toolCalls": 172,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 21,
+            "buildPasses": 23,
+            "renderPasses": 26,
+            "reviewPasses": 30,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200063,
+          "usage": {
+            "jsonlEvents": 185,
+            "fileReads": 0,
+            "toolCalls": 170,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 22,
+            "buildPasses": 18,
+            "renderPasses": 20,
+            "reviewPasses": 30,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        },
+        "kimi-concise": {
+          "durationMs": 665145,
+          "usage": {
+            "jsonlEvents": 96,
+            "fileReads": 0,
+            "toolCalls": 78,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 16,
+            "buildPasses": 13,
+            "renderPasses": 17,
+            "reviewPasses": 21,
+            "tokens": {
+              "inputTokens": 5814461,
+              "outputTokens": 30644
+            }
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "education-training-10",
+      "scenario": "education-training",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "shared-what-kind-how": 77,
+            "current-production": 85,
+            "kimi-concise": 91
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": true
+        },
+        {
+          "round": 2,
+          "scores": {
+            "kimi-concise": 91,
+            "shared-what-kind-how": 60,
+            "current-production": 85
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 3,
+          "eligible": true
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1058639,
+          "usage": {
+            "jsonlEvents": 128,
+            "fileReads": 0,
+            "toolCalls": 114,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 19,
+            "buildPasses": 16,
+            "renderPasses": 23,
+            "reviewPasses": 30,
+            "tokens": {
+              "inputTokens": 8739497,
+              "outputTokens": 35197
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200468,
+          "usage": {
+            "jsonlEvents": 164,
+            "fileReads": 0,
+            "toolCalls": 150,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 16,
+            "buildPasses": 18,
+            "renderPasses": 30,
+            "reviewPasses": 23,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1199947,
+          "usage": {
+            "jsonlEvents": 165,
+            "fileReads": 0,
+            "toolCalls": 146,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 33,
+            "buildPasses": 24,
+            "renderPasses": 35,
+            "reviewPasses": 43,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "brand-creative-10",
+      "scenario": "brand-creative",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "shared-what-kind-how": "failed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "scores": {
+            "current-production": 74,
+            "shared-what-kind-how": 20,
+            "kimi-concise": 82
+          },
+          "winnerArm": "kimi-concise",
+          "confidence": 4,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "scores": {
+            "shared-what-kind-how": 20,
+            "kimi-concise": 20,
+            "current-production": 74
+          },
+          "winnerArm": "current-production",
+          "confidence": 3,
+          "eligible": false
+        }
+      ],
+      "authors": {
+        "current-production": {
+          "durationMs": 1185789,
+          "usage": {
+            "jsonlEvents": 164,
+            "fileReads": 0,
+            "toolCalls": 150,
+            "imageSearches": 2,
+            "retries": 0,
+            "checkPasses": 31,
+            "buildPasses": 21,
+            "renderPasses": 24,
+            "reviewPasses": 29,
+            "tokens": {
+              "inputTokens": 11249177,
+              "outputTokens": 45739
+            }
+          },
+          "artifactStatus": "passed"
+        },
+        "shared-what-kind-how": {
+          "durationMs": 1200074,
+          "usage": {
+            "jsonlEvents": 177,
+            "fileReads": 0,
+            "toolCalls": 166,
+            "imageSearches": 3,
+            "retries": 0,
+            "checkPasses": 26,
+            "buildPasses": 26,
+            "renderPasses": 22,
+            "reviewPasses": 20,
+            "tokens": {}
+          },
+          "artifactStatus": "failed"
+        },
+        "kimi-concise": {
+          "durationMs": 1200082,
+          "usage": {
+            "jsonlEvents": 226,
+            "fileReads": 0,
+            "toolCalls": 210,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 27,
+            "buildPasses": 34,
+            "renderPasses": 22,
+            "reviewPasses": 24,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "三方盲评只把三方作者都通过硬门槛的回合纳入 pairwise 质量分差",
+    "Structural/render evidence is not PowerPoint playback evidence",
+    "Human calibration records are pending unless supplied separately"
+  ]
+}
