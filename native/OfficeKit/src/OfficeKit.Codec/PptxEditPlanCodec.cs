@@ -86,14 +86,20 @@ internal static partial class PptxEditPlanCodec
     internal static PptxEditPlanOutput Apply(
         byte[] sourceBytes,
         PresentationEditPlanRequest request,
-        EffectiveCodecLimits limits)
+        EffectiveCodecLimits limits,
+        PresentationArtifact? validatedSourceProjection = null)
     {
         ValidateRequest(sourceBytes, request, limits);
         var sourceHash = Hash(sourceBytes);
-        _ = PackageGuards.ValidateAndCollectOpaque(sourceBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
-        var sourceProjection = PptxCodec.Import(sourceBytes, limits).Artifact.Presentation;
+        if (validatedSourceProjection is null)
+            _ = PackageGuards.ValidateAndCollectOpaque(sourceBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
+        var sourceProjection = validatedSourceProjection ?? PptxCodec.Import(sourceBytes, limits).Artifact.Presentation;
         var proofs = ProveOperations(sourceBytes, request, sourceProjection, limits);
-        var sourceParts = PackageParts(sourceBytes);
+        // Keep the source package indexed by path, but materialize only the
+        // parts touched by this edit plan. The previous eager dictionary held
+        // every OPC payload at once and then built a second copy for the
+        // rewritten package; that made a one-slide edit pay for all media.
+        var sourceParts = new LazyPackageParts(sourceBytes);
         var patchedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var addedParts = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
         var removedParts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -114,8 +120,7 @@ internal static partial class PptxEditPlanCodec
         ApplyElementDeletionPackagePatches(sourceParts, proofs, patchedParts, removedParts);
 
         var outputBytes = RewriteParts(sourceBytes, patchedParts, addedParts, removedParts);
-        var outputParts = PackageParts(outputBytes);
-        var changedParts = ChangedParts(sourceParts, outputParts);
+        var changedParts = ChangedPartsStreaming(sourceBytes, outputBytes);
         var expectedParts = patchedParts.Keys.Concat(addedParts.Keys).Concat(removedParts).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
         if (!changedParts.SequenceEqual(expectedParts, StringComparer.OrdinalIgnoreCase))
             throw new CodecException(
@@ -124,23 +129,27 @@ internal static partial class PptxEditPlanCodec
 
         foreach (var (path, expected) in patchedParts)
         {
-            var actual = RequiredPart(outputParts, path);
+            var actual = ReadPart(outputBytes, path);
             if (!actual.AsSpan().SequenceEqual(expected))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan output for {path} differs from the compiled token patch.", path);
         }
         foreach (var (path, expected) in addedParts)
         {
-            var actual = RequiredPart(outputParts, path);
+            var actual = ReadPart(outputBytes, path);
             if (!actual.AsSpan().SequenceEqual(expected))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan added part {path} with unexpected bytes.", path);
         }
         foreach (var path in removedParts)
-            if (outputParts.ContainsKey(path))
+            if (ContainsPart(outputBytes, path))
                 throw new CodecException("presentation_edit_plan_scope_violation", $"PPTX edit plan failed to remove part {path}.", path);
 
-        _ = PackageGuards.ValidateAndCollectOpaque(outputBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
-        var sourceValidationWarnings = PptxCodec.ValidateEditPlanOutput(sourceBytes, outputBytes, limits);
-        VerifyOutput(outputBytes, request, results, limits);
+        int sourceValidationWarnings;
+        using (PpjBuildProfiler.Measure("post-write.validation"))
+        {
+            _ = PackageGuards.ValidateAndCollectOpaque(outputBytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
+            sourceValidationWarnings = PptxCodec.ValidateEditPlanOutput(sourceBytes, outputBytes, limits);
+            VerifyOutput(outputBytes, request, results, limits);
+        }
 
         var result = new PresentationEditPlanResult
         {
@@ -3719,11 +3728,6 @@ internal static partial class PptxEditPlanCodec
         return ReadEntry(entry);
     }
 
-    private static byte[] RequiredPart(IReadOnlyDictionary<string, byte[]> parts, string path) =>
-        parts.TryGetValue(path, out var bytes)
-            ? bytes
-            : throw new CodecException("presentation_edit_target_missing", $"PPTX part {path} is missing.", path);
-
     private static byte[] ReadEntry(ZipArchiveEntry entry)
     {
         using var input = entry.Open();
@@ -3732,21 +3736,114 @@ internal static partial class PptxEditPlanCodec
         return output.ToArray();
     }
 
-    private static string[] ChangedParts(
-        IReadOnlyDictionary<string, byte[]> sourceParts,
-        IReadOnlyDictionary<string, byte[]> outputParts)
+    private static byte[] RequiredPart(IReadOnlyDictionary<string, byte[]> parts, string path) =>
+        parts.TryGetValue(path, out var bytes)
+            ? bytes
+            : throw new CodecException("presentation_edit_target_missing", $"PPTX part {path} is missing.", path);
+
+    private static string[] ChangedPartsStreaming(byte[] sourceBytes, byte[] outputBytes)
     {
-        return sourceParts.Keys.Concat(outputParts.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+        using var sourceStream = new MemoryStream(sourceBytes, writable: false);
+        using var outputStream = new MemoryStream(outputBytes, writable: false);
+        using var sourceArchive = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: false);
+        using var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Read, leaveOpen: false);
+        var sourceEntries = sourceArchive.Entries
+            .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
+            .ToDictionary(entry => entry.FullName, StringComparer.OrdinalIgnoreCase);
+        var outputEntries = outputArchive.Entries
+            .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
+            .ToDictionary(entry => entry.FullName, StringComparer.OrdinalIgnoreCase);
+        return sourceEntries.Keys.Concat(outputEntries.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(path =>
-                !sourceParts.TryGetValue(path, out var left) ||
-                !outputParts.TryGetValue(path, out var right) ||
-                !left.AsSpan().SequenceEqual(right))
+            {
+                if (!sourceEntries.TryGetValue(path, out var sourceEntry) ||
+                    !outputEntries.TryGetValue(path, out var outputEntry))
+                    return true;
+                using var left = sourceEntry.Open();
+                using var right = outputEntry.Open();
+                return !StreamsEqual(left, right);
+            })
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
     }
 
     private static string[] ChangedParts(byte[] sourceBytes, byte[] outputBytes) =>
-        ChangedParts(PackageParts(sourceBytes), PackageParts(outputBytes));
+        ChangedPartsStreaming(sourceBytes, outputBytes);
+
+    private static bool ContainsPart(byte[] bytes, string path)
+    {
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+        return archive.GetEntry(path) is not null;
+    }
+
+    private static bool StreamsEqual(Stream left, Stream right)
+    {
+        Span<byte> leftBuffer = stackalloc byte[64 * 1024];
+        Span<byte> rightBuffer = stackalloc byte[64 * 1024];
+        while (true)
+        {
+            var leftRead = left.Read(leftBuffer);
+            var rightRead = right.Read(rightBuffer);
+            if (leftRead != rightRead) return false;
+            if (leftRead == 0) return true;
+            if (!leftBuffer[..leftRead].SequenceEqual(rightBuffer[..rightRead])) return false;
+        }
+    }
+
+    private sealed class LazyPackageParts : IReadOnlyDictionary<string, byte[]>
+    {
+        private readonly byte[] _package;
+        private readonly HashSet<string> _paths;
+        private readonly Dictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+        internal LazyPackageParts(byte[] package)
+        {
+            _package = package;
+            using var stream = new MemoryStream(package, writable: false);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+            _paths = archive.Entries
+                .Where(entry => !entry.FullName.EndsWith("/", StringComparison.Ordinal))
+                .Select(entry => entry.FullName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+
+        public IEnumerable<string> Keys => _paths;
+        public IEnumerable<byte[]> Values => _paths.Select(path => this[path]);
+        public int Count => _paths.Count;
+        public byte[] this[string key] =>
+            TryGetValue(key, out var value)
+                ? value
+                : throw new KeyNotFoundException(key);
+
+        public bool ContainsKey(string key) => _paths.Contains(key);
+
+        public bool TryGetValue(string key, out byte[] value)
+        {
+            if (_cache.TryGetValue(key, out value!)) return true;
+            if (!_paths.Contains(key))
+            {
+                value = [];
+                return false;
+            }
+            using var stream = new MemoryStream(_package, writable: false);
+            using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
+            var entry = archive.GetEntry(key);
+            if (entry is null)
+            {
+                value = [];
+                return false;
+            }
+            value = ReadEntry(entry);
+            _cache[key] = value;
+            return true;
+        }
+
+        public IEnumerator<KeyValuePair<string, byte[]>> GetEnumerator() =>
+            _paths.Select(path => new KeyValuePair<string, byte[]>(path, this[path])).GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 
     private static (string Xml, int BomBytes) DecodeXml(byte[] bytes)
     {

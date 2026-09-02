@@ -28,6 +28,8 @@ internal sealed class PptxAssetCatalog
     private readonly Dictionary<string, MediaDataPart> _mediaPartByAssetId = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Asset> _imported = new(StringComparer.Ordinal);
     private readonly Func<ImagePart, string?>? _validatedPartSha256;
+    private readonly bool _retainImportedAssetData;
+    private readonly bool _allowEmptyExistingPictureAssets;
     private readonly ulong _maxTotalBytes;
     private readonly ulong _maxMediaAssetBytes;
     private ulong _totalBytes;
@@ -35,9 +37,13 @@ internal sealed class PptxAssetCatalog
     internal PptxAssetCatalog(
         IEnumerable<Asset>? assets,
         EffectiveCodecLimits limits,
-        Func<ImagePart, string?>? validatedPartSha256 = null)
+        Func<ImagePart, string?>? validatedPartSha256 = null,
+        bool retainImportedAssetData = true,
+        bool allowEmptyExistingPictureAssets = false)
     {
         _validatedPartSha256 = validatedPartSha256;
+        _retainImportedAssetData = retainImportedAssetData;
+        _allowEmptyExistingPictureAssets = allowEmptyExistingPictureAssets;
         _maxTotalBytes = Math.Min(limits.MaxUncompressedBytes, (ulong)MaxAssets * MaxAssetBytes);
         _maxMediaAssetBytes = Math.Min(limits.MaxInputBytes, (ulong)MaxMediaAssetBytes);
         foreach (var asset in assets ?? []) AddRequested(asset);
@@ -106,13 +112,31 @@ internal sealed class PptxAssetCatalog
         {
             digest = null;
         }
-        using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
-        using var memory = new MemoryStream();
-        stream.CopyTo(memory);
-        var data = memory.GetBuffer();
-        var dataLength = checked((int)memory.Length);
-        ValidateImage(contentType, data, dataLength, $"Presentation image part {part.Uri}");
-        digest ??= Hash(data.AsSpan(0, dataLength));
+        byte[]? data = null;
+        int dataLength;
+        if (_retainImportedAssetData)
+        {
+            using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            data = memory.GetBuffer();
+            dataLength = checked((int)memory.Length);
+            ValidateImage(contentType, data, dataLength, $"Presentation image part {part.Uri}");
+            digest ??= Hash(data.AsSpan(0, dataLength));
+        }
+        else
+        {
+            using (var validationStream = part.GetStream(FileMode.Open, FileAccess.Read))
+            {
+                dataLength = checked((int)validationStream.Length);
+                ValidateImage(contentType, validationStream, dataLength, $"Presentation image part {part.Uri}");
+            }
+            if (digest is null)
+            {
+                using var digestStream = part.GetStream(FileMode.Open, FileAccess.Read);
+                digest = Convert.ToHexString(SHA256.HashData(digestStream)).ToLowerInvariant();
+            }
+        }
         var id = PictureAssetPrefix + digest;
         if (_assets.TryGetValue(id, out var requested))
         {
@@ -129,7 +153,9 @@ internal sealed class PptxAssetCatalog
                 Id = id,
                 FileName = $"picture-bullet-{digest[..16]}.{Extension(contentType)}",
                 ContentType = contentType,
-                Data = ByteString.CopyFrom(data, 0, dataLength),
+                Data = data is not null
+                    ? ByteString.CopyFrom(data, 0, dataLength)
+                    : ByteString.Empty,
                 Sha256 = digest,
             };
             _imported.Add(id, asset);
@@ -173,10 +199,7 @@ internal sealed class PptxAssetCatalog
             try
             {
                 using var stream = part.GetStream(FileMode.Open, FileAccess.Read);
-                using var memory = new MemoryStream();
-                stream.CopyTo(memory);
-                var data = memory.ToArray();
-                var id = PictureAssetPrefix + Hash(data);
+                var id = PictureAssetPrefix + Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
                 if (_assets.TryGetValue(id, out var asset) && part.ContentType.Equals(asset.ContentType, StringComparison.OrdinalIgnoreCase))
                     _partByAssetId.TryAdd(id, part);
             }
@@ -186,6 +209,38 @@ internal sealed class PptxAssetCatalog
                 // never selected as modeled assets.
             }
         }
+    }
+
+    internal static void HydrateSourceImages(IEnumerable<ImagePart> parts, IEnumerable<Asset> assets)
+    {
+        var pending = assets
+            .Where(asset => asset.Data.IsEmpty && asset.Id.StartsWith(PictureAssetPrefix, StringComparison.Ordinal))
+            .ToDictionary(asset => asset.Id, StringComparer.Ordinal);
+        if (pending.Count == 0) return;
+
+        foreach (var part in parts.Distinct())
+        {
+            using var digestStream = part.GetStream(FileMode.Open, FileAccess.Read);
+            var digest = Convert.ToHexString(SHA256.HashData(digestStream)).ToLowerInvariant();
+            var id = PictureAssetPrefix + digest;
+            if (!pending.TryGetValue(id, out var asset) ||
+                !NormalizeContentType(part.ContentType).Equals(NormalizeContentType(asset.ContentType), StringComparison.Ordinal))
+                continue;
+
+            using var dataStream = part.GetStream(FileMode.Open, FileAccess.Read);
+            if (dataStream.Length is <= 0 or > MaxAssetBytes)
+                throw new CodecException("invalid_presentation_asset", $"Presentation asset {id} has invalid source bytes.");
+            var data = new byte[checked((int)dataStream.Length)];
+            dataStream.ReadExactly(data);
+            ValidateImage(asset.ContentType, data, $"Presentation asset {id}");
+            asset.Data = UnsafeByteOperations.UnsafeWrap(data);
+            pending.Remove(id);
+        }
+
+        if (pending.Count > 0)
+            throw new CodecException(
+                "invalid_presentation_asset",
+                $"Presentation source package no longer contains asset {pending.Keys.Order(StringComparer.Ordinal).First()}.");
     }
 
     internal static PartTypeInfo ImagePartTypeFor(string contentType) => NormalizeContentType(contentType) switch
@@ -224,12 +279,23 @@ internal sealed class PptxAssetCatalog
         if (_assets.Count >= MaxAssets)
             throw new CodecException("presentation_asset_budget_exceeded", $"Presentation exceeds the {MaxAssets}-asset budget.");
         var contentType = NormalizeContentType(source.ContentType);
-        var data = source.Data.ToByteArray();
         var isPicture = source.Id.StartsWith(PictureAssetPrefix, StringComparison.Ordinal);
         var isMedia = source.Id.StartsWith(MediaAssetPrefix, StringComparison.Ordinal);
         var isOleWorkbook = source.Id.StartsWith(OleWorkbookAssetPrefix, StringComparison.Ordinal);
         var isOleOfficePackage = source.Id.StartsWith(OleOfficePackageAssetPrefix, StringComparison.Ordinal);
         var isSmartArtDefinition = source.Id.StartsWith(SmartArtDefinitionAssetPrefix, StringComparison.Ordinal);
+        if (_allowEmptyExistingPictureAssets && isPicture && source.Data.IsEmpty)
+        {
+            var sourceDigest = source.Sha256.ToLowerInvariant();
+            if (sourceDigest.Length != 64 || !sourceDigest.All(char.IsAsciiHexDigit) ||
+                !source.Id.Equals(PictureAssetPrefix + sourceDigest, StringComparison.Ordinal) ||
+                contentType is not ("image/png" or "image/jpeg" or "image/gif" or "image/svg+xml"))
+                throw new CodecException("invalid_presentation_asset", $"Presentation source asset {source.Id} has invalid metadata.");
+            if (!_assets.TryAdd(source.Id, source.Clone()))
+                throw new CodecException("invalid_presentation_asset", $"Presentation contains duplicate asset ID {source.Id}.");
+            return;
+        }
+        var data = source.Data.ToByteArray();
         if (isPicture) ValidateImage(contentType, data, $"Presentation asset {source.Id}");
         else if (isMedia) ValidateMedia(contentType, data, $"Presentation asset {source.Id}");
         else if (isOleWorkbook) ValidateOleWorkbook(contentType, data, $"Presentation asset {source.Id}");
@@ -292,6 +358,37 @@ internal sealed class PptxAssetCatalog
         if (!valid) throw new CodecException("invalid_presentation_asset", $"{label} bytes do not match a supported PNG, JPEG, GIF, or safe SVG content type.");
     }
 
+    private static void ValidateImage(string contentType, Stream stream, int dataLength, string label)
+    {
+        if (dataLength is 0 or > MaxAssetBytes)
+            throw new CodecException("invalid_presentation_asset", $"{label} must contain 1 through {MaxAssetBytes} bytes.");
+        var valid = contentType == "image/svg+xml"
+            ? IsSafeSvg(stream)
+            : ValidateRasterHeader(contentType, stream, dataLength);
+        if (!valid)
+            throw new CodecException("invalid_presentation_asset", $"{label} bytes do not match a supported PNG, JPEG, GIF, or safe SVG content type.");
+    }
+
+    private static bool ValidateRasterHeader(string contentType, Stream stream, int dataLength)
+    {
+        Span<byte> header = stackalloc byte[8];
+        var read = 0;
+        while (read < header.Length)
+        {
+            var count = stream.Read(header[read..]);
+            if (count == 0) break;
+            read += count;
+        }
+        var bytes = header[..read];
+        return contentType switch
+        {
+            "image/png" => bytes.StartsWith(Convert.FromHexString("89504E470D0A1A0A")),
+            "image/jpeg" => dataLength >= 3 && bytes.Length >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff,
+            "image/gif" => dataLength >= 6 && bytes.Length >= 6 && (bytes[..6].SequenceEqual("GIF87a"u8) || bytes[..6].SequenceEqual("GIF89a"u8)),
+            _ => false,
+        };
+    }
+
     private static void ValidateOleWorkbook(string contentType, byte[] data, string label)
     {
         if (!contentType.Equals(SpreadsheetContentType, StringComparison.Ordinal))
@@ -331,9 +428,14 @@ internal sealed class PptxAssetCatalog
 
     private static bool IsSafeSvg(byte[] data, int dataLength)
     {
+        using var stream = new MemoryStream(data, 0, dataLength, writable: false, publiclyVisible: true);
+        return IsSafeSvg(stream);
+    }
+
+    private static bool IsSafeSvg(Stream stream)
+    {
         try
         {
-            using var stream = new MemoryStream(data, 0, dataLength, writable: false, publiclyVisible: true);
             using var reader = XmlReader.Create(stream, new XmlReaderSettings
             {
                 DtdProcessing = DtdProcessing.Prohibit,

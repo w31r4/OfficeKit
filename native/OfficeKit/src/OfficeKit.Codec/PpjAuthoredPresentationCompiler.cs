@@ -11,7 +11,8 @@ namespace OfficeKit.Codec;
 internal sealed record PpjCompileResult(
     byte[] File,
     PresentationProgramResult Program,
-    IReadOnlyList<Diagnostic> Diagnostics);
+    IReadOnlyList<Diagnostic> Diagnostics,
+    bool ReuseSourceFile = false);
 
 /// <summary>
 /// Lowers one validated, source-free PPJ program directly into the native C#
@@ -59,16 +60,20 @@ internal static partial class PpjAuthoredPresentationCompiler
         var catalog = new Catalog(program.Root, assets);
         var plan = new AuthoredSourceFreeBuildPlan(program, validation.Expansion!, catalog);
         var originalProgramJson = request.ProgramJson.ToByteArray();
-        var exported = PptxCodec.ExportSourceFree(
-            plan,
-            assets,
-            limits,
-            parts => PpjEmbeddedProgramCodec.AddToSourceFreePackage(
-                parts,
-                originalProgramJson,
-                validation,
-                plan.NativeBindings,
-                assets));
+        PptxExportResult exported;
+        using (PpjBuildProfiler.Measure("writer"))
+        {
+            exported = PptxCodec.ExportSourceFree(
+                plan,
+                assets,
+                limits,
+                parts => PpjEmbeddedProgramCodec.AddToSourceFreePackage(
+                    parts,
+                    originalProgramJson,
+                    validation,
+                    plan.NativeBindings,
+                    assets));
+        }
         var file = exported.File;
         PpjEmbeddedProgramCodec.ValidateEmbeddedOutput(file, limits);
         var fileSha256 = Sha256(file);
@@ -152,6 +157,10 @@ internal static partial class PpjAuthoredPresentationCompiler
 
         public PresentationArtifact Presentation { get; }
         internal IReadOnlyList<PptxNativeBinding> NativeBindings => _nativeBindings;
+
+        public bool RequiresPreviousSlide(int pageIndex) =>
+            pageIndex >= 0 && pageIndex < _program.Pages.Count &&
+            _program.Pages[pageIndex].Transition?.Type == "morph";
 
         public PresentationSlide MaterializeSlide(int pageIndex, PresentationSlide? previousSlide)
         {

@@ -8,6 +8,8 @@ public static class PpjCodecProtocol
 {
     public static CodecResponse InvokeResponse(ref byte[] requestBytes, byte[]? requestFileBytes)
     {
+        using var profiler = PpjBuildProfiler.Start("ppj.protocol");
+        using var profilerActivation = PpjBuildProfiler.Activate(profiler);
         var response = new CodecResponse { ProtocolVersion = CodecWireProtocol.ProtocolVersion };
         try
         {

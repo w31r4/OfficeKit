@@ -214,6 +214,8 @@ internal sealed class PptxPartContext
             Owner.AddPart(shared, sharedRelationshipId);
             return Track(sharedRelationshipId);
         }
+        if (asset.Data.IsEmpty)
+            throw InvalidPicture($"Presentation source package does not contain image asset {assetId}.");
         var relationshipId = NextRelationshipId(asset);
         var part = _addImagePart(PptxAssetCatalog.ImagePartTypeFor(asset.ContentType), relationshipId);
         using (var source = new MemoryStream(asset.Data.ToByteArray(), writable: false)) part.FeedData(source);

@@ -13,6 +13,8 @@ internal static class PpjNativeBuildCommand
     internal static int Run(string[] args)
     {
         var json = args.Contains("--json", StringComparer.Ordinal);
+        using var profiler = PpjBuildProfiler.Start("ppj.build");
+        using var profilerActivation = PpjBuildProfiler.Activate(profiler);
         try
         {
             if (OperatingSystem.IsWindows())
@@ -27,7 +29,9 @@ internal static class PpjNativeBuildCommand
                 throw new CliException(
                     $"PPJ input must contain 1 through {PpjProgramValidator.MaxSourceBytes} bytes: {input}");
 
+            using var validationStage = PpjBuildProfiler.Measure("validation");
             using var validation = PpjProgramValidator.Validate(programBytes);
+            validationStage.Dispose();
             if (!validation.IsValid)
             {
                 var first = validation.Diagnostics[0];
@@ -53,12 +57,14 @@ internal static class PpjNativeBuildCommand
             var sourcePath = validation.Program.Source is null
                 ? null
                 : ResolveWorkspaceResource(directory, validation.Program.Source.Uri, "PPJ source package");
-            var sourceBytes = sourcePath is null ? [] : File.ReadAllBytes(sourcePath);
+            using var sourcePackage = sourcePath is null
+                ? new PptxPackageSource(Array.Empty<byte>())
+                : new PptxPackageSource(sourcePath);
             var deferredAssetBytes = validation.Program.Source is null
                 ? 0
                 : assetPaths.Values.Sum(path => new FileInfo(path).Length);
             var deferredAssetCount = validation.Program.Source is null ? 0 : assetPaths.Count;
-            EnsureTransportBudget(request, sourceBytes.LongLength, deferredAssetBytes, deferredAssetCount);
+            EnsureTransportBudget(request, sourcePackage.Length, deferredAssetBytes, deferredAssetCount);
             var destination = Path.GetFullPath(options.Output, options.Cwd);
             if (!Path.GetExtension(destination).Equals(".pptx", StringComparison.OrdinalIgnoreCase))
                 throw new CliException($"PPJ build output must be a .pptx file: {destination}");
@@ -67,16 +73,29 @@ internal static class PpjNativeBuildCommand
             if (PathExists(destination))
                 throw new CliException($"PPTX output already exists: {destination}");
 
-            var compiled = PpjPresentationCompiler.CompileValidated(
-                request,
-                sourceBytes,
-                EffectiveCodecLimits.From(null),
-                validation,
-                declaration => LoadAsset(declaration, assetPaths[declaration.Id]));
-            if (compiled.File.Length == 0 || !Sha256(compiled.File).Equals(compiled.Program.OutputSha256, StringComparison.Ordinal))
+            PpjCompileResult compiled;
+            using (PpjBuildProfiler.Measure("compile"))
+            {
+                compiled = PpjPresentationCompiler.CompileValidated(
+                    request,
+                    sourcePackage,
+                    EffectiveCodecLimits.From(null),
+                    validation,
+                    declaration => LoadAsset(declaration, assetPaths[declaration.Id]),
+                    retainSourceAssetData: false);
+            }
+            if (!compiled.ReuseSourceFile && (compiled.File.Length == 0 ||
+                !Sha256(compiled.File).Equals(compiled.Program.OutputSha256, StringComparison.Ordinal))
+                || compiled.ReuseSourceFile && sourcePath is null)
                 throw new CliException("OfficeKit native compiler returned a PPTX with an invalid content hash.");
 
-            WriteExclusiveFile(destination, compiled.File);
+            using (PpjBuildProfiler.Measure("file.write"))
+            {
+                if (compiled.ReuseSourceFile)
+                    CopyExclusiveFile(destination, sourcePackage);
+                else
+                    WriteExclusiveFile(destination, compiled.File);
+            }
             WriteSuccess(options.Json, input, destination, compiled);
             return 0;
         }
@@ -189,6 +208,30 @@ internal static class PpjNativeBuildCommand
         {
             using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 output.Write(bytes);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+            File.Move(temporary, destination, overwrite: false);
+        }
+        catch (IOException) when (PathExists(destination))
+        {
+            throw new CliException($"PPTX output already exists: {destination}");
+        }
+        finally
+        {
+            try { File.Delete(temporary); } catch (IOException) { }
+        }
+    }
+
+    private static void CopyExclusiveFile(string destination, PptxPackageSource source)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        var temporary = Path.Combine(
+            Path.GetDirectoryName(destination)!,
+            $".{Path.GetFileName(destination)}.{Environment.ProcessId}-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                source.CopyTo(output);
             if (!OperatingSystem.IsWindows())
                 File.SetUnixFileMode(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
             File.Move(temporary, destination, overwrite: false);

@@ -34,9 +34,23 @@ internal static partial class PpjPresentationProjector
     internal static PpjProjectionResult Project(
         byte[] sourceBytes,
         PresentationProgramRequest request,
-        EffectiveCodecLimits limits)
+        EffectiveCodecLimits limits,
+        bool retainSourceAssetData = true,
+        string? verifiedSourceSha256 = null) => Project(
+            new PptxPackageSource(sourceBytes),
+            request,
+            limits,
+            retainSourceAssetData,
+            verifiedSourceSha256);
+
+    internal static PpjProjectionResult Project(
+        PptxPackageSource source,
+        PresentationProgramRequest request,
+        EffectiveCodecLimits limits,
+        bool retainSourceAssetData = true,
+        string? verifiedSourceSha256 = null)
     {
-        if (PpjEmbeddedProgramCodec.TryRecover(sourceBytes, request, limits) is { } recovered)
+        if (PpjEmbeddedProgramCodec.TryRecover(source, request, limits) is { } recovered)
             return new(
                 recovered.Program,
                 recovered.Diagnostics,
@@ -44,13 +58,17 @@ internal static partial class PpjPresentationProjector
                 new Dictionary<string, PpjNativeLeafBinding>(StringComparer.Ordinal),
                 null);
 
-        var imported = PptxCodec.Import(sourceBytes, limits);
+        var imported = PptxCodec.Import(
+            source,
+            limits,
+            retainSourceAssetData,
+            verifiedSourceSha256);
         var envelope = imported.Artifact;
         var presentation = envelope.Presentation ??
             throw new CodecException("ppj.projection.presentation", "The imported package did not produce a Presentation artifact.", "$");
         var sourceSha256 = envelope.Source?.PackageSha256;
         if (string.IsNullOrEmpty(sourceSha256))
-            sourceSha256 = Sha256(sourceBytes);
+            sourceSha256 = source.Sha256();
         var revision = $"pptx-{sourceSha256[..16]}";
         var sourceUri = string.IsNullOrWhiteSpace(request.SourceUri)
             ? $"deck.assets/source/{sourceSha256}.pptx"
@@ -59,7 +77,7 @@ internal static partial class PpjPresentationProjector
             ? "deck.assets/media"
             : request.AssetRootUri.TrimEnd('/');
 
-        var context = new ProjectionContext(sourceSha256, revision, assetRoot, envelope.Assets, envelope.OpaqueOpc, sourceBytes);
+        var context = new ProjectionContext(sourceSha256, revision, assetRoot, envelope.Assets, envelope.OpaqueOpc, source);
         RegisterIds(presentation, context);
 
         var pages = new JsonArray();
@@ -127,6 +145,13 @@ internal static partial class PpjPresentationProjector
         if (comments.Count > 0) root["comments"] = comments;
 
         var candidateBytes = CanonicalBytes(root);
+        root.Clear();
+        pages.Clear();
+        sections.Clear();
+        customShows.Clear();
+        comments.Clear();
+        nodeMap.Clear();
+        context.ReleaseProjectionJson();
         var validation = PpjProgramValidator.Validate(candidateBytes);
         if (!validation.IsValid)
         {
@@ -139,12 +164,12 @@ internal static partial class PpjPresentationProjector
         {
             ProgramJson = UnsafeByteOperations.UnsafeWrap(validation.CanonicalJson),
             ProgramSha256 = validation.ProgramSha256,
-            NodeMapJson = request.IncludeNodeMap ? ByteString.CopyFrom(nodeMapBytes) : ByteString.Empty,
+            NodeMapJson = request.IncludeNodeMap ? UnsafeByteOperations.UnsafeWrap(nodeMapBytes) : ByteString.Empty,
             SourceSha256 = sourceSha256,
             SourceBound = true,
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
-        result.Assets.Add(context.ResultAssets.Select(asset => asset.Clone()));
+        result.Assets.Add(context.ResultAssets);
         return new(result, imported.Diagnostics, envelope, context.NativeLeafBindings, validation);
     }
 
@@ -2323,7 +2348,7 @@ internal static partial class PpjPresentationProjector
     {
         private readonly IReadOnlyDictionary<string, Asset> sourceAssets;
         private readonly IReadOnlyDictionary<string, OpaqueOpcPart> sourceParts;
-        private readonly byte[] sourcePackage;
+        private readonly PptxPackageSource sourcePackage;
         private readonly Dictionary<string, string> pageIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> masterIds = new(StringComparer.Ordinal);
         private readonly Dictionary<string, string> layoutIds = new(StringComparer.Ordinal);
@@ -2343,7 +2368,7 @@ internal static partial class PpjPresentationProjector
             string assetRoot,
             IEnumerable<Asset> assets,
             OpaqueOpcGraph? opaque,
-            byte[] sourcePackage)
+            PptxPackageSource sourcePackage)
         {
             SourceSha256 = sourceSha256;
             Revision = revision;
@@ -2367,6 +2392,12 @@ internal static partial class PpjPresentationProjector
         internal JsonArray ProgramAssets => programAssets;
         internal IReadOnlyList<Asset> ResultAssets => resultAssets;
         internal IReadOnlyList<Asset> NativeSourceAssets => nativeSourceAssets;
+
+        internal void ReleaseProjectionJson()
+        {
+            programAssets.Clear();
+            nodes.Clear();
+        }
 
         internal string RegisterPage(string sourceId, string? stableSourceId)
         {
@@ -2424,7 +2455,7 @@ internal static partial class PpjPresentationProjector
         internal bool TryMaterializeAsset(string sourceId, out string programAssetId)
         {
             if (assetIdBySourceId.TryGetValue(sourceId, out programAssetId!)) return true;
-            if (!sourceAssets.TryGetValue(sourceId, out var source) || source.Data.IsEmpty) return false;
+            if (!sourceAssets.TryGetValue(sourceId, out var source)) return false;
             var hash = HashOrFallback(source.Sha256, source.Data);
             if (assetIdByHash.TryGetValue(hash, out programAssetId!))
             {
@@ -2465,7 +2496,7 @@ internal static partial class PpjPresentationProjector
             }
 
             byte[] data;
-            using (var stream = new MemoryStream(sourcePackage, writable: false))
+            using (var stream = sourcePackage.OpenRead())
             using (var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false))
             {
                 var entry = archive.Entries.SingleOrDefault(candidate => candidate.FullName.Equals(partPath, StringComparison.OrdinalIgnoreCase));
@@ -2569,7 +2600,7 @@ internal static partial class PpjPresentationProjector
             ["schema"] = "office-kit/ppj-node-map/v1",
             ["sourceSha256"] = SourceSha256,
             ["revision"] = Revision,
-            ["nodes"] = nodes.DeepClone(),
+            ["nodes"] = nodes,
         };
 
         private static string Extension(string contentType, string fileName)
