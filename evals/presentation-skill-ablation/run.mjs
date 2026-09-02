@@ -754,6 +754,8 @@ async function runAuthors(flags) {
   const requestedCase = flag(flags, "case");
   const requestedArm = flag(flags, "arm");
   const limit = flag(flags, "limit") ? positiveInteger(flag(flags, "limit"), "limit") : Infinity;
+  const concurrency = flag(flags, "concurrency") ? positiveInteger(flag(flags, "concurrency"), "concurrency") : 1;
+  const skipExisting = boolFlag(flags, "skip-existing");
   const targets = [];
   for (const item of casesManifest.cases) {
     if (requestedCase && item.id !== requestedCase) continue;
@@ -762,12 +764,23 @@ async function runAuthors(flags) {
     }
   }
   if (!targets.length) fail("no author targets match filters");
-  const selected = targets.slice(0, limit);
-  const records = [];
-  for (const target of selected) {
-    process.stderr.write("author " + target.item.id + " / " + target.arm + "\n");
-    records.push(await runOneAuthor({ runRoot, arm: target.arm, item: target.item, fixtures, timeout: flag(flags, "timeout-ms", DEFAULT_TIMEOUT_MS) }));
+  const selected = [];
+  for (const target of targets.slice(0, limit)) {
+    if (skipExisting && await exists(path.join(runRoot, "authors", target.item.id, target.arm, "evidence", "author-run.json"))) continue;
+    selected.push(target);
   }
+  if (!selected.length) return { runRoot, completed: 0, records: [] };
+  const records = [];
+  let cursor = 0;
+  async function worker() {
+    while (cursor < selected.length) {
+      const target = selected[cursor++];
+      process.stderr.write("author " + target.item.id + " / " + target.arm + "\n");
+      const record = await runOneAuthor({ runRoot, arm: target.arm, item: target.item, fixtures, timeout: flag(flags, "timeout-ms", DEFAULT_TIMEOUT_MS) });
+      records.push(record);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, selected.length) }, () => worker()));
   const authorIndexPath = path.join(runRoot, "authors-index.json");
   const previousIndex = await exists(authorIndexPath) ? await readJson(authorIndexPath) : { records: [] };
   const recordPaths = new Set(previousIndex.records || []);
@@ -1487,7 +1500,7 @@ export async function main(argv = process.argv.slice(2)) {
     "  node evals/presentation-skill-ablation/run.mjs validate [--skip-fixtures]",
     "  node evals/presentation-skill-ablation/run.mjs smoke",
     "  node evals/presentation-skill-ablation/run.mjs prepare [--run-root <dir>]",
-    "  node evals/presentation-skill-ablation/run.mjs run-authors [--run-root <dir>] [--case <id>] [--arm <id>] [--limit N]",
+    "  node evals/presentation-skill-ablation/run.mjs run-authors [--run-root <dir>] [--case <id>] [--arm <id>] [--limit N] [--concurrency N] [--skip-existing]",
     "  node evals/presentation-skill-ablation/run.mjs audit --run-root <dir> --case <id> --arm <id>",
     "  node evals/presentation-skill-ablation/run.mjs run-judges --run-root <dir> [--both-rounds] [--limit N]",
     "  node evals/presentation-skill-ablation/run.mjs human-template --run-root <dir>",
