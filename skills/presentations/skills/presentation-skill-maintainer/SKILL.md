@@ -35,9 +35,9 @@ arbitrary JavaScript are not Presentation language features.
    PPJ owner path and `PptxEditPlanCodec` leaf explicitly; the checker rejects
    an orphan in either direction.
 5. Run `sync` to regenerate `references/ppj.md` from the Schema and registry.
-6. Update exactly one focused Agent reference: fonts, shapes, text,
-   charts/tables, media/layers, motion, components/templates, imported
-   nativeRef, scenarios, or review/delivery.
+6. Update exactly one focused Agent reference: creative direction, fonts,
+   shapes, text, charts/tables, media/layers, motion, components/templates,
+   imported nativeRef, scenarios, or review/delivery.
 7. Add one minimal example or regression only for a stable contract, material
    risk or reproduced failure. Do not create a parameter matrix for coverage.
 8. Record unverified renderer or host behavior honestly.

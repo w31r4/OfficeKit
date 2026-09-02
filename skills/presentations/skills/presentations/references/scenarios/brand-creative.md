@@ -1,5 +1,10 @@
 # Scenario: brand and creative
 
+For image-led, launch, or editorial work, read [Creative direction](../creative-direction.md)
+after this scenario guide. It supplies the positive visual thesis, asset-board,
+archetype, and layer decisions; this file remains the audience and narrative
+route.
+
 ## Audience task
 
 Help an audience remember a distinct promise, feel its relevance, and choose to
