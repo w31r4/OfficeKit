@@ -7,6 +7,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
 using Google.Protobuf;
+using Microsoft.Win32.SafeHandles;
 using OfficeKit.Artifact.Wire.V1;
 using A = DocumentFormat.OpenXml.Drawing;
 using C = DocumentFormat.OpenXml.Drawing.Charts;
@@ -16,12 +17,78 @@ using P14 = DocumentFormat.OpenXml.Office2010.PowerPoint;
 namespace OfficeKit.Codec;
 
 internal sealed record PptxImportResult(ArtifactEnvelope Artifact, IReadOnlyList<Diagnostic> Diagnostics);
-internal sealed record PptxExportResult(byte[] File, IReadOnlyList<Diagnostic> Diagnostics);
+internal sealed record PptxExportResult(
+    byte[] File,
+    IReadOnlyList<Diagnostic> Diagnostics,
+    IReadOnlyList<string>? ChangedParts = null);
 internal sealed record PptxNativeBinding(string PageId, string ElementId, string Type, string PartPath, uint NativeId);
+
+internal sealed class PptxPackageSource : IDisposable
+{
+    private byte[]? bytes;
+    private readonly FileStream? file;
+    private readonly long length;
+    private string? sha256;
+
+    internal PptxPackageSource(byte[] bytes)
+    {
+        this.bytes = bytes;
+        length = bytes.LongLength;
+    }
+
+    internal PptxPackageSource(string path)
+    {
+        file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        length = file.Length;
+    }
+
+    internal long Length => length;
+    internal Stream OpenRead()
+    {
+        if (bytes is not null) return new MemoryStream(bytes, writable: false);
+        var borrowedHandle = new SafeFileHandle(file!.SafeFileHandle.DangerousGetHandle(), ownsHandle: false);
+        var stream = new FileStream(borrowedHandle, FileAccess.Read, bufferSize: 64 * 1024, isAsync: false);
+        stream.Position = 0;
+        return stream;
+    }
+
+    internal string Sha256()
+    {
+        if (sha256 is not null) return sha256;
+        using var stream = OpenRead();
+        sha256 = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        return sha256;
+    }
+
+    internal byte[] Materialize()
+    {
+        if (bytes is not null) return bytes;
+        using var stream = OpenRead();
+        var materialized = new byte[checked((int)length)];
+        stream.ReadExactly(materialized);
+        bytes = materialized;
+        return bytes;
+    }
+
+    internal void CopyTo(Stream destination)
+    {
+        using var stream = OpenRead();
+        stream.CopyTo(destination);
+    }
+
+    internal bool TryGetMaterialized(out byte[] value)
+    {
+        value = bytes!;
+        return bytes is not null;
+    }
+
+    public void Dispose() => file?.Dispose();
+}
 
 internal interface IPptxSourceFreeBuildPlan
 {
     PresentationArtifact Presentation { get; }
+    bool RequiresPreviousSlide(int slideIndex);
     PresentationSlide MaterializeSlide(int slideIndex, PresentationSlide? previousSlide);
     void RecordNativeBindings(int slideIndex, PresentationSlide slide, IReadOnlyList<PresentationElement> flattenedElements);
 }
@@ -29,6 +96,9 @@ internal interface IPptxSourceFreeBuildPlan
 internal sealed class PptxArtifactSourceFreeBuildPlan(PresentationArtifact presentation) : IPptxSourceFreeBuildPlan
 {
     public PresentationArtifact Presentation { get; } = presentation;
+
+    public bool RequiresPreviousSlide(int slideIndex) =>
+        slideIndex >= 0 && slideIndex < Presentation.Slides.Count && Presentation.Slides[slideIndex].Morph is not null;
 
     public PresentationSlide MaterializeSlide(int slideIndex, PresentationSlide? previousSlide) =>
         Presentation.Slides[slideIndex];
@@ -115,9 +185,38 @@ internal static class PptxCodec
 
     private const long DefaultSlideWidthEmu = 12_192_000;
     private const long DefaultSlideHeightEmu = 6_858_000;
-    internal static PptxImportResult Import(byte[] bytes, EffectiveCodecLimits limits)
+    internal static PptxImportResult Import(
+        byte[] bytes,
+        EffectiveCodecLimits limits,
+        bool retainImportedAssetData = true,
+        string? verifiedPackageSha256 = null) => Import(
+            new PptxPackageSource(bytes),
+            limits,
+            retainImportedAssetData,
+            verifiedPackageSha256);
+
+    internal static PptxImportResult Import(
+        PptxPackageSource source,
+        EffectiveCodecLimits limits,
+        bool retainImportedAssetData = true,
+        string? verifiedPackageSha256 = null)
     {
-        var opaque = PackageGuards.ValidateAndCollectOpaque(bytes, limits, OpcPackageProfile.Pptx, out var packagePaths);
+        using var importStage = PpjBuildProfiler.Measure("pptx.import");
+        var opaque = PackageGuards.ValidateAndCollectOpaque(
+            source.OpenRead,
+            source.Length,
+            limits,
+            OpcPackageProfile.Pptx,
+            out var packagePaths);
+        var packageSha256 = verifiedPackageSha256 ?? source.Sha256();
+        if (source.TryGetMaterialized(out var sourceBytes))
+        {
+            opaque.SourcePackage = new SourcePackageSnapshot
+            {
+                Data = UnsafeByteOperations.UnsafeWrap(sourceBytes),
+                Sha256 = packageSha256,
+            };
+        }
         var nativeObjects = new PptxNativeObjectCatalog(opaque, packagePaths, limits);
         var diagnostics = new List<Diagnostic>();
         var opaqueCount = opaque.Parts.Count + opaque.PackageRelationships.Count;
@@ -127,7 +226,7 @@ internal static class PptxCodec
                 $"Retained {opaqueCount} unsupported OPC parts or relationships for source-bound, fail-closed export from the validated package snapshot.",
                 opaque.Parts.FirstOrDefault()?.Path ?? opaque.PackageRelationships.FirstOrDefault()?.SourcePath));
 
-        using var stream = new MemoryStream(bytes, writable: false);
+        using var stream = source.OpenRead();
         using var package = PresentationDocument.Open(stream, isEditable: false);
         var presentationPart = package.PresentationPart ??
             throw new CodecException("missing_presentation_part", "PPTX package has no Presentation part.", "ppt/presentation.xml");
@@ -149,7 +248,11 @@ internal static class PptxCodec
         var slideIdByPartPath = slideParts
             .Select((part, index) => (Path: PartPath(part), Id: $"presentation/slide/{index + 1}"))
             .ToDictionary(item => item.Path, item => item.Id, StringComparer.OrdinalIgnoreCase);
-        var assetCatalog = new PptxAssetCatalog([], limits, nativeObjects.ValidatedPartSha256);
+        var assetCatalog = new PptxAssetCatalog(
+            [],
+            limits,
+            nativeObjects.ValidatedPartSha256,
+            retainImportedAssetData);
         var masterGraph = ReadMasterGraph(presentationPart);
         var layoutIdByPartPath = masterGraph
             .SelectMany(master => master.Layouts)
@@ -394,13 +497,36 @@ internal static class PptxCodec
             Source = new SourceIdentity
             {
                 Format = "pptx",
-                PackageSha256 = Hash(bytes),
+                PackageSha256 = packageSha256,
                 Producer = "office-kit/OfficeKit",
             },
         };
         envelope.Assets.Add(assetCatalog.ImportedAssets);
         envelope.Diagnostics.Add(diagnostics);
         return new PptxImportResult(envelope, diagnostics);
+    }
+
+    internal static void HydrateSourceImageAssets(ArtifactEnvelope envelope, PptxPackageSource source)
+    {
+        if (!envelope.Assets.Any(asset => asset.Data.IsEmpty)) return;
+        using var stream = source.OpenRead();
+        using var package = PresentationDocument.Open(stream, isEditable: false);
+        var presentationPart = package.PresentationPart ??
+            throw new CodecException("missing_presentation_part", "PPTX package has no Presentation part.", "ppt/presentation.xml");
+        PptxAssetCatalog.HydrateSourceImages(DescendantImageParts(presentationPart), envelope.Assets);
+    }
+
+    private static IEnumerable<ImagePart> DescendantImageParts(OpenXmlPart root)
+    {
+        var pending = new Stack<OpenXmlPart>(root.Parts.Select(pair => pair.OpenXmlPart));
+        var seen = new HashSet<OpenXmlPart>();
+        while (pending.TryPop(out var part))
+        {
+            if (!seen.Add(part)) continue;
+            if (part is ImagePart image) yield return image;
+            foreach (var child in part.Parts)
+                pending.Push(child.OpenXmlPart);
+        }
     }
 
     internal static PptxExportResult Export(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
@@ -415,7 +541,10 @@ internal static class PptxCodec
                 "missing_source_package",
                 "Source-bound PPTX export requires its validated source package snapshot.");
 
-        var assetCatalog = ValidateEnvelope(envelope, limits);
+        var assetCatalog = ValidateEnvelope(
+            envelope,
+            limits,
+            allowEmptyExistingPictureAssets: requiresSourcePreservation);
         var opaqueCount = (envelope.OpaqueOpc?.Parts.Count ?? 0) +
                           (envelope.OpaqueOpc?.PackageRelationships.Count ?? 0);
         if (requiresSourcePreservation)
@@ -557,7 +686,8 @@ internal static class PptxCodec
     {
         var sourceBytes = PackageGuards.ValidateSourcePackage(envelope.OpaqueOpc, envelope.Source, limits, OpcPackageProfile.Pptx);
         var nativeObjects = new PptxNativeObjectCatalog(envelope.OpaqueOpc, sourceBytes, limits);
-        using var stream = new MemoryStream();
+        var growthAllowance = Math.Min(4 * 1024 * 1024, Math.Max(64 * 1024, sourceBytes.Length / 8));
+        using var stream = new MemoryStream(checked(sourceBytes.Length + growthAllowance));
         stream.Write(sourceBytes);
         stream.Position = 0;
         var changedParts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -715,8 +845,7 @@ internal static class PptxCodec
                         limits))
                     changedParts.Add(PartPath(presentationPart));
             }
-            assetCatalog.IndexExistingParts(slideParts.SelectMany(part => part.ImageParts)
-                .Concat(masterGraph.SelectMany(master => master.Part.Parts.Select(pair => pair.OpenXmlPart).OfType<ImagePart>())));
+            assetCatalog.IndexExistingParts(DescendantImageParts(presentationPart));
 
             for (var masterIndex = 0; masterIndex < masterGraph.Length; masterIndex++)
             {
@@ -1388,7 +1517,7 @@ internal static class PptxCodec
         var bytes = noModeledChanges
             ? sourceBytes
             : NormalizeChangedPartTimestamps(
-                stream.ToArray(),
+                stream,
                 sourceBytes,
                 addedPartPaths.Concat(clonedPackageEntryPaths).ToHashSet(StringComparer.OrdinalIgnoreCase),
                 changedParts);
@@ -1403,21 +1532,32 @@ internal static class PptxCodec
                 StringComparer.OrdinalIgnoreCase);
             bytes = PptxEditPlanCodec.ReplaceParts(bytes, replacements);
         }
-        ValidateOutputBudget(bytes, limits);
-        AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
-        var retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes, clonedPartSourcePaths);
-        AssertPackagePartsUnchangedExcept(sourceBytes, bytes, changedParts);
-        ValidatePreservedSlideElements(sourceBytes, bytes, envelope.Presentation, limits);
-        ValidatePreservedMasterAndLayoutContent(sourceBytes, bytes, envelope.Presentation, limits);
-        var outputOpaque = PackageGuards.ValidateAndCollectOpaque(bytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
-        AssertOpaqueGraphMatchesWithModeledAdditions(
-            envelope.OpaqueOpc,
-            outputOpaque,
-            addedRelationshipIds,
-            addedPartPaths,
-            replacedOpaquePartHashes,
-            removedSourcePartPaths,
-            removedSourceRelationshipKeys);
+        // The normalized output owns its exact byte array now. Drop the
+        // expandable ZIP work buffer before opening source/output packages for
+        // post-write validation so both large buffers are not live together.
+        stream.SetLength(0);
+        stream.Capacity = 0;
+        IReadOnlyList<string> actualChangedParts;
+        int retainedValidationErrorCount;
+        using (PpjBuildProfiler.Measure("post-write.validation"))
+        {
+            ValidateOutputBudget(bytes, limits);
+            AssertPlannedPartsRemoved(sourceBytes, bytes, removedSourcePartPaths);
+            retainedValidationErrorCount = ValidateOffice2021AgainstSource(sourceBytes, bytes, clonedPartSourcePaths);
+            actualChangedParts = AssertPackagePartsUnchangedExcept(sourceBytes, bytes, changedParts);
+            var actualChangedPartSet = actualChangedParts.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            ValidatePreservedSlideElements(sourceBytes, bytes, envelope.Presentation, limits, actualChangedPartSet);
+            ValidatePreservedMasterAndLayoutContent(sourceBytes, bytes, envelope.Presentation, limits, actualChangedPartSet);
+            var outputOpaque = PackageGuards.ValidateAndCollectOpaque(bytes, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
+            AssertOpaqueGraphMatchesWithModeledAdditions(
+                envelope.OpaqueOpc,
+                outputOpaque,
+                addedRelationshipIds,
+                addedPartPaths,
+                replacedOpaquePartHashes,
+                removedSourcePartPaths,
+                removedSourceRelationshipKeys);
+        }
         var diagnostics = new List<Diagnostic>();
         var removedElementOpaqueCount = envelope.OpaqueOpc.Parts.Count(part => removedElementPartPaths.Contains(part.Path)) +
                                         envelope.OpaqueOpc.PackageRelationships.Count(relationship =>
@@ -1445,20 +1585,18 @@ internal static class PptxCodec
             diagnostics.Add(CodecDiagnostics.Warning(
                 "source_openxml_validation_warnings_preserved",
                 $"Preserved {retainedValidationErrorCount} pre-existing Office 2021 validation warning(s) from the source package; export introduced none."));
-        return new PptxExportResult(bytes, diagnostics);
+        return new PptxExportResult(bytes, diagnostics, actualChangedParts);
     }
 
     private static byte[] NormalizeChangedPartTimestamps(
-        byte[] bytes,
+        MemoryStream stream,
         byte[] sourceBytes,
         IReadOnlyCollection<string> addedPartPaths,
         IReadOnlyCollection<string> changedPartPaths)
     {
-        if (addedPartPaths.Count == 0 && changedPartPaths.Count == 0) return bytes;
+        if (addedPartPaths.Count == 0 && changedPartPaths.Count == 0) return stream.ToArray();
         using var sourceStream = new MemoryStream(sourceBytes, writable: false);
         using var sourceArchive = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: false);
-        using var stream = new MemoryStream();
-        stream.Write(bytes);
         stream.Position = 0;
         using (var archive = new ZipArchive(stream, ZipArchiveMode.Update, leaveOpen: true))
         {
@@ -2288,7 +2426,14 @@ internal static class PptxCodec
         PresentationSlide? previousSlide = null;
         for (var slideIndex = 0; slideIndex < artifact.Slides.Count; slideIndex++)
         {
-            var source = plan.MaterializeSlide(slideIndex, previousSlide);
+            // Keep a fully materialized prior slide only when the next page
+            // actually needs it for Morph lowering/validation. Ordinary pages
+            // can release their element graph after the slide part is written,
+            // avoiding a second page-sized object graph at the build high-water
+            // mark without changing the Morph contract.
+            var source = plan.MaterializeSlide(
+                slideIndex,
+                plan.RequiresPreviousSlide(slideIndex) ? previousSlide : null);
             validateSlide?.Invoke(slideIndex, source);
             var slidePart = slideParts[slideIndex];
             var slideCommon = slidePart.Slide!.CommonSlideData!;
@@ -2306,7 +2451,7 @@ internal static class PptxCodec
             PptxTimingCodec.Build(slidePart.Slide!, source, nativeIdsByElementId);
             slidePart.Slide.Save();
             slidePart.UnloadRootElement();
-            previousSlide = source;
+            previousSlide = plan.RequiresPreviousSlide(slideIndex + 1) ? source : null;
         }
         var notesMasterRelationshipId = PptxSpeakerNotesCodec.BuildSourceFree(presentationPart, themePart, slideParts, artifact.Slides);
         var presentationRoot = new P.Presentation();
@@ -3030,15 +3175,21 @@ internal static class PptxCodec
     private static string HashElement(OpenXmlElement element) => Hash(Encoding.UTF8.GetBytes(element.OuterXml));
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
 
-    private static PptxAssetCatalog ValidateEnvelope(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
+    private static PptxAssetCatalog ValidateEnvelope(
+        ArtifactEnvelope envelope,
+        EffectiveCodecLimits limits,
+        bool allowEmptyExistingPictureAssets = false)
     {
-        var context = ValidateEnvelopeHeader(envelope, limits);
+        var context = ValidateEnvelopeHeader(envelope, limits, allowEmptyExistingPictureAssets);
         for (var slideIndex = 0; slideIndex < envelope.Presentation.Slides.Count; slideIndex++)
             ValidatePresentationSlide(envelope.Presentation.Slides[slideIndex], slideIndex, context, limits);
         return context.AssetCatalog;
     }
 
-    private static EnvelopeValidationContext ValidateEnvelopeHeader(ArtifactEnvelope envelope, EffectiveCodecLimits limits)
+    private static EnvelopeValidationContext ValidateEnvelopeHeader(
+        ArtifactEnvelope envelope,
+        EffectiveCodecLimits limits,
+        bool allowEmptyExistingPictureAssets = false)
     {
         if (envelope.ProtocolVersion != CodecWireProtocol.ProtocolVersion)
             throw new CodecException("unsupported_artifact_version", $"Artifact protocol version {envelope.ProtocolVersion} is unsupported.");
@@ -3050,7 +3201,10 @@ internal static class PptxCodec
             throw new CodecException("slide_budget_exceeded", $"Presentation has {envelope.Presentation.Slides.Count} slides and exceeds max_sheets ({limits.MaxSheets}).");
         if (envelope.Presentation.SlideWidthEmu < 0 || envelope.Presentation.SlideHeightEmu < 0 || envelope.Presentation.SlideWidthEmu > int.MaxValue || envelope.Presentation.SlideHeightEmu > int.MaxValue)
             throw new CodecException("invalid_slide_size", "Presentation slide dimensions must fit the PresentationML signed 32-bit EMU range.");
-        var assetCatalog = new PptxAssetCatalog(envelope.Assets, limits);
+        var assetCatalog = new PptxAssetCatalog(
+            envelope.Assets,
+            limits,
+            allowEmptyExistingPictureAssets: allowEmptyExistingPictureAssets);
         var hasSourcePackage = envelope.OpaqueOpc?.SourcePackage is { Data.IsEmpty: false };
         PptxViewPropertiesCodec.Validate(envelope.Presentation.ViewProperties, hasSourcePackage);
 
@@ -3379,7 +3533,10 @@ internal static class PptxCodec
         }
     }
 
-    private static void AssertPackagePartsUnchangedExcept(byte[] sourceBytes, byte[] outputBytes, HashSet<string> allowedPaths)
+    private static IReadOnlyList<string> AssertPackagePartsUnchangedExcept(
+        byte[] sourceBytes,
+        byte[] outputBytes,
+        HashSet<string> allowedPaths)
     {
         var before = PackagePartHashes(sourceBytes);
         var after = PackagePartHashes(outputBytes);
@@ -3396,6 +3553,7 @@ internal static class PptxCodec
         var unexpected = changed.Where(path => !allowedPaths.Contains(path)).Take(8).ToArray();
         if (unexpected.Length > 0)
             throw new CodecException("presentation_unowned_part_changed", $"Source-preserving PPTX export changed unowned package parts: {string.Join(", ", unexpected)}.");
+        return changed.Order(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static void AssertOpaqueGraphMatchesWithModeledAdditions(
@@ -3557,7 +3715,12 @@ internal static class PptxCodec
     private static bool IsLegacyCommentAuthorsPath(string path) =>
         path.Equals("ppt/commentAuthors.xml", StringComparison.OrdinalIgnoreCase);
 
-    private static void ValidatePreservedSlideElements(byte[] sourceBytes, byte[] outputBytes, PresentationArtifact requested, EffectiveCodecLimits limits)
+    private static void ValidatePreservedSlideElements(
+        byte[] sourceBytes,
+        byte[] outputBytes,
+        PresentationArtifact requested,
+        EffectiveCodecLimits limits,
+        IReadOnlySet<string> changedPartPaths)
     {
         using var sourceStream = new MemoryStream(sourceBytes, writable: false);
         using var outputStream = new MemoryStream(outputBytes, writable: false);
@@ -3625,8 +3788,8 @@ internal static class PptxCodec
         var outputIdByPartPath = retainedTargets
             .Select(target => (Path: PartPath(target.Source.Part), Id: target.Target.Id))
             .ToDictionary(item => item.Path, item => item.Id, StringComparer.OrdinalIgnoreCase);
-        var sourceAssets = new PptxAssetCatalog([], limits);
-        var outputAssets = new PptxAssetCatalog([], limits);
+        var sourceAssets = new PptxAssetCatalog([], limits, retainImportedAssetData: false);
+        var outputAssets = new PptxAssetCatalog([], limits, retainImportedAssetData: false);
         var customShowCatalog = PptxCustomShowCatalog.From(requested.CustomShows);
 
         for (var slideIndex = 0; slideIndex < requested.Slides.Count; slideIndex++)
@@ -3666,6 +3829,19 @@ internal static class PptxCodec
                     "presentation_postwrite_transition_semantics_mismatch",
                     $"PPTX slide {slideIndex + 1} transition does not match requested semantics after export.",
                     PartPath(outputSlide));
+
+            // AssertPackagePartsUnchangedExcept has already proved every
+            // untouched OPC part byte-for-byte identical. When the exporter
+            // changed only numbered slide XML parts, keep the cheap topology,
+            // name, visibility, and transition checks above, then skip the
+            // element/animation/background DOM walk for untouched slides.
+            // Relationship, media, master/layout, and global changes stay on
+            // the conservative full validation path.
+            var slideOnlyChanges = changedPartPaths.Count > 0 &&
+                changedPartPaths.All(IsNumberedSlidePath);
+            if (slideOnlyChanges && !changedPartPaths.Contains(PartPath(outputSlide)))
+                continue;
+
             var sourceTimingElements = ShapeElements(sourceRoot.CommonSlideData?.ShapeTree ??
                 throw new CodecException("missing_shape_tree", $"PPTX source slide {slideIndex + 1} has no shape tree.", PartPath(sourceSlide)));
             var sourceTimingIds = NativeElementIds(sourceTimingElements, requested.Slides[slideIndex].Id);
@@ -4102,8 +4278,22 @@ internal static class PptxCodec
         return HashElement(clone);
     }
 
-    private static void ValidatePreservedMasterAndLayoutContent(byte[] sourceBytes, byte[] outputBytes, PresentationArtifact requested, EffectiveCodecLimits limits)
+    private static void ValidatePreservedMasterAndLayoutContent(
+        byte[] sourceBytes,
+        byte[] outputBytes,
+        PresentationArtifact requested,
+        EffectiveCodecLimits limits,
+        IReadOnlySet<string> changedPartPaths)
     {
+        // A source-bound edit that touched only slide XML cannot have changed
+        // any master/layout bytes: the package-wide part hash assertion above
+        // has already proved that. Avoid opening a second pair of large
+        // PresentationDocument DOMs for this common build path. Keep the full
+        // validator for no-op, global, relationship, media, master, and layout
+        // changes, where those bytes can participate in the semantic contract.
+        if (changedPartPaths.Count > 0 && changedPartPaths.All(IsNumberedSlidePath))
+            return;
+
         using var sourceStream = new MemoryStream(sourceBytes, writable: false);
         using var outputStream = new MemoryStream(outputBytes, writable: false);
         using var sourcePackage = PresentationDocument.Open(sourceStream, isEditable: false);
@@ -4134,8 +4324,8 @@ internal static class PptxCodec
             .ToDictionary(item => item.Path, item => item.Id, StringComparer.OrdinalIgnoreCase);
         var outputSlideMap = retainedTargets.Select(target => (Path: PartPath(target.Source.Part), Id: target.Target.Id))
             .ToDictionary(item => item.Path, item => item.Id, StringComparer.OrdinalIgnoreCase);
-        var sourceAssets = new PptxAssetCatalog([], limits);
-        var outputAssets = new PptxAssetCatalog([], limits);
+        var sourceAssets = new PptxAssetCatalog([], limits, retainImportedAssetData: false);
+        var outputAssets = new PptxAssetCatalog([], limits, retainImportedAssetData: false);
         var customShowCatalog = PptxCustomShowCatalog.From(requested.CustomShows);
         for (var masterIndex = 0; masterIndex < requested.Masters.Count; masterIndex++)
         {
@@ -4978,9 +5168,7 @@ internal static class PptxCodec
             entry =>
             {
                 using var source = entry.Open();
-                using var copy = new MemoryStream();
-                source.CopyTo(copy);
-                return Hash(copy.ToArray());
+                return Convert.ToHexString(SHA256.HashData(source)).ToLowerInvariant();
             },
             StringComparer.OrdinalIgnoreCase);
     }

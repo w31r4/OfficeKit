@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -20,7 +21,9 @@ internal static class PpjPresentationCompiler
         byte[] sourceBytes,
         EffectiveCodecLimits limits)
     {
+        using var validationStage = PpjBuildProfiler.Measure("validation");
         using var validation = PpjProgramValidator.Validate(request.ProgramJson.Memory);
+        validationStage.Dispose();
         if (!validation.IsValid)
         {
             var first = validation.Diagnostics[0];
@@ -34,14 +37,30 @@ internal static class PpjPresentationCompiler
         PresentationProgramRequest request,
         byte[] sourceBytes,
         EffectiveCodecLimits limits,
-        PpjValidationResult validation)
+        PpjValidationResult validation,
+        Func<PpjAssetModel, Asset?>? loadAsset = null,
+        bool retainSourceAssetData = true) => CompileValidated(
+            request,
+            new PptxPackageSource(sourceBytes),
+            limits,
+            validation,
+            loadAsset,
+            retainSourceAssetData);
+
+    internal static PpjCompileResult CompileValidated(
+        PresentationProgramRequest request,
+        PptxPackageSource sourcePackage,
+        EffectiveCodecLimits limits,
+        PpjValidationResult validation,
+        Func<PpjAssetModel, Asset?>? loadAsset = null,
+        bool retainSourceAssetData = true)
     {
         if (!validation.IsValid)
             throw new InvalidOperationException("PPJ compilation requires a successful validation result.");
 
         if (validation.Program!.Source is null)
         {
-            if (sourceBytes.Length != 0)
+            if (sourcePackage.Length != 0)
                 throw new CodecException(
                     "ppj.unexpectedSource",
                     "A source-free PPJ compile cannot attach a PPTX source package.",
@@ -51,7 +70,13 @@ internal static class PpjPresentationCompiler
             return PpjAuthoredPresentationCompiler.Compile(request, limits, validation);
         }
 
-        return PpjSourceBoundPresentationCompiler.Compile(request, sourceBytes, limits, validation);
+        return PpjSourceBoundPresentationCompiler.Compile(
+            request,
+            sourcePackage,
+            limits,
+            validation,
+            loadAsset,
+            retainSourceAssetData);
     }
 }
 
@@ -81,15 +106,18 @@ internal static class PpjSourceBoundPresentationCompiler
         uint TextLeafIndex,
         string Before,
         string After,
-        string LeafKind);
+        string LeafKind,
+        bool FrameFastPath = false);
 
     internal static PpjCompileResult Compile(
         PresentationProgramRequest request,
-        byte[] sourceBytes,
+        PptxPackageSource sourcePackage,
         EffectiveCodecLimits limits,
-        PpjValidationResult validation)
+        PpjValidationResult validation,
+        Func<PpjAssetModel, Asset?>? loadAsset,
+        bool retainSourceAssetData)
     {
-        if (sourceBytes.Length == 0)
+        if (sourcePackage.Length == 0)
             throw new CodecException(
                 "ppj.source.missing",
                 "A source-bound PPJ compile requires the exact source PPTX bytes.",
@@ -97,7 +125,9 @@ internal static class PpjSourceBoundPresentationCompiler
 
         var requested = validation.Program!;
         var source = requested.Source!;
-        var sourceSha256 = Sha256(sourceBytes);
+        string sourceSha256;
+        using (PpjBuildProfiler.Measure("source.hash"))
+            sourceSha256 = sourcePackage.Sha256();
         if (!source.Kind.Equals("pptx", StringComparison.Ordinal) ||
             !sourceSha256.Equals(source.Sha256, StringComparison.OrdinalIgnoreCase))
             throw new CodecException(
@@ -105,16 +135,23 @@ internal static class PpjSourceBoundPresentationCompiler
                 "The source-bound PPJ does not match the exact PPTX input bytes.",
                 "$.source.sha256");
 
-        var projected = PpjPresentationProjector.Project(
-            sourceBytes,
+        using var projectionStage = PpjBuildProfiler.Measure("pptx.projection");
+        using var projected = PpjPresentationProjector.Project(
+            sourcePackage,
             new PresentationProgramRequest
             {
                 SourceUri = source.Uri,
                 AssetRootUri = AssetRoot(requested),
                 IncludeNodeMap = true,
             },
-            limits);
-        using var baselineValidation = PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory);
+            limits,
+            retainSourceAssetData,
+            sourceSha256);
+        projectionStage.Dispose();
+        using var reparsedBaselineValidation = projected.Validation is null
+            ? PpjProgramValidator.Validate(projected.Program.ProgramJson.Memory)
+            : null;
+        var baselineValidation = projected.Validation ?? reparsedBaselineValidation!;
         if (!baselineValidation.IsValid)
             throw new CodecException(
                 "ppj.projection.invalid",
@@ -130,36 +167,41 @@ internal static class PpjSourceBoundPresentationCompiler
             throw new CodecException("ppj.source.projection", "Source-bound projection did not return its native source artifact.", "$.source");
         var presentation = artifact.Presentation ??
             throw new CodecException("ppj.source.presentation", "The exact source did not import as a Presentation artifact.", "$.source");
-        var assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact);
+        IReadOnlyDictionary<string, string> assetIds;
         var changedNodeIds = new HashSet<string>(StringComparer.Ordinal);
         var mutations = new MutationState();
-        var physicalChanges = ApplyCanvas(baseline, requested, presentation, changedNodeIds, mutations);
-        if (ApplyPages(
-            baseline,
-            requested,
-            presentation,
-            assetIds,
-            projected.NativeLeafBindings,
-            changedNodeIds,
-            mutations))
-            physicalChanges = true;
-        if (ApplySections(baseline, requested, presentation, changedNodeIds))
+        bool physicalChanges;
+        using (PpjBuildProfiler.Measure("ppj.mutation"))
         {
-            RejectMixedAuthoredOverlay(mutations, "$.sections");
-            mutations.SemanticChanges = true;
-            physicalChanges = true;
-        }
-        if (ApplyCustomShows(baseline, requested, presentation, changedNodeIds))
-        {
-            RejectMixedAuthoredOverlay(mutations, "$.customShows");
-            mutations.SemanticChanges = true;
-            physicalChanges = true;
-        }
-        if (ApplyComments(baseline, requested, presentation, changedNodeIds))
-        {
-            RejectMixedAuthoredOverlay(mutations, "$.comments");
-            mutations.SemanticChanges = true;
-            physicalChanges = true;
+            assetIds = BuildAssetCatalog(baseline, requested, projected, request.Assets, artifact, loadAsset);
+            physicalChanges = ApplyCanvas(baseline, requested, presentation, changedNodeIds, mutations);
+            if (ApplyPages(
+                baseline,
+                requested,
+                presentation,
+                assetIds,
+                projected.NativeLeafBindings,
+                changedNodeIds,
+                mutations))
+                physicalChanges = true;
+            if (ApplySections(baseline, requested, presentation, changedNodeIds))
+            {
+                RejectMixedAuthoredOverlay(mutations, "$.sections");
+                mutations.SemanticChanges = true;
+                physicalChanges = true;
+            }
+            if (ApplyCustomShows(baseline, requested, presentation, changedNodeIds))
+            {
+                RejectMixedAuthoredOverlay(mutations, "$.customShows");
+                mutations.SemanticChanges = true;
+                physicalChanges = true;
+            }
+            if (ApplyComments(baseline, requested, presentation, changedNodeIds))
+            {
+                RejectMixedAuthoredOverlay(mutations, "$.comments");
+                mutations.SemanticChanges = true;
+                physicalChanges = true;
+            }
         }
 
         if (request.ValidationOnly)
@@ -179,27 +221,60 @@ internal static class PpjSourceBoundPresentationCompiler
         }
 
         byte[] output;
+        byte[]? materializedSource = null;
+        var reuseSourceFile = false;
+        var outputUsesSource = false;
+        IReadOnlyList<string>? exportedChangedParts = null;
         IReadOnlyList<Diagnostic> diagnostics;
         if (!physicalChanges)
         {
-            // A physical no-op is the original byte array, not a reserialized
-            // equivalent package. PPJ-only intent/design metadata may still
-            // advance outside the third-party PPTX.
-            output = sourceBytes;
+            // A physical no-op is the original file, not a reserialized
+            // equivalent package. The direct CLI keeps it file-backed through
+            // the final exclusive copy; wire callers continue to own bytes.
+            outputUsesSource = true;
+            if (!sourcePackage.TryGetMaterialized(out output))
+            {
+                output = [];
+                reuseSourceFile = true;
+            }
             diagnostics = projected.Diagnostics.Concat(mutations.Warnings).ToArray();
         }
-        else if (mutations.NativeLeaves.Count > 0)
+        else if (mutations.NativeLeaves.Count > 0 && !mutations.SemanticChanges)
         {
-            if (mutations.SemanticChanges)
-                throw Unsupported("$.pages", "mixing precise native-leaf edits with other semantic edits in one source-bound build");
-            var edited = PptxEditPlanCodec.Apply(sourceBytes, NativeLeafEditPlan(sourceSha256, mutations.NativeLeaves), limits);
+            materializedSource = sourcePackage.Materialize();
+            PptxEditPlanOutput edited;
+            using (PpjBuildProfiler.Measure("edit-plan"))
+            {
+                edited = PptxEditPlanCodec.Apply(
+                    materializedSource,
+                    NativeLeafEditPlan(sourceSha256, mutations.NativeLeaves),
+                    limits,
+                    presentation);
+            }
             output = edited.File;
             diagnostics = projected.Diagnostics.Concat(edited.Diagnostics).Concat(mutations.Warnings).ToArray();
         }
         else
         {
-            var exported = PptxCodec.Export(artifact, limits);
+            if (mutations.NativeLeaves.Count > 0 &&
+                !mutations.NativeLeaves.All(mutation => mutation.FrameFastPath))
+                throw Unsupported("$.pages", "mixing precise native-leaf edits with other semantic edits in one source-bound build");
+            // Frame-only leaves are an internal acceleration of the ordinary
+            // semantic writer. If another operation in the same transaction
+            // requires that writer, discard the speculative leaf plan and keep
+            // the pre-existing full-export behavior.
+            mutations.NativeLeaves.Clear();
+            materializedSource = sourcePackage.Materialize();
+            artifact.OpaqueOpc!.SourcePackage = new SourcePackageSnapshot
+            {
+                Data = UnsafeByteOperations.UnsafeWrap(materializedSource),
+                Sha256 = sourceSha256,
+            };
+            PptxExportResult exported;
+            using (PpjBuildProfiler.Measure("writer"))
+                exported = PptxCodec.Export(artifact, limits);
             output = exported.File;
+            exportedChangedParts = exported.ChangedParts;
             diagnostics = projected.Diagnostics.Concat(exported.Diagnostics).Concat(mutations.Warnings).ToArray();
         }
 
@@ -209,14 +284,15 @@ internal static class PpjSourceBoundPresentationCompiler
             ProgramSha256 = validation.ProgramSha256,
             NodeMapJson = request.IncludeNodeMap ? projected.Program.NodeMapJson : ByteString.Empty,
             SourceSha256 = sourceSha256,
-            OutputSha256 = Sha256(output),
+            OutputSha256 = outputUsesSource ? sourceSha256 : Sha256(output),
             SourceBound = true,
             ExpandedElementCount = checked((uint)validation.Expansion!.ExpandedElementCount),
         };
         receipt.Assets.Add(projected.Program.Assets.Select(asset => asset.Clone()));
         receipt.ChangedNodeIds.Add(changedNodeIds.OrderBy(id => id, StringComparer.Ordinal));
-        receipt.ChangedParts.Add(ChangedParts(sourceBytes, output));
-        return new(output, receipt, diagnostics);
+        if (!outputUsesSource)
+            receipt.ChangedParts.Add(exportedChangedParts ?? ChangedParts(materializedSource ?? sourcePackage.Materialize(), output));
+        return new(output, receipt, diagnostics, reuseSourceFile);
     }
 
     private static void RequireExactSourceDescriptor(PpjProgramModel baseline, PpjProgramModel requested)
@@ -260,7 +336,8 @@ internal static class PpjSourceBoundPresentationCompiler
         PpjProgramModel requested,
         PpjProjectionResult projected,
         IEnumerable<Asset> supplied,
-        ArtifactEnvelope artifact)
+        ArtifactEnvelope artifact,
+        Func<PpjAssetModel, Asset?>? loadAsset)
     {
         var declared = requested.Assets.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
         var suppliedById = supplied.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
@@ -281,7 +358,10 @@ internal static class PpjSourceBoundPresentationCompiler
         var baselineIds = baseline.Assets.Select(asset => asset.Id).ToHashSet(StringComparer.Ordinal);
         foreach (var declaration in requested.Assets.Where(asset => !baselineIds.Contains(asset.Id)))
         {
-            if (!suppliedById.TryGetValue(declaration.Id, out var asset) || asset.Data.IsEmpty)
+            suppliedById.TryGetValue(declaration.Id, out var asset);
+            if (asset is null || asset.Data.IsEmpty)
+                asset = loadAsset?.Invoke(declaration);
+            if (asset is null || asset.Data.IsEmpty)
                 throw new CodecException("ppj.asset.missing", $"PPJ asset {declaration.Id} has no supplied bytes.", "$.assets");
             var hash = Sha256(asset.Data.Span);
             if (!hash.Equals(declaration.Sha256, StringComparison.OrdinalIgnoreCase) ||
@@ -898,6 +978,7 @@ internal static class PpjSourceBoundPresentationCompiler
         if (!before.Id.Equals(after.Id, StringComparison.Ordinal) || !before.Type.Equals(after.Type, StringComparison.Ordinal))
             throw Unsupported(path, "source-bound element reorder, identity, or type change");
         RequireNativeRef(before.Raw, after.Raw, path);
+        var semanticChangesBefore = mutations.SemanticChanges;
         var nativeLeafChanged = CollectIssuedNativeLeafMutations(
             before.NativeRef,
             after.NativeRef,
@@ -908,6 +989,15 @@ internal static class PpjSourceBoundPresentationCompiler
             after.Id,
             mutations,
             path + ".nativeRef.leaves");
+        var frameLeafFastPath = TryCollectFrameLeafMutations(
+            before,
+            after,
+            target,
+            slide,
+            shapeTreePath,
+            nativeLeafBindings,
+            mutations,
+            path);
         var stateChanged = ApplyElementState(before, after, target, path);
         if (stateChanged) mutations.SemanticChanges = true;
 
@@ -976,6 +1066,14 @@ internal static class PpjSourceBoundPresentationCompiler
             default:
                 throw Unsupported(path, "the exact source object no longer matches its PPJ projection type");
         }
+        // ApplyFrame updates the in-memory presentation for the conservative
+        // writer path and marks a semantic mutation. If the frame is the only
+        // PPJ field that changed and every changed coordinate has a fresh,
+        // hash-bound native leaf, the token-splice edit plan can carry the same
+        // operation without materializing/reserializing the full source IR.
+        // Restore the prior semantic flag so the caller selects that plan.
+        if (frameLeafFastPath)
+            mutations.SemanticChanges = semanticChangesBefore;
         changed |= nativeLeafChanged || stateChanged;
         if (changed) changedNodeIds.Add(after.Id);
         return changed;
@@ -2113,6 +2211,107 @@ internal static class PpjSourceBoundPresentationCompiler
         return true;
     }
 
+    private static bool TryCollectFrameLeafMutations(
+        PpjElementModel before,
+        PpjElementModel after,
+        PresentationElement target,
+        PresentationSlide slide,
+        IReadOnlyList<uint> shapeTreePath,
+        IReadOnlyDictionary<string, PpjNativeLeafBinding> bindings,
+        MutationState mutations,
+        string path)
+    {
+        if (!FrameChanged(before, after) || !OnlyFramePropertyChanged(before.Raw, after.Raw) ||
+            target.ContentCase is not (PresentationElement.ContentOneofCase.Shape or PresentationElement.ContentOneofCase.Image) ||
+            target.Source?.Editable != true)
+            return false;
+
+        var pending = new List<NativeLeafMutation>(4);
+        var bindingByKind = bindings.Values
+            .Where(binding => binding.ElementId.Equals(after.Id, StringComparison.Ordinal) &&
+                              binding.Kind is "leftEmu" or "topEmu" or "widthEmu" or "heightEmu")
+            .GroupBy(binding => binding.Kind, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Single(), StringComparer.Ordinal);
+
+        bool Add(string kind, long value)
+        {
+            if (!bindingByKind.TryGetValue(kind, out var binding)) return false;
+            var next = value.ToString(CultureInfo.InvariantCulture);
+            if (binding.ExpectedValue.Equals(next, StringComparison.Ordinal)) return true;
+            pending.Add(new NativeLeafMutation(
+                after.Id,
+                slide,
+                target,
+                shapeTreePath,
+                binding.NativeLeafIndex,
+                binding.TextLeafIndex,
+                binding.ExpectedValue,
+                next,
+                kind,
+                FrameFastPath: true));
+            return true;
+        }
+
+        var changedCoordinateCount = 0;
+        if (!before.Frame.X.Equals(after.Frame.X))
+        {
+            changedCoordinateCount++;
+            if (!Add("leftEmu", Emu(after.Frame.X))) return false;
+        }
+        if (!before.Frame.Y.Equals(after.Frame.Y))
+        {
+            changedCoordinateCount++;
+            if (!Add("topEmu", Emu(after.Frame.Y))) return false;
+        }
+        if (!before.Frame.Width.Equals(after.Frame.Width))
+        {
+            changedCoordinateCount++;
+            if (!Add("widthEmu", Emu(after.Frame.Width))) return false;
+        }
+        if (!before.Frame.Height.Equals(after.Frame.Height))
+        {
+            changedCoordinateCount++;
+            if (!Add("heightEmu", Emu(after.Frame.Height))) return false;
+        }
+
+        // Rotation and flips are deliberately left on the existing semantic
+        // writer path until the source contains an explicit transform leaf.
+        // This fast path therefore cannot silently turn an unsupported
+        // transform edit into a partial coordinate-only patch.
+        if (changedCoordinateCount == 0 ||
+            !before.Frame.Rotation.Equals(after.Frame.Rotation) ||
+            before.Frame.FlipH != after.Frame.FlipH ||
+            before.Frame.FlipV != after.Frame.FlipV ||
+            pending.Count != changedCoordinateCount)
+        {
+            return false;
+        }
+
+        mutations.NativeLeaves.AddRange(pending);
+        return true;
+    }
+
+    private static bool OnlyFramePropertyChanged(JsonElement before, JsonElement after)
+    {
+        var frameChanged = false;
+        var names = before.EnumerateObject().Select(property => property.Name)
+            .Concat(after.EnumerateObject().Select(property => property.Name))
+            .Distinct(StringComparer.Ordinal);
+        foreach (var name in names)
+        {
+            var hasBefore = before.TryGetProperty(name, out var beforeValue);
+            var hasAfter = after.TryGetProperty(name, out var afterValue);
+            if (!hasBefore || !hasAfter) return false;
+            if (name.Equals("frame", StringComparison.Ordinal))
+            {
+                frameChanged = !JsonEqual(beforeValue, afterValue);
+                continue;
+            }
+            if (!JsonEqual(beforeValue, afterValue)) return false;
+        }
+        return frameChanged;
+    }
+
     private static bool ApplyFrame(PpjElementModel before, PpjElementModel after, PresentationImage target, string path)
     {
         if (!FrameChanged(before, after)) return false;
@@ -3042,9 +3241,7 @@ internal static class PpjSourceBoundPresentationCompiler
         foreach (var entry in archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)))
         {
             using var input = entry.Open();
-            using var memory = new MemoryStream();
-            input.CopyTo(memory);
-            output[entry.FullName] = Sha256(memory.ToArray());
+            output[entry.FullName] = Convert.ToHexString(SHA256.HashData(input)).ToLowerInvariant();
         }
         return output;
     }

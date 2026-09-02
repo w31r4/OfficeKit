@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Xml;
 using System.Xml.Linq;
@@ -133,12 +134,39 @@ internal static class PackageGuards
         out IReadOnlySet<string> packagePaths,
         bool includeSourcePackage = true)
     {
-        if ((ulong)bytes.LongLength > limits.MaxInputBytes)
-            throw new CodecException("input_budget_exceeded", $"{profile.Format} input has {bytes.LongLength} bytes and exceeds max_input_bytes ({limits.MaxInputBytes}).");
+        var opaque = ValidateAndCollectOpaque(
+            () => new MemoryStream(bytes, writable: false),
+            bytes.LongLength,
+            limits,
+            profile,
+            out packagePaths);
+        if (includeSourcePackage)
+        {
+            var packageHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+            opaque.SourcePackage = new SourcePackageSnapshot
+            {
+                // Import owns this request buffer until the response has
+                // been serialized, and the codec never mutates it.
+                Data = Google.Protobuf.UnsafeByteOperations.UnsafeWrap(bytes),
+                Sha256 = packageHash,
+            };
+        }
+        return opaque;
+    }
+
+    internal static OpaqueOpcGraph ValidateAndCollectOpaque(
+        Func<Stream> openRead,
+        long inputLength,
+        EffectiveCodecLimits limits,
+        OpcPackageProfile profile,
+        out IReadOnlySet<string> packagePaths)
+    {
+        if (inputLength < 0 || (ulong)inputLength > limits.MaxInputBytes)
+            throw new CodecException("input_budget_exceeded", $"{profile.Format} input has {inputLength} bytes and exceeds max_input_bytes ({limits.MaxInputBytes}).");
 
         try
         {
-            using var stream = new MemoryStream(bytes, writable: false);
+            using var stream = openRead();
             using var archive = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: false);
             if ((uint)archive.Entries.Count > limits.MaxParts)
                 throw new CodecException("part_budget_exceeded", $"{profile.Format} package has {archive.Entries.Count} parts and exceeds max_parts ({limits.MaxParts}).");
@@ -203,17 +231,6 @@ internal static class PackageGuards
                 if (partByPath.TryGetValue(relationship.SourcePath, out var sourcePart))
                     sourcePart.Relationships.Add(relationship.Clone());
             }
-            if (includeSourcePackage)
-            {
-                var packageHash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
-                opaque.SourcePackage = new SourcePackageSnapshot
-                {
-                    // Import owns this request buffer until the response has
-                    // been serialized, and the codec never mutates it.
-                    Data = Google.Protobuf.UnsafeByteOperations.UnsafeWrap(bytes),
-                    Sha256 = packageHash,
-                };
-            }
             paths.RemoveWhere(static path => path.EndsWith("/", StringComparison.Ordinal));
             packagePaths = paths;
             return opaque;
@@ -232,7 +249,11 @@ internal static class PackageGuards
     {
         if (opaque.SourcePackage is null || opaque.SourcePackage.Data.IsEmpty)
             throw new CodecException("missing_source_package", "Opaque OPC content cannot be preserved because its source package snapshot is missing.");
-        var bytes = opaque.SourcePackage.Data.ToByteArray();
+        var data = opaque.SourcePackage.Data;
+        var bytes = MemoryMarshal.TryGetArray(data.Memory, out var segment) && segment.Array is not null &&
+                    segment.Offset == 0 && segment.Count == segment.Array.Length
+            ? segment.Array
+            : data.ToByteArray();
         var hash = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         if (!hash.Equals(opaque.SourcePackage.Sha256, StringComparison.OrdinalIgnoreCase))
             throw new CodecException("source_package_hash_mismatch", "Source package bytes do not match the hash recorded in the public wire envelope.");

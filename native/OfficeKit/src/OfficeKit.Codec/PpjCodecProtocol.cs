@@ -8,6 +8,8 @@ public static class PpjCodecProtocol
 {
     public static CodecResponse InvokeResponse(ref byte[] requestBytes, byte[]? requestFileBytes)
     {
+        using var profiler = PpjBuildProfiler.Start("ppj.protocol");
+        using var profilerActivation = PpjBuildProfiler.Activate(profiler);
         var response = new CodecResponse { ProtocolVersion = CodecWireProtocol.ProtocolVersion };
         try
         {
@@ -18,7 +20,7 @@ public static class PpjCodecProtocol
             {
                 case CodecOperation.ProjectPptxToPpj:
                 {
-                    var result = PpjPresentationProjector.Project(
+                    using var result = PpjPresentationProjector.Project(
                         RequestFileBytes(request.File),
                         request.PresentationProgram,
                         limits);

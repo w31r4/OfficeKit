@@ -47,8 +47,15 @@ internal static class PpjEmbeddedProgramCodec
     internal static Recovery? TryRecover(
         byte[] pptx,
         PresentationProgramRequest request,
+        EffectiveCodecLimits limits) => TryRecover(new PptxPackageSource(pptx), request, limits);
+
+    internal static Recovery? TryRecover(
+        PptxPackageSource source,
+        PresentationProgramRequest request,
         EffectiveCodecLimits limits)
     {
+        if (!MightContainEmbeddedProgram(source)) return null;
+        var pptx = source.Materialize();
         _ = PackageGuards.ValidateAndCollectOpaque(pptx, limits, OpcPackageProfile.Pptx, includeSourcePackage: false);
         try
         {
@@ -130,6 +137,33 @@ internal static class PpjEmbeddedProgramCodec
             // An unusable snapshot is not write authority. Ordinary PPTX
             // projection below will preserve it as opaque source-owned data.
             return null;
+        }
+    }
+
+    private static bool MightContainEmbeddedProgram(PptxPackageSource source)
+    {
+        try
+        {
+            using var input = source.OpenRead();
+            using var archive = new ZipArchive(input, ZipArchiveMode.Read, leaveOpen: false);
+            var relationships = archive.GetEntry(RootRelationshipsPath);
+            if (relationships is null) return false;
+            if (relationships.Length is <= 0 or > 1024 * 1024) return true;
+            using var relationshipStream = relationships.Open();
+            using var copy = new MemoryStream(checked((int)relationships.Length));
+            relationshipStream.CopyTo(copy);
+            return HasExactRelationship(
+                copy.GetBuffer().AsSpan(0, checked((int)copy.Length)).ToArray(),
+                ProgramRelationshipType,
+                ProgramPath,
+                requireSingle: true);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or IOException or XmlException or
+                                          InvalidOperationException or ArgumentException or OverflowException)
+        {
+            // The full package validator below owns malformed-input
+            // diagnostics. A failed cheap probe must not bypass it.
+            return true;
         }
     }
 
