@@ -1,0 +1,26 @@
+{
+  "id": "analysis-decision-10",
+  "scenario": "analysis-decision",
+  "lifecycle": "1-to-10",
+  "deliveryMode": "reader",
+  "designSource": "template",
+  "source": {
+    "fixtureId": "data-particles",
+    "targetPage": 8,
+    "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-data-particles.pptx",
+    "sha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f"
+  },
+  "brief": "Import the assigned source page. Step 1: update the supplied endpoint metric and its label without changing the chart's meaning or any non-target data. Step 2: repair the visual composition so bars, line, labels, and the endpoint callout do not overlap; preserve the source style and all unrelated package parts.",
+  "requiredCapabilities": [
+    "source-bound",
+    "chart",
+    "text",
+    "group-z-order",
+    "review"
+  ],
+  "editSteps": [
+    "semantic endpoint value/label edit",
+    "chart label and layer repair"
+  ],
+  "designReference": null
+}

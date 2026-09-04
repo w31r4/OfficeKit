@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "command": "review",
+  "input": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/academic-research-10/main-snapshot/outputs/deck.ppj",
+  "programSha256": "824421f73c1f979d6dddc099e6e0ecfd9ac7255b49d3c17eaa5d1830162ee0fd",
+  "candidateSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+  "sourceBound": true,
+  "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+  "verdict": "passed-with-limitations",
+  "playbackEvidence": "structural",
+  "visualReview": "unavailable",
+  "pageCount": 21,
+  "expandedElementCount": 329,
+  "targetPage": {
+    "id": "page-ppt-slides-slide9.xml",
+    "pageIndex": 8,
+    "stableElementCount": 22,
+    "changedParts": [],
+    "changedNodeIds": []
+  },
+  "delivery": {
+    "status": "ready-with-warnings",
+    "outputSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+    "bytes": 4522864,
+    "sourceChanged": false
+  },
+  "warnings": [
+    "opaque_content_retained: 262 unsupported OPC parts or relationships retained source-bound",
+    "frameOutsideCanvas warnings pre-existed on unrelated imported elements",
+    "excessiveMotionUnits warning on target page is unchanged source structure",
+    "visual reviewer unavailable; rendered PNGs were manually inspected"
+  ],
+  "reimport": {
+    "ok": true,
+    "programSha256": "0aed428b6573d969f0a6eb7d07649f8816c92cc6b1cea6e32ff593edba93b8a2",
+    "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+    "targetPageId": "page-ppt-slides-slide9.xml",
+    "targetElementCount": 22,
+    "expandedElementCount": 329
+  },
+  "note": "Condensed receipt of ppj review --json; full command sequence and limitations are in outputs/author-report.md."
+}

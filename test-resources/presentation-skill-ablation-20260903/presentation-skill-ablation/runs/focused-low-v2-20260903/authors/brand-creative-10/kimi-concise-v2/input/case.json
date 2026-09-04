@@ -1,0 +1,29 @@
+{
+  "id": "brand-creative-10",
+  "scenario": "brand-creative",
+  "lifecycle": "1-to-10",
+  "deliveryMode": "live",
+  "designSource": "template",
+  "source": {
+    "fixtureId": "professional-minimalist",
+    "targetPage": 4,
+    "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-professional-minimalist.pptx",
+    "sha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab"
+  },
+  "brief": "Import the assigned launch page. Step 1: replace the supplied product promise text with the approved copy and update one specification label. Step 2: replace or crop the hero image and repair the foreground contrast/type layer so the reveal is premium, legible, editable, and unchanged outside the requested page.",
+  "requiredCapabilities": [
+    "source-bound",
+    "image-background",
+    "mask-opacity",
+    "text",
+    "rich-text",
+    "motion",
+    "review"
+  ],
+  "editSteps": [
+    "approved promise/specification edit",
+    "hero image/crop and foreground contrast repair"
+  ],
+  "basePpj": "outputs/deck.ppj",
+  "designReference": null
+}

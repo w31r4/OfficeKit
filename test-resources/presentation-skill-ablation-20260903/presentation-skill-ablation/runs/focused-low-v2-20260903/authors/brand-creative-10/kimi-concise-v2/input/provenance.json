@@ -1,0 +1,16 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-v2-author-input/v1",
+  "caseId": "brand-creative-10",
+  "arm": "kimi-concise-v2",
+  "createdAt": "2026-09-03T12:50:29.187Z",
+  "skillPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/arms/kimi-concise/SKILL.md",
+  "skillSha256": "df1a4e998991d91a259456ff670d7323a7a369c3e8922206e68848dad86bc31e",
+  "source": {
+    "fixtureId": "professional-minimalist",
+    "targetPage": 4,
+    "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-professional-minimalist.pptx",
+    "sha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab"
+  },
+  "basePpj": "outputs/deck.ppj",
+  "preimported": true
+}

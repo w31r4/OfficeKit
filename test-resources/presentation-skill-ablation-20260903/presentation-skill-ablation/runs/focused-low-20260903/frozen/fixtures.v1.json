@@ -1,0 +1,59 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-fixtures/v1",
+  "frozenAt": "2026-09-02",
+  "sourcePolicy": "read-only external QA inputs; never package or overwrite",
+  "sources": [
+    {
+      "id": "data-particles",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-data-particles.pptx",
+      "slides": 39,
+      "sha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "license": "CC BY 4.0; local reference only",
+      "source": "SlidesCarnival Data Particles"
+    },
+    {
+      "id": "business-infographic",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-business-infographic.pptx",
+      "slides": 25,
+      "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "license": "CC BY 4.0; local reference only",
+      "source": "SlidesCarnival Business Infographic"
+    },
+    {
+      "id": "minimal-business",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-minimal-business.pptx",
+      "slides": 39,
+      "sha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "license": "CC BY 4.0; local reference only",
+      "source": "SlidesCarnival Minimal Business"
+    },
+    {
+      "id": "professional-minimalist",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-professional-minimalist.pptx",
+      "slides": 20,
+      "sha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "license": "CC BY 4.0; local reference only",
+      "source": "SlidesCarnival Professional Minimalist"
+    },
+    {
+      "id": "nasa-froste",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/nasa-froste-thermal-design.pptx",
+      "slides": 13,
+      "sha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "license": "NASA NTRS public reference",
+      "source": "NASA FROSTE thermal-control presentation"
+    },
+    {
+      "id": "nasa-mms",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/nasa-mms-machine-learning.pptx",
+      "slides": 21,
+      "sha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "license": "NASA NTRS public reference",
+      "source": "NASA MMS machine-learning presentation"
+    }
+  ],
+  "trackedAlternatives": {
+    "board": "evals/assets/presentations/quarterly-board-template.pptx",
+    "strategy": "evals/assets/presentations/strategy-review.pptx"
+  }
+}

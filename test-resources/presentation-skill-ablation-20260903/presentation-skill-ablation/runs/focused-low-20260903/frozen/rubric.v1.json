@@ -1,0 +1,115 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-rubric/v1",
+  "qualityTotal": 100,
+  "scale": {
+    "min": 1,
+    "max": 5,
+    "anchors": {
+      "1": "不可交付、破坏沟通或存在阻断错误",
+      "3": "基本可用但普通，或存在明显局部问题",
+      "5": "信息清楚、设计有意图、结构可靠、接近生产交付"
+    }
+  },
+  "dimensions": [
+    {
+      "id": "communication",
+      "scoreKey": "communicationEvidence",
+      "label": "沟通任务与证据表达",
+      "weight": 20,
+      "judge": "blind",
+      "anchor": "一眼能否理解受众任务、主张、证据顺序和行动含义；不得用未经提供的事实补洞"
+    },
+    {
+      "id": "hierarchy",
+      "scoreKey": "hierarchyReadabilityOccupancy",
+      "label": "视觉层级、阅读顺序与画布占用",
+      "weight": 15,
+      "judge": "blind",
+      "anchor": "主次、密度、留白、对齐和画布占用是否服务阅读；没有空洞或拥挤的逃避性布局"
+    },
+    {
+      "id": "craft",
+      "scoreKey": "designCraftSpecificity",
+      "label": "设计工艺与创意具体性",
+      "weight": 20,
+      "judge": "blind",
+      "anchor": "字体、几何、线条、图片、图表和重复 motif 是否形成有意且不模板化的视觉语法"
+    },
+    {
+      "id": "function",
+      "scoreKey": "functionalEditability",
+      "label": "功能与编辑保真",
+      "weight": 15,
+      "judge": "oracle",
+      "anchor": "PPJ/check/build、目标编辑、稳定 ID、source-bound 能力和二次导入是否通过"
+    },
+    {
+      "id": "integrity",
+      "scoreKey": "layerLayoutRender",
+      "label": "图层、布局与渲染稳健性",
+      "weight": 15,
+      "judge": "oracle+blind",
+      "anchor": "无溢出、裁切、遮挡；背景、蒙层、折线、数字、标签和来源层序正确且可读"
+    },
+    {
+      "id": "display",
+      "scoreKey": "displayMediumFit",
+      "label": "展示媒介适配",
+      "weight": 10,
+      "judge": "blind+evidence",
+      "anchor": "最终尺寸阅读清晰；live/hybrid 的动效或转场有叙事职责，不以结构证据冒充真实播放"
+    },
+    {
+      "id": "completion",
+      "scoreKey": "completionPolish",
+      "label": "完成度与交付抛光",
+      "weight": 5,
+      "judge": "blind",
+      "anchor": "没有临时占位、缺失来源、孤立装饰或未修复的明显问题"
+    }
+  ],
+  "hardGates": [
+    "schema-check",
+    "build",
+    "render",
+    "stable-ids-and-reimport",
+    "source-bound-scope",
+    "opaque-and-non-target-preservation",
+    "evidence-honesty",
+    "rights-and-attribution",
+    "no-overflow-or-occlusion",
+    "reader-no-unauthorized-motion"
+  ],
+  "efficiency": [
+    "inputTokens",
+    "outputTokens",
+    "reasoningTokens",
+    "wallTimeMs",
+    "skillFileReadBytes",
+    "skillFileReadCount",
+    "toolCallCount",
+    "imageSearchCount",
+    "retryCount",
+    "renderReviewPassCount"
+  ],
+  "analysis": {
+    "pairing": "case-level",
+    "summaries": [
+      "overall",
+      "0-to-1",
+      "1-to-10",
+      "scenario",
+      "image-vs-non-image"
+    ],
+    "tests": [
+      "exact-paired-permutation",
+      "sign-test",
+      "bootstrap-95-ci"
+    ],
+    "judgeAgreement": [
+      "dimension-mean-absolute-gap",
+      "rank-correlation"
+    ],
+    "rollout": "research-only; no automatic default change"
+  }
+}

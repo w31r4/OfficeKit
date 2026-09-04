@@ -1,0 +1,37 @@
+{
+  "schema": "office-kit/ppj-render/v1",
+  "input": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/main-snapshot/outputs/deck.ppj",
+  "output": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/main-snapshot/evidence/runner-rendered",
+  "programSha256": "a3803cd7049f4943fa9554504b78399ee27289dcec2c1d642d3d0086a2b17da5",
+  "candidateSha256": "7b8dc2e3c63ff8e45d64bd4bf71673049ef115722d9920fc7b102880019a7083",
+  "sourceBound": true,
+  "pageCount": 25,
+  "selectedPages": [
+    6,
+    7,
+    8
+  ],
+  "renderer": "libreoffice-poppler",
+  "renderEvidence": "native-file-render",
+  "visualReview": "requires-human",
+  "pages": [
+    {
+      "page": 6,
+      "file": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/main-snapshot/evidence/runner-rendered/slide-006.png",
+      "sha256": "366b3b9b84a53af1ca5aa162e76c3b49f6d7541ec589f9237258e0da887555a8",
+      "bytes": 105411
+    },
+    {
+      "page": 7,
+      "file": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/main-snapshot/evidence/runner-rendered/slide-007.png",
+      "sha256": "e1270382e09a12856e0b3aeccb2afa997ee7644fbcd2d2ce9cfab48daf1d89b6",
+      "bytes": 1724802
+    },
+    {
+      "page": 8,
+      "file": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/main-snapshot/evidence/runner-rendered/slide-008.png",
+      "sha256": "9485f0433c7da688d24179473c823e2de6bd4a053e95177b668b4378d5ad2e91",
+      "bytes": 118099
+    }
+  ]
+}

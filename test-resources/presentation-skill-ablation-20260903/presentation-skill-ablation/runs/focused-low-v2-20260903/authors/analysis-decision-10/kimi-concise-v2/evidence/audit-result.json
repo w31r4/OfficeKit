@@ -1,0 +1,76 @@
+{
+  "runRoot": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903",
+  "caseId": "analysis-decision-10",
+  "arm": "kimi-concise-v2",
+  "artifact": {
+    "schema": "office-kit/presentation-skill-ablation-artifact-evidence/v1",
+    "caseId": "analysis-decision-10",
+    "lifecycle": "1-to-10",
+    "checkedAt": "2026-09-03T13:09:54.591Z",
+    "paths": {
+      "ppj": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/outputs/deck.ppj",
+      "pptx": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/outputs/deck.pptx"
+    },
+    "commands": [
+      {
+        "name": "check",
+        "code": 0,
+        "durationMs": 29460,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "durationMs": 9742,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "render",
+        "code": 0,
+        "durationMs": 70760,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/render--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/render--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      },
+      {
+        "name": "review",
+        "code": 0,
+        "durationMs": 16874,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/review--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/review--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      },
+      {
+        "name": "reimport",
+        "code": 1,
+        "durationMs": 3967,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/import--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/analysis-decision-10/kimi-concise-v2/evidence/import--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      }
+    ],
+    "gates": {
+      "schema": "passed",
+      "build": "passed",
+      "render": "passed",
+      "review": "passed",
+      "reimport": "failed",
+      "overall": "passed"
+    },
+    "source": {
+      "fixtureId": "data-particles",
+      "targetPage": 8,
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-data-particles.pptx",
+      "sha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "status": "source-hash-ok",
+      "actualSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f"
+    },
+    "stableIds": {
+      "status": "ok",
+      "count": 1221
+    },
+    "metrics": {
+      "ppjBytes": 5951395,
+      "pptxBytes": 3382810
+    }
+  }
+}

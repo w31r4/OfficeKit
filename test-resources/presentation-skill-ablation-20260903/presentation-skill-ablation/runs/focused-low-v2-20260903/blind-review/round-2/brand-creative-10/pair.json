@@ -1,0 +1,18 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-blind-set/v1",
+  "caseId": "brand-creative-10",
+  "round": 2,
+  "slots": [
+    "A",
+    "B"
+  ],
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "files": {
+    "A": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-2/brand-creative-10/A",
+    "B": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-2/brand-creative-10/B"
+  },
+  "createdAt": "2026-09-03T13:40:17.927Z"
+}

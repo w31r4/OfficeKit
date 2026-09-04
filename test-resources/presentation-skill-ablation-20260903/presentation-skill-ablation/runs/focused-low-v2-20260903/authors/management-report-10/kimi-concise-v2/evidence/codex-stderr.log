@@ -1,0 +1,14 @@
+Reading prompt from stdin...
+2026-09-03T12:51:23.375367Z ERROR codex_models_manager::cache: failed to load models cache: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:53:47.408390Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T12:53:49.728185Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:54:00.321105Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:54:11.052164Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:56:57.583219Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:57:20.177075Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:00:00.208482Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:00:13.382763Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:00:52.091627Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/outputs/deck.ppj:
+                "id": "nl_2f9576ee2763ffffe332b8aa03582b1c",
+                "kind": "topEmu",
+                "value": 3165459

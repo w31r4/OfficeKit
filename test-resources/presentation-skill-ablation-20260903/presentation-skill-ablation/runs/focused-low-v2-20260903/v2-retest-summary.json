@@ -1,0 +1,80 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-kimi-concise-v2-retest/v1",
+  "generatedAt": "2026-09-03",
+  "runRoot": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903",
+  "commit": "9b86939ae513055836ce470af6bcec2db1e3c6e0",
+  "skills": {
+    "mainSnapshot": {
+      "arm": "shared-what-kind-how",
+      "sha256": "8e595264e51bd54d897e3bd9dafafac6362a220dcec75f8ccb7a2706bc2c3b13"
+    },
+    "kimiConciseV2": {
+      "arm": "kimi-concise",
+      "sha256": "df1a4e998991d91a259456ff670d7323a7a369c3e8922206e68848dad86bc31e"
+    }
+  },
+  "design": {
+    "cases": [
+      "analysis-decision-10",
+      "management-report-10",
+      "academic-research-10",
+      "brand-creative-10"
+    ],
+    "authors": 8,
+    "blindJudgeRuns": 8,
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "preimportedIdenticalBases": true
+  },
+  "threshold": {
+    "highQuality": 85
+  },
+  "strict": {
+    "authorGatePassCount": {
+      "main": "3/4",
+      "kimiV2": "3/4"
+    },
+    "eligiblePairedRounds": 4,
+    "wins": {
+      "main": 0,
+      "kimiV2": 0,
+      "tie": 4
+    },
+    "quality": {
+      "main": {
+        "n": 4,
+        "median": 68.5,
+        "mean": 68.0,
+        "high85": 0
+      },
+      "kimiV2": {
+        "n": 4,
+        "median": 68.5,
+        "mean": 68.0,
+        "high85": 0
+      }
+    }
+  },
+  "diagnostic": {
+    "rounds": 8,
+    "qualityMedian": {
+      "main": 67.5,
+      "kimiV2": 67.5
+    },
+    "high85": {
+      "main": 0,
+      "kimiV2": 0
+    }
+  },
+  "efficiency": {
+    "mainMeanWallTimeMs": 479934.5,
+    "kimiV2MeanWallTimeMs": 531392
+  },
+  "limitations": [
+    "只复测此前四个低分 1-to-10 case，不是完整 12 case 研究。",
+    "analysis-decision-10 与 academic-research-10 的指定页没有 brief 所称的可编辑目标表面。",
+    "management-report-10 的 Kimi v2 check 触发 ppj.schema.pattern 有界时间预算错误。",
+    "brand-creative-10 的 main snapshot 没有留下最终 PPTX。",
+    "没有桌面 PowerPoint 播放证据。"
+  ]
+}

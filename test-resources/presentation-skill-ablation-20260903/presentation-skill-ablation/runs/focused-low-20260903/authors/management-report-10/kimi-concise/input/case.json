@@ -1,0 +1,26 @@
+{
+  "id": "management-report-10",
+  "scenario": "management-report",
+  "lifecycle": "1-to-10",
+  "deliveryMode": "hybrid",
+  "designSource": "template",
+  "source": {
+    "fixtureId": "business-infographic",
+    "targetPage": 7,
+    "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-business-infographic.pptx",
+    "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26"
+  },
+  "brief": "Import the assigned source page. Step 1: change the requested KPI text and one table value using the existing native fields. Step 2: improve the page's hierarchy with a local typography/spacing adjustment and, only if needed, a crop or layer adjustment; preserve the source's communication contract and all non-target content.",
+  "requiredCapabilities": [
+    "source-bound",
+    "rich-text",
+    "table",
+    "image-background",
+    "review"
+  ],
+  "editSteps": [
+    "native KPI/table value edit",
+    "typography/spacing or crop repair"
+  ],
+  "designReference": null
+}

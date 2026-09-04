@@ -1,0 +1,14 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-authors-index/v1",
+  "updatedAt": "2026-09-03T13:39:52.217Z",
+  "records": [
+    "authors/academic-research-10/kimi-concise-v2/evidence/author-run.json",
+    "authors/academic-research-10/main-snapshot/evidence/author-run.json",
+    "authors/analysis-decision-10/kimi-concise-v2/evidence/author-run.json",
+    "authors/analysis-decision-10/main-snapshot/evidence/author-run.json",
+    "authors/brand-creative-10/kimi-concise-v2/evidence/author-run.json",
+    "authors/brand-creative-10/main-snapshot/evidence/author-run.json",
+    "authors/management-report-10/kimi-concise-v2/evidence/author-run.json",
+    "authors/management-report-10/main-snapshot/evidence/author-run.json"
+  ]
+}

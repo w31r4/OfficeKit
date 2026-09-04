@@ -1,0 +1,17 @@
+Reading prompt from stdin...
+2026-09-03T13:42:20.699594Z ERROR codex_models_manager::cache: failed to load models cache: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:43:42.536688Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:43:47.648141Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:43:57.407200Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:44:06.698099Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:44:20.562468Z ERROR codex_core::tools::router: error=unable to locate image at `/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/runner-rendered/slide-003.png`: No such file or directory (os error 2)
+2026-09-03T13:44:20.562481Z ERROR codex_core::tools::router: error=unable to locate image at `/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/runner-rendered/slide-005.png`: No such file or directory (os error 2)
+2026-09-03T13:44:20.562499Z ERROR codex_core::tools::router: error=unable to locate image at `/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/runner-rendered/slide-004.png`: No such file or directory (os error 2)
+2026-09-03T13:44:20.584078Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:44:26.727543Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:44:42.240786Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:44:50.681595Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:45:08.845335Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:45:55.874931Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:46:05.544457Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:46:19.225863Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5

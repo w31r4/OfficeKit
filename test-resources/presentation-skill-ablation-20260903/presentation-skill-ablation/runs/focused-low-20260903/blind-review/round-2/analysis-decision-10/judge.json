@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-judge-run/v1",
+  "caseId": "analysis-decision-10",
+  "round": 2,
+  "startedAt": "2026-09-03T12:30:55.099Z",
+  "finishedAt": "2026-09-03T12:33:32.454Z",
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": "600000",
+    "code": 0,
+    "durationMs": 157345,
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/blind-review/round-2/analysis-decision-10/judge/events.jsonl",
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/blind-review/round-2/analysis-decision-10/judge/final.txt"
+  },
+  "usage": {
+    "jsonlEvents": 5,
+    "fileReads": 0,
+    "toolCalls": 0,
+    "imageSearches": 0,
+    "retries": 0,
+    "checkPasses": 0,
+    "buildPasses": 0,
+    "renderPasses": 0,
+    "reviewPasses": 0,
+    "tokens": {
+      "inputTokens": 30305,
+      "outputTokens": 6407
+    }
+  },
+  "score": {
+    "caseId": "analysis-decision-10",
+    "round": 2,
+    "scores": {
+      "A": {
+        "communicationEvidence": 4,
+        "hierarchyReadabilityOccupancy": 4,
+        "designCraftSpecificity": 4,
+        "functionalEditability": 4,
+        "layerLayoutRender": 4,
+        "displayMediumFit": 4,
+        "completionPolish": 4
+      },
+      "B": {
+        "communicationEvidence": 4,
+        "hierarchyReadabilityOccupancy": 3,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 4,
+        "layerLayoutRender": 4,
+        "displayMediumFit": 3,
+        "completionPolish": 3
+      }
+    },
+    "winner": "A",
+    "confidence": 4,
+    "hardGate": {
+      "A": "passed",
+      "B": "passed"
+    },
+    "reason": "A preserves the distinctive serif/sans typography, gives body copy more room, and avoids the denser wrapping seen in B. Both render cleanly and pass the structural gate, but B feels less source-faithful and less polished."
+  },
+  "status": "valid"
+}

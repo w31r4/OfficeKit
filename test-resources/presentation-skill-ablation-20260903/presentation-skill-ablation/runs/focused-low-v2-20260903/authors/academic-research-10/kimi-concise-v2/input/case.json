@@ -1,0 +1,28 @@
+{
+  "id": "academic-research-10",
+  "scenario": "academic-research",
+  "lifecycle": "1-to-10",
+  "deliveryMode": "reader",
+  "designSource": "template",
+  "source": {
+    "fixtureId": "nasa-mms",
+    "targetPage": 9,
+    "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/nasa-mms-machine-learning.pptx",
+    "sha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723"
+  },
+  "brief": "Import the assigned research page. Step 1: update the supplied sample-size note and one result label, retaining uncertainty and source attribution. Step 2: repair the local table/chart alignment and label spacing so no number, interval, or footnote is hidden; do not change the conclusion or unrelated source parts.",
+  "requiredCapabilities": [
+    "source-bound",
+    "text",
+    "table",
+    "chart",
+    "rich-text",
+    "review"
+  ],
+  "editSteps": [
+    "native note/result-label edit",
+    "table/chart alignment and label repair"
+  ],
+  "basePpj": "outputs/deck.ppj",
+  "designReference": null
+}

@@ -1,0 +1,10 @@
+You are a blind evaluator for a presentation quality study. Do not infer or mention which Skill produced any slot.
+Case: brand-creative-10; scenario=brand-creative; lifecycle=1-to-10
+Brief: Import the assigned launch page. Step 1: replace the supplied product promise text with the approved copy and update one specification label. Step 2: replace or crop the hero image and repair the foreground contrast/type layer so the reveal is premium, legible, editable, and unchanged outside the requested page.
+
+Inspect attached rendered pages and, when present, local structural evidence. Slots A, B are randomized labels and do not identify an authoring route.
+Score each dimension independently from 1 to 5. Anchor 1 = undeliverable or communication-breaking; 3 = usable but ordinary with a clear local issue; 5 = clear information, intentional design, reliable structure, close to production delivery.
+Weights: communication/evidence 20; hierarchy/readability/occupancy 15; design craft/creative specificity 20; functional/editability 15; layer/layout/render robustness 15; display/medium fit 10; completion/polish 5.
+Treat any structural hard-gate failure shown in evidence as a failure regardless of appearance. The redacted oracle summary is A=failed, B=passed. Do not claim playback unless evidence explicitly records a real host.
+
+This is blind round 1. Return JSON only: {caseId, round, scores:{A:{communicationEvidence,hierarchyReadabilityOccupancy,designCraftSpecificity,functionalEditability,layerLayoutRender,displayMediumFit,completionPolish},B:{communicationEvidence,hierarchyReadabilityOccupancy,designCraftSpecificity,functionalEditability,layerLayoutRender,displayMediumFit,completionPolish}},winner:"A|B|tie|invalid",confidence:1-5,hardGate:{A:"passed|failed|unknown",B:"passed|failed|unknown"},reason:"brief evidence-based reason"}.

@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-judge-run/v1",
+  "caseId": "brand-creative-10",
+  "round": 1,
+  "startedAt": "2026-09-03T13:42:19.991Z",
+  "finishedAt": "2026-09-03T13:49:58.591Z",
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": "600000",
+    "code": 0,
+    "durationMs": 458596,
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-1/brand-creative-10/judge/events.jsonl",
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-1/brand-creative-10/judge/final.txt"
+  },
+  "usage": {
+    "jsonlEvents": 75,
+    "fileReads": 0,
+    "toolCalls": 68,
+    "imageSearches": 0,
+    "retries": 0,
+    "checkPasses": 13,
+    "buildPasses": 12,
+    "renderPasses": 18,
+    "reviewPasses": 34,
+    "tokens": {
+      "inputTokens": 2751091,
+      "outputTokens": 15549
+    }
+  },
+  "score": {
+    "caseId": "brand-creative-10",
+    "round": 1,
+    "scores": {
+      "A": {
+        "communicationEvidence": 1,
+        "hierarchyReadabilityOccupancy": 1,
+        "designCraftSpecificity": 1,
+        "functionalEditability": 1,
+        "layerLayoutRender": 1,
+        "displayMediumFit": 1,
+        "completionPolish": 1
+      },
+      "B": {
+        "communicationEvidence": 3,
+        "hierarchyReadabilityOccupancy": 4,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 4,
+        "layerLayoutRender": 4,
+        "displayMediumFit": 4,
+        "completionPolish": 3
+      }
+    },
+    "winner": "B",
+    "confidence": 5,
+    "hardGate": {
+      "A": "failed",
+      "B": "passed"
+    },
+    "reason": "A has no final PPTX and no render/review/reimport evidence. B is natively rendered, visually coherent, legible, and structurally source-bound with stable-ID/reimport evidence, but the requested product-specific copy, specification, and hero edits are not visible and review retains warnings."
+  },
+  "status": "valid"
+}

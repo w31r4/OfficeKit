@@ -1,0 +1,37 @@
+{
+  "schema": "office-kit/ppj-render/v1",
+  "input": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/deck.ppj",
+  "output": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/previews-before-20260903",
+  "programSha256": "f3fe8cbf0859b5f79c765f30d71ccb2068c9a06ab4998dc131b57de26b61440f",
+  "candidateSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+  "sourceBound": true,
+  "pageCount": 20,
+  "selectedPages": [
+    3,
+    4,
+    5
+  ],
+  "renderer": "libreoffice-poppler",
+  "renderEvidence": "native-file-render",
+  "visualReview": "requires-human",
+  "pages": [
+    {
+      "page": 3,
+      "file": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/previews-before-20260903/slide-003.png",
+      "sha256": "0d813a2e95447d9ccc0ba57dfca9a6a0b942a7f3e2f4467d0294c946225c397a",
+      "bytes": 48653
+    },
+    {
+      "page": 4,
+      "file": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/previews-before-20260903/slide-004.png",
+      "sha256": "d2fb2c32da2441bc65120f13a19b7bcc06040a959653bb854d0a42fa4ddb2533",
+      "bytes": 142879
+    },
+    {
+      "page": 5,
+      "file": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/kimi-concise-v2/outputs/previews-before-20260903/slide-005.png",
+      "sha256": "b6a0371055656909a7012dc1261c5fdd63c5bfaa9674d1bbf1d45a6b2cf03f56",
+      "bytes": 1969701
+    }
+  ]
+}

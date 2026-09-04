@@ -1,0 +1,39 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-capability-coverage/v1",
+  "required": [
+    "text",
+    "rich-text",
+    "shape",
+    "line-connector",
+    "image-background",
+    "mask-opacity",
+    "chart",
+    "table",
+    "group-z-order",
+    "formula",
+    "motion",
+    "source-bound",
+    "review"
+  ],
+  "assignments": {
+    "text": ["analysis-decision-01", "management-report-01", "brand-creative-10"],
+    "rich-text": ["management-report-01", "academic-research-01", "academic-research-10"],
+    "shape": ["technical-engineering-01", "education-training-01"],
+    "line-connector": ["analysis-decision-01", "technical-engineering-01", "technical-engineering-10"],
+    "image-background": ["education-training-01", "brand-creative-01", "management-report-10", "brand-creative-10"],
+    "mask-opacity": ["brand-creative-01", "education-training-10", "brand-creative-10"],
+    "chart": ["analysis-decision-01", "academic-research-01", "analysis-decision-10", "academic-research-10"],
+    "table": ["management-report-01", "academic-research-01", "management-report-10", "academic-research-10"],
+    "group-z-order": ["analysis-decision-01", "technical-engineering-01", "analysis-decision-10", "technical-engineering-10"],
+    "formula": ["academic-research-01"],
+    "motion": ["technical-engineering-01", "education-training-01", "brand-creative-01", "education-training-10", "brand-creative-10"],
+    "source-bound": ["analysis-decision-10", "management-report-10", "technical-engineering-10", "academic-research-10", "education-training-10", "brand-creative-10"],
+    "review": [
+      "analysis-decision-01", "management-report-01", "technical-engineering-01",
+      "academic-research-01", "education-training-01", "brand-creative-01",
+      "analysis-decision-10", "management-report-10", "technical-engineering-10",
+      "academic-research-10", "education-training-10", "brand-creative-10"
+    ]
+  },
+  "coverageRule": "Every required tag must be exercised or explicitly marked unavailable before author runs; scenario count is not capability coverage."
+}

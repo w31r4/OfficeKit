@@ -1,0 +1,129 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-cases/v1",
+  "frozenAt": "2026-09-02",
+  "seed": 20260902,
+  "model": {
+    "id": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": 1200000
+  },
+  "arms": [
+    "current-production",
+    "kimi-concise"
+  ],
+  "imagePolicy": {
+    "mode": "independent-live-search",
+    "providers": [
+      "openverse",
+      "wikimedia",
+      "lucide"
+    ],
+    "maxQueries": 3,
+    "maxCandidatesPerQuery": 5,
+    "imageGeneration": false,
+    "rights": [
+      "public-domain",
+      "cc0",
+      "cc-by",
+      "user-provided",
+      "official-press-kit"
+    ]
+  },
+  "cases": [
+    {
+      "id": "analysis-decision-10",
+      "scenario": "analysis-decision",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "reader",
+      "designSource": "template",
+      "source": {
+        "fixtureId": "data-particles",
+        "targetPage": 8
+      },
+      "brief": "Import the assigned source page. Step 1: update the supplied endpoint metric and its label without changing the chart's meaning or any non-target data. Step 2: repair the visual composition so bars, line, labels, and the endpoint callout do not overlap; preserve the source style and all unrelated package parts.",
+      "requiredCapabilities": [
+        "source-bound",
+        "chart",
+        "text",
+        "group-z-order",
+        "review"
+      ],
+      "editSteps": [
+        "semantic endpoint value/label edit",
+        "chart label and layer repair"
+      ]
+    },
+    {
+      "id": "management-report-10",
+      "scenario": "management-report",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "hybrid",
+      "designSource": "template",
+      "source": {
+        "fixtureId": "business-infographic",
+        "targetPage": 7
+      },
+      "brief": "Import the assigned source page. Step 1: change the requested KPI text and one table value using the existing native fields. Step 2: improve the page's hierarchy with a local typography/spacing adjustment and, only if needed, a crop or layer adjustment; preserve the source's communication contract and all non-target content.",
+      "requiredCapabilities": [
+        "source-bound",
+        "rich-text",
+        "table",
+        "image-background",
+        "review"
+      ],
+      "editSteps": [
+        "native KPI/table value edit",
+        "typography/spacing or crop repair"
+      ]
+    },
+    {
+      "id": "academic-research-10",
+      "scenario": "academic-research",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "reader",
+      "designSource": "template",
+      "source": {
+        "fixtureId": "nasa-mms",
+        "targetPage": 9
+      },
+      "brief": "Import the assigned research page. Step 1: update the supplied sample-size note and one result label, retaining uncertainty and source attribution. Step 2: repair the local table/chart alignment and label spacing so no number, interval, or footnote is hidden; do not change the conclusion or unrelated source parts.",
+      "requiredCapabilities": [
+        "source-bound",
+        "text",
+        "table",
+        "chart",
+        "rich-text",
+        "review"
+      ],
+      "editSteps": [
+        "native note/result-label edit",
+        "table/chart alignment and label repair"
+      ]
+    },
+    {
+      "id": "brand-creative-10",
+      "scenario": "brand-creative",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "live",
+      "designSource": "template",
+      "source": {
+        "fixtureId": "professional-minimalist",
+        "targetPage": 4
+      },
+      "brief": "Import the assigned launch page. Step 1: replace the supplied product promise text with the approved copy and update one specification label. Step 2: replace or crop the hero image and repair the foreground contrast/type layer so the reveal is premium, legible, editable, and unchanged outside the requested page.",
+      "requiredCapabilities": [
+        "source-bound",
+        "image-background",
+        "mask-opacity",
+        "text",
+        "rich-text",
+        "motion",
+        "review"
+      ],
+      "editSteps": [
+        "approved promise/specification edit",
+        "hero image/crop and foreground contrast repair"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+Reading prompt from stdin...
+2026-09-03T12:51:23.245633Z ERROR codex_core_skills::service: failed to install system skills: io error while remove existing system skills dir: Directory not empty (os error 66)
+2026-09-03T12:51:23.375369Z ERROR codex_models_manager::cache: failed to load models cache: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:53:58.018312Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:54:12.589634Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:54:19.981592Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T12:57:24.929800Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5

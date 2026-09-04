@@ -1,0 +1,18 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-blind-set/v1",
+  "caseId": "analysis-decision-10",
+  "round": 2,
+  "slots": [
+    "A",
+    "B"
+  ],
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "files": {
+    "A": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/blind-review/round-2/analysis-decision-10/A",
+    "B": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/blind-review/round-2/analysis-decision-10/B"
+  },
+  "createdAt": "2026-09-03T12:30:55.095Z"
+}

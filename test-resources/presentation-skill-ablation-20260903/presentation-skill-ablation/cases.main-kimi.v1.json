@@ -1,0 +1,156 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-cases/v1",
+  "frozenAt": "2026-09-02",
+  "seed": 20260902,
+  "model": {
+    "id": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": 1200000
+  },
+  "arms": ["current-production", "kimi-concise"],
+  "imagePolicy": {
+    "mode": "independent-live-search",
+    "providers": ["openverse", "wikimedia", "lucide"],
+    "maxQueries": 3,
+    "maxCandidatesPerQuery": 5,
+    "imageGeneration": false,
+    "rights": ["public-domain", "cc0", "cc-by", "user-provided", "official-press-kit"]
+  },
+  "cases": [
+    {
+      "id": "analysis-decision-01",
+      "scenario": "analysis-decision",
+      "lifecycle": "0-to-1",
+      "deliveryMode": "reader",
+      "designSource": "self-directed",
+      "brief": "Create one dense decision page for an operations review. The claim is: P1 incident hours fell 38% while protected workload grew 27%. Show eight half-year observations, distinguish measured bars from the indexed line, call out the endpoint comparison, and end with the next constraint. Use supplied numbers only and label the data as illustrative.",
+      "requiredCapabilities": ["text", "chart", "line-connector", "group-z-order", "review"],
+      "imageNeed": "none",
+      "acceptance": ["bars and line remain legible", "no continuous line through an unknown observation", "one clear decision takeaway", "no card wall"]
+    },
+    {
+      "id": "management-report-01",
+      "scenario": "management-report",
+      "lifecycle": "0-to-1",
+      "deliveryMode": "hybrid",
+      "designSource": "design-system",
+      "brief": "Create one management page explaining a quarter that grew revenue but missed the service-level target. Include the supplied revenue, margin, incident, and target figures, a short cause/effect explanation, and one explicit owner action. Use a restrained editorial system: one ink color, one accent, thin rules, and readable source notes.",
+      "requiredCapabilities": ["text", "rich-text", "chart", "table", "review"],
+      "imageNeed": "none",
+      "acceptance": ["the missed target is unmistakable", "the action is visually downstream of the evidence", "numbers have units and provenance", "no equal panels"]
+    },
+    {
+      "id": "technical-engineering-01",
+      "scenario": "technical-engineering",
+      "lifecycle": "0-to-1",
+      "deliveryMode": "live",
+      "designSource": "template",
+      "brief": "Create one architecture page for a telemetry pipeline: edge collectors send events to a validation layer, then to a stream processor, feature store, and alert service. Show the causal path, a failure boundary, and the one latency number that matters. Prefer native nodes and connectors over decorative shapes.",
+      "requiredCapabilities": ["shape", "line-connector", "group-z-order", "text", "review"],
+      "imageNeed": "icon",
+      "designReference": "examples/presentation-template-references/codex/artifact-template-project-kickoff/SKILL.md",
+      "acceptance": ["every connector has an unambiguous source and destination", "failure boundary is visible", "labels do not cover connectors", "motion is optional and structural only"]
+    },
+    {
+      "id": "academic-research-01",
+      "scenario": "academic-research",
+      "lifecycle": "0-to-1",
+      "deliveryMode": "reader",
+      "designSource": "style-transfer",
+      "brief": "Create one research-results page for a controlled experiment. Show the hypothesis, baseline and treatment means, a confidence interval, sample sizes, and the decision rule. Use a formula only for the stated effect calculation. Make uncertainty and missing observations explicit.",
+      "requiredCapabilities": ["text", "rich-text", "formula", "chart", "table", "review"],
+      "imageNeed": "none",
+      "designReference": "examples/presentation-template-references/kimi/academic/blue-line-courseware/reference.jpg",
+      "acceptance": ["effect and uncertainty are not conflated", "sample sizes remain visible", "formula is bounded and editable", "no invented result"]
+    },
+    {
+      "id": "education-training-01",
+      "scenario": "education-training",
+      "lifecycle": "0-to-1",
+      "deliveryMode": "live",
+      "designSource": "self-directed",
+      "brief": "Create one teaching page that explains a three-step incident response loop: detect, contain, learn. The audience should be able to repeat the sequence after one minute. Use one sourced contextual image or icon only if it clarifies the loop, and use a short progressive reveal without auto-advance.",
+      "requiredCapabilities": ["text", "shape", "line-connector", "image-background", "motion", "review"],
+      "imageNeed": "context",
+      "acceptance": ["the three steps read in order", "the image has an instructional role", "no decorative icon cloud", "motion does not hide the full static story"]
+    },
+    {
+      "id": "brand-creative-01",
+      "scenario": "brand-creative",
+      "lifecycle": "0-to-1",
+      "deliveryMode": "live",
+      "designSource": "style-transfer",
+      "brief": "Create one product-launch reveal for a quiet home audio device. Establish a memorable visual thesis, show the product promise and three concrete differentiators, and make the hero image carry the atmosphere while editable type carries the claim. Use a deliberate background image, contrast treatment, and display typography without fake product facts.",
+      "requiredCapabilities": ["image-background", "mask-opacity", "text", "shape", "motion", "review"],
+      "imageNeed": "hero",
+      "designReference": "examples/presentation-template-references/kimi/work/blue-flame-brand/reference.jpg",
+      "acceptance": ["hero image supports the promise", "foreground type remains readable", "the page has one visual thesis", "no stock-photo filler or unsupported claims"]
+    },
+    {
+      "id": "analysis-decision-10",
+      "scenario": "analysis-decision",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "reader",
+      "designSource": "template",
+      "source": {"fixtureId": "data-particles", "targetPage": 8},
+      "brief": "Import the assigned source page. Step 1: update the supplied endpoint metric and its label without changing the chart's meaning or any non-target data. Step 2: repair the visual composition so bars, line, labels, and the endpoint callout do not overlap; preserve the source style and all unrelated package parts.",
+      "requiredCapabilities": ["source-bound", "chart", "text", "group-z-order", "review"],
+      "editSteps": ["semantic endpoint value/label edit", "chart label and layer repair"]
+    },
+    {
+      "id": "management-report-10",
+      "scenario": "management-report",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "hybrid",
+      "designSource": "template",
+      "source": {"fixtureId": "business-infographic", "targetPage": 7},
+      "brief": "Import the assigned source page. Step 1: change the requested KPI text and one table value using the existing native fields. Step 2: improve the page's hierarchy with a local typography/spacing adjustment and, only if needed, a crop or layer adjustment; preserve the source's communication contract and all non-target content.",
+      "requiredCapabilities": ["source-bound", "rich-text", "table", "image-background", "review"],
+      "editSteps": ["native KPI/table value edit", "typography/spacing or crop repair"]
+    },
+    {
+      "id": "technical-engineering-10",
+      "scenario": "technical-engineering",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "live",
+      "designSource": "template",
+      "source": {"fixtureId": "nasa-froste", "targetPage": 6},
+      "brief": "Import the assigned engineering page. Step 1: rename one system node and update its measured constraint while keeping the connector topology. Step 2: move or restyle the local node/connector group so the causal path and labels are readable, with no connector or evidence obstruction and no unrelated slide mutation.",
+      "requiredCapabilities": ["source-bound", "shape", "line-connector", "group-z-order", "review"],
+      "editSteps": ["native node text/constraint edit", "local geometry and connector readability repair"]
+    },
+    {
+      "id": "academic-research-10",
+      "scenario": "academic-research",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "reader",
+      "designSource": "template",
+      "source": {"fixtureId": "nasa-mms", "targetPage": 9},
+      "brief": "Import the assigned research page. Step 1: update the supplied sample-size note and one result label, retaining uncertainty and source attribution. Step 2: repair the local table/chart alignment and label spacing so no number, interval, or footnote is hidden; do not change the conclusion or unrelated source parts.",
+      "requiredCapabilities": ["source-bound", "text", "table", "chart", "rich-text", "review"],
+      "editSteps": ["native note/result-label edit", "table/chart alignment and label repair"]
+    },
+    {
+      "id": "education-training-10",
+      "scenario": "education-training",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "live",
+      "designSource": "template",
+      "source": {"fixtureId": "minimal-business", "targetPage": 12},
+      "brief": "Import the assigned instructional page. Step 1: update one step label and the timing note. Step 2: adjust the image crop/mask or progressive reveal so the teaching sequence remains visible and no overlay covers a connector, label, or evidence object; retain the existing native/editable structure.",
+      "requiredCapabilities": ["source-bound", "text", "image-background", "mask-opacity", "motion", "review"],
+      "editSteps": ["native step/timing edit", "crop/mask or motion readability repair"]
+    },
+    {
+      "id": "brand-creative-10",
+      "scenario": "brand-creative",
+      "lifecycle": "1-to-10",
+      "deliveryMode": "live",
+      "designSource": "template",
+      "source": {"fixtureId": "professional-minimalist", "targetPage": 4},
+      "brief": "Import the assigned launch page. Step 1: replace the supplied product promise text with the approved copy and update one specification label. Step 2: replace or crop the hero image and repair the foreground contrast/type layer so the reveal is premium, legible, editable, and unchanged outside the requested page.",
+      "requiredCapabilities": ["source-bound", "image-background", "mask-opacity", "text", "rich-text", "motion", "review"],
+      "editSteps": ["approved promise/specification edit", "hero image/crop and foreground contrast repair"]
+    }
+  ]
+}

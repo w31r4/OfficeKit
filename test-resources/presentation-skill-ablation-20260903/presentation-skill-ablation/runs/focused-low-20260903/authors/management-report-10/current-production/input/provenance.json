@@ -1,0 +1,15 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-author-input/v1",
+  "caseId": "management-report-10",
+  "arm": "current-production",
+  "createdAt": "2026-09-03T11:47:58.337Z",
+  "skillPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/arms/current-production/SKILL.md",
+  "skillSha256": "8e595264e51bd54d897e3bd9dafafac6362a220dcec75f8ccb7a2706bc2c3b13",
+  "source": {
+    "fixtureId": "business-infographic",
+    "targetPage": 7,
+    "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-business-infographic.pptx",
+    "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26"
+  },
+  "designReference": null
+}

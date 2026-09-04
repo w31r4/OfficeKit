@@ -1,0 +1,11 @@
+Completed with fail-closed behavior. Page 8 has no chart, endpoint metric/label, bars, line, or callout, so both edit stages remain unchanged.
+
+All required gates passed; source SHA-256 remained `07cd6c7e…3464f`, with existing warnings only.
+
+Files:
+
+- [deck.ppj](<.../outputs/deck.ppj>)
+- [deck.pptx](<.../outputs/deck.pptx>)
+- [review.json](<.../outputs/review.json>)
+- [author-report.md](<.../outputs/author-report.md>)
+- [reimport.ppj](<.../evidence/reimport.ppj>)

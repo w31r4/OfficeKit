@@ -1,0 +1,203 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-study/v1",
+  "preparedAt": "2026-09-03T11:26:17.808Z",
+  "seed": 20260902,
+  "model": {
+    "id": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": 1200000
+  },
+  "arms": [
+    "current-production",
+    "kimi-concise"
+  ],
+  "identity": {
+    "repoRoot": "/Users/zfang/workspace/officekit-main-skill-eval-20260903",
+    "branch": "",
+    "head": "9b86939ae513055836ce470af6bcec2db1e3c6e0",
+    "originMain": "9b86939ae513055836ce470af6bcec2db1e3c6e0",
+    "node": "v26.7.0",
+    "platform": "darwin-arm64",
+    "codex": "codex-cli 0.144.5",
+    "officekit": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/bin/officekit.mjs",
+    "dirtyMainPreserved": true
+  },
+  "manifests": {
+    "casesSha256": "ee132f0ad7b9bad0b0b821528b07eafcfcc0de5e0d40a5e98d5aacb239059623",
+    "rubricSha256": "19e76da4480cc250f93b5ddc1b84c2f3ee99d4f2635a84636594c54ed54cfd42",
+    "coverageSha256": "cb52c3a3a0f16aea7b795c9d55f1a257e626a5423c610c060b9fbb61fdeeb19c",
+    "fixturesSha256": "6df72e6966e0b369054f4e4c100a557e620342a40b45e5fc021d21cb7c613962",
+    "commonSha256": "e0c091acb7ae489806dc929c783e84c0a8aa40c1ac99118f2a230d5f65930d29",
+    "armSha256": {
+      "current-production": "020122d0aa61a86e912a26b11cf137db0df8109a38e556cf16cbb72c74245987",
+      "kimi-concise": "012bb1ebe9fd48863fb02697b21b8a40371c89f27571afd1848104c6f76cb7e4"
+    }
+  },
+  "schedule": [
+    {
+      "caseId": "analysis-decision-01",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "analysis-decision-01",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "management-report-01",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "management-report-01",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "technical-engineering-01",
+      "arm": "current-production",
+      "order": 1
+    },
+    {
+      "caseId": "technical-engineering-01",
+      "arm": "kimi-concise",
+      "order": 2
+    },
+    {
+      "caseId": "academic-research-01",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "academic-research-01",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "education-training-01",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "education-training-01",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "brand-creative-01",
+      "arm": "current-production",
+      "order": 1
+    },
+    {
+      "caseId": "brand-creative-01",
+      "arm": "kimi-concise",
+      "order": 2
+    },
+    {
+      "caseId": "analysis-decision-10",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "analysis-decision-10",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "management-report-10",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "management-report-10",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "technical-engineering-10",
+      "arm": "current-production",
+      "order": 1
+    },
+    {
+      "caseId": "technical-engineering-10",
+      "arm": "kimi-concise",
+      "order": 2
+    },
+    {
+      "caseId": "academic-research-10",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "academic-research-10",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "education-training-10",
+      "arm": "kimi-concise",
+      "order": 1
+    },
+    {
+      "caseId": "education-training-10",
+      "arm": "current-production",
+      "order": 2
+    },
+    {
+      "caseId": "brand-creative-10",
+      "arm": "current-production",
+      "order": 1
+    },
+    {
+      "caseId": "brand-creative-10",
+      "arm": "kimi-concise",
+      "order": 2
+    }
+  ],
+  "fixtureResults": [
+    {
+      "id": "data-particles",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-data-particles.pptx",
+      "expectedSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "status": "ok",
+      "actualSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f"
+    },
+    {
+      "id": "business-infographic",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-business-infographic.pptx",
+      "expectedSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "status": "ok",
+      "actualSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26"
+    },
+    {
+      "id": "minimal-business",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-minimal-business.pptx",
+      "expectedSha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334",
+      "status": "ok",
+      "actualSha256": "5076299de79a0c8ede47bb2f3c286a8e021ef0f7a55c991279ad03d4717ca334"
+    },
+    {
+      "id": "professional-minimalist",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-professional-minimalist.pptx",
+      "expectedSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "status": "ok",
+      "actualSha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab"
+    },
+    {
+      "id": "nasa-froste",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/nasa-froste-thermal-design.pptx",
+      "expectedSha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0",
+      "status": "ok",
+      "actualSha256": "41568341c527866c9c8917229d190bca8dc99f0a137e97343b2c30d03f1db7b0"
+    },
+    {
+      "id": "nasa-mms",
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/nasa-mms-machine-learning.pptx",
+      "expectedSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+      "status": "ok",
+      "actualSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723"
+    }
+  ],
+  "rawRuns": "outside-package-or-ignored"
+}

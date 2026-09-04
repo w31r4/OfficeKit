@@ -1,0 +1,14 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-blind-truth/v1",
+  "caseId": "analysis-decision-10",
+  "round": 2,
+  "slots": [
+    "A",
+    "B"
+  ],
+  "assignment": {
+    "A": "current-production",
+    "B": "kimi-concise"
+  },
+  "createdAt": "2026-09-03T12:30:55.096Z"
+}

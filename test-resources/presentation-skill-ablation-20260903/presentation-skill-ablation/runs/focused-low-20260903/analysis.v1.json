@@ -1,0 +1,237 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-analysis/v1",
+  "generatedAt": "2026-09-03T12:40:33.399Z",
+  "runRoot": "evals/presentation-skill-ablation/runs/focused-low-20260903",
+  "sample": {
+    "cases": 4,
+    "validHardGatePairs": 1,
+    "judgeRecords": 2,
+    "authorPairs": 1,
+    "judgedPairs": 1
+  },
+  "winners": {
+    "A": 1,
+    "B": 0,
+    "tie": 1
+  },
+  "routeWinners": {
+    "shared": 0,
+    "kimi": 0,
+    "tie": 1
+  },
+  "overall": {
+    "deltas": [],
+    "meanDelta": null,
+    "medianDelta": null,
+    "bootstrap95": {
+      "n": 0,
+      "low": null,
+      "high": null,
+      "median": null
+    },
+    "signTest": {
+      "n": 0,
+      "positive": 0,
+      "negative": 0,
+      "pTwoSided": 1
+    },
+    "pairedPermutation": {
+      "n": 0,
+      "method": "exact-sign-flip",
+      "pTwoSided": 1
+    }
+  },
+  "byLifecycle": {
+    "0-to-1": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null,
+      "bootstrap95": {
+        "n": 0,
+        "low": null,
+        "high": null,
+        "median": null
+      }
+    },
+    "1-to-10": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null,
+      "bootstrap95": {
+        "n": 0,
+        "low": null,
+        "high": null,
+        "median": null
+      }
+    }
+  },
+  "byScenario": {
+    "academic-research": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "analysis-decision": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "brand-creative": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "management-report": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    }
+  },
+  "byImage": {
+    "image": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    },
+    "non-image": {
+      "n": 0,
+      "meanDelta": null,
+      "medianDelta": null
+    }
+  },
+  "efficiency": {
+    "shared-what-kind-how": {
+      "n": 0,
+      "wallTimeMs": null,
+      "inputTokens": null,
+      "outputTokens": null,
+      "toolCalls": null,
+      "imageSearches": null,
+      "retries": null,
+      "renderReviewPasses": null
+    },
+    "kimi-concise": {
+      "n": 1,
+      "wallTimeMs": 1205489,
+      "inputTokens": null,
+      "outputTokens": null,
+      "toolCalls": 83,
+      "imageSearches": 0,
+      "retries": 0,
+      "renderReviewPasses": 19
+    }
+  },
+  "judgeAgreement": {
+    "n": 0,
+    "same": 0
+  },
+  "pairs": [
+    {
+      "caseId": "analysis-decision-10",
+      "scenario": "analysis-decision",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {
+        "current-production": "passed",
+        "kimi-concise": "passed"
+      },
+      "rounds": [
+        {
+          "round": 1,
+          "A": 57,
+          "B": 57,
+          "shared": null,
+          "kimi": 57,
+          "delta": null,
+          "winner": "tie",
+          "winnerArm": "tie",
+          "confidence": 5,
+          "eligible": false
+        },
+        {
+          "round": 2,
+          "A": 80,
+          "B": 70,
+          "shared": null,
+          "kimi": 70,
+          "delta": null,
+          "winner": "A",
+          "winnerArm": "current-production",
+          "confidence": 4,
+          "eligible": false
+        }
+      ],
+      "meanDelta": null,
+      "authors": {
+        "current-production": {
+          "durationMs": 1204949,
+          "usage": {
+            "jsonlEvents": 161,
+            "fileReads": 0,
+            "toolCalls": 145,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 15,
+            "buildPasses": 22,
+            "renderPasses": 17,
+            "reviewPasses": 21,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        },
+        "kimi-concise": {
+          "durationMs": 1205489,
+          "usage": {
+            "jsonlEvents": 96,
+            "fileReads": 0,
+            "toolCalls": 83,
+            "imageSearches": 0,
+            "retries": 0,
+            "checkPasses": 10,
+            "buildPasses": 31,
+            "renderPasses": 9,
+            "reviewPasses": 10,
+            "tokens": {}
+          },
+          "artifactStatus": "passed"
+        }
+      }
+    },
+    {
+      "caseId": "management-report-10",
+      "scenario": "management-report",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "academic-research-10",
+      "scenario": "academic-research",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    },
+    {
+      "caseId": "brand-creative-10",
+      "scenario": "brand-creative",
+      "lifecycle": "1-to-10",
+      "image": false,
+      "hardGate": {},
+      "rounds": [],
+      "meanDelta": null,
+      "authors": {}
+    }
+  ],
+  "limitations": [
+    "冻结设计为 n=12 探索性配对样本；当前已完成作者配对 1/12，盲评记录 2/24",
+    "No default Skill or production route is selected",
+    "Structural/render evidence is not PowerPoint playback evidence",
+    "Human calibration records are pending unless supplied separately"
+  ]
+}

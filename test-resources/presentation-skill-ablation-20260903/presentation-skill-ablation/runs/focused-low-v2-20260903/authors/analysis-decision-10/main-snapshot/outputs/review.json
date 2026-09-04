@@ -1,0 +1,30 @@
+{
+  "schema": "office-kit/presentation-review-evidence/v1",
+  "command": "node /Users/zfang/workspace/officekit-main-skill-eval-20260903/bin/officekit.mjs ppj review outputs/deck.ppj --json",
+  "verdict": "passed-with-limitations",
+  "programSha256": "fe975609c29b617259875d6b96eb2b9e0fc53ee75415f70af27bc311c50af4c6",
+  "candidateSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+  "sourceSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+  "sourceChanged": false,
+  "sourceBound": true,
+  "pages": 39,
+  "expandedElementCount": 1182,
+  "targetPage": {
+    "id": "page-ppt-slides-slide8.xml",
+    "pageIndex": 7,
+    "elementCount": 4,
+    "chartSurfacePresent": false,
+    "endpointSurfacePresent": false
+  },
+  "stages": {
+    "semanticEndpointValueLabel": "blocked-fail-closed",
+    "chartLabelLayerRepair": "blocked-fail-closed"
+  },
+  "cliVisualReview": "unavailable",
+  "manualRenderedInspection": "complete",
+  "warnings": [
+    "opaque_content_retained: 278 unsupported OPC parts or relationships retained",
+    "pre-existing frameOutsideCanvas warnings on non-target pages",
+    "missingOutputPath warning from review command"
+  ]
+}

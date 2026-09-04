@@ -1,0 +1,107 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-author-run/v1",
+  "caseId": "analysis-decision-10",
+  "scenario": "analysis-decision",
+  "lifecycle": "1-to-10",
+  "arm": "current-production",
+  "startedAt": "2026-09-03T11:27:21.426Z",
+  "finishedAt": "2026-09-03T11:47:27.281Z",
+  "workspace": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production",
+  "skillSha256": "8e595264e51bd54d897e3bd9dafafac6362a220dcec75f8ccb7a2706bc2c3b13",
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": 1200000,
+    "code": 0,
+    "signal": null,
+    "timedOut": true,
+    "durationMs": 1204949,
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/outputs/codex-final.txt",
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/codex-events.jsonl"
+  },
+  "usage": {
+    "jsonlEvents": 161,
+    "fileReads": 0,
+    "toolCalls": 145,
+    "imageSearches": 0,
+    "retries": 0,
+    "checkPasses": 15,
+    "buildPasses": 22,
+    "renderPasses": 17,
+    "reviewPasses": 21,
+    "tokens": {}
+  },
+  "artifact": {
+    "schema": "office-kit/presentation-skill-ablation-artifact-evidence/v1",
+    "caseId": "analysis-decision-10",
+    "lifecycle": "1-to-10",
+    "checkedAt": "2026-09-03T12:23:52.490Z",
+    "paths": {
+      "ppj": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/outputs/deck.ppj",
+      "pptx": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/outputs/deck.pptx"
+    },
+    "commands": [
+      {
+        "name": "check",
+        "code": 0,
+        "durationMs": 13785,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "durationMs": 18904,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "render",
+        "code": 0,
+        "durationMs": 56716,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/render--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/render--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      },
+      {
+        "name": "review",
+        "code": 0,
+        "durationMs": 20104,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/review--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/review--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      },
+      {
+        "name": "reimport",
+        "code": 0,
+        "durationMs": 8995,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/import--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/authors/analysis-decision-10/current-production/evidence/import--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      }
+    ],
+    "gates": {
+      "schema": "passed",
+      "build": "passed",
+      "render": "passed",
+      "review": "passed",
+      "reimport": "passed",
+      "overall": "passed"
+    },
+    "source": {
+      "fixtureId": "data-particles",
+      "targetPage": 8,
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-data-particles.pptx",
+      "sha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+      "status": "source-hash-ok",
+      "actualSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f"
+    },
+    "stableIds": {
+      "status": "ok",
+      "count": 1221,
+      "reimportOverlap": "1221/1221"
+    },
+    "metrics": {
+      "ppjBytes": 5951265,
+      "pptxBytes": 3382810
+    }
+  },
+  "artifactReauditedAt": "2026-09-03T12:25:51.254Z"
+}

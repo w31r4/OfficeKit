@@ -1,0 +1,100 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-author-run/v1",
+  "caseId": "management-report-10",
+  "scenario": "management-report",
+  "lifecycle": "1-to-10",
+  "arm": "kimi-concise",
+  "startedAt": "2026-09-03T12:51:22.315Z",
+  "finishedAt": "2026-09-03T13:02:01.722Z",
+  "workspace": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2",
+  "skillSha256": "df1a4e998991d91a259456ff670d7323a7a369c3e8922206e68848dad86bc31e",
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": 900000,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 639407,
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/outputs/codex-final.txt",
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/codex-events.jsonl"
+  },
+  "usage": {},
+  "artifact": {
+    "schema": "office-kit/presentation-skill-ablation-artifact-evidence/v1",
+    "caseId": "management-report-10",
+    "lifecycle": "1-to-10",
+    "checkedAt": "2026-09-03T13:09:54.584Z",
+    "paths": {
+      "ppj": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/outputs/deck.ppj",
+      "pptx": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/outputs/deck.pptx"
+    },
+    "commands": [
+      {
+        "name": "check",
+        "code": 1,
+        "durationMs": 22286,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "durationMs": 6009,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "render",
+        "code": 0,
+        "durationMs": 63172,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/render--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/render--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      },
+      {
+        "name": "review",
+        "code": 0,
+        "durationMs": 14337,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/review--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/review--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      },
+      {
+        "name": "reimport",
+        "code": 0,
+        "durationMs": 8549,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/import--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/management-report-10/kimi-concise-v2/evidence/import--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentat.stderr"
+      }
+    ],
+    "gates": {
+      "schema": "failed",
+      "build": "passed",
+      "render": "passed",
+      "review": "passed",
+      "reimport": "passed",
+      "overall": "failed"
+    },
+    "source": {
+      "fixtureId": "business-infographic",
+      "targetPage": 7,
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-business-infographic.pptx",
+      "sha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26",
+      "status": "source-hash-ok",
+      "actualSha256": "8db900eb9fbc5375d6b69eccffebd5ebb002f2f6641a89f19364a74e1d7e1e26"
+    },
+    "stableIds": {
+      "status": "ok",
+      "count": 869,
+      "reimportOverlap": "869/869"
+    },
+    "metrics": {
+      "ppjBytes": 2873355,
+      "pptxBytes": 19436055
+    }
+  },
+  "retest": {
+    "controlWorkspace": false,
+    "v2Skill": true,
+    "preimportedBase": true
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-judge-run/v1",
+  "caseId": "academic-research-10",
+  "round": 1,
+  "startedAt": "2026-09-03T13:41:53.547Z",
+  "finishedAt": "2026-09-03T13:43:19.495Z",
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": "600000",
+    "code": 0,
+    "durationMs": 85947,
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-1/academic-research-10/judge/events.jsonl",
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-1/academic-research-10/judge/final.txt"
+  },
+  "usage": {
+    "jsonlEvents": 12,
+    "fileReads": 0,
+    "toolCalls": 6,
+    "imageSearches": 0,
+    "retries": 0,
+    "checkPasses": 0,
+    "buildPasses": 0,
+    "renderPasses": 0,
+    "reviewPasses": 0,
+    "tokens": {
+      "inputTokens": 126279,
+      "outputTokens": 3207
+    }
+  },
+  "score": {
+    "caseId": "academic-research-10",
+    "round": 1,
+    "scores": {
+      "A": {
+        "communicationEvidence": 4,
+        "hierarchyReadabilityOccupancy": 4,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 3,
+        "layerLayoutRender": 4,
+        "displayMediumFit": 4,
+        "completionPolish": 4
+      },
+      "B": {
+        "communicationEvidence": 4,
+        "hierarchyReadabilityOccupancy": 4,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 3,
+        "layerLayoutRender": 4,
+        "displayMediumFit": 4,
+        "completionPolish": 4
+      }
+    },
+    "winner": "tie",
+    "confidence": 5,
+    "hardGate": {
+      "A": "passed",
+      "B": "passed"
+    },
+    "reason": "A and B render identically across all supplied pages. Method and training flows are legible, attribution is retained, and no number or footnote appears hidden. The layout is consistent and usable, though somewhat text-heavy and visually dated, with chart labels and fine details less polished."
+  },
+  "status": "valid"
+}

@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-judge-run/v1",
+  "caseId": "analysis-decision-10",
+  "round": 1,
+  "startedAt": "2026-09-03T13:40:17.930Z",
+  "finishedAt": "2026-09-03T13:42:19.980Z",
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": "600000",
+    "code": 0,
+    "durationMs": 122047,
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-1/analysis-decision-10/judge/events.jsonl",
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-1/analysis-decision-10/judge/final.txt"
+  },
+  "usage": {
+    "jsonlEvents": 15,
+    "fileReads": 0,
+    "toolCalls": 8,
+    "imageSearches": 0,
+    "retries": 0,
+    "checkPasses": 0,
+    "buildPasses": 0,
+    "renderPasses": 0,
+    "reviewPasses": 2,
+    "tokens": {
+      "inputTokens": 142229,
+      "outputTokens": 4599
+    }
+  },
+  "score": {
+    "caseId": "analysis-decision-10",
+    "round": 1,
+    "scores": {
+      "A": {
+        "communicationEvidence": 2,
+        "hierarchyReadabilityOccupancy": 3,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 3,
+        "layerLayoutRender": 3,
+        "displayMediumFit": 3,
+        "completionPolish": 2
+      },
+      "B": {
+        "communicationEvidence": 2,
+        "hierarchyReadabilityOccupancy": 3,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 3,
+        "layerLayoutRender": 3,
+        "displayMediumFit": 3,
+        "completionPolish": 2
+      }
+    },
+    "winner": "tie",
+    "confidence": 5,
+    "hardGate": {
+      "A": "passed",
+      "B": "passed"
+    },
+    "reason": "A and B are pixel-identical. The shown slides are coherent and readable, but they do not evidence the requested chart, endpoint metric update, or repaired callout overlap; both structural hard gates pass."
+  },
+  "status": "valid"
+}

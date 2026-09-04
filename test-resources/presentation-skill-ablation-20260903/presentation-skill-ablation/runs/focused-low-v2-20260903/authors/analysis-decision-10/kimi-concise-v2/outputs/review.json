@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "artifactKind": "presentation",
+  "command": "node /Users/zfang/workspace/officekit-main-skill-eval-20260903/bin/officekit.mjs ppj review outputs/deck.ppj --json",
+  "programSha256": "fe975609c29b617259875d6b96eb2b9e0fc53ee75415f70af27bc311c50af4c6",
+  "candidateSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+  "sourceSha256": "07cd6c7e3c12335716fbfddb1ccde353c9d21959427e2639dea29eca1573464f",
+  "sourceBound": true,
+  "verdict": "passed-with-limitations",
+  "semanticStatus": "passed-with-warnings",
+  "structuralStatus": "passed-with-warnings",
+  "layoutStatus": "passed-with-warnings",
+  "layoutIssueCount": 256,
+  "targetPageLayoutIssues": [],
+  "semanticIssueTypes": [
+    {
+      "type": "opaque_content_retained",
+      "count": 1
+    }
+  ],
+  "deliveryStatus": "ready-with-warnings",
+  "deliverySourceChanged": false,
+  "playbackEvidence": "structural",
+  "visualReview": "unavailable",
+  "limitations": [
+    "The existing source-bound projection retains 278 unsupported OPC parts or relationships.",
+    "The review reports 256 existing frameOutsideCanvas warnings outside target page 8.",
+    "The review invocation has structural playback evidence only and no provider text view."
+  ]
+}

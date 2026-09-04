@@ -1,0 +1,11 @@
+Reading prompt from stdin...
+2026-09-03T12:58:24.719096Z ERROR codex_models_manager::cache: failed to load models cache: missing field `base_instructions` at line 95 column 5
+2026-09-03T12:59:54.788598Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:00:04.304761Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:00:17.512939Z ERROR codex_core::tools::router: error=exec_command failed for `/bin/zsh -lc 'rm -rf /private/tmp/officekit-baseline-nasa-mms && mkdir -p /private/tmp/officekit-baseline-nasa-mms && node /Users/zfang/workspace/officekit-main-skill-eval-20260903/bin/officekit.mjs ppj render outputs/deck.ppj -o /private/tmp/officekit-baseline-nasa-mms --pages 8-10 --json'`: CreateProcess { message: "Rejected(\"`/bin/zsh -lc 'rm -rf /private/tmp/officekit-baseline-nasa-mms && mkdir -p /private/tmp/officekit-baseline-nasa-mms && node /Users/zfang/workspace/officekit-main-skill-eval-20260903/bin/officekit.mjs ppj render outputs/deck.ppj -o /private/tmp/officekit-baseline-nasa-mms --pages 8-10 --json'` rejected: rm -f style commands are not permitted. Use a safer approach\")" }
+2026-09-03T13:00:17.545225Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:00:25.365403Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:02:51.886711Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:03:19.776274Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 93 column 5
+2026-09-03T13:04:50.070766Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5
+2026-09-03T13:05:06.310694Z ERROR codex_models_manager::manager: failed to renew cache TTL: missing field `base_instructions` at line 95 column 5

@@ -1,0 +1,9 @@
+Completed with both stages correctly left unchanged under fail-closed rules: page 9 has no sample-size/result-label surface or typed table/chart.
+
+- [deck.ppj](.../outputs/deck.ppj) and [deck.pptx](.../outputs/deck.pptx)
+- PPTX SHA-256 matches source: `531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723`
+- Rendered pages 8–10 and inspected them manually.
+- Review: `passed-with-limitations`; re-import passed with stable IDs preserved.
+- [author-report.md](.../outputs/author-report.md)
+- [review.json](.../outputs/review.json)
+- [reimport.ppj](.../evidence/reimport.ppj)

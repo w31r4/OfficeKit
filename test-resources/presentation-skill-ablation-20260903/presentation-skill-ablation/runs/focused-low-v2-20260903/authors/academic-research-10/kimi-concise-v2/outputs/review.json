@@ -1,0 +1,48 @@
+{
+  "schema": "office-kit/ppj-review-summary/v1",
+  "verdict": "passed-with-limitations",
+  "sourceBound": true,
+  "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+  "programSha256": "824421f73c1f979d6dddc099e6e0ecfd9ac7255b49d3c17eaa5d1830162ee0fd",
+  "outputSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+  "pages": 21,
+  "expandedElementCount": 329,
+  "check": {
+    "valid": true,
+    "canonical": true,
+    "changedNodeIds": []
+  },
+  "build": {
+    "changedParts": [],
+    "changedNodeIds": [],
+    "outputMatchesSource": true
+  },
+  "render": {
+    "selectedPages": [8, 9, 10],
+    "renderer": "libreoffice-poppler",
+    "renderEvidence": "native-file-render",
+    "manualInspection": true,
+    "visualReview": "unavailable"
+  },
+  "roundTrip": {
+    "status": "passed",
+    "reimport": "evidence/reimport.ppj",
+    "sourceSha256": "531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723",
+    "pages": 21,
+    "expandedElementCount": 329,
+    "pageAndTargetObjectHashDiff": false
+  },
+  "stageDecisions": {
+    "nativeNoteResultLabel": "blocked-surface-absent",
+    "tableChartAlignmentLabelRepair": "blocked-surface-absent"
+  },
+  "playbackEvidence": "structural",
+  "warnings": [
+    "opaque_content_retained",
+    "pre-existing frameOutsideCanvas warnings",
+    "pre-existing excessiveMotionUnits warnings",
+    "visualReview unavailable",
+    "desktop playback not observed",
+    "review command had no publication output path"
+  ]
+}

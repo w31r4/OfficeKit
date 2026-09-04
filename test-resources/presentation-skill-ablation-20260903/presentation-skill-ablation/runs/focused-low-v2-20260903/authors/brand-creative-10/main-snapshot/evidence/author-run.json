@@ -1,0 +1,75 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-author-run/v1",
+  "caseId": "brand-creative-10",
+  "scenario": "brand-creative",
+  "lifecycle": "1-to-10",
+  "arm": "shared-what-kind-how",
+  "startedAt": "2026-09-03T13:02:01.724Z",
+  "finishedAt": "2026-09-03T13:09:07.308Z",
+  "workspace": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot",
+  "skillSha256": "8e595264e51bd54d897e3bd9dafafac6362a220dcec75f8ccb7a2706bc2c3b13",
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": 900000,
+    "code": 0,
+    "signal": null,
+    "timedOut": false,
+    "durationMs": 425584,
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/outputs/codex-final.txt",
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/evidence/codex-events.jsonl"
+  },
+  "usage": {},
+  "artifact": {
+    "schema": "office-kit/presentation-skill-ablation-artifact-evidence/v1",
+    "caseId": "brand-creative-10",
+    "lifecycle": "1-to-10",
+    "checkedAt": "2026-09-03T13:09:55.056Z",
+    "paths": {
+      "ppj": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/outputs/deck.ppj",
+      "pptx": null
+    },
+    "commands": [
+      {
+        "name": "check",
+        "code": 0,
+        "durationMs": 18397,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/evidence/check--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      },
+      {
+        "name": "build",
+        "code": 0,
+        "durationMs": 4934,
+        "stdoutPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stdout",
+        "stderrPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/brand-creative-10/main-snapshot/evidence/build--Users-zfang-workspace-officekit-main-skill-eval-20260903-evals-presentati.stderr"
+      }
+    ],
+    "gates": {
+      "schema": "passed",
+      "build": "passed",
+      "render": "not-run-no-pptx",
+      "review": "not-run-no-pptx",
+      "overall": "failed"
+    },
+    "source": {
+      "fixtureId": "professional-minimalist",
+      "targetPage": 4,
+      "path": "/Users/zfang/workspace/open-office-artifact-tool/tmp/reference-pptx-downloads/slidescarnival-professional-minimalist.pptx",
+      "sha256": "ed26f074e25361e4baf76d1cc2508596655b9d4f3fc2c659ecd962f76e0547ab",
+      "status": "unverified"
+    },
+    "stableIds": {
+      "status": "ok",
+      "count": 211
+    },
+    "metrics": {
+      "ppjBytes": 1140050
+    }
+  },
+  "retest": {
+    "controlWorkspace": true,
+    "v2Skill": false,
+    "preimportedBase": true
+  }
+}

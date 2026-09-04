@@ -1,0 +1,14 @@
+Completed the required no-op, fail-closed workflow.
+
+- Page 9 lacks the requested sample-size/result-label and typed table/chart surfaces, so both serial stages remained unchanged.
+- PPJ check/build/review passed with limitations.
+- PPTX hash matches the source: `531c82797fde09b1ebe1e868ca9cd44c3e2f675dc8f09f58b54bab6a62629723`.
+- Rendered and inspected pages 8–10; reimport audit preserved IDs and hashes.
+
+Files:
+
+- [deck.ppj](/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/academic-research-10/kimi-concise-v2/outputs/deck.ppj)
+- [deck.pptx](/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/academic-research-10/kimi-concise-v2/outputs/deck.pptx)
+- [author-report.md](/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/academic-research-10/kimi-concise-v2/outputs/author-report.md)
+- [review.json](/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/academic-research-10/kimi-concise-v2/outputs/review.json)
+- [reimport.ppj](/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/authors/academic-research-10/kimi-concise-v2/evidence/reimport.ppj)

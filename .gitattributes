@@ -2,3 +2,10 @@ test/fixtures/pdf/*.pdf binary
 evals/assets/**/*.pdf binary
 scripts/pdf-provider-*.json text eol=lf
 examples/presentation-template-references/kimi/**/design.md whitespace=-trailing-space
+
+# Keep the large binary outputs of the dated presentation ablation archive in LFS.
+test-resources/presentation-skill-ablation-20260903/**/*.png filter=lfs diff=lfs merge=lfs -text
+test-resources/presentation-skill-ablation-20260903/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+test-resources/presentation-skill-ablation-20260903/**/*.jpeg filter=lfs diff=lfs merge=lfs -text
+test-resources/presentation-skill-ablation-20260903/**/*.pptx filter=lfs diff=lfs merge=lfs -text
+test-resources/presentation-skill-ablation-20260903/**/*.pdf filter=lfs diff=lfs merge=lfs -text

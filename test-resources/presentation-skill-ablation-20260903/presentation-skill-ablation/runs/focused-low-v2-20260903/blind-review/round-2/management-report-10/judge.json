@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-judge-run/v1",
+  "caseId": "management-report-10",
+  "round": 2,
+  "startedAt": "2026-09-03T13:45:26.393Z",
+  "finishedAt": "2026-09-03T13:52:55.340Z",
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": "600000",
+    "code": 0,
+    "durationMs": 448940,
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-2/management-report-10/judge/events.jsonl",
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-v2-20260903/blind-review/round-2/management-report-10/judge/final.txt"
+  },
+  "usage": {
+    "jsonlEvents": 62,
+    "fileReads": 0,
+    "toolCalls": 56,
+    "imageSearches": 0,
+    "retries": 0,
+    "checkPasses": 12,
+    "buildPasses": 11,
+    "renderPasses": 15,
+    "reviewPasses": 24,
+    "tokens": {
+      "inputTokens": 3180981,
+      "outputTokens": 17732
+    }
+  },
+  "score": {
+    "caseId": "management-report-10",
+    "round": 2,
+    "scores": {
+      "A": {
+        "communicationEvidence": 3,
+        "hierarchyReadabilityOccupancy": 4,
+        "designCraftSpecificity": 3,
+        "functionalEditability": 4,
+        "layerLayoutRender": 4,
+        "displayMediumFit": 4,
+        "completionPolish": 3
+      },
+      "B": {
+        "communicationEvidence": 1,
+        "hierarchyReadabilityOccupancy": 1,
+        "designCraftSpecificity": 1,
+        "functionalEditability": 1,
+        "layerLayoutRender": 1,
+        "displayMediumFit": 1,
+        "completionPolish": 1
+      }
+    },
+    "winner": "A",
+    "confidence": 5,
+    "hardGate": {
+      "A": "passed",
+      "B": "failed"
+    },
+    "reason": "A renders cleanly with balanced hierarchy, though generic copy and series labels limit specificity. B has a reported non-retryable ppj.schema.pattern hard-gate failure and is disqualified regardless of appearance."
+  },
+  "status": "valid"
+}

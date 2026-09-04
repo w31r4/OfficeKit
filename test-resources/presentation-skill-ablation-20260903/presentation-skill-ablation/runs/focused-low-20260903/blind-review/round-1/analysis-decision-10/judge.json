@@ -1,0 +1,67 @@
+{
+  "schema": "office-kit/presentation-skill-ablation-judge-run/v1",
+  "caseId": "analysis-decision-10",
+  "round": 1,
+  "startedAt": "2026-09-03T12:30:55.116Z",
+  "finishedAt": "2026-09-03T12:37:55.181Z",
+  "assignment": {
+    "A": "redacted",
+    "B": "redacted"
+  },
+  "codex": {
+    "model": "gpt-5.6-luna",
+    "reasoningEffort": "max",
+    "timeoutMs": "600000",
+    "code": 0,
+    "durationMs": 420051,
+    "eventPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/blind-review/round-1/analysis-decision-10/judge/events.jsonl",
+    "finalPath": "/Users/zfang/workspace/officekit-main-skill-eval-20260903/evals/presentation-skill-ablation/runs/focused-low-20260903/blind-review/round-1/analysis-decision-10/judge/final.txt"
+  },
+  "usage": {
+    "jsonlEvents": 41,
+    "fileReads": 0,
+    "toolCalls": 36,
+    "imageSearches": 1,
+    "retries": 0,
+    "checkPasses": 8,
+    "buildPasses": 8,
+    "renderPasses": 10,
+    "reviewPasses": 21,
+    "tokens": {
+      "inputTokens": 1189241,
+      "outputTokens": 15065
+    }
+  },
+  "score": {
+    "caseId": "analysis-decision-10",
+    "round": 1,
+    "scores": {
+      "A": {
+        "communicationEvidence": 2,
+        "hierarchyReadabilityOccupancy": 3,
+        "designCraftSpecificity": 4,
+        "functionalEditability": 2,
+        "layerLayoutRender": 3,
+        "displayMediumFit": 4,
+        "completionPolish": 1
+      },
+      "B": {
+        "communicationEvidence": 2,
+        "hierarchyReadabilityOccupancy": 3,
+        "designCraftSpecificity": 4,
+        "functionalEditability": 2,
+        "layerLayoutRender": 3,
+        "displayMediumFit": 4,
+        "completionPolish": 1
+      }
+    },
+    "winner": "tie",
+    "confidence": 5,
+    "hardGate": {
+      "A": "passed",
+      "B": "passed"
+    },
+    "reason": "A and B are byte-identical source-bound artifacts; schema/build/render/re-import pass, but changedParts and changedNodeIds are empty. The rendered pages are legible and stylistically coherent, yet no endpoint metric/label update or bars/line/callout overlap repair is evidenced."
+  },
+  "status": "valid"
+}
